@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store'
@@ -12,7 +12,6 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const { user, login, error } = useAuthStore()
   const { branding } = useBranding()
-  const navigate = useNavigate()
   const location = useLocation()
 
   // Page demandée avant la connexion (par exemple la signature sur le téléphone du formateur)
@@ -28,10 +27,9 @@ export default function Login() {
     const result = await login(email.trim(), password)
     if (result.error) {
       toast.error(result.error)
-    } else {
-      navigate(from, { replace: true })
+      setIsLoading(false)
     }
-    setIsLoading(false)
+    // Connexion réussie : la redirection est faite par <Navigate> ci-dessus dès que l'utilisateur est en mémoire
   }
 
   const logo = brandLogo(branding, false)

@@ -2,7 +2,7 @@ import { useEffect, lazy, Suspense } from 'react'
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from '../core/store'
-import { BrandingProvider } from '../core/branding/BrandingProvider'
+import { BrandingProvider, useBranding } from '../core/branding/BrandingProvider'
 
 // ─── Chargement immédiat (pages critiques) ───────────────────
 import Layout from './Layout'
@@ -22,6 +22,8 @@ const SessionDetail = lazy(() => import('../modules/formation/pages/SessionDetai
 const Documents = lazy(() => import('../modules/formation/pages/Documents'))
 const DocumentsVierges = lazy(() => import('../modules/formation/pages/DocumentsVierges'))
 const Settings = lazy(() => import('../core/settings/Settings'))
+const SetupWizard = lazy(() => import('../core/setup/SetupWizard'))
+const Console = lazy(() => import('../core/console/Console'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
 const Indicateurs = lazy(() => import('../modules/qualite/pages/Indicateurs'))
@@ -75,7 +77,15 @@ function PageLoader() {
 // Composant de protection des routes — redirige le comptable vers /comptable
 function PrivateRoute({ children }) {
   const { user, userRole, loading } = useAuthStore()
+  const { branding, loaded } = useBranding()
   const location = useLocation()
+  const navigate = useNavigate()
+
+  // Instance pas encore configurée : l'administrateur passe par l'assistant
+  const needsSetup = !loading && !!user && loaded && branding.setup_completed === false && ['superadmin', 'admin'].includes(userRole) && location.pathname !== '/setup'
+  useEffect(() => {
+    if (needsSetup) navigate('/setup', { replace: true })
+  }, [needsSetup, navigate, location.pathname])
 
   if (loading) {
     return (
@@ -94,6 +104,8 @@ function PrivateRoute({ children }) {
   if (userRole === 'comptable') {
     return <Navigate to="/comptable" replace />
   }
+
+  if (needsSetup) return <PageLoader />
 
   return children
 }
@@ -180,7 +192,14 @@ export default function App() {
             </ComptableRoute>
           } />
 
-          {/* Signature sur le téléphone du formateur — plein écran, hors menu */}
+          {/* Assistant de configuration : plein écran, hors menu */}
+          <Route path="/setup" element={
+            <PrivateRoute>
+              <SetupWizard />
+            </PrivateRoute>
+          } />
+
+          {/* Signature sur le téléphone du formateur : plein écran, hors menu */}
           <Route path="/signature/:sessionId" element={
             <PrivateRoute>
               <SignatureFormateur />
@@ -227,6 +246,7 @@ export default function App() {
             <Route path="veille-qualiopi" element={<VeilleQualiopi />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="parametres" element={<Settings />} />
+            <Route path="console" element={<Console />} />
             <Route path="settings/email" element={<EmailSettings />} />
           </Route>
 
