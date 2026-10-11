@@ -126,7 +126,8 @@ export default function ClientPortal() {
         const trainerSignatureBase64 = trainer?.signature_url ? await urlToDataUrl(trainer.signature_url) : null
         const hasAttendance = (s.halfdays || []).length > 0 || (s.proxies || []).length > 0
         out = await generatePDF('emargement', session, {
-          trainees, trainer, isBlank: !hasAttendance,
+          // Jamais vierge ici : sans signature, la feuille garde l'intitulé, les dates et les noms
+          trainees, trainer, isBlank: false,
           attendanceData: hasAttendance ? { signatures: [], halfdays: s.halfdays || [], proxies: s.proxies || [], absents, trainerSignatureBase64 } : null,
         })
       } else if (kind === 'attestations') {
