@@ -4,6 +4,10 @@ import { format, eachDayOfInterval, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import QRCode from 'qrcode'
 import { buildORG, publicBaseUrl, prepareOrgForPDF } from '../../../core/org/orgUtils'
+import {
+  PAGE_MARGIN, drawHeaderBand, drawRunningHeader, drawFooter, numberPages, drawDocTitle, drawSectionTitle,
+  drawPartyCard, drawKeyValues, drawCheckmark, drawImageFitted, formatMoney, formatHour,
+} from '../../../core/pdf/layout'
 
 import { APP_VERSION } from '../../../core/version'
 // Codes documentaires : préfixe propre à l'organisme (ORG.doc_prefix) + code du type de document
@@ -83,7 +87,7 @@ function getStagiaireWithArticle(gender) {
 const STAMP_BASE64 = null
 
 const formatDate = (d) => d ? format(new Date(d), 'dd/MM/yyyy') : ''
-const formatDateLong = (d) => d ? format(new Date(d), 'd MMMM yyyy', { locale: fr }) : ''
+const formatDateLong = (d) => d ? format(new Date(d), 'EEEE d MMMM yyyy', { locale: fr }) : ''
 
 // Helper pour obtenir les infos de contact pour une session
 // Priorité: 1) contact spécifique session > 2) contact "documents" du client > 3) contact générique
@@ -273,388 +277,232 @@ function getLocation(session) {
 
 // ============================================================
 // CONVENTION DE FORMATION
+// Mise en page : core/pdf/layout.js. Références légales : L6353-1 et D6353-1 (convention),
+// L6354-1 (inexécution). Aucune donnée d'organisme en dur : tout vient de ORG.
 // ============================================================
 function generateConvention(session, trainees = [], trainer = null, costs = []) {
   const doc = new jsPDF({ compress: true })
   const pw = doc.internal.pageSize.getWidth()
+  const M = PAGE_MARGIN
+  const W = pw - M * 2
+  const t = T()
   const client = session?.clients || {}
   const course = session?.courses || {}
   const ref = session?.reference || ''
   const lieu = getLocation(session)
-  const contact = getSessionContact(session)
   const signatory = getSessionSignatory(session)
-  
-  let y = addHeader(doc, ref)
-  y = addTitle(doc, 'CONVENTION DE FORMATION PROFESSIONNELLE', y)
-  
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'italic')
-  doc.text('Conformément aux articles L6353-1 à L6353-9 et D6313-3-1 du Code du travail', pw / 2, y, { align: 'center' })
-  y += 10
-  
-  // ═══════════════════════════════════════════════════════════
-  // ENTRE LES SOUSSIGNÉS - Plus espacé avec ligne de séparation
-  // ═══════════════════════════════════════════════════════════
-  doc.setDrawColor(100, 100, 100)
-  doc.setLineWidth(0.3)
-  doc.line(20, y, pw - 20, y)
-  y += 6
-  
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  doc.text('ENTRE LES SOUSSIGNÉS', pw / 2, y, { align: 'center' })
+  const CODE = DOC_CODES.convention
+  const docLabel = 'Convention de formation'
+
+  let y = drawHeaderBand(doc, ORG, { ref, docLabel })
+  y = drawDocTitle(doc, ORG, 'Convention de formation professionnelle', 'Articles L6353-1 et D6353-1 du Code du travail', y)
+
+  // ── Les parties, côte à côte ──
+  const gap = 6
+  const colW = (W - gap) / 2
+  const ofLines = [
+    ORG.nameFull || ORG.name,
+    ORG.address,
+    `SIRET ${ORG.siret}`,
+    `NDA ${ORG.nda}`,
+    `Représenté par ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}`,
+  ]
+  const clientAddr = [client.address, [client.postal_code, client.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+  const benefLines = [
+    client.name || '',
+    clientAddr,
+    client.siret ? `SIRET ${client.siret}` : 'SIRET non renseigné',
+    `Représenté par ${signatory.name || ''}${signatory.role ? ', ' + signatory.role : ''}`,
+  ]
+  while (benefLines.length < ofLines.length) benefLines.push('')
+  const y1 = drawPartyCard(doc, ORG, M, y, colW, "L'organisme de formation", ofLines, "ci-après « l'Organisme de formation »")
+  const y2 = drawPartyCard(doc, ORG, M + colW + gap, y, colW, 'Le bénéficiaire', benefLines, 'ci-après « le Bénéficiaire »')
+  y = Math.max(y1, y2) + 10
+
+  // ── Synthèse de l'action ──
+  y = drawSectionTitle(doc, ORG, "L'action de formation", y)
+  const nbDays = parseInt(course.duration_days, 10) || 1
+  const hours = parseFloat(course.duration_hours || course.duration || 7)
+  const dureeTxt = `${hours.toLocaleString('fr-FR')} heures${nbDays > 1 ? ` sur ${nbDays} jours` : ''}`
+  const datesTxt = session?.start_date === session?.end_date
+    ? `Le ${formatDateLong(session?.start_date)}`
+    : `Du ${formatDateLong(session?.start_date)} au ${formatDateLong(session?.end_date)}`
+  const fundingLabels = { opco: 'OPCO', cpf: 'CPF (Compte personnel de formation)', faf: "FAF (Fonds d'assurance formation)", region: 'Région', france_travail: 'France Travail', ptp: 'PTP (Projet de transition professionnelle)', fne: 'FNE (Fonds national de l\'emploi)', direct: 'Financement direct', other: 'Autre' }
+  const rows = [
+    ['Intitulé', course.title || ''],
+    ["Type d'action", 'Action de formation'],
+    ['Dates', `${datesTxt}, de ${formatHour(session?.start_time)} à ${formatHour(session?.end_time)}`],
+    ['Durée', dureeTxt],
+    ['Lieu', lieu || 'À définir'],
+    ['Effectif', `${trainees.length} participant${trainees.length > 1 ? 's' : ''}`],
+    ['Public', course.target_audience || 'Tout public'],
+    ['Prérequis', course.prerequisites || 'Aucun'],
+    ['Formateur', trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant],
+  ]
+  if (session?.funding_type && session.funding_type !== 'none') {
+    rows.push(['Financement', `${fundingLabels[session.funding_type] || session.funding_type}${session.funding_details ? ` (${session.funding_details})` : ''}`])
+  }
+  y = drawKeyValues(doc, ORG, M, y, W, rows)
   y += 8
-  
-  // ─────────────────────────────────────────────────────────
-  // ORGANISME DE FORMATION - Bloc avec fond léger
-  // ─────────────────────────────────────────────────────────
-  doc.setFillColor(248, 250, 252)
-  doc.roundedRect(18, y - 2, pw - 36, 38, 2, 2, 'F')
-  
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...T().primary)
-  doc.text("L'ORGANISME DE FORMATION", 22, y + 4)
-  doc.setTextColor(0, 0, 0)
-  
-  y += 10
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.text(ORG.nameFull, 22, y); y += 4
-  doc.text(`SIRET : ${ORG.siret}  |  NDA : ${ORG.nda}`, 22, y); y += 4
-  doc.text(`Siège : ${ORG.address}`, 22, y); y += 4
-  doc.text(`Représenté par : ${ORG.dirigeant}, Dirigeant`, 22, y); y += 4
-  doc.text(`Tél. : ${ORG.phone}  |  Courriel : ${ORG.email}`, 22, y); y += 4
-  doc.setFont('helvetica', 'italic')
-  doc.text('Ci-après dénommé « l\'Organisme de Formation »', 22, y)
-  y += 10
-  
-  // ET
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.text('ET', pw / 2, y, { align: 'center' })
-  y += 8
-  
-  // ─────────────────────────────────────────────────────────
-  // BÉNÉFICIAIRE - Bloc avec fond léger
-  // ─────────────────────────────────────────────────────────
-  const benefHeight = contact.role ? 34 : 30
-  doc.setFillColor(248, 250, 252)
-  doc.roundedRect(18, y - 2, pw - 36, benefHeight, 2, 2, 'F')
-  
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...T().primary)
-  doc.text("LE BÉNÉFICIAIRE", 22, y + 4)
-  doc.setTextColor(0, 0, 0)
-  
-  y += 10
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.text(`Raison sociale : ${client.name || ''}`, 22, y); y += 4
-  doc.text(`Adresse : ${client.address || ''}`, 22, y); y += 4
-  doc.text(`Représenté par : ${signatory.name || ''}${signatory.role ? '  |  Fonction : ' + signatory.role : ''}`, 22, y); y += 4
-  doc.text(`SIRET : ${client.siret || ''}`, 22, y); y += 4
-  doc.setFont('helvetica', 'italic')
-  doc.text('Ci-après dénommé « le Bénéficiaire »', 22, y)
-  y += 12
-  
-  // Pied de page 1 et nouvelle page pour les articles
-  addFooter(doc, DOC_CODES.convention)
-  doc.addPage()
-  y = 25
-  
-  // ═══════════════════════════════════════════════════════════
-  // ARTICLE 1 - Commence en page 2
-  // ═══════════════════════════════════════════════════════════
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(0, 51, 102)
-  doc.text('ARTICLE 1 - Objet, durée et effectif de la formation', 20, y)
-  doc.setTextColor(0, 0, 0)
-  y += 7
-  
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.text('Le Bénéficiaire souhaite faire participer une partie de son personnel à la formation suivante :', 20, y)
-  y += 7
-  
-  // Tableau des infos formation
-  doc.setFont('helvetica', 'bold')
-  doc.text('Intitulé :', 20, y)
-  doc.setFont('helvetica', 'normal')
-  doc.text(course.title || '', 55, y); y += 5
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text("Type d'action :", 20, y)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Action de formation', 55, y); y += 5
-  
-  // Objectifs avec retour à la ligne si nécessaire
-  doc.setFont('helvetica', 'bold')
-  doc.text('Objectif(s) :', 20, y)
-  doc.setFont('helvetica', 'normal')
-  const objText = course.objectives || ''
-  if (objText.length > 70) {
-    const objLines = doc.splitTextToSize(objText, 135)
-    doc.text(objLines[0], 55, y); y += 4
-    for (let i = 1; i < objLines.length; i++) {
-      doc.text(objLines[i], 55, y); y += 4
-    }
-  } else {
-    doc.text(objText, 55, y); y += 5
-  }
-  y += 2
-  
-  // Liste des stagiaires si présents
-  if (trainees.length > 0) {
-    // Vérifier si on a besoin d'une nouvelle page
-    const traineeHeight = trainees.length * 4 + 10
-    if (y + traineeHeight > 270) {
-      addFooter(doc, DOC_CODES.convention)
-      doc.addPage()
-      y = 25
-    }
-    
-    doc.setFont('helvetica', 'bold')
-    doc.text('Apprenants désignés par le Bénéficiaire :', 20, y); y += 5
-    doc.setFont('helvetica', 'normal')
-    trainees.forEach((t, idx) => { 
-      doc.text(`${idx + 1}. ${t.last_name?.toUpperCase() || ''} ${t.first_name || ''}`, 25, y); y += 4 
-    })
-    y += 3
-  }
-  
-  // Mention du type de financement si renseigné
-  if (session.funding_type && session.funding_type !== 'none') {
-    // Vérifier si on a assez d'espace
-    if (y + 15 > 270) {
-      addFooter(doc, DOC_CODES.convention)
-      doc.addPage()
-      y = 25
-    }
-    
-    const fundingLabels = {
-      opco: 'OPCO',
-      cpf: 'CPF (Compte Personnel de Formation)',
-      faf: 'FAF (Fonds d\'Assurance Formation)',
-      region: 'Région',
-      france_travail: 'France Travail',
-      ptp: 'PTP (Plan de Transition Professionnel)',
-      fne: 'FNE (Fonds National de l\'Emploi)',
-      direct: 'Financement direct',
-      other: 'Autre'
-    }
-    
-    doc.setFont('helvetica', 'bold')
-    doc.text('Mode de financement :', 20, y)
-    doc.setFont('helvetica', 'normal')
-    const fundingLabel = fundingLabels[session.funding_type] || session.funding_type
-    const fundingText = session.funding_details 
-      ? `${fundingLabel} (${session.funding_details})` 
-      : fundingLabel
-    doc.text(fundingText, 55, y)
-    y += 5
-  }
-  
-  // Infos pratiques en tableau plus compact
-  const infoStartY = y
-  doc.setFont('helvetica', 'bold')
-  doc.text('Durée :', 20, y)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`${course.duration_hours || course.duration || '7'} heures`, 55, y)
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text('Effectif :', 105, y)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`${trainees.length} participant(s)`, 130, y)
-  y += 5
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text('Dates :', 20, y)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Du ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`, 55, y)
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text('Horaires :', 105, y)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`${session?.start_time || ''} - ${session?.end_time || ''}`, 130, y)
-  y += 5
-  
-  // Lieu - avec gestion des textes longs
-  doc.setFont('helvetica', 'bold')
-  doc.text('Lieu :', 20, y)
-  doc.setFont('helvetica', 'normal')
-  const lieuLines = doc.splitTextToSize(lieu || 'À définir', 135)
-  lieuLines.forEach((line, i) => { doc.text(line, 55, y + (i * 4)) })
-  y += Math.max(5, lieuLines.length * 4)
-  
-  // Public - avec gestion des textes longs
-  doc.setFont('helvetica', 'bold')
-  doc.text('Public :', 20, y)
-  doc.setFont('helvetica', 'normal')
-  const publicText = course.target_audience || 'Tout public'
-  const publicLines = doc.splitTextToSize(publicText, 135)
-  publicLines.forEach((line, i) => { doc.text(line, 55, y + (i * 4)) })
-  y += Math.max(5, publicLines.length * 4)
-  
-  // Prérequis - avec gestion des textes longs
-  doc.setFont('helvetica', 'bold')
-  doc.text('Prérequis :', 20, y)
-  doc.setFont('helvetica', 'normal')
-  const prerequisText = course.prerequisites || 'Aucun'
-  const prerequisLines = doc.splitTextToSize(prerequisText, 135)
-  prerequisLines.forEach((line, i) => { doc.text(line, 55, y + (i * 4)) })
-  y += Math.max(5, prerequisLines.length * 4)
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text('Formateur :', 20, y)
-  doc.setFont('helvetica', 'normal')
-  doc.text(trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant, 55, y)
-  y += 10
-  
-  // ═══════════════════════════════════════════════════════════
-  // Calcul des coûts
-  // ═══════════════════════════════════════════════════════════
+
+  // ── Coûts ──
   const coutFormationHT = parseFloat(session?.total_price || course.price_ht || course.price_per_day || 0)
   let totalCostsSupp = 0
   const costDetails = []
-  if (costs && costs.length > 0) {
-    costs.forEach(cost => {
-      const amount = parseFloat(cost.amount || 0)
-      const total = cost.per_trainee ? amount * trainees.length : amount
-      totalCostsSupp += total
-      costDetails.push({ label: cost.label, amount, per_trainee: cost.per_trainee, total })
-    })
-  }
+  ;(costs || []).forEach(c => {
+    const amount = parseFloat(c.amount || 0)
+    const total = c.per_trainee ? amount * trainees.length : amount
+    totalCostsSupp += total
+    costDetails.push({ label: c.label, amount, per_trainee: c.per_trainee, total })
+  })
   const coutTotalHT = coutFormationHT + totalCostsSupp
-  
-  // Construire le texte de l'article 3
-  let article3Text = `Coût de la formation : ${coutFormationHT.toFixed(2)} € HT`
-  
-  // ─── Mention inter-entreprises ───────────────────────────
+
+  const kv = [['Coût de la formation', `${formatMoney(coutFormationHT)} HT`]]
   const isInter = session?.inter_group_id && session?.inter_total_price
   if (isInter) {
-    // Seule la quote-part de ce bénéficiaire est mentionnée : le total global de la session
-    // n'apparaît pas (entreprises éventuellement de groupes différents, et total non recalculé
-    // quand le prix d'une des sessions est modifié)
-    const nbStagiaires = trainees.length || 1
-    const prixParTete = coutFormationHT > 0 ? (coutFormationHT / nbStagiaires) : 0
-    article3Text += `\n(${nbStagiaires} stagiaire${nbStagiaires > 1 ? 's' : ''} × ${prixParTete.toFixed(2)} €/stagiaire - session inter-entreprises)`
+    // Seule la quote-part de ce bénéficiaire est mentionnée (session inter-entreprises)
+    const nb = trainees.length || 1
+    kv.push([`Soit ${nb} participant${nb > 1 ? 's' : ''} × ${formatMoney(coutFormationHT / nb)} (session inter-entreprises)`, ''])
   }
-  
-  if (costDetails.length > 0) {
-    article3Text += `\n\nCoûts supplémentaires :`
-    costDetails.forEach(c => {
-      if (c.per_trainee) {
-        article3Text += `\n• ${c.label} : ${c.amount.toFixed(2)} € × ${trainees.length} stagiaire(s) = ${c.total.toFixed(2)} € HT`
-      } else {
-        article3Text += `\n• ${c.label} : ${c.total.toFixed(2)} € HT`
+  if (costDetails.length) {
+    costDetails.forEach(c => kv.push([c.label, c.per_trainee ? `${formatMoney(c.amount)} × ${trainees.length} = ${formatMoney(c.total)} HT` : `${formatMoney(c.total)} HT`]))
+    kv.push(['Coût total', `${formatMoney(coutTotalHT)} HT`])
+  }
+  const tvaNote = ORG.tva_applicable === false ? 'Organisme non assujetti à la TVA.' : 'TVA en sus au taux en vigueur.'
+  const bankNote = ORG.iban ? ` (IBAN ${ORG.iban}${ORG.bic ? `, BIC ${ORG.bic}` : ''})` : ''
+  const art3 = [
+    { kv },
+    { p: `${tvaNote} Règlement par virement bancaire à réception de facture${bankNote}. Aucun acompte n'est demandé avant la formation.` },
+    { p: "En cas d'inexécution totale ou partielle de la prestation, l'Organisme de formation rembourse au Bénéficiaire les sommes indûment perçues (article L6354-1 du Code du travail)." },
+  ]
+
+  const objectifs = (course.objectives || '').split('\n').map(s => s.trim()).filter(Boolean)
+  const articles = [
+    { title: 'Objet, durée et effectif', blocks: [
+      { p: `Le Bénéficiaire confie à l'Organisme de formation la réalisation de l'action « ${course.title || ''} », d'une durée de ${dureeTxt}, ${datesTxt.charAt(0).toLowerCase() + datesTxt.slice(1)}, pour ${trainees.length} participant${trainees.length > 1 ? 's' : ''}.` },
+      ...(objectifs.length ? [{ p: "À l'issue de la formation, les participants seront capables de :" }, { list: objectifs }] : []),
+      ...(trainees.length ? [{ p: 'Participants désignés par le Bénéficiaire :' }, { list: trainees.map(tr => `${(tr.last_name || '').toUpperCase()} ${tr.first_name || ''}`), cols: 2 }] : []),
+    ] },
+    { title: 'Engagements des parties', blocks: [{ p: "Le Bénéficiaire s'engage à assurer la présence des participants inscrits et à fournir les moyens nécessaires à la réalisation de la formation (salle, matériel, conditions d'accueil). L'Organisme de formation s'engage à mettre en oeuvre les moyens pédagogiques, techniques et d'encadrement nécessaires pour atteindre les objectifs visés." }] },
+    { title: 'Dispositions financières', blocks: art3 },
+    { title: 'Moyens et modalités pédagogiques', blocks: [
+      { p: "La formation est dispensée selon une approche active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues. Les supports pédagogiques sont adaptés aux objectifs de la formation et au public accueilli." },
+      { p: "La présence des participants est attestée par un émargement dématérialisé par QR code individuel, ou sur support papier en cas d'indisponibilité du réseau. Un émargement est réalisé par demi-journée, signé par chaque participant et contresigné par le formateur." },
+    ] },
+    { title: "Modalités de suivi et d'évaluation", blocks: [
+      { p: "Un positionnement préalable est réalisé en amont de la formation afin d'adapter le déroulé pédagogique au niveau et aux besoins de chaque participant. Tout au long de la formation, des évaluations formatives mesurent la progression des acquis. En fin de parcours, une évaluation sommative est conduite selon le référentiel applicable." },
+      { p: "Un certificat de réalisation mentionnant le niveau d'atteinte des objectifs est remis à l'issue de la formation." },
+    ] },
+    { title: 'Documents délivrés', blocks: [{ p: "À l'issue de la formation, l'Organisme de formation délivre une attestation de présence, un certificat de réalisation (acquis / non acquis) et, le cas échéant, l'attestation ou le certificat propre au module suivi." }] },
+    { title: 'Annulation et report', blocks: [{ p: ORG.conditions_annulation || "En cas de désistement du Bénéficiaire moins de 14 jours avant le début de la formation, une indemnité forfaitaire de 50 % du coût total est facturée ; moins de 7 jours avant, cette indemnité est portée à 75 %. En cas d'annulation par l'Organisme de formation moins de 7 jours avant, une nouvelle date est proposée sans frais." }] },
+    { title: 'Accessibilité', blocks: [{ p: `${ORG.name} s'engage à favoriser l'accès à ses formations aux personnes en situation de handicap. Toute demande d'adaptation est à signaler en amont${ORG.referent_handicap_email ? ` au référent handicap (${ORG.referent_handicap_email})` : ` à ${ORG.email}`} afin de mettre en place les mesures nécessaires.` }] },
+    { title: 'Protection des données', blocks: [{ p: "Les données personnelles collectées sont utilisées exclusivement pour la gestion administrative et pédagogique des formations. Elles sont conservées 5 ans et accessibles sur demande, conformément au RGPD." }] },
+    { title: 'Litiges', blocks: [{ p: `En cas de différend, les parties recherchent une solution amiable. À défaut, le litige est porté devant ${ORG.tribunal_competent ? `le ${ORG.tribunal_competent}` : 'le tribunal compétent'}.` }] },
+  ]
+
+  // ── Articles : pagination ligne par ligne, sans ligne orpheline ──
+  const bodyW = W - 12
+  const LINE = 4.1
+  const BOTTOM = 275
+  const sigBlockH = 44
+  const measureBlock = (b) => {
+    if (b.p) return doc.splitTextToSize(b.p, bodyW).length * LINE + 2
+    if (b.list) return b.cols === 2 ? Math.ceil(b.list.length / 2) * LINE + 2 : b.list.reduce((a, it) => a + doc.splitTextToSize(it, bodyW - 6).length * LINE, 0) + 2
+    if (b.kv) return b.kv.length * 5.5 + 3
+    return 0
+  }
+  const ensure = (h) => {
+    if (y + h > BOTTOM) {
+      drawFooter(doc, ORG, CODE)
+      doc.addPage()
+      y = drawRunningHeader(doc, ORG, { ref, docLabel })
+    }
+  }
+  const body = () => { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text) }
+  const bullet = (x) => { doc.setFillColor(...t.highlight); doc.circle(x, y - 1.1, 0.7, 'F') }
+
+  articles.forEach((art, i) => {
+    body()
+    // Titre + au moins deux lignes sur la même page ; le dernier article reste avec les signatures
+    const isLast = i === articles.length - 1
+    const fullH = 10 + art.blocks.reduce((a, b) => a + measureBlock(b), 0)
+    ensure(isLast ? fullH + sigBlockH : 10 + LINE * 2 + 2)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
+    doc.setTextColor(...t.accent); doc.text(`${i + 1}.`, M, y)
+    doc.setTextColor(...t.primary); doc.text(art.title, M + 7, y)
+    y += 6.5
+    art.blocks.forEach(b => {
+      body()
+      if (b.p) {
+        const lines = doc.splitTextToSize(b.p, bodyW)
+        lines.forEach((l, li) => {
+          if (li === 0) ensure(LINE * Math.min(2, lines.length)); else if (li === lines.length - 2) ensure(LINE * 2); else ensure(LINE)
+          body(); doc.text(l, M + 7, y); y += LINE
+        })
+        y += 2
+      } else if (b.list && b.cols === 2) {
+        const half = Math.ceil(b.list.length / 2)
+        const colW2 = bodyW / 2
+        for (let r = 0; r < half; r++) {
+          ensure(LINE)
+          body()
+          const a = b.list[r], c = b.list[r + half]
+          bullet(M + 8.5); doc.text(a, M + 11, y)
+          if (c) { bullet(M + 8.5 + colW2); doc.text(c, M + 11 + colW2, y) }
+          y += LINE
+        }
+        y += 2
+      } else if (b.list) {
+        b.list.forEach(it => {
+          const ls = doc.splitTextToSize(it, bodyW - 6)
+          ensure(LINE * ls.length)
+          body(); bullet(M + 8.5)
+          ls.forEach(l => { doc.text(l, M + 11, y); y += LINE })
+        })
+        y += 2
+      } else if (b.kv) {
+        ensure(b.kv.length * 5.5 + 3)
+        b.kv.forEach(([k, v], idx) => {
+          const last = idx === b.kv.length - 1 && b.kv.length > 1
+          doc.setFont('helvetica', last ? 'bold' : 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
+          doc.text(k, M + 7, y)
+          if (v) doc.text(v, M + W, y, { align: 'right' })
+          doc.setDrawColor(...t.line); doc.setLineWidth(0.25); doc.line(M + 7, y + 1.6, M + W, y + 1.6)
+          y += 5.5
+        })
+        y += 1.5
       }
     })
-    article3Text += `\n\nCOÛT TOTAL : ${coutTotalHT.toFixed(2)} € HT`
-  } else {
-    article3Text += `\nCoût total : ${coutTotalHT.toFixed(2)} € HT`
-  }
-  article3Text += `\n\nModalités de paiement : par virement bancaire à réception de facture\nIBAN : ${ORG.iban}  |  BIC : ${ORG.bic}\n\nAucun acompte ne sera demandé avant la formation.`
-  
-  // ═══════════════════════════════════════════════════════════
-  // ARTICLES 2 à 10
-  // ═══════════════════════════════════════════════════════════
-  const articles = [
-    { title: 'ARTICLE 2 - Engagements des parties', text: "Le Bénéficiaire s'engage à assurer la présence des stagiaires inscrits et à fournir les moyens nécessaires à la réalisation de la formation (salle, matériel, conditions d'accueil). L'Organisme de Formation s'engage à mettre en œuvre les moyens pédagogiques, techniques et d'encadrement nécessaires pour atteindre les objectifs visés." },
-    { title: 'ARTICLE 3 - Dispositions financières', text: article3Text },
-    { title: 'ARTICLE 4 - Moyens et modalités pédagogiques', text: "La formation est dispensée selon une approche pédagogique active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues. Les supports pédagogiques utilisés sont adaptés aux objectifs de la formation et aux spécificités du public accueilli.\n\nLa présence des stagiaires est attestée par un dispositif d'émargement dématérialisé par QR Code individuel, ou sur support papier en cas d'indisponibilité du réseau numérique. Un émargement est réalisé par demi-journée, signé par chaque stagiaire et contresigné par le formateur." },
-    { title: "ARTICLE 5 - Modalités de suivi et d'évaluation", text: "Un positionnement préalable des participants est réalisé en amont de la formation afin d'adapter le déroulé pédagogique au niveau et aux besoins de chaque stagiaire.\n\nTout au long de la formation, des évaluations formatives permettent de mesurer la progression des acquis (mises en situation, exercices pratiques, questionnements oraux ou écrits). En fin de parcours, une évaluation sommative est conduite selon les critères du référentiel applicable à la formation suivie.\n\nUn certificat de réalisation mentionnant le niveau d'atteinte des objectifs est remis à l'issue de la formation." },
-    { title: 'ARTICLE 6 - Sanction et documents délivrés', text: "À l'issue de la formation, l'Organisme de Formation délivrera : une attestation de présence, un certificat de réalisation (Acquis / Non acquis) et, le cas échéant, une attestation officielle selon le module suivi." },
-    { title: 'ARTICLE 7 - Annulation et dédommagement', text: ORG.conditions_annulation || "En cas de désistement du Bénéficiaire moins de 14 jours avant le début de la formation, une indemnité forfaitaire de 50 % du coût total sera facturée. En cas de désistement moins de 7 jours avant, une indemnité de 75 % sera facturée. En cas d'annulation par l'Organisme de Formation moins de 7 jours avant, une nouvelle date sera proposée sans frais supplémentaires." },
-    { title: 'ARTICLE 8 - Accessibilité', text: `${ORG.name} s'engage à favoriser l'accès à ses formations pour toute personne en situation de handicap. Toute demande d'adaptation doit être signalée en amont à ${ORG.email} afin de mettre en place les mesures nécessaires.` },
-    { title: 'ARTICLE 9 - Protection des données (RGPD)', text: "Les données personnelles collectées sont utilisées exclusivement dans le cadre de la gestion administrative et pédagogique des formations. Elles sont conservées 5 ans et accessibles sur demande conformément au RGPD." },
-    { title: 'ARTICLE 10 - Litiges', text: "En cas de différend, les parties s'efforceront de trouver une solution amiable. À défaut, le litige sera porté devant " + (ORG.tribunal_competent ? `le ${ORG.tribunal_competent}` : 'le tribunal compétent') + "." },
-  ]
-  
-  articles.forEach(art => {
-    // Découper le texte en paragraphes sur les sauts de ligne doubles
-    const paragraphs = art.text.split('\n\n')
-    // Calculer la hauteur totale (paragraphes + espaces entre eux + titre)
-    let totalLines = 0
-    paragraphs.forEach(p => { totalLines += doc.splitTextToSize(p.replace(/\n/g, ' '), 170).length })
-    const articleHeight = 8 + (totalLines * 4) + ((paragraphs.length - 1) * 3)
-
-    // Nouvelle page si pas assez de place
-    if (y + articleHeight > 265) {
-      addFooter(doc, DOC_CODES.convention)
-      doc.addPage()
-      y = 25
-    }
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.setTextColor(0, 51, 102)
-    doc.text(art.title, 20, y)
-    doc.setTextColor(0, 0, 0)
-    y += 6
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    paragraphs.forEach((para, pi) => {
-      // Remplacer les sauts de ligne simples par un espace dans chaque paragraphe
-      const lines = doc.splitTextToSize(para.replace(/\n/g, ' '), 170)
-      lines.forEach(l => { doc.text(l, 20, y); y += 4 })
-      // Espace entre paragraphes (sauf après le dernier)
-      if (pi < paragraphs.length - 1) y += 3
-    })
-    y += 6
+    y += 2
   })
-  
-  // ═══════════════════════════════════════════════════════════
-  // SIGNATURES
-  // ═══════════════════════════════════════════════════════════
-  if (y > 220) {
-    addFooter(doc, DOC_CODES.convention)
-    doc.addPage()
-    y = 25
+
+  // ── Signatures ──
+  ensure(sigBlockH)
+  y += 2
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
+  doc.text(`Fait en deux exemplaires à ${ORG.lieu_signature || ORG.city}, le ${formatDate(new Date())}.`, M, y)
+  y += 7
+  const boxH = 34
+  const sigCol = (x, label, l1, l2) => {
+    doc.setDrawColor(...t.line); doc.setLineWidth(0.3)
+    doc.rect(x, y, colW, boxH)
+    doc.setFillColor(...t.surface); doc.rect(x, y, colW, 11, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)
+    doc.text(label.toUpperCase(), x + 4, y + 4.5, { charSpace: 0.4 })
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...t.text)
+    doc.text(`${l1 || ''}${l2 ? ', ' + l2 : ''}`, x + 4, y + 8.8)
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(...t.muted)
+    doc.text('Signature et cachet', x + 4, y + boxH - 3)
+    doc.setTextColor(...t.text)
   }
-  
-  // Ligne de séparation
-  y += 5
-  doc.setDrawColor(100, 100, 100)
-  doc.line(20, y, pw - 20, y)
-  y += 10
-  
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.text(`Fait en deux exemplaires originaux à ${ORG.city}, le ${formatDate(new Date())}`, pw / 2, y, { align: 'center' })
-  y += 12
-  
-  // Deux colonnes pour les signatures
-  const col1X = 30
-  const col2X = pw / 2 + 20
-  
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.text("Pour l'Organisme de Formation", col1X, y)
-  doc.text('Pour le Bénéficiaire', col2X, y)
-  y += 5
-  
-  doc.setFont('helvetica', 'normal')
-  doc.text(ORG.name, col1X, y)
-  doc.text(client.name || '', col2X, y)
-  y += 5
-  doc.text(ORG.dirigeant, col1X, y)
-  if (signatory.name) doc.text(signatory.name + (signatory.role ? ', ' + signatory.role : ''), col2X, y)
-  y += 5
-  
-  doc.setFont('helvetica', 'italic')
-  doc.setFontSize(8)
-  doc.text('(Cachet et signature)', col1X, y)
-  doc.text('(Cachet et signature)', col2X, y)
-  y += 8
-  
-  // Tampon OF
-  try { doc.addImage(ORG.stamp_base64, 'JPEG', col1X - 5, y, 50, 18) } catch {}
-  
-  addFooter(doc, DOC_CODES.convention)
+  sigCol(M, "Pour l'organisme de formation", ORG.dirigeant, ORG.dirigeant_title || 'Dirigeant')
+  sigCol(M + colW + gap, 'Pour le bénéficiaire', signatory.name || client.name || '', signatory.role)
+  if (ORG.stamp_base64) drawImageFitted(doc, ORG.stamp_base64, M + 6, y + 12, 44, 19, 'JPEG')
+  if (ORG.dirigeant_signature_base64) drawImageFitted(doc, ORG.dirigeant_signature_base64, M + 52, y + 13, 34, 17)
+  y += boxH
+
+  drawFooter(doc, ORG, CODE)
+  numberPages(doc, ORG)
   return doc
 }
 
@@ -751,67 +599,57 @@ function generateConvocation(session, trainee, trainer = null) {
 }
 
 // ============================================================
-// ÉMARGEMENT - AVEC N° SÉCU, SANS SIGNATURE FORMATEUR
+// FEUILLE D'ÉMARGEMENT (paysage)
+// Sources de présence : attendances (ancien format), attendance_halfdays, signatures par un tiers,
+// absents, signature enregistrée du formateur. Mise en page : core/pdf/layout.js.
 // ============================================================
-// attendanceData = { signatures: [...], halfdays: [...] } passé depuis SessionDetail
 function generateEmargement(session, trainees = [], trainer = null, isBlank = false, attendanceData = null) {
   const doc = new jsPDF({ orientation: 'landscape', compress: true })
   const pw = doc.internal.pageSize.getWidth()
   const ph = doc.internal.pageSize.getHeight()
+  const M = PAGE_MARGIN
+  const W = pw - M * 2
+  const t = T()
   const course = session?.courses || {}
   const ref = session?.reference || ''
-  const lieu = isBlank ? '________________________________' : getLocation(session)
+  const lieu = isBlank ? '' : getLocation(session)
+  const CODE = DOC_CODES.emargement
+  const docLabel = "Feuille d'émargement"
 
   const signatures = attendanceData?.signatures || []   // table "attendances" (ancien format)
   const halfdays = attendanceData?.halfdays || []       // table "attendance_halfdays"
-  const proxies = attendanceData?.proxies || []         // table "attendance_proxy_signatures"
+  const proxies = attendanceData?.proxies || []         // signatures recueillies par un tiers
   const absents = attendanceData?.absents || []         // ids des stagiaires notés absents
   const trainerSignatureBase64 = attendanceData?.trainerSignatureBase64
 
-  const ROWS_PER_PAGE = 12
-
-  // Helper : signature électronique de l'ancien format
   const getSignature = (traineeId, dateStr, period) => {
-    const periodMap = { morning: 'am', afternoon: 'pm' }
-    const target = periodMap[period]
-    return signatures.find(s =>
-      s.trainee_id === traineeId &&
-      s.date === dateStr &&
-      (s.period === target || s.period === 'full')
-    )
+    const target = period === 'morning' ? 'am' : 'pm'
+    return signatures.find(s => s.trainee_id === traineeId && s.date === dateStr && (s.period === target || s.period === 'full'))
   }
-
-  // Helper : présence enregistrée pour cette demi-journée
   const getHalfday = (traineeId, dateStr, period) => {
     const hd = halfdays.find(h => h.trainee_id === traineeId && String(h.date).substring(0, 10) === dateStr)
     if (!hd) return null
-    const isPresent = period === 'morning' ? hd.morning : hd.afternoon
-    return isPresent ? hd : null
+    return (period === 'morning' ? hd.morning : hd.afternoon) ? hd : null
   }
-
-  // Helper : signature recueillie par un tiers
   const getProxy = (traineeId, dateStr, period) =>
     proxies.find(p => p.trainee_id === traineeId && String(p.date).substring(0, 10) === dateStr && p.period === period)
 
-  // ============ JOURS ============
+  // ── Jours et colonnes ──
   let days = []
   if (!isBlank && session?.start_date && session?.end_date) {
-    try { days = eachDayOfInterval({ start: parseISO(session.start_date), end: parseISO(session.end_date) }) } catch {}
+    try { days = eachDayOfInterval({ start: parseISO(session.start_date), end: parseISO(session.end_date) }) } catch { /* dates invalides : un seul jour */ }
   }
   const displayDays = isBlank ? [1, 2, 3] : (days.length > 0 ? days : [new Date()])
   const isHalfDay = session?.day_type === 'half'
   const halfDayPeriod = isHalfDay && session?.start_time ? (parseInt(session.start_time.split(':')[0], 10) >= 12 ? 'afternoon' : 'morning') : 'morning'
   const colsPerDay = isHalfDay ? 1 : 2
+  const nCols = displayDays.length * colsPerDay
+  const dayColW = Math.min(60, (W - 80) / nCols)
+  const nameColW = W - dayColW * nCols
+  const tableW = nameColW + dayColW * nCols
+  const startX = M
 
-  // ============ COLONNES ============
-  // Plus de n° de sécurité sociale (INRS) ni d'email (RGPD) : le nom reprend la place
-  const nameColW = 78
-  const remainingW = pw - 30 - nameColW
-  const dayColW = Math.min(40, remainingW / (displayDays.length * colsPerDay))
-  const startX = 15
-  const tableW = nameColW + displayDays.length * dayColW * colsPerDay
-
-  // Découpage en pages de 12 stagiaires
+  const ROWS_PER_PAGE = 12
   const rowsAll = isBlank
     ? [...trainees, ...Array(Math.max(0, 10 - trainees.length)).fill({})]
     : (trainees.length > 0 ? trainees : [{}])
@@ -819,166 +657,95 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
   for (let i = 0; i < rowsAll.length; i += ROWS_PER_PAGE) pages.push(rowsAll.slice(i, i + ROWS_PER_PAGE))
   const totalPages = pages.length
 
-  // Hauteur de ligne : identique sur toutes les pages
+  // Hauteur de ligne : identique sur toutes les pages, adaptée au nombre de participants
   const hasAnySignatureImage = !isBlank && (
     signatures.some(s => s.signature_data || s.signature) ||
     halfdays.some(hd => hd.signature_morning || hd.signature_afternoon) ||
     proxies.length > 0
   )
-  const FIXED_OVERHEAD = 108
-  const availableForRows = ph - FIXED_OVERHEAD
-  const maxRowH = hasAnySignatureImage ? 18 : 14
-  const minRowH = hasAnySignatureImage ? 9 : 8
-  const nRowsMax = Math.min(rowsAll.length, ROWS_PER_PAGE)
-  const rowH = isBlank ? 10 : Math.min(maxRowH, Math.max(minRowH, Math.floor(availableForRows / Math.max(nRowsMax, 1))))
+  const HEADER_H = 66
+  const FOOTER_H = 34
+  const available = ph - HEADER_H - FOOTER_H
+  const nRows = Math.min(rowsAll.length, ROWS_PER_PAGE) + 1 // + ligne formateur
+  const rowH = isBlank ? 10 : Math.min(hasAnySignatureImage ? 22 : 18, Math.max(9, Math.floor(available / nRows)))
 
-  // ============ HELPERS DE DESSIN ============
-  const drawCheckmark = (cx, cy, size, color) => {
-    doc.setDrawColor(color[0], color[1], color[2])
-    doc.setLineWidth(0.6)
-    doc.setFillColor(color[0], color[1], color[2])
-    doc.roundedRect(cx, cy, size, size, 0.8, 0.8, 'F')
-    doc.setDrawColor(255, 255, 255)
-    doc.setLineWidth(0.7)
-    doc.line(cx + size * 0.25, cy + size * 0.58, cx + size * 0.45, cy + size * 0.78)
-    doc.line(cx + size * 0.45, cy + size * 0.78, cx + size * 0.8, cy + size * 0.3)
-    doc.setDrawColor(0, 0, 0)
-    doc.setLineWidth(0.2)
-  }
+  const trainerName = trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant
+  const trainerNameUpper = trainer ? `${(trainer.last_name || '').toUpperCase()} ${trainer.first_name || ''}` : ORG.dirigeant
 
-  // Image insérée sans déformation, centrée dans la case
-  const drawSignatureImage = (imageData, cellX, cellY, boxW, boxH) => {
-    if (!imageData || typeof imageData !== 'string' || !imageData.startsWith('data:image')) return false
-    try {
-      let ratio = 2.5
-      try {
-        const props = doc.getImageProperties(imageData)
-        if (props?.width && props?.height) ratio = props.width / props.height
-      } catch { /* proportions par défaut */ }
-      let w = boxW
-      let h = w / ratio
-      if (h > boxH) { h = boxH; w = h * ratio }
-      doc.addImage(imageData, 'PNG', cellX + (boxW - w) / 2, cellY + (boxH - h) / 2, w, h)
-      return true
-    } catch (e) {
-      console.warn('Erreur addImage signature:', e)
-      return false
+  const drawPageHeader = (pageNum) => {
+    let y = drawHeaderBand(doc, ORG, { ref: isBlank ? null : ref, docLabel: totalPages > 1 ? `page ${pageNum} / ${totalPages}` : '' })
+    y -= 1
+    // Titre et formateur à gauche, informations de session à droite
+    doc.setFillColor(...t.accent); doc.rect(M, y - 6, 1.6, 8, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...t.primary)
+    doc.text("Feuille d'émargement", M + 5, y)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.text)
+    doc.text(`Formateur : ${isBlank ? '' : trainerName}`, M + 5, y + 7)
+    if (isBlank) { doc.setDrawColor(...t.line); doc.setLineWidth(0.25); doc.line(M + 25, y + 7.5, M + 70, y + 7.5) }
+
+    const infoX1 = M + 78, infoX2 = M + 178
+    const info = (x, yy, k, v) => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
+      doc.text(k.toUpperCase(), x, yy, { charSpace: 0.3 })
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.text)
+      const maxW = (x === infoX1 ? infoX2 - infoX1 : pw - M - infoX2) - 4
+      const line = isBlank ? '' : (doc.splitTextToSize(v || '', maxW)[0] || '')
+      doc.text(line, x, yy + 4)
+      if (isBlank) { doc.setDrawColor(...t.line); doc.setLineWidth(0.25); doc.line(x, yy + 4.5, x + maxW, yy + 4.5) }
     }
-  }
+    const datesTxt = session?.start_date === session?.end_date
+      ? formatDateLong(session?.start_date)
+      : `${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`
+    info(infoX1, y - 5, 'Formation', course.title)
+    info(infoX2, y - 5, 'Entreprise', session?.clients?.name)
+    info(infoX1, y + 5, 'Dates et horaires', `${datesTxt}, ${formatHour(session?.start_time)} à ${formatHour(session?.end_time)}`)
+    info(infoX2, y + 5, 'Lieu', lieu)
+    y += 15
 
-  const drawHeader = (pageNum) => {
-    if (isBlank) {
-      const logoBase64 = ORG.logo_base64
-      if (logoBase64) {
-        try {
-          drawLogoFitted(doc, logoBase64)
-        } catch (e) {
-          doc.setFillColor(...T().primary)
-          doc.rect(15, 10, 50, 12, 'F')
-          doc.setFontSize(10)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(255, 255, 255)
-          doc.text((ORG.name || '').toUpperCase().slice(0, 22), 20, 18)
-          doc.setTextColor(0, 0, 0)
-        }
-      } else {
-        doc.setFillColor(...T().primary)
-        doc.rect(15, 10, 50, 12, 'F')
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(255, 255, 255)
-        doc.text((ORG.name || '').toUpperCase().slice(0, 22), 20, 18)
-        doc.setTextColor(0, 0, 0)
-      }
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(0, 0, 0)
-      doc.text('N° Session : __________', pw - 55, 15)
-    } else {
-      doc.setFontSize(8)
-      doc.setTextColor(150, 150, 150)
-      doc.text(ref, pw - 15, 10, { align: 'right' })
-      doc.setTextColor(0, 0, 0)
-    }
-
-    let y = 15
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text("FEUILLE D'ÉMARGEMENT", pw / 2, y, { align: 'center' })
-    y += 10
-
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    const halfW = pw / 2 - 20
-    const rightW = pw / 2 - 18
-    const truncText = (prefix, text, maxW) => {
-      const full = `${prefix}${text}`
-      const lines = doc.splitTextToSize(full, maxW)
-      return lines[0] || full
-    }
-    doc.text(truncText('Formation : ', isBlank ? '________________________________________' : (course.title || ''), halfW), 15, y)
-    doc.text(truncText('Client : ', isBlank ? '________________________' : (session?.clients?.name || ''), rightW), pw / 2, y); y += 5
-
-    if (isBlank) {
-      doc.text(`Dates : Du ___/___/______ au ___/___/______`, 15, y)
-    } else {
-      doc.text(`Dates : ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`, 15, y)
-    }
-    doc.text(truncText('Lieu : ', isBlank ? '________________________________' : lieu, rightW), pw / 2, y); y += 5
-    doc.text(`Formateur : ${isBlank ? '________________________________' : (trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant)}`, 15, y)
-    if (totalPages > 1) {
-      doc.setFontSize(8)
-      doc.setTextColor(120, 120, 120)
-      doc.text(`Page ${pageNum} / ${totalPages}`, pw - 15, y, { align: 'right' })
-      doc.setTextColor(0, 0, 0)
-      doc.setFontSize(9)
-    }
-    y += 6
-
-    // En-tête du tableau
-    doc.setFillColor(240, 240, 240)
-    doc.rect(startX, y, tableW, 14, 'F')
-
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Nom Prénom', startX + 2, y + 10)
-
+    // En-tête du tableau : fond principal, dates en couleur de détail
+    doc.setFillColor(...t.primary); doc.rect(startX, y, tableW, 12, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 255, 255)
+    doc.text('PARTICIPANT', startX + 3, y + 7.5, { charSpace: 0.4 })
     let x = startX + nameColW
     displayDays.forEach((day, idx) => {
-      const dateStr = isBlank ? `J${idx + 1}` : format(day, 'dd/MM', { locale: fr })
+      const dateStr = isBlank ? `Jour ${idx + 1}` : format(day, 'EEE d MMM', { locale: fr })
+      doc.setTextColor(...t.highlight); doc.setFontSize(8)
       if (isHalfDay) {
-        doc.text(dateStr, x + dayColW / 2, y + 4, { align: 'center' })
-        doc.text(halfDayPeriod === 'afternoon' ? 'A-midi' : 'Matin', x + dayColW / 2, y + 10, { align: 'center' })
+        doc.text(dateStr, x + dayColW / 2, y + 4.5, { align: 'center' })
+        doc.setTextColor(255, 255, 255); doc.setFontSize(7)
+        doc.text(halfDayPeriod === 'afternoon' ? 'Après-midi' : 'Matin', x + dayColW / 2, y + 9.5, { align: 'center' })
         x += dayColW
       } else {
-        doc.text(dateStr, x + dayColW, y + 4, { align: 'center' })
-        doc.text('Matin', x + dayColW / 2, y + 10, { align: 'center' })
-        doc.text('A-midi', x + dayColW + dayColW / 2, y + 10, { align: 'center' })
+        doc.text(dateStr, x + dayColW, y + 4.5, { align: 'center' })
+        doc.setTextColor(255, 255, 255); doc.setFontSize(7)
+        doc.text('Matin', x + dayColW / 2, y + 9.5, { align: 'center' })
+        doc.text('Après-midi', x + dayColW + dayColW / 2, y + 9.5, { align: 'center' })
+        doc.setDrawColor(80, 84, 90); doc.setLineWidth(0.2); doc.line(x + dayColW, y + 6.5, x + dayColW, y + 12)
         x += dayColW * 2
       }
+      doc.setDrawColor(...t.highlight); doc.setLineWidth(0.4); doc.line(x, y, x, y + 12)
     })
-    doc.setFont('helvetica', 'normal')
-    return y + 14
+    doc.setTextColor(...t.text)
+    return y + 12
   }
 
-  // ============ PAGES ============
+  // ── Pages ──
   let proxyNumber = 0
   const proxyNotes = []
 
   pages.forEach((rows, pageIdx) => {
     if (pageIdx > 0) doc.addPage()
-    let y = drawHeader(pageIdx + 1)
+    let y = drawPageHeader(pageIdx + 1)
+    doc.setDrawColor(...t.line); doc.setLineWidth(0.25)
 
-    rows.forEach(t => {
-      const isAbsent = t.id && absents.includes(t.id)
-
-      doc.setFontSize(7)
+    rows.forEach((tr, ri) => {
+      const isAbsent = tr.id && absents.includes(tr.id)
+      if (ri % 2 === 1) { doc.setFillColor(...t.surface); doc.rect(startX, y, tableW, rowH, 'F') }
       doc.rect(startX, y, nameColW, rowH)
-
-      if (t.first_name) {
-        const fullName = `${t.last_name?.toUpperCase() || ''} ${t.first_name || ''}`
-        const lines = doc.splitTextToSize(fullName, nameColW - 3)
-        doc.text(lines[0] || fullName, startX + 1.5, y + rowH / 2 - 0.5)
+      if (tr.first_name) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...t.text)
+        const fullName = `${(tr.last_name || '').toUpperCase()} ${tr.first_name || ''}`
+        doc.text(doc.splitTextToSize(fullName, nameColW - 6)[0] || fullName, startX + 3, y + rowH / 2 + 1)
       }
 
       let xx = startX + nameColW
@@ -987,50 +754,48 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
 
         const drawCell = (cellX, period) => {
           doc.rect(cellX, y, dayColW, rowH)
-          if (isBlank || !t.id || !dateStr) return
+          if (isBlank || !tr.id || !dateStr) return
 
           if (isAbsent) {
-            doc.setFontSize(6)
-            doc.setTextColor(150, 150, 150)
-            doc.text('ABS', cellX + dayColW / 2, y + rowH / 2 + 1, { align: 'center' })
-            doc.setTextColor(0, 0, 0)
-            doc.setFontSize(7)
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
+            doc.text('ABSENT', cellX + dayColW / 2, y + rowH / 2 + 1, { align: 'center' })
+            doc.setTextColor(...t.text)
             return
           }
 
-          const proxy = getProxy(t.id, dateStr, period)
-          const sig = getSignature(t.id, dateStr, period)
-          const hd = getHalfday(t.id, dateStr, period)
+          const proxy = getProxy(tr.id, dateStr, period)
+          const sig = getSignature(tr.id, dateStr, period)
+          const hd = getHalfday(tr.id, dateStr, period)
           if (!proxy && !sig && !hd) return   // case vide
 
           const pad = 1
           const boxW = dayColW - pad * 2
           const boxH = rowH - pad * 2
 
-          // 1) Signature recueillie par un tiers → image + renvoi vers l'annexe
+          // 1) Signature recueillie par un tiers : image + renvoi vers l'annexe
           if (proxy) {
-            const drawn = drawSignatureImage(proxy.proxy_signature, cellX + pad, y + pad, boxW - 3, boxH)
-            if (!drawn) drawCheckmark(cellX + (dayColW - 4.5) / 2, y + (rowH - 4.5) / 2, 4.5, [0, 80, 160])
+            const drawn = drawImageFitted(doc, proxy.proxy_signature, cellX + pad, y + pad, boxW - 3, boxH)
+            if (!drawn) drawCheckmark(doc, ORG, cellX + (dayColW - 4.5) / 2, y + (rowH - 4.5) / 2, 4.5, t.accent)
             let note = proxyNotes.find(n =>
               n.trainee_id === proxy.trainee_id && n.date === String(proxy.date).substring(0, 10) && n.period === proxy.period)
             if (!note) {
               proxyNumber += 1
-              note = { ...proxy, num: proxyNumber, trainee: t, date: String(proxy.date).substring(0, 10) }
+              note = { ...proxy, num: proxyNumber, trainee: tr, date: String(proxy.date).substring(0, 10) }
               proxyNotes.push(note)
             }
-            doc.setFontSize(5)
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(...t.accent)
             doc.text(`(${note.num})`, cellX + dayColW - 1.5, y + rowH - 1.5, { align: 'right' })
-            doc.setFontSize(7)
+            doc.setTextColor(...t.text)
             return
           }
 
-          // 2) Signature du stagiaire
+          // 2) Signature du participant
           const imageToUse = (sig && (sig.signature_data || sig.signature))
             || (hd && (period === 'morning' ? hd.signature_morning : hd.signature_afternoon))
-          if (drawSignatureImage(imageToUse, cellX + pad, y + pad, boxW, boxH)) return
+          if (drawImageFitted(doc, imageToUse, cellX + pad, y + pad, boxW, boxH)) return
 
           // 3) Présence validée par le formateur, sans signature
-          drawCheckmark(cellX + (dayColW - 4.5) / 2, y + (rowH - 4.5) / 2, 4.5, [0, 80, 160])
+          drawCheckmark(doc, ORG, cellX + (dayColW - 4.5) / 2, y + (rowH - 4.5) / 2, 4.5, t.accent)
         }
 
         if (isHalfDay) {
@@ -1045,125 +810,89 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
       y += rowH
     })
 
-    // ── Ligne formateur : sa signature enregistrée, sur chaque demi-journée tenue ──
-    const ligneFormateurDessinee = !isBlank && !!trainerSignatureBase64
-    if (ligneFormateurDessinee) {
-      doc.setFillColor(248, 248, 248)
-      doc.rect(startX, y, tableW, rowH, 'F')
-      doc.rect(startX, y, nameColW, rowH)
-      doc.setFontSize(7)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`Formateur : ${trainer ? `${trainer.last_name?.toUpperCase() || ''} ${trainer.first_name || ''}` : ORG.dirigeant}`, startX + 1.5, y + rowH / 2 - 0.5)
-      doc.setFont('helvetica', 'normal')
+    // ── Ligne formateur, toujours présente : signature enregistrée sur chaque demi-journée tenue, sinon case à signer ──
+    doc.setFillColor(252, 247, 236); doc.rect(startX, y, tableW, rowH, 'F')
+    doc.setDrawColor(...t.highlight); doc.setLineWidth(0.5); doc.line(startX, y, startX + tableW, y)
+    doc.setDrawColor(...t.line); doc.setLineWidth(0.25)
+    doc.rect(startX, y, nameColW, rowH)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...t.primary)
+    doc.text(`FORMATEUR${isBlank ? '' : `   ${trainerNameUpper}`}`, startX + 3, y + rowH / 2 + 1)
+    doc.setTextColor(...t.text)
+    let xt = startX + nameColW
+    displayDays.forEach((day) => {
+      const dateStr = isBlank ? null : format(day, 'yyyy-MM-dd')
+      const drawTrainerCell = (cellX, period) => {
+        doc.rect(cellX, y, dayColW, rowH)
+        if (isBlank || !trainerSignatureBase64 || !dateStr) return
+        const tenue = trainees.some(tr => tr.id && !absents.includes(tr.id) && (
+          getProxy(tr.id, dateStr, period) || getSignature(tr.id, dateStr, period) || getHalfday(tr.id, dateStr, period)
+        ))
+        if (tenue) drawImageFitted(doc, trainerSignatureBase64, cellX + 1, y + 1, dayColW - 2, rowH - 2)
+      }
+      if (isHalfDay) {
+        drawTrainerCell(xt, halfDayPeriod)
+        xt += dayColW
+      } else {
+        drawTrainerCell(xt, 'morning')
+        drawTrainerCell(xt + dayColW, 'afternoon')
+        xt += dayColW * 2
+      }
+    })
+    y += rowH + 5
 
-      let xt = startX + nameColW
-      displayDays.forEach((day) => {
-        const dateStr = format(day, 'yyyy-MM-dd')
-        const drawTrainerCell = (cellX, period) => {
-          doc.rect(cellX, y, dayColW, rowH)
-          const tenue = trainees.some(t => t.id && !absents.includes(t.id) && (
-            getProxy(t.id, dateStr, period) || getSignature(t.id, dateStr, period) || getHalfday(t.id, dateStr, period)
-          ))
-          if (tenue) drawSignatureImage(trainerSignatureBase64, cellX + 1, y + 1, dayColW - 2, rowH - 2)
-        }
-        if (isHalfDay) {
-          drawTrainerCell(xt, halfDayPeriod)
-          xt += dayColW
-        } else {
-          drawTrainerCell(xt, 'morning')
-          drawTrainerCell(xt + dayColW, 'afternoon')
-          xt += dayColW * 2
-        }
-      })
-      y += rowH
-    }
-
-    // ── Légende (sur chaque page) ──
+    // ── Légende ──
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
     if (!isBlank) {
-      y += 4
-      doc.setFontSize(6)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Signature du stagiaire, recueillie le jour même', 15, y)
-      doc.setTextColor(0, 0, 0)
-
-      const x2 = Math.min(150, startX + tableW / 2)
-      doc.text('Présence validée par le formateur', x2 + 5, y)
-      doc.setFillColor(0, 80, 160)
-      doc.rect(x2, y - 3.5, 3.5, 3.5, 'F')
-      doc.setTextColor(0, 0, 0)
-
-      doc.text('ABS : absent  ·  (n) : signature recueillie par un tiers, voir annexe', pw - 15, y, { align: 'right' })
-      y += 5
+      doc.setFillColor(...t.accent); doc.roundedRect(M, y - 2.6, 3, 3, 0.6, 0.6, 'F')
+      doc.text('Présence validée par le formateur, sans signature', M + 5, y)
+      doc.text('ABSENT : participant absent sur la demi-journée      (n) : signature recueillie par un tiers, voir annexe', M + 75, y)
+      doc.text('Chaque participant signe à chaque demi-journée. Le formateur contresigne la feuille.', pw - M, y, { align: 'right' })
+    } else {
+      doc.text('Chaque participant signe à chaque demi-journée. Le formateur contresigne la feuille.', M, y)
     }
+    doc.setTextColor(...t.text)
 
-    // ── Case de signature du formateur : uniquement si la ligne du tableau
-    //    n'a pas pu être remplie (feuille vierge, ou signature non enregistrée) ──
-    if (pageIdx === totalPages - 1 && !ligneFormateurDessinee) {
-      y += 3
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(0, 0, 0)
-      doc.text('Signature du formateur :', 15, y)
-      doc.rect(15, y + 2, 60, 18)
-    }
-
-    addFooter(doc, DOC_CODES.emargement, totalPages > 1 ? pageIdx + 1 : null)
+    drawFooter(doc, ORG, CODE, totalPages > 1 ? pageIdx + 1 : null, totalPages > 1 ? totalPages : null)
   })
 
-  // ============ ANNEXE : SIGNATURES PAR UN TIERS ============
+  // ── Annexe : signatures recueillies par un tiers ──
   if (proxyNotes.length > 0) {
     doc.addPage()
-    doc.setFontSize(8)
-    doc.setTextColor(150, 150, 150)
-    doc.text(ref, pw - 15, 10, { align: 'right' })
-    doc.setTextColor(0, 0, 0)
-
-    let y = 18
-    doc.setFontSize(13)
-    doc.setFont('helvetica', 'bold')
-    doc.text('ANNEXE - SIGNATURES RECUEILLIES PAR UN TIERS', pw / 2, y, { align: 'center' })
-    y += 8
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Formation : ${course.title || ''} - ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)} - ${session?.clients?.name || ''}`, 15, y)
-    y += 7
+    let y = drawHeaderBand(doc, ORG, { ref, docLabel: `${docLabel}   annexe` })
+    y = drawDocTitle(doc, ORG, 'Signatures recueillies par un tiers',
+      `${course.title || ''}, ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}, ${session?.clients?.name || ''}`, y)
 
     proxyNotes.forEach(n => {
-      if (y > ph - 60) { doc.addPage(); y = 20 }
-      const blockH = 34
-      doc.setDrawColor(200)
-      doc.rect(15, y, pw - 30, blockH)
+      if (y > ph - 60) { doc.addPage(); y = drawRunningHeader(doc, ORG, { ref, docLabel }) }
+      const blockH = 36
+      doc.setFillColor(...t.surface); doc.rect(M, y, W, blockH, 'F')
+      doc.setFillColor(...t.accent); doc.rect(M, y, 1.2, blockH, 'F')
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...t.text)
+      doc.text(`(${n.num})  ${(n.trainee?.last_name || '').toUpperCase()} ${n.trainee?.first_name || ''}`, M + 5, y + 7)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
+      doc.text(`Demi-journée : ${formatDate(n.date)}, ${n.period === 'morning' ? 'matin' : 'après-midi'}`, M + 5, y + 13)
+      doc.text(`Motif : ${n.reason || ''}`, M + 5, y + 18)
+      doc.text(`Signataire : ${n.proxy_first_name || ''} ${(n.proxy_last_name || '').toUpperCase()}${n.proxy_role ? ', ' + n.proxy_role : ''}`, M + 5, y + 23)
+      doc.setFontSize(7); doc.setTextColor(...t.muted)
+      const sigW = 58
+      const sigX1 = pw - M - sigW * 2 - 8
+      const sigX2 = pw - M - sigW - 3
+      doc.text("Le participant n'étant pas en mesure de signer, la signature a été recueillie par la personne ci-dessus, en présence du formateur.", M + 5, y + 29, { maxWidth: sigX1 - M - 12 })
+      doc.setTextColor(...t.text)
 
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`(${n.num})  ${n.trainee?.last_name?.toUpperCase() || ''} ${n.trainee?.first_name || ''}`, 18, y + 6)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.text(`Demi-journée : ${formatDate(n.date)} - ${n.period === 'morning' ? 'Matin' : 'Après-midi'}`, 18, y + 12)
-      doc.text(`Motif : ${n.reason || ''}`, 18, y + 17)
-      doc.text(`Signataire : ${n.proxy_first_name || ''} ${n.proxy_last_name?.toUpperCase() || ''} - ${n.proxy_role || ''}`, 18, y + 22)
-      doc.setFontSize(7)
-      doc.setTextColor(120, 120, 120)
-      doc.text("Le stagiaire n'étant pas en mesure de signer, la signature a été recueillie par la personne ci-dessus, en présence du formateur.", 18, y + 28, { maxWidth: 150 })
-      doc.setTextColor(0, 0, 0)
-
-      // Signatures : tiers et formateur
-      const sigW = 55
-      const sigX1 = pw - 30 - sigW * 2 - 6
-      const sigX2 = pw - 22 - sigW
-      doc.setFontSize(7)
-      doc.text('Signature du tiers', sigX1, y + 6)
-      doc.rect(sigX1, y + 8, sigW, 20)
-      drawSignatureImage(n.proxy_signature, sigX1 + 1, y + 9, sigW - 2, 18)
-      doc.text('Contresignature du formateur', sigX2, y + 6)
-      doc.rect(sigX2, y + 8, sigW, 20)
-      drawSignatureImage(n.trainer_signature, sigX2 + 1, y + 9, sigW - 2, 18)
-
-      doc.setDrawColor(0)
+      doc.setFontSize(6.5); doc.setTextColor(...t.muted)
+      doc.text('SIGNATURE DU TIERS', sigX1, y + 6, { charSpace: 0.3 })
+      doc.text('CONTRESIGNATURE DU FORMATEUR', sigX2, y + 6, { charSpace: 0.3 })
+      doc.setDrawColor(...t.line); doc.setLineWidth(0.25)
+      doc.rect(sigX1, y + 8, sigW, 24)
+      doc.rect(sigX2, y + 8, sigW, 24)
+      drawImageFitted(doc, n.proxy_signature, sigX1 + 1, y + 9, sigW - 2, 22)
+      drawImageFitted(doc, n.trainer_signature, sigX2 + 1, y + 9, sigW - 2, 22)
+      doc.setTextColor(...t.text)
       y += blockH + 5
     })
 
-    addFooter(doc, DOC_CODES.emargement)
+    drawFooter(doc, ORG, CODE)
   }
 
   return doc
