@@ -689,18 +689,21 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
       doc.text(k.toUpperCase(), x, yy, { charSpace: 0.3 })
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.text)
       const maxW = (x === infoX1 ? infoX2 - infoX1 : pw - M - infoX2) - 4
-      const line = isBlank ? '' : (doc.splitTextToSize(v || '', maxW)[0] || '')
-      doc.text(line, x, yy + 4)
+      const lines = isBlank ? [''] : doc.splitTextToSize(v || '', maxW).slice(0, 2)
+      if (lines.length > 1) doc.setFontSize(7.5)
+      lines.forEach((l, i) => doc.text(l, x, yy + 4 + i * 3.4))
+      return lines.length
       if (isBlank) { doc.setDrawColor(...t.line); doc.setLineWidth(0.25); doc.line(x, yy + 4.5, x + maxW, yy + 4.5) }
     }
     const datesTxt = session?.start_date === session?.end_date
       ? formatDateLong(session?.start_date)
       : `${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`
-    info(infoX1, y - 5, 'Formation', course.title)
+    const titleLines = info(infoX1, y - 5, 'Formation', course.title)
     info(infoX2, y - 5, 'Entreprise', session?.clients?.name)
-    info(infoX1, y + 5, 'Dates et horaires', `${datesTxt}, ${formatHour(session?.start_time)} à ${formatHour(session?.end_time)}`)
-    info(infoX2, y + 5, 'Lieu', lieu)
-    y += 15
+    const row2 = titleLines > 1 ? 3.5 : 0   // titre sur deux lignes : la seconde rangée descend d'autant
+    info(infoX1, y + 5 + row2, 'Dates et horaires', `${datesTxt}, ${formatHour(session?.start_time)} à ${formatHour(session?.end_time)}`)
+    info(infoX2, y + 5 + row2, 'Lieu', lieu)
+    y += 15 + row2
 
     // En-tête du tableau : fond principal, dates en couleur de détail
     doc.setFillColor(...t.primary); doc.rect(startX, y, tableW, 12, 'F')
