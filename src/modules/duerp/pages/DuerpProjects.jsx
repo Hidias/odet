@@ -1,3 +1,4 @@
+import { currentUserName } from '../../../core/org/currentOrg'
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -257,7 +258,7 @@ export default function DuerpProjects() {
           reference: ref,
           status: 'brouillon',
           date_elaboration: new Date().toISOString().split('T')[0],
-          evaluateur: 'Hicham',
+          evaluateur: currentUserName(),
           participants: [],
         })
         .select()
@@ -722,7 +723,7 @@ export default function DuerpProjects() {
                   {/* Clients existants */}
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-2 block">
-                      <Building2 className="w-4 h-4 inline mr-1" /> Clients Access Formation
+                      <Building2 className="w-4 h-4 inline mr-1" /> Clients existants
                     </label>
                     <input value={clientSearch} onChange={e => setClientSearch(e.target.value)}
                       placeholder="Filtrer vos clients..."
@@ -903,7 +904,7 @@ export default function DuerpProjects() {
                       <li>{(() => { const seen = new Set(); selectedSectors.forEach(s => (s.default_units || []).forEach(u => seen.add(u.code))); return seen.size })() } unités de travail pré-configurées</li>
                       <li>Risques types des secteurs « {selectedSectors.map(s => s.sector_label).join(' + ')} » pré-chargés</li>
                       <li>Grille de cotation F×G avec maîtrise → risque résiduel</li>
-                      {newProject.client_id && <li>Lié au client existant dans Access Formation</li>}
+                      {newProject.client_id && <li>Lié à la fiche client existante</li>}
                     </ul>
                   </div>
                 </div>

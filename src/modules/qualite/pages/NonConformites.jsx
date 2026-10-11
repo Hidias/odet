@@ -1,3 +1,4 @@
+import { teamFirstNameByEmail, currentUserName as fullName, teamNames } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
@@ -10,14 +11,7 @@ import { format, differenceInHours, differenceInBusinessDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 
-const getUserName = (email) => {
-  const mapping = {
-    'hicham.saidi@accessformation.pro': 'Hicham',
-    'maxime.langlais@accessformation.pro': 'Maxime',
-    'contact@accessformation.pro': 'Access'
-  }
-  return mapping[email] || 'Utilisateur'
-}
+const getUserName = (email) => teamFirstNameByEmail(email) || 'Utilisateur'
 
 // ===== CONFIG NC =====
 const ncSourceLabels = {
@@ -68,7 +62,7 @@ const reclStatusLabels = {
 export default function NonConformites() {
   const { sessions, fetchSessions } = useDataStore()
   const { user } = useAuthStore()
-  const currentUserName = getUserName(user?.email)
+  const myName = getUserName(user?.email)
   
   // Onglet actif
   const [activeTab, setActiveTab] = useState('nc') // 'nc' ou 'reclamations'
@@ -96,7 +90,7 @@ export default function NonConformites() {
   const [editingRecl, setEditingRecl] = useState(null)
   const [formDataRecl, setFormDataRecl] = useState({
     source: 'client', canal: 'email', subject: '', description: '',
-    session_id: '', responsable: 'Hicham SAIDI', status: 'open',
+    session_id: '', responsable: fullName(), status: 'open',
     cause_analysis: '', solution_proposed: '', action_taken: '', preventive_action: '',
   })
   
@@ -241,7 +235,7 @@ export default function NonConformites() {
     setShowFormRecl(false); setEditingRecl(null)
     setFormDataRecl({
       source: 'client', canal: 'email', subject: '', description: '',
-      session_id: '', responsable: 'Hicham SAIDI', status: 'open',
+      session_id: '', responsable: fullName(), status: 'open',
       cause_analysis: '', solution_proposed: '', action_taken: '', preventive_action: '',
     })
   }
@@ -602,8 +596,7 @@ export default function NonConformites() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Responsable</label>
                   <select value={formDataRecl.responsable} onChange={e => setFormDataRecl({...formDataRecl, responsable: e.target.value})} className="input w-full">
-                    <option value="Hicham SAIDI">Hicham SAIDI</option>
-                    <option value="Maxime LANGLAIS">Maxime LANGLAIS</option>
+                    {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
               </div>

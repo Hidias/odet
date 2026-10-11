@@ -1,3 +1,4 @@
+import { teamFirstNames, teamNameByFirstName, teamFirstNameByEmail } from '../../../../core/org/currentOrg'
 // ════════════════════════════════════════════════════════════════
 // suiviUtils.js — Outils partagés du Suivi commercial
 // ════════════════════════════════════════════════════════════════
@@ -5,16 +6,14 @@
 // qui donne le mauvais jour entre minuit et 2h).
 // ════════════════════════════════════════════════════════════════
 
-export const CALLERS = ['Hicham', 'Maxime', 'Marine']
+// Membres de l'équipe (prénoms) : lus depuis les profils, jamais écrits ici
+export const callers = () => teamFirstNames()
 
-export const SENDER_NAMES = { Hicham: 'Hicham Saidi', Maxime: 'Maxime Langlais', Marine: 'Hicham Saidi' }
+// Nom complet d'un membre à partir de son prénom
+export const senderNameFor = (firstName) => teamNameByFirstName(firstName)
 
 export function authorFromEmail(email) {
-  const e = (email || '').toLowerCase()
-  if (e.includes('maxime')) return 'Maxime'
-  if (e.includes('hicham')) return 'Hicham'
-  if (e.includes('entreprise') || e.includes('marine')) return 'Marine'
-  return 'Hicham'
+  return teamFirstNameByEmail(email)
 }
 
 // ── Dates locales ──────────────────────────────────────────────

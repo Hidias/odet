@@ -1,6 +1,6 @@
 // src/lib/mailingVars.js
 // ─────────────────────────────────────────────────────────────────────────────
-// Variables de personnalisation des campagnes mailing — Access Campus
+// Variables de personnalisation des campagnes mailing — l'application
 //
 // Fichier SANS dépendance : utilisé à la fois par le navigateur (Mailing.jsx)
 // et par l'envoi côté serveur (api/mailing-cron.js).

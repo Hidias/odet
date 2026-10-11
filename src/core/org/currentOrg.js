@@ -1,0 +1,89 @@
+// Accès synchrone à l'identité de l'organisme et à l'équipe, pour le code qui n'est pas
+// un composant React (objets d'emails, prompts, valeurs par défaut de formulaires).
+// Les valeurs viennent de la marque publique (get_public_branding) et de la table profiles ;
+// aucune valeur d'un organisme particulier n'est écrite ici.
+
+const BRANDING_CACHE_KEY = 'odet.branding.v1'
+let brandingCache = null
+let teamCache = []
+let meCache = null
+
+export function setOrgCache(b) { brandingCache = b }
+export function setTeamCache(list) { teamCache = Array.isArray(list) ? list : [] }
+export function setCurrentProfile(p) { meCache = p || null }
+
+function b() {
+  if (brandingCache) return brandingCache
+  try { return JSON.parse(localStorage.getItem(BRANDING_CACHE_KEY) || '{}') } catch { return {} }
+}
+
+export const orgName = () => b().org_name || ''
+export const orgLegalName = () => b().legal_name || b().org_name || ''
+export const orgEmail = () => b().email || ''
+export const orgPhone = () => b().phone || ''
+export const orgWebsite = () => b().website || ''
+export const orgCity = () => b().city || ''
+export const orgSiret = () => b().siret || ''
+export const orgNda = () => b().nda || ''
+export const orgDirigeant = () => b().dirigeant_name || ''
+export const orgAddressLine = () => [b().address, [b().postal_code, b().city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+export const orgQualiopi = () => !!b().qualiopi_certified
+export const appName = () => b().app_name || b().org_name || ''
+
+/** Ligne de contact pour les textes générés : « email | téléphone | site » (champs absents omis) */
+export const orgContactLine = () => [orgEmail(), orgPhone(), orgWebsite().replace(/^https?:\/\//, '')].filter(Boolean).join(' | ')
+
+/** Nom affiché d'un profil */
+export function profileName(p) {
+  if (!p) return ''
+  return p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || ''
+}
+
+/** Prénom de l'utilisateur connecté (ou son nom affiché) */
+export function currentUserFirstName() {
+  return meCache?.first_name || profileName(meCache).split(' ')[0] || ''
+}
+
+/** Nom complet de l'utilisateur connecté */
+export function currentUserName() {
+  return profileName(meCache)
+}
+
+export function currentUserEmail() {
+  return meCache?.sender_email || meCache?.email || ''
+}
+
+/** Membres actifs de l'équipe (hors comptable et lecture seule) : [{ id, name, firstName, email, role }] */
+export function team() {
+  return teamCache
+}
+
+/** Noms complets de l'équipe ; l'utilisateur connecté en premier */
+export function teamNames() {
+  const me = currentUserName()
+  const names = teamCache.map((t) => t.name).filter(Boolean)
+  return me ? [me, ...names.filter((n) => n !== me)] : names
+}
+
+/** Prénoms de l'équipe ; l'utilisateur connecté en premier */
+export function teamFirstNames() {
+  const me = currentUserFirstName()
+  const names = teamCache.map((t) => t.firstName).filter(Boolean)
+  return [...new Set(me ? [me, ...names] : names)]
+}
+
+/** Retrouve le membre de l'équipe par adresse email (prénom), sinon l'utilisateur connecté */
+export function teamFirstNameByEmail(email) {
+  const e = String(email || '').toLowerCase()
+  const m = teamCache.find((t) => t.email && t.email.toLowerCase() === e)
+  return m?.firstName || currentUserFirstName()
+}
+
+/** Nom complet d'un membre à partir de son prénom (repli : l'utilisateur connecté) */
+export function teamNameByFirstName(first) {
+  const m = teamCache.find((t) => t.firstName === first)
+  return m?.name || currentUserName()
+}
+
+export const orgPostalCode = () => b().postal_code || ''
+export const orgReferentHandicap = () => b().referent_handicap_nom || ''

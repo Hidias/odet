@@ -28,7 +28,7 @@ export default function ProspectionTabs() {
 
   const tabs = allTabs.filter(t => !t.adminOnly || user?.role === 'admin' || user?.role === 'superadmin')
 
-  // Si l'onglet actif n'est plus visible (ex: Marine accède à commissions), fallback
+  // Si l'onglet actif n'est plus visible (rôle sans accès à cet onglet), fallback
   const activeExists = tabs.some(t => t.id === activeTab)
   const effectiveTab = activeExists ? activeTab : 'rendez-vous'
 
@@ -58,7 +58,7 @@ export default function ProspectionTabs() {
                 <Icon className="w-5 h-5" />
                 {tab.label}
                 {tab.adminOnly && (
-                  <span className="ml-0.5 text-[10px] text-gray-300" title="Réservé Hicham / Maxime">🔒</span>
+                  <span className="ml-0.5 text-[10px] text-gray-300" title="Réservé à la direction">🔒</span>
                 )}
               </button>
             )

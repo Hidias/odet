@@ -1,3 +1,4 @@
+import { orgName, orgNda, orgLegalName, orgAddressLine, orgPhone, orgEmail } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../core/supabase'
 import { useDataStore } from '../../../core/store'
@@ -413,7 +414,7 @@ export default function Qualiopi() {
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>${doc.title || config?.label} - Access Formation</title>
+    <title>${doc.title || config?.label} - ${orgName()}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.7; color: #333; background: #f5f5f5; }
@@ -439,14 +440,14 @@ export default function Qualiopi() {
     <div class="container">
         <div class="header">
             <h1>${doc.title || config?.label}</h1>
-            <div class="subtitle">Access Formation - Organisme de formation professionnelle</div>
-            <div class="version">Version ${doc.version || '1.0'} | NDA : 53291026129</div>
+            <div class="subtitle">${orgName()} - Organisme de formation professionnelle</div>
+            <div class="version">Version ${doc.version || '1.0'}${orgNda() ? ` | NDA : ${orgNda()}` : ''}</div>
         </div>
         <div class="content">${content.replace(/\n/g, '<br>')}</div>
         <div class="footer">
-            <p><strong>ACCESS FORMATION</strong></p>
-            <p>24 rue Kerbleiz - 29900 Concarneau</p>
-            <p>Tél : 02 98 90 30 24 | Email : contact@accessformation.pro</p>
+            <p><strong>${orgLegalName().toUpperCase()}</strong></p>
+            <p>${orgAddressLine()}</p>
+            <p>${[orgPhone() ? `Tél : ${orgPhone()}` : '', orgEmail() ? `Email : ${orgEmail()}` : ''].filter(Boolean).join(' | ')}</p>
         </div>
     </div>
 </body>
@@ -501,14 +502,14 @@ export default function Qualiopi() {
 <body>
     <div class="header">
         <h1>${doc.title || config?.label}</h1>
-        <div class="subtitle">Access Formation - Organisme de formation professionnelle</div>
-        <div class="version">Version ${doc.version || '1.0'} | NDA : 53291026129</div>
+        <div class="subtitle">${orgName()} - Organisme de formation professionnelle</div>
+        <div class="version">Version ${doc.version || '1.0'}${orgNda() ? ` | NDA : ${orgNda()}` : ''}</div>
     </div>
     <div class="content">${content.replace(/\n/g, '<br>')}</div>
     <div class="footer">
-        <p><strong>ACCESS FORMATION</strong></p>
-        <p>24 rue Kerbleiz - 29900 Concarneau</p>
-        <p>Tél : 02 98 90 30 24 | Email : contact@accessformation.pro</p>
+        <p><strong>${orgLegalName().toUpperCase()}</strong></p>
+        <p>${orgAddressLine()}</p>
+        <p>${[orgPhone() ? `Tél : ${orgPhone()}` : '', orgEmail() ? `Email : ${orgEmail()}` : ''].filter(Boolean).join(' | ')}</p>
     </div>
 </body>
 </html>`

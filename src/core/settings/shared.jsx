@@ -7,7 +7,7 @@ import { supabase } from '../supabase'
 export const THEMES = [
   { key: 'anthracite-rouge', label: 'Anthracite et rouge', primary: '#1C2024', accent: '#C8102E', highlight: '#D9A62E' },
   { key: 'petrole-or', label: 'Pétrole et or', primary: '#0F2D35', accent: '#0F2D35', highlight: '#E9B44C' },
-  { key: 'marine-corail', label: 'Marine et corail', primary: '#1E3A5F', accent: '#E07A5F', highlight: '#F2C14E' },
+  { key: 'marine-corail', label: 'Bleu marine et corail', primary: '#1E3A5F', accent: '#E07A5F', highlight: '#F2C14E' },
   { key: 'foret-sable', label: 'Forêt et sable', primary: '#2F5D50', accent: '#2F5D50', highlight: '#C9A66B' },
   { key: 'ardoise-ambre', label: 'Ardoise et ambre', primary: '#3B4252', accent: '#D08C2E', highlight: '#E3B23C' },
   { key: 'bordeaux-creme', label: 'Bordeaux et crème', primary: '#6B1F2A', accent: '#6B1F2A', highlight: '#E8D8B5' },

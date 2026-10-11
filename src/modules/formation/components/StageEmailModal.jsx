@@ -1,3 +1,4 @@
+import { orgName, orgEmail, orgWebsite, orgCity } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -72,7 +73,7 @@ export default function StageEmailModal({ session, onClose }) {
   const endDate = session?.end_date
     ? new Date(session.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     : ''
-  const formateur = trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Access Formation'
+  const formateur = trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()
 
   // ── Chargement données ────────────────────────────────────────────────────
 
@@ -110,7 +111,7 @@ export default function StageEmailModal({ session, onClose }) {
   // ── Template email ────────────────────────────────────────────────────────
 
   const buildTemplate = useCallback((prenom) =>
-    `Bonjour ${prenom},\n\nNous vous remercions d'avoir participé à la formation « ${courseTitle} » dispensée du ${startDate} au ${endDate}.\n\nNous espérons que cette formation vous a été bénéfique et vous a permis d'acquérir les compétences nécessaires.\n\nVeuillez trouver ci-joint les documents suivants :\n- Certificat de réalisation\n- Attestation de présence\n- Évaluation à froid${docStagiaire ? `\n- ${docStagiaire.title}` : ''}\n\nConcernant l'évaluation à froid ci-jointe, nous vous invitons à la compléter et à nous la renvoyer à l'adresse contact@accessformation.pro.\nCela nous permettra de mesurer les apports concrets de cette formation pour vous.\n\nPar ailleurs, vous pouvez également visiter notre site www.accessformation.pro pour découvrir l'ensemble de nos formations disponibles.\n\nN'hésitez pas à nous contacter si vous avez des questions.\n\nCordialement,\n${formateur}\nAccess Formation`,
+    `Bonjour ${prenom},\n\nNous vous remercions d'avoir participé à la formation « ${courseTitle} » dispensée du ${startDate} au ${endDate}.\n\nNous espérons que cette formation vous a été bénéfique et vous a permis d'acquérir les compétences nécessaires.\n\nVeuillez trouver ci-joint les documents suivants :\n- Certificat de réalisation\n- Attestation de présence\n- Évaluation à froid${docStagiaire ? `\n- ${docStagiaire.title}` : ''}\n\nConcernant l'évaluation à froid ci-jointe, nous vous invitons à la compléter et à nous la renvoyer à l'adresse ${orgEmail()}.\nCela nous permettra de mesurer les apports concrets de cette formation pour vous.\n\nPar ailleurs, vous pouvez également visiter notre site ${orgWebsite().replace(/^https?:\/\//, '')} pour découvrir l'ensemble de nos formations disponibles.\n\nN'hésitez pas à nous contacter si vous avez des questions.\n\nCordialement,\n${formateur}\n${orgName()}`,
     [courseTitle, startDate, endDate, formateur, docStagiaire])
 
   useEffect(() => {
@@ -424,7 +425,7 @@ export default function StageEmailModal({ session, onClose }) {
     setCrGenerating(true); setCrError(null)
     const scoresText = Q_KEYS.filter(k => evalData.scores[k] !== null).map(k => `- ${Q_LABELS[k]} : ${evalData.scores[k]}/5`).join('\n')
     const commentsText = evalData.comments.length ? evalData.comments.map((c, i) => `${i + 1}. « ${c} »`).join('\n') : 'Aucun commentaire libre.'
-    const prompt = `Tu es l'assistant de l'organisme de formation Access Formation (Concarneau, Bretagne).\nFormation : ${courseTitle} — Référence : ${ref}\nDates : du ${startDate} au ${endDate} — Formateur : ${formateur}\nStagiaires ayant répondu : ${evalData.total} sur ${evalData.totalTrainees}\nScore moyen global : ${evalData.globalScore}/5 — Taux de recommandation : ${evalData.tauxReco !== null ? evalData.tauxReco + '%' : 'non calculé'}\n\nScores :\n${scoresText}\n\nCommentaires :\n${commentsText}\n\nÉcris un compte rendu professionnel de 80-150 mots. Réponds uniquement avec le texte, sans titre ni introduction.`
+    const prompt = `Tu es l'assistant de l'organisme de formation ${orgName()}${orgCity() ? ` (${orgCity()})` : ''}.\nFormation : ${courseTitle} — Référence : ${ref}\nDates : du ${startDate} au ${endDate} — Formateur : ${formateur}\nStagiaires ayant répondu : ${evalData.total} sur ${evalData.totalTrainees}\nScore moyen global : ${evalData.globalScore}/5 — Taux de recommandation : ${evalData.tauxReco !== null ? evalData.tauxReco + '%' : 'non calculé'}\n\nScores :\n${scoresText}\n\nCommentaires :\n${commentsText}\n\nÉcris un compte rendu professionnel de 80-150 mots. Réponds uniquement avec le texte, sans titre ni introduction.`
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',

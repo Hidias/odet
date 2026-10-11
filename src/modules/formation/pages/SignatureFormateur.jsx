@@ -1,3 +1,4 @@
+import { currentUserName } from '../../../core/org/currentOrg'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -25,10 +26,6 @@ import toast from 'react-hot-toast'
 
 const QUEUE_KEY = 'afm_signature_queue'
 
-const TRAINER_NAMES = {
-  'hicham.saidi@accessformation.pro': 'Hicham SAIDI',
-  'maxime.langlais@accessformation.pro': 'Maxime LANGLAIS',
-}
 
 const PROXY_REASONS = [
   'Handicap',
@@ -75,7 +72,7 @@ export default function SignatureFormateur() {
   const [showHelp, setShowHelp] = useState(false)
   const slotRef = useRef(null)
 
-  const trainerName = TRAINER_NAMES[(user?.email || '').toLowerCase()] || user?.email || 'Formateur'
+  const trainerName = currentUserName() || user?.email || 'Formateur'
   const validatedBy = `Signature sur téléphone – ${trainerName}`
 
   // ─── Chargement ────────────────────────────────────────────

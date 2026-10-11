@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { supabase } from '../supabase'
 import { buildScale, rgbChannels, foregroundFor, isDark } from './colors'
 import { FONT_PAIRS } from './presets'
+import { setOrgCache } from '../org/currentOrg'
 
 // Marque de l'instance (logo, nom affiché, couleurs, polices), chargée au démarrage
 // depuis organization_settings via la RPC publique get_public_branding, avec un cache
@@ -115,6 +116,7 @@ export function BrandingProvider({ children }) {
       const next = { ...FALLBACK, ...data }
       setBranding(next)
       writeCache(next)
+      setOrgCache(next)
     }
     setLoaded(true)
   }, [])

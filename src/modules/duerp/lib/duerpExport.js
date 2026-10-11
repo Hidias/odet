@@ -1,6 +1,6 @@
 // src/lib/duerpExport.js
 // Export DUERP — PDF & Excel Premium
-// Access Formation — v5.1 : formations catalogue + texte agrandi + formation dans plan d'action
+// Export DUERP v5.1 : formations catalogue + texte agrandi + formation dans plan d'action
 //
 // CORRECTIFS v5.1 :
 // - Filigrane diagonal corrige (centré, 2 lignes, plus visible)
@@ -11,6 +11,8 @@
 // - Fix "Gnull" quand gravite est null
 // - Normalisation accents dans isFormationRelevant et matchFormation
 
+import { orgName, orgCity, orgContactLine, currentUserName } from '../../../core/org/currentOrg'
+const ORGN = () => orgName() || "l'organisme"
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import * as XLSX from 'xlsx-js-style'
@@ -52,25 +54,25 @@ const fmtDate = (d) => { if (!d) return '--'; try { return new Date(d).toLocaleD
 
 // ── FILIGRANE ──
 const WATERMARK_TEXT = "DOCUMENT D'APPUI — SANS VALEUR JURIDIQUE"
-const BANNER_TEXT = "Document d'appui a la redaction — Sans valeur juridique — L'employeur reste seul responsable de son DUERP (Art. L.4121-1) — Access Formation decline toute responsabilite"
+const BANNER_TEXT = () => "Document d'appui a la redaction — Sans valeur juridique — L'employeur reste seul responsable de son DUERP (Art. L.4121-1) — " + ORGN() + " decline toute responsabilite"
 
-const DISCLAIMER_SHORT = "Document d'appui a la redaction elabore avec l'assistance d'Access Formation. Ce document n'a PAS de valeur juridique et ne se substitue pas au DUERP officiel de l'employeur. L'employeur reste seul responsable de la redaction, de l'exhaustivite, de l'exactitude de l'evaluation des risques et de la mise en oeuvre des actions de prevention (Art. L.4121-1 et suivants du Code du travail). Access Formation decline toute responsabilite en cas d'oubli ou de risques non evalues."
+const DISCLAIMER_SHORT = () => "Document d'appui a la redaction elabore avec l'assistance de " + ORGN() + ". Ce document n'a PAS de valeur juridique et ne se substitue pas au DUERP officiel de l'employeur. L'employeur reste seul responsable de la redaction, de l'exhaustivite, de l'exactitude de l'evaluation des risques et de la mise en oeuvre des actions de prevention (Art. L.4121-1 et suivants du Code du travail). " + ORGN() + " decline toute responsabilite en cas d'oubli ou de risques non evalues."
 
-const DISCLAIMER_FULL = [
+const DISCLAIMER_FULL = () => [
   'AVERTISSEMENT IMPORTANT -- LIMITES DE RESPONSABILITE', '',
-  "Le present document est un APPUI A LA REDACTION du Document Unique d'Evaluation des Risques Professionnels (DUERP). Il a ete elabore avec l'assistance d'Access Formation dans le cadre d'une prestation d'accompagnement et de conseil.", '',
+  "Le present document est un APPUI A LA REDACTION du Document Unique d'Evaluation des Risques Professionnels (DUERP). Il a ete elabore avec l'assistance de " + ORGN() + " dans le cadre d'une prestation d'accompagnement et de conseil.", '',
   "CE DOCUMENT N'A PAS DE VALEUR JURIDIQUE et ne constitue en aucun cas le DUERP officiel de l'entreprise. Il ne peut etre presente comme tel lors d'un controle de l'inspection du travail.", '',
-  "Access Formation intervient en tant que prestataire d'aide a la redaction et a la structuration du DUERP. Cette prestation ne se substitue en aucun cas a l'obligation legale de l'employeur.", '',
+  "" + ORGN() + " intervient en tant que prestataire d'aide a la redaction et a la structuration du DUERP. Cette prestation ne se substitue en aucun cas a l'obligation legale de l'employeur.", '',
   'Conformement aux articles L.4121-1 a L.4121-5 et R.4121-1 a R.4121-4 du Code du travail :',
   "  - L'employeur est seul responsable de la transcription et de la mise a jour du DUERP",
   "  - L'employeur est seul responsable de l'exhaustivite et de l'exactitude de l'evaluation des risques",
   "  - L'employeur est seul responsable de la mise en oeuvre des actions de prevention",
   "  - L'employeur est seul garant de la consultation des representants du personnel (CSE le cas echeant)", '',
-  "Access Formation ne saurait etre tenue responsable d'eventuelles omissions, inexactitudes, insuffisances ou risques non evalues dans le present document.", '',
+  "" + ORGN() + " ne saurait etre tenue responsable d'eventuelles omissions, inexactitudes, insuffisances ou risques non evalues dans le present document.", '',
   "Ce document constitue un outil d'aide a la decision et ne remplace pas l'expertise d'un IPRP.",
 ]
 
-// ── CATALOGUE FORMATIONS ACCESS FORMATION ──
+// ── CATALOGUE DES FORMATIONS DE L'ORGANISME ──
 const ACCESS_FORMATIONS = [
   { code: 'SST-FI', label: 'Sauveteur Secouriste du Travail (SST Initial)', ref: 'PROG-FI SST', duree: '14h (2 jours)', validite: '2 ans', reglementation: 'Art. R4224-15', matchKeys: ['*'], description: 'Obligation : au moins 1 SST par atelier' },
   { code: 'MAC-SST', label: 'MAC SST (Maintien & Actualisation)', ref: 'PROG-MAC SST', duree: '7h (1 jour)', validite: '2 ans', reglementation: 'Art. R4224-15', matchKeys: ['*'], description: 'Recyclage obligatoire tous les 2 ans' },
@@ -97,14 +99,11 @@ function isFormationRelevant(formation, risks, categories) {
   return formation.matchKeys.some(k => allText.includes(k))
 }
 
-// ── Accompagnateurs Access Formation (remplace "Evaluateur") ──
-const ACCOMPAGNATEURS = {
-  'hicham.saidi@accessformation.pro': 'Hicham SAIDI',
-  'maxime.langlais@accessformation.pro': 'Maxime LANGLAIS',
-}
+// ── Accompagnateur : l'utilisateur qui génère le document ──
 function getAccompagnateurName(userEmail) {
-  if (!userEmail) return 'Access Formation'
-  return ACCOMPAGNATEURS[userEmail.toLowerCase()] || 'Access Formation'
+  const me = currentUserName()
+  if (me) return me
+  return ORGN()
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -155,7 +154,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
     doc.setFontSize(7)
     doc.setTextColor(255, 255, 255)
     doc.setFont(undefined, 'bold')
-    doc.text(BANNER_TEXT, pw / 2, bannerY + 5.5, { align: 'center' })
+    doc.text(BANNER_TEXT(), pw / 2, bannerY + 5.5, { align: 'center' })
     doc.setFont(undefined, 'normal')
     doc.restoreGraphicsState()
   }
@@ -166,7 +165,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
     doc.setFontSize(7); doc.setTextColor(...C.grayLight)
     doc.text(`DUERP -- ${project.company_name} -- ${project.reference || ''}`, ml, footerY + 2)
     doc.text(`Page ${pageNum}`, pw / 2, footerY + 2, { align: 'center' })
-    doc.text(`${new Date().toLocaleDateString('fr-FR')} -- Access Formation`, pw - mr, footerY + 2, { align: 'right' })
+    doc.text(`${new Date().toLocaleDateString('fr-FR')} -- ${ORGN()}`, pw - mr, footerY + 2, { align: 'right' })
   }
   const addHeader = () => {
     if (LOGO_BASE64) { try { doc.addImage(LOGO_BASE64, 'JPEG', ml, 4, 18, 18) } catch (e) {} }
@@ -243,7 +242,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
     doc.text(s[1], 25 + sw * i + sw / 2, y + 18, { align: 'center' })
   })
   y = ph - 48; doc.setFontSize(7.5); doc.setFont(undefined, 'bold'); doc.setTextColor(...C.red)
-  doc.text(doc.splitTextToSize(DISCLAIMER_SHORT, pw - 36), 18, y)
+  doc.text(doc.splitTextToSize(DISCLAIMER_SHORT(), pw - 36), 18, y)
   doc.setFont(undefined, 'normal')
   addFooter()
   addWatermark()
@@ -378,9 +377,9 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
     })
   } else { y = para(y, 'Aucune action definie.', { italic: true }) }
 
-  // ── v5 : CATALOGUE FORMATIONS ACCESS FORMATION ──
-  y = checkY(y, 40); y = subTitle(y, 'FORMATIONS RECOMMANDEES — Access Formation')
-  y = para(y, "En lien avec les risques identifies dans votre entreprise, Access Formation vous propose les formations suivantes. Les formations cochees correspondent directement aux risques detectes dans ce document.")
+  // ── v5 : catalogue des formations de l'organisme ──
+  y = checkY(y, 40); y = subTitle(y, 'FORMATIONS RECOMMANDEES — ' + ORGN() + '')
+  y = para(y, "En lien avec les risques identifies dans votre entreprise, " + ORGN() + " vous propose les formations suivantes. Les formations cochees correspondent directement aux risques detectes dans ce document.")
   y += 2
 
   const formBody = ACCESS_FORMATIONS.map(f => {
@@ -432,7 +431,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
   doc.setFontSize(9); doc.setFont(undefined, 'bold'); doc.setTextColor(...C.teal)
   doc.text('Contactez-nous pour un devis personnalise', ml + 5, y + 6)
   doc.setFont(undefined, 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60)
-  doc.text('02 98 90 30 24  |  contact@accessformation.pro  |  www.accessformation.pro', ml + 5, y + 11)
+  doc.text(orgContactLine().split(' | ').join('  |  '), ml + 5, y + 11)
   y += 18
 
   y = checkY(y, 40); y = subTitle(y, 'VOS OBLIGATIONS')
@@ -532,7 +531,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
   y = newPage(); y = sectionTitle(y, 5, 'RAPPELS REGLEMENTAIRES ET MENTIONS LEGALES')
   ;['Conservation 40 ans (Art. L.4121-3-1 V)', `MAJ : ${eff >= 11 ? 'annuelle obligatoire' : 'changement significatif'} + amenagement important`, 'Consultation CSE (si applicable)', 'Evaluation H/F (Art. L.4121-3)', eff >= 50 ? 'PAPRIPACT obligatoire' : 'Liste actions integree au DUERP', 'Transmission medecine du travail a chaque MAJ', 'Mise a disposition salaries, anciens salaries, inspecteurs, CARSAT'].forEach(item => { y = checkY(y, 8); doc.setFontSize(9.5); doc.setTextColor(...C.black); doc.text(`  - ${item}`, ml + 2, y); y += 6 })
   y += 6; y = checkY(y, 65)
-  const dlL = doc.splitTextToSize(DISCLAIMER_FULL.join('\n'), cw - 12), dlH = dlL.length * 3 + 16
+  const dlL = doc.splitTextToSize(DISCLAIMER_FULL().join('\n'), cw - 12), dlH = dlL.length * 3 + 16
   doc.setFillColor(255, 250, 240); doc.setDrawColor(...C.red); doc.setLineWidth(1.2)
   doc.roundedRect(ml, y, cw, dlH, 2, 2, 'FD')
   doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.setTextColor(...C.red); doc.text('/!\\ AVERTISSEMENT', ml + 5, y + 8)
@@ -616,9 +615,9 @@ export function generateDuerpExcel({ project, units, risks, actions, categories,
   ws1['!cols'] = [{ wch: 16 }, { wch: 30 }, { wch: 5 }, { wch: 16 }, { wch: 30 }, { wch: 5 }]
   ws1['!rows'] = [{ hpt: 50 }, { hpt: 20 }, {}, { hpt: 40 }]
 
-  setCell(ws1, 0, 0, 'ACCESS FORMATION', { font: { bold: true, sz: 26, color: { rgb: HEX.amber } }, fill: { fgColor: { rgb: HEX.teal } }, alignment: { horizontal: 'center', vertical: 'center' } })
+  setCell(ws1, 0, 0, ORGN().toUpperCase(), { font: { bold: true, sz: 26, color: { rgb: HEX.amber } }, fill: { fgColor: { rgb: HEX.teal } }, alignment: { horizontal: 'center', vertical: 'center' } })
   styleRange(ws1, 0, 0, 0, 5, { fill: { fgColor: { rgb: HEX.teal } } })
-  setCell(ws1, 1, 0, 'Organisme de formation professionnelle -- Concarneau', { font: { sz: 10, color: { rgb: HEX.white }, italic: true }, fill: { fgColor: { rgb: HEX.teal } }, alignment: { horizontal: 'center' } })
+  setCell(ws1, 1, 0, 'Organisme de formation professionnelle' + (orgCity() ? ' -- ' + orgCity() : ''), { font: { sz: 10, color: { rgb: HEX.white }, italic: true }, fill: { fgColor: { rgb: HEX.teal } }, alignment: { horizontal: 'center' } })
   styleRange(ws1, 1, 0, 1, 5, { fill: { fgColor: { rgb: HEX.teal } } })
   setCell(ws1, 3, 0, "DOCUMENT UNIQUE D'EVALUATION DES RISQUES PROFESSIONNELS", { font: { bold: true, sz: 18, color: { rgb: HEX.teal } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } })
 
@@ -647,7 +646,7 @@ export function generateDuerpExcel({ project, units, risks, actions, categories,
   })
   ws1['!rows'][12] = { hpt: 35 }
 
-  setCell(ws1, 15, 0, DISCLAIMER_SHORT, { font: { sz: 7, color: { rgb: HEX.gray }, italic: true }, alignment: { wrapText: true } })
+  setCell(ws1, 15, 0, DISCLAIMER_SHORT(), { font: { sz: 7, color: { rgb: HEX.gray }, italic: true }, alignment: { wrapText: true } })
 
   XLSX.utils.book_append_sheet(wb, ws1, 'Presentation')
 
@@ -940,7 +939,7 @@ export function generateDuerpExcel({ project, units, risks, actions, categories,
     'SIGNATURES', '',
     `L'employeur : ${project.contact_name || ''}                    L'accompagnateur : ${accompName}`, '',
     'Date et signature :                                  Date et signature :', '', '',
-    `Document genere -- Access Campus -- Access Formation, Concarneau -- ${new Date().toLocaleDateString('fr-FR')}`,
+    `Document genere -- ${ORGN()}${orgCity() ? ', ' + orgCity() : ''} -- ${new Date().toLocaleDateString('fr-FR')}`,
   ]
   const legalRows = legalLines.map(l => [l])
   const ws9 = XLSX.utils.aoa_to_sheet(legalRows)

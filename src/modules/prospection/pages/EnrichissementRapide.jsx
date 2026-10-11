@@ -17,6 +17,7 @@
  * ============================================================================
  */
 
+import { orgCity, orgPostalCode } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -110,9 +111,11 @@ function getFormeLabel(code) {
   return group || ''
 }
 
-const BASES = {
-  concarneau: { name: 'Concarneau', who: 'Hicham', lat: 47.8742, lng: -3.9196 },
-  derval: { name: 'Derval', who: 'Maxime', lat: 47.6639, lng: -1.6689 },
+// Point de départ des calculs de distance : le département de l'organisme (centre approximatif)
+const orgBases = () => {
+  const dept = (orgPostalCode() || '').slice(0, 2)
+  const c = DEPT_CENTERS[dept]
+  return c ? { siege: { name: orgCity() || 'Siège', who: '', lat: c.lat, lng: c.lng } } : {}
 }
 
 const DEPT_CENTERS = {
@@ -161,7 +164,7 @@ export default function EnrichissementRapide() {
   const [departementFilter, setDepartementFilter] = useState('')
   const [effectifFilter, setEffectifFilter] = useState('')
   const [formeFilter, setFormeFilter] = useState('')
-  const [proximityBase, setProximityBase] = useState('concarneau')
+  const [proximityBase, setProximityBase] = useState('siege')
   const [sortMode, setSortMode] = useState('smart')
   const [radiusFilter, setRadiusFilter] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
@@ -269,7 +272,7 @@ export default function EnrichissementRapide() {
 
   const loadProspects = useCallback(async () => {
     setLoading(true)
-    const base = BASES[proximityBase]
+    const base = orgBases()[proximityBase]
     let nearbyDepts = null
     if (base && radiusFilter > 0) {
       const marginRadius = radiusFilter + 50
@@ -853,7 +856,7 @@ export default function EnrichissementRapide() {
             </h1>
             <p className="text-gray-500 text-sm mt-0.5">
               {totalRemaining.toLocaleString()} prospects restants
-              {radiusFilter > 0 && ` • ≤ ${radiusFilter}km de ${BASES[proximityBase].name}`}
+              {radiusFilter > 0 && ` • ≤ ${radiusFilter}km de ${orgBases()[proximityBase]?.name || 'votre siège'}`}
             </p>
           </div>
           <button onClick={loadProspects}
@@ -890,7 +893,7 @@ export default function EnrichissementRapide() {
             ))}
           </div>
           <div className="flex bg-gray-100 rounded-md p-0.5">
-            {Object.entries(BASES).map(([key, val]) => (
+            {Object.entries(orgBases()).map(([key, val]) => (
               <button key={key} onClick={() => setProximityBase(key)}
                 className={'px-2.5 py-1 rounded-md font-medium transition-colors ' +
                   (proximityBase === key ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700')}>
@@ -1034,7 +1037,7 @@ export default function EnrichissementRapide() {
                   <div>
                     <label className="text-xs text-gray-500">Ville</label>
                     <input type="text" value={editCity} onChange={e => setEditCity(e.target.value)}
-                      placeholder="Concarneau"
+                      placeholder="Ville"
                       className="w-full px-2 py-1.5 border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 bg-white" />
                   </div>
                 </div>
@@ -1501,7 +1504,7 @@ export default function EnrichissementRapide() {
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
                   <input type="text" value={editCity} onChange={e => setEditCity(e.target.value)}
-                    placeholder="Concarneau"
+                    placeholder="Ville"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
                 </div>
               </div>

@@ -60,9 +60,9 @@ export default function Indicateurs() {
   // Seuil RGPD : minimum de personnes pour afficher les stats
   const RGPD_THRESHOLD = 5
   
-  // Vérifier si l'utilisateur est admin (Hicham ou Maxime)
-  const adminEmails = ['hbenalla@hotmail.com', 'hbenalla@access-ssi.com', 'maxime@access-formation.net', 'maxime@access-ssi.com']
-  const isAdmin = user?.email && adminEmails.some(e => user.email.toLowerCase() === e.toLowerCase())
+  // Données nominatives réservées aux rôles de direction
+  const userRole = useAuthStore((s) => s.userRole)
+  const isAdmin = ['superadmin', 'admin', 'direction'].includes(userRole)
   
   const [activeTab, setActiveTab] = useState('hot') // hot, trainer, cold, stats
   

@@ -12,6 +12,7 @@
 //   • création campagne + pièce jointe stockée + destinataires personnalisés
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { team, currentUserEmail, currentUserFirstName } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -24,12 +25,9 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const SIG_OPTIONS = [
-  { value: 'Hicham', label: 'Hicham SAIDI',    email: 'hicham.saidi@accessformation.pro' },
-  { value: 'Maxime', label: 'Maxime LANGLAIS', email: 'maxime.langlais@accessformation.pro' },
-  { value: 'Marine', label: 'Marine',          email: 'entreprise@accessformation.pro' },
-]
-export const SENDER_EMAIL = Object.fromEntries(SIG_OPTIONS.map(s => [s.value, s.email]))
+// Expéditeurs possibles : les membres de l'équipe (profils), avec leur adresse d'envoi
+const sigOptions = () => team().filter((t) => t.email).map((t) => ({ value: t.firstName, label: t.name, email: t.email }))
+export const senderEmailFor = (value) => sigOptions().find((s) => s.value === value)?.email || currentUserEmail()
 
 const CADENCES = [
   { value: 90,  label: '90 s — 40 / heure' },
@@ -46,7 +44,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
     name: initial.name || '',
     subject: initial.subject || '',
     body_html: initial.body_html || '',
-    signature_caller: initial.signature_caller || 'Hicham',
+    signature_caller: initial.signature_caller || currentUserFirstName(),
   })
   const [attachment, setAttachment] = useState(initial.attachmentFile || null) // { filename, base64, contentType, size }
   const [selection, setSelection] = useState(new Map())
@@ -255,7 +253,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
         subject: form.subject,
         body_html: form.body_html,
         signature_caller: form.signature_caller,
-        sender_email: SENDER_EMAIL[form.signature_caller],
+        sender_email: senderEmailFor(form.signature_caller),
         target_source: 'audience',
         filters: { audience: audFilters },
         status: later ? 'planifiée' : 'en_cours',
@@ -428,7 +426,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
                 <label className="block text-xs font-medium text-gray-600 mb-1">Signature / expéditeur</label>
                 <select value={form.signature_caller} onChange={e => setForm(f => ({ ...f, signature_caller: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm">
-                  {SIG_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  {sigOptions().map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
               <div>
@@ -532,11 +530,11 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
                 </li>
               )}
               {prepared.recent > 0 && <li className="text-amber-700">⚠️ {prepared.recent} ont déjà reçu un mail il y a moins de 30 jours (envoi quand même)</li>}
-              <li>Expéditeur : <strong>{SENDER_EMAIL[form.signature_caller]}</strong></li>
+              <li>Expéditeur : <strong>{senderEmailFor(form.signature_caller)}</strong></li>
               <li>Mode : <strong>{mode === 'serveur' ? 'serveur' : 'ce navigateur (ne pas fermer l’onglet)'}</strong> · cadence {cadence} s</li>
               <li>{mode === 'serveur' && when === 'later' ? 'Début' : 'Départ'} : <strong>{fmtDateTime(startDate)}</strong> · fin estimée {fmtDateTime(new Date(startDate.getTime() + Math.max(0, prepared.kept.length - 1) * cadence * 1000))}</li>
               {attachment && <li>Pièce jointe : <strong>{attachment.filename}</strong></li>}
-              <li>Rapport de fin envoyé à <strong>{SENDER_EMAIL[form.signature_caller]}</strong></li>
+              <li>Rapport de fin envoyé à <strong>{senderEmailFor(form.signature_caller)}</strong></li>
             </ul>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setPrepared(null)} disabled={launching} className="px-4 py-2 text-sm text-gray-600">Annuler</button>

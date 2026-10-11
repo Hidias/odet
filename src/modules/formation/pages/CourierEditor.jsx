@@ -1,3 +1,4 @@
+import { orgName } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useDataStore } from '../../../core/store'
@@ -135,7 +136,7 @@ export default function CourierEditor() {
           doc.setFontSize(10)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(255, 255, 255)
-          doc.text('ACCESS FORMATION', 20, 18)
+          doc.text(orgName().toUpperCase(), 20, 18)
         }
       } else {
         doc.setFillColor(...(org.theme?.primary || [28, 32, 36]))

@@ -4,6 +4,7 @@
 // avec le mode session. Texte inchangé.
 // ════════════════════════════════════════════════════════════════
 
+import { orgName } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { supabase } from '../../../core/supabase'
 
@@ -12,7 +13,7 @@ export const EMAIL_TEMPLATES = {
     subject: (name) => 'Suite à notre échange – formations santé & sécurité',
     body: (name, contact) => `<p>Bonjour${contact ? ' ' + contact : ''},</p>
 <p>Merci encore d'avoir pris le temps d'échanger avec moi aujourd'hui 😊</p>
-<p>Comme évoqué au téléphone, Access Formation accompagne les entreprises de Bretagne et Pays de la Loire sur les sujets de santé et sécurité au travail, avec une approche très terrain et sur mesure.</p>
+<p>Comme évoqué au téléphone, ${orgName()} accompagne les entreprises de Bretagne et Pays de la Loire sur les sujets de santé et sécurité au travail, avec une approche très terrain et sur mesure.</p>
 <p>Nous intervenons notamment sur :</p>
 <ul>
 <li>le secourisme (SST, MAC SST)</li>
@@ -30,7 +31,7 @@ export const EMAIL_TEMPLATES = {
     subject: (name) => 'Vos formations sécurité sont-elles à jour ?',
     body: (name, contact) => `<p>Bonjour${contact ? ' ' + contact : ''},</p>
 <p>Je me permets de vous contacter par mail, car j'ai tenté de vous joindre ce jour, sans succès.</p>
-<p>Je souhaitais échanger avec vous pour vous présenter <strong>Access Formation</strong>, organisme de formation spécialisé en santé et sécurité au travail, intervenant en Bretagne et Pays de la Loire.</p>
+<p>Je souhaitais échanger avec vous pour vous présenter <strong>${orgName()}</strong>, organisme de formation spécialisé en santé et sécurité au travail, intervenant en Bretagne et Pays de la Loire.</p>
 <p>Nous intervenons notamment sur :</p>
 <ul>
 <li>le secourisme (SST, MAC SST)</li>
@@ -53,7 +54,7 @@ export const EMAIL_TEMPLATES = {
 <p>Seriez-vous disponible pour un échange rapide de 10 minutes cette semaine ? Belle journée !</p>`,
   },
   relance_2: {
-    subject: (name) => 'Une dernière chose… – Access Formation',
+    subject: (name) => `Une dernière chose… – ${orgName()}`,
     body: (name, contact) => `<p>Bonjour${contact ? ' ' + contact : ''},</p>
 <p>Je reviens vers vous une toute dernière fois, promis, c’est la dernière 😊</p>
 <p>Depuis nos précédents échanges, nous avons accompagné plusieurs entreprises de la région en formations santé et sécurité au travail : SST, prévention incendie, gestes et postures, habilitations électriques, conduite de chariots (R485/R489).</p>
@@ -86,7 +87,7 @@ Tarif : 250 € HT par session.</p>
 <p>Belle journée,</p>`,
   },
   remerciement: {
-    subject: (name) => 'Merci pour votre retour – Access Formation',
+    subject: (name) => `Merci pour votre retour – ${orgName()}`,
     body: (name, contact) => `<p>Bonjour${contact ? ' ' + contact : ''},</p>
 <p>Je vous remercie pour le temps que vous nous avez accordé au téléphone.</p>
 <p>Nous avons bien noté que les formations en santé et sécurité ne correspondent pas à vos besoins actuels, et nous respectons tout à fait cette décision.</p>

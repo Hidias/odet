@@ -1,3 +1,4 @@
+import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -279,7 +280,7 @@ export default function ProspectRDVDetail() {
           type: 'meeting',
           title: label + ' — ' + (selectedClient?.name || ''),
           content: formData.notes || '',
-          author: user?.email?.includes('maxime') ? 'Maxime' : 'Hicham',
+          author: authorFromEmail(user?.email),
           interaction_date: new Date().toISOString(),
         }).select().single()
         if (inter) setInteractions(prev => [inter, ...prev])
@@ -293,7 +294,7 @@ export default function ProspectRDVDetail() {
     if (!newNote.trim() || !formData.client_id) return
     setSavingNote(true)
     try {
-      const author = user?.email?.includes('maxime') ? 'Maxime' : user?.email?.includes('marine') ? 'Marine' : 'Hicham'
+      const author = authorFromEmail(user?.email)
       const { data: inter, error } = await supabase.from('client_interactions').insert({
         client_id: formData.client_id,
         type: 'note',
@@ -336,13 +337,13 @@ export default function ProspectRDVDetail() {
     } catch (error) { toast.error('Erreur lors de la création du client') }
   }
 
-  // Merge Marine calls + interactions en un seul fil chronologique
+  // Appels de prospection + interactions en un seul fil chronologique
   const crmFil = [
     ...marineCalls.map(c => ({
       _type: 'call',
       id: c.id,
       date: c.called_at,
-      author: c.called_by || 'Marine',
+      author: c.called_by || '',
       result: c.call_result,
       contact_name: c.contact_name,
       contact_function: c.contact_function,
@@ -370,7 +371,7 @@ export default function ProspectRDVDetail() {
   )
 
   const isTransfer = formData.source?.includes('transfer')
-  const isFromMarine = formData.source?.includes('marine')
+  const isFromPhoning = formData.source?.includes('marine')
   const initialNotes = formData.notes || ''
 
   return (
@@ -420,12 +421,12 @@ export default function ProspectRDVDetail() {
               </h1>
               {isTransfer && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700 border border-violet-200">
-                  👋 Transfert Marine
+                  Transfert
                 </span>
               )}
-              {isFromMarine && !isTransfer && (
+              {isFromPhoning && !isTransfer && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
-                  🔥 Prospect Marine
+                  Prospect chaud
                 </span>
               )}
               {formData.formations_interet?.length > 0 && formData.formations_interet.map(f => (
@@ -607,8 +608,7 @@ export default function ProspectRDVDetail() {
                   onChange={e => setFormData({ ...formData, conducted_by: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm">
                   <option value="">Sélectionner</option>
-                  <option value="Hicham">Hicham</option>
-                  <option value="Maxime">Maxime</option>
+                  {teamFirstNames().map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
@@ -778,7 +778,7 @@ export default function ProspectRDVDetail() {
               {crmFil.map((item, i) => (
                 <div key={item.id + '-' + i}>
                   {item._type === 'call' ? (
-                    /* ── Appel Marine / Équipe ── */
+                    /* ── Appel de prospection ── */
                     <div className={'rounded-lg border p-3 text-xs space-y-1.5 ' + (RESULT_COLORS[item.result] || 'bg-gray-50 border-gray-200')}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold">
@@ -839,10 +839,10 @@ export default function ProspectRDVDetail() {
                 </div>
               ))}
 
-              {/* Note initiale RDV (contexte Marine) si elle n'est pas dans les appels */}
+              {/* Note initiale RDV (contexte de la prise de rendez-vous) si elle n'est pas dans les appels */}
               {initialNotes && marineCalls.length === 0 && (
                 <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs">
-                  <p className="font-semibold text-violet-700 mb-1">📋 Note initiale (Marine)</p>
+                  <p className="font-semibold text-violet-700 mb-1">Note initiale</p>
                   <p className="text-violet-800 whitespace-pre-line leading-snug">{initialNotes}</p>
                 </div>
               )}

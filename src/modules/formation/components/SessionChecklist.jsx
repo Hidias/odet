@@ -1,3 +1,4 @@
+import { orgName } from '../../../core/org/currentOrg'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { Printer, FileCheck, AlertCircle } from 'lucide-react'
@@ -277,7 +278,7 @@ export default function SessionChecklist({ session }) {
       <body>
         <div class="header">
           <h1 style="margin: 0; font-size: 14px; font-weight: bold;">FICHE DE CONTRÔLE FORMATION</h1>
-          <p style="margin: 2px 0; font-size: 9.5px;">Access Formation - Archivage papier</p>
+          <p style="margin: 2px 0; font-size: 9.5px;">${orgName()} - Archivage papier</p>
         </div>
 
         <div class="info-grid">

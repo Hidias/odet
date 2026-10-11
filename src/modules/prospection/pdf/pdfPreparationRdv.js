@@ -48,9 +48,9 @@ function money(n) {
 
 export const ALWAYS_BRING = [
   'Cette fiche de préparation',
-  'Certificat Qualiopi ("Access Formation est certifié Qualiopi")',
-  'Fiche d\'indicateurs de résultats à jour (Access Campus)',
-  'Présentation d\'Access Formation (une page)',
+  'Certificat Qualiopi de l\'organisme',
+  'Fiche d\'indicateurs de résultats à jour',
+  'Présentation de l\'organisme (une page)',
   'Exemple de convention de formation et conditions générales de vente',
   'Informations accessibilité et référent handicap',
   'Grille de diagnostic express (dernière page)',

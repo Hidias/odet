@@ -1,6 +1,6 @@
 // src/lib/mailingExclusions.js
 // ─────────────────────────────────────────────────────────────────────────────
-// Exclusions du mailing — Access Campus
+// Exclusions du mailing — l'application
 //
 // Sources :
 //   • mailing_blocklist    : désabonnés (bloqués), concurrents (invisibles), manuel

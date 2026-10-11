@@ -8,6 +8,7 @@
 // Aucun statut existant n'est renommé : seuls les libellés changent.
 // ════════════════════════════════════════════════════════════════
 
+import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Phone, ExternalLink, Loader2, RefreshCw, ChevronDown, ChevronRight, ListChecks } from 'lucide-react'
@@ -27,10 +28,9 @@ import {
 import {
   authorFromEmail, todayStr, fmtDate, fmtDateLong, fmtTime, diffDays, rdvRefDate,
   isOldRdv, needsReport, isQuoteInFollowup, isOldQuote, isQuoteSleeping, groupQuotesByClient,
-  isCallbackForToday, isCallbackToDecide, callbackLateDays, RDV_STATUS_LABELS, SENDER_NAMES,
+  isCallbackForToday, isCallbackToDecide, callbackLateDays, RDV_STATUS_LABELS, senderNameFor,
 } from '../components/suivi/suiviUtils'
 
-const PEOPLE = ['all', 'Hicham', 'Maxime']
 
 function Tile({ label, value }) {
   return (
@@ -273,7 +273,7 @@ export default function SuiviCommercial() {
           author={author}
           onBack={() => setMode('suivi')}
           onChanged={load}
-          onRelanceMail={(q) => relanceQuote(q, { senderName: SENDER_NAMES[author] || 'Hicham Saidi' })}
+          onRelanceMail={(q) => relanceQuote(q, { senderName: senderNameFor(author) })}
           relanceBusyId={generating || sending}
         />
         {relanceModal}
@@ -287,7 +287,7 @@ export default function SuiviCommercial() {
       <div className="flex items-center gap-3 flex-wrap">
         <h2 className="text-base font-semibold text-gray-900">Suivi commercial</h2>
         <div className="flex gap-1.5">
-          {PEOPLE.map(p => (
+          {['all', ...teamFirstNames()].map(p => (
             <button key={p} onClick={() => setPerson(p)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium border ${
                 person === p ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
@@ -370,7 +370,7 @@ export default function SuiviCommercial() {
             <p className="text-xs text-gray-500">
               Signalé le {fmtDate(rdvRefDate(r))}
               {r.contact_name ? ` · ${r.contact_name}` : ''}
-              {(r.source || '').includes('marine') ? ' · via Marine' : ''}
+              {(r.source || '').includes('marine') ? ' · via la prospection téléphonique' : ''}
               {r.formations_interet?.length ? ` · ${r.formations_interet.join(', ')}` : ''}
             </p>
             {(r.notes || r.notes_crm) && (
@@ -425,7 +425,7 @@ export default function SuiviCommercial() {
           groups={data.dueGroups}
           author={author}
           onChanged={load}
-          onRelanceMail={(q) => relanceQuote(q, { senderName: SENDER_NAMES[author] || 'Hicham Saidi' })}
+          onRelanceMail={(q) => relanceQuote(q, { senderName: senderNameFor(author) })}
           relanceBusyId={generating || sending}
           emptyText="Aucun devis à relancer aujourd'hui."
         />
@@ -436,7 +436,7 @@ export default function SuiviCommercial() {
           groups={data.laterGroups}
           author={author}
           onChanged={load}
-          onRelanceMail={(q) => relanceQuote(q, { senderName: SENDER_NAMES[author] || 'Hicham Saidi' })}
+          onRelanceMail={(q) => relanceQuote(q, { senderName: senderNameFor(author) })}
           relanceBusyId={generating || sending}
           emptyText="Aucun devis en attente."
         />
@@ -447,7 +447,7 @@ export default function SuiviCommercial() {
           groups={data.sleepingGroups}
           author={author}
           onChanged={load}
-          onRelanceMail={(q) => relanceQuote(q, { senderName: SENDER_NAMES[author] || 'Hicham Saidi' })}
+          onRelanceMail={(q) => relanceQuote(q, { senderName: senderNameFor(author) })}
           relanceBusyId={generating || sending}
           emptyText="Aucun devis en veille."
         />

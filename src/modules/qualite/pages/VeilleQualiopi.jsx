@@ -1,3 +1,4 @@
+import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -546,8 +547,7 @@ export default function VeilleQualiopi() {
                     className="input"
                   >
                     <option value="">-- Sélectionner --</option>
-                    <option value="Hicham">Hicham</option>
-                    <option value="Maxime">Maxime</option>
+                    {teamFirstNames().map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
                 <div>

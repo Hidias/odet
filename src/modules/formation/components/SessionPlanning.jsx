@@ -14,7 +14,7 @@ import {
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
-// Couleurs fixes par formateur — bleu pour Hicham, vert pour Maxime
+// Couleurs fixes par formateur, attribuées dans l'ordre alphabétique
 const TRAINER_COLORS = [
   { bg: 'bg-blue-100', border: 'border-blue-400', text: 'text-blue-800', accent: '#3b82f6', light: '#dbeafe' },
   { bg: 'bg-emerald-100', border: 'border-emerald-400', text: 'text-emerald-800', accent: '#10b981', light: '#d1fae5' },
@@ -43,7 +43,7 @@ export default function SessionPlanning({ sessions, trainers }) {
   const containerRef = useRef(null)
   const gridRef = useRef(null)
 
-  // ─── Formateurs internes (Hicham + Maxime) ─────────────────────────
+  // ─── Formateurs internes ─────────────────────────
   const activeTrainers = useMemo(() => {
     return trainers
       .filter(t => t.is_internal !== false)

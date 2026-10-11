@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// src/lib/utils.js — Fonctions utilitaires partagées Access Campus
+// Fonctions utilitaires partagées
 // ═══════════════════════════════════════════════════════════════
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'

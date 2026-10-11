@@ -32,7 +32,6 @@ const WIDGET_REGISTRY = {
   monthly_revenue:      { id: 'monthly_revenue',      label: 'CA mensuel',                icon: BarChart3,     category: 'commerce',  color: 'green',  defaultSize: 'md' },
   rdv_week:             { id: 'rdv_week',             label: 'RDV à prendre',             icon: Calendar,      category: 'commerce',  color: 'blue',   defaultSize: 'md' },
   hot_prospects:        { id: 'hot_prospects',        label: 'Prospects à rappeler',      icon: Phone,         category: 'commerce',  color: 'orange', defaultSize: 'md' },
-  transfers_pending:    { id: 'transfers_pending',    label: 'Transferts Marine',          icon: GitMerge,      category: 'commerce',  color: 'red',    defaultSize: 'md' },
   new_clients:          { id: 'new_clients',          label: 'Nouveaux clients',          icon: Building2,     category: 'commerce',  color: 'green',  defaultSize: 'sm' },
   conversion_rate:      { id: 'conversion_rate',      label: 'Taux de conversion',        icon: Target,        category: 'commerce',  color: 'blue',   defaultSize: 'sm' },
   top_courses:          { id: 'top_courses',          label: 'Top formations',            icon: Star,          category: 'commerce',  color: 'amber',  defaultSize: 'md' },
@@ -111,10 +110,6 @@ export default function Dashboard() {
   const [configLoaded, setConfigLoaded] = useState(false)
   const [loading, setLoading] = useState(true)
   const [dragIdx, setDragIdx] = useState(null)
-  const [transferAction, setTransferAction] = useState(null) // { id, type: 'close' } pour modal clôture
-  const [closingResult, setClosingResult] = useState('')
-  const [closingNotes, setClosingNotes] = useState('')
-  const [transferSaving, setTransferSaving] = useState(false)
   
   const [dashData, setDashData] = useState({
     nonConformites: [], qualityAlerts: [], reclamations: [],
@@ -124,7 +119,6 @@ export default function Dashboard() {
     traineeEvaluations: [],
     sstCertifications: [], trainingThemes: [],
     invoices: [],
-    pendingTransfers: [],
   })
 
   // ─── Widget config loading ─────────────────────────────
@@ -192,7 +186,7 @@ export default function Dashboard() {
   const loadData = async () => {
     await Promise.all([fetchClients(), fetchCourses(), fetchTrainees(), fetchSessions()])
     
-    const [ncR, alertsR, reclR, rdvR, cbR, quotesR, notifR, traineeEvalsR, sstR, themesR, invoicesR, transfersR] = await Promise.all([
+    const [ncR, alertsR, reclR, rdvR, cbR, quotesR, notifR, traineeEvalsR, sstR, themesR, invoicesR] = await Promise.all([
       supabase.from('non_conformites').select('*').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }),
       supabase.from('quality_alerts').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
       // ✅ reclamations — pas de trainee_id
@@ -207,7 +201,6 @@ export default function Dashboard() {
       supabase.from('training_themes').select('id, code, name, color'),
       // Factures émises (y compris partielles et annulées par avoir) + avoirs validés (déduits)
       supabase.from('invoices').select('id, reference, type, invoice_date, total_net_ht, total_ttc, status').in('status', ['paid', 'due', 'sent', 'overdue', 'partial', 'credited']),
-      supabase.from('prospect_transfers').select('*, clients(name, city)').in('status', ['en_attente', 'en_cours']).order('created_at', { ascending: true }),
     ])
     
     // Enrich alerts
@@ -253,7 +246,6 @@ export default function Dashboard() {
       sstCertifications: sstR.data || [],
       trainingThemes: themesR.data || [],
       invoices: invoicesR.data || [],
-      pendingTransfers: transfersR.data || [],
     })
     setLoading(false)
   }
@@ -959,133 +951,6 @@ export default function Dashboard() {
             <div className="text-center p-2 bg-amber-50 rounded-lg"><p className="text-2xl font-bold text-amber-600">{certifExpiring.length}</p><p className="text-xs text-gray-500">SST à recycler</p></div>
           </div>
         )
-
-      case 'transfers_pending': {
-        const transfers = dashData.pendingTransfers || []
-        const overdue = transfers.filter(t => t.status === 'en_attente')
-        const inProgress = transfers.filter(t => t.status === 'en_cours')
-
-        const handleTakeOver = async (t) => {
-          setTransferSaving(true)
-          try {
-            await supabase.from('prospect_rdv').insert({
-              client_id: t.client_id,
-              contact_name: t.contact_name || null,
-              contact_phone: t.prospect_phone || null,
-              conducted_by: 'Hicham',
-              status: 'a_prendre',
-              temperature: 'chaud',
-              source: 'phoning_marine_transfer',
-              notes_crm: '👋 Transfert Marine' + (t.transfer_reason ? ' — ' + t.transfer_reason : '') + (t.transfer_notes ? '\n' + t.transfer_notes : ''),
-              is_urgent: false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            await supabase.from('prospect_transfers').update({ status: 'clos', taken_at: new Date().toISOString(), taken_by: 'Hicham', closed_at: new Date().toISOString(), closed_result: 'converti_rdv', updated_at: new Date().toISOString() }).eq('id', t.id)
-            setDashData(prev => ({ ...prev, pendingTransfers: prev.pendingTransfers.filter(x => x.id !== t.id) }))
-            toast.success('✅ Converti en RDV — visible dans Rendez-vous')
-          } catch(e) { toast.error('Erreur : ' + e.message) }
-          finally { setTransferSaving(false) }
-        }
-
-        const handleFileToMaxime = async (t) => {
-          setTransferSaving(true)
-          try {
-            await apiFetch('/api/send-transfer-maxime', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ transferId: t.id, prospectName: t.prospect_name || t.clients?.name, prospectPhone: t.prospect_phone || t.clients?.phone, prospectCity: t.prospect_city || t.clients?.city, contactName: t.contact_name, contactFunction: t.contact_function, transferNotes: t.transfer_notes }) })
-            await supabase.from('prospect_rdv').insert({
-              client_id: t.client_id,
-              contact_name: t.contact_name || null,
-              contact_phone: t.prospect_phone || null,
-              conducted_by: 'Maxime',
-              status: 'a_prendre',
-              temperature: 'chaud',
-              source: 'phoning_marine_transfer',
-              notes_crm: '👋 Transfert Marine → Maxime' + (t.transfer_reason ? ' — ' + t.transfer_reason : '') + (t.transfer_notes ? '\n' + t.transfer_notes : ''),
-              is_urgent: false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            await supabase.from('prospect_transfers').update({ status: 'clos', closed_at: new Date().toISOString(), closed_result: 'converti_rdv', refiled_to: 'Maxime', updated_at: new Date().toISOString() }).eq('id', t.id)
-            setDashData(prev => ({ ...prev, pendingTransfers: prev.pendingTransfers.filter(x => x.id !== t.id) }))
-            toast.success('📨 Maxime notifié — converti en RDV')
-          } catch(e) { toast.error('Erreur : ' + e.message) }
-          finally { setTransferSaving(false) }
-        }
-
-        const handleClose = async (t, result, notes) => {
-          setTransferSaving(true)
-          try {
-            await supabase.from('prospect_transfers').update({ status: 'clos', closed_at: new Date().toISOString(), closed_result: result, closed_notes: notes || null, updated_at: new Date().toISOString() }).eq('id', t.id)
-            setDashData(prev => ({ ...prev, pendingTransfers: prev.pendingTransfers.filter(x => x.id !== t.id) }))
-            setTransferAction(null); setClosingResult(''); setClosingNotes('')
-            toast.success('✅ Transfert clôturé')
-          } catch(e) { toast.error('Erreur : ' + e.message) }
-          finally { setTransferSaving(false) }
-        }
-
-        const ageLabel = (d) => { const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000); if (days === 0) return "aujourd'hui"; if (days === 1) return "hier"; return `il y a ${days}j` }
-
-        if (transfers.length === 0) return (
-          <div className="text-center py-4"><CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-1" /><p className="text-sm text-gray-500">Aucun transfert en attente 🎉</p></div>
-        )
-
-        return (
-          <div className="space-y-2">
-            <div className="flex gap-2 text-xs mb-1">
-              {overdue.length > 0 && <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">🔴 {overdue.length} en attente</span>}
-              {inProgress.length > 0 && <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">🔵 {inProgress.length} en cours</span>}
-            </div>
-            <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
-              {transfers.map(t => {
-                const name = t.prospect_name || t.clients?.name || '—'
-                const phone = t.prospect_phone || t.clients?.phone
-                const city = t.prospect_city || t.clients?.city
-                const isEnAttente = t.status === 'en_attente'
-                const isClosing = transferAction?.id === t.id
-                return (
-                  <div key={t.id} className={`rounded-lg border p-3 text-sm ${isEnAttente ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${isEnAttente ? 'bg-red-200 text-red-800' : 'bg-blue-200 text-blue-800'}`}>{isEnAttente ? '⏳ En attente' : '🔵 En cours'}</span>
-                      <span className="text-xs text-gray-400">{ageLabel(t.created_at)}</span>
-                      {t.refiled_to === 'Maxime' && <span className="text-xs text-indigo-600 font-medium">📨 Max notifié</span>}
-                    </div>
-                    <p className="font-semibold text-gray-900 truncate">{name}</p>
-                    {city && <p className="text-xs text-gray-500">{city}</p>}
-                    {phone && <p className="text-xs text-blue-700 font-medium">{phone}</p>}
-                    {t.contact_name && <p className="text-xs text-gray-600 mt-0.5">👤 {t.contact_name}{t.contact_function ? ` (${t.contact_function})` : ''}</p>}
-                    {t.transfer_notes && <p className="text-xs text-gray-400 mt-0.5 italic line-clamp-2">{t.transfer_notes}</p>}
-                    {!isClosing && (
-                      <div className="flex gap-1.5 mt-2 flex-wrap">
-                        {isEnAttente && <button onClick={() => handleTakeOver(t)} disabled={transferSaving} className="px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:opacity-50">✋ Prendre en charge</button>}
-                        {!t.refiled_to && <button onClick={() => handleFileToMaxime(t)} disabled={transferSaving} className="px-2 py-1 text-xs bg-indigo-500 text-white rounded-md hover:bg-indigo-600 font-medium disabled:opacity-50">📨 Refiler à Max</button>}
-
-                      </div>
-                    )}
-                    {isClosing && (
-                      <div className="mt-2 p-2 bg-white rounded border border-gray-200 space-y-1.5">
-                        <select value={closingResult} onChange={e => setClosingResult(e.target.value)} className="w-full text-xs border rounded px-2 py-1.5 focus:ring-1 focus:ring-green-500">
-                          <option value="">— Résultat —</option>
-                          <option value="interesse">🔥 Intéressé</option>
-                          <option value="rdv">📅 RDV pris</option>
-                          <option value="pas_interesse">❄️ Pas intéressé</option>
-                          <option value="injoignable">📵 Injoignable</option>
-                          <option value="autre">📝 Autre</option>
-                        </select>
-                        <input type="text" value={closingNotes} onChange={e => setClosingNotes(e.target.value)} placeholder="Note (optionnelle)..." className="w-full text-xs border rounded px-2 py-1.5" />
-                        <div className="flex gap-1.5">
-                          <button onClick={() => handleClose(transferAction.t, closingResult, closingNotes)} disabled={!closingResult || transferSaving} className="flex-1 px-2 py-1 text-xs bg-green-600 text-white rounded font-medium disabled:opacity-40">Confirmer</button>
-                          <button onClick={() => setTransferAction(null)} className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded">Annuler</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      }
 
       default: return <p className="text-gray-400 text-sm text-center py-4">Widget inconnu</p>
     }

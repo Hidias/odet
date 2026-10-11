@@ -1,3 +1,4 @@
+import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../core/supabase'
 import { Plus } from 'lucide-react'
@@ -106,12 +107,12 @@ export default function Prospection() {
   // helper : réalisé sans session liée ET next_action_date dépassée
   const realiseOrphelin = r => r.status === 'realise' && !r.session_id && r.next_action_date && isBefore(parseISO(r.next_action_date), today)
 
-  // 👋 Transferts Marine = a_prendre avec source phoning_marine_transfer
+  // Transferts = a_prendre avec source phoning_marine_transfer
   const transferts = filtered
     .filter(r => r.status === 'a_prendre' && r.source === 'phoning_marine_transfer')
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) // plus anciens en premier
 
-  // 🔥 Chauds = a_prendre signalé par Marine (hors transferts)
+  // Chauds = a_prendre signalé en prospection téléphonique (hors transferts)
   const chauds = filtered
     .filter(r => r.status === 'a_prendre' && r.source?.includes('phoning') && r.source !== 'phoning_marine_transfer')
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
@@ -164,7 +165,7 @@ export default function Prospection() {
 
         {/* Filtres commerciaux */}
         <div className="flex gap-1.5">
-          {['all', 'Hicham', 'Maxime', 'Marine'].map(f => (
+          {['all', ...teamFirstNames()].map(f => (
             <button
               key={f}
               onClick={() => setFilterBy(f)}
@@ -395,7 +396,7 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
         <p className="text-xs text-blue-700 font-medium mb-1">{rdv.contact_phone}</p>
       )}
       {rdv.notes_crm && (
-        <p className="text-xs text-gray-500 mb-2 italic line-clamp-2">{rdv.notes_crm.replace('👋 Transfert Marine', '').replace('→ Maxime', '').trim()}</p>
+        <p className="text-xs text-gray-500 mb-2 italic line-clamp-2">{rdv.notes_crm.replace(/^\S*\s*Transfert[^\n]*?(—|$)/, '').trim()}</p>
       )}
 
       <div className="flex items-center gap-1.5 flex-wrap mb-2">
@@ -453,7 +454,7 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
 ───────────────────────────────────────── */
 function RdvCard({ rdv, variant, onClick, onDelete }) {
   const late = !['realise', 'annule', 'reporte'].includes(variant) && (isActionLate(rdv) || (variant === 'prevu' && isRdvLate(rdv)))
-  const isHotFromMarine = rdv.temperature === 'chaud' && rdv.source?.includes('marine')
+  const isHotFromPhoning = rdv.temperature === 'chaud' && rdv.source?.includes('marine')
   const isTransfer = rdv.source?.includes('transfer')
   const ago = agoLabel(rdv.updated_at)
 
@@ -507,14 +508,14 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
       {/* Footer : pills + ago */}
       <div className="flex items-center gap-1.5 flex-wrap">
 
-        {/* Badge Marine chaud / Transfert */}
+        {/* Badge chaud / transfert */}
         {isTransfer ? (
           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
-            👋 Transfert
+            Transfert
           </span>
-        ) : isHotFromMarine ? (
+        ) : isHotFromPhoning ? (
           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">
-            🔥 Marine
+            Chaud
           </span>
         ) : null}
 

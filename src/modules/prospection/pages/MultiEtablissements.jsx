@@ -6,7 +6,7 @@
  * À METTRE : afm-app-main/src/pages/MultiEtablissements.jsx
  * 
  * Cette page affiche les entreprises qui ont plusieurs établissements
- * et aide Marine à décider s'il faut appeler tous ou juste le siège
+ * et aide à décider s'il faut appeler tous ou juste le siège
  * ============================================================================
  */
 

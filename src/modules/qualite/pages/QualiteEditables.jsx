@@ -1,3 +1,4 @@
+import { teamNames } from '../../../core/org/currentOrg'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -11,61 +12,69 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 
 // ===== CONFIG ENTREPRISE =====
-const ORG = {
-  nom: 'Access Formation', forme: 'SARL', siret: '943 563 866 00012',
-  nda: '53 29 10261 29', adresse: '24 rue Kerbleiz', cp: '29900', ville: 'Concarneau',
-  tel: '02 98 90 30 24', email: 'contact@accessformation.pro',
+// Identité de l'organisme : lue dans les paramètres au chargement de la page, jamais écrite ici
+const ORG = { nom: '', forme: '', siret: '', nda: '', adresse: '', cp: '', ville: '', tel: '', email: '', dirigeant: '', dirigeantTitre: '' }
+function syncOrg(o) {
+  if (!o) return
+  Object.assign(ORG, {
+    nom: o.legal_name || o.name || '', forme: o.forme_juridique || '', siret: o.siret || '', nda: o.nda || '',
+    adresse: o.address || '', cp: o.postal_code || '', ville: o.city || '', tel: o.phone || '', email: o.email || '',
+    dirigeant: o.dirigeant_name || '', dirigeantTitre: o.dirigeant_title || '',
+  })
 }
+const raisonSociale = () => [ORG.nom, ORG.forme && !ORG.nom.toLowerCase().includes(ORG.forme.toLowerCase()) ? ORG.forme : ''].filter(Boolean).join(' ')
+// Personnes proposées par défaut : membres de l'équipe (profils)
+const P = (i) => teamNames()[i] || teamNames()[0] || ''
 
 // ===== STRUCTURE DOCUMENTS COMPLÈTE =====
 const QUALITY_DOCS = {
   gouvernance: { name: 'Gouvernance', icon: Building2, color: 'blue', docs: [
-    { id: 'organigramme', name: 'Organigramme', code: 'ORG-AF-001', editable: true },
-    { id: 'des-qual', name: 'Désignation Responsable Qualité', code: 'AF-DESQUAL', editable: true },
-    { id: 'des-hand', name: 'Désignation Référent Handicap', code: 'AF-DESHAND', editable: true },
-    { id: 'des-deon', name: 'Désignation Référent Déontologie', code: 'AF-DESDEON', editable: true },
-    { id: 'des-recl', name: 'Désignation Référent Réclamations', code: 'AF-DESRECL', editable: true },
-    { id: 'des-veil', name: 'Désignation Référent Veille', code: 'AF-DESVEIL', editable: true },
-    { id: 'des-amel', name: 'Désignation Référent Amélioration', code: 'AF-DESAMEL', editable: true },
-    { id: 'des-rgpd', name: 'Désignation DPO/RGPD', code: 'AF-DESRGPD', editable: true },
+    { id: 'organigramme', name: 'Organigramme', code: 'ORG-001', editable: true },
+    { id: 'des-qual', name: 'Désignation Responsable Qualité', code: 'QUAL-DESQUAL', editable: true },
+    { id: 'des-hand', name: 'Désignation Référent Handicap', code: 'QUAL-DESHAND', editable: true },
+    { id: 'des-deon', name: 'Désignation Référent Déontologie', code: 'QUAL-DESDEON', editable: true },
+    { id: 'des-recl', name: 'Désignation Référent Réclamations', code: 'QUAL-DESRECL', editable: true },
+    { id: 'des-veil', name: 'Désignation Référent Veille', code: 'QUAL-DESVEIL', editable: true },
+    { id: 'des-amel', name: 'Désignation Référent Amélioration', code: 'QUAL-DESAMEL', editable: true },
+    { id: 'des-rgpd', name: 'Désignation DPO/RGPD', code: 'QUAL-DESRGPD', editable: true },
   ]},
   procedures: { name: 'Procédures', icon: ClipboardList, color: 'green', docs: [
-    { id: 'proc-recl', name: 'Traitement des réclamations', code: 'AF-RECL', indicateur: '31', editable: true },
-    { id: 'proc-nc', name: 'Non-conformités et amélioration', code: 'AF-NC', indicateur: '32', editable: true },
-    { id: 'proc-sat', name: 'Évaluation satisfaction', code: 'AF-SAT', indicateur: '30-31', editable: true },
-    { id: 'proc-veille', name: 'Veille réglementaire', code: 'AF-VEILLE', indicateur: '23-25', editable: true },
-    { id: 'proc-besoin', name: 'Analyse des besoins', code: 'AF-BESOIN', indicateur: '4', editable: true },
-    { id: 'proc-concep', name: 'Conception des formations', code: 'AF-CONCEP', indicateur: '5', editable: true },
-    { id: 'proc-real', name: 'Réalisation des formations', code: 'AF-REAL', indicateur: '9-11', editable: true },
-    { id: 'proc-eval', name: 'Évaluation des acquis', code: 'AF-EVAL', indicateur: '11', editable: true },
-    { id: 'proc-hand', name: 'Accessibilité handicap', code: 'AF-HAND', indicateur: '26', editable: true },
-    { id: 'proc-rgpd', name: 'Protection des données', code: 'AF-RGPD', indicateur: '1', editable: true },
+    { id: 'proc-recl', name: 'Traitement des réclamations', code: 'QUAL-RECL', indicateur: '31', editable: true },
+    { id: 'proc-nc', name: 'Non-conformités et amélioration', code: 'QUAL-NC', indicateur: '32', editable: true },
+    { id: 'proc-sat', name: 'Évaluation satisfaction', code: 'QUAL-SAT', indicateur: '30-31', editable: true },
+    { id: 'proc-veille', name: 'Veille réglementaire', code: 'QUAL-VEILLE', indicateur: '23-25', editable: true },
+    { id: 'proc-besoin', name: 'Analyse des besoins', code: 'QUAL-BESOIN', indicateur: '4', editable: true },
+    { id: 'proc-concep', name: 'Conception des formations', code: 'QUAL-CONCEP', indicateur: '5', editable: true },
+    { id: 'proc-real', name: 'Réalisation des formations', code: 'QUAL-REAL', indicateur: '9-11', editable: true },
+    { id: 'proc-eval', name: 'Évaluation des acquis', code: 'QUAL-EVAL', indicateur: '11', editable: true },
+    { id: 'proc-hand', name: 'Accessibilité handicap', code: 'QUAL-HAND', indicateur: '26', editable: true },
+    { id: 'proc-rgpd', name: 'Protection des données', code: 'QUAL-RGPD', indicateur: '1', editable: true },
   ]},
   registres: { name: 'Registres', icon: Table, color: 'purple', docs: [
-    { id: 'reg-recl', name: 'Registre réclamations', code: 'AF-REGREC', table: 'reclamations' },
-    { id: 'reg-nc', name: 'Registre non-conformités', code: 'AF-REGNC', table: 'non_conformites' },
-    { id: 'reg-veille', name: 'Registre veille', code: 'AF-REGVEI', table: 'veille_qualiopi' },
-    { id: 'reg-mat', name: 'Registre matériel', code: 'AF-REGMAT', table: 'equipment_catalog' },
-    { id: 'reg-rgpd', name: 'Registre traitements RGPD', code: 'AF-REGRGPD', table: 'rgpd_traitements' },
-    { id: 'reg-audit', name: 'Registre audits internes', code: 'AF-REGAUD', table: 'audits_internes' },
-    { id: 'reg-programmes', name: 'Programmes de formation', code: 'AF-REGPROG', table: 'programme_versions' },
-    { id: 'reg-psh', name: 'Registre PSH (Ind. 26)', code: 'AF-REGPSH', table: 'psh_requests' },
+    { id: 'reg-recl', name: 'Registre réclamations', code: 'QUAL-REGREC', table: 'reclamations' },
+    { id: 'reg-nc', name: 'Registre non-conformités', code: 'QUAL-REGNC', table: 'non_conformites' },
+    { id: 'reg-veille', name: 'Registre veille', code: 'QUAL-REGVEI', table: 'veille_qualiopi' },
+    { id: 'reg-mat', name: 'Registre matériel', code: 'QUAL-REGMAT', table: 'equipment_catalog' },
+    { id: 'reg-rgpd', name: 'Registre traitements RGPD', code: 'QUAL-REGRGPD', table: 'rgpd_traitements' },
+    { id: 'reg-audit', name: 'Registre audits internes', code: 'QUAL-REGAUD', table: 'audits_internes' },
+    { id: 'reg-programmes', name: 'Programmes de formation', code: 'QUAL-REGPROG', table: 'programme_versions' },
+    { id: 'reg-psh', name: 'Registre PSH (Ind. 26)', code: 'QUAL-REGPSH', table: 'psh_requests' },
   ]},
   checklists: { name: 'Checklists', icon: CheckSquare, color: 'orange', docs: [
-    { id: 'ck-audit', name: 'Checklist audit interne', code: 'AF-CKAUD', editable: true },
-    { id: 'ck-accueil', name: 'Checklist accueil stagiaire', code: 'AF-CKACC', editable: true },
-    { id: 'ck-cloture', name: 'Checklist clôture session', code: 'AF-CKCLO', editable: true },
-    { id: 'ck-materiel', name: 'Checklist matériel formation', code: 'AF-CKMAT', editable: true },
+    { id: 'ck-audit', name: 'Checklist audit interne', code: 'QUAL-CKAUD', editable: true },
+    { id: 'ck-accueil', name: 'Checklist accueil stagiaire', code: 'QUAL-CKACC', editable: true },
+    { id: 'ck-cloture', name: 'Checklist clôture session', code: 'QUAL-CKCLO', editable: true },
+    { id: 'ck-materiel', name: 'Checklist matériel formation', code: 'QUAL-CKMAT', editable: true },
   ]},
   pilotage: { name: 'Pilotage', icon: BarChart3, color: 'teal', docs: [
-    { id: 'rdd', name: 'Revue de direction', code: 'AF-RDD', computed: true },
-    { id: 'plan-action', name: 'Plan d\'actions', code: 'AF-PLAN', editable: true },
-    { id: 'indicateurs', name: 'Tableau des indicateurs', code: 'AF-INDIC', computed: true },
+    { id: 'rdd', name: 'Revue de direction', code: 'QUAL-RDD', computed: true },
+    { id: 'plan-action', name: 'Plan d\'actions', code: 'QUAL-PLAN', editable: true },
+    { id: 'indicateurs', name: 'Tableau des indicateurs', code: 'QUAL-INDIC', computed: true },
   ]},
   soustraitance: { name: 'Sous-traitance', icon: Users2, color: 'gray', docs: [
-    { id: 'contrat-st', name: 'Contrat sous-traitance', code: 'AF-CTRAIT', editable: true },
-    { id: 'charte-st', name: 'Charte qualité prestataire', code: 'AF-CHARTE', editable: true },
-    { id: 'nda', name: 'Accord de confidentialité', code: 'AF-NDA', editable: true },
+    { id: 'contrat-st', name: 'Contrat sous-traitance', code: 'QUAL-CTRAIT', editable: true },
+    { id: 'charte-st', name: 'Charte qualité prestataire', code: 'QUAL-CHARTE', editable: true },
+    { id: 'nda', name: 'Accord de confidentialité', code: 'QUAL-NDA', editable: true },
   ]},
 }
 
@@ -73,24 +82,24 @@ const QUALITY_DOCS = {
 const DEFAULT_DATA = {
   'organigramme': {
     direction: [
-      { nom: 'Hicham SAIDI', roles: ['Responsable Qualité', 'Veille légale', 'Réclamations', 'RGPD', 'Commercial', 'Planification'] },
-      { nom: 'Maxime LANGLAIS', roles: ['Ingénierie pédagogique', 'Veille métiers', 'Amélioration continue', 'Déontologie', 'Handicap'] },
+      { nom: P(0), roles: ['Responsable Qualité', 'Veille légale', 'Réclamations', 'RGPD', 'Commercial', 'Planification'] },
+      { nom: P(1), roles: ['Ingénierie pédagogique', 'Veille métiers', 'Amélioration continue', 'Déontologie', 'Handicap'] },
     ],
     formateurs: [
-      { nom: 'Hicham SAIDI', specialites: ['SST', 'Incendie', 'Habilitation électrique'] },
-      { nom: 'Maxime LANGLAIS', specialites: ['SST', 'Gestes & postures', 'Incendie', 'Conduite de chariots'] },
+      { nom: P(0), specialites: ['SST', 'Incendie', 'Habilitation électrique'] },
+      { nom: P(1), specialites: ['SST', 'Gestes & postures', 'Incendie', 'Conduite de chariots'] },
     ],
   },
-  'des-qual': { personne: 'Hicham SAIDI', role: 'Responsable Qualité', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Piloter le système qualité', 'Suivre les indicateurs', 'Préparer les audits', 'Proposer les améliorations', 'Garantir la conformité Qualiopi'] },
-  'des-hand': { personne: 'Maxime LANGLAIS', role: 'Référent Handicap', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Accueillir les PSH', 'Identifier les besoins d\'adaptation', 'Lien avec Agefiph/MDPH', 'Sensibiliser l\'équipe', 'Suivre les aménagements'] },
-  'des-deon': { personne: 'Maxime LANGLAIS', role: 'Référent Déontologie', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veiller au respect des règles éthiques', 'Traiter les signalements', 'Conseiller la direction', 'Sensibiliser l\'équipe'] },
-  'des-recl': { personne: 'Hicham SAIDI', role: 'Référent Réclamations', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Réceptionner les réclamations', 'Analyser les causes', 'Clôturer sous 5 jours ouvrés', 'Communiquer les résultats', 'Proposer des actions préventives'] },
-  'des-veil': { personne: 'Hicham SAIDI', role: 'Référent Veille', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veille réglementaire mensuelle', 'Suivre les référentiels INRS/CACES', 'Informer l\'équipe sous 30 jours', 'Mettre à jour les documents'] },
-  'des-amel': { personne: 'Maxime LANGLAIS', role: 'Référent Amélioration Continue', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Analyser les NC', 'Suivre les actions correctives', 'Animer l\'amélioration continue', 'Mesurer l\'efficacité', 'Préparer la RDD'] },
-  'des-rgpd': { personne: 'Hicham SAIDI', role: 'DPO', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Conformité RGPD', 'Registre des traitements', 'Répondre aux demandes de droits', 'Sensibiliser le personnel', 'Gérer les violations'] },
+  'des-qual': { personne: P(0), role: 'Responsable Qualité', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Piloter le système qualité', 'Suivre les indicateurs', 'Préparer les audits', 'Proposer les améliorations', 'Garantir la conformité Qualiopi'] },
+  'des-hand': { personne: P(1), role: 'Référent Handicap', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Accueillir les PSH', 'Identifier les besoins d\'adaptation', 'Lien avec Agefiph/MDPH', 'Sensibiliser l\'équipe', 'Suivre les aménagements'] },
+  'des-deon': { personne: P(1), role: 'Référent Déontologie', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veiller au respect des règles éthiques', 'Traiter les signalements', 'Conseiller la direction', 'Sensibiliser l\'équipe'] },
+  'des-recl': { personne: P(0), role: 'Référent Réclamations', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Réceptionner les réclamations', 'Analyser les causes', 'Clôturer sous 5 jours ouvrés', 'Communiquer les résultats', 'Proposer des actions préventives'] },
+  'des-veil': { personne: P(0), role: 'Référent Veille', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veille réglementaire mensuelle', 'Suivre les référentiels INRS/CACES', 'Informer l\'équipe sous 30 jours', 'Mettre à jour les documents'] },
+  'des-amel': { personne: P(1), role: 'Référent Amélioration Continue', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Analyser les NC', 'Suivre les actions correctives', 'Animer l\'amélioration continue', 'Mesurer l\'efficacité', 'Préparer la RDD'] },
+  'des-rgpd': { personne: P(0), role: 'DPO', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Conformité RGPD', 'Registre des traitements', 'Répondre aux demandes de droits', 'Sensibiliser le personnel', 'Gérer les violations'] },
   'proc-recl': { 
     objectif: 'Définir les modalités de traitement des réclamations pour garantir la satisfaction des parties prenantes.',
-    responsable: 'Hicham SAIDI', delaiAccuse: '48h', delaiCloture: '5 jours ouvrés',
+    responsable: P(0), delaiAccuse: '48h', delaiCloture: '5 jours ouvrés',
     indicateurs: ['Nombre de réclamations', 'Délai moyen de traitement', 'Taux de clôture'],
     swimlanes: [
       { acteur: 'Client/Stagiaire', etape: 'Émet une réclamation', delai: '-', output: 'Réclamation reçue' },
@@ -105,7 +114,7 @@ const DEFAULT_DATA = {
   },
   'proc-nc': {
     objectif: 'Définir les modalités de traitement des non-conformités pour l\'amélioration continue.',
-    responsable: 'Maxime LANGLAIS', delaiTraitement: '5 jours ouvrés',
+    responsable: P(1), delaiTraitement: '5 jours ouvrés',
     indicateurs: ['Nombre de NC', 'Délai de traitement', 'Taux NC récurrentes'],
     swimlanes: [
       { acteur: 'Toute l\'équipe', etape: 'Détecte une NC', delai: '-', output: 'Signalement' },
@@ -120,21 +129,21 @@ const DEFAULT_DATA = {
   },
   'proc-sat': {
     objectif: 'Définir les modalités de recueil et d\'analyse de la satisfaction.',
-    responsable: 'Hicham SAIDI',
+    responsable: P(0),
     indicateurs: ['Score satisfaction (cible: >4/5)', 'Taux de réponse', 'Taux recommandation'],
     swimlanes: [
       { acteur: 'Formateur', etape: 'Termine la formation', delai: '-', output: 'Formation terminée' },
       { acteur: 'Formateur', etape: 'Distribue évaluation à chaud', delai: 'Immédiat', output: 'QR code/lien' },
       { acteur: 'Stagiaire', etape: 'Complète l\'évaluation', delai: '-', output: 'Réponses enregistrées' },
-      { acteur: 'Access Campus', etape: 'Envoie évaluation J+90', delai: '90 jours', output: 'Email automatique' },
-      { acteur: 'Access Campus', etape: 'Génère alertes si score <4', delai: 'Automatique', output: 'Alerte qualité' },
+      { acteur: 'Application', etape: 'Envoie évaluation J+90', delai: '90 jours', output: 'Email automatique' },
+      { acteur: 'Application', etape: 'Génère alertes si score <4', delai: 'Automatique', output: 'Alerte qualité' },
       { acteur: 'Réf. Qualité', etape: 'Analyse les résultats', delai: 'Mensuel', output: 'Synthèse' },
       { acteur: 'Réf. Qualité', etape: 'Déclenche action si nécessaire', delai: '-', output: 'Fiche action' },
     ],
   },
   'proc-veille': {
     objectif: 'Définir les modalités de veille légale, réglementaire et pédagogique.',
-    responsable: 'Hicham SAIDI', frequence: 'Mensuelle', delaiMiseAJour: '30 jours',
+    responsable: P(0), frequence: 'Mensuelle', delaiMiseAJour: '30 jours',
     sources: ['Code du travail', 'INRS (SST, R485, R489)', 'NF C18-510', 'Légifrance', 'Centre Inffo'],
     indicateurs: ['Nombre de veilles', 'Délai de mise à jour'],
     swimlanes: [
@@ -153,7 +162,7 @@ const DEFAULT_DATA = {
   // Procédures supplémentaires
   'proc-besoin': {
     objectif: 'Définir les modalités d\'analyse des besoins des clients et bénéficiaires.',
-    responsable: 'Hicham SAIDI',
+    responsable: P(0),
     indicateurs: ['Taux de conformité des analyses', 'Satisfaction client sur l\'analyse'],
     swimlanes: [
       { acteur: 'Commercial', etape: 'Reçoit la demande', delai: '-', output: 'Demande enregistrée' },
@@ -166,7 +175,7 @@ const DEFAULT_DATA = {
   },
   'proc-concep': {
     objectif: 'Définir les modalités de conception des actions de formation.',
-    responsable: 'Maxime LANGLAIS',
+    responsable: P(1),
     indicateurs: ['Conformité aux référentiels', 'Validation pédagogique'],
     swimlanes: [
       { acteur: 'Réf. Pédagogique', etape: 'Analyse le référentiel', delai: '-', output: 'Analyse référentiel' },
@@ -179,7 +188,7 @@ const DEFAULT_DATA = {
   },
   'proc-real': {
     objectif: 'Définir les modalités de réalisation des formations.',
-    responsable: 'Maxime LANGLAIS',
+    responsable: P(1),
     indicateurs: ['Taux de réalisation', 'Taux d\'assiduité'],
     swimlanes: [
       { acteur: 'Formateur', etape: 'Prépare la session', delai: 'J-1', output: 'Session prête' },
@@ -192,7 +201,7 @@ const DEFAULT_DATA = {
   },
   'proc-eval': {
     objectif: 'Définir les modalités d\'évaluation des acquis des stagiaires.',
-    responsable: 'Maxime LANGLAIS',
+    responsable: P(1),
     indicateurs: ['Taux de réussite', 'Taux de certification'],
     swimlanes: [
       { acteur: 'Formateur', etape: 'Évalue en continu', delai: '-', output: 'Évaluations formatives' },
@@ -204,7 +213,7 @@ const DEFAULT_DATA = {
   },
   'proc-hand': {
     objectif: 'Définir les modalités d\'accueil et d\'accompagnement des PSH.',
-    responsable: 'Maxime LANGLAIS',
+    responsable: P(1),
     indicateurs: ['Nombre de PSH accueillis', 'Taux d\'adaptations réalisées'],
     swimlanes: [
       { acteur: 'Commercial', etape: 'Identifie le besoin PSH', delai: '-', output: 'Besoin identifié' },
@@ -217,7 +226,7 @@ const DEFAULT_DATA = {
   },
   'proc-rgpd': {
     objectif: 'Définir les modalités de protection des données personnelles.',
-    responsable: 'Hicham SAIDI',
+    responsable: P(0),
     indicateurs: ['Conformité RGPD', 'Nombre de demandes traitées'],
     swimlanes: [
       { acteur: 'DPO', etape: 'Tient le registre des traitements', delai: 'Continu', output: 'Registre à jour' },
@@ -238,14 +247,14 @@ const DEFAULT_DATA = {
     engagements: ['Respecter les exigences Qualiopi', 'Transmettre les documents dans les délais', 'Participer aux audits qualité', 'Signaler tout incident', 'Maintenir les certifications à jour'],
   },
   'nda': {
-    parties: ['Access Formation SARL', ''],
+    parties: [raisonSociale(), ''],
     duree: '5 ans après fin du contrat',
     informations: ['Données clients', 'Données stagiaires', 'Supports pédagogiques', 'Méthodes et process'],
   },
   // Pilotage
   'plan-action': {
     actions: [
-      { action: '', responsable: 'Hicham SAIDI', echeance: '', statut: 'en_cours', priorite: 'normale' }
+      { action: '', responsable: P(0), echeance: '', statut: 'en_cours', priorite: 'normale' }
     ],
   },
 }
@@ -263,7 +272,10 @@ export default function QualiteEditables() {
   const [loadingData, setLoadingData] = useState(false)
   const [rddData, setRddData] = useState(null)
   
-  useEffect(() => { loadSavedDocs() }, [])
+  useEffect(() => {
+    loadSavedDocs()
+    supabase.from('organization_settings').select('*').limit(1).maybeSingle().then(({ data }) => syncOrg(data))
+  }, [])
   
   const loadSavedDocs = async () => {
     const { data } = await supabase.from('quality_documents').select('*')
@@ -456,7 +468,7 @@ export default function QualiteEditables() {
       } else if (docId.startsWith('des-')) {
         const dateStr = data.date ? format(new Date(data.date), 'd MMMM yyyy', { locale: fr }) : format(new Date(), 'd MMMM yyyy', { locale: fr })
         doc.setFontSize(11); doc.setTextColor(0)
-        doc.text('Je soussigné, Access Formation SARL, représenté par ses co-gérants,', 20, y); y += 12
+        doc.text(`La société ${raisonSociale()}, représentée par ${ORG.dirigeant || 'son représentant légal'}${ORG.dirigeantTitre ? `, ${ORG.dirigeantTitre}` : ''},`, 20, y); y += 12
         doc.text('Désigne par la présente :', 20, y); y += 10
         doc.setFont(undefined, 'bold'); doc.setFontSize(14)
         doc.text(data.personne || 'Non défini', 40, y); y += 10
@@ -471,8 +483,8 @@ export default function QualiteEditables() {
         y = 210
         doc.setFontSize(11)
         doc.text(`Fait à ${ORG.ville}, le ${dateStr}`, 20, y); y += 12
-        doc.text('Les Co-gérants,', 20, y); y += 15
-        doc.text('Hicham SAIDI', 35, y); doc.text('Maxime LANGLAIS', 115, y)
+        doc.text(ORG.dirigeantTitre ? `${ORG.dirigeantTitre},` : 'Le représentant légal,', 20, y); y += 15
+        doc.text(ORG.dirigeant || '', 35, y)
         
       // PROCÉDURES AVEC SWIMLANES
       } else if (docId.startsWith('proc-')) {
@@ -688,8 +700,7 @@ export default function QualiteEditables() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Personne désignée</label>
                   <select value={editData.personne || ''} onChange={e => setEditData({...editData, personne: e.target.value})} className="input w-full">
-                    <option value="Hicham SAIDI">Hicham SAIDI</option>
-                    <option value="Maxime LANGLAIS">Maxime LANGLAIS</option>
+                    {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
                 <div>
@@ -727,8 +738,7 @@ export default function QualiteEditables() {
                   <div>
                     <label className="block text-sm font-medium mb-1">Responsable</label>
                     <select value={editData.responsable || ''} onChange={e => setEditData({...editData, responsable: e.target.value})} className="input w-full">
-                      <option value="Hicham SAIDI">Hicham SAIDI</option>
-                      <option value="Maxime LANGLAIS">Maxime LANGLAIS</option>
+                      {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </div>
                   {editData.delaiAccuse !== undefined && <div><label className="block text-sm font-medium mb-1">Délai AR</label><input type="text" value={editData.delaiAccuse || ''} onChange={e => setEditData({...editData, delaiAccuse: e.target.value})} className="input w-full" /></div>}
@@ -833,8 +843,8 @@ export default function QualiteEditables() {
               <>
                 <div>
                   <label className="block text-sm font-medium mb-1">Parties au contrat</label>
-                  <input type="text" value="Access Formation SARL" disabled className="input w-full mb-2 bg-gray-100" />
-                  <input type="text" value={(editData.parties || [])[1] || ''} onChange={e => setEditData({...editData, parties: ['Access Formation SARL', e.target.value]})} className="input w-full" placeholder="Nom du cocontractant" />
+                  <input type="text" value={raisonSociale()} disabled className="input w-full mb-2 bg-gray-100" />
+                  <input type="text" value={(editData.parties || [])[1] || ''} onChange={e => setEditData({...editData, parties: [raisonSociale(), e.target.value]})} className="input w-full" placeholder="Nom du cocontractant" />
                 </div>
                 <div><label className="block text-sm font-medium mb-1">Durée de confidentialité</label><input type="text" value={editData.duree || ''} onChange={e => setEditData({...editData, duree: e.target.value})} className="input w-full" placeholder="ex: 5 ans après fin du contrat" /></div>
                 <div>
@@ -860,8 +870,7 @@ export default function QualiteEditables() {
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <input type="text" value={act.action || ''} onChange={e => { const n = [...(editData.actions || [])]; n[i] = {...n[i], action: e.target.value}; setEditData({...editData, actions: n}) }} className="input col-span-2" placeholder="Description de l'action" />
                       <select value={act.responsable || ''} onChange={e => { const n = [...(editData.actions || [])]; n[i] = {...n[i], responsable: e.target.value}; setEditData({...editData, actions: n}) }} className="input">
-                        <option value="Hicham SAIDI">Hicham SAIDI</option>
-                        <option value="Maxime LANGLAIS">Maxime LANGLAIS</option>
+                        {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                       </select>
                       <input type="date" value={act.echeance || ''} onChange={e => { const n = [...(editData.actions || [])]; n[i] = {...n[i], echeance: e.target.value}; setEditData({...editData, actions: n}) }} className="input" />
                       <select value={act.statut || 'en_cours'} onChange={e => { const n = [...(editData.actions || [])]; n[i] = {...n[i], statut: e.target.value}; setEditData({...editData, actions: n}) }} className="input">
@@ -878,7 +887,7 @@ export default function QualiteEditables() {
                     <button onClick={() => setEditData({...editData, actions: (editData.actions || []).filter((_, idx) => idx !== i)})} className="text-red-500 text-xs">Supprimer cette action</button>
                   </div>
                 ))}
-                <button onClick={() => setEditData({...editData, actions: [...(editData.actions || []), { action: '', responsable: 'Hicham SAIDI', echeance: '', statut: 'en_cours', priorite: 'normale' }]})} className="btn btn-sm btn-secondary"><Plus className="w-4 h-4 mr-1" /> Ajouter action</button>
+                <button onClick={() => setEditData({...editData, actions: [...(editData.actions || []), { action: '', responsable: P(0), echeance: '', statut: 'en_cours', priorite: 'normale' }]})} className="btn btn-sm btn-secondary"><Plus className="w-4 h-4 mr-1" /> Ajouter action</button>
               </div>
             )}
           </div>
@@ -1102,7 +1111,7 @@ export default function QualiteEditables() {
             <div><h3 className="font-semibold text-lg">Revue de Direction</h3><p className="text-sm text-gray-500">Année glissante depuis août {rddData ? format(rddData.periode.start, 'yyyy') : ''}</p></div>
             <div className="flex gap-2">
               <button onClick={loadRDD} disabled={loadingData} className="btn btn-sm btn-secondary flex items-center gap-1">{loadingData ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Actualiser</button>
-              <button onClick={() => generatePDF('rdd', { id: 'rdd', name: 'Revue de direction', code: 'AF-RDD' })} disabled={!rddData} className="btn btn-sm btn-primary flex items-center gap-1"><Download className="w-4 h-4" /> PDF</button>
+              <button onClick={() => generatePDF('rdd', { id: 'rdd', name: 'Revue de direction', code: 'QUAL-RDD' })} disabled={!rddData} className="btn btn-sm btn-primary flex items-center gap-1"><Download className="w-4 h-4" /> PDF</button>
             </div>
           </div>
           {rddData ? (

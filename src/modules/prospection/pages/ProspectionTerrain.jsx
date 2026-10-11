@@ -4,6 +4,7 @@
 // Actions : appel loggué, rappel, RDV, email — comme MarinePhoning
 // ═══════════════════════════════════════════════════════════════
 
+import { teamFirstNames, teamFirstNameByEmail } from '../../../core/org/currentOrg'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
 import { useAuthStore } from '../../../core/store'
@@ -27,7 +28,6 @@ const CALL_RESULTS = [
   { id: 'wrong_number', label: '❌ Faux numéro',     sublabel: 'Supprimer',    color: 'bg-purple-100 border-purple-300 text-purple-600' },
 ]
 
-const CALLER_OPTIONS = ['Hicham', 'Maxime']
 
 function distanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371
@@ -38,9 +38,7 @@ function distanceKm(lat1, lon1, lat2, lon2) {
 }
 
 function getCallerFromEmail(email) {
-  if (email?.includes('hicham')) return 'Hicham'
-  if (email?.includes('maxime')) return 'Maxime'
-  return 'Hicham'
+  return teamFirstNameByEmail(email)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -370,7 +368,7 @@ export default function ProspectionTerrain() {
             {/* Caller */}
             <select value={callerName} onChange={e => setCallerName(e.target.value)}
               className="border rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-orange-300">
-              {CALLER_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+              {teamFirstNames().map(c => <option key={c} value={c}>{c}</option>)}
             </select>
 
             {/* Bouton générer */}

@@ -1,6 +1,6 @@
 // src/pages/Mailing.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Page Mailing — Access Campus
+// Page Mailing — l'application
 //
 //   Liste des campagnes · statistiques · détail · qualité des adresses
 //   Création sur un seul écran (MailingComposer)
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MailingQualite from '../components/MailingQualite'
-import MailingComposer, { SENDER_EMAIL } from '../components/MailingComposer'
+import MailingComposer, { senderEmailFor } from '../components/MailingComposer'
 import { loadMailingExclusions, getExclusionReason, normNaf } from '../lib/mailingExclusions'
 import { applyMailingVars } from '../lib/mailingVars'
 
@@ -165,7 +165,7 @@ function MailingBriefingEditor({ campaign, onUpdate }) {
             <textarea
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={8}
-              placeholder="Ex : Marine, suite à notre campagne campings, priorité Finistère + Morbihan..."
+              placeholder="Ex : suite à notre campagne campings, priorité Finistère + Morbihan..."
               value={message} onChange={e => setMessage(e.target.value)}
             />
           </div>
@@ -598,7 +598,7 @@ export default function Mailing() {
 
           {(progress.done || progress.stopped) && (
             <div className="space-y-3">
-              {progress.done && <p className="text-sm text-gray-500">Rapport de campagne envoyé à <strong>{SENDER_EMAIL[activeContext?.signature_caller] || '—'}</strong>.</p>}
+              {progress.done && <p className="text-sm text-gray-500">Rapport de campagne envoyé à <strong>{senderEmailFor(activeContext?.signature_caller) || '—'}</strong>.</p>}
               {progress.stopped && activeCampaign && (
                 <button onClick={() => { continueOnServer(activeCampaign); setView('list') }}
                   className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">

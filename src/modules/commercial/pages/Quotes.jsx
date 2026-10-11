@@ -1,3 +1,4 @@
+import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -44,7 +45,6 @@ const PAYMENT_TERMS = [
   'à 60 jours fin de mois'
 ]
 
-const CONTACTS_LABEL = { 'Hicham Saidi': 'Hicham Saidi', 'Maxime Langlais': 'Maxime Langlais' }
 
 // ============================================================
 // SIGNATURE PAD COMPONENT
@@ -193,7 +193,7 @@ export default function Quotes() {
     client_reference: '', status: 'draft', payment_method: 'virement bancaire',
     payment_terms: 'à 30 jours', payment_deadline: '', discount_percent: 0,
     discount_label: '', tva_rate: 20, tva_applicable: true, notes: '',
-    created_by: 'Hicham Saidi', signature_base64: null
+    created_by: currentUserName(), signature_base64: null
   }
 
   const emptyItem = {
@@ -727,7 +727,7 @@ export default function Quotes() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           quote, client, contact, items,
-          senderName: quote.created_by || 'Hicham Saidi',
+          senderName: quote.created_by || currentUserName(),
           customInstructions: sendEmail.customInstructions || '',
           hasPrograms: enabledPrograms.length > 0,
           programTitles: enabledPrograms.map(p => p.courseTitle)
@@ -748,7 +748,7 @@ export default function Quotes() {
         : 'notre devis'
       setSendEmail(prev => ({
         ...prev,
-        subject: `Devis ${quote.reference} - Access Formation`,
+        subject: `Devis ${quote.reference} - ${orgName()}`,
         body: `Bonjour,\n\nSuite à notre échange, veuillez trouver ci-joint ${pjText} (réf. ${quote.reference}).\n\nNous restons à votre disposition pour tout complément d'information.`
       }))
     }
@@ -966,7 +966,7 @@ export default function Quotes() {
                 />
               </div>
 
-              <p className="text-xs text-gray-400">La signature sera ajoutée automatiquement. BCC : contact@accessformation.pro</p>
+              <p className="text-xs text-gray-400">La signature sera ajoutée automatiquement depuis votre compte email.</p>
             </div>
 
             <div className="p-6 border-t border-gray-100 space-y-3">
@@ -1076,7 +1076,7 @@ export default function Quotes() {
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${q.daysSinceSent >= 15 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
                       {q.daysSinceSent}j
                     </span>
-                    <button onClick={(e) => { e.stopPropagation(); relanceQuote(q, { senderName: q.created_by || 'Hicham Saidi' }) }}
+                    <button onClick={(e) => { e.stopPropagation(); relanceQuote(q, { senderName: q.created_by || currentUserName() }) }}
                       disabled={relanceGenerating === q.id}
                       className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium flex items-center gap-1 disabled:opacity-60">
                       {relanceGenerating === q.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Relancer
@@ -1145,7 +1145,7 @@ export default function Quotes() {
                             <Copy size={15} /> Dupliquer
                           </button>
                           {(q.status === 'draft' || q.status === 'sent') && (
-                            <button onClick={() => { setActionMenuId(null); q.status === 'sent' ? relanceQuote(q, { senderName: q.created_by || 'Hicham Saidi' }) : openSendWizard(q) }}
+                            <button onClick={() => { setActionMenuId(null); q.status === 'sent' ? relanceQuote(q, { senderName: q.created_by || currentUserName() }) : openSendWizard(q) }}
                               disabled={relanceGenerating === q.id}
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50 disabled:opacity-60">
                               {relanceGenerating === q.id ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {q.status === 'sent' ? 'Relancer par email' : 'Envoyer par email'}
@@ -1262,7 +1262,7 @@ export default function Quotes() {
                     <Copy size={15} /> Dupliquer
                   </button>
                   {(q.status === 'draft' || q.status === 'sent') && (
-                    <button onClick={() => { setActionMenuId(null); q.status === 'sent' ? relanceQuote(q, { senderName: q.created_by || 'Hicham Saidi' }) : openSendWizard(q) }}
+                    <button onClick={() => { setActionMenuId(null); q.status === 'sent' ? relanceQuote(q, { senderName: q.created_by || currentUserName() }) : openSendWizard(q) }}
                       disabled={relanceGenerating === q.id}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50 disabled:opacity-60">
                       {relanceGenerating === q.id ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {q.status === 'sent' ? 'Relancer' : 'Envoyer'} par email
@@ -1613,11 +1613,11 @@ export default function Quotes() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Access Formation</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Votre interlocuteur</label>
                   <select value={currentQuote.created_by}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, created_by: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
-                    {Object.entries(CONTACTS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
               </div>
@@ -2055,7 +2055,6 @@ export default function Quotes() {
 
                 <p className="text-xs text-gray-400">
                   La signature sera ajoutée automatiquement selon votre compte email.
-                  BCC : contact@accessformation.pro
                 </p>
               </div>
             )}
@@ -2067,11 +2066,9 @@ export default function Quotes() {
                   <h3 className="font-semibold text-green-900">Récapitulatif</h3>
                   <div className="grid grid-cols-[120px_1fr] gap-y-2 text-sm">
                     <span className="text-gray-500">De :</span>
-                    <span className="font-medium">{quote.created_by} (Access Formation)</span>
+                    <span className="font-medium">{quote.created_by} ({orgName()})</span>
                     <span className="text-gray-500">À :</span>
                     <span className="font-medium">{sendEmail.to}</span>
-                    <span className="text-gray-500">BCC :</span>
-                    <span className="text-gray-400">contact@accessformation.pro</span>
                     <span className="text-gray-500">Objet :</span>
                     <span className="font-medium">{sendEmail.subject}</span>
                     <span className="text-gray-500">Pièces jointes :</span>

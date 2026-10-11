@@ -3,6 +3,7 @@
 // Onglet Conformité du DUERP — Équipements, Habilitations, Obligations
 // ══════════════════════════════════════════════════════════════
 
+import { orgName, orgPhone } from '../../../core/org/currentOrg'
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../../core/supabase'
 import {
@@ -443,7 +444,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                         )}
                         {type?.access_formation && (
                           <span className="text-[9px] text-amber-600 font-bold text-center">
-                            📞 Access Formation
+                            {orgName()}
                           </span>
                         )}
                       </div>
@@ -451,15 +452,15 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                   )
                 })}
               </div>
-              {/* CTA Access Formation */}
+              {/* Proposition de formation par l'organisme */}
               <div className="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-xl p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0">🎓</div>
                   <div className="flex-1">
                     <p className="font-bold text-sm text-amber-900">Besoin de former vos équipes ?</p>
-                    <p className="text-xs text-amber-700">Access Formation — SST, CACES, Incendie, Habilitation électrique</p>
+                    <p className="text-xs text-amber-700">{orgName()} : SST, incendie, habilitation électrique, conduite d'engins</p>
                   </div>
-                  <a href="tel:0298903024" className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-700">
+                  <a href={`tel:${orgPhone().replace(/\s/g, '')}`} className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-700">
                     <Phone className="w-3.5 h-3.5" /> Nous contacter
                   </a>
                 </div>
@@ -891,7 +892,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                     <div>
                       <label className="text-xs font-medium text-gray-600 mb-1 block">Organisme de formation</label>
                       <input value={habForm.organisme || ''} onChange={e => setHabForm(f => ({ ...f, organisme: e.target.value }))}
-                        placeholder="Access Formation" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        placeholder={orgName()} className="w-full border rounded-lg px-3 py-2 text-sm" />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-gray-600 mb-1 block">N° certificat</label>
@@ -917,7 +918,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                         <p className="text-blue-600 mt-1">{type.obligation}</p>
                         <p className="text-blue-600">🔄 Validité : {type.duree_validite} mois</p>
                         {type.access_formation && (
-                          <p className="mt-2 text-amber-700 font-bold">✨ Formation disponible chez Access Formation — Réf: {type.access_ref}</p>
+                          <p className="mt-2 text-amber-700 font-bold">Formation disponible chez {orgName()}, réf. {type.access_ref}</p>
                         )}
                       </div>
                     )

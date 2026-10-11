@@ -1,3 +1,4 @@
+import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -72,7 +73,6 @@ const daysLate = (dueDate) => {
 }
 
 const TVA_RATES = [0,2.1,5.5,8.5,10,20]
-const CREATORS = ['Hicham Saidi','Maxime Langlais']
 const emptyItem = () => ({code:'',description_title:'',description_detail:'',quantity:1,unit:'unité',unit_price_ht:0,tva_rate:20,course_id:null})
 
 // ─── Templates email selon rang de relance ───
@@ -90,7 +90,7 @@ function getEmailTemplate(inv, relanceNumber) {
       ? `Le montant de ${refundTxt} TTC vous sera remboursé par ${refundMethod} dans les meilleurs délais.`
       : `Ce montant vient en déduction des sommes dues au titre de cette facture.`
     return {
-      subject: `Avoir N° ${ref} — Access Formation`,
+      subject: `Avoir N° ${ref} — ${orgName()}`,
       body: `Madame, Monsieur,
 
 Veuillez trouver ci-joint notre avoir N° ${ref} d'un montant de ${ttc} TTC, émis en régularisation de la facture N° ${parentRef}.
@@ -111,7 +111,7 @@ Restant à votre disposition pour tout renseignement complémentaire,`
 
   if (relanceNumber === 1) {
     return {
-      subject: `Facture N° ${ref} — Access Formation`,
+      subject: `Facture N° ${ref} — ${orgName()}`,
       body: `Madame, Monsieur,
 
 Veuillez trouver ci-joint notre facture N° ${ref} d'un montant de ${ttc} TTC au titre de : ${objet}.
@@ -124,7 +124,7 @@ Restant à votre disposition pour tout renseignement complémentaire,`
     }
   } else if (relanceNumber === 2) {
     return {
-      subject: `Relance — Facture N° ${ref} — Access Formation`,
+      subject: `Relance — Facture N° ${ref} — ${orgName()}`,
       body: `Madame, Monsieur,
 
 Sauf erreur de notre part, la facture N° ${ref} d'un montant de ${ttc} TTC, dont l'échéance était fixée au ${dueDate}, n'a pas encore été réglée.
@@ -137,7 +137,7 @@ Restant à votre disposition,`
     }
   } else if (relanceNumber === 3) {
     return {
-      subject: `2ème relance — Facture N° ${ref} — Access Formation`,
+      subject: `2ème relance — Facture N° ${ref} — ${orgName()}`,
       body: `Madame, Monsieur,
 
 Nous revenons vers vous concernant la facture N° ${ref} d'un montant de ${ttc} TTC, échue le ${dueDate}, qui demeure à ce jour impayée malgré notre première relance.
@@ -206,7 +206,7 @@ export default function Invoices() {
   const [sendModalRelances, setSendModalRelances] = useState([])
   const [sendModalItems, setSendModalItems] = useState([])
   const [sendModalContact, setSendModalContact] = useState(null)
-  const [sendForm, setSendForm] = useState({ to: '', caller: 'Hicham Saidi', subject: '', body: '' })
+  const [sendForm, setSendForm] = useState({ to: '', caller: currentUserName(), subject: '', body: '' })
   const [sendingEmail, setSendingEmail] = useState(false)
 
   // ─── Load ───
@@ -333,7 +333,7 @@ export default function Invoices() {
     setSendModalContact(contact)
     setSendForm({
       to: toEmail,
-      caller: 'Hicham Saidi',
+      caller: currentUserName(),
       subject: template.subject,
       body: template.body,
     })
@@ -422,7 +422,7 @@ export default function Invoices() {
       sellsy_reference: '', client_reference: '',
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: '', service_end_date: '', due_date: dd,
       object: '', payment_method: 'virement bancaire', payment_terms: 'à 30 jours', discount_percent: 0, discount_label: '',
-      tva_applicable: true, notes: '', created_by: 'Hicham Saidi', status: 'draft',
+      tva_applicable: true, notes: '', created_by: currentUserName(), status: 'draft',
       parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: true,
       is_subrogation: false, billing_client_id: ''
     })
@@ -447,7 +447,7 @@ export default function Invoices() {
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: sStart, service_end_date: sEnd, due_date: dd,
       object: quote.object || '', payment_method: quote.payment_method || 'virement bancaire', payment_terms: quote.payment_terms || 'à 30 jours',
       discount_percent: quote.discount_percent || 0, discount_label: quote.discount_label || '', tva_applicable: quote.tva_applicable !== false,
-      notes: '', created_by: 'Hicham Saidi', status: 'draft', parent_reference: quote.reference, parent_invoice_id: null,
+      notes: '', created_by: currentUserName(), status: 'draft', parent_reference: quote.reference, parent_invoice_id: null,
       amount_paid: 0, is_formation_pro: true, session_reference: sRef, is_subrogation: false, billing_client_id: '',
       _from_quote: true
     })
@@ -540,7 +540,7 @@ export default function Invoices() {
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: sess.start_date || '', service_end_date: sess.end_date || '', due_date: dd,
       object: objectTitle, payment_method: 'virement bancaire', payment_terms: clientPaymentTerms,
       discount_percent: 0, discount_label: '', tva_applicable: true,
-      notes: '', created_by: 'Hicham Saidi', status: 'draft', parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: true,
+      notes: '', created_by: currentUserName(), status: 'draft', parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: true,
       is_subrogation: false, billing_client_id: ''
     })
     setItems(invoiceItems.length > 0 ? invoiceItems : [emptyItem()])
@@ -601,7 +601,7 @@ export default function Invoices() {
       service_start_date: allDates[0] || '', service_end_date: allDates[allDates.length - 1] || '', due_date: dd,
       object: objectTitle, payment_method: 'virement bancaire', payment_terms: clientPaymentTerms,
       discount_percent: 0, discount_label: '', tva_applicable: true,
-      notes: '', created_by: 'Hicham Saidi', status: 'draft', parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: true,
+      notes: '', created_by: currentUserName(), status: 'draft', parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: true,
       is_subrogation: false, billing_client_id: ''
     })
     setItems(invoiceItems)
@@ -659,7 +659,7 @@ export default function Invoices() {
       object: `Prestations de formation — ${monthLabel} (${toInvoice.length} session${toInvoice.length > 1 ? 's' : ''})`,
       payment_method: 'virement bancaire', payment_terms: clientPaymentTerms,
       discount_percent: 0, discount_label: '', tva_applicable: true,
-      notes: '', created_by: 'Hicham Saidi', status: 'draft',
+      notes: '', created_by: currentUserName(), status: 'draft',
       parent_reference: '', parent_invoice_id: null, amount_paid: 0,
       is_formation_pro: true, is_subrogation: false, billing_client_id: ''
     })
@@ -687,7 +687,7 @@ export default function Invoices() {
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: inv.service_start_date || '', service_end_date: inv.service_end_date || '', due_date: '',
       object: 'Avoir sur facture ' + inv.reference, payment_method: inv.payment_method, payment_terms: inv.payment_terms,
       discount_percent: inv.discount_percent || 0, discount_label: inv.discount_label || '', tva_applicable: inv.tva_applicable !== false,
-      notes: '', created_by: 'Hicham Saidi', status: 'draft', parent_reference: inv.reference, parent_invoice_id: inv.id, amount_paid: 0, amount_due: 0, amount_credited: 0,
+      notes: '', created_by: currentUserName(), status: 'draft', parent_reference: inv.reference, parent_invoice_id: inv.id, amount_paid: 0, amount_due: 0, amount_credited: 0,
       is_formation_pro: inv.is_formation_pro !== false,
       is_subrogation: inv.is_subrogation || false, billing_client_id: inv.billing_client_id || ''
     })
@@ -817,7 +817,7 @@ export default function Invoices() {
         await supabase.from('invoice_payments').insert({
           invoice_id: id, amount: remaining, payment_date: format(new Date(), 'yyyy-MM-dd'),
           payment_method: inv.payment_method || 'virement bancaire', payment_reference: '',
-          notes: 'Marquée payée manuellement', created_by: inv.created_by || 'Hicham Saidi',
+          notes: 'Marquée payée manuellement', created_by: inv.created_by || currentUserName(),
         })
       }
     }
@@ -1110,8 +1110,7 @@ export default function Invoices() {
                   onChange={e => setSendForm(f => ({...f, caller: e.target.value}))}
                   className="w-full border rounded-lg px-3 py-2 text-sm"
                 >
-                  <option value="Hicham Saidi">Hicham Saidi</option>
-                  <option value="Maxime Langlais">Maxime Langlais</option>
+                  {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
 
@@ -1421,7 +1420,7 @@ export default function Invoices() {
                     </select>
               }
             </div>
-            <div><label className="text-xs text-gray-500 block mb-1">Créé par</label><select value={current?.created_by || ''} onChange={e => setCurrent({...current, created_by: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" disabled={ro}>{CREATORS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+            <div><label className="text-xs text-gray-500 block mb-1">Créé par</label><select value={current?.created_by || ''} onChange={e => setCurrent({...current, created_by: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" disabled={ro}>{teamNames().map(n => <option key={n} value={n}>{n}</option>)}</select></div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div className="col-span-2">
@@ -1704,8 +1703,7 @@ export default function Invoices() {
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Expéditeur</label>
                 <select value={sendForm.caller} onChange={e => setSendForm(f => ({...f, caller: e.target.value}))} className="w-full border rounded-lg px-3 py-2 text-sm">
-                  <option value="Hicham Saidi">Hicham Saidi</option>
-                  <option value="Maxime Langlais">Maxime Langlais</option>
+                  {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
               <div>

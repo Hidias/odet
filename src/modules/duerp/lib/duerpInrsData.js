@@ -101,7 +101,7 @@ export function getInrsRisksForSector(sectorTemplate) {
   return INRS_RISKS.filter(r => r.sectors.includes('all') || r.sectors.some(s => tags.has(s)))
 }
 
-// Formations sécurité pré-remplies Access Formation
+// Formations sécurité pré-remplies
 export const FORMATIONS_SECURITE = [
   { formation: 'SST - Sauveteur Secouriste du Travail', reglementation: 'Art. R4224-15 du Code du Travail', periodicite: 'Recyclage 24 mois - Min. 1 SST dans chaque atelier' },
   { formation: 'Equipier de Premiere Intervention (EPI incendie)', reglementation: 'Art. R4227-28 et R4227-39 du Code du Travail', periodicite: 'Min. 1 personne formee presente durant les heures de travail' },

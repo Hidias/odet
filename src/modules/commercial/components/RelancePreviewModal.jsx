@@ -94,7 +94,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
 
           {/* Note signature */}
           <p className="text-[10px] text-gray-400 italic">
-            La signature email sera ajoutée automatiquement à l'envoi (expéditeur : hicham.saidi@accessformation.pro).
+            La signature email sera ajoutée automatiquement à l'envoi (depuis votre compte email).
           </p>
         </div>
 

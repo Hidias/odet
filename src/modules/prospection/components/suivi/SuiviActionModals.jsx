@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../../core/supabase'
-import { CALLERS, SANS_SUITE_REASONS, quickDates, todayStr, fmtDate, logInteraction } from './suiviUtils'
+import { callers, SANS_SUITE_REASONS, quickDates, todayStr, fmtDate, logInteraction } from './suiviUtils'
 
 function ModalShell({ title, subtitle, onClose, children, footer }) {
   return (
@@ -86,7 +86,7 @@ function CancelButton({ onClick }) {
 export function PlanifierRdvModal({ rdv, clientName, author, onClose, onDone }) {
   const [date, setDate] = useState(rdv?.rdv_date && rdv.rdv_date >= todayStr() ? rdv.rdv_date : '')
   const [time, setTime] = useState(rdv?.rdv_time ? String(rdv.rdv_time).slice(0, 5) : '10:00')
-  const [who, setWho] = useState(rdv?.conducted_by || (author === 'Marine' ? 'Hicham' : author))
+  const [who, setWho] = useState(rdv?.conducted_by || author)
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
@@ -136,8 +136,7 @@ export function PlanifierRdvModal({ rdv, clientName, author, onClose, onDone }) 
           <label className="block text-sm font-medium text-gray-700 mb-1">Mené par</label>
           <select value={who} onChange={e => setWho(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-            <option value="Hicham">Hicham</option>
-            <option value="Maxime">Maxime</option>
+            {callers().map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>
@@ -218,7 +217,7 @@ export function ConvertirRappelModal({ rdv, clientName, author, onClose, onDone 
           <label className="block text-sm font-medium text-gray-700 mb-1">Qui rappelle</label>
           <select value={who} onChange={e => setWho(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-            {CALLERS.map(c => <option key={c} value={c}>{c}</option>)}
+            {callers().map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>
@@ -296,7 +295,7 @@ export function DeplacerRappelModal({ callback, clientName, author, onClose, onD
         <label className="block text-sm font-medium text-gray-700 mb-1">Qui rappelle</label>
         <select value={who} onChange={e => setWho(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-          {CALLERS.map(c => <option key={c} value={c}>{c}</option>)}
+          {callers().map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
     </ModalShell>

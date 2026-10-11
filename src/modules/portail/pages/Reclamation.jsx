@@ -1,8 +1,11 @@
+import { orgDirigeant, orgEmail } from '../../../core/org/currentOrg'
 import { useState } from 'react'
+import { useBranding } from '../../../core/branding/BrandingProvider'
 import { supabase } from '../../../core/supabase'
 import { AlertCircle, Send, CheckCircle, Search, Building2, Calendar, GraduationCap } from 'lucide-react'
 
 export default function Reclamation() {
+  const { branding } = useBranding()
   const [sessionRef, setSessionRef] = useState('')
   const [sessionInfo, setSessionInfo] = useState(null)
   const [sessionError, setSessionError] = useState('')
@@ -129,7 +132,7 @@ export default function Reclamation() {
 **Message:**
 ${form.message}`,
           status: 'open',
-          responsable: 'Hicham SAIDI'
+          responsable: orgDirigeant() || null
         })
       
       if (reclError) throw reclError
@@ -152,7 +155,7 @@ ${form.message}`,
       setSubmitted(true)
     } catch (err) {
       console.error('Erreur soumission:', err)
-      setError('Une erreur est survenue. Veuillez réessayer ou nous contacter à contact@accessformation.pro')
+      setError('Une erreur est survenue. Veuillez réessayer ou nous contacter' + (orgEmail() ? ` à ${orgEmail()}` : ''))
     } finally {
       setLoading(false)
     }
@@ -177,7 +180,7 @@ ${form.message}`,
             Votre demande a bien été prise en compte. Un premier retour vous sera transmis sous 48 heures ouvrées.
           </p>
           <p className="text-sm text-gray-500">
-            Pour toute question urgente : <a href="mailto:contact@accessformation.pro" className="text-primary-600 hover:underline">contact@accessformation.pro</a>
+            Pour toute question urgente : <a href={`mailto:${orgEmail()}`} className="text-primary-600 hover:underline">{orgEmail()}</a>
           </p>
         </div>
       </div>
@@ -189,9 +192,9 @@ ${form.message}`,
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/assets/logo-campus.png" alt="Access Formation" className="h-16 mx-auto mb-4" />
+          {(branding.logo_url || branding.logo_base64) && <img src={branding.logo_url || branding.logo_base64} alt={branding.org_name || ''} className="h-16 mx-auto mb-4 bg-white rounded-ui p-2 object-contain" />}
           <h1 className="text-3xl font-bold text-white">Formulaire de réclamation</h1>
-          <p className="text-white/80 mt-2">Access Formation - Suivi Qualité</p>
+          <p className="text-white/80 mt-2">{branding.org_name} - Suivi qualité</p>
         </div>
         
         {/* Formulaire */}
@@ -367,8 +370,8 @@ ${form.message}`,
               Un premier retour vous sera transmis sous 48 heures ouvrées.
               <br />
               Vous pouvez également nous contacter à{' '}
-              <a href="mailto:contact@accessformation.pro" className="text-primary-600 hover:underline">
-                contact@accessformation.pro
+              <a href={`mailto:${orgEmail()}`} className="text-primary-600 hover:underline">
+                {orgEmail()}
               </a>
             </p>
           </form>
@@ -376,7 +379,7 @@ ${form.message}`,
         
         {/* Footer */}
         <p className="text-center text-white/60 text-sm mt-6">
-          © {new Date().getFullYear()} Access Formation SARL - Organisme de formation
+          © {new Date().getFullYear()} {branding.legal_name || branding.org_name} - Organisme de formation
         </p>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { orgName } from '../../../core/org/currentOrg'
 import jsPDF from 'jspdf'
 import { buildORG } from '../../../core/org/orgUtils'
 
@@ -362,7 +363,7 @@ export const downloadNeedsAnalysisPDF = async (session, analysisData = null, bla
     } else if (analysisData.location_type) {
       const locationText = analysisData.location_type === 'client' 
         ? `Chez le client (${safe(analysisData.location_client_address, '')})`
-        : 'Dans nos locaux (Access Formation)'
+        : `Dans nos locaux (${orgName()})`
       doc.text(`Lieu : ${safe(locationText)}`, margin, yPos)
     } else {
       doc.text('Lieu : ___________________________________', margin, yPos)
@@ -455,7 +456,7 @@ export const downloadNeedsAnalysisPDF = async (session, analysisData = null, bla
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.text('Signature entreprise :', margin + 2, yPos)
-  doc.text('Signature Access Formation :', pageWidth / 2 + 2, yPos)
+  doc.text(`Signature ${orgName()} :`, pageWidth / 2 + 2, yPos)
   
   // Dessiner les rectangles
   doc.setDrawColor(100, 100, 100)
@@ -774,7 +775,7 @@ export const getNeedsAnalysisPDFBytes = async (session, analysisData = null, bla
     } else if (analysisData.location_type) {
       const locationText = analysisData.location_type === 'client' 
         ? `Chez le client (${safe(analysisData.location_client_address, '')})` 
-        : 'Dans nos locaux (Access Formation)'
+        : `Dans nos locaux (${orgName()})`
       doc.text(`Lieu : ${safe(locationText)}`, margin, yPos)
     } else {
       doc.text('Lieu : ___________________________________', margin, yPos)
@@ -842,7 +843,7 @@ export const getNeedsAnalysisPDFBytes = async (session, analysisData = null, bla
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.text('Signature entreprise :', margin + 2, yPos)
-  doc.text('Signature Access Formation :', pageWidth / 2 + 2, yPos)
+  doc.text(`Signature ${orgName()} :`, pageWidth / 2 + 2, yPos)
   doc.setDrawColor(100, 100, 100)
   doc.setLineWidth(0.3)
   doc.rect(margin, signatureBoxY, signatureBoxWidth, signatureBoxHeight)

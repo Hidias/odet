@@ -15,7 +15,7 @@ import SuiteRdvModal from './SuiteRdvModal'
 import { PlanifierRdvModal, ConvertirRappelModal, DeplacerRappelModal, SansSuiteInline } from './SuiviActionModals'
 import DevisSuiviBlock from './DevisSuiviBlock'
 import {
-  CALLERS, fmtDate, callbackLateDays, isCallbackToDecide, rdvRefDate,
+  callers, fmtDate, callbackLateDays, isCallbackToDecide, rdvRefDate,
 } from './suiviUtils'
 
 function Section({ title, count, hint, children }) {
@@ -167,7 +167,7 @@ export default function TriSuiviCommercial({
                     {r.clients?.name || 'Client inconnu'}
                     <span className="text-xs font-normal text-gray-500">
                       {' '}· créé le {fmtDate(rdvRefDate(r))}
-                      {(r.source || '').includes('transfer') ? ' · transfert Marine' : r.source ? ` · ${r.source.replace('phoning_', 'phoning ')}` : ''}
+                      {(r.source || '').includes('transfer') ? ' · transfert' : r.source ? ` · ${r.source.replace('phoning_', 'phoning ')}` : ''}
                     </span>
                   </p>
                   {(r.notes || r.notes_crm) && <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">{r.notes || r.notes_crm}</p>}
@@ -235,10 +235,10 @@ export default function TriSuiviCommercial({
         <Section
           title="Rappels en retard de plus de 7 jours"
           count={callbacks.filter(cb => isCallbackToDecide(cb)).length}
-          hint="Un par un : déplacer, réattribuer ou abandonner. Les rappels de Marine restent à son nom tant que vous ne les réattribuez pas."
+          hint="Un par un : déplacer, réattribuer ou abandonner. Les rappels restent au nom de la personne qui les a planifiés tant que vous ne les réattribuez pas."
         >
           <div className="flex gap-1.5 py-2 flex-wrap">
-            {['all', ...CALLERS].map(c => (
+            {['all', ...callers()].map(c => (
               <button key={c} onClick={() => setCbCaller(c)}
                 className={`px-2.5 py-1 rounded-md text-xs border ${cbCaller === c ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-600 hover:border-gray-500'}`}>
                 {c === 'all' ? 'Tous' : c} {c !== 'all' && callerCounts[c] ? `(${callerCounts[c]})` : ''}

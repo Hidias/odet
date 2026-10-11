@@ -1,3 +1,4 @@
+import { orgName } from '../../../core/org/currentOrg'
 import jsPDF from 'jspdf'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -224,7 +225,7 @@ export async function generateSatisfactionDOPDF(session) {
   doc.setFont('helvetica', 'italic')
   doc.setTextColor(150, 150, 150)
   doc.text('Merci de nous retourner ce questionnaire complété.', pageWidth / 2, pageHeight - 15, { align: 'center' })
-  doc.text('Access Formation - Organisme de formation professionnelle', pageWidth / 2, pageHeight - 10, { align: 'center' })
+  doc.text(`${orgName()} - Organisme de formation professionnelle`, pageWidth / 2, pageHeight - 10, { align: 'center' })
 
   // ══════════════════════════════════════════════════════════════
   // RETOUR

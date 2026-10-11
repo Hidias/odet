@@ -1995,7 +1995,7 @@ function generateReglement() {
     return doc
   }
   const sections = [
-    { title: 'Article 1 - Objet et champ d\'application', text: 'Le présent règlement est établi conformément aux articles L.6352-3 et L.6352-4 du Code du travail. Il s\'applique à tous les stagiaires participant aux formations dispensées par Access Formation.' },
+    { title: 'Article 1 - Objet et champ d\'application', text: 'Le présent règlement est établi conformément aux articles L.6352-3 et L.6352-4 du Code du travail. Il s\'applique à tous les stagiaires participant aux formations dispensées par ' + (ORG.name || 'l\'organisme') + '.' },
     { title: 'Article 2 - Discipline', text: 'Les stagiaires doivent respecter les horaires, les consignes de sécurité et les règles de fonctionnement de l\'établissement.' },
     { title: 'Article 3 - Sanctions', text: 'Tout manquement aux règles pourra faire l\'objet d\'une sanction pouvant aller jusqu\'à l\'exclusion.' },
     { title: 'Article 4 - Représentation des stagiaires', text: 'Pour les formations de plus de 500 heures, un délégué des stagiaires sera élu.' },

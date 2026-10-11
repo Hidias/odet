@@ -45,9 +45,9 @@ export const ORG_FIELD_LABELS = {
 
 // Champs nécessaires selon le type de document
 export const ORG_REQUIRED = {
-  convention: ['name', 'address', 'postal_code', 'city', 'siret', 'nda', 'email', 'phone', 'dirigeant_name'],
+  convention: ['name', 'address', 'postal_code', 'city', 'siret', 'email', 'phone', 'dirigeant_name'],
   convocation: ['name', 'address', 'postal_code', 'city', 'email', 'phone'],
-  attestation: ['name', 'address', 'postal_code', 'city', 'siret', 'nda', 'dirigeant_name'],
+  attestation: ['name', 'address', 'postal_code', 'city', 'siret', 'dirigeant_name'],
   facture: ['legal_name', 'address', 'postal_code', 'city', 'siret', 'iban', 'bic'],
   devis: ['legal_name', 'address', 'postal_code', 'city', 'siret', 'email', 'phone'],
   base: ['name', 'address', 'postal_code', 'city'],
@@ -115,8 +115,9 @@ export function buildORG(o) {
     tva_applicable: s.tva_applicable !== false,
     rcs: s.rcs || '',
     tribunal_competent: s.tribunal_competent || '',
-    nda: ndaFormatted,
-    ndaFull: ndaFormatted ? `${ndaFormatted}${s.nda_region ? ` auprès du préfet de la région ${s.nda_region}` : ''}` : '',
+    nda: ndaFormatted || (s.name ? 'en cours d\'attribution' : ''),
+    // NDA pas encore attribué : mention explicite plutôt qu'un champ vide (un organisme peut former avant l'enregistrement)
+    ndaFull: ndaFormatted ? `${ndaFormatted}${s.nda_region ? ` auprès du préfet de la région ${s.nda_region}` : ''}` : (s.name ? 'en cours d\'attribution' : ''),
     nda_region: s.nda_region || '',
     // Banque
     bank_name: s.bank_name || '',

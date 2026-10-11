@@ -3,6 +3,7 @@
 // Utilisation : WeeklyPlanner, Quotes.jsx, ou tout composant avec relance
 // ═══════════════════════════════════════════════════════════════
 
+import { orgName, currentUserName, currentUserFirstName } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -73,7 +74,7 @@ export function useRelanceIA() {
             contact_email: clientEmail,
           },
           items: itemsRes.data || [],
-          senderName: options.senderName || 'Hicham Saidi',
+          senderName: options.senderName || currentUserName(),
           daysSinceQuote,
           interactions: interactionsRes.data || [],
           rdvContext: rdvRes.data?.[0] || null,
@@ -111,7 +112,7 @@ export function useRelanceIA() {
       setPreviewData({
         quote,
         clientEmail,
-        subject: `${relanceNum > 1 ? 'Relance — ' : ''}Devis ${quote.reference} — Access Formation`,
+        subject: `${relanceNum > 1 ? 'Relance — ' : ''}Devis ${quote.reference} — ${orgName()}`,
         body: fallbackBody,
         tone: 'courtois',
         relanceNum,
@@ -142,7 +143,7 @@ export function useRelanceIA() {
           to: clientEmail,
           subject,
           body: htmlBody,
-          caller: 'Hicham',
+          caller: currentUserFirstName(),
           clientId: quote.client_id,
           prospectName: quote.clients?.name,
           templateType: 'relance_devis',
@@ -169,7 +170,7 @@ export function useRelanceIA() {
           type: 'email',
           title: `Relance devis ${quote.reference} (${relanceLabel})`,
           content: `Email IA envoyé à ${clientEmail}\nObjet: ${subject}`,
-          author: 'Hicham',
+          author: currentUserFirstName(),
           interaction_date: new Date().toISOString(),
         })
       } catch {} // eslint-disable-line no-empty

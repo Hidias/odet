@@ -1,3 +1,4 @@
+import { currentUserFirstName, teamFirstNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
@@ -32,7 +33,6 @@ const INTERACTION_TYPES = [
   { value: 'relance', label: '🔄 Relance', icon: RefreshCw, color: 'bg-orange-100 text-orange-600' },
 ]
 
-const AUTHORS = ['Hicham', 'Maxime']
 
 const OPCO_LIST = [
   'AFDAS', 'AKTO', 'ATLAS', 'Constructys', "L'Opcommerce",
@@ -67,11 +67,11 @@ export default function ClientDetail() {
   const [phoningCalls, setPhoningCalls] = useState([])
   const [emailLogs, setEmailLogs] = useState([])
   const [showInteractionForm, setShowInteractionForm] = useState(false)
-  const [interactionForm, setInteractionForm] = useState({ type: 'call', title: '', content: '', author: 'Hicham' })
+  const [interactionForm, setInteractionForm] = useState({ type: 'call', title: '', content: '', author: currentUserFirstName() })
 
   // Email direct
   const [showEmailForm, setShowEmailForm] = useState(false)
-  const [emailForm, setEmailForm] = useState({ to: '', subject: '', body: '', brief: '', sender: 'Hicham' })
+  const [emailForm, setEmailForm] = useState({ to: '', subject: '', body: '', brief: '', sender: currentUserFirstName() })
   const [emailAttachments, setEmailAttachments] = useState([]) // { file, name, size, base64 }
   const [emailGenerating, setEmailGenerating] = useState(false)
   const [emailSending, setEmailSending] = useState(false)
@@ -271,7 +271,7 @@ export default function ClientDetail() {
       const { data: fresh } = await supabase.from('clients').select('*').eq('id', id).single()
       if (fresh) { setClient(fresh); setEditForm(fresh) }
       const imported = Object.keys(updates).filter(k => k !== 'notes').length
-      toast.success(`✅ ${imported} champ(s) importé(s) — prospect retiré de la file Marine`)
+      toast.success(`✅ ${imported} champ(s) importé(s) — prospect retiré de la file de prospection`)
     } catch (err) {
       toast.error('Erreur import: ' + err.message)
     }
@@ -487,7 +487,7 @@ export default function ClientDetail() {
     if (error) return toast.error('Erreur: ' + error.message)
     toast.success('Interaction ajoutée')
     setShowInteractionForm(false)
-    setInteractionForm({ type: 'call', title: '', content: '', author: 'Hicham' })
+    setInteractionForm({ type: 'call', title: '', content: '', author: currentUserFirstName() })
     loadInteractions()
   }
 
@@ -636,7 +636,7 @@ export default function ClientDetail() {
 
       toast.success(`📧 Email envoyé !${emailAttachments.length > 0 ? ` (${emailAttachments.length} PJ)` : ''}`)
       setShowEmailForm(false)
-      setEmailForm({ to: '', subject: '', body: '', brief: '', sender: 'Hicham' })
+      setEmailForm({ to: '', subject: '', body: '', brief: '', sender: currentUserFirstName() })
       setEmailAttachments([])
       loadInteractions()
     } catch (err) {
@@ -650,7 +650,7 @@ export default function ClientDetail() {
     const primary = contacts.find(c => c.is_primary && c.email)
     const firstWithEmail = contacts.find(c => c.email)
     const defaultTo = primary?.email || firstWithEmail?.email || client?.contact_email || ''
-    setEmailForm({ to: defaultTo, subject: '', body: '', brief: '', sender: 'Hicham' })
+    setEmailForm({ to: defaultTo, subject: '', body: '', brief: '', sender: currentUserFirstName() })
     setEmailAttachments([])
     setShowEmailForm(true)
   }
@@ -667,7 +667,7 @@ export default function ClientDetail() {
       author: i.author, date: i.interaction_date, source: 'manual', deletable: true, rawId: i.id,
     }))
 
-    // ── Appels Marine (phoning)
+    // ── Appels de prospection
     phoningCalls.forEach(c => {
       const resultLabels = { chaud: '🔥 Intéressé', tiede: '🟡 Tiède', froid: '❄️ Pas intéressé', no_answer: '📞 Injoignable', blocked: '⚠️ Barrage', wrong_number: '❌ N° erroné' }
       items.push({
@@ -1072,7 +1072,7 @@ export default function ClientDetail() {
             return (
               <div className="mb-4 bg-green-50 border border-green-200 rounded-lg px-4 py-2 flex items-center gap-2">
                 <span className="text-sm">✅</span>
-                <span className="text-xs text-green-700 font-medium">Tous les prospects liés sont marqués — file Marine à jour</span>
+                <span className="text-xs text-green-700 font-medium">Tous les prospects liés sont marqués — file de prospection à jour</span>
               </div>
             )
           })()}
@@ -1493,7 +1493,7 @@ export default function ClientDetail() {
                     <div>
                       <label className="text-xs font-medium text-gray-500 mb-1.5 block">Expéditeur</label>
                       <div className="flex gap-1.5">
-                        {AUTHORS.map(name => (
+                        {teamFirstNames().map(name => (
                           <button key={name} onClick={() => setEmailForm(f => ({ ...f, sender: name }))}
                             className={'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ' +
                               (emailForm.sender === name ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:border-green-300')}>
@@ -1536,7 +1536,7 @@ export default function ClientDetail() {
                       <textarea value={emailForm.body} onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))}
                         placeholder="Le contenu de votre email..."
                         rows={6} className="w-full px-3 py-2 border rounded-lg text-sm" />
-                      <p className="text-[10px] text-gray-400 mt-1">La signature Access Formation sera ajoutée automatiquement. BCC : contact@accessformation.pro</p>
+                      <p className="text-[10px] text-gray-400 mt-1">La signature sera ajoutée automatiquement depuis votre compte email.</p>
                     </div>
 
                     {/* Pièces jointes */}
@@ -1600,7 +1600,7 @@ export default function ClientDetail() {
                       <div>
                         <label className="text-xs font-medium text-gray-500 mb-1.5 block">Saisi par</label>
                         <div className="flex gap-1.5">
-                          {AUTHORS.map(name => (
+                          {teamFirstNames().map(name => (
                             <button key={name} onClick={() => setInteractionForm(f => ({ ...f, author: name }))}
                               className={'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ' +
                                 (interactionForm.author === name ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300')}>

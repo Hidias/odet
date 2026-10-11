@@ -1,3 +1,4 @@
+import { appName } from '../../../core/org/currentOrg'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { FileText, Download, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
@@ -221,7 +222,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Access Campus • Session {session.reference}</p>
+          <p>{appName()}, session {session.reference}</p>
         </div>
       </div>
     </div>

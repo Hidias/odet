@@ -8,13 +8,13 @@ import toast from 'react-hot-toast'
 
 // ═══════════════════════════════════════════════════════════════
 // BPF — Bilan Pédagogique et Financier (Cerfa 10443*17)
-// Auto-calcul depuis les données Access Campus
+// Auto-calcul depuis les données de l'application
 // ═══════════════════════════════════════════════════════════════
 
 const CURRENT_YEAR = new Date().getFullYear()
 const DEFAULT_YEAR = CURRENT_YEAR - 1 // BPF porte sur l'exercice précédent
 
-// Codes NSF pour les formations Access Formation
+// Codes NSF des formations
 const NSF_CODES = {
   sst: { code: '344', label: 'Sécurité des biens et des personnes, police, surveillance' },
   conduite: { code: '311', label: 'Transport, manutention, magasinage' },
@@ -24,19 +24,19 @@ const NSF_CODES = {
 }
 
 // Constantes organisme
+// Identité de l'organisme : lue dans les paramètres (organization_settings), jamais écrite ici
 const ORG = {
-  name: 'Access Formation',
-  siret: '94356386600012',
-  naf: '8559A',
-  nda: '53 29 10261 29',
-  address: '24 Rue Kerbleiz',
-  postal_code: '29900',
-  city: 'Concarneau',
-  phone: '',
-  email: 'contact@accessformation.pro',
-  forme_juridique: 'SARL',
-  dirigeant: 'Hicham Saidi',
-  qualite_dirigeant: 'Gérant',
+  name: '', siret: '', naf: '', nda: '', address: '', postal_code: '', city: '',
+  phone: '', email: '', forme_juridique: '', dirigeant: '', qualite_dirigeant: '',
+}
+function syncOrg(o) {
+  if (!o) return
+  Object.assign(ORG, {
+    name: o.legal_name || o.name || '', siret: o.siret || '', naf: o.naf || '', nda: o.nda || '',
+    address: o.address || '', postal_code: o.postal_code || '', city: o.city || '', phone: o.phone || '',
+    email: o.email || '', forme_juridique: o.forme_juridique || '', dirigeant: o.dirigeant_name || '',
+    qualite_dirigeant: o.dirigeant_title || '',
+  })
 }
 
 export default function BPF() {
@@ -56,7 +56,7 @@ export default function BPF() {
     org_name: ORG.name,
     org_siret: ORG.siret,
     org_nda: ORG.nda,
-    org_address: `${ORG.address}, ${ORG.postal_code} ${ORG.city}`,
+    org_address: "",
     org_dirigeant: ORG.dirigeant,
     // Cadre B
     exercice_start: `${DEFAULT_YEAR}-01-01`,
@@ -137,6 +137,22 @@ export default function BPF() {
     calculated_at: null,
   })
 
+  // Identité de l'organisme dans le formulaire (champs encore vides seulement)
+  useEffect(() => {
+    supabase.from('organization_settings').select('*').limit(1).maybeSingle().then(({ data }) => {
+      if (!data) return
+      syncOrg(data)
+      setForm((f) => ({
+        ...f,
+        org_name: f.org_name || ORG.name, org_siret: f.org_siret || ORG.siret, org_nda: f.org_nda || ORG.nda,
+        org_address: f.org_address || [ORG.address, [ORG.postal_code, ORG.city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+        org_dirigeant: f.org_dirigeant || ORG.dirigeant,
+        h_dirigeant: f.h_dirigeant || ORG.dirigeant, h_qualite: f.h_qualite || ORG.qualite_dirigeant,
+        h_email: f.h_email || ORG.email, h_phone: f.h_phone || ORG.phone, h_lieu: f.h_lieu || ORG.city,
+      }))
+    })
+  }, [])
+
   const updateForm = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
   }
@@ -152,7 +168,7 @@ export default function BPF() {
       .from('bpf_declarations')
       .select('*')
       .eq('year', year)
-      .single()
+      .maybeSingle()
 
     if (data) {
       setBpfId(data.id)
@@ -320,7 +336,7 @@ export default function BPF() {
         else hommes++
       })
 
-      // Si pas de CSP renseigné, tous en salariés (cas Access Formation = intra entreprise)
+      // Si pas de CSP renseigné, tous en salariés (cas le plus courant en intra entreprise)
       if (salaries === 0 && demandeurs === 0 && particuliers === 0 && autresSt === 0) {
         salaries = stList.filter(st => st.trainees).length
       }
@@ -487,7 +503,7 @@ export default function BPF() {
         const { error } = await supabase.from('bpf_declarations').update(dbData).eq('id', bpfId)
         if (error) throw error
       } else {
-        const { data, error } = await supabase.from('bpf_declarations').insert(dbData).select().single()
+        const { data, error } = await supabase.from('bpf_declarations').insert(dbData).select().maybeSingle()
         if (error) throw error
         setBpfId(data.id)
       }
@@ -850,7 +866,7 @@ export default function BPF() {
             <div className="bg-green-50 border border-green-200 rounded p-2 mt-2">
               <p className="text-xs text-green-800">
                 <Info className="w-3 h-3 inline mr-1" />
-                Aucune formation Access Formation n'est inscrite au RS ou RNCP actuellement → tout en ligne d. Les totaux (1) et (3) doivent être égaux.
+                Si aucune formation n'est inscrite au RS ou RNCP actuellement → tout en ligne d. Les totaux (1) et (3) doivent être égaux.
               </p>
             </div>
           </div>

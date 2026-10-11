@@ -1,3 +1,4 @@
+import { orgReferentHandicap, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { useDataStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
@@ -47,7 +48,7 @@ const emptyForm = {
   session_id: '', client_id: '', trainee_id: '',
   source: 'stagiaire', canal: 'telephone',
   besoin_fonctionnel: '', impact_apprentissage: '', contraintes_securite: '',
-  decision: 'a_analyser', justification_decision: '', responsable: 'Maxime LANGLAIS',
+  decision: 'a_analyser', justification_decision: '', responsable: orgReferentHandicap() || currentUserName(),
   actions_prevues: '', date_mise_en_oeuvre: '',
   status: 'open', is_test: false,
 }
@@ -455,8 +456,9 @@ export default function RegistrePSH() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Responsable</label>
                   <select value={formData.responsable} onChange={e => setFormData({ ...formData, responsable: e.target.value })} className="input w-full">
-                    <option value="Maxime LANGLAIS">Maxime LANGLAIS — Référent Handicap</option>
-                    <option value="Hicham SAIDI">Hicham SAIDI</option>
+                    {[...new Set([orgReferentHandicap(), ...teamNames()].filter(Boolean))].map((n) => (
+                      <option key={n} value={n}>{n}{n === orgReferentHandicap() ? ', référent handicap' : ''}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -483,7 +485,7 @@ export default function RegistrePSH() {
                   value={formData.actions_prevues}
                   onChange={e => setFormData({ ...formData, actions_prevues: e.target.value })}
                   className="input w-full h-20"
-                  placeholder={"Quoi / Qui / Quand\nEx : Support PDF grands caractères — Maxime — avant J"}
+                  placeholder={"Quoi / Qui / Quand\nEx : support PDF en grands caractères, par le formateur, avant J"}
                 />
               </div>
 

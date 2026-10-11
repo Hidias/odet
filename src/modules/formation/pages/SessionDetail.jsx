@@ -1,3 +1,4 @@
+import { orgName, orgEmail } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
@@ -2581,7 +2582,7 @@ export default function SessionDetail() {
         .eq('user_id', user.id)
         .maybeSingle()
       
-      const fromEmail = emailConfig?.email || 'contact@accessformation.pro'
+      const fromEmail = emailConfig?.email || orgEmail()
       
       let successCount = 0
       let errorCount = 0
@@ -2621,7 +2622,7 @@ ${evalLink}
 Nous vous remercions par avance pour votre contribution.
 
 Cordialement,
-${trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Access Formation'}`
+${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           
           // Envoyer l'email via l'API
           const { error: sendError } = await supabase.functions.invoke('send-email-session', {

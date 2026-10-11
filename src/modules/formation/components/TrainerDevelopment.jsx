@@ -1,3 +1,4 @@
+import { orgName } from '../../../core/org/currentOrg'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -345,7 +346,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
       doc.setFontSize(8)
       doc.setFont('helvetica', 'normal')
       doc.text(
-        `Access Formation - Plan de développement - ${trainerName} - Page ${i}/${pageCount}`,
+        `${orgName()} - Plan de développement - ${trainerName} - Page ${i}/${pageCount}`,
         14,
         doc.internal.pageSize.height - 10
       )
@@ -539,7 +540,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                     value={trainingForm.organizer}
                     onChange={(e) => setTrainingForm({...trainingForm, organizer: e.target.value})}
                     className="input w-full"
-                    placeholder="Ex: INRS, Access Formation"
+                    placeholder="Ex : INRS, organisme interne"
                   />
                 </div>
 

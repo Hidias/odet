@@ -1,3 +1,4 @@
+import { orgName, appName } from '../../../core/org/currentOrg'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -465,7 +466,7 @@ export default function ProcessEditor() {
       ctx.fillText(`${selectedProcess.code}-V${selectedProcess.version} : ${selectedProcess.title}`, 20, 30)
       ctx.font = '11px Arial'
       ctx.fillStyle = '#6B7280'
-      ctx.fillText(`Généré le ${new Date().toLocaleDateString('fr-FR')} - Access Formation`, 20, 48)
+      ctx.fillText(`Généré le ${new Date().toLocaleDateString('fr-FR')} - ${orgName()}`, 20, 48)
       
       const offsetX = -minX + 20
       const offsetY = -minY + 70
@@ -649,7 +650,7 @@ export default function ProcessEditor() {
   <div class="header">
     <h1>${selectedProcess.title}</h1>
     <div class="code">${selectedProcess.code} - Version ${selectedProcess.version}</div>
-    <div class="meta">Généré le ${new Date().toLocaleDateString('fr-FR')} | Access Formation</div>
+    <div class="meta">Généré le ${new Date().toLocaleDateString('fr-FR')} | ${orgName()}</div>
   </div>
   
   <h2>Description des étapes</h2>
@@ -685,7 +686,7 @@ export default function ProcessEditor() {
     })
     
     html += `</tbody></table>
-  <div class="footer">Document généré par Access Campus | ${selectedProcess.code}-V${selectedProcess.version}</div>
+  <div class="footer">Document généré par ${appName()} | ${selectedProcess.code}-V${selectedProcess.version}</div>
 </body></html>`
     
     const blob = new Blob([html], { type: 'text/html' })

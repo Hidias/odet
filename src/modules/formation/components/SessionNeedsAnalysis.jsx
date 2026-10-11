@@ -687,7 +687,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
                     onChange={() => setFormData({ ...formData, location_type: 'access_formation' })}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">Dans nos locaux (Access Formation)</span>
+                  <span className="text-sm">Dans nos locaux</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -912,7 +912,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
             </div>
             <div>
               <span className="font-medium">Lieu :</span> {
-                analysis.location_type === 'client' ? 'Chez le client' : 'Access Formation'
+                analysis.location_type === 'client' ? 'Chez le client' : 'Dans nos locaux'
               }
             </div>
             <div>

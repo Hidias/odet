@@ -1,3 +1,4 @@
+import { orgName, orgCity } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -1062,7 +1063,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
     const startDate = session?.start_date ? new Date(session.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
     const endDate = session?.end_date ? new Date(session.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
     const trainer = session?.trainers
-    const formateur = trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Access Formation'
+    const formateur = trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()
 
     const scoresText = Q_KEYS
       .filter(k => evalData.scores[k] !== null)
@@ -1073,7 +1074,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       ? evalData.comments.map((c, i) => `${i + 1}. « ${c} »`).join('\n')
       : 'Aucun commentaire libre.'
 
-    const prompt = `Tu es l'assistant de l'organisme de formation Access Formation (Concarneau, Bretagne).
+    const prompt = `Tu es l'assistant de l'organisme de formation ${orgName()}${orgCity() ? ` (${orgCity()})` : ''}.
 Une session de formation s'est terminée. Voici les données d'évaluation à chaud remontées par les stagiaires :
 
 Formation : ${courseTitle}
