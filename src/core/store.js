@@ -2205,53 +2205,17 @@ export const useDataStore = create((set, get) => ({
   
   updateOrganization: async (updates) => {
     const org = get().organization
-    
-    // Ne garder que les champs de base qui existent certainement
-    const basicFields = {
-      name: updates.name,
-      address: updates.address,
-      postal_code: updates.postal_code,
-      city: updates.city,
-      phone: updates.phone,
-      email: updates.email,
-      siret: updates.siret,
-      nda: updates.nda,
+    const payload = { ...updates, updated_at: new Date().toISOString() }
+    delete payload.id
+    delete payload.created_at
+    let result
+    if (org?.id) {
+      result = await supabase.from('organization_settings').update(payload).eq('id', org.id).select().single()
+    } else {
+      result = await supabase.from('organization_settings').insert([payload]).select().single()
     }
-    
-    // Essayer d'ajouter les champs optionnels
-    const optionalFields = {}
-    if (updates.logo_base64 !== undefined) optionalFields.logo_base64 = updates.logo_base64
-    if (updates.stamp_base64 !== undefined) optionalFields.stamp_base64 = updates.stamp_base64
-    if (updates.reglement_interieur !== undefined) optionalFields.reglement_interieur = updates.reglement_interieur
-    if (updates.reglement_version !== undefined) optionalFields.reglement_version = updates.reglement_version
-    if (updates.livret_accueil !== undefined) optionalFields.livret_accueil = updates.livret_accueil
-    if (updates.livret_version !== undefined) optionalFields.livret_version = updates.livret_version
-    
-    const allUpdates = { ...basicFields, ...optionalFields, updated_at: new Date().toISOString() }
-    
-    console.log('Updating organization:', allUpdates)
-    
-    if (!org) {
-      // Créer si n'existe pas
-      const { data, error } = await supabase
-        .from('organization_settings')
-        .insert([allUpdates])
-        .select()
-        .single()
-      if (error) console.error('Organization insert error:', error)
-      if (!error && data) set({ organization: data })
-      return { data, error }
-    }
-    
-    const { data, error } = await supabase
-      .from('organization_settings')
-      .update(allUpdates)
-      .eq('id', org.id)
-      .select()
-      .single()
-    if (error) console.error('Organization update error:', error)
-    if (!error && data) set({ organization: data })
-    return { data, error }
+    if (!result.error && result.data) set({ organization: result.data })
+    return result
   },
 
   // ========== NON-CONFORMITÉS ==========

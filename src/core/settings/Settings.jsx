@@ -1,1269 +1,538 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useDataStore } from '../store'
-import { supabase } from '../supabase'
-import { Save, Building2, Image, FileText, BookOpen, Upload, Trash2, Loader2, Check, History, Download, Database, Users, LogOut, ExternalLink, Shield, Users2, Calculator, Lock } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import AuditLogs from '../audit/AuditLogs'
+import {
+  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check,
+} from 'lucide-react'
+import { useDataStore, useAuthStore } from '../store'
+import { supabase } from '../supabase'
+import { callApi } from '../api'
+import { useBranding } from '../branding/BrandingProvider'
+import { FONT_PAIRS } from '../branding/presets'
+import { missingOrgFields, ORG_REQUIRED } from '../org/orgUtils'
+
+const SECTIONS = [
+  { id: 'identite', label: 'Identité', icon: Building2 },
+  { id: 'coordonnees', label: 'Coordonnées et signataire', icon: MapPin },
+  { id: 'marque', label: 'Marque et affichage', icon: Palette },
+  { id: 'documents', label: 'Documents et textes', icon: FileText },
+  { id: 'banque', label: 'Banque et facturation', icon: Landmark },
+  { id: 'modules', label: 'Modules', icon: Layers },
+  { id: 'utilisateurs', label: 'Utilisateurs', icon: Users },
+  { id: 'comptable', label: 'Accès comptable', icon: Calculator },
+]
+
+const THEMES = [
+  { key: 'anthracite-rouge', label: 'Anthracite et rouge', primary: '#1C2024', accent: '#C8102E', highlight: '#D9A62E' },
+  { key: 'petrole-or', label: 'Pétrole et or', primary: '#0F2D35', accent: '#0F2D35', highlight: '#E9B44C' },
+  { key: 'marine-corail', label: 'Marine et corail', primary: '#1E3A5F', accent: '#E07A5F', highlight: '#F2C14E' },
+  { key: 'foret-sable', label: 'Forêt et sable', primary: '#2F5D50', accent: '#2F5D50', highlight: '#C9A66B' },
+  { key: 'ardoise-ambre', label: 'Ardoise et ambre', primary: '#3B4252', accent: '#D08C2E', highlight: '#E3B23C' },
+  { key: 'bordeaux-creme', label: 'Bordeaux et crème', primary: '#6B1F2A', accent: '#6B1F2A', highlight: '#E8D8B5' },
+  { key: 'prune-menthe', label: 'Prune et menthe', primary: '#4A2A5A', accent: '#5FB49C', highlight: '#F3D06A' },
+  { key: 'ocean-citron', label: 'Océan et citron', primary: '#0B4F6C', accent: '#0B4F6C', highlight: '#C7D23A' },
+]
+
+const FORMES = ['SARL', 'EURL', 'SAS', 'SASU', 'SA', 'EI', 'Association', 'Autre']
+const ROLES = [
+  ['superadmin', 'Super administrateur'], ['admin', 'Administrateur'], ['direction', 'Direction'], ['gestionnaire', 'Gestionnaire'],
+  ['formateur', 'Formateur'], ['commercial', 'Commercial'], ['comptable', 'Comptable'], ['lecture', 'Lecture seule'],
+]
+
+const ORG_FIELDS = [
+  'name', 'legal_name', 'forme_juridique', 'capital_social', 'siret', 'siren', 'naf', 'tva_intra', 'tva_applicable', 'rcs', 'tribunal_competent',
+  'nda', 'nda_region', 'qualiopi_certified', 'qualiopi_since', 'qualiopi_organisme', 'activity_kind', 'date_creation',
+  'address', 'postal_code', 'city', 'phone', 'email', 'website', 'lieu_signature', 'region', 'zone_departements',
+  'dirigeant_name', 'dirigeant_title', 'dirigeant_signature_url', 'referent_handicap_nom', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
+  'app_name', 'app_short_name', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'logo_base64', 'stamp_base64',
+  'reglement_interieur', 'reglement_version', 'livret_accueil', 'livret_version', 'conditions_annulation', 'cgv_url', 'doc_prefix',
+  'bank_name', 'iban', 'bic', 'email_bcc', 'email_default_sender', 'exercice_start_month', 'demo_mode',
+]
+
+function Field({ label, hint, children, className = '' }) {
+  return (
+    <div className={className}>
+      <label className="label">{label}</label>
+      {children}
+      {hint && <p className="text-ui-sm text-gray-400 mt-1">{hint}</p>}
+    </div>
+  )
+}
+
+function Toggle({ checked, onChange, label, hint }) {
+  return (
+    <label className="flex items-start gap-3 cursor-pointer">
+      <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
+        className={`mt-0.5 relative w-10 h-6 rounded-full transition-colors flex-none ${checked ? 'bg-accent-500' : 'bg-gray-300'}`}>
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : ''}`} />
+      </button>
+      <span className="min-w-0"><span className="block text-ui font-medium text-gray-900">{label}</span>{hint && <span className="block text-ui-sm text-gray-500">{hint}</span>}</span>
+    </label>
+  )
+}
+
+async function uploadBrandingFile(file, name) {
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+  const path = `branding/${name}-${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('media').upload(path, file, { upsert: true, contentType: file.type })
+  if (error) throw error
+  const { data } = supabase.storage.from('media').getPublicUrl(path)
+  return data.publicUrl
+}
 
 export default function Settings() {
-  const { 
-    organization, fetchOrganization, updateOrganization,
-    sessions, fetchSessions,
-    courses, fetchCourses,
-    clients, fetchClients,
-    trainees, fetchTrainees,
-    trainers, fetchTrainers,
-    fetchAllEvaluations,
-  } = useDataStore()
-  
-  const [activeTab, setActiveTab] = useState('organization')
-  const [loading, setLoading] = useState(true)
+  const { organization, fetchOrganization, updateOrganization } = useDataStore()
+  const { userRole, refreshModules } = useAuthStore()
+  const { refresh: refreshBranding } = useBranding()
+  const [params, setParams] = useSearchParams()
+  const section = params.get('section') || 'identite'
+  const setSection = (id) => setParams({ section: id })
+
+  const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const [exportingProspection, setExportingProspection] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const [importPreview, setImportPreview] = useState(null)
-  
-  const [form, setForm] = useState({
-    name: '',
-    address: '',
-    postal_code: '',
-    city: '',
-    phone: '',
-    email: '',
-    siret: '',
-    nda: '',
-    logo_base64: '',
-    stamp_base64: '',
-    reglement_interieur: '',
-    reglement_version: 'V1.0',
-    livret_accueil: '',
-    livret_version: 'V1.0',
-  })
+  const [loading, setLoading] = useState(true)
+  const isSuperadmin = userRole === 'superadmin'
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
-    setLoading(true)
-    await fetchOrganization()
-    // Charger aussi org_settings pour le comptable
-    const { data: orgS } = await supabase
-      .from('org_settings')
-      .select('comptable_email, comptable_name, comptable_cc, comptable_bcc')
-      .limit(1)
-      .maybeSingle()
-    if (orgS) {
-      setComptableForm({
-        comptable_email: orgS.comptable_email || '',
-        comptable_name: orgS.comptable_name || '',
-        comptable_cc: orgS.comptable_cc || '',
-        comptable_bcc: orgS.comptable_bcc || '',
-      })
-    }
-    setLoading(false)
-  }
-  
+  useEffect(() => { (async () => { await fetchOrganization(); setLoading(false) })() }, [])
   useEffect(() => {
     if (organization) {
-      setForm({
-        name: organization.name || 'Access Formation',
-        address: organization.address || '',
-        postal_code: organization.postal_code || '',
-        city: organization.city || '',
-        phone: organization.phone || '',
-        email: organization.email || '',
-        siret: organization.siret || '',
-        nda: organization.nda || '',
-        logo_base64: organization.logo_base64 || '',
-        stamp_base64: organization.stamp_base64 || '',
-        reglement_interieur: organization.reglement_interieur || '',
-        reglement_version: organization.reglement_version || 'V1.0',
-        livret_accueil: organization.livret_accueil || '',
-        livret_version: organization.livret_version || 'V1.0',
-      })
+      const f = {}
+      ORG_FIELDS.forEach((k) => { f[k] = organization[k] ?? (k === 'zone_departements' ? [] : '') })
+      f.zone_departements_text = (organization.zone_departements || []).join(', ')
+      setForm(f)
     }
   }, [organization])
 
-  const handleSave = async () => {
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+  const missing = useMemo(() => missingOrgFields(form, 'convention'), [form])
+
+  const save = async () => {
     setSaving(true)
     try {
-      const cleanedForm = {
-        ...form,
-        siret: form.siret?.replace(/\s/g, '') || '',
-        nda: form.nda?.replace(/\s/g, '') || '',
-      }
-      const { error } = await updateOrganization(cleanedForm)
+      const payload = { ...form }
+      delete payload.zone_departements_text
+      payload.zone_departements = (form.zone_departements_text || '').split(',').map((d) => d.trim()).filter(Boolean)
+      payload.siret = (form.siret || '').replace(/\s/g, '')
+      payload.siren = payload.siret ? payload.siret.slice(0, 9) : (form.siren || '')
+      payload.nda = (form.nda || '').replace(/\s/g, '')
+      payload.iban = (form.iban || '').replace(/\s/g, '').toUpperCase()
+      payload.exercice_start_month = Number(form.exercice_start_month) || 1
+      for (const k of ['qualiopi_since', 'date_creation']) if (!payload[k]) payload[k] = null
+      const { error } = await updateOrganization(payload)
       if (error) throw error
-      toast.success('Paramètres sauvegardés')
-    } catch (error) {
-      console.error('Error saving:', error)
-      toast.error('Erreur lors de la sauvegarde: ' + (error.message || 'Erreur inconnue'))
+      await refreshBranding()
+      toast.success('Paramètres enregistrés')
+    } catch (e) {
+      toast.error('Enregistrement impossible : ' + (e.message || 'erreur inconnue'))
     } finally {
       setSaving(false)
     }
   }
 
-  const handleLogoUpload = (e) => {
+  const onFile = (key, kind) => async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 500 * 1024) {
-      toast.error('Image trop grande (max 500 KB)')
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const base64 = event.target?.result
-      setForm(prev => ({ ...prev, logo_base64: base64 }))
-      toast.success('Logo chargé - Cliquez sur Sauvegarder')
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleStampUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 500 * 1024) {
-      toast.error('Image trop grande (max 500 KB)')
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const base64 = event.target?.result
-      setForm(prev => ({ ...prev, stamp_base64: base64 }))
-      toast.success('Tampon chargé - Cliquez sur Sauvegarder')
-    }
-    reader.readAsDataURL(file)
-  }
-
-  // ============================================================
-  // EXPORT MÉTIER — toutes les tables sauf prospection_massive
-  // Liste basée sur inventaire réel de la base (mars 2026)
-  // ============================================================
-  const handleExportMetier = async () => {
-    setExporting(true)
     try {
-      toast.loading('Chargement des données métier...', { id: 'export' })
-      
-      const tableNames = [
-        // Paramètres organisme
-        'organization_settings', 'org_settings', 'app_versions',
-        // Formations & catalogue
-        'courses', 'course_documents', 'course_equipment', 'course_questions',
-        'training_themes', 'positioning_themes', 'theme_questions', 'positioning_questions_ref',
-        'equipment_catalog',
-        // Clients
-        'clients', 'client_contacts', 'client_interactions',
-        // Stagiaires
-        'trainees', 'trainee_info_sheets', 'trainee_objectives', 'trainee_evaluations',
-        'trainee_positioning_tests', 'positioning_results',
-        // Formateurs
-        'trainers', 'trainer_certificates', 'trainer_qualifications',
-        'trainer_interviews', 'trainer_trainings', 'trainer_evaluations',
-        // Sessions
-        'sessions', 'session_trainees', 'session_trainers', 'session_equipment',
-        'session_costs', 'session_checklists', 'session_documents', 'session_document_access',
-        'session_emails_sent', 'session_needs_analysis', 'session_attendance',
-        // Présences & évaluations
-        'attendance_halfdays', 'evaluations_cold', 'sst_certifications',
-        // Devis & factures
-        'quotes', 'quote_items',
-        'invoices', 'invoice_items', 'invoice_payments', 'invoice_emails_sent',
-        // Budget (absent de l'ancien export — ajouté)
-        'budget_transactions', 'budget_categories', 'budget_rules', 'budget_receipts',
-        'budget_settings', 'budget_meal_guests', 'budget_emails_sent',
-        // Qualité & conformité
-        'non_conformites', 'quality_documents', 'quality_alerts', 'qualiopi_documents',
-        'qualiopi_indicators', 'veille_qualiopi', 'veille_sources',
-        'programme_versions', 'rgpd_traitements',
-        // Processus
-        'processes', 'process_steps', 'process_connections',
-        'process_responsibles', 'process_categories', 'process_versions',
-        // Prospection (hors massive)
-        'prospect_rdv', 'prospect_calls', 'prospect_needs_analysis',
-        'prospect_email_logs', 'prospect_search_history', 'rdv_emails_sent',
-        // Assistant d'appel et suivi commercial
-        'call_scripts', 'call_script_steps', 'call_arguments', 'call_objections',
-        'client_providers', 'phoning_sessions', 'phoning_session_items', 'rdv_kit_documents',
-        'prospect_transfers',
-        // Mailing
-        'mailing_campaigns', 'mailing_sends', 'mailing_segments', 'mailing_templates',
-        'mailing_blocklist', 'mailing_email_status', 'mailing_reply_cursors',
-        // DUERP
-        'duerp_projects', 'duerp_units', 'duerp_risks', 'duerp_actions',
-        'duerp_risk_categories', 'duerp_risk_templates', 'duerp_sector_templates',
-        'duerp_equipements', 'duerp_habilitations', 'duerp_formations_reglementaires',
-        // Social
-        'social_posts', 'social_tokens', 'social_media_library',
-        // Documents & signatures
-        'document_signatures', 'uploaded_documents',
-        // Planning
-        'user_planning_events',
-        // Suivi complétude
-        'completude_alerts', 'completude_tracking',
-        // Divers
-        'notifications', 'audit_logs', 'user_email_configs',
-        'email_sync_cursors', 'dashboard_widget_configs',
-      ]
-      
-      // Lecture complète par pages de 1000 lignes (sinon Supabase s'arrête à 1000)
-      const fetchAllRows = async (table) => {
-        const pageSize = 1000
-        // Tri par id pour une pagination stable ; tables sans colonne id : sans tri
-        let useOrder = true
-        const probe = await supabase.from(table).select('*').order('id').range(0, 0)
-        if (probe.error) useOrder = false
-        const rows = []
-        for (let from = 0; ; from += pageSize) {
-          let q = supabase.from(table).select('*')
-          if (useOrder) q = q.order('id')
-          const { data, error } = await q.range(from, from + pageSize - 1)
-          if (error) return { table, data: rows, error }
-          rows.push(...(data || []))
-          if (!data || data.length < pageSize) break
-        }
-        return { table, data: rows, error: null }
-      }
-      const results = await Promise.all(tableNames.map(table => fetchAllRows(table)))
-      
-      const exportData = {
-        _metadata: {
-          exportDate: new Date().toISOString(),
-          version: 'V2.8.0',
-          type: 'metier',
-          description: 'Export métier Access Campus (hors prospection_massive)',
-          tables: {},
-        },
-      }
-      
-      let totalRecords = 0
-      const failedTables = []
-      
-      results.forEach(({ table, data, error }) => {
-        if (error) {
-          failedTables.push(table)
-        } else {
-          exportData[table] = data
-          exportData._metadata.tables[table] = data.length
-          totalRecords += data.length
-        }
-      })
-      
-      exportData._metadata.totalRecords = totalRecords
-      exportData._metadata.exportedTables = Object.keys(exportData._metadata.tables).length
-      if (failedTables.length > 0) {
-        exportData._metadata.skippedTables = failedTables
-      }
-      
-      const json = JSON.stringify(exportData, null, 2)
-      const blob = new Blob([json], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const date = new Date().toISOString().split('T')[0]
-      const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-')
-      a.download = `access-campus-metier-${date}_${time}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      
-      const sizeMB = (json.length / 1024 / 1024).toFixed(1)
-      toast.success(
-        `Export métier réussi ! ${totalRecords.toLocaleString()} enregistrements, ${exportData._metadata.exportedTables} tables (${sizeMB} MB)`,
-        { id: 'export', duration: 5000 }
-      )
-    } catch (error) {
-      console.error('Export error:', error)
-      toast.error('Erreur lors de l\'export: ' + (error.message || 'Erreur inconnue'), { id: 'export' })
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  // ============================================================
-  // EXPORT PROSPECTION — prospection_massive paginée par 10 000
-  // ~275 000 lignes, chargement progressif pour éviter timeout
-  // ============================================================
-  const handleExportProspection = async () => {
-    setExportingProspection(true)
-    try {
-      // Supabase renvoie au plus 1000 lignes par requête : on lit par 1000,
-      // triées par id (pagination par clé, stable et rapide).
-      // Le fichier est découpé par 50 000 lignes pour ne pas saturer le navigateur.
-      const PAGE_SIZE = 1000
-      const FILE_ROWS = 50000
-      const date = new Date().toISOString().split('T')[0]
-      let lastId = null
-      let total = 0
-      let part = 1
-      let buffer = []
-
-      const saveFile = (rows, partNumber, isLast) => {
-        const exportData = {
-          _metadata: {
-            exportDate: new Date().toISOString(),
-            version: 'V2.8.0',
-            type: 'prospection',
-            description: 'Export prospection_massive Access Campus',
-            part: partNumber,
-            lastPart: isLast,
-            tables: { prospection_massive: rows.length },
-            totalRecords: rows.length,
-            exportedTables: 1,
-          },
-          prospection_massive: rows,
-        }
-        const blob = new Blob([JSON.stringify(exportData)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `access-campus-prospection-${date}-partie-${String(partNumber).padStart(2, '0')}.json`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        setTimeout(() => URL.revokeObjectURL(url), 10000)
-      }
-
-      while (true) {
-        toast.loading(`Chargement prospection… ${total.toLocaleString()} lignes (fichier ${part})`, { id: 'export-prosp' })
-        let q = supabase.from('prospection_massive').select('*').order('id').limit(PAGE_SIZE)
-        if (lastId) q = q.gt('id', lastId)
-        const { data, error } = await q
-        if (error) throw error
-        if (!data || data.length === 0) break
-        buffer = buffer.concat(data)
-        total += data.length
-        lastId = data[data.length - 1].id
-        if (buffer.length >= FILE_ROWS) {
-          saveFile(buffer, part, false)
-          buffer = []
-          part++
-        }
-        if (data.length < PAGE_SIZE) break
-      }
-      if (buffer.length > 0 || total === 0) {
-        saveFile(buffer, part, true)
+      if (kind === 'base64') {
+        if (file.size > 500 * 1024) throw new Error('Image trop lourde (500 Ko maximum)')
+        const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file) })
+        set(key, b64)
       } else {
-        part--
+        const url = await uploadBrandingFile(file, key)
+        set(key, url)
       }
-
-      toast.success(
-        `Export prospection réussi : ${total.toLocaleString()} prospects en ${part} fichier(s)`,
-        { id: 'export-prosp', duration: 8000 }
-      )
-    } catch (error) {
-      console.error('Export prospection error:', error)
-      toast.error('Erreur export prospection: ' + (error.message || 'Erreur inconnue'), { id: 'export-prosp' })
-    } finally {
-      setExportingProspection(false)
+      toast.success('Fichier chargé, pensez à enregistrer')
+    } catch (err) {
+      toast.error(err.message)
     }
   }
 
-  // ======== IMPORT / RESTAURATION ========
-  const handleImportFile = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result)
-        
-        if (!data._metadata || !data._metadata.exportDate) {
-          toast.error('Fichier invalide : ce n\'est pas une sauvegarde Access Campus')
-          return
-        }
-        
-        const tables = {}
-        let total = 0
-        Object.entries(data).forEach(([key, value]) => {
-          if (key !== '_metadata' && Array.isArray(value) && value.length > 0) {
-            tables[key] = value.length
-            total += value.length
-          }
-        })
-        
-        setImportPreview({
-          data,
-          fileName: file.name,
-          exportDate: data._metadata.exportDate,
-          version: data._metadata.version || 'Inconnue',
-          type: data._metadata.type || 'metier',
-          tables,
-          totalRecords: total,
-          tableCount: Object.keys(tables).length,
-        })
-      } catch (err) {
-        toast.error('Fichier JSON invalide')
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ''
-  }
-
-  const handleImportConfirm = async () => {
-    if (!importPreview?.data) return
-    
-    setImporting(true)
-    const data = importPreview.data
-    
-    // Ordre d'insertion : parents d'abord (clés étrangères)
-    const insertionOrder = [
-      'organization_settings', 'org_settings', 'app_versions',
-      'equipment_catalog',
-      'training_themes', 'positioning_themes',
-      'courses', 'course_documents', 'course_equipment', 'course_questions',
-      'theme_questions', 'positioning_questions_ref',
-      'clients', 'client_contacts', 'client_interactions',
-      'trainees', 'trainee_info_sheets', 'trainee_objectives', 'trainee_evaluations',
-      'trainee_positioning_tests', 'positioning_results',
-      'trainers', 'trainer_certificates', 'trainer_qualifications',
-      'trainer_interviews', 'trainer_trainings', 'trainer_evaluations',
-      'sessions', 'session_trainees', 'session_trainers', 'session_equipment',
-      'session_costs', 'session_checklists', 'session_documents', 'session_document_access',
-      'session_emails_sent', 'session_needs_analysis', 'session_attendance',
-      'attendance_halfdays', 'evaluations_cold', 'sst_certifications',
-      'quotes', 'quote_items',
-      'invoices', 'invoice_items', 'invoice_payments', 'invoice_emails_sent',
-      'budget_categories', 'budget_rules', 'budget_settings',
-      'budget_transactions', 'budget_receipts', 'budget_meal_guests', 'budget_emails_sent',
-      'non_conformites', 'quality_documents', 'quality_alerts', 'qualiopi_documents',
-      'qualiopi_indicators', 'veille_qualiopi', 'veille_sources',
-      'programme_versions', 'rgpd_traitements',
-      'process_categories', 'processes', 'process_steps',
-      'process_connections', 'process_responsibles', 'process_versions',
-      // Sessions de phoning avant les appels (clé étrangère prospect_calls.phoning_session_id)
-      'phoning_sessions',
-      'prospect_rdv', 'prospect_calls', 'prospect_needs_analysis',
-      'prospect_email_logs', 'prospect_search_history', 'rdv_emails_sent',
-      'call_scripts', 'call_script_steps', 'call_arguments', 'call_objections',
-      'client_providers', 'phoning_session_items', 'rdv_kit_documents',
-      'prospect_transfers',
-      // Mailing : sauvegardé mais jamais restauré automatiquement
-      // (une campagne ou un envoi restauré « en cours » repartirait tout seul)
-      'duerp_risk_categories', 'duerp_risk_templates', 'duerp_sector_templates',
-      'duerp_equipements', 'duerp_formations_reglementaires',
-      'duerp_projects', 'duerp_units', 'duerp_risks', 'duerp_actions', 'duerp_habilitations',
-      'social_posts', 'social_tokens', 'social_media_library',
-      'document_signatures', 'uploaded_documents',
-      'user_planning_events',
-      'completude_alerts', 'completude_tracking',
-      'notifications', 'audit_logs', 'user_email_configs',
-      'email_sync_cursors', 'dashboard_widget_configs',
-      // Prospection en dernier (absent des exports métier)
-      'prospection_massive',
-    ]
-    
-    let imported = 0
-    let errors = 0
-    const errorDetails = []
-    
-    toast.loading('Import en cours...', { id: 'import' })
-    
-    for (const table of insertionOrder) {
-      const rows = data[table]
-      if (!Array.isArray(rows) || rows.length === 0) continue
-      
-      try {
-        const batchSize = 500
-        for (let i = 0; i < rows.length; i += batchSize) {
-          const batch = rows.slice(i, i + batchSize)
-          const { error } = await supabase
-            .from(table)
-            .upsert(batch, { onConflict: 'id', ignoreDuplicates: false })
-          
-          if (error) throw error
-          imported += batch.length
-          toast.loading(`Import en cours... ${imported.toLocaleString()} enregistrements`, { id: 'import' })
-        }
-      } catch (err) {
-        console.error(`Import error on ${table}:`, err)
-        errors++
-        errorDetails.push(`${table}: ${err.message}`)
-      }
-    }
-    
-    setImporting(false)
-    setImportPreview(null)
-    
-    if (errors === 0) {
-      toast.success(`Import terminé ! ${imported.toLocaleString()} enregistrements restaurés`, { id: 'import', duration: 5000 })
-    } else {
-      toast.success(`Import partiel : ${imported.toLocaleString()} enregistrements OK, ${errors} tables en erreur`, { id: 'import', duration: 8000 })
-      console.warn('Import errors:', errorDetails)
-    }
-    
-    fetchOrganization()
-    fetchCourses()
-    fetchClients()
-    fetchTrainees()
-    fetchTrainers()
-    fetchSessions()
-  }
-
-  const tabs = [
-    { id: 'organization', name: 'Organisation', icon: Building2 },
-    { id: 'logo', name: 'Logo & Tampon', icon: Image },
-    { id: 'reglement', name: 'Règlement intérieur', icon: FileText },
-    { id: 'livret', name: 'Livret d\'accueil', icon: BookOpen },
-    { id: 'users', name: 'Utilisateurs', icon: Users },
-    { id: 'comptable', name: 'Accès comptable', icon: Calculator },
-    { id: 'audit', name: 'Audit RGPD', icon: Shield },
-  ]
-  
-  const [userEmail, setUserEmail] = useState('')
-  const [disconnecting, setDisconnecting] = useState(false)
-
-  // ── Espace Comptable ──
-  const [comptableForm, setComptableForm] = useState({ comptable_email: '', comptable_name: '', comptable_cc: '', comptable_bcc: '' })
-  const [savingComptable, setSavingComptable] = useState(false)
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
-      </div>
-    )
-  }
+  if (loading) return <div className="p-8 text-gray-500">Chargement des paramètres</div>
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
-          <p className="text-gray-500">Configuration de votre organisme de formation</p>
+          <h1 className="page-title">Paramètres</h1>
+          <p className="muted mt-1">Identité, marque, textes et accès de votre organisme. Aucune valeur n'est écrite ailleurs que dans ces réglages.</p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="btn btn-primary"
-        >
-          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+        <button type="button" onClick={save} disabled={saving} className="btn btn-primary">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Enregistrer
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b">
-        <nav className="flex gap-4 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-                activeTab === tab.id
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.name}
+      {missing.length > 0 && (
+        <div className="rounded-ui border p-3 text-ui" style={{ background: 'rgb(var(--c-warning-bg))', borderColor: 'rgb(var(--c-warning) / 0.3)', color: 'rgb(var(--c-warning))' }}>
+          Champs encore manquants pour générer une convention : {missing.join(', ')}.
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-5">
+        <nav className="card card-flush p-2 self-start">
+          {SECTIONS.map((s) => (
+            <button key={s.id} type="button" onClick={() => setSection(s.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-ui-sm text-ui text-left ${section === s.id ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <s.icon className="w-4 h-4 flex-none" />{s.label}
             </button>
           ))}
         </nav>
-      </div>
 
-      {/* Contenu */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        
-        {/* ORGANISATION */}
-        {activeTab === 'organization' && (
-          <div className="space-y-6">
-            <h3 className="font-semibold text-lg">Informations de l'organisme</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="label">Nom de l'organisme</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="input"
-                />
+        <div className="card space-y-5">
+          {section === 'identite' && (
+            <>
+              <h2 className="section-title">Identité légale</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Nom affiché (commercial)" hint="Sur l'interface, les emails et les documents">
+                  <input className="input" value={form.name || ''} onChange={(e) => set('name', e.target.value)} />
+                </Field>
+                <Field label="Raison sociale" hint="Telle qu'au Kbis, pour les factures et conventions">
+                  <input className="input" value={form.legal_name || ''} onChange={(e) => set('legal_name', e.target.value)} />
+                </Field>
+                <Field label="Forme juridique">
+                  <select className="select" value={form.forme_juridique || ''} onChange={(e) => set('forme_juridique', e.target.value)}>
+                    <option value="">Choisir</option>{FORMES.map((f) => <option key={f}>{f}</option>)}
+                  </select>
+                </Field>
+                <Field label="Capital social (EUR)"><input className="input" value={form.capital_social || ''} onChange={(e) => set('capital_social', e.target.value)} /></Field>
+                <Field label="SIRET" hint="14 chiffres"><input className="input" value={form.siret || ''} onChange={(e) => set('siret', e.target.value)} /></Field>
+                <Field label="Code NAF"><input className="input" value={form.naf || ''} onChange={(e) => set('naf', e.target.value)} placeholder="8559A" /></Field>
+                <Field label="TVA intracommunautaire"><input className="input" value={form.tva_intra || ''} onChange={(e) => set('tva_intra', e.target.value)} placeholder="FR00000000000" /></Field>
+                <Field label="RCS"><input className="input" value={form.rcs || ''} onChange={(e) => set('rcs', e.target.value)} placeholder="000 000 000 R.C.S. Quimper" /></Field>
+                <Field label="Tribunal compétent" hint="Article Litiges des conventions"><input className="input" value={form.tribunal_competent || ''} onChange={(e) => set('tribunal_competent', e.target.value)} placeholder="tribunal de commerce de Quimper" /></Field>
+                <Field label="Date de création"><input type="date" className="input" value={form.date_creation || ''} onChange={(e) => set('date_creation', e.target.value)} /></Field>
               </div>
-              <div>
-                <label className="label">SIRET</label>
-                <input
-                  type="text"
-                  value={form.siret}
-                  onChange={(e) => setForm({ ...form, siret: e.target.value })}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="label">N° Déclaration d'activité (NDA)</label>
-                <input
-                  type="text"
-                  value={form.nda}
-                  onChange={(e) => setForm({ ...form, nda: e.target.value })}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="label">Email</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="label">Téléphone</label>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="input"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="label">Adresse</label>
-              <input
-                type="text"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                className="input"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="label">Code postal</label>
-                <input
-                  type="text"
-                  value={form.postal_code}
-                  onChange={(e) => setForm({ ...form, postal_code: e.target.value })}
-                  className="input"
-                  maxLength={5}
-                />
-              </div>
-              <div>
-                <label className="label">Ville</label>
-                <input
-                  type="text"
-                  value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                  className="input"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* LOGO & TAMPON */}
-        {activeTab === 'logo' && (
-          <div className="space-y-8">
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Logo de l'organisme</h3>
-              <p className="text-sm text-gray-500 mb-4">Ce logo apparaîtra sur tous les documents PDF générés.</p>
-              
-              <div className="flex items-start gap-6">
-                <div className="w-40 h-40 border-2 border-dashed rounded-lg flex items-center justify-center bg-gray-50">
-                  {form.logo_base64 ? (
-                    <img src={form.logo_base64} alt="Logo" className="max-w-full max-h-full object-contain p-2" />
-                  ) : (
-                    <div className="text-center text-gray-400">
-                      <Image className="w-10 h-10 mx-auto mb-2" />
-                      <p className="text-xs">Aucun logo</p>
-                    </div>
-                  )}
+              <h2 className="section-title">Formation professionnelle</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Numéro de déclaration d'activité (NDA)" hint="11 chiffres. Laisser vide tant qu'il n'est pas obtenu"><input className="input" value={form.nda || ''} onChange={(e) => set('nda', e.target.value)} /></Field>
+                <Field label="Région du préfet (NDA)"><input className="input" value={form.nda_region || ''} onChange={(e) => set('nda_region', e.target.value)} placeholder="Bretagne" /></Field>
+                <Field label="Activité">
+                  <select className="select" value={form.activity_kind || 'of'} onChange={(e) => set('activity_kind', e.target.value)}>
+                    <option value="of">Organisme de formation</option><option value="entreprise">Entreprise</option><option value="mixte">Formation et entreprise</option>
+                  </select>
+                </Field>
+                <div className="space-y-3 pt-6">
+                  <Toggle checked={!!form.qualiopi_certified} onChange={(v) => set('qualiopi_certified', v)} label="Certifié Qualiopi" hint="Ajoute la mention sur les documents" />
+                  <Toggle checked={form.tva_applicable !== false} onChange={(v) => set('tva_applicable', v)} label="TVA applicable" hint="Décoché : mention d'exonération (art. 261-4-4° a du CGI)" />
                 </div>
-                
-                <div className="space-y-3">
-                  <label className="btn btn-primary cursor-pointer">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Téléverser un logo
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      onChange={handleLogoUpload}
-                      className="hidden"
-                    />
-                  </label>
-                  <p className="text-xs text-gray-500">PNG ou JPG, max 500 KB</p>
-                  {form.logo_base64 && (
-                    <button
-                      onClick={() => setForm(prev => ({ ...prev, logo_base64: '' }))}
-                      className="flex items-center gap-2 px-3 py-1.5 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 text-sm"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Supprimer
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t pt-8">
-              <h3 className="font-semibold text-lg mb-2">Tampon et signature</h3>
-              <p className="text-sm text-gray-500 mb-4">Ce tampon apparaîtra sur les conventions, attestations et certificats.</p>
-              
-              <div className="flex items-start gap-6">
-                <div className="w-48 h-28 border-2 border-dashed rounded-lg flex items-center justify-center bg-gray-50">
-                  {form.stamp_base64 ? (
-                    <img src={form.stamp_base64} alt="Tampon" className="max-w-full max-h-full object-contain p-2" />
-                  ) : (
-                    <div className="text-center text-gray-400">
-                      <FileText className="w-10 h-10 mx-auto mb-2" />
-                      <p className="text-xs">Aucun tampon</p>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="space-y-3">
-                  <label className="btn btn-secondary cursor-pointer">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Téléverser tampon/signature
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      onChange={handleStampUpload}
-                      className="hidden"
-                    />
-                  </label>
-                  <p className="text-xs text-gray-500">PNG ou JPG, max 500 KB</p>
-                  {form.stamp_base64 && (
-                    <button
-                      onClick={() => setForm(prev => ({ ...prev, stamp_base64: '' }))}
-                      className="flex items-center gap-2 px-3 py-1.5 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 text-sm"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Supprimer
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
-              <strong>Important :</strong> Après avoir chargé un logo ou tampon, cliquez sur "Sauvegarder" en haut de page pour enregistrer les modifications.
-            </div>
-          </div>
-        )}
-
-        {/* REGLEMENT INTERIEUR */}
-        {activeTab === 'reglement' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg">Règlement intérieur</h3>
-                <p className="text-sm text-gray-500">Ce texte sera utilisé pour générer le PDF "Règlement Intérieur"</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-500">Version</label>
-                <input
-                  type="text"
-                  value={form.reglement_version}
-                  onChange={(e) => setForm({ ...form, reglement_version: e.target.value })}
-                  className="input w-20 py-1 text-sm"
-                />
-              </div>
-            </div>
-            
-            <textarea
-              className="w-full h-96 px-4 py-3 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              value={form.reglement_interieur}
-              onChange={(e) => setForm({ ...form, reglement_interieur: e.target.value })}
-              placeholder="Saisissez votre règlement intérieur...
-
-ARTICLE 1 - OBJET ET CHAMP D'APPLICATION
-Le présent règlement s'applique à toutes les personnes participant à une action de formation organisée par Access Formation.
-
-ARTICLE 2 - DISCIPLINE
-Les stagiaires doivent se conformer aux horaires fixés et communiqués par l'organisme de formation.
-
-..."
-            />
-          </div>
-        )}
-
-        {/* LIVRET D'ACCUEIL */}
-        {activeTab === 'livret' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg">Livret d'accueil</h3>
-                <p className="text-sm text-gray-500">Ce texte sera utilisé pour générer le PDF "Livret d'Accueil"</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-500">Version</label>
-                <input
-                  type="text"
-                  value={form.livret_version}
-                  onChange={(e) => setForm({ ...form, livret_version: e.target.value })}
-                  className="input w-20 py-1 text-sm"
-                />
-              </div>
-            </div>
-            
-            <textarea
-              className="w-full h-96 px-4 py-3 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              value={form.livret_accueil}
-              onChange={(e) => setForm({ ...form, livret_accueil: e.target.value })}
-              placeholder="Saisissez votre livret d'accueil...
-
-BIENVENUE CHEZ ACCESS FORMATION
-
-Nous sommes heureux de vous accueillir au sein de notre organisme de formation.
-
-QUI SOMMES-NOUS ?
-Access Formation est un organisme de formation professionnelle spécialisé dans...
-
-..."
-            />
-          </div>
-        )}
-        
-        {/* UTILISATEURS */}
-        {activeTab === 'users' && (
-          <div className="space-y-6">
-            <h3 className="font-semibold text-lg">Gestion des utilisateurs</h3>
-            
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <h4 className="font-medium text-amber-800 mb-3 flex items-center gap-2">
-                <LogOut className="w-5 h-5" />
-                Déconnecter un utilisateur à distance
-              </h4>
-              <p className="text-sm text-amber-700 mb-4">
-                Saisissez l'email de l'utilisateur pour mettre fin à sa session active.
-              </p>
-              
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  placeholder="email@example.com"
-                  value={userEmail}
-                  onChange={(e) => setUserEmail(e.target.value)}
-                  className="input flex-1"
-                />
-                <button
-                  onClick={async () => {
-                    if (!userEmail) {
-                      toast.error('Veuillez saisir un email')
-                      return
-                    }
-                    if (!confirm(`Déconnecter ${userEmail} ?`)) return
-                    
-                    setDisconnecting(true)
-                    try {
-                      const { error } = await supabase.rpc('admin_logout_user', { user_email: userEmail })
-                      
-                      if (error) {
-                        if (error.code === '42883') {
-                          toast.error('Fonction non installée. Utilisez le Dashboard Supabase.')
-                        } else {
-                          throw error
-                        }
-                      } else {
-                        toast.success(`${userEmail} a été déconnecté`)
-                        setUserEmail('')
-                      }
-                    } catch (err) {
-                      console.error('Erreur déconnexion:', err)
-                      toast.error('Erreur - Utilisez le Dashboard Supabase')
-                    } finally {
-                      setDisconnecting(false)
-                    }
-                  }}
-                  disabled={disconnecting || !userEmail}
-                  className="btn btn-primary"
-                >
-                  {disconnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
-                  Déconnecter
-                </button>
-              </div>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-800 mb-2">Gestion avancée</h4>
-              <p className="text-sm text-blue-700 mb-3">
-                Pour voir tous les utilisateurs connectés, les bannir ou supprimer leurs comptes, utilisez le Dashboard Supabase.
-              </p>
-              <a
-                href="https://supabase.com/dashboard/project/_/auth/users"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-secondary inline-flex items-center gap-2"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Ouvrir Supabase Dashboard
-              </a>
-            </div>
-            
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h4 className="font-medium text-gray-800 mb-2">Installation de la fonction de déconnexion</h4>
-              <p className="text-sm text-gray-600 mb-3">
-                Pour activer la déconnexion depuis l'app, exécutez ce SQL dans Supabase :
-              </p>
-              <pre className="bg-gray-800 text-green-400 p-3 rounded text-xs overflow-x-auto">
-{`-- Fonction pour déconnecter un utilisateur par email
-CREATE OR REPLACE FUNCTION admin_logout_user(user_email TEXT)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  target_user_id UUID;
-BEGIN
-  SELECT id INTO target_user_id 
-  FROM auth.users 
-  WHERE email = user_email;
-  
-  IF target_user_id IS NULL THEN
-    RAISE EXCEPTION 'Utilisateur non trouvé';
-  END IF;
-  
-  DELETE FROM auth.sessions 
-  WHERE user_id = target_user_id;
-END;
-$$;`}
-              </pre>
-            </div>
-          </div>
-        )}
-        
-
-        {/* ACCÈS COMPTABLE */}
-        {activeTab === 'comptable' && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-violet-600" />
-                Accès cabinet comptable
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">
-                L'email renseigné ici sert à deux choses : il autorise la connexion à Access Campus avec un accès
-                limité à l'espace comptable, <strong>et il reçoit tous les envois automatiques</strong> (pièces
-                comptables, récap factures). Pour changer de cabinet, il suffit de modifier l'email — l'ancien
-                accès est révoqué et les envois basculent immédiatement sur le nouveau destinataire.
-              </p>
-            </div>
-
-            <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-sm text-violet-800">
-              <strong>Important :</strong> Le compte Supabase Auth correspondant à cet email doit exister.
-              Créez-le d'abord dans{' '}
-              <a href="https://supabase.com/dashboard/project/_/auth/users" target="_blank" rel="noopener noreferrer" className="underline">
-                Supabase Dashboard → Auth → Users
-              </a>{' '}
-              avant d'activer l'accès.
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="label">Nom du cabinet comptable</label>
-                <input
-                  type="text"
-                  value={comptableForm.comptable_name}
-                  onChange={e => setComptableForm(f => ({ ...f, comptable_name: e.target.value }))}
-                  placeholder="ex: Cabinet FICAMEX"
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="label">Email du comptable</label>
-                <input
-                  type="email"
-                  value={comptableForm.comptable_email}
-                  onChange={e => setComptableForm(f => ({ ...f, comptable_email: e.target.value }))}
-                  placeholder="ex: contact@cabinet.fr"
-                  className="input"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  Laissez vide pour désactiver l'accès comptable — les envois seront alors bloqués
-                </p>
-              </div>
-              <div>
-                <label className="label">Copie (CC)</label>
-                <input
-                  type="text"
-                  value={comptableForm.comptable_cc}
-                  onChange={e => setComptableForm(f => ({ ...f, comptable_cc: e.target.value }))}
-                  placeholder="ex: fournisseurs@accessformation.pro"
-                  className="input"
-                />
-                <p className="text-xs text-gray-400 mt-1">Plusieurs adresses possibles, séparées par des virgules</p>
-              </div>
-              <div>
-                <label className="label">Copie cachée (BCC)</label>
-                <input
-                  type="text"
-                  value={comptableForm.comptable_bcc}
-                  onChange={e => setComptableForm(f => ({ ...f, comptable_bcc: e.target.value }))}
-                  placeholder="ex: contact@accessformation.pro"
-                  className="input"
-                />
-                <p className="text-xs text-gray-400 mt-1">Archivage interne — le destinataire ne la voit pas</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <button
-                onClick={async () => {
-                  setSavingComptable(true)
-                  try {
-                    const { data: existing } = await supabase.from('org_settings').select('id').single()
-                    const payload = {
-                      comptable_email: comptableForm.comptable_email.trim().toLowerCase() || null,
-                      comptable_name: comptableForm.comptable_name.trim() || null,
-                      comptable_cc: comptableForm.comptable_cc.trim() || null,
-                      comptable_bcc: comptableForm.comptable_bcc.trim() || null,
-                    }
-                    if (existing) {
-                      await supabase.from('org_settings').update(payload).eq('id', existing.id)
-                    } else {
-                      await supabase.from('org_settings').insert([payload])
-                    }
-                    toast.success('Accès comptable mis à jour')
-                  } catch (e) {
-                    toast.error('Erreur : ' + e.message)
-                  }
-                  setSavingComptable(false)
-                }}
-                disabled={savingComptable}
-                className="btn btn-primary flex items-center gap-2"
-              >
-                {savingComptable ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Sauvegarder
-              </button>
-
-              {comptableForm.comptable_email ? (
-                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                  <Lock className="w-4 h-4" />
-                  Accès actif pour <strong className="ml-1">{comptableForm.comptable_email}</strong>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  <Lock className="w-4 h-4" />
-                  Aucun comptable configuré — les envois automatiques sont bloqués
-                </div>
-              )}
-            </div>
-
-            <div className="border-t pt-4">
-              <h4 className="font-medium text-gray-700 mb-2">Ce que le comptable peut faire</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>✅ Consulter la balance âgée (créances par ancienneté)</li>
-                <li>✅ Saisir des encaissements sur les factures</li>
-                <li>✅ Rapprocher des transactions bancaires aux factures</li>
-                <li>✅ Annoter les transactions (note comptable)</li>
-                <li>✅ Verrouiller des périodes comptables</li>
-                <li>✅ Exporter les données en Excel</li>
-                <li>❌ Accès aux sessions, stagiaires, prospection, DUERP...</li>
-              </ul>
-            </div>
-
-            <div className="border-t pt-4">
-              <h4 className="font-medium text-gray-700 mb-2">Ce qui part vers cette adresse</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>📮 Pièces comptables (justificatifs) — Budget → onglet Comptable</li>
-                <li>🧾 Récapitulatif mensuel des factures clients + PDF</li>
-              </ul>
-              {comptableForm.comptable_email && (
-                <div className="mt-3 text-xs text-gray-500 bg-gray-50 border rounded-lg px-3 py-2 space-y-0.5">
-                  <div>À : <strong>{comptableForm.comptable_email}</strong></div>
-                  {comptableForm.comptable_cc && <div>CC : {comptableForm.comptable_cc}</div>}
-                  {comptableForm.comptable_bcc && <div>BCC : {comptableForm.comptable_bcc}</div>}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* AUDIT RGPD */}
-        {activeTab === 'audit' && (
-          <div className="-m-6">
-            <AuditLogs />
-          </div>
-        )}
-      </div>
-      
-      {/* Section Sauvegarde */}
-      <div className="card bg-white p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
-          <Database className="w-5 h-5 text-green-600" />
-          Sauvegarde et restauration
-        </h2>
-        <p className="text-sm text-gray-500 mb-5">
-          Les fichiers Storage (PDF, documents, signatures) sont sauvegardés automatiquement par Supabase et ne sont pas inclus dans ces exports JSON.
-        </p>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          
-          {/* Export Métier */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-medium text-gray-800 mb-1 flex items-center gap-2">
-              <Download className="w-4 h-4 text-blue-600" />
-              Export métier
-            </h3>
-            <p className="text-sm text-gray-500 mb-1">
-              Clients, sessions, stagiaires, factures, devis, budget, DUERP, qualité, social, planning…
-            </p>
-            <p className="text-xs text-blue-600 mb-3">~5–10 Mo · instantané · à faire chaque semaine</p>
-            <button
-              onClick={handleExportMetier}
-              disabled={exporting || exportingProspection}
-              className="btn btn-primary flex items-center gap-2 w-full justify-center"
-            >
-              {exporting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Export en cours...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  Exporter les données métier
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Export Prospection */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-medium text-gray-800 mb-1 flex items-center gap-2">
-              <Users2 className="w-4 h-4 text-purple-600" />
-              Export prospection
-            </h3>
-            <p className="text-sm text-gray-500 mb-1">
-              Base prospection_massive (~275 000 entreprises). Lecture par lots de 1 000, fichiers de 50 000 lignes.
-            </p>
-            <p className="text-xs text-purple-600 mb-3">~150–200 Mo · 2–3 min · à faire 1×/mois</p>
-            <button
-              onClick={handleExportProspection}
-              disabled={exporting || exportingProspection}
-              className="btn flex items-center gap-2 w-full justify-center bg-purple-600 text-white hover:bg-purple-700"
-            >
-              {exportingProspection ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Chargement...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  Exporter la prospection
-                </>
-              )}
-            </button>
-          </div>
-          
-          {/* Import */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-medium text-gray-800 mb-1 flex items-center gap-2">
-              <Upload className="w-4 h-4 text-orange-600" />
-              Importer (restauration)
-            </h3>
-            <p className="text-sm text-gray-500 mb-1">
-              Restaurez depuis un fichier de sauvegarde JSON (métier ou prospection).
-            </p>
-            <p className="text-xs text-orange-600 mb-3">⚠️ Les données existantes avec le même ID seront écrasées.</p>
-            <label className="btn btn-secondary flex items-center gap-2 w-full justify-center cursor-pointer">
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportFile}
-                className="hidden"
-                disabled={importing}
-              />
-              <Upload className="w-4 h-4" />
-              Charger un fichier de sauvegarde
-            </label>
-          </div>
-        </div>
-      </div>
-      
-      {/* Modal de confirmation d'import */}
-      {importPreview && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b bg-orange-50 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-orange-600" />
-                Confirmer la restauration
-              </h3>
-              <button onClick={() => setImportPreview(null)} className="text-gray-400 hover:text-gray-600">✕</button>
-            </div>
-            <div className="p-4 overflow-y-auto flex-1 space-y-4">
-              <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
-                <p><strong>Fichier :</strong> {importPreview.fileName}</p>
-                <p><strong>Type :</strong> {importPreview.type === 'prospection' ? 'Export prospection' : 'Export métier'}</p>
-                <p><strong>Date d'export :</strong> {new Date(importPreview.exportDate).toLocaleString('fr-FR')}</p>
-                <p><strong>Version :</strong> {importPreview.version}</p>
-                <p><strong>Total :</strong> {importPreview.totalRecords.toLocaleString()} enregistrements dans {importPreview.tableCount} tables</p>
-              </div>
-              
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Détail par table :</p>
-                <div className="max-h-48 overflow-y-auto border rounded-lg">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {Object.entries(importPreview.tables)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([table, count]) => (
-                          <tr key={table} className="border-b last:border-0">
-                            <td className="px-3 py-1.5 font-mono text-xs text-gray-600">{table}</td>
-                            <td className="px-3 py-1.5 text-right font-medium">{count.toLocaleString()}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
-                <strong>⚠️ Attention :</strong> Les enregistrements existants avec le même ID seront mis à jour. Les nouveaux seront ajoutés. Aucune donnée ne sera supprimée.
-              </div>
-            </div>
-            <div className="p-4 border-t bg-gray-50 flex gap-3 justify-end">
-              <button 
-                onClick={() => setImportPreview(null)} 
-                className="btn btn-secondary"
-                disabled={importing}
-              >
-                Annuler
-              </button>
-              <button 
-                onClick={handleImportConfirm} 
-                disabled={importing}
-                className="btn bg-orange-500 text-white hover:bg-orange-600 flex items-center gap-2"
-              >
-                {importing ? (
+                {form.qualiopi_certified && (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Import en cours...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    Restaurer les données
+                    <Field label="Certifié depuis le"><input type="date" className="input" value={form.qualiopi_since || ''} onChange={(e) => set('qualiopi_since', e.target.value)} /></Field>
+                    <Field label="Organisme certificateur"><input className="input" value={form.qualiopi_organisme || ''} onChange={(e) => set('qualiopi_organisme', e.target.value)} /></Field>
                   </>
                 )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Section À propos */}
-      <div className="card bg-white p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <History className="w-5 h-5 text-primary" />
-          À propos
-        </h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-primary-600 font-bold">Access Campus</p>
-            <p className="text-sm text-gray-500">Version 2.8.0</p>
-          </div>
-          <Link to="/changelog" className="btn btn-outline btn-sm flex items-center gap-2">
-            <History className="w-4 h-4" />
-            Historique des versions
-          </Link>
+              </div>
+            </>
+          )}
+
+          {section === 'coordonnees' && (
+            <>
+              <h2 className="section-title">Siège</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Adresse" className="md:col-span-2"><input className="input" value={form.address || ''} onChange={(e) => set('address', e.target.value)} /></Field>
+                <Field label="Code postal"><input className="input" value={form.postal_code || ''} onChange={(e) => set('postal_code', e.target.value)} /></Field>
+                <Field label="Ville"><input className="input" value={form.city || ''} onChange={(e) => set('city', e.target.value)} /></Field>
+                <Field label="Téléphone"><input className="input" value={form.phone || ''} onChange={(e) => set('phone', e.target.value)} /></Field>
+                <Field label="Email de contact"><input type="email" className="input" value={form.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
+                <Field label="Site web"><input className="input" value={form.website || ''} onChange={(e) => set('website', e.target.value)} placeholder="www.exemple.fr" /></Field>
+                <Field label="Lieu de signature des documents" hint="Par défaut, la ville du siège"><input className="input" value={form.lieu_signature || ''} onChange={(e) => set('lieu_signature', e.target.value)} /></Field>
+                <Field label="Région"><input className="input" value={form.region || ''} onChange={(e) => set('region', e.target.value)} /></Field>
+                <Field label="Départements d'intervention" hint="Numéros séparés par des virgules"><input className="input" value={form.zone_departements_text || ''} onChange={(e) => set('zone_departements_text', e.target.value)} placeholder="29, 56, 22, 35" /></Field>
+                <Field label="Lien avis Google" hint="Proposé au stagiaire en fin de formation"><input className="input" value={form.google_review_url || ''} onChange={(e) => set('google_review_url', e.target.value)} /></Field>
+              </div>
+              <h2 className="section-title">Signataire</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Nom du dirigeant ou signataire"><input className="input" value={form.dirigeant_name || ''} onChange={(e) => set('dirigeant_name', e.target.value)} /></Field>
+                <Field label="Fonction"><input className="input" value={form.dirigeant_title || ''} onChange={(e) => set('dirigeant_title', e.target.value)} placeholder="Gérant" /></Field>
+                <Field label="Signature manuscrite (image)" hint="PNG sur fond transparent de préférence" className="md:col-span-2">
+                  <div className="flex items-center gap-4">
+                    {form.dirigeant_signature_url && <img src={form.dirigeant_signature_url} alt="" className="h-14 border rounded-ui-sm bg-white p-1" />}
+                    <label className="btn btn-secondary cursor-pointer"><Upload className="w-4 h-4" />Choisir<input type="file" accept="image/*" className="hidden" onChange={onFile('dirigeant_signature_url', 'storage')} /></label>
+                    {form.dirigeant_signature_url && <button type="button" className="btn btn-ghost" onClick={() => set('dirigeant_signature_url', '')}><Trash2 className="w-4 h-4" />Retirer</button>}
+                  </div>
+                </Field>
+              </div>
+              <h2 className="section-title">Référent handicap</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Field label="Nom"><input className="input" value={form.referent_handicap_nom || ''} onChange={(e) => set('referent_handicap_nom', e.target.value)} /></Field>
+                <Field label="Email"><input className="input" value={form.referent_handicap_email || ''} onChange={(e) => set('referent_handicap_email', e.target.value)} /></Field>
+                <Field label="Téléphone"><input className="input" value={form.referent_handicap_phone || ''} onChange={(e) => set('referent_handicap_phone', e.target.value)} /></Field>
+              </div>
+            </>
+          )}
+
+          {section === 'marque' && (
+            <>
+              <h2 className="section-title">Nom affiché et logo</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Nom de l'application" hint="Titre de l'onglet et de l'icône sur le téléphone"><input className="input" value={form.app_name || ''} onChange={(e) => set('app_name', e.target.value)} /></Field>
+                <Field label="Nom court" hint="Sous l'icône sur le téléphone (12 caractères maximum)"><input className="input" maxLength={12} value={form.app_short_name || ''} onChange={(e) => set('app_short_name', e.target.value)} /></Field>
+                <Field label="Logo" hint="PNG ou SVG, fond transparent ou blanc" className="md:col-span-2">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {form.logo_url && <img src={form.logo_url} alt="" className="h-14 border rounded-ui-sm bg-white p-1" />}
+                    <label className="btn btn-secondary cursor-pointer"><Upload className="w-4 h-4" />Choisir<input type="file" accept="image/*" className="hidden" onChange={onFile('logo_url', 'storage')} /></label>
+                  </div>
+                </Field>
+                <Field label="Logo pour fond sombre (facultatif)" className="md:col-span-2">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {form.logo_on_dark_url && <img src={form.logo_on_dark_url} alt="" className="h-14 border rounded-ui-sm bg-gray-900 p-1" />}
+                    <label className="btn btn-secondary cursor-pointer"><Upload className="w-4 h-4" />Choisir<input type="file" accept="image/*" className="hidden" onChange={onFile('logo_on_dark_url', 'storage')} /></label>
+                    {form.logo_on_dark_url && <button type="button" className="btn btn-ghost" onClick={() => set('logo_on_dark_url', '')}><Trash2 className="w-4 h-4" />Retirer</button>}
+                  </div>
+                </Field>
+                <Field label="Tampon (sur conventions et attestations)" hint="Image, 500 Ko maximum" className="md:col-span-2">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {form.stamp_base64 && <img src={form.stamp_base64} alt="" className="h-14 border rounded-ui-sm bg-white p-1" />}
+                    <label className="btn btn-secondary cursor-pointer"><Upload className="w-4 h-4" />Choisir<input type="file" accept="image/*" className="hidden" onChange={onFile('stamp_base64', 'base64')} /></label>
+                    {form.stamp_base64 && <button type="button" className="btn btn-ghost" onClick={() => set('stamp_base64', '')}><Trash2 className="w-4 h-4" />Retirer</button>}
+                  </div>
+                </Field>
+              </div>
+              <h2 className="section-title">Couleurs</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {THEMES.map((t) => {
+                  const on = form.brand_primary === t.primary && form.brand_accent === t.accent
+                  return (
+                    <button key={t.key} type="button" onClick={() => { set('brand_primary', t.primary); set('brand_accent', t.accent); set('brand_highlight', t.highlight); set('brand_nav', t.primary) }}
+                      className={`rounded-ui border p-3 text-left ${on ? 'border-accent-500 ring-2 ring-accent-500/20' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <div className="flex gap-1.5 mb-2">
+                        <span className="w-6 h-6 rounded" style={{ background: t.primary }} /><span className="w-6 h-6 rounded" style={{ background: t.accent }} /><span className="w-6 h-6 rounded" style={{ background: t.highlight }} />
+                      </div>
+                      <div className="text-ui-sm font-medium">{t.label}</div>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[['brand_primary', 'Principale (navigation)'], ['brand_accent', 'Accent (boutons)'], ['brand_highlight', 'Rehaut (badges)'], ['brand_nav', 'Fond du menu']].map(([k, l]) => (
+                  <Field key={k} label={l}>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={form[k] || '#000000'} onChange={(e) => set(k, e.target.value)} className="w-10 h-10 rounded border p-0.5" />
+                      <input className="input" value={form[k] || ''} onChange={(e) => set(k, e.target.value)} placeholder="#000000" />
+                    </div>
+                  </Field>
+                ))}
+              </div>
+              <h2 className="section-title">Polices</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {Object.entries(FONT_PAIRS).map(([key, p]) => (
+                  <button key={key} type="button" onClick={() => set('font_pair', key)}
+                    className={`rounded-ui border p-3 text-left ${form.font_pair === key ? 'border-accent-500 ring-2 ring-accent-500/20' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <div style={{ fontFamily: p.display }} className="text-lg font-semibold">Titres</div>
+                    <div style={{ fontFamily: p.body }} className="text-ui text-gray-600">Texte courant, tableaux et formulaires.</div>
+                    <div className="text-ui-sm text-gray-400 mt-1">{p.label}</div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-ui-sm text-gray-400">Les couleurs et polices s'appliquent à tous les utilisateurs après enregistrement. Chacun choisit en plus sa densité et son type de navigation dans le menu Affichage.</p>
+            </>
+          )}
+
+          {section === 'documents' && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Préfixe des codes documentaires" hint="Pied de page des PDF, par exemple GLD-CONV"><input className="input" maxLength={5} value={form.doc_prefix || ''} onChange={(e) => set('doc_prefix', e.target.value.toUpperCase())} /></Field>
+                <Field label="Conditions générales de vente (PDF)" hint="Jointes aux devis">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {form.cgv_url && <a href={form.cgv_url} target="_blank" rel="noreferrer" className="text-ui text-accent-700 underline">Voir le fichier</a>}
+                    <label className="btn btn-secondary btn-sm cursor-pointer"><Upload className="w-4 h-4" />Choisir<input type="file" accept="application/pdf" className="hidden" onChange={onFile('cgv_url', 'storage')} /></label>
+                  </div>
+                </Field>
+              </div>
+              <Field label="Conditions d'annulation (article 7 des conventions)" hint="Vide : texte standard (14 jours : 50 %, 7 jours : 75 %)">
+                <textarea className="textarea" rows={4} value={form.conditions_annulation || ''} onChange={(e) => set('conditions_annulation', e.target.value)} />
+              </Field>
+              <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_120px] gap-4">
+                <Field label="Règlement intérieur" hint="Titres sur une ligne, paragraphes séparés par une ligne vide. Vide : texte standard">
+                  <textarea className="textarea" rows={12} value={form.reglement_interieur || ''} onChange={(e) => set('reglement_interieur', e.target.value)} />
+                </Field>
+                <Field label="Version"><input className="input" value={form.reglement_version || ''} onChange={(e) => set('reglement_version', e.target.value)} placeholder="V1.0" /></Field>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_120px] gap-4">
+                <Field label="Livret d'accueil" hint="Même format. Vide : texte standard">
+                  <textarea className="textarea" rows={12} value={form.livret_accueil || ''} onChange={(e) => set('livret_accueil', e.target.value)} />
+                </Field>
+                <Field label="Version"><input className="input" value={form.livret_version || ''} onChange={(e) => set('livret_version', e.target.value)} placeholder="V1.0" /></Field>
+              </div>
+            </>
+          )}
+
+          {section === 'banque' && (
+            <>
+              <h2 className="section-title">Coordonnées bancaires (factures et devis)</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Banque"><input className="input" value={form.bank_name || ''} onChange={(e) => set('bank_name', e.target.value)} /></Field>
+                <Field label="BIC"><input className="input" value={form.bic || ''} onChange={(e) => set('bic', e.target.value.toUpperCase())} /></Field>
+                <Field label="IBAN" className="md:col-span-2"><input className="input" value={form.iban || ''} onChange={(e) => set('iban', e.target.value)} /></Field>
+              </div>
+              <h2 className="section-title">Emails et exercice</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Copie cachée systématique" hint="Adresse d'archivage recevant tous les envois"><input className="input" value={form.email_bcc || ''} onChange={(e) => set('email_bcc', e.target.value)} /></Field>
+                <Field label="Expéditeur par défaut" hint="Compte email utilisé quand aucun n'est précisé"><input className="input" value={form.email_default_sender || ''} onChange={(e) => set('email_default_sender', e.target.value)} /></Field>
+                <Field label="Premier mois de l'exercice comptable">
+                  <select className="select" value={form.exercice_start_month || 1} onChange={(e) => set('exercice_start_month', e.target.value)}>
+                    {['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'].map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                  </select>
+                </Field>
+                {isSuperadmin && (
+                  <div className="pt-6"><Toggle checked={!!form.demo_mode} onChange={(v) => set('demo_mode', v)} label="Mode démonstration" hint="Tous les emails sortants sont redirigés vers l'adresse de test (MAIL_SINK)" /></div>
+                )}
+              </div>
+            </>
+          )}
+
+          {section === 'modules' && <ModulesSection onChanged={refreshModules} />}
+          {section === 'utilisateurs' && <UsersSection isSuperadmin={isSuperadmin} />}
+          {section === 'comptable' && <ComptableSection />}
         </div>
       </div>
     </div>
+  )
+}
+
+function ModulesSection({ onChanged }) {
+  const [modules, setModules] = useState([])
+  const load = async () => {
+    const { data } = await supabase.from('org_modules').select('*').order('position')
+    setModules(data || [])
+  }
+  useEffect(() => { load() }, [])
+  const toggle = async (m) => {
+    const { error } = await supabase.from('org_modules').update({ enabled: !m.enabled, updated_at: new Date().toISOString() }).eq('key', m.key)
+    if (error) return toast.error(error.message)
+    await load(); await onChanged()
+  }
+  return (
+    <>
+      <h2 className="section-title">Modules activés</h2>
+      <p className="muted">Un module désactivé disparaît du menu et des tableaux de bord. Les données ne sont pas supprimées.</p>
+      <div className="divide-y divide-gray-100">
+        {modules.map((m) => (
+          <div key={m.key} className="py-3 flex items-center justify-between gap-4">
+            <div><div className="text-ui font-medium">{m.label}</div><div className="text-ui-sm text-gray-400">{m.key}</div></div>
+            <Toggle checked={m.enabled} onChange={() => toggle(m)} label="" />
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function UsersSection({ isSuperadmin }) {
+  const [profiles, setProfiles] = useState([])
+  const [invite, setInvite] = useState({ email: '', display_name: '', role: 'gestionnaire' })
+  const [busy, setBusy] = useState(false)
+  const [resetLink, setResetLink] = useState(null)
+  const me = useAuthStore((s) => s.profile)
+
+  const load = async () => {
+    const { data } = await supabase.from('profiles').select('*').order('created_at')
+    setProfiles(data || [])
+  }
+  useEffect(() => { load() }, [])
+
+  const update = async (id, patch) => {
+    const { error } = await supabase.from('profiles').update(patch).eq('id', id)
+    if (error) return toast.error(error.message)
+    toast.success('Mis à jour'); load()
+  }
+  const sendInvite = async () => {
+    if (!invite.email) return
+    setBusy(true)
+    try {
+      await callApi('/api/admin-users', { action: 'invite', ...invite })
+      toast.success('Invitation envoyée'); setInvite({ email: '', display_name: '', role: 'gestionnaire' }); load()
+    } catch (e) { toast.error(e.message) } finally { setBusy(false) }
+  }
+  const reset = async (email) => {
+    setBusy(true)
+    try {
+      const r = await callApi('/api/admin-users', { action: 'reset', email })
+      setResetLink(r.link); toast.success('Lien de réinitialisation généré')
+    } catch (e) { toast.error(e.message) } finally { setBusy(false) }
+  }
+  const remove = async (p) => {
+    if (!window.confirm(`Supprimer définitivement le compte de ${p.email} ?`)) return
+    try { await callApi('/api/admin-users', { action: 'delete', user_id: p.id }); toast.success('Compte supprimé'); load() } catch (e) { toast.error(e.message) }
+  }
+
+  return (
+    <>
+      <h2 className="section-title">Utilisateurs et rôles</h2>
+      <div className="overflow-x-auto">
+        <table>
+          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Actif</th><th></th></tr></thead>
+          <tbody>
+            {profiles.map((p) => (
+              <tr key={p.id}>
+                <td><div className="font-medium">{p.display_name || p.email}</div><div className="text-ui-sm text-gray-500">{p.email}</div></td>
+                <td>
+                  <select className="select" style={{ minHeight: 32, width: 190 }} value={p.role} disabled={p.id === me?.id || (p.role === 'superadmin' && !isSuperadmin)}
+                    onChange={(e) => update(p.id, { role: e.target.value })}>
+                    {ROLES.filter(([r]) => r !== 'superadmin' || isSuperadmin).map(([r, l]) => <option key={r} value={r}>{l}</option>)}
+                  </select>
+                </td>
+                <td><Toggle checked={p.is_active} onChange={(v) => update(p.id, { is_active: v })} label="" /></td>
+                <td className="text-right whitespace-nowrap">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => reset(p.email)} disabled={busy}><KeyRound className="w-4 h-4" />Mot de passe</button>
+                  {isSuperadmin && p.id !== me?.id && <button type="button" className="btn btn-ghost btn-sm text-red-700" onClick={() => remove(p)}><Trash2 className="w-4 h-4" /></button>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {resetLink && (
+        <div className="rounded-ui border border-gray-200 bg-gray-50 p-3 text-ui break-all">
+          <div className="font-medium mb-1">Lien de réinitialisation (à transmettre, valable une fois) :</div>
+          <code className="text-ui-sm">{resetLink}</code>
+          <div className="mt-2"><button type="button" className="btn btn-secondary btn-sm" onClick={() => { navigator.clipboard?.writeText(resetLink); toast.success('Copié') }}><Check className="w-4 h-4" />Copier</button></div>
+        </div>
+      )}
+      <h2 className="section-title">Inviter un utilisateur</h2>
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_200px_auto] gap-3 items-end">
+        <Field label="Email"><input type="email" className="input" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} /></Field>
+        <Field label="Nom affiché"><input className="input" value={invite.display_name} onChange={(e) => setInvite({ ...invite, display_name: e.target.value })} /></Field>
+        <Field label="Rôle">
+          <select className="select" value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>
+            {ROLES.filter(([r]) => r !== 'superadmin' || isSuperadmin).map(([r, l]) => <option key={r} value={r}>{l}</option>)}
+          </select>
+        </Field>
+        <button type="button" className="btn btn-primary" onClick={sendInvite} disabled={busy || !invite.email}><Mail className="w-4 h-4" />Inviter</button>
+      </div>
+      <p className="text-ui-sm text-gray-400">L'invité reçoit un email pour choisir son mot de passe. Les règles d'accès (super administrateur, direction, gestionnaire, formateur, commercial, comptable, lecture) s'appliquent dès sa première connexion.</p>
+    </>
+  )
+}
+
+function ComptableSection() {
+  const [form, setForm] = useState({ comptable_email: '', comptable_name: '', comptable_cc: '', comptable_bcc: '' })
+  const [saving, setSaving] = useState(false)
+  useEffect(() => {
+    supabase.from('org_settings').select('comptable_email, comptable_name, comptable_cc, comptable_bcc').limit(1).maybeSingle()
+      .then(({ data }) => { if (data) setForm({ comptable_email: data.comptable_email || '', comptable_name: data.comptable_name || '', comptable_cc: data.comptable_cc || '', comptable_bcc: data.comptable_bcc || '' }) })
+  }, [])
+  const save = async () => {
+    setSaving(true)
+    const { data: existing } = await supabase.from('org_settings').select('id').limit(1).maybeSingle()
+    const r = existing
+      ? await supabase.from('org_settings').update(form).eq('id', existing.id)
+      : await supabase.from('org_settings').insert([{ ...form, name: 'organisation' }])
+    setSaving(false)
+    if (r.error) return toast.error(r.error.message)
+    toast.success('Accès comptable enregistré')
+  }
+  return (
+    <>
+      <h2 className="section-title">Cabinet comptable</h2>
+      <p className="muted">L'adresse renseignée reçoit les envois automatiques (pièces, récapitulatifs). Pour lui donner un accès à l'espace comptable, invitez-la dans Utilisateurs avec le rôle Comptable.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Nom du cabinet"><input className="input" value={form.comptable_name} onChange={(e) => setForm({ ...form, comptable_name: e.target.value })} /></Field>
+        <Field label="Email du comptable"><input type="email" className="input" value={form.comptable_email} onChange={(e) => setForm({ ...form, comptable_email: e.target.value })} /></Field>
+        <Field label="Copie (CC)" hint="Plusieurs adresses séparées par des virgules"><input className="input" value={form.comptable_cc} onChange={(e) => setForm({ ...form, comptable_cc: e.target.value })} /></Field>
+        <Field label="Copie cachée (BCC)"><input className="input" value={form.comptable_bcc} onChange={(e) => setForm({ ...form, comptable_bcc: e.target.value })} /></Field>
+      </div>
+      <button type="button" onClick={save} disabled={saving} className="btn btn-primary"><Save className="w-4 h-4" />Enregistrer</button>
+      <p className="text-ui-sm text-gray-400">Configuration des comptes d'envoi (SMTP) : <Link to="/settings/email" className="underline">Comptes email</Link>.</p>
+    </>
   )
 }
