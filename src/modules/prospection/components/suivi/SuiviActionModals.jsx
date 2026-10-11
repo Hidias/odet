@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// SuiviActionModals.jsx — Petites fenêtres d'action du Suivi commercial
+// SuiviActionModals.jsx - Petites fenêtres d'action du Suivi commercial
 //   PlanifierRdvModal  : « À planifier » → RDV planifié (date, heure, qui)
 //   ConvertirRappelModal : faux RDV → vrai rappel dans la file de phoning
 //   DeplacerRappelModal  : déplacer / réattribuer / abandonner un rappel
@@ -107,7 +107,7 @@ export function PlanifierRdvModal({ rdv, clientName, author, onClose, onDone }) 
       if (error) throw error
       await logInteraction(supabase, {
         clientId: rdv.client_id,
-        title: `RDV planifié le ${fmtDate(date)}${time ? ' à ' + time.replace(':', 'h') : ''} — ${who}`,
+        title: `RDV planifié le ${fmtDate(date)}${time ? ' à ' + time.replace(':', 'h') : ''} - ${who}`,
         author,
       })
       toast.success('RDV planifié')
@@ -273,7 +273,7 @@ export function DeplacerRappelModal({ callback, clientName, author, onClose, onD
   return (
     <ModalShell
       title="Déplacer le rappel"
-      subtitle={`${clientName || 'Contact'} · ${callback?.callback_date ? 'prévu le ' + fmtDate(callback.callback_date) : 'sans date'} (${callback?.called_by || '—'})`}
+      subtitle={`${clientName || 'Contact'} · ${callback?.callback_date ? 'prévu le ' + fmtDate(callback.callback_date) : 'sans date'} (${callback?.called_by || '-'})`}
       onClose={onClose}
       footer={
         <>

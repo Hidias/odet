@@ -131,7 +131,7 @@ export default function DocumentsVierges() {
           setKitProgress({ step, total, label })
         },
       })
-      toast.success(`Kit Secours ${KIT_CONFIG[kitKey].shortLabel} téléchargé ✓`)
+      toast.success(`Kit Secours ${KIT_CONFIG[kitKey].shortLabel} téléchargé `)
     } catch (error) {
       console.error('Erreur Kit Secours:', error)
       toast.error(`Erreur : ${error.message || 'Échec de la génération'}`)
@@ -356,7 +356,7 @@ export default function DocumentsVierges() {
               className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <span className="text-lg">👤</span>
+                <span className="text-lg"></span>
                 <div>
                   <span className="text-sm font-medium">Version stagiaire</span>
                   <p className="text-[10px] text-gray-400">À remettre aux stagiaires en fin de formation</p>
@@ -369,7 +369,7 @@ export default function DocumentsVierges() {
               className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <span className="text-lg">🏢</span>
+                <span className="text-lg"></span>
                 <div>
                   <span className="text-sm font-medium">Version entreprise</span>
                   <p className="text-[10px] text-gray-400">À joindre aux conventions ou documents client</p>

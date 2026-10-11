@@ -7,7 +7,7 @@ import {
 import toast from 'react-hot-toast'
 
 // ═══════════════════════════════════════════════════════════════
-// BPF — Bilan Pédagogique et Financier (Cerfa 10443*17)
+// BPF - Bilan Pédagogique et Financier (Cerfa 10443*17)
 // Auto-calcul depuis les données de l'application
 // ═══════════════════════════════════════════════════════════════
 
@@ -62,7 +62,7 @@ export default function BPF() {
     exercice_start: `${DEFAULT_YEAR}-01-01`,
     exercice_end: `${DEFAULT_YEAR}-12-31`,
     has_distance_learning: false,
-    // Cadre C — Produits
+    // Cadre C - Produits
     c1_entreprises: 0,
     c2a_apprentissage: 0,
     c2b_pro: 0,
@@ -82,24 +82,24 @@ export default function BPF() {
     c10_sous_traitance: 0,
     c11_autres: 0,
     ca_pct_formation: 100,
-    // Cadre D — Charges
+    // Cadre D - Charges
     d_total: 0,
     d_salaires_formateurs: 0,
     d_sous_traitance: 0,
-    // Cadre E — Formateurs
+    // Cadre E - Formateurs
     e_internes_nb: 0,
     e_internes_heures: 0,
     e_externes_nb: 0,
     e_externes_heures: 0,
-    // Cadre F-1 — Stagiaires par type
+    // Cadre F-1 - Stagiaires par type
     f1a_salaries_nb: 0, f1a_salaries_heures: 0,
     f1b_apprentis_nb: 0, f1b_apprentis_heures: 0,
     f1c_demandeurs_nb: 0, f1c_demandeurs_heures: 0,
     f1d_particuliers_nb: 0, f1d_particuliers_heures: 0,
     f1e_autres_nb: 0, f1e_autres_heures: 0,
-    // Cadre F-2 — Sous-traitance
+    // Cadre F-2 - Sous-traitance
     f2_nb: 0, f2_heures: 0,
-    // Cadre F-3 — Objectifs
+    // Cadre F-3 - Objectifs
     f3a_rncp_nb: 0, f3a_rncp_heures: 0,
     f3a_niv6_nb: 0, f3a_niv6_heures: 0,
     f3a_niv5_nb: 0, f3a_niv5_heures: 0,
@@ -112,7 +112,7 @@ export default function BPF() {
     f3d_autres_nb: 0, f3d_autres_heures: 0,
     f3e_bilan_nb: 0, f3e_bilan_heures: 0,
     f3f_vae_nb: 0, f3f_vae_heures: 0,
-    // Cadre F-4 — Spécialités
+    // Cadre F-4 - Spécialités
     specialites: [
       { code: '344', label: 'Sécurité des biens et des personnes (SST, Incendie)', nb: 0, heures: 0 },
       { code: '311', label: 'Transport, manutention, magasinage (Conduite d\'engins)', nb: 0, heures: 0 },
@@ -315,7 +315,7 @@ export default function BPF() {
         }
       })
 
-      // Compter par CSP — sur les PARTICIPATIONS (pas les stagiaires uniques)
+      // Compter par CSP - sur les PARTICIPATIONS (pas les stagiaires uniques)
       // pour cohérence F-1 = F-3 = F-4 (exigence Cerfa)
       let salaries = 0, demandeurs = 0, particuliers = 0, autresSt = 0
       let hommes = 0, femmes = 0
@@ -405,7 +405,7 @@ export default function BPF() {
         spec5.push(specialitesCalc[i] || { code: '', label: '', nb: 0, heures: 0 })
       }
 
-      // 8. Objectifs — Aucune formation inscrite au RS ou RNCP → tout en "Autres formations"
+      // 8. Objectifs - Aucune formation inscrite au RS ou RNCP → tout en "Autres formations"
       const totalStNb = stList.length
       const totalStHeures = totalHeuresStagiaires
 
@@ -599,7 +599,7 @@ export default function BPF() {
             <FileText className="w-6 h-6 text-blue-600" />
             Bilan Pédagogique et Financier
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Cerfa 10443*17 — Exercice {year}</p>
+          <p className="text-sm text-gray-500 mt-1">Cerfa 10443*17 - Exercice {year}</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -635,12 +635,12 @@ export default function BPF() {
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
           <CheckCircle className="w-4 h-4 text-green-600" />
           <span className="text-sm text-green-800">
-            Dernier calcul auto : {new Date(form.calculated_at).toLocaleString('fr-FR')} — {form.nb_sessions} sessions ({form.nb_sessions_realisees} terminées)
+            Dernier calcul auto : {new Date(form.calculated_at).toLocaleString('fr-FR')} - {form.nb_sessions} sessions ({form.nb_sessions_realisees} terminées)
           </span>
         </div>
       )}
 
-      {/* ═══ CADRE A — IDENTIFICATION ═══ */}
+      {/* ═══ CADRE A - IDENTIFICATION ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="A" icon={Building2} title="A. IDENTIFICATION DE L'ORGANISME DE FORMATION" />
         {openSections.A && (
@@ -673,7 +673,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE B — INFORMATIONS GÉNÉRALES ═══ */}
+      {/* ═══ CADRE B - INFORMATIONS GÉNÉRALES ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="B" icon={Info} title="B. INFORMATIONS GÉNÉRALES" />
         {openSections.B && (
@@ -696,7 +696,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE C — PRODUITS ═══ */}
+      {/* ═══ CADRE C - PRODUITS ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="C" icon={Euro} title="C. BILAN FINANCIER HT : ORIGINE DES PRODUITS" color="green" />
         {openSections.C && (
@@ -712,8 +712,8 @@ export default function BPF() {
             <NumField label="g. Dispositifs travailleurs non-salariés" field="c2g_non_salaries" sub />
             <NumField label="h. Plan de développement des compétences / OPCO" field="c2h_plan_dev" sub />
             <TotalRow label="Total ligne 2 (a à h)" value={getC2Total()} />
-            <NumField label="3. Pouvoirs publics — formation de leurs agents" field="c3_agents_publics" />
-            <p className="text-xs text-gray-500 font-medium mt-2 mb-1">Pouvoirs publics — publics spécifiques :</p>
+            <NumField label="3. Pouvoirs publics - formation de leurs agents" field="c3_agents_publics" />
+            <p className="text-xs text-gray-500 font-medium mt-2 mb-1">Pouvoirs publics - publics spécifiques :</p>
             <NumField label="4. Instances européennes" field="c4_europe" sub />
             <NumField label="5. État" field="c5_etat" sub />
             <NumField label="6. Conseils régionaux" field="c6_regions" sub />
@@ -728,7 +728,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE D — CHARGES ═══ */}
+      {/* ═══ CADRE D - CHARGES ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="D" icon={Euro} title="D. BILAN FINANCIER HT : CHARGES DE L'ORGANISME" color="red" />
         {openSections.D && (
@@ -746,7 +746,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE E — FORMATEURS ═══ */}
+      {/* ═══ CADRE E - FORMATEURS ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="E" icon={Users} title="E. PERSONNES DISPENSANT DES HEURES DE FORMATION" />
         {openSections.E && (
@@ -776,7 +776,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE F-1 — STAGIAIRES PAR TYPE ═══ */}
+      {/* ═══ CADRE F-1 - STAGIAIRES PAR TYPE ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="F1" icon={GraduationCap} title="F-1. TYPE DE STAGIAIRES" color="purple" />
         {openSections.F1 && (
@@ -814,7 +814,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE F-2 — SOUS-TRAITANCE ═══ */}
+      {/* ═══ CADRE F-2 - SOUS-TRAITANCE ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="F2" icon={GraduationCap} title="F-2. ACTIVITÉ SOUS-TRAITÉE" color="purple" />
         {openSections.F2 && (
@@ -828,7 +828,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE F-3 — OBJECTIFS ═══ */}
+      {/* ═══ CADRE F-3 - OBJECTIFS ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="F3" icon={ClipboardCheck} title="F-3. OBJECTIF GÉNÉRAL DES PRESTATIONS" color="purple" />
         {openSections.F3 && (
@@ -873,7 +873,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE F-4 — SPÉCIALITÉS ═══ */}
+      {/* ═══ CADRE F-4 - SPÉCIALITÉS ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="F4" icon={ClipboardCheck} title="F-4. SPÉCIALITÉS DE FORMATION (codes NSF)" color="purple" />
         {openSections.F4 && (
@@ -936,7 +936,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE G — SOUS-TRAITANCE REÇUE ═══ */}
+      {/* ═══ CADRE G - SOUS-TRAITANCE REÇUE ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="G" icon={GraduationCap} title="G. FORMATIONS CONFIÉES À VOTRE ORGANISME PAR UN AUTRE OF" />
         {openSections.G && (
@@ -950,7 +950,7 @@ export default function BPF() {
         )}
       </div>
 
-      {/* ═══ CADRE H — DIRIGEANT ═══ */}
+      {/* ═══ CADRE H - DIRIGEANT ═══ */}
       <div className="card space-y-3">
         <SectionHeader id="H" icon={Users} title="H. PERSONNE AYANT LA QUALITÉ DE DIRIGEANT" />
         {openSections.H && (

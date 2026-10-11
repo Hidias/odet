@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// useRelanceIA.js — Hook pour relances de devis personnalisées par IA
+// useRelanceIA.js - Hook pour relances de devis personnalisées par IA
 // Utilisation : WeeklyPlanner, Quotes.jsx, ou tout composant avec relance
 // ═══════════════════════════════════════════════════════════════
 
@@ -30,13 +30,13 @@ export function useRelanceIA() {
   const relanceQuote = async (quote, options = {}) => {
     const clientEmail = quote.clients?.contact_email
     if (!clientEmail) {
-      toast.error('Pas d\'email — ajouter dans la fiche client')
+      toast.error('Pas d\'email - ajouter dans la fiche client')
       return
     }
 
     const relanceNum = (quote.relance_count || 0) + 1
     if (relanceNum >= 4) {
-      toast.error('3 relances déjà envoyées — appeler le client directement')
+      toast.error('3 relances déjà envoyées - appeler le client directement')
       return
     }
 
@@ -112,7 +112,7 @@ export function useRelanceIA() {
       setPreviewData({
         quote,
         clientEmail,
-        subject: `${relanceNum > 1 ? 'Relance — ' : ''}Devis ${quote.reference} — ${orgName()}`,
+        subject: `${relanceNum > 1 ? 'Relance - ' : ''}Devis ${quote.reference} - ${orgName()}`,
         body: fallbackBody,
         tone: 'courtois',
         relanceNum,
@@ -159,7 +159,7 @@ export function useRelanceIA() {
       await supabase.from('quotes').update({
         relance_count: relanceNum,
         last_relance_date: format(new Date(), 'yyyy-MM-dd'),
-        notes: (quote.notes ? quote.notes + '\n' : '') + `📧 ${relanceLabel} relance IA envoyée le ${noteDate} à ${clientEmail}`,
+        notes: (quote.notes ? quote.notes + '\n' : '') + ` ${relanceLabel} relance IA envoyée le ${noteDate} à ${clientEmail}`,
         updated_at: new Date().toISOString(),
       }).eq('id', quote.id)
 
@@ -175,7 +175,7 @@ export function useRelanceIA() {
         })
       } catch {} // eslint-disable-line no-empty
 
-      toast.success(`${relanceLabel} relance envoyée ✓`)
+      toast.success(`${relanceLabel} relance envoyée `)
       setPreviewData(null)
       return true // Indique le succès pour le composant parent
     } catch (err) {

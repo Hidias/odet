@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// phoningLabels.js — Libellés partagés de l'assistant d'appel
+// phoningLabels.js - Libellés partagés de l'assistant d'appel
 // (bibliothèque éditable, panneau d'appel, mode session)
 // ════════════════════════════════════════════════════════════════
 

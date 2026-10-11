@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
-// ProspectionTerrain.jsx — Prospection terrain géolocalisée
+// ProspectionTerrain.jsx - Prospection terrain géolocalisée
 // Saisie d'une ville + rayon → liste de prospects à fort potentiel
-// Actions : appel loggué, rappel, RDV, email — comme MarinePhoning
+// Actions : appel loggué, rappel, RDV, email - comme MarinePhoning
 // ═══════════════════════════════════════════════════════════════
 
 import { teamFirstNames, teamFirstNameByEmail } from '../../../core/org/currentOrg'
@@ -20,12 +20,12 @@ import toast from 'react-hot-toast'
 
 // ─── Constantes ──────────────────────────────────────────────
 const CALL_RESULTS = [
-  { id: 'chaud',        label: '🔥 Intéressé',      sublabel: 'Veut un RDV',  color: 'bg-green-100 border-green-400 text-green-700' },
-  { id: 'tiede',        label: '🟡 Tiède',           sublabel: 'À rappeler',   color: 'bg-amber-100 border-amber-400 text-amber-700' },
-  { id: 'froid',        label: '❄️ Pas intéressé',  sublabel: 'Archiver',     color: 'bg-blue-100 border-blue-400 text-blue-700' },
-  { id: 'no_answer',    label: '📞 Pas de réponse',  sublabel: 'Répondeur',    color: 'bg-gray-100 border-gray-300 text-gray-600' },
-  { id: 'blocked',      label: '⚠️ Barrage',         sublabel: 'Secrétariat',  color: 'bg-red-100 border-red-300 text-red-600' },
-  { id: 'wrong_number', label: '❌ Faux numéro',     sublabel: 'Supprimer',    color: 'bg-purple-100 border-purple-300 text-purple-600' },
+  { id: 'chaud',        label: ' Intéressé',      sublabel: 'Veut un RDV',  color: 'bg-green-100 border-green-400 text-green-700' },
+  { id: 'tiede',        label: ' Tiède',           sublabel: 'À rappeler',   color: 'bg-amber-100 border-amber-400 text-amber-700' },
+  { id: 'froid',        label: ' Pas intéressé',  sublabel: 'Archiver',     color: 'bg-blue-100 border-blue-400 text-blue-700' },
+  { id: 'no_answer',    label: ' Pas de réponse',  sublabel: 'Répondeur',    color: 'bg-gray-100 border-gray-300 text-gray-600' },
+  { id: 'blocked',      label: ' Barrage',         sublabel: 'Secrétariat',  color: 'bg-red-100 border-red-300 text-red-600' },
+  { id: 'wrong_number', label: ' Faux numéro',     sublabel: 'Supprimer',    color: 'bg-purple-100 border-purple-300 text-purple-600' },
 ]
 
 
@@ -180,7 +180,7 @@ export default function ProspectionTerrain() {
       setProspects(results.slice(0, 100)) // Max 100
       setGenerated(true)
 
-      if (results.length === 0) toast('Aucun prospect trouvé dans cette zone', { icon: '📍' })
+      if (results.length === 0) toast('Aucun prospect trouvé dans cette zone', { icon: '' })
       else toast.success(`${results.length} prospect${results.length > 1 ? 's' : ''} trouvé${results.length > 1 ? 's' : ''} dans ${useRadius}km de ${useCity}`)
 
     } catch (err) {
@@ -271,7 +271,7 @@ export default function ProspectionTerrain() {
         p.id === selectedProspect.id ? { ...p, prospection_status: newStatus, contacted: true } : p
       ))
 
-      toast.success(`Appel enregistré — ${CALL_RESULTS.find(r => r.id === callResult)?.label}`)
+      toast.success(`Appel enregistré - ${CALL_RESULTS.find(r => r.id === callResult)?.label}`)
       setSelectedProspect(null)
 
     } catch (err) {
@@ -396,7 +396,7 @@ export default function ProspectionTerrain() {
             <div className="flex flex-col items-center justify-center h-64 text-gray-400">
               <Navigation className="w-10 h-10 mb-3 text-gray-300" />
               <p className="text-sm font-medium">Configurez une zone et cliquez sur Générer</p>
-              <p className="text-xs mt-1">Prospects triés par pertinence — à rappeler en premier</p>
+              <p className="text-xs mt-1">Prospects triés par pertinence - à rappeler en premier</p>
             </div>
           )}
           {loading && (
@@ -434,8 +434,8 @@ export default function ProspectionTerrain() {
                     <div className="flex items-center gap-3 mt-0.5 text-[11px] text-gray-500 flex-wrap">
                       <span className="flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" />{p.city} · {p.distance?.toFixed(1)}km</span>
                       {p.naf && <span>{getNafLabel(p.naf)}</span>}
-                      {p.effectif && <span>👥 {p.effectif}</span>}
-                      {p.dirigeant && <span>👤 {p.dirigeant}</span>}
+                      {p.effectif && <span> {p.effectif}</span>}
+                      {p.dirigeant && <span> {p.dirigeant}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -460,7 +460,7 @@ export default function ProspectionTerrain() {
               <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 flex-wrap">
                 <span className="flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" />{selectedProspect.city} · {selectedProspect.distance?.toFixed(1)}km</span>
                 {selectedProspect.naf && <span>{getNafLabel(selectedProspect.naf)}</span>}
-                {selectedProspect.effectif && <span>👥 {selectedProspect.effectif}</span>}
+                {selectedProspect.effectif && <span> {selectedProspect.effectif}</span>}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -504,8 +504,8 @@ export default function ProspectionTerrain() {
             {/* Infos enrichies */}
             {(selectedProspect.dirigeant || selectedProspect.email || selectedProspect.enrichment_notes) && (
               <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-xs text-gray-600">
-                {selectedProspect.dirigeant && <p>👤 Dirigeant : <strong>{selectedProspect.dirigeant}</strong></p>}
-                {selectedProspect.email && <p>✉️ {selectedProspect.email}</p>}
+                {selectedProspect.dirigeant && <p> Dirigeant : <strong>{selectedProspect.dirigeant}</strong></p>}
+                {selectedProspect.email && <p> {selectedProspect.email}</p>}
                 {selectedProspect.enrichment_notes && <p className="text-gray-400 italic">{selectedProspect.enrichment_notes}</p>}
               </div>
             )}
@@ -543,7 +543,7 @@ export default function ProspectionTerrain() {
             {/* Rappel */}
             {needsCallback && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-                <p className="text-xs font-semibold text-amber-700">📅 Programmer un rappel</p>
+                <p className="text-xs font-semibold text-amber-700"> Programmer un rappel</p>
                 <div className="grid grid-cols-2 gap-2">
                   <input type="date" value={callbackDate} onChange={e => setCallbackDate(e.target.value)}
                     className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-300 outline-none" />

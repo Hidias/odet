@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// SuiviCommercial.jsx — Suivi commercial (remplace le kanban RDV)
+// SuiviCommercial.jsx - Suivi commercial (remplace le kanban RDV)
 // Une liste d'actions, de la plus urgente à la moins urgente :
 //   comptes rendus à faire, RDV à planifier, devis à faire,
 //   à recontacter, devis à relancer, rappels du jour, RDV à venir,
@@ -472,7 +472,7 @@ export default function SuiviCommercial() {
             </>}>
               <p className="text-sm font-medium text-gray-900">
                 {cb.clients?.name || 'Client inconnu'}
-                <span className="text-xs font-normal text-gray-500"> · {cb.called_by || '—'}</span>
+                <span className="text-xs font-normal text-gray-500"> · {cb.called_by || '-'}</span>
               </p>
               <p className="text-xs text-gray-500">
                 {late > 0 ? `En retard de ${late} j` : `Aujourd'hui${cb.callback_time ? ' à ' + fmtTime(cb.callback_time) : ''}`}

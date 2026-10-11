@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { money, fmtDate as fmtDateShort, calcLineTotal as calcItemTotal } from '../../../core/utils'
 
-// sent retiré — dès l'envoi on passe directement en "due"
+// sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
   draft:    { label: 'Brouillon',  color: 'gray',   icon: FileText },
   due:      { label: 'À régler',   color: 'yellow', icon: Clock },
@@ -49,7 +49,7 @@ const calcDueDate = (terms) => {
   if (terms?.includes('fin de mois')) { d = new Date(d.getFullYear(), d.getMonth() + 1, 0) }
   return format(d, 'yyyy-MM-dd')
 }
-// ⚠️ BUG UTC : new Date('2026-08-17') est interprété comme MINUIT UTC.
+//  BUG UTC : new Date('2026-08-17') est interprété comme MINUIT UTC.
 // Comparé à new Date() (heure locale Paris, UTC+1/+2), une facture due
 // AUJOURD'HUI ressort systématiquement "en retard" dès 2h du matin.
 // Les dates SQL étant des chaînes 'YYYY-MM-DD', on les compare entre chaînes :
@@ -90,7 +90,7 @@ function getEmailTemplate(inv, relanceNumber) {
       ? `Le montant de ${refundTxt} TTC vous sera remboursé par ${refundMethod} dans les meilleurs délais.`
       : `Ce montant vient en déduction des sommes dues au titre de cette facture.`
     return {
-      subject: `Avoir N° ${ref} — ${orgName()}`,
+      subject: `Avoir N° ${ref} - ${orgName()}`,
       body: `Madame, Monsieur,
 
 Veuillez trouver ci-joint notre avoir N° ${ref} d'un montant de ${ttc} TTC, émis en régularisation de la facture N° ${parentRef}.
@@ -107,11 +107,11 @@ Restant à votre disposition pour tout renseignement complémentaire,`
   const paymentTerms = inv.payment_terms || 'à 30 jours'
   const paymentMethod = inv.payment_method || 'virement bancaire'
   const objet = inv.object || 'prestation de formation'
-  const rib = 'RIB : FR76 1558 9297 0600 0890 6894 048 — BIC : CMBRFR2BXXX (Crédit Mutuel de Bretagne)'
+  const rib = 'RIB : FR76 1558 9297 0600 0890 6894 048 - BIC : CMBRFR2BXXX (Crédit Mutuel de Bretagne)'
 
   if (relanceNumber === 1) {
     return {
-      subject: `Facture N° ${ref} — ${orgName()}`,
+      subject: `Facture N° ${ref} - ${orgName()}`,
       body: `Madame, Monsieur,
 
 Veuillez trouver ci-joint notre facture N° ${ref} d'un montant de ${ttc} TTC au titre de : ${objet}.
@@ -124,7 +124,7 @@ Restant à votre disposition pour tout renseignement complémentaire,`
     }
   } else if (relanceNumber === 2) {
     return {
-      subject: `Relance — Facture N° ${ref} — ${orgName()}`,
+      subject: `Relance - Facture N° ${ref} - ${orgName()}`,
       body: `Madame, Monsieur,
 
 Sauf erreur de notre part, la facture N° ${ref} d'un montant de ${ttc} TTC, dont l'échéance était fixée au ${dueDate}, n'a pas encore été réglée.
@@ -137,7 +137,7 @@ Restant à votre disposition,`
     }
   } else if (relanceNumber === 3) {
     return {
-      subject: `2ème relance — Facture N° ${ref} — ${orgName()}`,
+      subject: `2ème relance - Facture N° ${ref} - ${orgName()}`,
       body: `Madame, Monsieur,
 
 Nous revenons vers vous concernant la facture N° ${ref} d'un montant de ${ttc} TTC, échue le ${dueDate}, qui demeure à ce jour impayée malgré notre première relance.
@@ -151,7 +151,7 @@ Dans l'attente de votre règlement,`
   } else {
     const nRelance = relanceNumber - 1
     return {
-      subject: `URGENT — ${nRelance}ème relance — Facture N° ${ref} impayée`,
+      subject: `URGENT - ${nRelance}ème relance - Facture N° ${ref} impayée`,
       body: `Madame, Monsieur,
 
 En l'absence de règlement de la facture N° ${ref} d'un montant de ${ttc} TTC échue le ${dueDate}, et malgré nos ${nRelance - 1} précédentes relances restées sans suite, nous nous voyons contraints de vous adresser cette mise en demeure de payer.
@@ -480,7 +480,7 @@ export default function Invoices() {
     if (!sess) { toast.error('Session introuvable'); return }
 
     const isSubcontract = sess.session_type === 'subcontract'
-    if (isSubcontract && sess.subcontract_invoiced) { toast.error('⚠️ Cette session a déjà été facturée'); return }
+    if (isSubcontract && sess.subcontract_invoiced) { toast.error('Cette session a déjà été facturée'); return }
     if (sess.clients?.billing_mode === 'monthly') {
       if (!confirm(`Ce client préfère la facturation groupée (fin de mois).\n\nCréer quand même une facture individuelle ?`)) return
     }
@@ -509,12 +509,12 @@ export default function Invoices() {
       const rate = parseFloat(sess.subcontract_daily_rate) || 0
       const courseTitle = sess.subcontract_course_title || 'Formation'
       invoiceItems = [{
-        code: '', description_title: `Prestation de formation — ${courseTitle}`,
-        description_detail: `Formation du ${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}${sess.subcontract_nb_trainees ? ` — ${sess.subcontract_nb_trainees} stagiaire(s)` : ''}${sess.location_name ? ` — ${sess.location_name}` : ''}`,
+        code: '', description_title: `Prestation de formation - ${courseTitle}`,
+        description_detail: `Formation du ${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}${sess.subcontract_nb_trainees ? ` - ${sess.subcontract_nb_trainees} stagiaire(s)` : ''}${sess.location_name ? ` - ${sess.location_name}` : ''}`,
         quantity: days, unit: 'jour', unit_price_ht: rate, tva_rate: 20, course_id: null, position: 0
       }]
     } else {
-      // Prix de la session (net, remise devis incluse) sinon prix formation — même règle que la convention (pdfGenerator)
+      // Prix de la session (net, remise devis incluse) sinon prix formation - même règle que la convention (pdfGenerator)
       // Les lignes du devis ne sont plus recopiées : un devis peut couvrir plusieurs sessions et sa remise
       // est déjà intégrée dans le prix de chaque session créée depuis le devis.
       if (sess.courses) {
@@ -592,7 +592,7 @@ export default function Invoices() {
 
     const allDates = sessionsSorted.flatMap(s => [s.start_date, s.end_date]).filter(Boolean).sort()
     const titles = [...new Set(sessionsSorted.map(s => s.courses?.title).filter(Boolean))]
-    const objectTitle = `${titles.length === 1 ? titles[0] : 'Formations'} — ${sessionsSorted.length} sessions`
+    const objectTitle = `${titles.length === 1 ? titles[0] : 'Formations'} - ${sessionsSorted.length} sessions`
     setCurrent({
       reference: ref, type: 'invoice', client_id: first.client_id, contact_id: bc?.id || first.contact_id || '',
       quote_id: '', session_id: first.id, _session_ids: sessionsSorted.map(s => s.id),
@@ -641,7 +641,7 @@ export default function Invoices() {
       const courseTitle = sess.subcontract_course_title || 'Formation'
       return {
         code: '', description_title: courseTitle,
-        description_detail: `${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}${sess.subcontract_nb_trainees ? ` — ${sess.subcontract_nb_trainees} stagiaire(s)` : ''}${sess.location_name ? ` — ${sess.location_name}` : ''}${sess.subcontract_client_ref ? ` — Réf: ${sess.subcontract_client_ref}` : ''}`,
+        description_detail: `${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}${sess.subcontract_nb_trainees ? ` - ${sess.subcontract_nb_trainees} stagiaire(s)` : ''}${sess.location_name ? ` - ${sess.location_name}` : ''}${sess.subcontract_client_ref ? ` - Réf: ${sess.subcontract_client_ref}` : ''}`,
         quantity: days, unit: 'jour', unit_price_ht: rate, tva_rate: 20, course_id: null, position: i
       }
     })
@@ -656,7 +656,7 @@ export default function Invoices() {
       invoice_date: format(new Date(), 'yyyy-MM-dd'),
       service_start_date: allDates[0] || '', service_end_date: allDates[allDates.length - 1] || '',
       due_date: dd,
-      object: `Prestations de formation — ${monthLabel} (${toInvoice.length} session${toInvoice.length > 1 ? 's' : ''})`,
+      object: `Prestations de formation - ${monthLabel} (${toInvoice.length} session${toInvoice.length > 1 ? 's' : ''})`,
       payment_method: 'virement bancaire', payment_terms: clientPaymentTerms,
       discount_percent: 0, discount_label: '', tva_applicable: true,
       notes: '', created_by: currentUserName(), status: 'draft',
@@ -977,7 +977,7 @@ export default function Invoices() {
         >
           <p className="text-xs text-gray-500">À relancer</p>
           <p className="text-xl font-bold text-purple-600 mt-1">{stats.toRelance}</p>
-          <p className="text-xs text-purple-500 mt-1">{relanceFilter ? '✓ Filtre actif' : 'Cliquer pour filtrer'}</p>
+          <p className="text-xs text-purple-500 mt-1">{relanceFilter ? ' Filtre actif' : 'Cliquer pour filtrer'}</p>
         </div>
       </div>
 
@@ -1034,23 +1034,23 @@ export default function Invoices() {
                       {inv.is_subrogation && <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">OPCO</span>}
                       <RelanceBadge inv={inv} />
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{inv.clients?.name || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">{inv.object || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{inv.clients?.name || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">{inv.object || '-'}</td>
                     <td className="px-4 py-3 text-right">{money(inv.total_net_ht)}</td>
                     <td className="px-4 py-3 text-right font-medium">{money(inv.total_ttc)}</td>
-                    <td className="px-4 py-3 text-right font-medium">{parseFloat(inv.amount_due) > 0 ? <span className="text-red-600">{money(inv.amount_due)}</span> : '—'}</td>
+                    <td className="px-4 py-3 text-right font-medium">{parseFloat(inv.amount_due) > 0 ? <span className="text-red-600">{money(inv.amount_due)}</span> : '-'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-${st.color}-100 text-${st.color}-700`}>{st.label}</span>
                       {odDays > 0 && <span className="text-xs text-red-500 block">+{odDays}j</span>}
                     </td>
-                    <td className="px-4 py-3 text-center text-xs text-gray-500">{inv.due_date ? fmtDateShort(inv.due_date) : '—'}</td>
+                    <td className="px-4 py-3 text-center text-xs text-gray-500">{inv.due_date ? fmtDateShort(inv.due_date) : '-'}</td>
                     <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-1 justify-end">
                         {(isCr ? inv.status !== 'draft' : !['paid', 'cancelled', 'credited'].includes(inv.status)) && (
                           <button
                             onClick={e => openSendModal(inv, e)}
                             className={`p-1.5 rounded transition-colors ${isCr ? 'hover:bg-blue-100 text-blue-500' : relances.length >= 3 ? 'hover:bg-red-100 text-red-500' : relances.length >= 1 ? 'hover:bg-orange-100 text-orange-500' : 'hover:bg-blue-100 text-blue-500'}`}
-                            title={isCr ? (relances.length === 0 ? "Envoyer l'avoir" : "Renvoyer l'avoir") : (relances.length === 0 ? 'Envoyer la facture' : `Relance ${relances.length} — Renvoyer`)}
+                            title={isCr ? (relances.length === 0 ? "Envoyer l'avoir" : "Renvoyer l'avoir") : (relances.length === 0 ? 'Envoyer la facture' : `Relance ${relances.length} - Renvoyer`)}
                           >
                             <Mail size={14} />
                           </button>
@@ -1083,7 +1083,7 @@ export default function Invoices() {
                 <Mail size={18} className="text-blue-600" />
                 {sendModalInv.type === 'credit_note'
                   ? `${sendModalRelances.length === 0 ? 'Envoyer' : 'Renvoyer'} l'avoir ${sendModalInv.reference}`
-                  : (sendModalRelances.length === 0 ? `Envoyer ${sendModalInv.reference}` : `Relance ${sendModalRelances.length} — ${sendModalInv.reference}`)}
+                  : (sendModalRelances.length === 0 ? `Envoyer ${sendModalInv.reference}` : `Relance ${sendModalRelances.length} - ${sendModalInv.reference}`)}
               </h3>
               <button onClick={() => setShowSendModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
@@ -1230,7 +1230,7 @@ export default function Invoices() {
                       <span className={`text-xs px-1.5 py-0.5 rounded ${s.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{s.status === 'completed' ? 'Terminée' : 'En cours'}</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 truncate">{s.courses?.title} — {fmtDateShort(s.start_date)}{s.end_date !== s.start_date ? ' au ' + fmtDateShort(s.end_date) : ''}</p>
+                  <p className="text-xs text-gray-400 mt-1 truncate">{s.courses?.title} - {fmtDateShort(s.start_date)}{s.end_date !== s.start_date ? ' au ' + fmtDateShort(s.end_date) : ''}</p>
                   </button>
                 </div>
                 )
@@ -1239,7 +1239,7 @@ export default function Invoices() {
             </div>
             {selectedSessionIds.length > 0 && (
               <div className="p-4 border-t flex items-center justify-between gap-3">
-                <span className="text-sm text-gray-600">{selectedSessionIds.length} session{selectedSessionIds.length > 1 ? 's' : ''} sélectionnée{selectedSessionIds.length > 1 ? 's' : ''} — facture globale (même client)</span>
+                <span className="text-sm text-gray-600">{selectedSessionIds.length} session{selectedSessionIds.length > 1 ? 's' : ''} sélectionnée{selectedSessionIds.length > 1 ? 's' : ''} - facture globale (même client)</span>
                 <div className="flex gap-2">
                   <button onClick={() => setSelectedSessionIds([])} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Vider</button>
                   <button onClick={() => {
@@ -1426,9 +1426,9 @@ export default function Invoices() {
             <div className="col-span-2">
               <label className="text-xs text-gray-500 block mb-1">Client</label>
               {ro
-                ? <p className="text-sm font-medium">{client?.name || '—'}</p>
+                ? <p className="text-sm font-medium">{client?.name || '-'}</p>
                 : <select value={current?.client_id || ''} onChange={e => handleClientChange(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
-                    <option value="">— Sélectionner —</option>
+                    <option value="">- Sélectionner -</option>
                     {clients.filter(c => c.status !== 'inactif').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
               }
@@ -1436,10 +1436,10 @@ export default function Invoices() {
             <div>
               <label className="text-xs text-gray-500 block mb-1">Contact facturation</label>
               {ro
-                ? <p className="text-sm">{contacts.find(c => c.id === current?.contact_id)?.name || '—'}</p>
+                ? <p className="text-sm">{contacts.find(c => c.id === current?.contact_id)?.name || '-'}</p>
                 : <select value={current?.contact_id || ''} onChange={e => setCurrent({...current, contact_id: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm">
-                    <option value="">— Aucun —</option>
-                    {contacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.is_billing ? ' 💰' : c.is_primary ? ' ⭐' : ''}</option>)}
+                    <option value="">- Aucun -</option>
+                    {contacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.is_billing ? ' ' : c.is_primary ? ' ' : ''}</option>)}
                   </select>
               }
             </div>
@@ -1450,16 +1450,16 @@ export default function Invoices() {
           <div className="mt-4 border-t pt-4">
             <div className="flex items-center gap-3 mb-3">
               <input type="checkbox" id="is_subrogation" checked={current?.is_subrogation || false} onChange={e => setCurrent({...current, is_subrogation: e.target.checked, ...(!e.target.checked && {billing_client_id: ''})})} disabled={ro} className="w-4 h-4 rounded text-amber-500" />
-              <label htmlFor="is_subrogation" className="text-sm font-medium text-gray-700">💼 Subrogation OPCO <span className="text-xs text-gray-400 font-normal">— Facturer à un tiers payeur (OPCO, organisme financeur)</span></label>
+              <label htmlFor="is_subrogation" className="text-sm font-medium text-gray-700"> Subrogation OPCO <span className="text-xs text-gray-400 font-normal">- Facturer à un tiers payeur (OPCO, organisme financeur)</span></label>
             </div>
             {current?.is_subrogation && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pl-7 border-l-2 border-amber-200">
                 <div className="col-span-2">
                   <label className="text-xs text-gray-500 block mb-1">Client de facturation (OPCO)</label>
                   {ro
-                    ? <p className="text-sm font-medium text-amber-700">{clients.find(c => c.id === current?.billing_client_id)?.name || '—'}</p>
+                    ? <p className="text-sm font-medium text-amber-700">{clients.find(c => c.id === current?.billing_client_id)?.name || '-'}</p>
                     : <select value={current?.billing_client_id || ''} onChange={e => setCurrent({...current, billing_client_id: e.target.value})} className="w-full border border-amber-300 rounded-lg px-3 py-2 text-sm bg-amber-50">
-                        <option value="">— Sélectionner l'OPCO —</option>
+                        <option value="">- Sélectionner l'OPCO -</option>
                         {clients.filter(c => c.status !== 'inactif').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                   }
@@ -1486,10 +1486,10 @@ export default function Invoices() {
                   }}
                   className={`w-full border rounded-lg px-3 py-2 text-sm ${current?.parent_invoice_id ? '' : 'border-orange-400 bg-orange-50'}`}
                 >
-                  <option value="">— Sélectionner la facture —</option>
+                  <option value="">- Sélectionner la facture -</option>
                   {invoices
                     .filter(i => i.type === 'invoice' && (i.id === current?.parent_invoice_id || (CREDITABLE_STATUSES.includes(i.status) && creditableOf(i, current?.id || null) > 0.01 && (!current?.client_id || i.client_id === current.client_id))))
-                    .map(i => <option key={i.id} value={i.id}>{i.reference} — {i.clients?.name || ''} — créditable {money(creditableOf(i, current?.id || null))}</option>)}
+                    .map(i => <option key={i.id} value={i.id}>{i.reference} - {i.clients?.name || ''} - créditable {money(creditableOf(i, current?.id || null))}</option>)}
                 </select>
               </div>
             ) : (
@@ -1526,7 +1526,7 @@ export default function Invoices() {
               <div className="relative group">
                 <button className="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50">+ Depuis formation</button>
                 <div className="absolute left-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-10 w-64 max-h-48 overflow-y-auto hidden group-hover:block">
-                  {courses.map(c => <button key={c.id} onClick={() => addFromCourse(c)} className="w-full text-left px-3 py-2 hover:bg-gray-50 text-xs border-b"><span className="font-medium">{c.code}</span> — {c.title} ({money(c.price_ht)})</button>)}
+                  {courses.map(c => <button key={c.id} onClick={() => addFromCourse(c)} className="w-full text-left px-3 py-2 hover:bg-gray-50 text-xs border-b"><span className="font-medium">{c.code}</span> - {c.title} ({money(c.price_ht)})</button>)}
                 </div>
               </div>
             </div>
@@ -1684,7 +1684,7 @@ export default function Invoices() {
                 <Mail size={18} className="text-blue-600" />
                 {sendModalInv.type === 'credit_note'
                   ? `${sendModalRelances.length === 0 ? 'Envoyer' : 'Renvoyer'} l'avoir ${sendModalInv.reference}`
-                  : (sendModalRelances.length === 0 ? `Envoyer ${sendModalInv.reference}` : `Relance ${sendModalRelances.length} — ${sendModalInv.reference}`)}
+                  : (sendModalRelances.length === 0 ? `Envoyer ${sendModalInv.reference}` : `Relance ${sendModalRelances.length} - ${sendModalInv.reference}`)}
               </h3>
               <button onClick={() => setShowSendModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>

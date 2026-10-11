@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// PrepRdvModal.jsx — Préparer un RDV (fin de session ou suivi)
+// PrepRdvModal.jsx - Préparer un RDV (fin de session ou suivi)
 // Enregistre dans prospect_rdv.prep_data et génère le PDF.
 // ════════════════════════════════════════════════════════════════
 

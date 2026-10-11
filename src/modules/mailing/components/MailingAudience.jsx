@@ -1,6 +1,6 @@
 // src/components/mailing/MailingAudience.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Mailing — Sélection des destinataires (1 ligne = 1 adresse e-mail)
+// Mailing - Sélection des destinataires (1 ligne = 1 adresse e-mail)
 //
 //   • Source : vue mailing_audience_v (prospects + fiches CRM + clients + contacts)
 //   • Filtres combinables, tri, pagination réglable
@@ -168,7 +168,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
       next.set(r.email, r); added++
     }
     onChange(next)
-    toast(`${added} destinataire${added > 1 ? 's' : ''} repris${skipped ? ` · ${skipped} désormais exclu${skipped > 1 ? 's' : ''}` : ''}`, { icon: '📋' })
+    toast(`${added} destinataire${added > 1 ? 's' : ''} repris${skipped ? ` · ${skipped} désormais exclu${skipped > 1 ? 's' : ''}` : ''}`, { icon: '' })
   }, [withReason, preselectEmails])
 
   // ── Valeurs disponibles pour les filtres ──
@@ -323,12 +323,12 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
   const selection = [...value.values()]
   const recapDeps = useMemo(() => {
     const c = {}
-    selection.forEach(r => { const d = (r.departements || [])[0] || '—'; c[d] = (c[d] || 0) + 1 })
+    selection.forEach(r => { const d = (r.departements || [])[0] || '-'; c[d] = (c[d] || 0) + 1 })
     return Object.entries(c).sort((a, b) => b[1] - a[1])
   }, [value])
   const recapSect = useMemo(() => {
     const c = {}
-    selection.forEach(r => { const n = normNaf((r.nafs || [])[0] || ''); const k = n ? n.slice(0, 2) : '—'; c[k] = (c[k] || 0) + 1 })
+    selection.forEach(r => { const n = normNaf((r.nafs || [])[0] || ''); const k = n ? n.slice(0, 2) : '-'; c[k] = (c[k] || 0) + 1 })
     return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 12)
   }, [value])
   const recentCount = selection.filter(r => r.last_sent_at && daysSince(r.last_sent_at) < RECENT_DAYS).length
@@ -409,7 +409,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
           {etiquetteOptions.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="w-24 text-gray-500 font-medium">Liste importée</span>
-              {etiquetteOptions.map(e => <Chip key={e} color="purple" active={f.etiquettes.includes(e)} onClick={() => setF({ etiquettes: toggleIn(f.etiquettes, e) })}>📂 {e}</Chip>)}
+              {etiquetteOptions.map(e => <Chip key={e} color="purple" active={f.etiquettes.includes(e)} onClick={() => setF({ etiquettes: toggleIn(f.etiquettes, e) })}> {e}</Chip>)}
             </div>
           )}
           <div className="flex flex-wrap items-center gap-1.5">
@@ -527,16 +527,16 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
                           {(r.source_types || []).includes('contact') && <span className="px-1 rounded bg-green-50 text-green-700 text-[10px]">Contact{r.prenom || r.nom ? ` · ${[r.prenom, r.nom].filter(Boolean).join(' ')}` : ''}</span>}
                           {(r.source_types || []).includes('crm') && <span className="px-1 rounded bg-blue-100 text-blue-700 text-[10px]">CRM</span>}
                           {r.nb_lignes > 1 && <span className="px-1 rounded bg-purple-100 text-purple-700 text-[10px]" title={(r.villes || []).join(', ')}>{r.nb_lignes} fiches · 1 envoi</span>}
-                          {r.email_status === 'a_verifier' && <span className="px-1 rounded bg-amber-100 text-amber-700 text-[10px]">⚠️ à vérifier</span>}
+                          {r.email_status === 'a_verifier' && <span className="px-1 rounded bg-amber-100 text-amber-700 text-[10px]"> à vérifier</span>}
                           {(r.email_flags || []).filter(x => x === 'service').map(x => <span key={x} className="px-1 rounded bg-gray-100 text-gray-500 text-[10px]">{FLAG_LABELS[x]}</span>)}
                         </div>
                         <div className="text-gray-400 break-all">{r.email}</div>
                       </td>
                       <td className="px-2 py-2 align-top text-gray-500 hidden md:table-cell whitespace-nowrap" title={(r.villes || []).join(', ')}>
-                        {r.city || '—'}{(r.villes || []).length > 1 && <span className="text-gray-300"> +{r.villes.length - 1}</span>}
+                        {r.city || '-'}{(r.villes || []).length > 1 && <span className="text-gray-300"> +{r.villes.length - 1}</span>}
                         {(r.departements || [])[0] && <span className="text-gray-300"> ({r.departements[0]})</span>}
                       </td>
-                      <td className="px-2 py-2 align-top text-gray-400 hidden lg:table-cell">{(r.nafs || [])[0] || '—'}</td>
+                      <td className="px-2 py-2 align-top text-gray-400 hidden lg:table-cell">{(r.nafs || [])[0] || '-'}</td>
                       <td className="px-2 py-2 align-top text-right whitespace-nowrap">
                         {r._reason ? (
                           <span className={`px-1.5 py-0.5 rounded text-[10px] ${hard ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-700'}`}>
@@ -584,7 +584,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
             <strong className="text-blue-900 text-sm">{value.size} destinataire{value.size > 1 ? 's' : ''} sélectionné{value.size > 1 ? 's' : ''}</strong>
             {recentCount > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" title="Avertissement seulement : l'envoi reste possible">
-                ⚠️ {recentCount} déjà mailé{recentCount > 1 ? 's' : ''} il y a moins de {RECENT_DAYS} j
+                 {recentCount} déjà mailé{recentCount > 1 ? 's' : ''} il y a moins de {RECENT_DAYS} j
                 <button onClick={() => removeWhere(r => r.last_sent_at && daysSince(r.last_sent_at) < RECENT_DAYS, 'mailés récemment')} className="ml-1 underline">retirer</button>
               </span>
             )}
@@ -596,7 +596,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
             {recapDeps.map(([d, n]) => (
               <span key={d} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border">
                 {d} : {n}
-                <button onClick={() => removeWhere(r => ((r.departements || [])[0] || '—') === d, `département ${d}`)} className="text-gray-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                <button onClick={() => removeWhere(r => ((r.departements || [])[0] || '-') === d, `département ${d}`)} className="text-gray-400 hover:text-red-500"><X className="w-3 h-3" /></button>
               </span>
             ))}
           </div>
@@ -605,7 +605,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
             {recapSect.map(([k, n]) => (
               <span key={k} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border">
                 {k} : {n}
-                <button onClick={() => removeWhere(r => { const x = normNaf((r.nafs || [])[0] || ''); return (x ? x.slice(0, 2) : '—') === k }, `NAF ${k}`)} className="text-gray-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                <button onClick={() => removeWhere(r => { const x = normNaf((r.nafs || [])[0] || ''); return (x ? x.slice(0, 2) : '-') === k }, `NAF ${k}`)} className="text-gray-400 hover:text-red-500"><X className="w-3 h-3" /></button>
               </span>
             ))}
           </div>

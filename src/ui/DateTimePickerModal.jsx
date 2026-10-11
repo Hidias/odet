@@ -55,7 +55,7 @@ export default function DateTimePickerModal({ isOpen, onClose, onSave, title, cu
           {/* Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              📅 Date
+               Date
             </label>
             <input
               type="date"
@@ -68,7 +68,7 @@ export default function DateTimePickerModal({ isOpen, onClose, onSave, title, cu
           {/* Heure */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              🕐 Heure
+               Heure
             </label>
             <input
               type="time"

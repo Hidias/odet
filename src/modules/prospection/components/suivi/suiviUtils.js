@@ -1,6 +1,6 @@
 import { teamFirstNames, teamNameByFirstName, teamFirstNameByEmail } from '../../../../core/org/currentOrg'
 // ════════════════════════════════════════════════════════════════
-// suiviUtils.js — Outils partagés du Suivi commercial
+// suiviUtils.js - Outils partagés du Suivi commercial
 // ════════════════════════════════════════════════════════════════
 // Dates : toujours en heure locale (jamais toISOString().split('T')[0],
 // qui donne le mauvais jour entre minuit et 2h).

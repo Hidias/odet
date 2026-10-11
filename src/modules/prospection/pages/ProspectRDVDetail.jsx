@@ -17,9 +17,9 @@ import PrepRdvModal from '../components/suivi/PrepRdvModal'
 import { OUTCOME_LABELS, authorFromEmail, todayStr, fmtDate as fmtDateLocal } from '../components/suivi/suiviUtils'
 
 const RESULT_LABELS = {
-  chaud: '🔥 Intéressé', tiede: '🟡 Tiède', froid: '❄️ Refus',
-  no_answer: '📵 Injoignable', blocked: '⚠️ Barrage', wrong_number: '❌ N° erroné',
-  a_rappeler: '🔔 À rappeler',
+  chaud: ' Intéressé', tiede: ' Tiède', froid: ' Refus',
+  no_answer: ' Injoignable', blocked: ' Barrage', wrong_number: ' N° erroné',
+  a_rappeler: ' À rappeler',
 }
 const RESULT_COLORS = {
   chaud: 'bg-red-50 border-red-200 text-red-800',
@@ -274,11 +274,11 @@ export default function ProspectRDVDetail() {
       setFormData(f => ({ ...f, ...patch }))
       // Log interaction
       if (formData.client_id) {
-        const label = newStatus === 'realise' ? '✅ RDV réalisé' : newStatus === 'annule' ? '❌ RDV annulé' : newStatus
+        const label = newStatus === 'realise' ? ' RDV réalisé' : newStatus === 'annule' ? ' RDV annulé' : newStatus
         const { data: inter } = await supabase.from('client_interactions').insert({
           client_id: formData.client_id,
           type: 'meeting',
-          title: label + ' — ' + (selectedClient?.name || ''),
+          title: label + ' - ' + (selectedClient?.name || ''),
           content: formData.notes || '',
           author: authorFromEmail(user?.email),
           interaction_date: new Date().toISOString(),
@@ -298,7 +298,7 @@ export default function ProspectRDVDetail() {
       const { data: inter, error } = await supabase.from('client_interactions').insert({
         client_id: formData.client_id,
         type: 'note',
-        title: '📝 Note ' + author,
+        title: ' Note ' + author,
         content: newNote.trim(),
         author,
         interaction_date: new Date().toISOString(),
@@ -431,7 +431,7 @@ export default function ProspectRDVDetail() {
               )}
               {formData.formations_interet?.length > 0 && formData.formations_interet.map(f => (
                 <span key={f} className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                  🎓 {f}
+                   {f}
                 </span>
               ))}
             </div>
@@ -463,23 +463,23 @@ export default function ProspectRDVDetail() {
             <button onClick={() => setFormData(f => ({ ...f, status: 'prevu' }))}
               className={'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ' +
                 (formData.status === 'prevu' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50')}>
-              📅 Prévu
+               Prévu
             </button>
           )}
           <button onClick={() => setFormData(f => ({ ...f, status: 'a_prendre', rdv_date: '', rdv_time: '' }))}
             className={'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ' +
               (formData.status === 'a_prendre' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-red-50')}>
-            🔴 À planifier
+             À planifier
           </button>
           <button onClick={() => handleQuickStatus('realise')}
             className={'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ' +
               (formData.status === 'realise' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-green-50')}>
-            ✅ Réalisé
+             Réalisé
           </button>
           <button onClick={() => handleQuickStatus('annule')}
             className={'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ' +
               (formData.status === 'annule' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50')}>
-            ❌ Annulé
+             Annulé
           </button>
           {(formData.status === 'realise' || (formData.status === 'prevu' && formData.rdv_date && formData.rdv_date < todayStr())) && (
             <button onClick={() => setShowSuite(true)}
@@ -548,10 +548,10 @@ export default function ProspectRDVDetail() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
                 <div className="flex gap-2 flex-wrap">
                   {[
-                    { value: 'a_prendre', label: '🔴 À planifier' },
-                    { value: 'prevu', label: '📅 Prévu' },
-                    { value: 'realise', label: '✅ Réalisé' },
-                    { value: 'annule', label: '❌ Annulé' },
+                    { value: 'a_prendre', label: ' À planifier' },
+                    { value: 'prevu', label: ' Prévu' },
+                    { value: 'realise', label: ' Réalisé' },
+                    { value: 'annule', label: ' Annulé' },
                   ].map(s => (
                     <button key={s.value} type="button"
                       onClick={() => setFormData({ ...formData, status: s.value })}
@@ -594,10 +594,10 @@ export default function ProspectRDVDetail() {
                   <select value={formData.rdv_location}
                     onChange={e => setFormData({ ...formData, rdv_location: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm">
-                    <option value="leurs_locaux">📍 Leurs locaux</option>
-                    <option value="nos_locaux">🏢 Nos locaux</option>
-                    <option value="visio">💻 Visio</option>
-                    <option value="telephone">📞 Téléphone</option>
+                    <option value="leurs_locaux"> Leurs locaux</option>
+                    <option value="nos_locaux"> Nos locaux</option>
+                    <option value="visio"> Visio</option>
+                    <option value="telephone"> Téléphone</option>
                   </select>
                 </div>
               </>)}
@@ -616,7 +616,7 @@ export default function ProspectRDVDetail() {
                 <input type="checkbox" id="urgent" checked={formData.is_urgent}
                   onChange={e => setFormData({ ...formData, is_urgent: e.target.checked })}
                   className="w-4 h-4 rounded border-gray-300 text-red-600" />
-                <label htmlFor="urgent" className="text-sm text-gray-700 cursor-pointer">🔴 Urgent</label>
+                <label htmlFor="urgent" className="text-sm text-gray-700 cursor-pointer"> Urgent</label>
               </div>
             </div>
           </div>
@@ -637,7 +637,7 @@ export default function ProspectRDVDetail() {
                       else setFormData({ ...formData, contact_id: null, contact_name: '', contact_email: '', contact_phone: '' })
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm">
-                    <option value="">— Saisie manuelle —</option>
+                    <option value="">- Saisie manuelle -</option>
                     {contacts.map(c => <option key={c.id} value={c.id}>{c.name} {c.is_primary && '(Principal)'}</option>)}
                   </select>
                 </div>
@@ -782,7 +782,7 @@ export default function ProspectRDVDetail() {
                     <div className={'rounded-lg border p-3 text-xs space-y-1.5 ' + (RESULT_COLORS[item.result] || 'bg-gray-50 border-gray-200')}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold">
-                          📞 {item.author} — {RESULT_LABELS[item.result] || item.result}
+                           {item.author} - {RESULT_LABELS[item.result] || item.result}
                         </span>
                         <span className="opacity-60 whitespace-nowrap">{fmtDateTime(item.date)}</span>
                       </div>
@@ -790,7 +790,7 @@ export default function ProspectRDVDetail() {
                         <div className="flex items-center gap-1.5 opacity-90">
                           <User className="w-3 h-3" />
                           <span className="font-medium">{item.contact_name}</span>
-                          {item.contact_function && <span className="opacity-70">— {item.contact_function}</span>}
+                          {item.contact_function && <span className="opacity-70">- {item.contact_function}</span>}
                         </div>
                       )}
                       {item.contact_mobile && (
@@ -808,7 +808,7 @@ export default function ProspectRDVDetail() {
                         <div className="flex flex-wrap gap-1 mt-1">
                           {item.formations.map(f => (
                             <span key={f} className="px-1.5 py-0.5 bg-white/60 rounded border border-current/20 font-medium">
-                              🎓 {f}
+                               {f}
                             </span>
                           ))}
                         </div>
@@ -820,7 +820,7 @@ export default function ProspectRDVDetail() {
                       )}
                       {item.duration > 0 && (
                         <p className="opacity-50 text-[10px]">
-                          ⏱ {Math.floor(item.duration / 60)}min {item.duration % 60}s
+                           {Math.floor(item.duration / 60)}min {item.duration % 60}s
                         </p>
                       )}
                     </div>
@@ -861,7 +861,7 @@ export default function ProspectRDVDetail() {
             {showFullNotes && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Contenu brut — figé sauf modification volontaire</span>
+                  <span className="text-xs text-gray-400">Contenu brut - figé sauf modification volontaire</span>
                   <SpeechToTextButton onTranscript={text => setFormData(f => ({ ...f, notes: f.notes ? f.notes + ' ' + text : text }))} />
                 </div>
                 <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })}

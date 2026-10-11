@@ -344,7 +344,7 @@ export default function Indicateurs() {
         preventive_action: ''
       }
       
-      console.log('🔧 Création NC avec données:', ncData)
+      console.log('Création NC avec données:', ncData)
       
       const { data: nc, error: insertError } = await supabase
         .from('non_conformites')
@@ -353,12 +353,12 @@ export default function Indicateurs() {
         .single()
       
       if (insertError) {
-        console.error('❌ Erreur création NC:', insertError)
+        console.error('Erreur création NC:', insertError)
         toast.error(`Erreur création NC: ${insertError.message}`)
         return
       }
       
-      console.log('✅ NC créée:', nc.id)
+      console.log('NC créée:', nc.id)
       
       // Mettre à jour l'alerte avec le lien vers la NC
       const { error: updateError } = await supabase
@@ -371,16 +371,16 @@ export default function Indicateurs() {
         .eq('id', alert.id)
       
       if (updateError) {
-        console.error('❌ Erreur update alerte:', updateError)
+        console.error('Erreur update alerte:', updateError)
         toast.error(`NC créée mais erreur liaison: ${updateError.message}`)
       } else {
-        console.log('✅ Alerte liée à NC:', alert.id, '→', nc.id)
+        console.log('Alerte liée à NC:', alert.id, '→', nc.id)
         toast.success(`Non-conformité créée: ${nc.title}`)
       }
       
       await reloadAlerts()
     } catch (err) {
-      console.error('❌ Erreur inattendue handleCreateNC:', err)
+      console.error('Erreur inattendue handleCreateNC:', err)
       toast.error(`Erreur inattendue: ${err.message}`)
     }
   }
@@ -448,7 +448,7 @@ export default function Indicateurs() {
     
     // DEBUG
     if (e.session_id === '9bdd3c72-1cea-494a-a406-e7089b0b602e') {
-      console.log('🔍 Eval found for session MK2TZI7S:', {
+      console.log('Eval found for session MK2TZI7S:', {
         trainee_id: e.trainee_id,
         traineeResult: traineeResult,
         presence_complete: traineeResult?.presence_complete,
@@ -460,7 +460,7 @@ export default function Indicateurs() {
     return traineeResult && (traineeResult.presence_complete === true || traineeResult.early_departure === true)
   })
   
-  console.log('📊 Indicateurs - Évaluations filtrées:', {
+  console.log('Indicateurs - Évaluations filtrées:', {
     total_hot_evals: traineeEvals.length,
     filtered_hot_evals: filteredHotEvals.length,
     total_trainee_results: traineeResults.length

@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// callContext.js — Contexte affiché pendant l'appel
+// callContext.js - Contexte affiché pendant l'appel
 //   - fiche client (si elle existe), formations suivies / non suivies,
 //     échéance MAC SST, devis en cours, sessions prévues
 //   - dernier échange, dernier mail, dernier mailing
@@ -219,7 +219,7 @@ export async function loadCallContext({ prospect, clientId }) {
   const alerts = []
   const recentCall = realCalls.find(c => diffDays(String(c.called_at).slice(0, 10), today) < 7)
   if (recentCall) {
-    alerts.push(`Appelé il y a ${diffDays(String(recentCall.called_at).slice(0, 10), today)} j par ${recentCall.called_by || '—'}`)
+    alerts.push(`Appelé il y a ${diffDays(String(recentCall.called_at).slice(0, 10), today)} j par ${recentCall.called_by || '-'}`)
   }
   if (openQuotes.length > 0) {
     alerts.push(`${openQuotes.length} devis en cours : ce n'est pas un appel de prospection`)

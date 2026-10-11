@@ -46,12 +46,12 @@ export default function StageEmailModal({ session, onClose }) {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
 
-  // Zone 1 — Fichiers SST (un par stagiaire)
+  // Zone 1 - Fichiers SST (un par stagiaire)
   const [sstFiles, setSstFiles] = useState([])            // { id, name, base64, size }
   const [sstAttributions, setSstAttributions] = useState({}) // { traineeId: sstFileId }
   const sstLineInserted = useRef(false)
 
-  // Zone 2 — Fichiers communs (tous les stagiaires sélectionnés)
+  // Zone 2 - Fichiers communs (tous les stagiaires sélectionnés)
   const [commonFiles, setCommonFiles] = useState([])       // { id, name, base64, size, mimeType }
 
   // Compte rendu IA
@@ -115,7 +115,7 @@ export default function StageEmailModal({ session, onClose }) {
     [courseTitle, startDate, endDate, formateur, docStagiaire])
 
   useEffect(() => {
-    setEmailSubject(`Documents de formation – ${courseTitle} (${ref})`)
+    setEmailSubject(`Documents de formation - ${courseTitle} (${ref})`)
     setEmailBody(buildTemplate('[Prénom]'))
     sstLineInserted.current = false
   }, [courseTitle, ref, buildTemplate])
@@ -231,7 +231,7 @@ export default function StageEmailModal({ session, onClose }) {
     if (error) throw error
   }
 
-  // Upload des fichiers communs — une seule fois avant la boucle d'envoi
+  // Upload des fichiers communs - une seule fois avant la boucle d'envoi
   const uploadCommonFiles = async () => {
     if (commonFiles.length === 0) return []
     const basePath = `stagiaire-emails/${session.id}/commun/${Date.now()}`
@@ -394,13 +394,13 @@ export default function StageEmailModal({ session, onClose }) {
   // ── Compte rendu IA ───────────────────────────────────────────────────────
 
   const Q_LABELS = {
-    q_org_documents: 'Organisation — Documents préparés', q_org_accueil: 'Organisation — Accueil',
-    q_org_locaux: 'Organisation — Locaux', q_org_materiel: 'Organisation — Matériel',
-    q_contenu_organisation: 'Contenu — Organisation', q_contenu_supports: 'Contenu — Supports',
-    q_contenu_duree: 'Contenu — Durée', q_contenu_programme: 'Contenu — Programme',
-    q_formateur_pedagogie: 'Formateur — Pédagogie', q_formateur_expertise: 'Formateur — Expertise',
-    q_formateur_progression: 'Formateur — Progression', q_formateur_moyens: 'Formateur — Moyens',
-    q_global_adequation: 'Global — Adéquation', q_global_competences: 'Global — Compétences acquises',
+    q_org_documents: 'Organisation - Documents préparés', q_org_accueil: 'Organisation - Accueil',
+    q_org_locaux: 'Organisation - Locaux', q_org_materiel: 'Organisation - Matériel',
+    q_contenu_organisation: 'Contenu - Organisation', q_contenu_supports: 'Contenu - Supports',
+    q_contenu_duree: 'Contenu - Durée', q_contenu_programme: 'Contenu - Programme',
+    q_formateur_pedagogie: 'Formateur - Pédagogie', q_formateur_expertise: 'Formateur - Expertise',
+    q_formateur_progression: 'Formateur - Progression', q_formateur_moyens: 'Formateur - Moyens',
+    q_global_adequation: 'Global - Adéquation', q_global_competences: 'Global - Compétences acquises',
   }
   const Q_KEYS = Object.keys(Q_LABELS)
 
@@ -425,7 +425,7 @@ export default function StageEmailModal({ session, onClose }) {
     setCrGenerating(true); setCrError(null)
     const scoresText = Q_KEYS.filter(k => evalData.scores[k] !== null).map(k => `- ${Q_LABELS[k]} : ${evalData.scores[k]}/5`).join('\n')
     const commentsText = evalData.comments.length ? evalData.comments.map((c, i) => `${i + 1}. « ${c} »`).join('\n') : 'Aucun commentaire libre.'
-    const prompt = `Tu es l'assistant de l'organisme de formation ${orgName()}${orgCity() ? ` (${orgCity()})` : ''}.\nFormation : ${courseTitle} — Référence : ${ref}\nDates : du ${startDate} au ${endDate} — Formateur : ${formateur}\nStagiaires ayant répondu : ${evalData.total} sur ${evalData.totalTrainees}\nScore moyen global : ${evalData.globalScore}/5 — Taux de recommandation : ${evalData.tauxReco !== null ? evalData.tauxReco + '%' : 'non calculé'}\n\nScores :\n${scoresText}\n\nCommentaires :\n${commentsText}\n\nÉcris un compte rendu professionnel de 80-150 mots. Réponds uniquement avec le texte, sans titre ni introduction.`
+    const prompt = `Tu es l'assistant de l'organisme de formation ${orgName()}${orgCity() ? ` (${orgCity()})` : ''}.\nFormation : ${courseTitle} - Référence : ${ref}\nDates : du ${startDate} au ${endDate} - Formateur : ${formateur}\nStagiaires ayant répondu : ${evalData.total} sur ${evalData.totalTrainees}\nScore moyen global : ${evalData.globalScore}/5 - Taux de recommandation : ${evalData.tauxReco !== null ? evalData.tauxReco + '%' : 'non calculé'}\n\nScores :\n${scoresText}\n\nCommentaires :\n${commentsText}\n\nÉcris un compte rendu professionnel de 80-150 mots. Réponds uniquement avec le texte, sans titre ni introduction.`
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -454,7 +454,7 @@ export default function StageEmailModal({ session, onClose }) {
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Mail className="w-5 h-5" />
             Envoyer documents aux stagiaires
-            {step === 'preview' && <span className="text-sm font-normal opacity-75 ml-1">— Prévisualisation</span>}
+            {step === 'preview' && <span className="text-sm font-normal opacity-75 ml-1">- Prévisualisation</span>}
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-primary-700 rounded">
             <X className="w-5 h-5" />
@@ -472,7 +472,7 @@ export default function StageEmailModal({ session, onClose }) {
               <div className="bg-gray-50 border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-gray-700">
-                    Destinataires — {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''} / {trainees.length}
+                    Destinataires - {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''} / {trainees.length}
                   </p>
                   <button
                     onClick={() => {
@@ -552,10 +552,10 @@ export default function StageEmailModal({ session, onClose }) {
                   <FileText className="w-4 h-4" /> Pièces jointes générées automatiquement (par stagiaire)
                 </p>
                 <ul className="text-sm text-blue-700 space-y-0.5 ml-4 list-disc">
-                  <li>Certificat de réalisation — <em>Certificat_{ref}_[Nom].pdf</em></li>
-                  <li>Attestation de présence — <em>Attestation_{ref}_[Nom].pdf</em></li>
-                  <li>Évaluation à froid — <em>EvaluationFroid_{ref}_[Nom].pdf</em></li>
-                  {docStagiaire && <li>{docStagiaire.title} — <em>{docStagiaire.file_name}</em></li>}
+                  <li>Certificat de réalisation - <em>Certificat_{ref}_[Nom].pdf</em></li>
+                  <li>Attestation de présence - <em>Attestation_{ref}_[Nom].pdf</em></li>
+                  <li>Évaluation à froid - <em>EvaluationFroid_{ref}_[Nom].pdf</em></li>
+                  {docStagiaire && <li>{docStagiaire.title} - <em>{docStagiaire.file_name}</em></li>}
                 </ul>
               </div>
 
@@ -567,7 +567,7 @@ export default function StageEmailModal({ session, onClose }) {
                       <ShieldCheck className="w-4 h-4" /> Certificats SST Forprev (par stagiaire)
                     </p>
                     <p className="text-xs text-green-600 mt-0.5">
-                      Attribution automatique par nom — vérifiez et corrigez si nécessaire
+                      Attribution automatique par nom - vérifiez et corrigez si nécessaire
                     </p>
                   </div>
                   {sstFiles.length > 0 && (
@@ -615,7 +615,7 @@ export default function StageEmailModal({ session, onClose }) {
                                 isUnmatched ? 'border-amber-300 text-amber-700' : 'border-gray-300 text-gray-700'
                               }`}
                             >
-                              <option value="">— Non attribué —</option>
+                              <option value="">- Non attribué -</option>
                               {trainees.map(t => (
                                 <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
                               ))}
@@ -634,7 +634,7 @@ export default function StageEmailModal({ session, onClose }) {
                     <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                       <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-700">
-                        {unmatchedSstFiles.length} fichier{unmatchedSstFiles.length > 1 ? 's' : ''} non attribué{unmatchedSstFiles.length > 1 ? 's' : ''} — vérifiez les listes déroulantes ci-dessus.
+                        {unmatchedSstFiles.length} fichier{unmatchedSstFiles.length > 1 ? 's' : ''} non attribué{unmatchedSstFiles.length > 1 ? 's' : ''} - vérifiez les listes déroulantes ci-dessus.
                       </p>
                     </div>
                   )}
@@ -679,17 +679,17 @@ export default function StageEmailModal({ session, onClose }) {
                   <div className="border border-purple-200 rounded-lg overflow-hidden">
                     <div className="bg-purple-50 px-4 py-3 flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-purple-800">📋 Compte rendu de formation</p>
+                        <p className="text-sm font-semibold text-purple-800"> Compte rendu de formation</p>
                         <p className="text-xs text-purple-600 mt-0.5">
                           {evals.length > 0
-                            ? `${evals.length} éval${evals.length > 1 ? 's' : ''} — Score : ${evalData?.globalScore || '—'}/5 — Reco : ${evalData?.tauxReco !== null ? evalData.tauxReco + '%' : '—'}`
+                            ? `${evals.length} éval${evals.length > 1 ? 's' : ''} - Score : ${evalData?.globalScore || '-'}/5 - Reco : ${evalData?.tauxReco !== null ? evalData.tauxReco + '%' : '-'}`
                             : 'Aucune évaluation à chaud disponible'}
                         </p>
                       </div>
                       {evals.length > 0 && (
                         <button onClick={generateCompteRendu} disabled={crGenerating}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50">
-                          {crGenerating ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <span>✨</span>}
+                          {crGenerating ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <span></span>}
                           {crGenerating ? 'Génération…' : (compteRendu ? 'Regénérer' : "Générer avec l'IA")}
                         </button>
                       )}
@@ -735,7 +735,7 @@ export default function StageEmailModal({ session, onClose }) {
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
               >
                 <Eye className="w-5 h-5" />
-                Prévisualiser avant envoi — {selectedCount} stagiaire{selectedCount > 1 ? 's' : ''}
+                Prévisualiser avant envoi - {selectedCount} stagiaire{selectedCount > 1 ? 's' : ''}
               </button>
             </div>
           )}
@@ -744,7 +744,7 @@ export default function StageEmailModal({ session, onClose }) {
           {step === 'preview' && (
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-                <p className="text-sm font-semibold text-blue-800">👁 Vérifiez les documents avant envoi</p>
+                <p className="text-sm font-semibold text-blue-800"> Vérifiez les documents avant envoi</p>
                 <p className="text-xs text-blue-600 mt-0.5">Vous pouvez encore modifier les attributions SST depuis cette vue.</p>
               </div>
 
@@ -786,7 +786,7 @@ export default function StageEmailModal({ session, onClose }) {
                           onChange={(e) => handleTraineeSstAttribution(t.id, e.target.value || null)}
                           className="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white flex-1 min-w-0"
                         >
-                          <option value="">— Aucun —</option>
+                          <option value="">- Aucun -</option>
                           {sstFiles.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                         </select>
                       </div>
@@ -845,7 +845,7 @@ export default function StageEmailModal({ session, onClose }) {
                     <span className={`font-medium ${r.status === 'sent' ? 'text-green-800' : r.status === 'error' ? 'text-red-800' : 'text-blue-800'}`}>
                       {r.trainee.first_name} {r.trainee.last_name}
                     </span>
-                    {r.status === 'sent' && <span className="text-green-600 text-xs ml-auto">Envoyé ✓</span>}
+                    {r.status === 'sent' && <span className="text-green-600 text-xs ml-auto">Envoyé </span>}
                     {r.status === 'error' && <span className="text-red-600 text-xs ml-auto">{r.error}</span>}
                     {r.status === 'pending' && <span className="text-blue-600 text-xs ml-auto">En attente...</span>}
                   </div>
@@ -869,7 +869,7 @@ export default function StageEmailModal({ session, onClose }) {
                   <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${r.status === 'sent' ? 'bg-green-50' : 'bg-red-50'}`}>
                     {r.status === 'sent' ? <CheckCircle className="w-4 h-4 text-green-600" /> : <AlertCircle className="w-4 h-4 text-red-600" />}
                     <span className="font-medium">{r.trainee.first_name} {r.trainee.last_name}</span>
-                    {r.status === 'sent' && <span className="text-green-600 text-xs ml-auto">Envoyé ✓</span>}
+                    {r.status === 'sent' && <span className="text-green-600 text-xs ml-auto">Envoyé </span>}
                     {r.status === 'error' && <span className="text-red-600 text-xs ml-auto">{r.error}</span>}
                   </div>
                 ))}

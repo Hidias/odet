@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// prospectEmailTemplates.js — Modèles de mail prospect (phoning)
+// prospectEmailTemplates.js - Modèles de mail prospect (phoning)
 // Déplacés tels quels depuis MarinePhoning.jsx pour être partagés
 // avec le mode session. Texte inchangé.
 // ════════════════════════════════════════════════════════════════
@@ -10,9 +10,9 @@ import { supabase } from '../../../core/supabase'
 
 export const EMAIL_TEMPLATES = {
   suite_echange: {
-    subject: (name) => 'Suite à notre échange – formations santé & sécurité',
+    subject: (name) => 'Suite à notre échange - formations santé & sécurité',
     body: (name, contact) => `<p>Bonjour${contact ? ' ' + contact : ''},</p>
-<p>Merci encore d'avoir pris le temps d'échanger avec moi aujourd'hui 😊</p>
+<p>Merci encore d'avoir pris le temps d'échanger avec moi aujourd'hui </p>
 <p>Comme évoqué au téléphone, ${orgName()} accompagne les entreprises de Bretagne et Pays de la Loire sur les sujets de santé et sécurité au travail, avec une approche très terrain et sur mesure.</p>
 <p>Nous intervenons notamment sur :</p>
 <ul>
@@ -46,7 +46,7 @@ export const EMAIL_TEMPLATES = {
 <p>Nous restons bien entendu à votre disposition pour échanger, et nous vous souhaitons une très bonne journée !</p>`,
   },
   relance: {
-    subject: (name) => 'Relance – formations santé & sécurité',
+    subject: (name) => 'Relance - formations santé & sécurité',
     body: (name, contact) => `<p>Bonjour${contact ? ' ' + contact : ''},</p>
 <p>Je me permets de revenir vers vous suite à mon précédent message.</p>
 <p>Nous accompagnons les entreprises de Bretagne et Pays de la Loire en formations santé et sécurité : SST, incendie, gestes et postures, habilitations électriques, conduite de chariots et gerbeurs (R485/R489).</p>
@@ -54,16 +54,16 @@ export const EMAIL_TEMPLATES = {
 <p>Seriez-vous disponible pour un échange rapide de 10 minutes cette semaine ? Belle journée !</p>`,
   },
   relance_2: {
-    subject: (name) => `Une dernière chose… – ${orgName()}`,
+    subject: (name) => `Une dernière chose… - ${orgName()}`,
     body: (name, contact) => `<p>Bonjour${contact ? ' ' + contact : ''},</p>
-<p>Je reviens vers vous une toute dernière fois, promis, c’est la dernière 😊</p>
+<p>Je reviens vers vous une toute dernière fois, promis, c’est la dernière </p>
 <p>Depuis nos précédents échanges, nous avons accompagné plusieurs entreprises de la région en formations santé et sécurité au travail : SST, prévention incendie, gestes et postures, habilitations électriques, conduite de chariots (R485/R489).</p>
 <p>Si le sujet n’est vraiment pas d’actualité pour vous, je comprends tout à fait, et je vous souhaite une excellente continuation !</p>
 <p>En revanche, si vous avez ne serait-ce qu’une petite question ou un besoin, même ponctuel, n’hésitez pas à nous recontacter : nous sommes là.</p>
 <p>Nous sommes certifiés <strong>Qualiopi</strong> et intervenons uniquement en intra-entreprise, directement chez vous (financement OPCO possible). Belle journée !</p>`,
   },
   camping_tiede: {
-    subject: () => 'Suite à notre échange — initiation premiers secours pour vos vacanciers',
+    subject: () => 'Suite à notre échange - initiation premiers secours pour vos vacanciers',
     body: () => `<p>Bonjour,</p>
 <p>Merci pour notre échange de ce jour.</p>
 <p>Comme évoqué, nous proposons une animation <strong>"Initiation aux gestes de premiers secours"</strong> de 2 heures, animée directement dans votre camping pour vos vacanciers cet été.</p>
@@ -75,7 +75,7 @@ Tarif : 250 € HT par session.</p>
 <p>Belle journée,</p>`,
   },
   camping_nrp: {
-    subject: () => 'Initiation aux premiers secours pour vos vacanciers — été 2026',
+    subject: () => 'Initiation aux premiers secours pour vos vacanciers - été 2026',
     body: () => `<p>Bonjour,</p>
 <p>J'ai tenté de vous joindre ce jour sans succès. Je me permets de revenir vers vous par email.</p>
 <p>Nous proposons aux campings une animation <strong>"Initiation aux gestes de premiers secours"</strong> de 2 heures pour vos vacanciers cet été.</p>
@@ -87,7 +87,7 @@ Tarif : 250 € HT par session.</p>
 <p>Belle journée,</p>`,
   },
   remerciement: {
-    subject: (name) => `Merci pour votre retour – ${orgName()}`,
+    subject: (name) => `Merci pour votre retour - ${orgName()}`,
     body: (name, contact) => `<p>Bonjour${contact ? ' ' + contact : ''},</p>
 <p>Je vous remercie pour le temps que vous nous avez accordé au téléphone.</p>
 <p>Nous avons bien noté que les formations en santé et sécurité ne correspondent pas à vos besoins actuels, et nous respectons tout à fait cette décision.</p>

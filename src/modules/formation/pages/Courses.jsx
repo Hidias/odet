@@ -8,12 +8,12 @@ import CourseDocumentsList from '../components/CourseDocumentsList'
 
 // Thèmes du matériel
 const EQUIPMENT_THEMES = {
-  SECOURISME: { label: '🏥 Secourisme', color: 'green' },
-  INCENDIE: { label: '🔥 Incendie', color: 'red' },
-  ELECTRIQUE: { label: '⚡ Électrique', color: 'yellow' },
-  HAUTEUR: { label: '🧗 Travail en hauteur', color: 'purple' },
-  MANUTENTION: { label: '📦 Manutention', color: 'blue' },
-  GENERAL: { label: '🎯 Général', color: 'gray' },
+  SECOURISME: { label: ' Secourisme', color: 'green' },
+  INCENDIE: { label: ' Incendie', color: 'red' },
+  ELECTRIQUE: { label: ' Électrique', color: 'yellow' },
+  HAUTEUR: { label: ' Travail en hauteur', color: 'purple' },
+  MANUTENTION: { label: ' Manutention', color: 'blue' },
+  GENERAL: { label: ' Général', color: 'gray' },
 }
 
 // Couleurs des thèmes selon leur nom
@@ -996,7 +996,7 @@ export default function Courses() {
                           <td className="py-2 px-3">
                             <div className="font-medium">{formation.title}</div>
                             <div className="text-xs text-gray-500 truncate max-w-md">{formation.description}</div>
-                            {exists && <span className="text-xs text-yellow-600">⚠️ Existe déjà</span>}
+                            {exists && <span className="text-xs text-yellow-600"> Existe déjà</span>}
                           </td>
                           <td className="py-2 px-3 text-center text-gray-600">{formation.duration_hours}h</td>
                           <td className="py-2 px-3 text-right text-gray-900 font-medium">{formation.price_ht?.toLocaleString('fr-FR')} €</td>
@@ -1026,7 +1026,7 @@ export default function Courses() {
                   >
                     {importing ? (
                       <>
-                        <span className="animate-spin">⏳</span> Import en cours...
+                        <span className="animate-spin"></span> Import en cours...
                       </>
                     ) : (
                       <>

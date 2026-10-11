@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * ENRICHISSEMENT RAPIDE v3 — Mini-Lusha
+ * ENRICHISSEMENT RAPIDE v3 - Mini-Lusha
  * ============================================================================
  * 
  * Enrichissement semi-automatique avec 3 API intégrées :
@@ -83,7 +83,7 @@ const EFFECTIF_FILTER_CODES = {
   '250+': ['32', '41', '42', '51', '52', '53'],
 }
 
-// Groupement forme juridique — codes explicites
+// Groupement forme juridique - codes explicites
 const FORME_GROUP_CODES = {
   'SAS/SASU': ['5505','5510','5515','5520','5522','5525','5530','5532','5542','5548','5551','5558'],
   'SARL/EURL': ['5306','5307','5308','5370','5385','5410','5415','5422','5426','5430','5431','5432','5443','5600'],
@@ -127,10 +127,10 @@ const DEPT_CENTERS = {
 }
 
 const SORT_MODES = [
-  { id: 'smart', label: '🎯 Priorité' },
-  { id: 'proche', label: '📏 Proximité' },
-  { id: 'gros', label: '🏢 Effectif' },
-  { id: 'score', label: '⭐ Score' },
+  { id: 'smart', label: ' Priorité' },
+  { id: 'proche', label: ' Proximité' },
+  { id: 'gros', label: ' Effectif' },
+  { id: 'score', label: ' Score' },
 ]
 
 function distanceKm(lat1, lon1, lat2, lon2) {
@@ -571,7 +571,7 @@ export default function EnrichissementRapide() {
     }
   }
 
-  // 🔍 Auto-scrape (appelé automatiquement quand site web trouvé)
+  //  Auto-scrape (appelé automatiquement quand site web trouvé)
   async function autoScrape(url) {
     if (!url || scraping) return
     setScraping(true)
@@ -611,7 +611,7 @@ export default function EnrichissementRapide() {
     }))
   }
 
-  // 🔍 Recherche coordonnées : tente Google → scrape
+  //  Recherche coordonnées : tente Google → scrape
   async function rechercherCoordonnees() {
     if (!current) return
     // Si on a un site web, scraper directement
@@ -869,9 +869,9 @@ export default function EnrichissementRapide() {
         <div className="grid grid-cols-4 gap-2 mb-3">
           {[
             { label: 'Enrichis', val: dbStats.done + sessionStats.done, session: sessionStats.done, color: 'text-primary-600' },
-            { label: '📞 Tels', val: dbStats.phones + sessionStats.phones, session: sessionStats.phones, color: 'text-green-600' },
-            { label: '📧 Emails', val: dbStats.emails + sessionStats.emails, session: sessionStats.emails, color: 'text-blue-600' },
-            { label: '🚫 Exclus', val: dbStats.excluded + sessionStats.excluded, session: sessionStats.excluded, color: 'text-red-400' },
+            { label: ' Tels', val: dbStats.phones + sessionStats.phones, session: sessionStats.phones, color: 'text-green-600' },
+            { label: ' Emails', val: dbStats.emails + sessionStats.emails, session: sessionStats.emails, color: 'text-blue-600' },
+            { label: ' Exclus', val: dbStats.excluded + sessionStats.excluded, session: sessionStats.excluded, color: 'text-red-400' },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-lg border border-gray-200 px-3 py-2 text-center">
               <p className={`text-xl font-bold ${s.color}`}>{s.val}</p>
@@ -897,7 +897,7 @@ export default function EnrichissementRapide() {
               <button key={key} onClick={() => setProximityBase(key)}
                 className={'px-2.5 py-1 rounded-md font-medium transition-colors ' +
                   (proximityBase === key ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700')}>
-                📍 {val.name}
+                 {val.name}
               </button>
             ))}
           </div>
@@ -954,12 +954,12 @@ export default function EnrichissementRapide() {
                           const siblings = searchResults.filter(s => s.siren === p.siren && s.id !== p.id).length
                           return siblings > 0 ? <span className="text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">{siblings + 1} agences</span> : null
                         })()}
-                        {p.enrichment_status === 'done' && <span className="text-green-600 bg-green-50 px-1.5 py-0.5 rounded">✓ Enrichi</span>}
-                        {p.enrichment_status === 'failed' && <span className="text-red-600 bg-red-50 px-1.5 py-0.5 rounded">✗ Exclu</span>}
+                        {p.enrichment_status === 'done' && <span className="text-green-600 bg-green-50 px-1.5 py-0.5 rounded"> Enrichi</span>}
+                        {p.enrichment_status === 'failed' && <span className="text-red-600 bg-red-50 px-1.5 py-0.5 rounded"> Exclu</span>}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      📍 {p.city} ({p.departement}) {p.effectif && '• 👥 ' + getEffectifLabel(p.effectif)} {p.phone && '• 📞 ' + p.phone}
+                       {p.city} ({p.departement}) {p.effectif && '•  ' + getEffectifLabel(p.effectif)} {p.phone && '•  ' + p.phone}
                     </div>
                   </button>
                 ))
@@ -989,14 +989,14 @@ export default function EnrichissementRapide() {
                   </h2>
                   <div className="flex items-center gap-3 mt-1.5 text-sm text-gray-600 flex-wrap">
                     <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {current.city} ({current.postal_code?.slice(0, 2)})</span>
-                    {current.effectif && <span>👥 {getEffectifLabel(current.effectif)}</span>}
+                    {current.effectif && <span> {getEffectifLabel(current.effectif)}</span>}
                     {current.forme_juridique && <span className="text-gray-400">{getFormeLabel(current.forme_juridique)}</span>}
                     {current.naf && <span className="text-gray-400">{getNafLabel(current.naf)}</span>}
                   </div>
                   {current.address && <p className="text-xs text-gray-400 mt-1">{current.address}</p>}
                   <p className="text-xs text-gray-400 mt-0.5">
                     SIREN: {current.siren} • Score: {current.quality_score}
-                    {current._dist != null && <span className="ml-2 text-primary-600 font-medium">📏 ~{Math.round(current._dist)}km</span>}
+                    {current._dist != null && <span className="ml-2 text-primary-600 font-medium"> ~{Math.round(current._dist)}km</span>}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1014,7 +1014,7 @@ export default function EnrichissementRapide() {
             {/* ─── Champs identité (si fiche incomplète) ───────────── */}
             {isManualProspect(current) && (
               <div className="px-6 py-3 bg-amber-50/50 border-b border-amber-100">
-                <p className="text-xs font-medium text-amber-700 mb-2">⚠️ Fiche incomplète — compléter les infos :</p>
+                <p className="text-xs font-medium text-amber-700 mb-2"> Fiche incomplète - compléter les infos :</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div>
                     <label className="text-xs text-gray-500">SIREN</label>
@@ -1103,13 +1103,13 @@ export default function EnrichissementRapide() {
 
                         {lusha.domain && !lusha.email_patterns?.length && (
                           <p className="text-xs text-amber-600 mt-1">
-                            Domaine : {lusha.domain} — pas de dirigeant pour générer les patterns
+                            Domaine : {lusha.domain} - pas de dirigeant pour générer les patterns
                           </p>
                         )}
 
                         {!lusha.domain && !lusha.email_patterns?.length && lusha.dirigeant_nom && (
                           <p className="text-xs text-amber-600 mt-2">
-                            💡 Pas de site web trouvé — entre un site ci-dessous pour générer les emails du dirigeant
+                             Pas de site web trouvé - entre un site ci-dessous pour générer les emails du dirigeant
                           </p>
                         )}
                       </div>
@@ -1120,10 +1120,10 @@ export default function EnrichissementRapide() {
                           <p>Effectif API : <strong>{lusha.effectif_actuel}</strong></p>
                         )}
                         {lusha.etat_administratif === 'A' && (
-                          <p className="text-green-600">✓ Active</p>
+                          <p className="text-green-600"> Active</p>
                         )}
                         {lusha.etat_administratif === 'C' && (
-                          <p className="text-red-600 font-semibold">✗ Cessée</p>
+                          <p className="text-red-600 font-semibold"> Cessée</p>
                         )}
                       </div>
                     </div>
@@ -1146,7 +1146,7 @@ export default function EnrichissementRapide() {
                           <Mail className="w-3.5 h-3.5" /> Générer emails
                         </button>
                       )}
-                      {scraping && <span className="text-xs text-amber-600">⏳ Scraping du site en cours...</span>}
+                      {scraping && <span className="text-xs text-amber-600"> Scraping du site en cours...</span>}
                     </div>
                   </div>
                 ) : (
@@ -1182,7 +1182,7 @@ export default function EnrichissementRapide() {
                       <div className="mb-2">
                         <p className="font-semibold text-green-700 flex items-center gap-1">
                           <Briefcase className="w-4 h-4" />
-                          🔥 Cette entreprise recrute ! {signaux.match.count} offre(s) active(s)
+                           Cette entreprise recrute ! {signaux.match.count} offre(s) active(s)
                         </p>
                         <div className="mt-1 text-xs text-gray-600">
                           {signaux.match.offres?.slice(0, 3).map((o, i) => (
@@ -1203,7 +1203,7 @@ export default function EnrichissementRapide() {
                         </summary>
                         <div className="mt-1 ml-4">
                           {signaux.top5.map((e, i) => (
-                            <p key={i}>{e.nom} — {e.count} offre(s)</p>
+                            <p key={i}>{e.nom} - {e.count} offre(s)</p>
                           ))}
                         </div>
                       </details>
@@ -1264,7 +1264,7 @@ export default function EnrichissementRapide() {
                     {siteWeb && (
                       <button onClick={scrapeWebsite} disabled={scraping}
                         className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm font-medium whitespace-nowrap">
-                        {scraping ? '⏳' : '🔍'}
+                        {scraping ? '' : ''}
                       </button>
                     )}
                   </div>
@@ -1273,7 +1273,7 @@ export default function EnrichissementRapide() {
 
               {/* ─── Notes d'enrichissement ─────────────────────────── */}
               <div className="mt-4">
-                <label className="text-sm font-medium text-gray-700 mb-1 block">📝 Notes enrichissement</label>
+                <label className="text-sm font-medium text-gray-700 mb-1 block"> Notes enrichissement</label>
                 <textarea value={enrichmentNotes} onChange={e => setEnrichmentNotes(e.target.value)}
                   placeholder="Infos utiles : contact, horaires, particularités..."
                   rows={2}
@@ -1283,7 +1283,7 @@ export default function EnrichissementRapide() {
               {/* ─── Groupe + Entreprises liées ─────────────────────── */}
               <div className="mt-3 flex items-center gap-3">
                 <div className="flex-1">
-                  <label className="text-xs font-medium text-gray-500 mb-0.5 block">🏷️ Groupe (multi-SIREN)</label>
+                  <label className="text-xs font-medium text-gray-500 mb-0.5 block"> Groupe (multi-SIREN)</label>
                   <input type="text" value={groupe} onChange={e => setGroupe(e.target.value)}
                     placeholder="Ex: Groupe Dupont, Westerly/KeraS..."
                     className="w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
@@ -1298,7 +1298,7 @@ export default function EnrichissementRapide() {
               {linkedCompanies.length > 0 && (
                 <div className="mt-2 bg-purple-50 border border-purple-200 rounded-lg p-3">
                   <p className="text-xs font-medium text-purple-800 mb-2">
-                    👤 {current.dirigeant_nom ? `Même dirigeant (${current.dirigeant_prenom || ''} ${current.dirigeant_nom})` : `Même groupe "${current.groupe}"`} — {linkedCompanies.length} autre(s) entreprise(s) :
+                     {current.dirigeant_nom ? `Même dirigeant (${current.dirigeant_prenom || ''} ${current.dirigeant_nom})` : `Même groupe "${current.groupe}"`} - {linkedCompanies.length} autre(s) entreprise(s) :
                   </p>
                   <div className="space-y-1.5">
                     {linkedCompanies.map(lc => (
@@ -1308,10 +1308,10 @@ export default function EnrichissementRapide() {
                           <span className="text-gray-400">{lc.city} ({lc.departement})</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {lc.phone && <span className="text-green-600">📞 {lc.phone}</span>}
-                          {lc.prospection_status === 'rdv_pris' && <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded">🔥 RDV</span>}
-                          {lc.prospection_status === 'a_rappeler' && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">🟡</span>}
-                          {lc.prospection_status === 'pas_interesse' && <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">❄️</span>}
+                          {lc.phone && <span className="text-green-600"> {lc.phone}</span>}
+                          {lc.prospection_status === 'rdv_pris' && <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded"> RDV</span>}
+                          {lc.prospection_status === 'a_rappeler' && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded"></span>}
+                          {lc.prospection_status === 'pas_interesse' && <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded"></span>}
                         </div>
                       </div>
                     ))}
@@ -1339,13 +1339,13 @@ export default function EnrichissementRapide() {
                         {phone && (
                           <button onClick={() => applyToAllSiblings('phone', phone)}
                             className="text-xs px-2.5 py-1 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors font-medium">
-                            📞 Appliquer tél à tous
+                             Appliquer tél à tous
                           </button>
                         )}
                         {email && (
                           <button onClick={() => applyToAllSiblings('email', email)}
                             className="text-xs px-2.5 py-1 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors font-medium">
-                            📧 Appliquer email à tous
+                             Appliquer email à tous
                           </button>
                         )}
                       </div>
@@ -1362,7 +1362,7 @@ export default function EnrichissementRapide() {
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm text-gray-900 truncate max-w-[200px]">{s.name}</span>
                                   {s.is_siege && <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">Siège</span>}
-                                  {s.enrichment_status === 'done' && <span className="text-xs text-green-600">✓</span>}
+                                  {s.enrichment_status === 'done' && <span className="text-xs text-green-600"></span>}
                                 </div>
                                 <span className="text-xs text-gray-400">{s.city} ({s.departement})</span>
                               </div>
@@ -1386,24 +1386,24 @@ export default function EnrichissementRapide() {
                                     className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-md" />
                                 </div>
                               </div>
-                              {s.site_web && <p className="text-xs text-gray-400 mt-1 truncate">🌐 {s.site_web}</p>}
-                              {s.address && <p className="text-xs text-gray-400 mt-0.5 truncate">📍 {s.address}</p>}
+                              {s.site_web && <p className="text-xs text-gray-400 mt-1 truncate"> {s.site_web}</p>}
+                              {s.address && <p className="text-xs text-gray-400 mt-0.5 truncate"> {s.address}</p>}
                               <div className="flex gap-1.5 mt-2">
                                 <button
                                   onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(`${s.name} ${s.city || ''} téléphone`)}`, '_blank')}
                                   className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition-colors">
-                                  🔍 Google
+                                   Google
                                 </button>
                                 <button
                                   onClick={() => window.open(`https://www.pagesjaunes.fr/pagesblanches/recherche?quoiqui=${encodeURIComponent(s.name)}&ou=${encodeURIComponent(s.city || '')}`, '_blank')}
                                   className="flex items-center gap-1 text-xs px-2 py-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded transition-colors">
-                                  📒 Pages Jaunes
+                                   Pages Jaunes
                                 </button>
                                 {s.site_web && (
                                   <button
                                     onClick={() => window.open(s.site_web.startsWith('http') ? s.site_web : `https://${s.site_web}`, '_blank')}
                                     className="flex items-center gap-1 text-xs px-2 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded transition-colors">
-                                    🌐 Site web
+                                     Site web
                                   </button>
                                 )}
                               </div>
@@ -1465,7 +1465,7 @@ export default function EnrichissementRapide() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowEditModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b">
-              <h2 className="text-lg font-bold text-gray-900">✏️ Modifier la fiche</h2>
+              <h2 className="text-lg font-bold text-gray-900"> Modifier la fiche</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">

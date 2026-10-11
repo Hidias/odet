@@ -12,9 +12,9 @@ import { jsPDF } from 'jspdf'
 import 'jspdf-autotable'
 
 const PRIORITIES = {
-  bloquant: { label: 'Bloquant', color: 'red', icon: '🔴' },
-  important: { label: 'Important', color: 'orange', icon: '🟠' },
-  mineur: { label: 'Mineur', color: 'yellow', icon: '🟡' }
+  bloquant: { label: 'Bloquant', color: 'red', icon: '' },
+  important: { label: 'Important', color: 'orange', icon: '' },
+  mineur: { label: 'Mineur', color: 'yellow', icon: '' }
 }
 
 const CATEGORIES = {
@@ -708,7 +708,7 @@ export default function Completude() {
     doc.setFontSize(12)
     doc.text(`Total : ${stats.total} éléments manquants`, 20, 40)
     doc.setFontSize(10)
-    doc.text(`🔴 Bloquant : ${stats.bloquant} | 🟠 Important : ${stats.important} | 🟡 Mineur : ${stats.mineur}`, 20, 47)
+    doc.text(` Bloquant : ${stats.bloquant} |  Important : ${stats.important} |  Mineur : ${stats.mineur}`, 20, 47)
     
     // Table
     const tableData = filteredIssues.map(issue => [
@@ -791,17 +791,17 @@ export default function Completude() {
           
           <div className="flex gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🔴</span>
+              <span className="text-2xl"></span>
               <span className="font-semibold">{stats.bloquant}</span>
               <span className="text-gray-600">Bloquant</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🟠</span>
+              <span className="text-2xl"></span>
               <span className="font-semibold">{stats.important}</span>
               <span className="text-gray-600">Important</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🟡</span>
+              <span className="text-2xl"></span>
               <span className="font-semibold">{stats.mineur}</span>
               <span className="text-gray-600">Mineur</span>
             </div>
@@ -820,9 +820,9 @@ export default function Completude() {
             className="input"
           >
             <option value="all">Toutes priorités</option>
-            <option value="bloquant">🔴 Bloquant</option>
-            <option value="important">🟠 Important</option>
-            <option value="mineur">🟡 Mineur</option>
+            <option value="bloquant"> Bloquant</option>
+            <option value="important"> Important</option>
+            <option value="mineur"> Mineur</option>
           </select>
           
           <select 
@@ -885,17 +885,17 @@ export default function Completude() {
                   <div className="flex gap-2">
                     {catIssues.filter(i => i.priority === 'bloquant').length > 0 && (
                       <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded">
-                        🔴 {catIssues.filter(i => i.priority === 'bloquant').length}
+                         {catIssues.filter(i => i.priority === 'bloquant').length}
                       </span>
                     )}
                     {catIssues.filter(i => i.priority === 'important').length > 0 && (
                       <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">
-                        🟠 {catIssues.filter(i => i.priority === 'important').length}
+                         {catIssues.filter(i => i.priority === 'important').length}
                       </span>
                     )}
                     {catIssues.filter(i => i.priority === 'mineur').length > 0 && (
                       <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded">
-                        🟡 {catIssues.filter(i => i.priority === 'mineur').length}
+                         {catIssues.filter(i => i.priority === 'mineur').length}
                       </span>
                     )}
                   </div>
@@ -972,7 +972,7 @@ export default function Completude() {
             Aucun élément manquant !
           </h3>
           <p className="text-gray-600">
-            Toutes les données sont complètes 🎉
+            Toutes les données sont complètes 
           </p>
         </div>
       )}

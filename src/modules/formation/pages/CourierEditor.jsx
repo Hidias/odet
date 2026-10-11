@@ -322,10 +322,10 @@ export default function CourierEditor() {
 
       setBody(data.text)
       toast.success(
-        action === 'generate' ? '✨ Texte généré' :
-        action === 'reformulate' ? '✨ Texte reformulé' :
-        action === 'shorter' ? '✨ Texte raccourci' :
-        '✨ Texte enrichi'
+        action === 'generate' ? ' Texte généré' :
+        action === 'reformulate' ? ' Texte reformulé' :
+        action === 'shorter' ? ' Texte raccourci' :
+        ' Texte enrichi'
       )
     } catch (err) {
       console.error('Erreur IA:', err)
@@ -397,7 +397,7 @@ export default function CourierEditor() {
 
       if (dbError) throw dbError
 
-      toast.success('📁 Document sauvegardé dans vos fichiers')
+      toast.success('Document sauvegardé dans vos fichiers')
     } catch (err) {
       console.error('Erreur sauvegarde:', err)
       toast.error('Erreur : ' + (err.message || 'Échec sauvegarde'))
@@ -504,7 +504,7 @@ export default function CourierEditor() {
             </div>
           </div>
           <textarea value={body} onChange={(e) => setBody(e.target.value)}
-            placeholder="Rédigez votre texte ici ou utilisez le bouton ✨ Générer pour que l'IA vous propose un brouillon..."
+            placeholder="Rédigez votre texte ici ou utilisez le bouton  Générer pour que l'IA vous propose un brouillon..."
             rows="10" className={'w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-y leading-relaxed ' +
               (listening ? 'border-red-400 ring-2 ring-red-200 bg-red-50/30' : 'border-gray-300')} />
           {listening && (

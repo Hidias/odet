@@ -132,7 +132,7 @@ export default function SSTCertificationModal({
 
       if (error) throw error
 
-      toast.success(`Certification ${data.candidat_certifie ? '✓ VALIDÉE' : '✗ NON VALIDÉE'}`)
+      toast.success(`Certification ${data.candidat_certifie ? ' VALIDÉE' : ' NON VALIDÉE'}`)
       
       if (onSave) onSave(data)
       onClose()
@@ -275,7 +275,7 @@ export default function SSTCertificationModal({
                                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                               }`}
                             >
-                              {value === true ? '✓ Acquis' : value === false ? '✗ Non acquis' : 'Non évalué'}
+                              {value === true ? ' Acquis' : value === false ? ' Non acquis' : 'Non évalué'}
                             </button>
                           </div>
                         </div>
@@ -299,7 +299,7 @@ export default function SSTCertificationModal({
               )}
               <div>
                 <p className="font-bold text-lg">
-                  {certifie ? '✓ CANDIDAT CERTIFIÉ' : '✗ CANDIDAT NON CERTIFIÉ'}
+                  {certifie ? ' CANDIDAT CERTIFIÉ' : ' CANDIDAT NON CERTIFIÉ'}
                 </p>
                 <p className="text-sm">
                   {nbCompetencesAcquises}/{nbCompetencesRequises} compétences acquises

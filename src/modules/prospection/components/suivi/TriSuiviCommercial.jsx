@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// TriSuiviCommercial.jsx — Tri de départ (une seule fois)
+// TriSuiviCommercial.jsx - Tri de départ (une seule fois)
 // Anciens « RDV à prendre », RDV passés sans suite, anciens devis,
 // rappels en retard de plus de 7 jours.
 // La progression est enregistrée ligne par ligne (triaged_at) :
@@ -53,7 +53,7 @@ export default function TriSuiviCommercial({
   )
   const callerCounts = useMemo(() => {
     const m = {}
-    callbacks.filter(cb => isCallbackToDecide(cb)).forEach(cb => { m[cb.called_by || '—'] = (m[cb.called_by || '—'] || 0) + 1 })
+    callbacks.filter(cb => isCallbackToDecide(cb)).forEach(cb => { m[cb.called_by || '-'] = (m[cb.called_by || '-'] || 0) + 1 })
     return m
   }, [callbacks])
 
@@ -72,7 +72,7 @@ export default function TriSuiviCommercial({
 
   const bulkSansSuite = async () => {
     if (selected.size === 0) return
-    if (!confirm(`Classer ${selected.size} ligne(s) « sans suite — déjà traité » ?`)) return
+    if (!confirm(`Classer ${selected.size} ligne(s) « sans suite - déjà traité » ?`)) return
     setBulkSaving(true)
     let done = 0
     try {
@@ -251,7 +251,7 @@ export default function TriSuiviCommercial({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900">
                     {cb.clients?.name || 'Client inconnu'}
-                    <span className="text-xs font-normal text-gray-500"> · {cb.called_by || '—'}</span>
+                    <span className="text-xs font-normal text-gray-500"> · {cb.called_by || '-'}</span>
                   </p>
                   <p className="text-xs text-gray-500">
                     {cb.callback_date ? `Prévu le ${fmtDate(cb.callback_date)} · ${callbackLateDays(cb)} j de retard` : 'Rappel sans date'}

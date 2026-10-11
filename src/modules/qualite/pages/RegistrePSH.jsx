@@ -192,7 +192,7 @@ export default function RegistrePSH() {
             Registre PSH
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Personnes en Situation de Handicap — Indicateur Qualiopi 26
+            Personnes en Situation de Handicap - Indicateur Qualiopi 26
           </p>
         </div>
       </div>
@@ -321,10 +321,10 @@ export default function RegistrePSH() {
                       {/* Ligne 5 : timeline décision / clôture */}
                       <div className="flex items-center gap-3 mt-1.5 text-xs">
                         <span className={req.date_decision ? 'text-green-600' : 'text-gray-400'}>
-                          Décision : {req.date_decision ? format(new Date(req.date_decision), 'dd/MM/yyyy') : '—'}
+                          Décision : {req.date_decision ? format(new Date(req.date_decision), 'dd/MM/yyyy') : '-'}
                         </span>
                         <span className={req.date_cloture ? 'text-green-600' : 'text-gray-400'}>
-                          Clôture : {req.date_cloture ? format(new Date(req.date_cloture), 'dd/MM/yyyy') : '—'}
+                          Clôture : {req.date_cloture ? format(new Date(req.date_cloture), 'dd/MM/yyyy') : '-'}
                         </span>
                       </div>
                     </div>
@@ -403,7 +403,7 @@ export default function RegistrePSH() {
                 <label className="block text-sm font-medium mb-1">Session liée</label>
                 <select value={formData.session_id} onChange={e => setFormData({ ...formData, session_id: e.target.value })} className="input w-full">
                   <option value="">Aucune</option>
-                  {sessions.map(s => <option key={s.id} value={s.id}>{s.reference} — {s.courses?.title || ''}</option>)}
+                  {sessions.map(s => <option key={s.id} value={s.id}>{s.reference} - {s.courses?.title || ''}</option>)}
                 </select>
               </div>
 
@@ -419,7 +419,7 @@ export default function RegistrePSH() {
                   required
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Décrivez le besoin fonctionnel uniquement — pas de données médicales.
+                  Décrivez le besoin fonctionnel uniquement - pas de données médicales.
                 </p>
               </div>
 

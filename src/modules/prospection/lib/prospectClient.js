@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// prospectClient.js — Fiche client à partir d'une ligne de prospection
+// prospectClient.js - Fiche client à partir d'une ligne de prospection
 // Même logique que le phoning (MarinePhoning.jsx) :
 //   1. SIRET exact déjà client → on le réutilise
 //   2. SIREN déjà client (autre établissement) → la page affiche

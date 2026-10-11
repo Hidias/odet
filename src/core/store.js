@@ -421,7 +421,7 @@ export const useDataStore = create((set, get) => ({
   },
   
   createTrainee: async (trainee) => {
-    console.log('🔧 Utilisation de l\'insert direct (RPC désactivée temporairement)')
+    console.log('Utilisation de l\'insert direct (RPC désactivée temporairement)')
     
     // Insert direct dans la table trainees
     const { data, error } = await supabase
@@ -430,10 +430,10 @@ export const useDataStore = create((set, get) => ({
       .select('*, clients(id, name)')
       .single()
     
-    console.log('📌 Insert result:', { data, error })
+    console.log('Insert result:', { data, error })
     
     if (!error && data) {
-      console.log('📌 Adding trainee to state:', data)
+      console.log('Adding trainee to state:', data)
       set({ trainees: [...get().trainees, data] })
     }
     
@@ -1266,7 +1266,7 @@ export const useDataStore = create((set, get) => ({
   
   uploadSessionDocument: async (sessionId, file, category, notes = '') => {
     // Upload file to storage
-    // ⚠️ Supabase Storage refuse les clés avec accents / espaces → on sanitise
+    //  Supabase Storage refuse les clés avec accents / espaces → on sanitise
     // le CHEMIN, mais on garde le nom d'origine pour l'affichage et le ZIP.
     const ts = Date.now()
     const safeFileName = buildStorageFileName(file.name, ts)
@@ -1350,7 +1350,7 @@ export const useDataStore = create((set, get) => ({
   },
   
   uploadTraineeDocument: async (traineeId, file, category = 'autre', notes = '') => {
-    // ⚠️ Clé Storage sanitisée (pas d'accents / espaces), nom d'origine conservé en base
+    //  Clé Storage sanitisée (pas d'accents / espaces), nom d'origine conservé en base
     const ts = Date.now()
     const safeFileName = buildStorageFileName(file.name, ts)
     const displayFileName = `${ts}_${file.name}`

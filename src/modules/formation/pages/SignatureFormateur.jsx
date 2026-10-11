@@ -11,7 +11,7 @@ import {
 import toast from 'react-hot-toast'
 
 // ═══════════════════════════════════════════════════════════════
-// SignatureFormateur — page mobile ouverte par le QR code formateur
+// SignatureFormateur - page mobile ouverte par le QR code formateur
 //
 // Le formateur est connecté à Campus. Il tend son téléphone au
 // stagiaire, qui signe en plein écran. Rien d'autre.
@@ -73,7 +73,7 @@ export default function SignatureFormateur() {
   const slotRef = useRef(null)
 
   const trainerName = currentUserName() || user?.email || 'Formateur'
-  const validatedBy = `Signature sur téléphone – ${trainerName}`
+  const validatedBy = `Signature sur téléphone - ${trainerName}`
 
   // ─── Chargement ────────────────────────────────────────────
   const load = useCallback(async (silent = false) => {
@@ -238,7 +238,7 @@ export default function SignatureFormateur() {
     const res = await enregistrer(entry)
     if (!res.ok) { toast.error(res.error); return }
     if (res.differe) {
-      toast('Signature gardée sur le téléphone, envoi au retour du réseau', { icon: '📶' })
+      toast('Signature gardée sur le téléphone, envoi au retour du réseau', { icon: '' })
     }
     await load(true)
     setDone({ trainee: t, next: prochain(t), differe: res.differe })
@@ -269,7 +269,7 @@ export default function SignatureFormateur() {
     setProxy(null)
     const res = await enregistrer(entry)
     if (!res.ok) { toast.error(res.error); return }
-    if (res.differe) toast('Signature gardée sur le téléphone, envoi au retour du réseau', { icon: '📶' })
+    if (res.differe) toast('Signature gardée sur le téléphone, envoi au retour du réseau', { icon: '' })
     await load(true)
     setDone({ trainee: p.trainee, next: prochain(p.trainee), differe: res.differe })
   }
@@ -302,7 +302,7 @@ export default function SignatureFormateur() {
     return (
       <FullscreenSignaturePad
         title={`${signing.first_name} ${(signing.last_name || '').toUpperCase()}`}
-        subtitle={`${periodLabel(slot.period)} du ${fmtDate(slot.date)} — ${data.session.course || 'Formation'}`}
+        subtitle={`${periodLabel(slot.period)} du ${fmtDate(slot.date)} - ${data.session.course || 'Formation'}`}
         onValidate={onSigned}
         onCancel={() => setSigning(null)}
       />
@@ -314,7 +314,7 @@ export default function SignatureFormateur() {
     return (
       <FullscreenSignaturePad
         title={`${proxy.firstName} ${proxy.lastName.toUpperCase()}`}
-        subtitle={`Signe pour ${proxy.trainee.first_name} ${(proxy.trainee.last_name || '').toUpperCase()} — ${periodLabel(slot.period)} du ${fmtDate(slot.date)}`}
+        subtitle={`Signe pour ${proxy.trainee.first_name} ${(proxy.trainee.last_name || '').toUpperCase()} - ${periodLabel(slot.period)} du ${fmtDate(slot.date)}`}
         confirmLabel="Je signe"
         onValidate={(img) => onProxySigned(img, 'tiers')}
         onCancel={() => setProxy(p => ({ ...p, step: 2 }))}
@@ -520,7 +520,7 @@ export default function SignatureFormateur() {
         <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-md p-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
-              <p className="font-bold text-gray-900">Signature par un tiers — étape {proxy.step} sur 4</p>
+              <p className="font-bold text-gray-900">Signature par un tiers - étape {proxy.step} sur 4</p>
               <button onClick={() => setProxy(null)} className="p-2 -mr-2 text-gray-400"><X className="w-5 h-5" /></button>
             </div>
 

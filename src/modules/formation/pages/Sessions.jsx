@@ -298,7 +298,7 @@ export default function Sessions() {
       if (data.detected_training_type && !formData.subcontract_course_title) {
         setFormData(f => ({ ...f, subcontract_course_title: data.detected_training_type }))
       }
-      toast.success(`${data.days.length} jour(s) détecté(s) — ${data.total_unique_trainees || '?'} stagiaire(s) uniques`)
+      toast.success(`${data.days.length} jour(s) détecté(s) - ${data.total_unique_trainees || '?'} stagiaire(s) uniques`)
     } catch (err) {
       toast.error('Erreur: ' + err.message)
       console.error(err)
@@ -317,7 +317,7 @@ export default function Sessions() {
     for (const day of selectedDays) {
       const refs = (day.session_refs || []).join(', ')
       const baseTitle = formData.subcontract_course_title || importResult.detected_training_type || 'Formation'
-      const title = `${baseTitle} — ${day.date.split('-').reverse().join('/')} — Réf. ${refs}`
+      const title = `${baseTitle} - ${day.date.split('-').reverse().join('/')} - Réf. ${refs}`
 
       const sessionData = {
         session_type: 'subcontract',
@@ -373,8 +373,8 @@ export default function Sessions() {
         endD.setDate(endD.getDate() + dur - 1)
         const endDateStr = endD.toISOString().split('T')[0]
         
-        // Titre auto: "CACES R.489 — Réf. 2026-02-046"
-        const autoTitle = `${formData.subcontract_course_title} — Réf. ${line.client_ref}`
+        // Titre auto: "CACES R.489 - Réf. 2026-02-046"
+        const autoTitle = `${formData.subcontract_course_title} - Réf. ${line.client_ref}`
         
         const sessionData = {
           session_type: 'subcontract',
@@ -726,7 +726,7 @@ export default function Sessions() {
                     <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
                       {/* Date */}
                       <span className="text-sm font-medium text-gray-700 whitespace-nowrap w-[75px] shrink-0">
-                        {session.start_date ? format(new Date(session.start_date), 'dd/MM/yyyy', { locale: fr }) : '—'}
+                        {session.start_date ? format(new Date(session.start_date), 'dd/MM/yyyy', { locale: fr }) : '-'}
                       </span>
                       {/* Réfs courtes */}
                       <div className="flex items-center gap-1 shrink-0">
@@ -754,7 +754,7 @@ export default function Sessions() {
                         session.status === 'cancelled' ? 'bg-red-100 text-red-700' :
                         'bg-gray-100 text-gray-600'
                       }`}>
-                        {session.subcontract_invoiced ? '✓ Fact.' : statusLabels[session.status]?.label || session.status}
+                        {session.subcontract_invoiced ? ' Fact.' : statusLabels[session.status]?.label || session.status}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -876,7 +876,7 @@ export default function Sessions() {
               {formData.session_type === 'subcontract' && (
                 <>
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 flex items-center justify-between gap-2 flex-wrap">
-                    <span><Briefcase className="w-4 h-4 inline mr-1.5" />Sous-traitance — {batchMode ? 'création par lot' : 'session unique'}</span>
+                    <span><Briefcase className="w-4 h-4 inline mr-1.5" />Sous-traitance - {batchMode ? 'création par lot' : 'session unique'}</span>
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => setShowImportModal(true)}
                         className="px-3 py-1 rounded-full text-xs font-medium bg-white text-amber-700 border border-amber-300 hover:bg-amber-100 flex items-center gap-1">
@@ -895,7 +895,7 @@ export default function Sessions() {
                       <label className="label">Donneur d'ordre (OF) *</label>
                       <select value={formData.client_id} onChange={(e) => setFormData({ ...formData, client_id: e.target.value })} className="input" required>
                         <option value="">Sélectionner...</option>
-                        <optgroup label="🎓 Organismes de formation">
+                        <optgroup label=" Organismes de formation">
                           {clients.filter(c => c.client_type === 'organisme_formation').map(client => (
                             <option key={client.id} value={client.id}>{client.name}</option>
                           ))}
@@ -941,7 +941,7 @@ export default function Sessions() {
                     <label className="label">Intitulé de base de la formation {batchMode ? '*' : ''}</label>
                     <input type="text" value={formData.subcontract_course_title} onChange={(e) => setFormData({ ...formData, subcontract_course_title: e.target.value })} className="input" placeholder="Ex: CACES R.489" />
                     {batchMode && formData.subcontract_course_title && (
-                      <p className="text-xs text-gray-400 mt-1">Chaque session sera nommée : <span className="text-gray-600">{formData.subcontract_course_title} — Réf. [numéro]</span></p>
+                      <p className="text-xs text-gray-400 mt-1">Chaque session sera nommée : <span className="text-gray-600">{formData.subcontract_course_title} - Réf. [numéro]</span></p>
                     )}
                   </div>
 
@@ -1024,7 +1024,7 @@ export default function Sessions() {
                             </button>
                             {line.start_date && (
                               <div className="col-span-full flex justify-between text-xs text-gray-400 -mt-1 px-1">
-                                <span>{formData.subcontract_course_title ? `${formData.subcontract_course_title} — Réf. ${line.client_ref || '…'}` : `Réf. ${line.client_ref || '…'}`}{endDate ? ` · → ${endDate}` : ''}</span>
+                                <span>{formData.subcontract_course_title ? `${formData.subcontract_course_title} - Réf. ${line.client_ref || '…'}` : `Réf. ${line.client_ref || '…'}`}{endDate ? ` · → ${endDate}` : ''}</span>
                                 {lineTotal > 0 && <span className="text-green-700 font-medium">{dur}j × {rate.toFixed(0)}€ = {lineTotal.toFixed(2)}€</span>}
                               </div>
                             )}
@@ -1105,13 +1105,13 @@ export default function Sessions() {
                     onChange={(e) => setFormData({ ...formData, contact_id: e.target.value })}
                     className="input"
                   >
-                    <option value="">📧 Contact générique (entreprise)</option>
+                    <option value=""> Contact générique (entreprise)</option>
                     {clientContacts.length > 0 && (
                       <>
                         <optgroup label="Contacts spécifiques">
                           {clientContacts.map(contact => (
                             <option key={contact.id} value={contact.id}>
-                              👤 {contact.name}{contact.role ? ` (${contact.role})` : ''}
+                               {contact.name}{contact.role ? ` (${contact.role})` : ''}
                             </option>
                           ))}
                         </optgroup>
@@ -1462,7 +1462,7 @@ export default function Sessions() {
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 flex items-center justify-between">
                     <span>
                       <Check className="w-4 h-4 inline mr-1" />
-                      <strong>{importResult.days.length}</strong> jour(s) détecté(s) — <strong>{importResult.total_unique_trainees}</strong> stagiaire(s) uniques
+                      <strong>{importResult.days.length}</strong> jour(s) détecté(s) - <strong>{importResult.total_unique_trainees}</strong> stagiaire(s) uniques
                       {importResult.detected_training_type && <span className="ml-2 text-green-600">({importResult.detected_training_type})</span>}
                     </span>
                     <button type="button" onClick={() => { setImportResult(null) }} className="text-xs text-green-700 hover:text-green-900 underline">
@@ -1478,7 +1478,7 @@ export default function Sessions() {
                         <label className="text-xs text-gray-500 block mb-1">Client *</label>
                         <select value={formData.client_id} onChange={(e) => setFormData({ ...formData, client_id: e.target.value })} className="w-full border rounded-lg px-3 py-1.5 text-sm">
                           <option value="">Sélectionner...</option>
-                          <optgroup label="🎓 Organismes de formation">
+                          <optgroup label=" Organismes de formation">
                             {clients.filter(c => c.client_type === 'organisme_formation').map(c => (
                               <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
@@ -1508,7 +1508,7 @@ export default function Sessions() {
                         <input type="number" min="0" step="0.01" value={formData.subcontract_daily_rate} onChange={(e) => setFormData({ ...formData, subcontract_daily_rate: e.target.value })} className="w-full border rounded-lg px-3 py-1.5 text-sm" placeholder="300" />
                       </div>
                     </div>
-                    {!formData.client_id && <p className="text-xs text-red-500">⚠ Sélectionnez un client pour pouvoir créer</p>}
+                    {!formData.client_id && <p className="text-xs text-red-500"> Sélectionnez un client pour pouvoir créer</p>}
                   </div>
 
                   {/* Champs essentiels pour la création */}
@@ -1579,7 +1579,7 @@ export default function Sessions() {
                               </div>
                             </td>
                             <td className="px-3 py-2 text-center font-semibold">{day.nb_trainees || 0}</td>
-                            <td className="px-3 py-2 text-xs text-gray-500 max-w-[200px] truncate">{day.location || '—'}</td>
+                            <td className="px-3 py-2 text-xs text-gray-500 max-w-[200px] truncate">{day.location || '-'}</td>
                           </tr>
                         ))}
                       </tbody>

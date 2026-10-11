@@ -10,7 +10,7 @@ import { generateSatisfactionEntreprisePDF } from '../pdf/satisfactionEntreprise
 import { useDataStore } from '../../../core/store'
 
 // ════════════════════════════════════════════════════════════
-// MiniSignaturePad — Mini canvas signature inline pour formateur
+// MiniSignaturePad - Mini canvas signature inline pour formateur
 // Génère un PNG data URL via callback onValidate(dataUrl)
 // ════════════════════════════════════════════════════════════
 function MiniSignaturePad({ onValidate, onCancel }) {
@@ -86,7 +86,7 @@ function MiniSignaturePad({ onValidate, onCancel }) {
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
       <div className="bg-white rounded-lg max-w-lg w-full p-5 space-y-3 shadow-2xl">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-gray-900">✍️ Signature du formateur</h3>
+          <h3 className="text-base font-bold text-gray-900"> Signature du formateur</h3>
           <button onClick={onCancel} className="p-1 hover:bg-gray-100 rounded">
             <X className="w-5 h-5 text-gray-500" />
           </button>
@@ -242,7 +242,7 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
     if (!trainerFull) return null
     setTrainerData(trainerFull)
     if (!trainerFull.signature_url) {
-      console.log('⚠️ Pas de signature formateur en base — bouton "Signer" affiché')
+      console.log('Pas de signature formateur en base - bouton "Signer" affiché')
       return null
     }
     try {
@@ -250,7 +250,7 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
       const blob = await resp.blob()
       const b64 = await blobToBase64WithPrefix(blob)
       setTrainerSignatureBase64(b64)
-      console.log('✅ Signature formateur préchargée')
+      console.log('Signature formateur préchargée')
       return b64
     } catch (e) {
       console.warn('Erreur chargement signature formateur:', e)
@@ -304,7 +304,7 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
       if (fresh?.signature_url) {
         // Signature ajoutée entretemps depuis ailleurs → utiliser quand même celle dessinée
         // pour ce mail mais NE PAS écraser
-        console.log('⚠️ Signature en base entretemps → utilisée localement seulement')
+        console.log('Signature en base entretemps → utilisée localement seulement')
         setTrainerSignatureBase64(dataUrl)
         setShowSignaturePad(false)
         toast.success('Signature utilisée pour cet envoi')
@@ -343,7 +343,7 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
       setTrainerSignatureBase64(dataUrl)
       setTrainerData({ ...trainer, signature_url: publicUrl })
       setShowSignaturePad(false)
-      toast.success('✅ Signature enregistrée dans votre profil')
+      toast.success('Signature enregistrée dans votre profil')
 
       // Régénérer le PDF émargement avec la nouvelle signature
       await regenerateEmargementWithSignature(dataUrl)
@@ -424,8 +424,8 @@ Veuillez trouver ci-joints les documents relatifs à la formation "${courseTitle
 - Programme de formation
 - Convocations des stagiaires
 - Analyse du besoin de formation
-- Notice stagiaire — Passeport de Prévention
-- Notice employeur — Passeport de Prévention
+- Notice stagiaire - Passeport de Prévention
+- Notice employeur - Passeport de Prévention
 - Décharge de refus de communication du NIR
 
 Merci de nous retourner la convention signée ainsi que l'analyse du besoin complétée et signée avant le début de la formation.
@@ -476,7 +476,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         })
         if (convention) {
           files.push({ id: 'convention', name: convention.filename, base64: convention.base64, size: convention.size })
-          addLog('✅ Convention générée')
+          addLog('Convention générée')
         }
 
         // ── PROGRAMME (courses.program_url uniquement) ──
@@ -495,16 +495,16 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
               const base64 = await blobToBase64(blob)
               const programmeName = `Programme_${course.title || 'formation'}.pdf`
               files.push({ id: 'programme', name: programmeName, base64, size: base64.length })
-              addLog('✅ Programme récupéré')
+              addLog('Programme récupéré')
             } else {
-              addLog('⚠️ Erreur téléchargement programme')
+              addLog('Erreur téléchargement programme')
             }
           } else {
-            addLog('⚠️ Programme non trouvé — uploadez-le dans la formation')
+            addLog('Programme non trouvé - uploadez-le dans la formation')
           }
         } catch (e) {
           console.error('Erreur récupération programme:', e)
-          addLog('⚠️ Erreur récupération programme')
+          addLog('Erreur récupération programme')
         }
 
         // ── CONVOCATIONS INDIVIDUELLES (un PDF par stagiaire) ──
@@ -517,10 +517,10 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
             }
           } catch (err) {
             console.error(`Erreur convocation ${trainee.last_name}:`, err)
-            addLog(`⚠️ Erreur convocation ${trainee.first_name} ${trainee.last_name}`)
+            addLog(`Erreur convocation ${trainee.first_name} ${trainee.last_name}`)
           }
         }
-        addLog(`✅ ${traineesWithResult.length} convocation(s) générée(s)`)
+        addLog(`${traineesWithResult.length} convocation(s) générée(s)`)
 
         // ── ANALYSE DU BESOIN (préfillée) ──
         addLog('Analyse du besoin...')
@@ -537,11 +537,11 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
           const analyseBytes = await getNeedsAnalysisPDFBytes(session, analysisData, false, organization)
           if (analyseBytes) {
             files.push({ id: 'analyseBesoin', name: `Analyse_Besoin_${session?.reference || 'session'}.pdf`, arrayBuffer: analyseBytes, size: analyseBytes.byteLength })
-            addLog('✅ Analyse du besoin générée')
+            addLog('Analyse du besoin générée')
           }
         } catch (e) {
           console.error('Erreur génération analyse besoin:', e)
-          addLog('⚠️ Erreur génération analyse du besoin')
+          addLog('Erreur génération analyse du besoin')
         }
 
         // ── DOCUMENTS PASSEPORT PRÉVENTION (3 PDF depuis Storage) ──
@@ -561,10 +561,10 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
             files.push({ id: doc.id, name: doc.name, base64, size: base64.length })
           } catch (e) {
             console.error(`Erreur téléchargement ${doc.name}:`, e)
-            addLog(`⚠️ ${doc.name} non trouvé dans Storage`)
+            addLog(`${doc.name} non trouvé dans Storage`)
           }
         }
-        addLog('✅ Documents Passeport Prévention ajoutés')
+        addLog('Documents Passeport Prévention ajoutés')
 
       } else {
         // ── CERTIFICATS ──
@@ -572,7 +572,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         const certificats = await generateAllPDF('certificat', session, traineesWithResult, { trainer })
         if (certificats) {
           files.push({ id: 'certificats', name: certificats.filename, base64: certificats.base64, size: certificats.size })
-          addLog('✅ Certificats générés')
+          addLog('Certificats générés')
         }
 
         // ── ATTESTATIONS ──
@@ -580,7 +580,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         const attestations = await generateAllPDF('attestation', session, traineesWithResult, { trainer })
         if (attestations) {
           files.push({ id: 'attestations', name: attestations.filename, base64: attestations.base64, size: attestations.size })
-          addLog('✅ Attestations générées')
+          addLog('Attestations générées')
         }
 
         // ── ÉMARGEMENT (signatures stagiaires + signature formateur) ──
@@ -624,16 +624,16 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
             if (emargement) {
               files.push({ id: 'emargement', name: emargement.filename, base64: emargement.base64, size: emargement.size })
               addLog(freshTrainerSig
-                ? '✅ Feuille d\'émargement signée générée (avec signature formateur)'
-                : '✅ Feuille d\'émargement signée générée (sans signature formateur)')
+                ? ' Feuille d\'émargement signée générée (avec signature formateur)'
+                : ' Feuille d\'émargement signée générée (sans signature formateur)')
             }
           } else {
             // Incomplet → skip silencieux + log explicite
-            addLog(`⚠️ Émargement non joint : ${completeness.missing} demi-journée(s) non signée(s)`)
+            addLog(`Émargement non joint : ${completeness.missing} demi-journée(s) non signée(s)`)
           }
         } catch (e) {
           console.error('Erreur génération émargement:', e)
-          addLog('⚠️ Erreur génération feuille d\'émargement')
+          addLog('Erreur génération feuille d\'émargement')
         }
 
         // ── EVALUATIONS À FROID ──
@@ -641,7 +641,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         const evaluationsFroid = await generateAllPDF('evaluationFroid', session, traineesWithResult, { trainer })
         if (evaluationsFroid) {
           files.push({ id: 'evaluationsFroid', name: evaluationsFroid.filename, base64: evaluationsFroid.base64, size: evaluationsFroid.size })
-          addLog('✅ Évaluations à froid générées')
+          addLog('Évaluations à froid générées')
         }
 
         // ── QUESTIONNAIRE SATISFACTION ENTREPRISE ──
@@ -650,11 +650,11 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
           const satisfactionPDF = await generateSatisfactionEntreprisePDF(session, session?.clients)
           if (satisfactionPDF) {
             files.push({ id: 'satisfactionEntreprise', name: satisfactionPDF.filename, base64: satisfactionPDF.base64, size: satisfactionPDF.size })
-            addLog('✅ Questionnaire satisfaction entreprise généré')
+            addLog('Questionnaire satisfaction entreprise généré')
           }
         } catch (e) {
           console.error('Erreur génération questionnaire satisfaction:', e)
-          addLog('⚠️ Erreur génération questionnaire satisfaction')
+          addLog('Erreur génération questionnaire satisfaction')
         }
       }
 
@@ -884,7 +884,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
           userId: user.id,
           to: userEmail,
           subject: '[TEST] ' + emailSubject,
-          body: '⚠️ Email de test envoyé à vous-même pour vérification du rendu.\n\n' + emailBody,
+          body: ' Email de test envoyé à vous-même pour vérification du rendu.\n\n' + emailBody,
           attachmentPaths: uploadedPaths,
           sessionId: session.id,
           emailType: 'test'
@@ -893,7 +893,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
 
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || result.details)
-      toast.success(`✅ Test envoyé à ${userEmail}`)
+      toast.success(`Test envoyé à ${userEmail}`)
     } catch (err) {
       console.error('Erreur envoi test:', err)
       toast.error('Erreur test : ' + err.message)
@@ -1011,20 +1011,20 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
 
   // ─── Compte rendu : calcul + génération IA ───
   const Q_LABELS = {
-    q_org_documents:          'Organisation — Documents préparés',
-    q_org_accueil:            'Organisation — Accueil',
-    q_org_locaux:             'Organisation — Locaux',
-    q_org_materiel:           'Organisation — Matériel',
-    q_contenu_organisation:   'Contenu — Organisation',
-    q_contenu_supports:       'Contenu — Supports',
-    q_contenu_duree:          'Contenu — Durée',
-    q_contenu_programme:      'Contenu — Programme',
-    q_formateur_pedagogie:    'Formateur — Pédagogie',
-    q_formateur_expertise:    'Formateur — Expertise',
-    q_formateur_progression:  'Formateur — Progression',
-    q_formateur_moyens:       'Formateur — Moyens',
-    q_global_adequation:      'Global — Adéquation',
-    q_global_competences:     'Global — Compétences acquises',
+    q_org_documents:          'Organisation - Documents préparés',
+    q_org_accueil:            'Organisation - Accueil',
+    q_org_locaux:             'Organisation - Locaux',
+    q_org_materiel:           'Organisation - Matériel',
+    q_contenu_organisation:   'Contenu - Organisation',
+    q_contenu_supports:       'Contenu - Supports',
+    q_contenu_duree:          'Contenu - Durée',
+    q_contenu_programme:      'Contenu - Programme',
+    q_formateur_pedagogie:    'Formateur - Pédagogie',
+    q_formateur_expertise:    'Formateur - Expertise',
+    q_formateur_progression:  'Formateur - Progression',
+    q_formateur_moyens:       'Formateur - Moyens',
+    q_global_adequation:      'Global - Adéquation',
+    q_global_competences:     'Global - Compétences acquises',
   }
   const Q_KEYS = Object.keys(Q_LABELS)
 
@@ -1145,7 +1145,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
       if (trainerSignatureBase64) {
         signature = { status: 'ok', label: 'Signature en base' }
       } else if (trainerData && !trainerData.signature_url) {
-        signature = { status: 'warn', label: 'Non renseignée — bouton "Signer" disponible' }
+        signature = { status: 'warn', label: 'Non renseignée - bouton "Signer" disponible' }
       } else {
         signature = { status: 'loading', label: 'Chargement…' }
       }
@@ -1185,7 +1185,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
   const isBefore = emailType === 'before'
   const headerBg = isBefore ? 'bg-blue-600' : 'bg-green-600'
   const btnBg = isBefore ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
-  const icon = isBefore ? '📤' : '📥'
+  const icon = isBefore ? '' : ''
   const title = isBefore ? 'Documents avant formation' : 'Documents après formation'
 
   const formatSize = (size) => {
@@ -1219,7 +1219,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
       warns.push('Aucun certificat dans les PJ (résultats stagiaires manquants ?)')
     }
     if (emailType === 'after' && completeness.emargement.status === 'warn' && attendanceStatus && attendanceStatus.total > 0) {
-      warns.push(`Émargement incomplet — ${attendanceStatus.reason}`)
+      warns.push(`Émargement incomplet - ${attendanceStatus.reason}`)
     }
     return warns
   }
@@ -1239,7 +1239,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
           </button>
         </div>
 
-        {/* Body — scrollable */}
+        {/* Body - scrollable */}
         <div className="p-5 overflow-y-auto flex-1">
 
           {/* ── GÉNÉRATION EN COURS ── */}
@@ -1249,7 +1249,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
               <p className="text-lg font-semibold text-gray-800">Génération des documents…</p>
               <div className="w-full max-w-sm bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-1">
                 {generationLog.map((msg, i) => (
-                  <p key={i} className={`text-sm ${msg.startsWith('✅') ? 'text-green-700' : msg.startsWith('⚠️') ? 'text-amber-600' : 'text-gray-500'}`}>
+                  <p key={i} className={`text-sm ${/erreur|non trouv|impossible/i.test(msg) ? 'text-amber-600' : /(généré|récupéré|envoy|prêt|ok)/i.test(msg) ? 'text-green-700' : 'text-gray-500'}`}>
                     {msg}
                   </p>
                 ))}
@@ -1272,7 +1272,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                     <div className="flex items-center gap-2 text-sm text-amber-900">
                       <History className="w-4 h-4" />
                       <span className="font-semibold">
-                        ⚠️ Déjà envoyé {emailHistory.length} fois pour cette session
+                         Déjà envoyé {emailHistory.length} fois pour cette session
                       </span>
                     </div>
                     <span className="text-xs text-amber-700">
@@ -1308,7 +1308,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
                     <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                      📊 Tableau de bord complétude
+                       Tableau de bord complétude
                     </p>
                   </div>
                   <div className="divide-y divide-gray-100">
@@ -1381,7 +1381,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                 />
               </div>
 
-              {/* Compte rendu post-formation — uniquement « après formation » */}
+              {/* Compte rendu post-formation - uniquement « après formation » */}
               {!isBefore && evalsLoaded && (() => {
                 const evalData = computeEvalData()
                 return (
@@ -1389,10 +1389,10 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                     {/* Header */}
                     <div className="bg-purple-50 px-4 py-3 flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-purple-800">📋 Compte rendu de formation</p>
+                        <p className="text-sm font-semibold text-purple-800"> Compte rendu de formation</p>
                         <p className="text-xs text-purple-600 mt-0.5">
                           {evals.length > 0
-                            ? `${evals.length} stagiaire${evals.length > 1 ? 's' : ''} — Score moyen : ${evalData?.globalScore || '—'}/5 — Recommandation : ${evalData?.tauxReco !== null ? evalData.tauxReco + '%' : '—'}`
+                            ? `${evals.length} stagiaire${evals.length > 1 ? 's' : ''} - Score moyen : ${evalData?.globalScore || '-'}/5 - Recommandation : ${evalData?.tauxReco !== null ? evalData.tauxReco + '%' : '-'}`
                             : 'Aucune évaluation à chaud pour cette session'
                           }
                         </p>
@@ -1403,7 +1403,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                           disabled={crGenerating}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {crGenerating ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <span>✨</span>}
+                          {crGenerating ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <span></span>}
                           {crGenerating ? 'Génération…' : (compteRendu ? 'Regénérer' : "Générer avec l'IA")}
                         </button>
                       )}
@@ -1430,7 +1430,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                       </div>
                     )}
 
-                    {/* Texte généré — éditable */}
+                    {/* Texte généré - éditable */}
                     {compteRendu && (
                       <div className="px-4 py-3">
                         <div className="flex items-center justify-between mb-1.5">
@@ -1469,7 +1469,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-medium text-gray-700">
-                      📎 Documents générés ({generatedFiles.length - generatedFiles.filter(f => excludedFileIds.has(f.id)).length}/{generatedFiles.length})
+                       Documents générés ({generatedFiles.length - generatedFiles.filter(f => excludedFileIds.has(f.id)).length}/{generatedFiles.length})
                     </p>
                     <p className="text-xs text-gray-500">
                       Total : {formatSize(activeFiles.reduce((s, f) => s + (f.size || 0), 0))}
@@ -1639,7 +1639,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
           )}
         </div>
 
-        {/* Footer — boutons fixes en bas */}
+        {/* Footer - boutons fixes en bas */}
         {step === 'compose' && (
           <div className="px-5 py-3 border-t bg-gray-50 flex items-center justify-between gap-3 flex-shrink-0">
             <button

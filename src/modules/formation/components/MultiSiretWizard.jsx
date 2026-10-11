@@ -336,20 +336,20 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
             .single()
           
           if (clientErr) {
-            log(`❌ Erreur création client ${groupLabel}: ${clientErr.message}`, false)
+            log(` Erreur création client ${groupLabel}: ${clientErr.message}`, false)
             continue
           }
           clientId = newClient.id
-          log(`✅ Client créé: ${groupLabel}`)
+          log(` Client créé: ${groupLabel}`)
         } else {
-          log(`🔗 Client existant: ${groupLabel}`)
+          log(` Client existant: ${groupLabel}`)
         }
         
         // 2. Contact convocations : contact existant choisi, sinon ajouter si renseigné et pas déjà présent
         let contactId = null
         if (contact.existingId) {
           contactId = contact.existingId
-          log(`🔗 Contact existant: ${contact.name} → ${group.company_name}`)
+          log(` Contact existant: ${contact.name} → ${group.company_name}`)
         } else if (contact.name) {
           // Vérifier si ce contact existe déjà pour ce client
           const { data: existingContacts } = await supabase
@@ -360,7 +360,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
 
           if (existingContacts && existingContacts.length > 0) {
             contactId = existingContacts[0].id
-            log(`🔗 Contact existant: ${contact.name}`)
+            log(` Contact existant: ${contact.name}`)
           } else {
             const { data: newContact, error: contactErr } = await supabase
               .from('client_contacts')
@@ -377,7 +377,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
 
             if (!contactErr && newContact) {
               contactId = newContact.id
-              log(`✅ Contact ajouté: ${contact.name} → ${group.company_name}`)
+              log(` Contact ajouté: ${contact.name} → ${group.company_name}`)
             }
           }
         }
@@ -391,7 +391,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
             if (t.matched_trainee.client_id !== clientId) {
               await supabase.from('trainees').update({ client_id: clientId }).eq('id', t.matched_trainee.id)
             }
-            log(`🔗 Stagiaire existant: ${t.first_name} ${t.last_name}`)
+            log(` Stagiaire existant: ${t.first_name} ${t.last_name}`)
           } else {
             const traineeData = {
               first_name: t.first_name,
@@ -408,11 +408,11 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
               .single()
             
             if (traineeErr) {
-              log(`❌ Erreur stagiaire ${t.first_name} ${t.last_name}: ${traineeErr.message}`, false)
+              log(` Erreur stagiaire ${t.first_name} ${t.last_name}: ${traineeErr.message}`, false)
               continue
             }
             traineeIds.push(newTrainee.id)
-            log(`✅ Stagiaire créé: ${t.first_name} ${t.last_name}`)
+            log(` Stagiaire créé: ${t.first_name} ${t.last_name}`)
           }
         }
         
@@ -462,7 +462,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
           .single()
         
         if (sessionErr) {
-          log(`❌ Erreur session ${groupLabel}: ${sessionErr.message}`, false)
+          log(` Erreur session ${groupLabel}: ${sessionErr.message}`, false)
           continue
         }
         
@@ -477,20 +477,20 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
             })))
           
           if (stErr) {
-            log(`⚠️ Erreur inscription stagiaires ${groupLabel}: ${stErr.message}`, false)
+            log(` Erreur inscription stagiaires ${groupLabel}: ${stErr.message}`, false)
           }
         }
         
-        log(`✅ Session créée: ${selectedCourse?.title} — ${group.company_name} (${traineeIds.length} stagiaires • ${groupPrices[gi]?.toFixed(2) || '0.00'}€ HT)`)
+        log(` Session créée: ${selectedCourse?.title} - ${group.company_name} (${traineeIds.length} stagiaires • ${groupPrices[gi]?.toFixed(2) || '0.00'}€ HT)`)
       }
       
-      log(`🎉 Terminé ! ${groups.length} sessions créées`)
+      log(` Terminé ! ${groups.length} sessions créées`)
       
       // Rafraîchir les données
       await Promise.all([fetchSessions(), fetchClients(), fetchTrainees()])
       
     } catch (err) {
-      log(`❌ Erreur inattendue: ${err.message}`, false)
+      log(` Erreur inattendue: ${err.message}`, false)
     }
     
     setCreating(false)
@@ -614,7 +614,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
                     >
-                      💰 Prix global session
+                       Prix global session
                       <span className="block text-xs font-normal mt-0.5 opacity-75">Réparti entre les entreprises</span>
                     </button>
                     <button
@@ -626,7 +626,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
                     >
-                      👤 Prix par stagiaire
+                       Prix par stagiaire
                       <span className="block text-xs font-normal mt-0.5 opacity-75">Multiplié par le nombre</span>
                     </button>
                   </div>
@@ -666,7 +666,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                 
                 {/* Signataire par défaut */}
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
-                  <p className="font-medium text-amber-800 text-sm">✍️ Signataire des conventions par défaut</p>
+                  <p className="font-medium text-amber-800 text-sm"> Signataire des conventions par défaut</p>
                   <p className="text-xs text-amber-700 -mt-2">Utilisé pour les entreprises sans signataire propre (modifiable par entreprise à l'étape suivante).</p>
                   <div className="grid md:grid-cols-2 gap-3">
                     <div>
@@ -682,7 +682,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                 
                 {/* Contact par défaut */}
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
-                  <p className="font-medium text-blue-800 text-sm">📧 Contact opérationnel par défaut (convocations)</p>
+                  <p className="font-medium text-blue-800 text-sm"> Contact opérationnel par défaut (convocations)</p>
                   <p className="text-xs text-blue-700 -mt-2">Ajouté aux entreprises sans contact propre (modifiable par entreprise à l'étape suivante).</p>
                   <div className="grid md:grid-cols-2 gap-3">
                     <div>
@@ -787,7 +787,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                       {/* Signataire & contact propres à cette entreprise */}
                       <div className="grid md:grid-cols-2 gap-3">
                         <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
-                          <p className="text-xs font-medium text-amber-800">✍️ Signataire de la convention</p>
+                          <p className="text-xs font-medium text-amber-800"> Signataire de la convention</p>
                           {group.client_contacts?.length > 0 && (
                             <select
                               className="input text-sm py-1"
@@ -819,14 +819,14 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                         </div>
 
                         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
-                          <p className="text-xs font-medium text-blue-800">📧 Contact convocations</p>
+                          <p className="text-xs font-medium text-blue-800"> Contact convocations</p>
                           {group.client_contacts?.length > 0 && (
                             <select
                               className="input text-sm py-1"
                               value={group.contact_id}
                               onChange={e => updateGroupField(gi, 'contact_id', e.target.value)}
                             >
-                              <option value="">{group.contact_name ? 'Nouveau contact (saisi ci-dessous)' : (common.contact_name ? `Par défaut : ${common.contact_name}` : '— Aucun —')}</option>
+                              <option value="">{group.contact_name ? 'Nouveau contact (saisi ci-dessous)' : (common.contact_name ? `Par défaut : ${common.contact_name}` : '- Aucun -')}</option>
                               {group.client_contacts.map(c => (
                                 <option key={c.id} value={c.id}>{contactLabel(c)}</option>
                               ))}
@@ -954,9 +954,9 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
               <div className="space-y-4">
                 <div className="bg-purple-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-purple-800 mb-2">Formation</h3>
-                  <p className="text-sm">{selectedCourse?.title || '—'}</p>
+                  <p className="text-sm">{selectedCourse?.title || '-'}</p>
                   <p className="text-sm text-gray-600">{common.start_date} → {common.end_date} | {common.start_time} - {common.end_time}</p>
-                  {common.location && <p className="text-sm text-gray-600">📍 {common.location}</p>}
+                  {common.location && <p className="text-sm text-gray-600"> {common.location}</p>}
                 </div>
                 
                 <h3 className="font-semibold">Ce qui va être créé :</h3>
@@ -980,10 +980,10 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                       return (
                         <>
                           <p className={`text-sm mb-1 ${s.name ? 'text-gray-600' : 'text-amber-700'}`}>
-                            ✍️ Signataire : {s.name ? `${s.name}${s.role ? ` (${s.role})` : ''}` : 'non renseigné'}
+                             Signataire : {s.name ? `${s.name}${s.role ? ` (${s.role})` : ''}` : 'non renseigné'}
                           </p>
                           <p className="text-sm text-gray-600 mb-2">
-                            📧 Contact : {c.name || 'aucun'}
+                             Contact : {c.name || 'aucun'}
                           </p>
                         </>
                       )
@@ -997,7 +997,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                       const groupTotal = Math.round(perHead * group.trainees.length * 100) / 100
                       return (
                         <p className="text-sm font-medium text-green-700 mb-2">
-                          💰 {groupTotal.toFixed(2)}€ HT ({group.trainees.length} × {perHead.toFixed(2)}€/stagiaire)
+                           {groupTotal.toFixed(2)}€ HT ({group.trainees.length} × {perHead.toFixed(2)}€/stagiaire)
                         </p>
                       )
                     })()}
@@ -1005,7 +1005,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                       {group.trainees.map(t => (
                         <span key={t.id} className={`text-xs px-2 py-1 rounded-full ${t.matched_trainee ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                           {t.first_name} {t.last_name}
-                          {t.matched_trainee ? ' ✓' : ' (nouveau)'}
+                          {t.matched_trainee ? ' ' : ' (nouveau)'}
                         </span>
                       ))}
                     </div>

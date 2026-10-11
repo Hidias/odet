@@ -120,7 +120,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
 
         if (prospectAnalysis) {
           // Analyse prospect trouvée → Copie automatique
-          toast.success('✅ Analyse prospect récupérée automatiquement')
+          toast.success('Analyse prospect récupérée automatiquement')
           
           const prospectData = {
             session_id: session.id,
@@ -312,7 +312,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
     }
     setUploadingScan(true)
     try {
-      // ⚠️ Supabase Storage refuse les clés avec accents / espaces → chemin sanitisé,
+      //  Supabase Storage refuse les clés avec accents / espaces → chemin sanitisé,
       // nom d'origine conservé en base pour l'affichage
       const ts = Date.now()
       const fileName = `${ts}_analyse_besoin_${file.name}`
@@ -342,7 +342,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
       if (insertError) throw insertError
 
       setScanDoc(docRecord)
-      toast.success('✅ Scan importé')
+      toast.success('Scan importé')
     } catch (err) {
       console.error('Erreur upload scan:', err)
       toast.error('Erreur lors de l\'upload')
@@ -440,7 +440,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
         </div>
       </div>
 
-      {/* Scan importé — affichage compact */}
+      {/* Scan importé - affichage compact */}
       {scanDoc && !showForm && (
         <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">
           <Paperclip className="w-4 h-4 text-blue-500 flex-shrink-0" />
@@ -816,14 +816,14 @@ export default function SessionNeedsAnalysis({ session, organization }) {
             <p className="text-sm text-gray-700">
               Signez directement sur l'écran. Les signatures apparaîtront sur le PDF généré.
               <br />
-              <span className="text-blue-700 font-medium">✓ Fonctionne sur tablette tactile et souris</span>
+              <span className="text-blue-700 font-medium"> Fonctionne sur tablette tactile et souris</span>
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Signature formateur */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  🖊️ Signature formateur (vous)
+                   Signature formateur (vous)
                 </label>
                 <div className="border-2 border-gray-400 rounded-lg bg-white shadow-sm">
                   <SignatureCanvas
@@ -848,7 +848,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
               {/* Signature client */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  ✍️ Signature client (sur place uniquement)
+                   Signature client (sur place uniquement)
                 </label>
                 <div className="border-2 border-gray-400 rounded-lg bg-white shadow-sm">
                   <SignatureCanvas
@@ -869,7 +869,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
                   Effacer
                 </button>
                 <p className="text-xs text-gray-600 bg-white/70 p-2 rounded border border-gray-300">
-                  💡 <strong>À distance ?</strong> Laissez vide. Vous signerez, téléchargerez le PDF, et l'enverrez au client pour signature manuelle.
+                   <strong>À distance ?</strong> Laissez vide. Vous signerez, téléchargerez le PDF, et l'enverrez au client pour signature manuelle.
                 </p>
               </div>
             </div>
@@ -917,9 +917,9 @@ export default function SessionNeedsAnalysis({ session, organization }) {
             </div>
             <div>
               <span className="font-medium">Signatures :</span> {
-                analysis.signature_trainer && analysis.signature_client ? '✓ Formateur + Client' :
-                analysis.signature_trainer ? '✓ Formateur uniquement' :
-                analysis.signature_client ? '✓ Client uniquement' :
+                analysis.signature_trainer && analysis.signature_client ? ' Formateur + Client' :
+                analysis.signature_trainer ? ' Formateur uniquement' :
+                analysis.signature_client ? ' Client uniquement' :
                 'Aucune'
               }
             </div>
@@ -927,7 +927,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
               <div>
                 <span className="font-medium">Scan :</span>{' '}
                 <button onClick={handleViewScan} className="text-blue-600 hover:underline">
-                  📎 Voir le scan importé
+                   Voir le scan importé
                 </button>
               </div>
             )}

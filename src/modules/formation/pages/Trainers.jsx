@@ -298,7 +298,7 @@ export default function Trainers() {
       console.error('Certificate save error:', error)
       toast.error('Erreur: ' + (error.message || 'Impossible d\'ajouter'))
     } else {
-      toast.success('Certificat ajouté ✓')
+      toast.success('Certificat ajouté ')
       resetCertForm()
       const { data } = await fetchTrainerCertificates(selectedTrainer.id)
       setCertificates(data || [])
@@ -713,7 +713,7 @@ export default function Trainers() {
                                 )}
                                 <span className="flex items-center gap-1">
                                   {cert.no_expiry ? (
-                                    <span className="text-green-600 font-medium">✓ Sans date limite</span>
+                                    <span className="text-green-600 font-medium"> Sans date limite</span>
                                   ) : cert.expiry_date ? (
                                     <>
                                       <Calendar className="w-3 h-3" />

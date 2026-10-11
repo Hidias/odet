@@ -20,17 +20,17 @@ const ACTION_CONFIG = {
 }
 
 const ENTITY_CONFIG = {
-  trainee: { label: 'Stagiaire', emoji: '👤' },
-  session: { label: 'Session', emoji: '📅' },
-  client: { label: 'Client', emoji: '🏢' },
-  trainer: { label: 'Formateur', emoji: '👨‍🏫' },
-  course: { label: 'Formation', emoji: '📚' },
-  document: { label: 'Document', emoji: '📄' },
-  nc: { label: 'Non-conformité', emoji: '⚠️' },
-  veille: { label: 'Veille', emoji: '👁️' },
-  evaluation: { label: 'Évaluation', emoji: '📊' },
-  attendance: { label: 'Émargement', emoji: '✍️' },
-  system: { label: 'Système', emoji: '⚙️' },
+  trainee: { label: 'Stagiaire', emoji: '' },
+  session: { label: 'Session', emoji: '' },
+  client: { label: 'Client', emoji: '' },
+  trainer: { label: 'Formateur', emoji: '' },
+  course: { label: 'Formation', emoji: '' },
+  document: { label: 'Document', emoji: '' },
+  nc: { label: 'Non-conformité', emoji: '' },
+  veille: { label: 'Veille', emoji: '' },
+  evaluation: { label: 'Évaluation', emoji: '' },
+  attendance: { label: 'Émargement', emoji: '' },
+  system: { label: 'Système', emoji: '' },
 }
 
 export default function AuditLogs() {
@@ -254,7 +254,7 @@ export default function AuditLogs() {
                 {filteredLogs.map(log => {
                   const actionConfig = ACTION_CONFIG[log.action] || { label: log.action, color: 'gray' }
                   const ActionIcon = actionConfig.icon || Eye
-                  const entityConfig = ENTITY_CONFIG[log.entity_type] || { label: log.entity_type, emoji: '📌' }
+                  const entityConfig = ENTITY_CONFIG[log.entity_type] || { label: log.entity_type, emoji: '' }
                   
                   return (
                     <tr key={log.id} className="hover:bg-gray-50">
@@ -304,7 +304,7 @@ export default function AuditLogs() {
       
       {/* Info RGPD */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
-        <p className="font-medium mb-1">🔐 Conformité RGPD</p>
+        <p className="font-medium mb-1"> Conformité RGPD</p>
         <p>Ce journal trace toutes les consultations et modifications de données personnelles. Les logs sont conservés 2 ans puis purgés automatiquement.</p>
       </div>
     </div>

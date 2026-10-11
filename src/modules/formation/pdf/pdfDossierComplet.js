@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// pdfDossierComplet.js — Dossier vierge compilé par formation
+// pdfDossierComplet.js - Dossier vierge compilé par formation
 // Utilise pdf-lib pour merger les PDFs générés par pdfGenerator
 // ═══════════════════════════════════════════════════════════════
 
@@ -89,8 +89,8 @@ function jsPDFToArrayBuffer(jsPdfDoc) {
 
 /**
  * Génère et télécharge un dossier compilé pour une formation donnée
- * @param {string} formationKey — Clé de la formation (sst, incendie, etc.)
- * @param {Function} onProgress — Callback optionnel (step, total, label)
+ * @param {string} formationKey - Clé de la formation (sst, incendie, etc.)
+ * @param {Function} onProgress - Callback optionnel (step, total, label)
  */
 export async function downloadDossierComplet(formationKey, onProgress = null) {
   const config = DOSSIER_CONFIG[formationKey]

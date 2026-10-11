@@ -241,13 +241,13 @@ export default function Trainees() {
       gender: form.gender || null,
     }
     
-    console.log('💾 Sauvegarde stagiaire avec:', dataToSave)
+    console.log('Sauvegarde stagiaire avec:', dataToSave)
     
     const traineeName = `${form.first_name} ${form.last_name}`
     
     if (selectedTrainee) {
       const { error } = await updateTrainee(selectedTrainee.id, dataToSave)
-      console.log('✅ Résultat updateTrainee:', { error })
+      console.log('Résultat updateTrainee:', { error })
       if (error) {
         console.error('Erreur modification:', error)
         toast.error('Erreur lors de la modification')
@@ -255,10 +255,10 @@ export default function Trainees() {
       }
       // Log d'audit : modification
       logAudit('update', 'trainee', selectedTrainee.id, traineeName)
-      toast.success('✓ Campus a enregistré les modifications')
+      toast.success('Campus a enregistré les modifications')
     } else {
       const { data, error } = await createTrainee(dataToSave)
-      console.log('✅ Résultat createTrainee:', { data, error })
+      console.log('Résultat createTrainee:', { data, error })
       if (error) {
         console.error('Erreur création:', error)
         toast.error('Erreur lors de la création')
@@ -266,13 +266,13 @@ export default function Trainees() {
       }
       // Log d'audit : création
       logAudit('create', 'trainee', data?.id, traineeName)
-      toast.success('✓ Campus a créé le stagiaire')
+      toast.success('Campus a créé le stagiaire')
     }
     
     // Rafraîchir la liste pour récupérer les données à jour
-    console.log('🔄 Rechargement des stagiaires...')
+    console.log('Rechargement des stagiaires...')
     await fetchTrainees()
-    console.log('✅ Stagiaires rechargés')
+    console.log('Stagiaires rechargés')
     setShowForm(false)
     setSelectedTrainee(null)
   }
@@ -320,7 +320,7 @@ export default function Trainees() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
     
-    toast.success('✓ Export RGPD téléchargé')
+    toast.success('Export RGPD téléchargé')
   }
   
   // Fonctions pour ajout multiple
@@ -672,7 +672,7 @@ export default function Trainees() {
                       {t.first_name} {t.last_name?.toUpperCase()}
                     </button>
                     {t.has_disability && (
-                      <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded" title="Situation de handicap">♿</span>
+                      <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded" title="Situation de handicap"></span>
                     )}
                   </div>
                 </td>
@@ -735,7 +735,7 @@ export default function Trainees() {
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-amber-600 font-medium mb-1">N° Sécurité Sociale (Passeport Prévention)</p>
-                    <span className="text-xs text-green-600 flex items-center gap-1">🔐 Chiffré</span>
+                    <span className="text-xs text-green-600 flex items-center gap-1"> Chiffré</span>
                   </div>
                   {selectedTrainee.refused_ssn ? (
                     <p className="text-sm text-red-600 font-medium">A refusé de communiquer son numéro</p>
@@ -755,7 +755,7 @@ export default function Trainees() {
                 {/* Handicap */}
                 {selectedTrainee.has_disability && (
                   <div className="col-span-2 mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                    <p className="text-purple-700 font-medium text-sm mb-2">♿ Situation de handicap</p>
+                    <p className="text-purple-700 font-medium text-sm mb-2"> Situation de handicap</p>
                     {selectedTrainee.disability_details && (
                       <div className="mb-2">
                         <p className="text-gray-500 text-xs">Besoins identifiés :</p>
@@ -1002,7 +1002,7 @@ export default function Trainees() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setDuplicateWarning(null)} />
           <div className="relative bg-white rounded-xl shadow-xl p-6 max-w-md mx-4">
             <h3 className="text-lg font-semibold text-amber-600 mb-3 flex items-center gap-2">
-              ⚠️ Doublons détectés
+               Doublons détectés
             </h3>
             <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
               {duplicateWarning.duplicates.map((d, i) => (
@@ -1147,7 +1147,7 @@ export default function Trainees() {
                 <div>
                   <label className="label">Genre</label>
                   <select className="input w-full" value={bulkGender} onChange={(e) => setBulkGender(e.target.value)}>
-                    <option value="">— Ne pas modifier —</option>
+                    <option value="">- Ne pas modifier -</option>
                     <option value="male">Homme</option>
                     <option value="female">Femme</option>
                     <option value="non_binary">Non genré</option>
@@ -1157,7 +1157,7 @@ export default function Trainees() {
                 <div>
                   <label className="label">CSP</label>
                   <select className="input w-full" value={bulkCsp} onChange={(e) => setBulkCsp(e.target.value)}>
-                    <option value="">— Ne pas modifier —</option>
+                    <option value="">- Ne pas modifier -</option>
                     <option value="Agriculteurs exploitants">Agriculteurs exploitants</option>
                     <option value="Artisans, commerçants, chefs d'entreprise">Artisans, commerçants, chefs d'entreprise</option>
                     <option value="Cadres et professions intellectuelles supérieures">Cadres et professions intellectuelles supérieures</option>
@@ -1172,7 +1172,7 @@ export default function Trainees() {
                 <div>
                   <label className="label">Entreprise</label>
                   <select className="input w-full" value={massClientId} onChange={(e) => setMassClientId(e.target.value)}>
-                    <option value="">— Ne pas modifier —</option>
+                    <option value="">- Ne pas modifier -</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>

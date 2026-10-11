@@ -370,7 +370,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
   doc.setTextColor(0, 51, 102)
-  doc.text('ARTICLE 1 – Objet, durée et effectif de la formation', 20, y)
+  doc.text('ARTICLE 1 - Objet, durée et effectif de la formation', 20, y)
   doc.setTextColor(0, 0, 0)
   y += 7
   
@@ -540,7 +540,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
     // quand le prix d'une des sessions est modifié)
     const nbStagiaires = trainees.length || 1
     const prixParTete = coutFormationHT > 0 ? (coutFormationHT / nbStagiaires) : 0
-    article3Text += `\n(${nbStagiaires} stagiaire${nbStagiaires > 1 ? 's' : ''} × ${prixParTete.toFixed(2)} €/stagiaire — session inter-entreprises)`
+    article3Text += `\n(${nbStagiaires} stagiaire${nbStagiaires > 1 ? 's' : ''} × ${prixParTete.toFixed(2)} €/stagiaire - session inter-entreprises)`
   }
   
   if (costDetails.length > 0) {
@@ -562,15 +562,15 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
   // ARTICLES 2 à 10
   // ═══════════════════════════════════════════════════════════
   const articles = [
-    { title: 'ARTICLE 2 – Engagements des parties', text: "Le Bénéficiaire s'engage à assurer la présence des stagiaires inscrits et à fournir les moyens nécessaires à la réalisation de la formation (salle, matériel, conditions d'accueil). L'Organisme de Formation s'engage à mettre en œuvre les moyens pédagogiques, techniques et d'encadrement nécessaires pour atteindre les objectifs visés." },
-    { title: 'ARTICLE 3 – Dispositions financières', text: article3Text },
-    { title: 'ARTICLE 4 – Moyens et modalités pédagogiques', text: "La formation est dispensée selon une approche pédagogique active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues. Les supports pédagogiques utilisés sont adaptés aux objectifs de la formation et aux spécificités du public accueilli.\n\nLa présence des stagiaires est attestée par un dispositif d'émargement dématérialisé par QR Code individuel, ou sur support papier en cas d'indisponibilité du réseau numérique. Un émargement est réalisé par demi-journée, signé par chaque stagiaire et contresigné par le formateur." },
-    { title: "ARTICLE 5 – Modalités de suivi et d'évaluation", text: "Un positionnement préalable des participants est réalisé en amont de la formation afin d'adapter le déroulé pédagogique au niveau et aux besoins de chaque stagiaire.\n\nTout au long de la formation, des évaluations formatives permettent de mesurer la progression des acquis (mises en situation, exercices pratiques, questionnements oraux ou écrits). En fin de parcours, une évaluation sommative est conduite selon les critères du référentiel applicable à la formation suivie.\n\nUn certificat de réalisation mentionnant le niveau d'atteinte des objectifs est remis à l'issue de la formation." },
-    { title: 'ARTICLE 6 – Sanction et documents délivrés', text: "À l'issue de la formation, l'Organisme de Formation délivrera : une attestation de présence, un certificat de réalisation (Acquis / Non acquis) et, le cas échéant, une attestation officielle selon le module suivi." },
-    { title: 'ARTICLE 7 – Annulation et dédommagement', text: ORG.conditions_annulation || "En cas de désistement du Bénéficiaire moins de 14 jours avant le début de la formation, une indemnité forfaitaire de 50 % du coût total sera facturée. En cas de désistement moins de 7 jours avant, une indemnité de 75 % sera facturée. En cas d'annulation par l'Organisme de Formation moins de 7 jours avant, une nouvelle date sera proposée sans frais supplémentaires." },
-    { title: 'ARTICLE 8 – Accessibilité', text: `${ORG.name} s'engage à favoriser l'accès à ses formations pour toute personne en situation de handicap. Toute demande d'adaptation doit être signalée en amont à ${ORG.email} afin de mettre en place les mesures nécessaires.` },
-    { title: 'ARTICLE 9 – Protection des données (RGPD)', text: "Les données personnelles collectées sont utilisées exclusivement dans le cadre de la gestion administrative et pédagogique des formations. Elles sont conservées 5 ans et accessibles sur demande conformément au RGPD." },
-    { title: 'ARTICLE 10 – Litiges', text: "En cas de différend, les parties s'efforceront de trouver une solution amiable. À défaut, le litige sera porté devant " + (ORG.tribunal_competent ? `le ${ORG.tribunal_competent}` : 'le tribunal compétent') + "." },
+    { title: 'ARTICLE 2 - Engagements des parties', text: "Le Bénéficiaire s'engage à assurer la présence des stagiaires inscrits et à fournir les moyens nécessaires à la réalisation de la formation (salle, matériel, conditions d'accueil). L'Organisme de Formation s'engage à mettre en œuvre les moyens pédagogiques, techniques et d'encadrement nécessaires pour atteindre les objectifs visés." },
+    { title: 'ARTICLE 3 - Dispositions financières', text: article3Text },
+    { title: 'ARTICLE 4 - Moyens et modalités pédagogiques', text: "La formation est dispensée selon une approche pédagogique active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues. Les supports pédagogiques utilisés sont adaptés aux objectifs de la formation et aux spécificités du public accueilli.\n\nLa présence des stagiaires est attestée par un dispositif d'émargement dématérialisé par QR Code individuel, ou sur support papier en cas d'indisponibilité du réseau numérique. Un émargement est réalisé par demi-journée, signé par chaque stagiaire et contresigné par le formateur." },
+    { title: "ARTICLE 5 - Modalités de suivi et d'évaluation", text: "Un positionnement préalable des participants est réalisé en amont de la formation afin d'adapter le déroulé pédagogique au niveau et aux besoins de chaque stagiaire.\n\nTout au long de la formation, des évaluations formatives permettent de mesurer la progression des acquis (mises en situation, exercices pratiques, questionnements oraux ou écrits). En fin de parcours, une évaluation sommative est conduite selon les critères du référentiel applicable à la formation suivie.\n\nUn certificat de réalisation mentionnant le niveau d'atteinte des objectifs est remis à l'issue de la formation." },
+    { title: 'ARTICLE 6 - Sanction et documents délivrés', text: "À l'issue de la formation, l'Organisme de Formation délivrera : une attestation de présence, un certificat de réalisation (Acquis / Non acquis) et, le cas échéant, une attestation officielle selon le module suivi." },
+    { title: 'ARTICLE 7 - Annulation et dédommagement', text: ORG.conditions_annulation || "En cas de désistement du Bénéficiaire moins de 14 jours avant le début de la formation, une indemnité forfaitaire de 50 % du coût total sera facturée. En cas de désistement moins de 7 jours avant, une indemnité de 75 % sera facturée. En cas d'annulation par l'Organisme de Formation moins de 7 jours avant, une nouvelle date sera proposée sans frais supplémentaires." },
+    { title: 'ARTICLE 8 - Accessibilité', text: `${ORG.name} s'engage à favoriser l'accès à ses formations pour toute personne en situation de handicap. Toute demande d'adaptation doit être signalée en amont à ${ORG.email} afin de mettre en place les mesures nécessaires.` },
+    { title: 'ARTICLE 9 - Protection des données (RGPD)', text: "Les données personnelles collectées sont utilisées exclusivement dans le cadre de la gestion administrative et pédagogique des formations. Elles sont conservées 5 ans et accessibles sur demande conformément au RGPD." },
+    { title: 'ARTICLE 10 - Litiges', text: "En cas de différend, les parties s'efforceront de trouver une solution amiable. À défaut, le litige sera porté devant " + (ORG.tribunal_competent ? `le ${ORG.tribunal_competent}` : 'le tribunal compétent') + "." },
   ]
   
   articles.forEach(art => {
@@ -1121,11 +1121,11 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
     let y = 18
     doc.setFontSize(13)
     doc.setFont('helvetica', 'bold')
-    doc.text('ANNEXE — SIGNATURES RECUEILLIES PAR UN TIERS', pw / 2, y, { align: 'center' })
+    doc.text('ANNEXE - SIGNATURES RECUEILLIES PAR UN TIERS', pw / 2, y, { align: 'center' })
     y += 8
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Formation : ${course.title || ''} — ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)} — ${session?.clients?.name || ''}`, 15, y)
+    doc.text(`Formation : ${course.title || ''} - ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)} - ${session?.clients?.name || ''}`, 15, y)
     y += 7
 
     proxyNotes.forEach(n => {
@@ -1139,9 +1139,9 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
       doc.text(`(${n.num})  ${n.trainee?.last_name?.toUpperCase() || ''} ${n.trainee?.first_name || ''}`, 18, y + 6)
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
-      doc.text(`Demi-journée : ${formatDate(n.date)} — ${n.period === 'morning' ? 'Matin' : 'Après-midi'}`, 18, y + 12)
+      doc.text(`Demi-journée : ${formatDate(n.date)} - ${n.period === 'morning' ? 'Matin' : 'Après-midi'}`, 18, y + 12)
       doc.text(`Motif : ${n.reason || ''}`, 18, y + 17)
-      doc.text(`Signataire : ${n.proxy_first_name || ''} ${n.proxy_last_name?.toUpperCase() || ''} — ${n.proxy_role || ''}`, 18, y + 22)
+      doc.text(`Signataire : ${n.proxy_first_name || ''} ${n.proxy_last_name?.toUpperCase() || ''} - ${n.proxy_role || ''}`, 18, y + 22)
       doc.setFontSize(7)
       doc.setTextColor(120, 120, 120)
       doc.text("Le stagiaire n'étant pas en mesure de signer, la signature a été recueillie par la personne ci-dessus, en présence du formateur.", 18, y + 28, { maxWidth: 150 })
@@ -1362,7 +1362,7 @@ function generateCertificat(session, trainee, trainer = null) {
       objectivesWithComments.forEach((obj, idx) => {
         // Nom de l'objectif
         doc.setFont('helvetica', 'bold')
-        const objTitleLines = doc.splitTextToSize(`❌ ${obj.text}`, 160)
+        const objTitleLines = doc.splitTextToSize(` ${obj.text}`, 160)
         objTitleLines.forEach(line => {
           doc.text(line, 25, y)
           y += 5
@@ -1861,7 +1861,7 @@ function generatePositionnement(session, questions = [], isBlank = false, traine
           }
           
           // Texte de l'option
-          const optText = isCorrige && isCorrect ? `${opt} ✓` : opt
+          const optText = isCorrige && isCorrect ? `${opt} ` : opt
           doc.text(optText, 32, y)
           
           if (isCorrige && isCorrect) {
@@ -2201,7 +2201,7 @@ function generateFicheRenseignements(session, trainee = null, isBlank = false, i
   }
   y += lineHeight
   
-  // N° Sécurité sociale — jamais imprimé (INRS) : seule la mention figure ici.
+  // N° Sécurité sociale - jamais imprimé (INRS) : seule la mention figure ici.
   // Le numéro reste dans Campus, pour le Passeport Prévention.
   doc.text('N° Sécu. Sociale :', 17, y)
   doc.setFontSize(8)

@@ -10,9 +10,9 @@ import { jsPDF } from 'jspdf'
 import 'jspdf-autotable'
 
 const TRAINING_TYPES = {
-  externe: { label: 'Formation externe', color: 'blue', icon: '🎓' },
-  interne: { label: 'Formation interne', color: 'green', icon: '🏢' },
-  echange_pratiques: { label: 'Échange de pratiques', color: 'purple', icon: '💬' }
+  externe: { label: 'Formation externe', color: 'blue', icon: '' },
+  interne: { label: 'Formation interne', color: 'green', icon: '' },
+  echange_pratiques: { label: 'Échange de pratiques', color: 'purple', icon: '' }
 }
 
 const INTERVIEW_TYPES = {
@@ -270,7 +270,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
     if (trainings.length > 0) {
       doc.setFontSize(14)
       doc.setFont('helvetica', 'bold')
-      doc.text('📚 Formations suivies et planifiées', 14, yPos)
+      doc.text(' Formations suivies et planifiées', 14, yPos)
       yPos += 8
 
       const trainingRows = trainings.map(t => [
@@ -311,7 +311,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
 
       doc.setFontSize(14)
       doc.setFont('helvetica', 'bold')
-      doc.text('💼 Entretiens professionnels', 14, yPos)
+      doc.text(' Entretiens professionnels', 14, yPos)
       yPos += 8
 
       const interviewRows = interviews.map(i => [
@@ -640,7 +640,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                           </span>
                           {isPast && (
                             <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                              ✓ Réalisée
+                               Réalisée
                             </span>
                           )}
                         </div>

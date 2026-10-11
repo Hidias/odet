@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// pdfKitSecours.js — Kit Secours Formation
+// pdfKitSecours.js - Kit Secours Formation
 // Génère un ZIP complet prêt à imprimer pour chaque type de formation
 // Page de garde + Intercalaires + Documents x10 + Grilles + SST INRS
 // ═══════════════════════════════════════════════════════════════
@@ -26,10 +26,10 @@ function applyOrgSettings(orgSettings) {
 // ─── Configuration des kits par formation ─────────────────
 export const KIT_CONFIG = {
   sst_fi: {
-    label: 'SST — Formation Initiale',
+    label: 'SST - Formation Initiale',
     shortLabel: 'SST FI',
     color: '#22c55e',
-    emoji: '🩺',
+    emoji: '',
     documents: [
       { type: 'emargement', copies: 1, label: 'Feuille d\'émargement' },
       { type: 'ficheRenseignements', copies: 10, label: 'Fiches de renseignements' },
@@ -42,10 +42,10 @@ export const KIT_CONFIG = {
     competencyGrid: null,
   },
   sst_mac: {
-    label: 'SST — MAC (Recyclage)',
+    label: 'SST - MAC (Recyclage)',
     shortLabel: 'SST MAC',
     color: '#16a34a',
-    emoji: '🩺',
+    emoji: '',
     documents: [
       { type: 'emargement', copies: 1, label: 'Feuille d\'émargement' },
       { type: 'ficheRenseignements', copies: 10, label: 'Fiches de renseignements' },
@@ -61,7 +61,7 @@ export const KIT_CONFIG = {
     label: 'Incendie / EPI',
     shortLabel: 'Incendie',
     color: '#ef4444',
-    emoji: '🔥',
+    emoji: '',
     documents: [
       { type: 'emargement', copies: 1, label: 'Feuille d\'émargement' },
       { type: 'ficheRenseignements', copies: 10, label: 'Fiches de renseignements' },
@@ -76,7 +76,7 @@ export const KIT_CONFIG = {
     label: 'Gestes & Postures / TMS',
     shortLabel: 'Gestes & Postures',
     color: '#3b82f6',
-    emoji: '🏋️',
+    emoji: '',
     documents: [
       { type: 'emargement', copies: 1, label: 'Feuille d\'émargement' },
       { type: 'ficheRenseignements', copies: 10, label: 'Fiches de renseignements' },
@@ -91,7 +91,7 @@ export const KIT_CONFIG = {
     label: 'Conduite Chariot R489',
     shortLabel: 'R489',
     color: '#1f2937',
-    emoji: '🏗️',
+    emoji: '',
     documents: [
       { type: 'emargement', copies: 1, label: 'Feuille d\'émargement' },
       { type: 'ficheRenseignements', copies: 10, label: 'Fiches de renseignements' },
@@ -106,7 +106,7 @@ export const KIT_CONFIG = {
     label: 'Conduite Gerbeur R485',
     shortLabel: 'R485',
     color: '#6b7280',
-    emoji: '🏭',
+    emoji: '',
     documents: [
       { type: 'emargement', copies: 1, label: 'Feuille d\'émargement' },
       { type: 'ficheRenseignements', copies: 10, label: 'Fiches de renseignements' },
@@ -121,7 +121,7 @@ export const KIT_CONFIG = {
     label: 'Habilitation Électrique',
     shortLabel: 'Hab. Élec.',
     color: '#eab308',
-    emoji: '⚡',
+    emoji: '',
     documents: [
       { type: 'emargement', copies: 1, label: 'Feuille d\'émargement' },
       { type: 'ficheRenseignements', copies: 10, label: 'Fiches de renseignements' },
@@ -275,7 +275,7 @@ function generatePageDeGarde(config, documentsList) {
   doc.roundedRect(15, y, pw - 30, 30, 2, 2, 'FD')
   doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
-  doc.text('⚠️  MODE DÉGRADÉ — INSTRUCTIONS', 20, y + 7)
+  doc.text('  MODE DÉGRADÉ - INSTRUCTIONS', 20, y + 7)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.text('Ce kit est prévu en cas d\'indisponibilité de la plateforme en ligne.', 20, y + 13)
@@ -377,7 +377,7 @@ async function generateBlankDocument(docType, questions = null) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// EXPORT PRINCIPAL — Génère le ZIP du kit secours
+// EXPORT PRINCIPAL - Génère le ZIP du kit secours
 // ═══════════════════════════════════════════════════════════
 
 export async function downloadKitSecours(kitKey, options = {}) {

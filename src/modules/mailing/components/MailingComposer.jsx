@@ -1,6 +1,6 @@
 // src/components/mailing/MailingComposer.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Mailing — Création d'une campagne sur un seul écran
+// Mailing - Création d'une campagne sur un seul écran
 //
 //   Gauche : destinataires (MailingAudience)
 //   Droite : message (modèles, variables, aide interactive, PJ), aperçu, test,
@@ -30,9 +30,9 @@ const sigOptions = () => team().filter((t) => t.email).map((t) => ({ value: t.fi
 export const senderEmailFor = (value) => sigOptions().find((s) => s.value === value)?.email || currentUserEmail()
 
 const CADENCES = [
-  { value: 90,  label: '90 s — 40 / heure' },
-  { value: 180, label: '180 s — 20 / heure (recommandé)' },
-  { value: 300, label: '300 s — 12 / heure (prudent)' },
+  { value: 90,  label: '90 s - 40 / heure' },
+  { value: 180, label: '180 s - 20 / heure (recommandé)' },
+  { value: 300, label: '300 s - 12 / heure (prudent)' },
 ]
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -298,8 +298,8 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
 
       if (mode === 'serveur') {
         toast.success(later
-          ? `Campagne programmée le ${fmtDateTime(start)} — ${payload.length} destinataires`
-          : `Envoi lancé côté serveur — ${payload.length} destinataires. Vous pouvez fermer cette page.`, { duration: 6000 })
+          ? `Campagne programmée le ${fmtDateTime(start)} - ${payload.length} destinataires`
+          : `Envoi lancé côté serveur - ${payload.length} destinataires. Vous pouvez fermer cette page.`, { duration: 6000 })
         onScheduled?.(camp)
       } else {
         const { data: sends, error: sErr } = await supabase
@@ -381,7 +381,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
               <label className="block text-xs font-medium text-gray-600 mb-1">Objet *</label>
               <input ref={subjectRef} value={form.subject} onFocus={() => { lastFocus.current = 'subject' }}
                 onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
-                placeholder="Ex : Sécurité au travail — {entreprise}"
+                placeholder="Ex : Sécurité au travail - {entreprise}"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
 
@@ -417,7 +417,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <p className="text-[11px] text-gray-400">HTML accepté. La signature et le lien de désabonnement sont ajoutés automatiquement.</p>
               {missingVarCount > 0 && (
-                <p className="text-[11px] text-amber-700 mt-1">⚠️ {missingVarCount} destinataire{missingVarCount > 1 ? 's' : ''} sans valeur pour une variable utilisée ({usedVars.filter(v => v !== 'bonjour').map(v => `{${v}}`).join(', ')}) : elle sera laissée vide.</p>
+                <p className="text-[11px] text-amber-700 mt-1"> {missingVarCount} destinataire{missingVarCount > 1 ? 's' : ''} sans valeur pour une variable utilisée ({usedVars.filter(v => v !== 'bonjour').map(v => `{${v}}`).join(', ')}) : elle sera laissée vide.</p>
               )}
             </div>
 
@@ -462,7 +462,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
                 <Mail className="w-3.5 h-3.5" /> Test à {user?.email}
               </button>
             </div>
-            <p className="px-3 pt-2 text-sm"><span className="text-gray-400">Objet :</span> <strong>{previewSubject || '—'}</strong></p>
+            <p className="px-3 pt-2 text-sm"><span className="text-gray-400">Objet :</span> <strong>{previewSubject || '-'}</strong></p>
             {form.body_html
               ? <iframe srcDoc={previewSrc} title="apercu" sandbox="allow-same-origin" className="w-full border-none" style={{ height: 300 }} />
               : <p className="p-6 text-center text-sm text-gray-400">Message vide</p>}
@@ -510,7 +510,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
                 <CalendarClock className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />
                 {selection.size} mail{selection.size > 1 ? 's' : ''} · environ {durationMin >= 60 ? `${Math.floor(durationMin / 60)} h ${durationMin % 60} min` : `${durationMin} min`}
                 {' '}· début {fmtDateTime(startDate)} · fin vers {fmtDateTime(endDate)}
-                {selection.size > 400 && <span className="block text-amber-700 mt-1">⚠️ Plus de 400 mails : c'est au-delà de votre plus gros envoi journalier connu (457 le 15/05).</span>}
+                {selection.size > 400 && <span className="block text-amber-700 mt-1"> Plus de 400 mails : c'est au-delà de votre plus gros envoi journalier connu (457 le 15/05).</span>}
               </p>
             )}
           </div>
@@ -523,13 +523,13 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
             <h3 className="text-lg font-bold">{mode === 'serveur' && when === 'later' ? 'Programmer la campagne' : 'Lancer la campagne'}</h3>
             <ul className="text-sm space-y-1.5 text-gray-700">
-              <li><strong>{prepared.kept.length}</strong> destinataire{prepared.kept.length > 1 ? 's' : ''} — « {form.subject} »</li>
+              <li><strong>{prepared.kept.length}</strong> destinataire{prepared.kept.length > 1 ? 's' : ''} - « {form.subject} »</li>
               {Object.keys(prepared.removed).length > 0 && (
                 <li className="text-orange-700">
                   Retirés à la vérification finale : {Object.entries(prepared.removed).map(([k, n]) => `${EXCLUSION_LABELS[k] || (k === 'disparue' ? 'Adresse disparue' : k)} ${n}`).join(' · ')}
                 </li>
               )}
-              {prepared.recent > 0 && <li className="text-amber-700">⚠️ {prepared.recent} ont déjà reçu un mail il y a moins de 30 jours (envoi quand même)</li>}
+              {prepared.recent > 0 && <li className="text-amber-700"> {prepared.recent} ont déjà reçu un mail il y a moins de 30 jours (envoi quand même)</li>}
               <li>Expéditeur : <strong>{senderEmailFor(form.signature_caller)}</strong></li>
               <li>Mode : <strong>{mode === 'serveur' ? 'serveur' : 'ce navigateur (ne pas fermer l’onglet)'}</strong> · cadence {cadence} s</li>
               <li>{mode === 'serveur' && when === 'later' ? 'Début' : 'Départ'} : <strong>{fmtDateTime(startDate)}</strong> · fin estimée {fmtDateTime(new Date(startDate.getTime() + Math.max(0, prepared.kept.length - 1) * cadence * 1000))}</li>

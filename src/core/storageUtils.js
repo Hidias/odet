@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// storageUtils.js — Helpers pour Supabase Storage
+// storageUtils.js - Helpers pour Supabase Storage
 // ════════════════════════════════════════════════════════════════
 //
 // PROBLÈME RÉSOLU :
@@ -12,7 +12,7 @@
 // Il faut donc TOUJOURS sanitiser le nom de fichier avant de construire
 // le chemin passé à supabase.storage.from(...).upload(path, file).
 //
-// ⚠️ Sanitiser le CHEMIN STORAGE uniquement.
+//  Sanitiser le CHEMIN STORAGE uniquement.
 // Le nom affiché (colonne file_name en base, nom de PJ email, entrée ZIP)
 // doit conserver le nom d'origine avec ses accents : ce sont des colonnes
 // texte Postgres / des encodages UTF-8, aucune contrainte de ce type.

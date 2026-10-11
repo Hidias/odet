@@ -302,7 +302,7 @@ export default function Documents() {
           >
             <div className="flex items-center gap-2">
               <PenTool className="w-4 h-4" />
-              ✨ Éditeur courrier
+               Éditeur courrier
             </div>
           </button>
         </nav>

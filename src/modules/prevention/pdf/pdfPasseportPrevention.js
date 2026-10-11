@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// pdfPasseportPrevention.js — Notice Passeport Prévention
+// pdfPasseportPrevention.js - Notice Passeport Prévention
 // Deux versions : stagiaire et entreprise
 // ═══════════════════════════════════════════════════════════════
 
@@ -34,7 +34,7 @@ function addFooter(doc, pageNum) {
   const ph = doc.internal.pageSize.getHeight()
   doc.setFontSize(7)
   doc.setTextColor(120, 120, 120)
-  doc.text(`${ORG.name} — Notice Passeport Prévention — Page ${pageNum}`, pw / 2, ph - 8, { align: 'center' })
+  doc.text(`${ORG.name} - Notice Passeport Prévention - Page ${pageNum}`, pw / 2, ph - 8, { align: 'center' })
   doc.setTextColor(0, 0, 0)
 }
 
@@ -169,13 +169,13 @@ function generateVersionStagiaire() {
   y += 5
 
   const formations = [
-    'SST — Sauveteur Secouriste du Travail (certification INRS)',
-    'MAC SST — Maintien et Actualisation des Compétences SST',
-    'Sécurité Incendie — EPI (Équipier de Première Intervention)',
+    'SST - Sauveteur Secouriste du Travail (certification INRS)',
+    'MAC SST - Maintien et Actualisation des Compétences SST',
+    'Sécurité Incendie - EPI (Équipier de Première Intervention)',
     'Conduite de chariots élévateurs (R489)',
     'Conduite de gerbeurs à conducteur accompagnant (R485)',
-    'Habilitation Électrique B0/H0V — Opérations d\'ordre non-électrique',
-    'Gestes et Postures / PRAP — Prévention des Risques liés à l\'Activité Physique',
+    'Habilitation Électrique B0/H0V - Opérations d\'ordre non-électrique',
+    'Gestes et Postures / PRAP - Prévention des Risques liés à l\'Activité Physique',
   ]
   doc.setFont('helvetica', 'normal')
   formations.forEach(f => { y = drawBulletPoint(doc, y, f) })
@@ -331,7 +331,7 @@ function generateVersionEntreprise() {
   y = drawInfoBox(doc, y,
     "Le Passeport de Prévention s'articule directement avec votre Document Unique d'Évaluation des " +
     "Risques Professionnels (DUERP). Les formations identifiées comme mesures de prévention dans votre " +
-    "DUERP doivent être effectivement réalisées et tracées — le passeport en est la preuve.", [230, 255, 230])
+    "DUERP doivent être effectivement réalisées et tracées - le passeport en est la preuve.", [230, 255, 230])
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
@@ -361,8 +361,8 @@ function generateVersionEntreprise() {
     body: [
       ['Depuis octobre 2022', 'Le Passeport de Prévention est accessible aux salariés'],
       ['Depuis 2023', 'Les organismes de formation peuvent alimenter les passeports'],
-      ['2024-2025', 'Montée en charge progressive — alimentation par les employeurs'],
-      ['2025-2026', 'Généralisation — tous les acteurs doivent alimenter le passeport'],
+      ['2024-2025', 'Montée en charge progressive - alimentation par les employeurs'],
+      ['2025-2026', 'Généralisation - tous les acteurs doivent alimenter le passeport'],
     ],
     styles: { fontSize: 8.5, cellPadding: 3.5 },
     headStyles: { fillColor: [0, 102, 204], textColor: [255, 255, 255] },

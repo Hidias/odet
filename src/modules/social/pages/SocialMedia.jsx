@@ -4,28 +4,28 @@ import { supabase } from '../../../core/supabase'
 import toast from 'react-hot-toast'
 
 // ═══════════════════════════════════════════════════════════
-// MODULE SOCIAL MEDIA — Access Campus
+// MODULE SOCIAL MEDIA - Access Campus
 // Phase 1 : Générateur IA + Calendrier + Médiathèque
 // ═══════════════════════════════════════════════════════════
 
 const PLATFORMS = [
-  { id: 'linkedin', label: 'LinkedIn Page', icon: '💼', color: 'blue', maxChars: 3000 },
-  { id: 'linkedin_hicham', label: 'LinkedIn Hicham', icon: '👤', color: 'blue', maxChars: 3000 },
-  { id: 'facebook', label: 'Facebook', icon: '📘', color: 'indigo', maxChars: 5000 },
-  { id: 'instagram', label: 'Instagram', icon: '📸', color: 'pink', maxChars: 2200 },
-  { id: 'gmb', label: 'Google', icon: '📍', color: 'green', maxChars: 1500 },
+  { id: 'linkedin', label: 'LinkedIn Page', icon: '', color: 'blue', maxChars: 3000 },
+  { id: 'linkedin_hicham', label: 'LinkedIn Hicham', icon: '', color: 'blue', maxChars: 3000 },
+  { id: 'facebook', label: 'Facebook', icon: '', color: 'indigo', maxChars: 5000 },
+  { id: 'instagram', label: 'Instagram', icon: '', color: 'pink', maxChars: 2200 },
+  { id: 'gmb', label: 'Google', icon: '', color: 'green', maxChars: 1500 },
 ]
 
 const POST_TYPES = [
-  { id: 'expertise', label: '🎓 Expertise terrain', desc: 'Partager un savoir-faire, une anecdote formation' },
-  { id: 'stat', label: '📊 Statistique / Résultat', desc: 'Taux de réussite, satisfaction, certifications' },
-  { id: 'storytelling', label: '📖 Storytelling', desc: 'Histoire vécue en formation, retour terrain' },
-  { id: 'promo', label: '📢 Promotion', desc: 'Nouvelle formation, offre, événement' },
-  { id: 'educatif', label: '📚 Éducatif', desc: 'Conseil prévention, réglementation, bonnes pratiques' },
-  { id: 'qualiopi', label: '✅ Qualiopi / Qualité', desc: 'Démarche qualité, certification, processus' },
-  { id: 'campus', label: '💻 Access Campus', desc: 'Fonctionnalités de la plateforme, innovation' },
-  { id: 'offre_promo', label: '🎯 Offre promotionnelle', desc: 'Offre avec date de fin, CTA fort, urgence positive' },
-  { id: 'veille_reglementaire', label: '📋 Veille réglementaire', desc: 'Nouvelle norme, obligation légale, mise à jour INRS/CACES' },
+  { id: 'expertise', label: ' Expertise terrain', desc: 'Partager un savoir-faire, une anecdote formation' },
+  { id: 'stat', label: ' Statistique / Résultat', desc: 'Taux de réussite, satisfaction, certifications' },
+  { id: 'storytelling', label: ' Storytelling', desc: 'Histoire vécue en formation, retour terrain' },
+  { id: 'promo', label: ' Promotion', desc: 'Nouvelle formation, offre, événement' },
+  { id: 'educatif', label: ' Éducatif', desc: 'Conseil prévention, réglementation, bonnes pratiques' },
+  { id: 'qualiopi', label: ' Qualiopi / Qualité', desc: 'Démarche qualité, certification, processus' },
+  { id: 'campus', label: ' Access Campus', desc: 'Fonctionnalités de la plateforme, innovation' },
+  { id: 'offre_promo', label: ' Offre promotionnelle', desc: 'Offre avec date de fin, CTA fort, urgence positive' },
+  { id: 'veille_reglementaire', label: ' Veille réglementaire', desc: 'Nouvelle norme, obligation légale, mise à jour INRS/CACES' },
 ]
 
 // Hashtags gérés dynamiquement par l'IA dans le prompt
@@ -74,7 +74,7 @@ export default function SocialMedia() {
     } else if (params.get('linkedin') === 'error') {
       const reason = params.get('reason')
       const msg = reason === 'no_org_page'
-        ? 'Aucune page entreprise trouvée — connectez-vous avec le compte admin de la page Access Formation'
+        ? 'Aucune page entreprise trouvée - connectez-vous avec le compte admin de la page Access Formation'
         : `Erreur LinkedIn : ${reason}`
       toast.error(msg)
     }
@@ -194,10 +194,10 @@ export default function SocialMedia() {
   }
 
   const tabs = [
-    { id: 'generator', label: '✨ Générateur', count: null },
-    { id: 'calendar', label: '📅 Calendrier', count: posts.filter(p => p.status === 'scheduled').length },
-    { id: 'library', label: '🖼️ Médiathèque', count: media.length },
-    { id: 'drafts', label: '📝 Brouillons', count: posts.filter(p => p.status === 'draft').length },
+    { id: 'generator', label: ' Générateur', count: null },
+    { id: 'calendar', label: ' Calendrier', count: posts.filter(p => p.status === 'scheduled').length },
+    { id: 'library', label: ' Médiathèque', count: media.length },
+    { id: 'drafts', label: ' Brouillons', count: posts.filter(p => p.status === 'draft').length },
   ]
 
   return (
@@ -205,7 +205,7 @@ export default function SocialMedia() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#0F2D35]">📱 Social & Communication</h1>
+          <h1 className="text-2xl font-bold text-[#0F2D35]"> Social & Communication</h1>
           <p className="text-sm text-gray-500 mt-1">Générez et planifiez vos publications sur tous vos réseaux</p>
         </div>
       </div>
@@ -255,7 +255,7 @@ function ConnectionPanel({ connections, onRefresh }) {
     {
       id: 'facebook',
       label: 'Facebook',
-      icon: '📘',
+      icon: '',
       connectUrl: '/api/auth/meta?action=connect',
       color: 'blue',
       details: connections?.facebook?.metadata?.page_name,
@@ -263,7 +263,7 @@ function ConnectionPanel({ connections, onRefresh }) {
     {
       id: 'instagram',
       label: 'Instagram',
-      icon: '📸',
+      icon: '',
       connectUrl: null, // Se connecte via Meta
       color: 'pink',
       details: connections?.instagram?.metadata?.username ? `@${connections.instagram.metadata.username}` : null,
@@ -272,7 +272,7 @@ function ConnectionPanel({ connections, onRefresh }) {
     {
       id: 'gmb',
       label: 'Google',
-      icon: '📍',
+      icon: '',
       connectUrl: '/api/auth/google?action=connect',
       color: 'green',
       details: connections?.gmb?.metadata?.location_name,
@@ -280,7 +280,7 @@ function ConnectionPanel({ connections, onRefresh }) {
     {
       id: 'linkedin',
       label: 'LinkedIn Page',
-      icon: '💼',
+      icon: '',
       connectUrl: '/api/auth/linkedin?action=connect',
       color: 'blue',
       details: connections?.linkedin?.metadata?.org_name || null,
@@ -288,7 +288,7 @@ function ConnectionPanel({ connections, onRefresh }) {
     {
       id: 'linkedin_hicham',
       label: 'LinkedIn Hicham',
-      icon: '👤',
+      icon: '',
       connectUrl: null,
       color: 'blue',
       details: connections?.linkedin?.connected ? 'Utilise le token LinkedIn page' : null,
@@ -305,7 +305,7 @@ function ConnectionPanel({ connections, onRefresh }) {
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-[#0F2D35]">🔗 Réseaux connectés</span>
+          <span className="text-sm font-medium text-[#0F2D35]"> Réseaux connectés</span>
           <div className="flex gap-1">
             {platformConfigs.map(p => {
               const isConnected = connections?.[p.id]?.connected
@@ -316,7 +316,7 @@ function ConnectionPanel({ connections, onRefresh }) {
                   title={`${p.label} : ${isConnected ? 'connecté' : 'non connecté'}`}
                 >
                   {p.icon}
-                  {isConnected && <span className="text-[8px] ml-[-4px]">✅</span>}
+                  {isConnected && <span className="text-[8px] ml-[-4px]"></span>}
                 </span>
               )
             })}
@@ -347,7 +347,7 @@ function ConnectionPanel({ connections, onRefresh }) {
 
                   {isConnected ? (
                     <>
-                      <div className="text-[10px] text-green-700 font-medium">✅ Connecté</div>
+                      <div className="text-[10px] text-green-700 font-medium"> Connecté</div>
                       {p.details && <div className="text-[10px] text-gray-500 truncate">{p.details}</div>}
                     </>
                   ) : (
@@ -355,7 +355,7 @@ function ConnectionPanel({ connections, onRefresh }) {
                       {p.linkedTo ? (
                         <div className="text-[10px] text-gray-400">
                           {connections?.[p.linkedTo]?.connected
-                            ? `✅ Lié via ${p.linkedTo === 'facebook' ? 'Facebook' : 'LinkedIn page'}`
+                            ? ` Lié via ${p.linkedTo === 'facebook' ? 'Facebook' : 'LinkedIn page'}`
                             : `Connectez ${p.linkedTo === 'facebook' ? 'Facebook' : 'LinkedIn page'} d'abord`}
                         </div>
                       ) : p.disabled ? (
@@ -377,7 +377,7 @@ function ConnectionPanel({ connections, onRefresh }) {
 
           {connectedCount < 3 && (
             <p className="text-[10px] text-gray-400 mt-3 text-center">
-              💡 Connectez vos comptes pour publier directement depuis Campus. Facebook connecte aussi Instagram automatiquement.
+               Connectez vos comptes pour publier directement depuis Campus. Facebook connecte aussi Instagram automatiquement.
             </p>
           )}
         </div>
@@ -486,64 +486,64 @@ function GeneratorTab({ stats, onSave, media, editingDraft, onClearDraft, connec
       const systemPrompt = `Tu es un community manager expert pour Access Formation, organisme de formation à la prévention des risques basé à Concarneau en Bretagne. Tu rédiges des posts qui performent sur chaque algorithme.
 
 ═══ VOIX DE MARQUE ═══
-- TOUJOURS parler en "nous" / "notre" / "nos" — JAMAIS "je" / "mon" / "on"
+- TOUJOURS parler en "nous" / "notre" / "nos" - JAMAIS "je" / "mon" / "on"
 - Access Formation parle en tant qu'équipe : "Nous intervenons", "Notre approche", "Nos formateurs"
 - JAMAIS de signature ("L'équipe AF", "Hicham"...)
 - JAMAIS de guillemets fictifs ou de citations inventées
-- Coordonnées à inclure naturellement : 📧 contact@accessformation.pro | 📞 02 98 90 30 24
-- Pas de "N'hésitez pas", "Ne ratez pas", "Ne manquez pas" — formuler positivement
+- Coordonnées à inclure naturellement :  contact@accessformation.pro |  02 98 90 30 24
+- Pas de "N'hésitez pas", "Ne ratez pas", "Ne manquez pas" - formuler positivement
 
 ═══ TONALITÉ ═══
 - Sémantiquement POSITIF : tourner les phrases de façon affirmative
-  ❌ "Ne laissez pas un accident arriver" → ✅ "Chaque geste compte pour protéger vos équipes"
-  ❌ "Vos salariés ne savent pas réagir" → ✅ "Vos salariés méritent d'avoir les bons réflexes"
+   "Ne laissez pas un accident arriver" →  "Chaque geste compte pour protéger vos équipes"
+   "Vos salariés ne savent pas réagir" →  "Vos salariés méritent d'avoir les bons réflexes"
 - EXCEPTION : quand on parle d'accident/urgence, être IMPACTANT et direct
-  ✅ "Un arrêt cardiaque. 4 minutes pour agir. Vos équipes sont-elles prêtes ?"
+   "Un arrêt cardiaque. 4 minutes pour agir. Vos équipes sont-elles prêtes ?"
 - Professionnel mais humain, ancré dans le terrain
 - Emojis avec parcimonie (2-3 max par post, jamais en rafale)
 
-═══ LINKEDIN PAGE ENTREPRISE — ALGO 2026 ═══
+═══ LINKEDIN PAGE ENTREPRISE - ALGO 2026 ═══
 Objectif : dwell time (temps de lecture) + commentaires de qualité
 - HOOK en 1ère ligne (visible avant "voir plus") : affirmation forte OU constat terrain OU question professionnelle
 - 1 phrase = 1 ligne (sauts de ligne fréquents pour aérer)
 - Texte : 800-1500 caractères
 - JAMAIS de lien dans le corps du post (reach pénalisé)
-- Terminer par "🔗 Lien en commentaire" si besoin
-- Finir par une QUESTION PROFESSIONNELLE ancrée dans le vécu terrain (pas d'engagement bait générique type "vous êtes d'accord ?" — l'algo 2026 pénalise ça)
+- Terminer par " Lien en commentaire" si besoin
+- Finir par une QUESTION PROFESSIONNELLE ancrée dans le vécu terrain (pas d'engagement bait générique type "vous êtes d'accord ?" - l'algo 2026 pénalise ça)
 - Exemple de bonne question : "Dans votre secteur, quelle situation d'urgence revient le plus souvent ?"
 - Hashtags : 3-5 MAX en PREMIER COMMENTAIRE, JAMAIS dans le corps
 - Ton : expert terrain qui partage du vécu concret, pas du corporate
-- 📍 Mentionner "Bretagne" ET/OU "Pays de la Loire" — ne jamais se limiter à la Bretagne seule
+-  Mentionner "Bretagne" ET/OU "Pays de la Loire" - ne jamais se limiter à la Bretagne seule
 - Ne PAS mentionner Hicham ou Maxime nommément (post de page entreprise)
 
-═══ LINKEDIN PROFIL HICHAM — ALGO 2026 ═══
+═══ LINKEDIN PROFIL HICHAM - ALGO 2026 ═══
 Objectif : reach maximal (profil perso = 40x plus de reach qu'une page entreprise)
-- Ton : "je" autorisé — Hicham parle en son nom, formateur et co-dirigeant
+- Ton : "je" autorisé - Hicham parle en son nom, formateur et co-dirigeant
 - HOOK fort en 1ère ligne : retour d'expérience terrain, anecdote formation, observation professionnelle
 - Mentionner @Maxime Langlais quand c'est pertinent (co-formateur, co-directeur)
 - Mentionner Access Formation pour renvoyer vers la page entreprise
 - Même règles que LinkedIn page : pas de lien dans le corps, hashtags en commentaire, question finale professionnelle
 - Texte : 600-1200 caractères (plus court que la page, plus personnel)
-- Finir par inviter à contacter Access Formation : 📧 contact@accessformation.pro | 📞 02 98 90 30 24
+- Finir par inviter à contacter Access Formation :  contact@accessformation.pro |  02 98 90 30 24
 
-═══ FACEBOOK — ALGO 2026 ═══
+═══ FACEBOOK - ALGO 2026 ═══
 Objectif : Saves + Shares (signaux #1 en 2026, bien plus que les likes)
 - Texte court : 300-600 caractères
 - Ton accessible et local, tutoiement OK
-- JAMAIS de lien externe dans le corps (reach pénalisé — mettre en commentaire si besoin)
+- JAMAIS de lien externe dans le corps (reach pénalisé - mettre en commentaire si besoin)
 - Photo native > lien avec preview
 - Emoji en début de paragraphe pour structurer
-- CTA orienté partage : "Partage à un dirigeant / RH que ça concerne" — le partage booste le reach x3
+- CTA orienté partage : "Partage à un dirigeant / RH que ça concerne" - le partage booste le reach x3
 - Finir par une question qui donne envie de commenter ET de partager
 - 3-4 hashtags en fin de post dont #AccessFormation obligatoire
-- 📍 Ancrage local : alterner entre "en Bretagne", "en Pays de la Loire", "dans le Grand Ouest" — ne pas se limiter au Finistère ou à Concarneau
-- Inclure les coordonnées naturellement : 📧 contact@accessformation.pro | 📞 02 98 90 30 24
+-  Ancrage local : alterner entre "en Bretagne", "en Pays de la Loire", "dans le Grand Ouest" - ne pas se limiter au Finistère ou à Concarneau
+- Inclure les coordonnées naturellement :  contact@accessformation.pro |  02 98 90 30 24
 
-═══ INSTAGRAM — ALGO 2026 ═══
+═══ INSTAGRAM - ALGO 2026 ═══
 Objectif : DM shares (signal #1, pondéré 3-5x plus que les likes) + saves
 - 1ère phrase = hook visible dans le feed (avant le "...plus")
 - Texte : 200-500 caractères (hors hashtags)
-- CTA PRIORITAIRE : "Envoie ce post à ton DRH / dirigeant / responsable sécu" — les DM shares sont le signal le plus fort en 2026
+- CTA PRIORITAIRE : "Envoie ce post à ton DRH / dirigeant / responsable sécu" - les DM shares sont le signal le plus fort en 2026
 - CTA SECONDAIRE : "Enregistre ce post" pour les contenus éducatifs / check-lists
 - Ligne de séparation avec des points avant les hashtags :
   .
@@ -551,15 +551,15 @@ Objectif : DM shares (signal #1, pondéré 3-5x plus que les likes) + saves
   .
 - Hashtags : 5-10 pertinents et spécifiques (pas 30 génériques)
   Mix : 3 gros volume (#formation #sécurité) + 3 niche (#SSTFormation #PréventionRisques ou #PaysdelaLoire selon le post) + 2 marque (#AccessFormation)
-- Pas de lien (non cliquable) — dire "Lien en bio"
-- Inclure 📞 02 98 90 30 24 naturellement dans le texte ou sous le texte
+- Pas de lien (non cliquable) - dire "Lien en bio"
+- Inclure  02 98 90 30 24 naturellement dans le texte ou sous le texte
 - Ton inspirant et visuel, ancré terrain
 
-═══ GOOGLE MY BUSINESS — SEO LOCAL ═══
+═══ GOOGLE MY BUSINESS - SEO LOCAL ═══
 Objectif : référencement local + conversions
 - Très court : 100-250 caractères
 - Mots-clés locaux obligatoires : "formation sécurité Bretagne", "formation sécurité Pays de la Loire", "SST Bretagne", "prévention risques Grand Ouest"
-- CTA direct avec email : "📧 contact@accessformation.pro"
+- CTA direct avec email : " contact@accessformation.pro"
 - Pas de hashtags
 - Mentionner la certification Qualiopi (facteur de confiance)
 - Catégorie : Nouveauté ou Événement
@@ -569,26 +569,26 @@ Objectif : référencement local + conversions
 - JAMAIS inventer de citations entre guillemets
 - JAMAIS utiliser "ne pas" / "ne plus" / "ne jamais" sauf contexte accident/urgence
 - TOUJOURS "nous" jamais "je" jamais "on" (sauf Facebook où "on" est toléré, sauf linkedin_hicham où "je" est OBLIGATOIRE)
-- Contact : 📧 contact@accessformation.pro | 📞 02 98 90 30 24 | 🌐 www.accessformation.pro
+- Contact :  contact@accessformation.pro |  02 98 90 30 24 |  www.accessformation.pro
 - Zone d'intervention : Bretagne et Pays de la Loire (TOUJOURS mentionner l'une ou l'autre)
-- Qualiopi : toujours "Access Formation est certifié Qualiopi" — JAMAIS "formation certifiée Qualiopi"
+- Qualiopi : toujours "Access Formation est certifié Qualiopi" - JAMAIS "formation certifiée Qualiopi"
 - Hashtag #AccessFormation OBLIGATOIRE dans tous les posts (LinkedIn en commentaire, autres dans le corps)
 
 ═══ TYPES DE POST SPÉCIAUX ═══
-- offre_promo : Mettre en avant une offre avec une date de fin (ex: "Jusqu'au JJ/MM"). CTA fort et positif : "Contactez-nous avant le JJ/MM". Urgence sans pression négative. Mentionner la certification Qualiopi comme gage de qualité. Toujours inclure 📧 contact@accessformation.pro | 📞 02 98 90 30 24.
+- offre_promo : Mettre en avant une offre avec une date de fin (ex: "Jusqu'au JJ/MM"). CTA fort et positif : "Contactez-nous avant le JJ/MM". Urgence sans pression négative. Mentionner la certification Qualiopi comme gage de qualité. Toujours inclure  contact@accessformation.pro |  02 98 90 30 24.
 - veille_reglementaire : Citer OBLIGATOIREMENT la source officielle (INRS, Code du travail, arrêté ministériel, etc.). Expliquer l'obligation de façon simple et accessible. Terminer par comment Access Formation aide à y répondre. Ton pédagogique, jamais alarmiste.
 
-═══ STATISTIQUES ET CHIFFRES — RÈGLE STRICTE ═══
+═══ STATISTIQUES ET CHIFFRES - RÈGLE STRICTE ═══
 - JAMAIS inventer ou approximer des statistiques, pourcentages ou chiffres chocs
 - Si le sujet appelle des données chiffrées : SOIT tu cites une source officielle réelle et vérifiable (INRS, Santé publique France, OMS, Dares, CNAM, etc.) en l'indiquant explicitement dans le post, SOIT tu reformules sans chiffre
-- En cas de doute sur la fiabilité d'une statistique : NE PAS l'utiliser — reformuler sur l'angle "prévention / réflexes / formation" sans données chiffrées invérifiables
+- En cas de doute sur la fiabilité d'une statistique : NE PAS l'utiliser - reformuler sur l'angle "prévention / réflexes / formation" sans données chiffrées invérifiables
 - Exemple de reformulation correcte sans stats : "Un arrêt cardiaque peut survenir n'importe quel jour. Vos équipes ont-elles les bons réflexes ?" plutôt que "23% d'arrêts cardiaques en plus le vendredi 13"
 - Les posts sans chiffres mais ancrés dans le terrain et le vécu performent autant ou mieux que les posts avec stats douteuses
 
 ${contextParts.join('\n')}
 
-Localisation : 📍 Concarneau, Bretagne — Interventions en Bretagne et Pays de la Loire
-Contact : 📧 contact@accessformation.pro | 📞 02 98 90 30 24 | 🌐 www.accessformation.pro`
+Localisation :  Concarneau, Bretagne - Interventions en Bretagne et Pays de la Loire
+Contact :  contact@accessformation.pro |  02 98 90 30 24 |  www.accessformation.pro`
 
       const hasLinkedInPage = selectedPlatforms.includes('linkedin')
       const hasLinkedInHicham = selectedPlatforms.includes('linkedin_hicham')
@@ -609,7 +609,7 @@ RAPPEL IMPORTANT :
 Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cette structure :
 {
   "title": "titre interne court (3-5 mots)",
-  ${selectedPlatforms.map(p => `"${p}": "texte du post pour ${p}"`).join(',\n  ')}${hasLinkedIn ? `,\n  "linkedin_hashtags": "3-5 hashtags pour le commentaire LinkedIn — #AccessFormation OBLIGATOIRE"` : ''}${withStory ? `,\n  "story": "texte story 5-7 mots percutants pour Instagram/Facebook Stories"` : ''}
+  ${selectedPlatforms.map(p => `"${p}": "texte du post pour ${p}"`).join(',\n  ')}${hasLinkedIn ? `,\n  "linkedin_hashtags": "3-5 hashtags pour le commentaire LinkedIn - #AccessFormation OBLIGATOIRE"` : ''}${withStory ? `,\n  "story": "texte story 5-7 mots percutants pour Instagram/Facebook Stories"` : ''}
 }`
 
       const response = await apiFetch('/api/ai-proxy', {
@@ -634,7 +634,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
       
       // Vérifier si la réponse a été tronquée
       if (data.stop_reason === 'max_tokens') {
-        throw new Error('Réponse tronquée — réessayez avec moins de plateformes')
+        throw new Error('Réponse tronquée - réessayez avec moins de plateformes')
       }
       
       const text = data.content?.[0]?.text || ''
@@ -646,7 +646,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
         parsed = JSON.parse(cleanJson)
       } catch (jsonErr) {
         console.error('JSON brut reçu:', text)
-        throw new Error('L\'IA a renvoyé un JSON invalide — réessayez')
+        throw new Error('L\'IA a renvoyé un JSON invalide - réessayez')
       }
 
       setGeneratedPosts(parsed)
@@ -669,7 +669,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
   // ── Régénérer une plateforme ─────────────────────────
   const regeneratePlatform = async (platform) => {
     // TODO: appel IA pour régénérer uniquement cette plateforme
-    toast('Régénération à venir', { icon: '🔄' })
+    toast('Régénération à venir', { icon: '' })
   }
 
   // ── Sauvegarder le post ──────────────────────────────
@@ -743,21 +743,21 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
       {/* Bandeau si on édite un brouillon */}
       {editingId && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-amber-800">✏️ Édition du brouillon : <strong>{title}</strong></span>
+          <span className="text-sm font-medium text-amber-800"> Édition du brouillon : <strong>{title}</strong></span>
           <button
             onClick={() => {
               setEditingId(null); setGeneratedPosts(null); setEditedPosts({}); setTitle(''); setFreeInput(''); setScheduledAt(''); setSelectedMedia([])
             }}
             className="text-xs bg-white border border-amber-300 text-amber-700 px-3 py-1 rounded-lg hover:bg-amber-100"
           >
-            ✕ Annuler l'édition
+             Annuler l'édition
           </button>
         </div>
       )}
 
       {/* Étape 1 : Type de post + Plateformes */}
       <div className="bg-white rounded-xl border p-4 space-y-4">
-        <h2 className="font-bold text-[#0F2D35]">1️⃣ Quel type de contenu ?</h2>
+        <h2 className="font-bold text-[#0F2D35]">1⃣ Quel type de contenu ?</h2>
 
         {/* Types de post */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -793,7 +793,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               >
                 <span>{p.icon}</span>
                 {p.label}
-                {selectedPlatforms.includes(p.id) && <span className="text-green-500">✓</span>}
+                {selectedPlatforms.includes(p.id) && <span className="text-green-500"></span>}
               </button>
             ))}
           </div>
@@ -814,7 +814,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
         {/* Stats Campus détectées */}
         {stats && (
           <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
-            <span className="font-medium text-gray-700">📊 Données Campus disponibles :</span>
+            <span className="font-medium text-gray-700"> Données Campus disponibles :</span>
             <span className="ml-2">
               {stats.avgRating}/5 satisfaction • {stats.successRate}% réussite • {stats.completedCount} sessions récentes
             </span>
@@ -833,7 +833,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               Génération en cours...
             </>
           ) : (
-            <>✨ Générer les posts</>
+            <> Générer les posts</>
           )}
         </button>
       </div>
@@ -842,7 +842,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
       {generatedPosts && (
         <div className="bg-white rounded-xl border p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-[#0F2D35]">2️⃣ Aperçu et édition</h2>
+            <h2 className="font-bold text-[#0F2D35]">2⃣ Aperçu et édition</h2>
             <input
               type="text"
               value={title}
@@ -890,14 +890,14 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                     className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition-colors"
                     title="Copier"
                   >
-                    📋 Copier
+                     Copier
                   </button>
                   <button
                     onClick={() => regeneratePlatform(previewPlatform)}
                     className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition-colors"
                     title="Régénérer"
                   >
-                    🔄
+                    
                   </button>
                 </div>
               </div>
@@ -916,13 +916,13 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               {withStory && editedPosts.story && (
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 flex items-center justify-between">
                   <div className="text-xs text-purple-700">
-                    <span className="font-medium">📲 Story :</span> {editedPosts.story}
+                    <span className="font-medium"> Story :</span> {editedPosts.story}
                   </div>
                   <button
                     onClick={() => { navigator.clipboard.writeText(editedPosts.story); toast.success('Story copiée !') }}
                     className="text-[10px] bg-purple-100 hover:bg-purple-200 px-2 py-1 rounded-md text-purple-700 ml-2 shrink-0"
                   >
-                    📋 Copier
+                     Copier
                   </button>
                 </div>
               )}
@@ -931,13 +931,13 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               {(previewPlatform === 'linkedin' || previewPlatform === 'linkedin_hicham') && editedPosts.linkedin_hashtags && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 flex items-center justify-between">
                   <div className="text-xs text-blue-700">
-                    <span className="font-medium">💬 Commentaire LinkedIn :</span> {editedPosts.linkedin_hashtags}
+                    <span className="font-medium"> Commentaire LinkedIn :</span> {editedPosts.linkedin_hashtags}
                   </div>
                   <button
                     onClick={() => { navigator.clipboard.writeText(editedPosts.linkedin_hashtags || ''); toast.success('Hashtags copiés !') }}
                     className="text-[10px] bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded-md text-blue-700 ml-2 shrink-0"
                   >
-                    📋 Copier
+                     Copier
                   </button>
                 </div>
               )}
@@ -945,7 +945,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 
             {/* Preview visuel */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">👁️ Aperçu</label>
+              <label className="text-sm font-medium text-gray-700"> Aperçu</label>
               <PostPreview
                 platform={previewPlatform}
                 content={editedPosts[previewPlatform] || ''}
@@ -956,7 +956,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 
           {/* Médias */}
           <div>
-            <h3 className="text-sm font-medium text-gray-600 mb-2">📷 Photos / Médias</h3>
+            <h3 className="text-sm font-medium text-gray-600 mb-2"> Photos / Médias</h3>
             <div className="flex gap-2 flex-wrap">
               {selectedMedia.map((m, i) => (
                 <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border">
@@ -965,7 +965,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                     onClick={() => setSelectedMedia(prev => prev.filter((_, idx) => idx !== i))}
                     className="absolute top-0 right-0 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-bl-md"
                   >
-                    ✕
+                    
                   </button>
                 </div>
               ))}
@@ -985,14 +985,14 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                 onClick={() => setWithStory(!withStory)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${withStory ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
               >
-                📲 {withStory ? 'Story incluse ✓' : 'Générer une Story aussi'}
+                 {withStory ? 'Story incluse ' : 'Générer une Story aussi'}
               </button>
               <span className="text-[10px] text-gray-400">Instagram & Facebook Stories (5-7 mots percutants)</span>
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3">
             <div className="flex-1">
-              <label className="text-xs text-gray-500">📅 Planifier pour : <span className="text-[10px] text-gray-400">(heure de Paris)</span></label>
+              <label className="text-xs text-gray-500"> Planifier pour : <span className="text-[10px] text-gray-400">(heure de Paris)</span></label>
               <input
                 type="datetime-local"
                 value={scheduledAt}
@@ -1001,7 +1001,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               />
               {/* Suggestions horaires rapides */}
               <div className="mt-2 flex flex-wrap gap-1">
-                <span className="text-[10px] text-gray-400 w-full mb-0.5">⚡ Horaires optimaux :</span>
+                <span className="text-[10px] text-gray-400 w-full mb-0.5"> Horaires optimaux :</span>
                 {[
                   { label: 'Mar 8h (LI)', day: 2, hour: 8 },
                   { label: 'Mar 9h (LI)', day: 2, hour: 9 },
@@ -1044,16 +1044,16 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                 disabled={saving}
                 className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-300 disabled:opacity-50 transition-colors"
               >
-                📝 Brouillon
+                 Brouillon
               </button>
               <button
                 onClick={() => savePost(scheduledAt ? 'scheduled' : 'draft')}
                 disabled={saving || !scheduledAt}
                 className="px-4 py-2.5 bg-[#E9B44C] text-[#0F2D35] rounded-xl text-sm font-bold hover:bg-[#d4a43e] disabled:opacity-50 transition-colors"
               >
-                {saving ? '⏳...' : '📅 Planifier'}
+                {saving ? '...' : ' Planifier'}
               </button>
-              {/* 🚀 PUBLIER MAINTENANT */}
+              {/*  PUBLIER MAINTENANT */}
               <button
                 onClick={async () => {
                   const connectedPlatforms = selectedPlatforms.filter(p => connections?.[p === 'gmb' ? 'gmb' : p]?.connected)
@@ -1106,8 +1106,8 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                       const published = Object.entries(results).filter(([_, r]) => r.status === 'published').map(([p]) => PLATFORMS.find(x => x.id === p)?.label)
                       const failed = Object.entries(results).filter(([_, r]) => r.status === 'error').map(([p, r]) => `${PLATFORMS.find(x => x.id === p)?.label}: ${r.reason}`)
 
-                      if (published.length > 0) toast.success(`✅ Publié sur ${published.join(', ')}`)
-                      if (failed.length > 0) toast.error(`❌ Échec : ${failed.join(' | ')}`)
+                      if (published.length > 0) toast.success(`Publié sur ${published.join(', ')}`)
+                      if (failed.length > 0) toast.error(`Échec : ${failed.join(' | ')}`)
 
                       // Reset
                       setGeneratedPosts(null); setEditedPosts({}); setFreeInput(''); setTitle(''); setScheduledAt(''); setSelectedMedia([]); setEditingId(null)
@@ -1127,7 +1127,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                 {publishing ? (
                   <><div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" /> Publication...</>
                 ) : (
-                  <>🚀 Publier maintenant</>
+                  <> Publier maintenant</>
                 )}
               </button>
               {/* Bouton copier tout */}
@@ -1148,7 +1148,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                 }}
                 className="px-5 py-2.5 bg-[#0F2D35] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-colors"
               >
-                📋 Tout copier
+                 Tout copier
               </button>
             </div>
           </div>
@@ -1204,10 +1204,10 @@ function PostPreview({ platform, content, media }) {
 
       {/* Footer mock */}
       <div className="px-3 pb-3 flex items-center gap-4 text-[10px] text-gray-400">
-        {(platform === 'linkedin' || platform === 'linkedin_hicham') && <><span>👍 J'aime</span><span>💬 Commenter</span><span>🔄 Partager</span></>}
-        {platform === 'facebook' && <><span>👍 J'aime</span><span>💬 Commenter</span><span>↗️ Partager</span></>}
-        {platform === 'instagram' && <><span>❤️</span><span>💬</span><span>📤</span><span>🔖</span></>}
-        {platform === 'gmb' && <><span>📞 Appeler</span><span>🗺️ Itinéraire</span><span>🌐 Site web</span></>}
+        {(platform === 'linkedin' || platform === 'linkedin_hicham') && <><span> J'aime</span><span> Commenter</span><span> Partager</span></>}
+        {platform === 'facebook' && <><span> J'aime</span><span> Commenter</span><span>↗ Partager</span></>}
+        {platform === 'instagram' && <><span></span><span></span><span></span><span></span></>}
+        {platform === 'gmb' && <><span> Appeler</span><span> Itinéraire</span><span> Site web</span></>}
       </div>
     </div>
   )
@@ -1287,7 +1287,7 @@ function MediaPicker({ media, selected, onSelect }) {
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent" />
         ) : (
           <>
-            <span className="text-lg">➕</span>
+            <span className="text-lg"></span>
             <span className="text-[8px] text-gray-400">Photo</span>
           </>
         )}
@@ -1299,12 +1299,12 @@ function MediaPicker({ media, selected, onSelect }) {
           {/* Header */}
           <div className="p-3 border-b bg-gray-50">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-[#0F2D35]">📷 Choisir une photo</h4>
-              <button onClick={() => setShowPicker(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+              <h4 className="text-sm font-semibold text-[#0F2D35]"> Choisir une photo</h4>
+              <button onClick={() => setShowPicker(false)} className="text-gray-400 hover:text-gray-600 text-lg"></button>
             </div>
             {/* Upload rapide */}
             <label className="flex items-center gap-2 px-3 py-2 bg-[#E9B44C] text-[#0F2D35] rounded-lg cursor-pointer hover:bg-[#d4a43e] transition-colors text-xs font-medium w-full justify-center">
-              📤 Uploader une nouvelle image
+               Uploader une nouvelle image
               <input
                 type="file"
                 accept="image/*"
@@ -1320,7 +1320,7 @@ function MediaPicker({ media, selected, onSelect }) {
             <div className="px-3 pt-2">
               <input
                 type="text"
-                placeholder="🔍 Rechercher..."
+                placeholder=" Rechercher..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full border rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#E9B44C]"
@@ -1332,7 +1332,7 @@ function MediaPicker({ media, selected, onSelect }) {
           <div className="p-3 overflow-y-auto flex-1">
             {availableMedia.length > 0 ? (
               <>
-                <p className="text-[10px] text-gray-400 mb-2">📂 Médiathèque ({availableMedia.length} disponibles)</p>
+                <p className="text-[10px] text-gray-400 mb-2"> Médiathèque ({availableMedia.length} disponibles)</p>
                 <div className="grid grid-cols-4 gap-2">
                   {availableMedia.map(m => (
                     <button
@@ -1343,7 +1343,7 @@ function MediaPicker({ media, selected, onSelect }) {
                     >
                       <img src={m.file_url} alt={m.file_name} className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 text-white text-lg transition-opacity">✓</span>
+                        <span className="opacity-0 group-hover:opacity-100 text-white text-lg transition-opacity"></span>
                       </div>
                     </button>
                   ))}
@@ -1351,7 +1351,7 @@ function MediaPicker({ media, selected, onSelect }) {
               </>
             ) : (
               <div className="text-center py-6 text-gray-400">
-                <span className="text-2xl block mb-1">📂</span>
+                <span className="text-2xl block mb-1"></span>
                 <p className="text-xs">{searchTerm ? 'Aucun résultat' : 'Médiathèque vide'}</p>
                 <p className="text-[10px]">Uploadez votre première image ci-dessus</p>
               </div>
@@ -1421,10 +1421,10 @@ function CalendarTab({ posts, onUpdate }) {
   const selectedPosts = selectedDay ? getPostsForDay(selectedDay) : []
 
   const statusConfig = {
-    scheduled: { label: '📅 Planifié', bg: 'bg-amber-100 text-amber-800', dot: 'bg-amber-400' },
-    published: { label: '✅ Publié', bg: 'bg-green-100 text-green-800', dot: 'bg-green-400' },
-    publishing: { label: '⏳ En cours', bg: 'bg-blue-100 text-blue-800', dot: 'bg-blue-400' },
-    failed: { label: '❌ Échec', bg: 'bg-red-100 text-red-800', dot: 'bg-red-400' },
+    scheduled: { label: ' Planifié', bg: 'bg-amber-100 text-amber-800', dot: 'bg-amber-400' },
+    published: { label: ' Publié', bg: 'bg-green-100 text-green-800', dot: 'bg-green-400' },
+    publishing: { label: ' En cours', bg: 'bg-blue-100 text-blue-800', dot: 'bg-blue-400' },
+    failed: { label: ' Échec', bg: 'bg-red-100 text-red-800', dot: 'bg-red-400' },
   }
 
   // Actions sur les posts
@@ -1452,7 +1452,7 @@ function CalendarTab({ posts, onUpdate }) {
       })
       const pubData = await pubRes.json()
       if (pubData.success) {
-        toast.success('✅ Publication réussie !')
+        toast.success('Publication réussie !')
       } else {
         toast.error('Erreur publication')
       }
@@ -1473,10 +1473,10 @@ function CalendarTab({ posts, onUpdate }) {
           </div>
           <div className="flex items-center gap-2 text-[10px] opacity-70 flex-wrap">
             {showDate && p.scheduled_at && (
-              <span>📅 {new Date(p.scheduled_at).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+              <span> {new Date(p.scheduled_at).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
             )}
             {p.scheduled_at && (
-              <span>🕐 {new Date(p.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span> {new Date(p.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
             )}
             <span className="flex gap-0.5">
               {p.platforms?.map(pl => (
@@ -1496,15 +1496,15 @@ function CalendarTab({ posts, onUpdate }) {
           )}
           {p.status === 'scheduled' && (
             <div className="flex gap-1 mt-1">
-              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-green-600 text-white px-1.5 py-0.5 rounded hover:bg-green-700" title="Publier maintenant">🚀</button>
-              <button onClick={() => cancelPost(p.id)} className="text-[9px] bg-gray-500 text-white px-1.5 py-0.5 rounded hover:bg-gray-600" title="Remettre en brouillon">✏️</button>
-              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer">🗑️</button>
+              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-green-600 text-white px-1.5 py-0.5 rounded hover:bg-green-700" title="Publier maintenant"></button>
+              <button onClick={() => cancelPost(p.id)} className="text-[9px] bg-gray-500 text-white px-1.5 py-0.5 rounded hover:bg-gray-600" title="Remettre en brouillon"></button>
+              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer"></button>
             </div>
           )}
           {p.status === 'failed' && (
             <div className="flex gap-1 mt-1">
-              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded hover:bg-amber-600" title="Réessayer">🔄</button>
-              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer">🗑️</button>
+              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded hover:bg-amber-600" title="Réessayer"></button>
+              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer"></button>
             </div>
           )}
         </div>
@@ -1520,13 +1520,13 @@ function CalendarTab({ posts, onUpdate }) {
           onClick={() => setViewMode('calendar')}
           className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm border text-[#0F2D35]' : 'text-gray-500 hover:text-gray-700'}`}
         >
-          📅 Calendrier
+           Calendrier
         </button>
         <button
           onClick={() => setViewMode('list')}
           className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'list' ? 'bg-white shadow-sm border text-[#0F2D35]' : 'text-gray-500 hover:text-gray-700'}`}
         >
-          📋 Liste ({upcomingPosts.length} planifié{upcomingPosts.length > 1 ? 's' : ''})
+           Liste ({upcomingPosts.length} planifié{upcomingPosts.length > 1 ? 's' : ''})
         </button>
       </div>
 
@@ -1535,7 +1535,7 @@ function CalendarTab({ posts, onUpdate }) {
           {/* Prochaines publications */}
           {upcomingPosts.length > 0 && (
             <div>
-              <h3 className="text-sm font-bold text-[#0F2D35] mb-3">⏰ Prochaines publications</h3>
+              <h3 className="text-sm font-bold text-[#0F2D35] mb-3"> Prochaines publications</h3>
               <div className="space-y-2">
                 {upcomingPosts.map(p => <PostCard key={p.id} p={p} showDate />)}
               </div>
@@ -1545,7 +1545,7 @@ function CalendarTab({ posts, onUpdate }) {
           {/* Historique */}
           {pastPosts.length > 0 && (
             <div className={upcomingPosts.length > 0 ? 'border-t pt-4' : ''}>
-              <h3 className="text-sm font-bold text-[#0F2D35] mb-3">📜 Historique</h3>
+              <h3 className="text-sm font-bold text-[#0F2D35] mb-3"> Historique</h3>
               <div className="space-y-2">
                 {pastPosts.slice(0, 20).map(p => <PostCard key={p.id} p={p} showDate />)}
               </div>
@@ -1554,7 +1554,7 @@ function CalendarTab({ posts, onUpdate }) {
 
           {upcomingPosts.length === 0 && pastPosts.length === 0 && (
             <div className="text-center py-8 text-gray-400">
-              <div className="text-3xl mb-2">📭</div>
+              <div className="text-3xl mb-2"></div>
               <p className="text-sm">Aucune publication</p>
             </div>
           )}
@@ -1615,7 +1615,7 @@ function CalendarTab({ posts, onUpdate }) {
                   {hasPosts && (
                     <div className="flex gap-0.5 mt-1 flex-wrap justify-center">
                       {dayPosts.slice(0, 4).map((p, idx) => (
-                        <span key={idx} className={`w-2 h-2 rounded-full ${statusConfig[p.status]?.dot || 'bg-gray-300'}`} title={`${p.title} — ${statusConfig[p.status]?.label}`} />
+                        <span key={idx} className={`w-2 h-2 rounded-full ${statusConfig[p.status]?.dot || 'bg-gray-300'}`} title={`${p.title} - ${statusConfig[p.status]?.label}`} />
                       ))}
                       {dayPosts.length > 4 && <span className="text-[8px] text-gray-400">+{dayPosts.length - 4}</span>}
                     </div>
@@ -1629,7 +1629,7 @@ function CalendarTab({ posts, onUpdate }) {
           {selectedDay && (
             <div className="border-t pt-4">
               <h3 className="text-sm font-semibold text-[#0F2D35] mb-3">
-                📋 {selectedDay} {monthNames[month]} {year}
+                 {selectedDay} {monthNames[month]} {year}
                 <span className="text-gray-400 font-normal ml-2">{selectedPosts.length} publication{selectedPosts.length > 1 ? 's' : ''}</span>
               </h3>
               {selectedPosts.length > 0 ? (
@@ -1644,7 +1644,7 @@ function CalendarTab({ posts, onUpdate }) {
 
           {allPosts.length === 0 && !selectedDay && (
             <div className="text-center py-8 text-gray-400">
-              <div className="text-3xl mb-2">📭</div>
+              <div className="text-3xl mb-2"></div>
               <p className="text-sm">Aucune publication planifiée</p>
               <p className="text-xs">Utilisez le générateur pour créer vos premiers posts !</p>
             </div>
@@ -1707,16 +1707,16 @@ function LibraryTab({ media, onUpdate }) {
   return (
     <div className="bg-white rounded-xl border p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-bold text-[#0F2D35]">🖼️ Médiathèque</h2>
+        <h2 className="font-bold text-[#0F2D35]"> Médiathèque</h2>
         <label className="bg-[#0F2D35] text-white text-sm px-4 py-2 rounded-lg cursor-pointer hover:opacity-90 transition-colors">
-          {uploading ? '⏳ Upload...' : '➕ Ajouter des photos'}
+          {uploading ? ' Upload...' : ' Ajouter des photos'}
           <input type="file" accept="image/*,video/*" multiple onChange={handleUpload} className="hidden" />
         </label>
       </div>
 
       {media.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
-          <div className="text-4xl mb-3">📷</div>
+          <div className="text-4xl mb-3"></div>
           <p className="text-sm font-medium">Pas encore de médias</p>
           <p className="text-xs mt-1">Uploadez vos photos de formations, logos, visuels pour les réutiliser dans vos posts</p>
         </div>
@@ -1730,7 +1730,7 @@ function LibraryTab({ media, onUpdate }) {
                   onClick={() => deleteMedia(m.id, m.file_url)}
                   className="opacity-0 group-hover:opacity-100 bg-red-500 text-white text-xs px-2 py-1 rounded-md transition-all"
                 >
-                  🗑️
+                  
                 </button>
               </div>
               <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] p-1 truncate opacity-0 group-hover:opacity-100 transition-all">
@@ -1766,7 +1766,7 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
   if (posts.length === 0) {
     return (
       <div className="bg-white rounded-xl border p-8 text-center text-gray-400">
-        <div className="text-3xl mb-2">📝</div>
+        <div className="text-3xl mb-2"></div>
         <p className="text-sm">Aucun brouillon</p>
       </div>
     )
@@ -1787,7 +1787,7 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
               {post.platforms?.map(pl => (
                 <span key={pl}>{PLATFORMS.find(x => x.id === pl)?.icon}</span>
               ))}
-              <button onClick={() => deleteDraft(post.id)} className="ml-2 text-red-400 hover:text-red-600 text-sm">🗑️</button>
+              <button onClick={() => deleteDraft(post.id)} className="ml-2 text-red-400 hover:text-red-600 text-sm"></button>
             </div>
           </div>
 
@@ -1802,14 +1802,14 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
               onClick={() => onEdit?.(post)}
               className="text-[10px] bg-[#E9B44C] text-[#0F2D35] font-bold px-3 py-1.5 rounded-md hover:bg-[#d4a43e] transition-colors"
             >
-              ✏️ Reprendre
+               Reprendre
             </button>
             <button
               onClick={() => onRecycle?.(post)}
               className="text-[10px] bg-purple-100 text-purple-700 font-bold px-3 py-1.5 rounded-md hover:bg-purple-200 transition-colors"
               title="Reformuler ce post avec l'IA"
             >
-              🔄 Recycler
+               Recycler
             </button>
             {post.platforms?.map(pl => (
               <button
@@ -1817,7 +1817,7 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
                 onClick={() => copyPost(post, pl)}
                 className="text-[10px] bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition-colors"
               >
-                📋 {PLATFORMS.find(x => x.id === pl)?.label}
+                 {PLATFORMS.find(x => x.id === pl)?.label}
               </button>
             ))}
           </div>

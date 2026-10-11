@@ -674,7 +674,7 @@ export async function generateFacturXPDF(invoice, items, client, contact, option
     return btoa(b)
   }
 
-  // 4b. Mode download (comportement par défaut — bouton Factur-X dans Invoices.jsx)
+  // 4b. Mode download (comportement par défaut - bouton Factur-X dans Invoices.jsx)
   var blob = await response.blob()
   var url = URL.createObjectURL(blob)
   var a = document.createElement('a')

@@ -162,7 +162,7 @@ export default function SpeechToTextButton({
       </button>
       {isListening && (
         <div className={`mt-1 px-2 py-1 rounded text-xs max-w-[220px] ${interim ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-red-50 text-red-400'}`}>
-          {interim ? `${interim}...` : '🎙️ Parlez...'}
+          {interim ? `${interim}...` : ' Parlez...'}
         </div>
       )}
     </div>

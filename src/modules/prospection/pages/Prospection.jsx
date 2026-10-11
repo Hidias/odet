@@ -8,10 +8,10 @@ import { fr } from 'date-fns/locale'
 import { useNavigate } from 'react-router-dom'
 
 const LOCATION_LABELS = {
-  leurs_locaux: '📍 Leurs locaux',
-  nos_locaux: '🏢 Nos locaux',
-  visio: '💻 Visio',
-  telephone: '📞 Tél.',
+  leurs_locaux: ' Leurs locaux',
+  nos_locaux: ' Nos locaux',
+  visio: ' Visio',
+  telephone: ' Tél.',
 }
 
 const RDV_TYPE_LABELS = {
@@ -117,7 +117,7 @@ export default function Prospection() {
     .filter(r => r.status === 'a_prendre' && r.source?.includes('phoning') && r.source !== 'phoning_marine_transfer')
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
 
-  // 🔄 À relancer = 4 cas (mutuellement exclusif avec chauds/prevus/realises)
+  //  À relancer = 4 cas (mutuellement exclusif avec chauds/prevus/realises)
   const aRelancer = filtered
     .filter(r =>
       // a_prendre créé manuellement
@@ -134,7 +134,7 @@ export default function Prospection() {
   // IDs déjà dans aRelancer pour éviter doublons dans prevus/realises
   const relancerIds = new Set(aRelancer.map(r => r.id))
 
-  // 📅 RDV fixé = prevu avec date future (ou sans date), hors aRelancer
+  //  RDV fixé = prevu avec date future (ou sans date), hors aRelancer
   const prevus = filtered
     .filter(r => r.status === 'prevu' && !relancerIds.has(r.id))
     .sort((a, b) => {
@@ -143,7 +143,7 @@ export default function Prospection() {
       return new Date(a.rdv_date) - new Date(b.rdv_date)
     })
 
-  // ✅ Réalisés avec suite + annulés + reportés — jamais de badge "en retard"
+  //  Réalisés avec suite + annulés + reportés - jamais de badge "en retard"
   const realises = filtered
     .filter(r => ['annule', 'reporte'].includes(r.status) || (r.status === 'realise' && !relancerIds.has(r.id)))
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
@@ -195,7 +195,7 @@ export default function Prospection() {
 
           {/* ── COL 0 : TRANSFERTS MARINE ── */}
           <KanbanCol
-            title="👋 Transferts"
+            title=" Transferts"
             count={transferts.length}
             accentColor="#7c3aed"
             badgeBg="bg-purple-100"
@@ -211,7 +211,7 @@ export default function Prospection() {
                     updated_at: new Date().toISOString(),
                   }).eq('id', rdv.id)
                   loadData()
-                  toast.success('🔥 Converti en prospect chaud')
+                  toast.success('Converti en prospect chaud')
                 }}
                 onClose={async (result) => {
                   await supabase.from('prospect_rdv').update({
@@ -229,7 +229,7 @@ export default function Prospection() {
 
           {/* ── COL 1 : CHAUDS ── */}
           <KanbanCol
-            title="🔥 Chauds"
+            title=" Chauds"
             count={chauds.length}
             accentColor="#f97316"
             badgeBg="bg-orange-100"
@@ -251,7 +251,7 @@ export default function Prospection() {
 
           {/* ── COL 2 : RDV FIXÉ ── */}
           <KanbanCol
-            title="📅 RDV fixé"
+            title=" RDV fixé"
             count={prevus.length}
             accentColor="#3b82f6"
             badgeBg="bg-blue-100"
@@ -273,7 +273,7 @@ export default function Prospection() {
 
           {/* ── COL 3 : À RELANCER ── */}
           <KanbanCol
-            title="🔄 À relancer"
+            title=" À relancer"
             count={aRelancer.length}
             accentColor="#8b5cf6"
             badgeBg="bg-purple-100"
@@ -295,7 +295,7 @@ export default function Prospection() {
 
           {/* ── COL 4 : RÉALISÉS ── */}
           <KanbanCol
-            title="✅ Réalisés"
+            title=" Réalisés"
             count={realises.length}
             accentColor="#22c55e"
             badgeBg="bg-green-100"
@@ -390,18 +390,18 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
       </div>
 
       {rdv.contact_name && (
-        <p className="text-xs text-gray-400 mb-1 truncate">👤 {rdv.contact_name}{rdv.contact_function ? ` · ${rdv.contact_function}` : ''}</p>
+        <p className="text-xs text-gray-400 mb-1 truncate"> {rdv.contact_name}{rdv.contact_function ? ` · ${rdv.contact_function}` : ''}</p>
       )}
       {rdv.contact_phone && (
         <p className="text-xs text-blue-700 font-medium mb-1">{rdv.contact_phone}</p>
       )}
       {rdv.notes_crm && (
-        <p className="text-xs text-gray-500 mb-2 italic line-clamp-2">{rdv.notes_crm.replace(/^\S*\s*Transfert[^\n]*?(—|$)/, '').trim()}</p>
+        <p className="text-xs text-gray-500 mb-2 italic line-clamp-2">{rdv.notes_crm.replace(/^\S*\s*Transfert[^\n]*?(-|$)/, '').trim()}</p>
       )}
 
       <div className="flex items-center gap-1.5 flex-wrap mb-2">
         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
-          👋 Transfert
+           Transfert
         </span>
         {rdv.conducted_by && (
           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
@@ -410,7 +410,7 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
         )}
         {isOld && (
           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
-            ⚠️ {days}j
+             {days}j
           </span>
         )}
         <span className="text-[10px] text-gray-400 ml-auto">{ago}</span>
@@ -421,7 +421,7 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
         <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
           <button onClick={handleConvert} disabled={saving}
             className="flex-1 px-2 py-1 text-[10px] font-semibold bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50">
-            🔥 → Prospect chaud
+             → Prospect chaud
           </button>
           <button onClick={(e) => { e.stopPropagation(); setShowClose(true) }}
             className="px-2 py-1 text-[10px] font-semibold bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
@@ -432,7 +432,7 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
         <div className="space-y-1" onClick={e => e.stopPropagation()}>
           <p className="text-[10px] text-gray-500 font-medium">Résultat :</p>
           <div className="flex gap-1 flex-wrap">
-            {[['realise', '✅ Traité'], ['annule', '❌ Sans suite'], ['reporte', '⏩ Reporter']].map(([v, l]) => (
+            {[['realise', ' Traité'], ['annule', ' Sans suite'], ['reporte', ' Reporter']].map(([v, l]) => (
               <button key={v} onClick={(e) => handleClose(e, v)} disabled={saving}
                 className="px-2 py-1 text-[10px] font-semibold bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50">
                 {l}
@@ -440,7 +440,7 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
             ))}
             <button onClick={(e) => { e.stopPropagation(); setShowClose(false) }}
               className="px-2 py-1 text-[10px] text-gray-400 rounded hover:bg-gray-100">
-              ✕
+              
             </button>
           </div>
         </div>
@@ -543,14 +543,14 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
         {/* Badge en retard */}
         {late && (
           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
-            ⚠️ En retard
+             En retard
           </span>
         )}
 
         {/* Prochaine action visible au hover */}
         {rdv.next_action && (
           <span className="hidden group-hover:inline text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-50 text-yellow-700 truncate max-w-[120px]" title={rdv.next_action}>
-            ⚡ {rdv.next_action}
+             {rdv.next_action}
           </span>
         )}
 
@@ -572,7 +572,7 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
       {/* Status annulé/reporté */}
       {variant === 'autre' && (
         <span className="text-[10px] text-gray-400 mt-1 block">
-          {rdv.status === 'annule' ? '❌ Annulé' : '⏩ Reporté'}
+          {rdv.status === 'annule' ? ' Annulé' : ' Reporté'}
         </span>
       )}
     </div>

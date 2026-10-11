@@ -142,8 +142,8 @@ export async function generateSSTCertificationPDF(certification, trainee, sessio
         const page2 = pages[1]
         
         // Dimensions et position de la signature dans la cellule "Signature :"
-        // FI  : label "Signature :" à y_bottom=265.5, label "Date" à y_bottom=213.5 → zone 220–260
-        // MAC : label "Signature :" à y_bottom=356.1, label "Date" à y_bottom=312.5 → zone 326–352
+        // FI  : label "Signature :" à y_bottom=265.5, label "Date" à y_bottom=213.5 → zone 220-260
+        // MAC : label "Signature :" à y_bottom=356.1, label "Date" à y_bottom=312.5 → zone 326-352
         const signatureWidth = 130
         const signatureHeight = isFI ? 38 : 26
         const x = 65
@@ -158,7 +158,7 @@ export async function generateSSTCertificationPDF(certification, trainee, sessio
         })
         
       } catch (error) {
-        console.warn('⚠️ Erreur lors de l\'ajout de la signature:', error)
+        console.warn('Erreur lors de l\'ajout de la signature:', error)
       }
     }
     

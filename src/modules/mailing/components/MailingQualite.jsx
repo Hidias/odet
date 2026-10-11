@@ -1,6 +1,6 @@
 // src/components/mailing/MailingQualite.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Mailing — Qualité des adresses & liste de blocage
+// Mailing - Qualité des adresses & liste de blocage
 //
 // Règles :
 //   • Aucune fiche n'est modifiée automatiquement
@@ -90,7 +90,7 @@ export default function MailingQualite({ user, onBack }) {
     setAnalysing(false)
     if (error) { toast.error('Erreur analyse : ' + error.message); return }
     setLastRun(data)
-    toast.success(`Analyse terminée : ${data?.total ?? 0} adresses — ${data?.a_verifier ?? 0} à vérifier, ${data?.invalide ?? 0} invalides`)
+    toast.success(`Analyse terminée : ${data?.total ?? 0} adresses - ${data?.a_verifier ?? 0} à vérifier, ${data?.invalide ?? 0} invalides`)
     loadStatus()
   }
 
@@ -119,7 +119,7 @@ export default function MailingQualite({ user, onBack }) {
     if (error) { setBusy(null); toast.error('Erreur : ' + error.message); return }
     await supabase.rpc('mailing_refresh_email_status')
     setBusy(null)
-    toast.success('Décision annulée — statut recalculé automatiquement')
+    toast.success('Décision annulée - statut recalculé automatiquement')
     loadStatus()
   }
 
@@ -286,7 +286,7 @@ export default function MailingQualite({ user, onBack }) {
             <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
           ) : filtered.length === 0 ? (
             <p className="text-center py-10 text-sm text-gray-400">
-              {filter === 'a_traiter' ? '✅ Rien à traiter' : 'Aucune adresse'}
+              {filter === 'a_traiter' ? ' Rien à traiter' : 'Aucune adresse'}
             </p>
           ) : (
             <div className="divide-y">
@@ -312,14 +312,14 @@ export default function MailingQualite({ user, onBack }) {
                           ))}
                         </div>
                         <div className="text-xs text-gray-500 mt-1.5 space-y-0.5">
-                          {r.noms_prospects && <p>🏢 {r.nb_prospects} fiche{r.nb_prospects > 1 ? 's' : ''} prospect : {r.noms_prospects}</p>}
-                          {r.noms_clients && <p>🤝 Client : {r.noms_clients}</p>}
-                          {r.noms_contacts && <p>👤 Contact : {r.noms_contacts}</p>}
-                          {r.note && <p className="italic">📝 {r.note}</p>}
+                          {r.noms_prospects && <p> {r.nb_prospects} fiche{r.nb_prospects > 1 ? 's' : ''} prospect : {r.noms_prospects}</p>}
+                          {r.noms_clients && <p> Client : {r.noms_clients}</p>}
+                          {r.noms_contacts && <p> Contact : {r.noms_contacts}</p>}
+                          {r.note && <p className="italic"> {r.note}</p>}
                         </div>
                         {r.suggestion && !isEditing && (
                           <p className="text-xs mt-1.5">
-                            💡 Correction proposée : <span className="font-mono font-medium text-green-700">{r.suggestion}</span>
+                             Correction proposée : <span className="font-mono font-medium text-green-700">{r.suggestion}</span>
                           </p>
                         )}
                       </div>
@@ -448,7 +448,7 @@ export default function MailingQualite({ user, onBack }) {
                         <td className="px-3 py-2 text-xs text-gray-500">{KIND_LABEL[b.kind] || b.kind}</td>
                         <td className="px-3 py-2 font-mono text-xs break-all">{b.value}</td>
                         <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${c.cls}`}>{c.label}</span></td>
-                        <td className="px-3 py-2 text-xs text-gray-500 hidden md:table-cell">{b.note || '—'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500 hidden md:table-cell">{b.note || '-'}</td>
                         <td className="px-3 py-2 text-xs text-gray-400 hidden md:table-cell">{new Date(b.created_at).toLocaleDateString('fr-FR')}</td>
                         <td className="px-3 py-2 text-right">
                           <button onClick={() => removeBlock(b)} className="p-1.5 text-gray-400 hover:text-red-600 rounded" title="Retirer">

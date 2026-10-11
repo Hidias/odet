@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// pdfCompetencyGrids.js — Grilles d'évaluation compétences pratiques
+// pdfCompetencyGrids.js - Grilles d'évaluation compétences pratiques
 // Formations : Incendie, Gestes/Postures, R489, R485
 // Format : Passé / Pas passé par compétence
 // ═══════════════════════════════════════════════════════════════
@@ -360,11 +360,11 @@ function generateGrid(gridKey) {
   doc.setFont('helvetica', 'bold')
 
   drawCheckboxCell(doc, 30, y, 5)
-  doc.text('ACQUIS — Le stagiaire maîtrise l\'ensemble des compétences évaluées', 38, y + 4)
+  doc.text('ACQUIS - Le stagiaire maîtrise l\'ensemble des compétences évaluées', 38, y + 4)
   y += 10
 
   drawCheckboxCell(doc, 30, y, 5)
-  doc.text('NON ACQUIS — Des compétences restent à acquérir (voir observations)', 38, y + 4)
+  doc.text('NON ACQUIS - Des compétences restent à acquérir (voir observations)', 38, y + 4)
   y += 14
 
   // Observations
@@ -402,7 +402,7 @@ function generateGrid(gridKey) {
     doc.setFontSize(6.5)
     doc.setTextColor(120, 120, 120)
     doc.text(
-      `${ORG.name} — ${grid.reference} — ${grid.title} — Page ${p}/${totalPages}`,
+      `${ORG.name} - ${grid.reference} - ${grid.title} - Page ${p}/${totalPages}`,
       pw / 2, ph - 6, { align: 'center' }
     )
     doc.setTextColor(0, 0, 0)

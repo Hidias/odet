@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// SirenConflictModal.jsx — Alerte doublon SIREN avant création client
+// SirenConflictModal.jsx - Alerte doublon SIREN avant création client
 // Affiche les établissements existants du même groupe
 // Permet : rattacher à l'existant | marquer décideur | créer quand même
 // ═══════════════════════════════════════════════════════════════
@@ -60,7 +60,7 @@ export default function SirenConflictModal({
           {/* Nouveau client qu'on essaie de créer */}
           <div className="bg-gray-50 rounded-lg px-4 py-3">
             <p className="text-xs text-gray-500 font-medium mb-1">Vous essayez de créer :</p>
-            <p className="font-semibold text-gray-900">{newName || '—'}</p>
+            <p className="font-semibold text-gray-900">{newName || '-'}</p>
             <p className="text-xs text-gray-500">
               {newCity || ''}{newCity && newSiret ? ' · ' : ''}{newSiret ? `SIRET ${newSiret}` : ''}
             </p>
@@ -90,7 +90,7 @@ export default function SirenConflictModal({
                         {m.city && <span className="text-gray-500 text-sm ml-2">· {m.city}</span>}
                         {m.is_decisionnaire && (
                           <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
-                            ✓ Décideur
+                             Décideur
                           </span>
                         )}
                       </div>
@@ -114,7 +114,7 @@ export default function SirenConflictModal({
           {/* Message si un décideur existe */}
           {decisionnaire && !selected && (
             <p className="text-xs text-green-700 bg-green-50 px-3 py-2 rounded-lg">
-              💡 <strong>{decisionnaire.name} ({decisionnaire.city})</strong> est marqué comme décideur pour ce groupe.
+               <strong>{decisionnaire.name} ({decisionnaire.city})</strong> est marqué comme décideur pour ce groupe.
               Sélectionnez-le pour rattacher l'activité.
             </p>
           )}
@@ -123,7 +123,7 @@ export default function SirenConflictModal({
           {confirmCreate && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-2">
               <p className="text-sm font-semibold text-orange-800">
-                ⚠️ Créer un {matches.length + 1}ème établissement pour ce SIREN ?
+                 Créer un {matches.length + 1}ème établissement pour ce SIREN ?
               </p>
               <p className="text-xs text-orange-700">
                 À utiliser uniquement si cet établissement a un interlocuteur différent et une activité distincte.
@@ -158,7 +158,7 @@ export default function SirenConflictModal({
               onClick={onCreateAnyway}
               className="w-full py-2.5 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 flex items-center justify-center gap-2"
             >
-              <ChevronRight size={16} /> Confirmer — créer un nouvel établissement
+              <ChevronRight size={16} /> Confirmer - créer un nouvel établissement
             </button>
           )}
 

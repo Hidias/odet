@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// useSirenCheck.js — Vérification SIREN avant création client
+// useSirenCheck.js - Vérification SIREN avant création client
 // Utilisé par : Clients.jsx, MarinePhoning.jsx, WeeklyPlanner.jsx, BudgetModule.jsx
 //
 // Usage :

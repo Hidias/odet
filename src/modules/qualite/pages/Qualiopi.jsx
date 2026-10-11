@@ -399,8 +399,8 @@ export default function Qualiopi() {
       // Ajouter une barre d'outils au HTML existant
       const htmlWithToolbar = content.replace('</body>', `
         <div style="position:fixed;top:20px;right:20px;display:flex;gap:10px;z-index:1000;">
-          <button onclick="window.print()" style="background:#1a5276;color:white;border:none;padding:12px 20px;border-radius:8px;cursor:pointer;font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,0.2);">🖨️ Imprimer / PDF</button>
-          <button onclick="window.close()" style="background:#1a5276;color:white;border:none;padding:12px 20px;border-radius:8px;cursor:pointer;font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,0.2);">✕ Fermer</button>
+          <button onclick="window.print()" style="background:#1a5276;color:white;border:none;padding:12px 20px;border-radius:8px;cursor:pointer;font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"> Imprimer / PDF</button>
+          <button onclick="window.close()" style="background:#1a5276;color:white;border:none;padding:12px 20px;border-radius:8px;cursor:pointer;font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"> Fermer</button>
         </div>
       </body>`)
       previewWindow.document.write(htmlWithToolbar)
@@ -434,8 +434,8 @@ export default function Qualiopi() {
 </head>
 <body>
     <div class="toolbar">
-        <button onclick="window.print()">🖨️ Imprimer / PDF</button>
-        <button onclick="window.close()">✕ Fermer</button>
+        <button onclick="window.print()"> Imprimer / PDF</button>
+        <button onclick="window.close()"> Fermer</button>
     </div>
     <div class="container">
         <div class="header">

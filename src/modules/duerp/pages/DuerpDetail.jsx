@@ -16,15 +16,15 @@ import { generateDuerpPDF, generateDuerpExcel } from '../lib/duerpExport'
 import DuerpConformiteTab from '../components/DuerpConformiteTab'
 
 // ═══════════════════════════════════════════════════════════
-// CONSTANTES — alignées sur le schéma SQL déployé
+// CONSTANTES - alignées sur le schéma SQL déployé
 // ═══════════════════════════════════════════════════════════
 const STATUS_CONFIG = {
-  brouillon:       { label: 'Brouillon',       emoji: '📝', color: 'bg-gray-100 text-gray-700' },
-  en_cours:        { label: 'En cours',         emoji: '🔄', color: 'bg-blue-100 text-blue-700' },
-  visite_terrain:  { label: 'Visite terrain',   emoji: '👷', color: 'bg-amber-100 text-amber-700' },
-  finalisation:    { label: 'Finalisation',     emoji: '✏️', color: 'bg-purple-100 text-purple-700' },
-  termine:         { label: 'Terminé',          emoji: '✅', color: 'bg-green-100 text-green-700' },
-  archive:         { label: 'Archivé',          emoji: '📁', color: 'bg-stone-100 text-stone-600' },
+  brouillon:       { label: 'Brouillon',       emoji: '', color: 'bg-gray-100 text-gray-700' },
+  en_cours:        { label: 'En cours',         emoji: '', color: 'bg-blue-100 text-blue-700' },
+  visite_terrain:  { label: 'Visite terrain',   emoji: '', color: 'bg-amber-100 text-amber-700' },
+  finalisation:    { label: 'Finalisation',     emoji: '', color: 'bg-purple-100 text-purple-700' },
+  termine:         { label: 'Terminé',          emoji: '', color: 'bg-green-100 text-green-700' },
+  archive:         { label: 'Archivé',          emoji: '', color: 'bg-stone-100 text-stone-600' },
 }
 
 const FREQUENCE_LABELS = [
@@ -47,16 +47,16 @@ const MAITRISE_LABELS = [
   { value: 1,    label: 'Insuffisante', desc: 'Action non mise en place',       color: 'bg-red-100 text-red-800 border-red-300' },
 ]
 
-// Types d'actions — CHECK constraint SQL : prevention, protection, formation, organisationnelle, technique
+// Types d'actions - CHECK constraint SQL : prevention, protection, formation, organisationnelle, technique
 const ACTION_TYPES = [
-  { value: 'prevention',        label: 'Prévention',        emoji: '🛡️' },
-  { value: 'protection',        label: 'Protection',        emoji: '🦺' },
-  { value: 'formation',         label: 'Formation',         emoji: '🎓' },
-  { value: 'organisationnelle', label: 'Organisationnelle', emoji: '📋' },
-  { value: 'technique',         label: 'Technique',         emoji: '🔧' },
+  { value: 'prevention',        label: 'Prévention',        emoji: '' },
+  { value: 'protection',        label: 'Protection',        emoji: '' },
+  { value: 'formation',         label: 'Formation',         emoji: '' },
+  { value: 'organisationnelle', label: 'Organisationnelle', emoji: '' },
+  { value: 'technique',         label: 'Technique',         emoji: '' },
 ]
 
-// Priorités — CHECK constraint SQL : critique, haute, moyenne, basse
+// Priorités - CHECK constraint SQL : critique, haute, moyenne, basse
 const ACTION_PRIORITES = [
   { value: 'critique', label: 'Critique', color: 'bg-red-200 text-red-800' },
   { value: 'haute',    label: 'Haute',    color: 'bg-red-100 text-red-700' },
@@ -64,12 +64,12 @@ const ACTION_PRIORITES = [
   { value: 'basse',    label: 'Basse',    color: 'bg-green-100 text-green-700' },
 ]
 
-// Statuts — CHECK constraint SQL : a_faire, en_cours, fait, annule
+// Statuts - CHECK constraint SQL : a_faire, en_cours, fait, annule
 const ACTION_STATUTS = [
   { value: 'a_faire',  label: 'À faire',  emoji: '⬜', color: 'bg-gray-100 text-gray-700' },
-  { value: 'en_cours', label: 'En cours', emoji: '🔄', color: 'bg-blue-100 text-blue-700' },
-  { value: 'fait',     label: 'Fait',     emoji: '✅', color: 'bg-green-100 text-green-700' },
-  { value: 'annule',   label: 'Annulé',   emoji: '❌', color: 'bg-stone-100 text-stone-600' },
+  { value: 'en_cours', label: 'En cours', emoji: '', color: 'bg-blue-100 text-blue-700' },
+  { value: 'fait',     label: 'Fait',     emoji: '', color: 'bg-green-100 text-green-700' },
+  { value: 'annule',   label: 'Annulé',   emoji: '', color: 'bg-stone-100 text-stone-600' },
 ]
 
 // ═══════════════════════════════════════════════════════════
@@ -189,7 +189,7 @@ export default function DuerpDetail() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PROJET — STATUT & INFOS
+  // PROJET - STATUT & INFOS
   // ═══════════════════════════════════════════════════════════
   const updateProjectStatus = async (newStatus) => {
     const { error } = await supabase.from('duerp_projects').update({ status: newStatus }).eq('id', id)
@@ -209,7 +209,7 @@ export default function DuerpDetail() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // UNITÉS DE TRAVAIL — CRUD
+  // UNITÉS DE TRAVAIL - CRUD
   // Note schéma : effectif est INTEGER (pas text)
   // Note schéma : ON DELETE CASCADE sur risks → supprime les risques liés
   // ═══════════════════════════════════════════════════════════
@@ -244,7 +244,7 @@ export default function DuerpDetail() {
   const deleteUnit = async (unitId) => {
     const linkedRisks = risks.filter(r => r.unit_id === unitId).length
     if (linkedRisks > 0) {
-      if (!confirm(`⚠️ ATTENTION : ${linkedRisks} risque(s) lié(s) à cette unité seront DÉFINITIVEMENT SUPPRIMÉS (cascade SQL).\n\nPour les conserver, rattachez-les d'abord à une autre unité.\n\nContinuer ?`)) return
+      if (!confirm(` ATTENTION : ${linkedRisks} risque(s) lié(s) à cette unité seront DÉFINITIVEMENT SUPPRIMÉS (cascade SQL).\n\nPour les conserver, rattachez-les d'abord à une autre unité.\n\nContinuer ?`)) return
     } else {
       if (!confirm('Supprimer cette unité de travail ?')) return
     }
@@ -255,8 +255,8 @@ export default function DuerpDetail() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // RISQUES — CRUD & COTATION
-  // ⚠️ CRITIQUE : risque_brut et risque_residuel sont
+  // RISQUES - CRUD & COTATION
+  //  CRITIQUE : risque_brut et risque_residuel sont
   //    GENERATED ALWAYS dans PostgreSQL → NE JAMAIS les écrire
   // ═══════════════════════════════════════════════════════════
   const saveRisk = async (riskData) => {
@@ -313,7 +313,7 @@ export default function DuerpDetail() {
     loadAll()
   }
 
-  // Cotation tactile inline — écrit UNIQUEMENT le champ modifié
+  // Cotation tactile inline - écrit UNIQUEMENT le champ modifié
   const updateRiskField = async (riskId, field, value) => {
     const { error } = await supabase.from('duerp_risks').update({ [field]: value }).eq('id', riskId)
     if (error) return toast.error('Erreur : ' + error.message)
@@ -330,13 +330,13 @@ export default function DuerpDetail() {
       project_id: id, danger: 'Nouveau risque', sort_order: risks.length,
     })
     if (error) return toast.error('Erreur : ' + error.message)
-    toast.success('Risque ajouté — complétez les informations')
+    toast.success('Risque ajouté - complétez les informations')
     loadAll()
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ACTIONS — CRUD
-  // ⚠️ Schéma SQL : colonne "action" (pas "titre"),
+  // ACTIONS - CRUD
+  //  Schéma SQL : colonne "action" (pas "titre"),
   //    "type_action" (pas "type"), statut inclut "annule"
   // ═══════════════════════════════════════════════════════════
   const saveAction = async () => {
@@ -386,7 +386,7 @@ export default function DuerpDetail() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // IA — MODE 1 : Évaluation d'un risque individuel
+  // IA - MODE 1 : Évaluation d'un risque individuel
   // ═══════════════════════════════════════════════════════════
   const evaluateRiskWithAI = async (risk) => {
     if (!aiDescription.trim() && !risk.situation) {
@@ -467,7 +467,7 @@ export default function DuerpDetail() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // IA — MODE 2 : Analyse complète d'une unité de travail
+  // IA - MODE 2 : Analyse complète d'une unité de travail
   // ═══════════════════════════════════════════════════════════
   const evaluateUnitWithAI = async (unitId) => {
     if (!aiUnitDescription.trim()) {
@@ -559,7 +559,7 @@ export default function DuerpDetail() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // IA — MODE 3 : Saisie libre générale (multi-unités)
+  // IA - MODE 3 : Saisie libre générale (multi-unités)
   // ═══════════════════════════════════════════════════════════
   const evaluateGeneralWithAI = async () => {
     if (!aiGeneralDescription.trim()) return toast.error('Décrivez vos observations terrain')
@@ -665,7 +665,7 @@ export default function DuerpDetail() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // IA — MODE 4 : Audit de complétude
+  // IA - MODE 4 : Audit de complétude
   // ═══════════════════════════════════════════════════════════
   const runAiAudit = async () => {
     setAiLoading(true)
@@ -845,7 +845,7 @@ export default function DuerpDetail() {
               <span className="font-mono text-xs">{project.reference}</span>
               {project.version > 1 && <span className="text-xs bg-blue-50 text-blue-600 px-1.5 rounded">v{project.version}</span>}
               {project.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{project.postal_code} {project.city}</span>}
-              {project.effectif && <span>👥 {project.effectif}</span>}
+              {project.effectif && <span> {project.effectif}</span>}
               {project.naf_code && <span className="text-amber-600 text-xs">NAF {project.naf_code}</span>}
             </div>
           </div>
@@ -867,7 +867,7 @@ export default function DuerpDetail() {
       {/* ═══════════ BARRE PROGRESSION RISQUES ═══════════ */}
       <div className="bg-white rounded-xl border shadow-sm p-3 mb-4">
         <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
-          <span>{riskStats.total} risques identifiés — {riskStats.evaluated} évalués</span>
+          <span>{riskStats.total} risques identifiés - {riskStats.evaluated} évalués</span>
           <span>{actionStats.fait}/{actionStats.total} actions réalisées</span>
         </div>
         <div className="flex h-3 rounded-full overflow-hidden bg-gray-100">
@@ -949,7 +949,7 @@ export default function DuerpDetail() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-sm">
               {[
                 { label: 'SIRET', value: project.siret },
-                { label: 'NAF', value: project.naf_code ? `${project.naf_code} — ${project.naf_label || ''}` : null },
+                { label: 'NAF', value: project.naf_code ? `${project.naf_code} - ${project.naf_label || ''}` : null },
                 { label: 'Adresse', value: [project.address, project.postal_code, project.city].filter(Boolean).join(', ') },
                 { label: 'Effectif', value: project.effectif },
                 { label: 'Contact', value: project.contact_name },
@@ -980,11 +980,11 @@ export default function DuerpDetail() {
       <div className="border-b border-gray-200 mb-4 overflow-x-auto">
         <div className="flex min-w-max">
           {[
-            { id: 'units',    label: '🏢 Unités',     count: units.length },
-            { id: 'risks',    label: '⚠️ Risques',    count: risks.length },
-            { id: 'actions',  label: '🎯 Actions',    count: actions.length },
-            { id: 'conformite', label: '🛡️ Conformité' },
-            { id: 'synthese', label: '📊 Synthèse' },
+            { id: 'units',    label: ' Unités',     count: units.length },
+            { id: 'risks',    label: ' Risques',    count: risks.length },
+            { id: 'actions',  label: ' Actions',    count: actions.length },
+            { id: 'conformite', label: ' Conformité' },
+            { id: 'synthese', label: ' Synthèse' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`pb-3 pt-2 px-3 sm:px-4 text-sm font-medium border-b-2 whitespace-nowrap transition ${
@@ -1079,8 +1079,8 @@ export default function DuerpDetail() {
                           )}
                         </div>
                         <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                          {u.effectif && <span>👥 {u.effectif} salarié{u.effectif > 1 ? 's' : ''}</span>}
-                          {u.metiers && <span>💼 {u.metiers}</span>}
+                          {u.effectif && <span> {u.effectif} salarié{u.effectif > 1 ? 's' : ''}</span>}
+                          {u.metiers && <span> {u.metiers}</span>}
                           {u.description && <span className="text-gray-400">{u.description}</span>}
                         </div>
                       </div>
@@ -1105,7 +1105,7 @@ export default function DuerpDetail() {
             </div>
           )}
 
-          {/* ═══ MODAL IA — Analyse complète unité (Mode 2) ═══ */}
+          {/* ═══ MODAL IA - Analyse complète unité (Mode 2) ═══ */}
           {showAiUnitModal && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setShowAiUnitModal(null); setAiResult(null) } }}>
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
@@ -1113,7 +1113,7 @@ export default function DuerpDetail() {
                   <div className="flex items-center gap-2">
                     <Bot className="w-6 h-6 text-purple-600" />
                     <div>
-                      <h3 className="font-bold text-gray-900">IA — Analyse de l'unité</h3>
+                      <h3 className="font-bold text-gray-900">IA - Analyse de l'unité</h3>
                       <p className="text-xs text-gray-500">{units.find(u => u.id === showAiUnitModal)?.name || ''}</p>
                     </div>
                   </div>
@@ -1125,7 +1125,7 @@ export default function DuerpDetail() {
                   {!aiResult && (
                     <div>
                       <label className="text-sm font-medium text-gray-700 block mb-2">
-                        📝 Décrivez ce que vous observez dans cette unité de travail
+                         Décrivez ce que vous observez dans cette unité de travail
                       </label>
                       <textarea value={aiUnitDescription} onChange={e => setAiUnitDescription(e.target.value)}
                         rows={6} autoFocus
@@ -1182,12 +1182,12 @@ export default function DuerpDetail() {
                                   <h5 className="font-semibold text-sm text-gray-900">{r.danger}</h5>
                                   <p className="text-xs text-gray-500 mt-0.5">{r.situation}</p>
                                   {r.consequences && <p className="text-xs text-red-400 mt-0.5">→ {r.consequences}</p>}
-                                  {r.justification && <p className="text-xs text-purple-500 mt-1 italic">💡 {r.justification}</p>}
+                                  {r.justification && <p className="text-xs text-purple-500 mt-1 italic"> {r.justification}</p>}
                                   {r.actions?.length > 0 && (
                                     <div className="mt-2 pl-3 border-l-2 border-purple-200 space-y-1">
                                       {r.actions.map((a, ai) => (
                                         <p key={ai} className="text-xs text-gray-600">
-                                          🎯 <strong>{a.action}</strong>
+                                           <strong>{a.action}</strong>
                                           <span className="text-gray-400 ml-1">({a.type_action}, {a.priorite}{a.cout_estime ? `, ~${a.cout_estime}` : ''})</span>
                                         </p>
                                       ))}
@@ -1235,15 +1235,15 @@ export default function DuerpDetail() {
               className="px-3 py-2 border rounded-lg text-sm">
               <option value="">Unité</option>
               <option value="__none__">Sans unité</option>
-              {units.map(u => <option key={u.id} value={u.id}>{u.code} — {u.name}</option>)}
+              {units.map(u => <option key={u.id} value={u.id}>{u.code} - {u.name}</option>)}
             </select>
             <select value={riskFilter.level} onChange={e => setRiskFilter({ ...riskFilter, level: e.target.value })}
               className="px-3 py-2 border rounded-lg text-sm">
               <option value="">Niveau</option>
-              <option value="critique">🔴 Critique</option>
-              <option value="eleve">🟠 Élevé</option>
-              <option value="moyen">🟡 Moyen</option>
-              <option value="faible">🟢 Faible</option>
+              <option value="critique"> Critique</option>
+              <option value="eleve"> Élevé</option>
+              <option value="moyen"> Moyen</option>
+              <option value="faible"> Faible</option>
               <option value="non_evalue">⬜ Non évalué</option>
             </select>
             <div className="flex gap-1">
@@ -1273,7 +1273,7 @@ export default function DuerpDetail() {
           {filteredRisks.length === 0 ? (
             <div className="bg-white rounded-xl border p-8 text-center">
               <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">{risks.length === 0 ? 'Aucun risque — ajoutez depuis la bibliothèque INRS' : 'Aucun risque ne correspond aux filtres'}</p>
+              <p className="text-gray-500">{risks.length === 0 ? 'Aucun risque - ajoutez depuis la bibliothèque INRS' : 'Aucun risque ne correspond aux filtres'}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -1304,7 +1304,7 @@ export default function DuerpDetail() {
                           <h4 className="font-semibold text-gray-900 text-sm">{r.danger || 'Risque sans titre'}</h4>
                           {r.situation && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.situation}</p>}
                           {r.prevention_existante && !isEditing && (
-                            <p className="text-xs text-green-600 mt-0.5 line-clamp-1">🛡️ {r.prevention_existante}</p>
+                            <p className="text-xs text-green-600 mt-0.5 line-clamp-1"> {r.prevention_existante}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-1 ml-2 shrink-0">
@@ -1336,7 +1336,7 @@ export default function DuerpDetail() {
                               <button key={f.value} onClick={() => updateRiskField(r.id, 'frequence', f.value)}
                                 className={`py-2.5 px-1 rounded-lg border-2 text-center transition-all touch-manipulation ${
                                   r.frequence === f.value ? `${f.color} font-bold shadow-sm scale-[1.02]` : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                                }`} title={`${f.label} — ${f.desc}`}>
+                                }`} title={`${f.label} - ${f.desc}`}>
                                 <span className="block text-lg leading-none">{f.short}</span>
                                 <span className="block text-[8px] mt-0.5 leading-tight">{f.label}</span>
                               </button>
@@ -1350,7 +1350,7 @@ export default function DuerpDetail() {
                               <button key={g.value} onClick={() => updateRiskField(r.id, 'gravite', g.value)}
                                 className={`py-2.5 px-1 rounded-lg border-2 text-center transition-all touch-manipulation ${
                                   r.gravite === g.value ? `${g.color} font-bold shadow-sm scale-[1.02]` : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                                }`} title={`${g.label} — ${g.desc}`}>
+                                }`} title={`${g.label} - ${g.desc}`}>
                                 <span className="block text-lg leading-none">{g.short}</span>
                                 <span className="block text-[8px] mt-0.5 leading-tight">{g.label}</span>
                               </button>
@@ -1373,12 +1373,12 @@ export default function DuerpDetail() {
                         </div>
                       </div>
 
-                      {/* ═══ PANNEAU IA — Évaluation risque (Mode 1) ═══ */}
+                      {/* ═══ PANNEAU IA - Évaluation risque (Mode 1) ═══ */}
                       {aiRiskId === r.id && (
                         <div className="mt-3 p-4 bg-gradient-to-r from-purple-50 to-amber-50 rounded-xl border border-purple-200">
                           <div className="flex items-center gap-2 mb-3">
                             <Bot className="w-5 h-5 text-purple-600" />
-                            <span className="font-semibold text-sm text-purple-800">IA — Évaluation de ce risque</span>
+                            <span className="font-semibold text-sm text-purple-800">IA - Évaluation de ce risque</span>
                           </div>
 
                           {!aiResult?.riskId && (
@@ -1431,7 +1431,7 @@ export default function DuerpDetail() {
                               {/* Actions proposées */}
                               {aiResult.actions?.length > 0 && (
                                 <div>
-                                  <h5 className="text-xs font-semibold text-gray-700 mb-1">🎯 Actions proposées :</h5>
+                                  <h5 className="text-xs font-semibold text-gray-700 mb-1"> Actions proposées :</h5>
                                   <div className="space-y-1">
                                     {aiResult.actions.map((a, i) => (
                                       <div key={i} className="bg-white rounded-lg p-2 border text-xs">
@@ -1476,8 +1476,8 @@ export default function DuerpDetail() {
                               <label className="text-xs text-gray-500">Unité de travail</label>
                               <select value={r.unit_id || ''} onChange={e => updateRiskField(r.id, 'unit_id', e.target.value || null)}
                                 className="w-full px-3 py-2 border rounded-lg text-sm">
-                                <option value="">— Aucune —</option>
-                                {units.map(u => <option key={u.id} value={u.id}>{u.code} — {u.name}</option>)}
+                                <option value="">- Aucune -</option>
+                                {units.map(u => <option key={u.id} value={u.id}>{u.code} - {u.name}</option>)}
                               </select>
                             </div>
                             <div>
@@ -1590,7 +1590,7 @@ export default function DuerpDetail() {
             </div>
           )}
 
-          {/* ═══ MODAL IA — Saisie libre générale (Mode 3) ═══ */}
+          {/* ═══ MODAL IA - Saisie libre générale (Mode 3) ═══ */}
           {showAiGeneralModal && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setShowAiGeneralModal(false); setAiResult(null) } }}>
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
@@ -1598,7 +1598,7 @@ export default function DuerpDetail() {
                   <div className="flex items-center gap-2">
                     <Bot className="w-6 h-6 text-purple-600" />
                     <div>
-                      <h3 className="font-bold text-gray-900">IA — Observations terrain libres</h3>
+                      <h3 className="font-bold text-gray-900">IA - Observations terrain libres</h3>
                       <p className="text-xs text-gray-500">Décrivez tout ce que vous voyez, l'IA identifie et ventile les risques par unité</p>
                     </div>
                   </div>
@@ -1632,9 +1632,9 @@ export default function DuerpDetail() {
                       )}
                       {aiResult.nouvelles_unites?.length > 0 && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                          <p className="text-xs font-medium text-blue-800 mb-1">🏢 Nouvelles unités proposées :</p>
+                          <p className="text-xs font-medium text-blue-800 mb-1"> Nouvelles unités proposées :</p>
                           {aiResult.nouvelles_unites.map((nu, i) => (
-                            <span key={i} className="inline-block text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded mr-1 mb-1">{nu.code} — {nu.name}</span>
+                            <span key={i} className="inline-block text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded mr-1 mb-1">{nu.code} - {nu.name}</span>
                           ))}
                         </div>
                       )}
@@ -1656,14 +1656,14 @@ export default function DuerpDetail() {
                                 }} className="mt-1 rounded text-purple-600" />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex flex-wrap items-center gap-2 mb-1">
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">📍 {unitName}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600"> {unitName}</span>
                                     {cat && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{cat.label}</span>}
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${lvl.badge}`}>{lvl.label} ({scores.residuel})</span>
                                   </div>
                                   <h5 className="font-semibold text-sm text-gray-900">{r.danger}</h5>
                                   <p className="text-xs text-gray-500 mt-0.5">{r.situation}</p>
                                   {r.actions?.map((a, ai) => (
-                                    <p key={ai} className="text-xs text-gray-600 mt-1">🎯 <strong>{a.action}</strong> <span className="text-gray-400">({a.type_action}, {a.priorite})</span></p>
+                                    <p key={ai} className="text-xs text-gray-600 mt-1"> <strong>{a.action}</strong> <span className="text-gray-400">({a.type_action}, {a.priorite})</span></p>
                                   ))}
                                 </div>
                               </div>
@@ -1753,7 +1753,7 @@ export default function DuerpDetail() {
                   <label className="text-xs text-gray-500">Risque lié</label>
                   <select value={actionForm.risk_id || ''} onChange={e => setActionForm({ ...actionForm, risk_id: e.target.value || null })}
                     className="w-full px-3 py-2 border rounded-lg text-sm">
-                    <option value="">— Aucun —</option>
+                    <option value="">- Aucun -</option>
                     {risks.map(r => <option key={r.id} value={r.id}>{r.danger}</option>)}
                   </select>
                 </div>
@@ -1761,8 +1761,8 @@ export default function DuerpDetail() {
                   <label className="text-xs text-gray-500">Formation liée (catalogue Access)</label>
                   <select value={actionForm.course_id || ''} onChange={e => setActionForm({ ...actionForm, course_id: e.target.value || null })}
                     className="w-full px-3 py-2 border rounded-lg text-sm">
-                    <option value="">— Aucune —</option>
-                    {courses.map(c => <option key={c.id} value={c.id}>🎓 {c.title}</option>)}
+                    <option value="">- Aucune -</option>
+                    {courses.map(c => <option key={c.id} value={c.id}> {c.title}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1787,11 +1787,11 @@ export default function DuerpDetail() {
                 if (relatedFormations.length === 0) return null
                 return (
                   <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs font-medium text-blue-800 mb-1">📘 Formations réglementaires liées :</p>
+                    <p className="text-xs font-medium text-blue-800 mb-1"> Formations réglementaires liées :</p>
                     {relatedFormations.map(f => (
                       <div key={f.id} className="text-xs text-blue-700 flex items-center gap-2 mt-0.5">
-                        <span>🎓 <strong>{f.formation_label}</strong></span>
-                        {f.periodicite && <span className="text-blue-500">— {f.periodicite}</span>}
+                        <span> <strong>{f.formation_label}</strong></span>
+                        {f.periodicite && <span className="text-blue-500">- {f.periodicite}</span>}
                         {f.reglementation && <span className="text-blue-400 text-[10px]">({f.reglementation})</span>}
                       </div>
                     ))}
@@ -1837,18 +1837,18 @@ export default function DuerpDetail() {
                           </select>
                           {pr && <span className={`text-[10px] px-1.5 py-0.5 rounded ${pr.color}`}>{pr.label}</span>}
                           {tp && <span className="text-[10px] text-gray-500">{tp.emoji} {tp.label}</span>}
-                          {isOverdue && <span className="text-[10px] text-red-600 font-medium">⏰ En retard</span>}
+                          {isOverdue && <span className="text-[10px] text-red-600 font-medium"> En retard</span>}
                         </div>
                         <h4 className={`font-semibold text-sm ${a.statut === 'fait' ? 'text-gray-400 line-through' : a.statut === 'annule' ? 'text-gray-400' : 'text-gray-900'}`}>
                           {a.action}
                         </h4>
                         <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-400">
-                          {a.responsable && <span>👤 {a.responsable}</span>}
-                          {a.echeance && <span>📅 {format(new Date(a.echeance), 'dd/MM/yyyy')}</span>}
-                          {a.date_realisation && <span className="text-green-600">✅ Réalisé {format(new Date(a.date_realisation), 'dd/MM/yyyy')}</span>}
-                          {a.cout_estime && <span>💰 {a.cout_estime}</span>}
-                          {linkedRisk && <span className="text-amber-600">⚠️ {linkedRisk.danger}</span>}
-                          {linkedCourse && <span className="text-blue-600">🎓 {linkedCourse.title}</span>}
+                          {a.responsable && <span> {a.responsable}</span>}
+                          {a.echeance && <span> {format(new Date(a.echeance), 'dd/MM/yyyy')}</span>}
+                          {a.date_realisation && <span className="text-green-600"> Réalisé {format(new Date(a.date_realisation), 'dd/MM/yyyy')}</span>}
+                          {a.cout_estime && <span> {a.cout_estime}</span>}
+                          {linkedRisk && <span className="text-amber-600"> {linkedRisk.danger}</span>}
+                          {linkedCourse && <span className="text-blue-600"> {linkedCourse.title}</span>}
                         </div>
                       </div>
                       <div className="flex items-center gap-1 ml-2 shrink-0">
@@ -1893,7 +1893,7 @@ export default function DuerpDetail() {
                           <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${lvl.badge}`}>{r.risque_residuel || r.risque_brut}</span>
                           <span className="text-gray-700 truncate">{r.danger}</span>
                           {relatedFormations.length > 0 && (
-                            <span className="text-[10px] text-blue-600 shrink-0">🎓 {relatedFormations[0].formation_label}</span>
+                            <span className="text-[10px] text-blue-600 shrink-0"> {relatedFormations[0].formation_label}</span>
                           )}
                         </div>
                         <button onClick={() => {
@@ -1933,10 +1933,10 @@ export default function DuerpDetail() {
           {/* KPIs */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Risques identifiés', value: riskStats.total, icon: '⚠️', border: 'border-gray-300' },
-              { label: 'Évalués', value: `${riskStats.evaluated}/${riskStats.total}`, icon: '📊', border: 'border-blue-400' },
-              { label: 'Critiques + Élevés', value: riskStats.critique + riskStats.eleve, icon: '🔴', border: 'border-red-400' },
-              { label: 'Actions terminées', value: `${actionStats.fait}/${actionStats.total}`, icon: '✅', border: 'border-green-400' },
+              { label: 'Risques identifiés', value: riskStats.total, icon: '', border: 'border-gray-300' },
+              { label: 'Évalués', value: `${riskStats.evaluated}/${riskStats.total}`, icon: '', border: 'border-blue-400' },
+              { label: 'Critiques + Élevés', value: riskStats.critique + riskStats.eleve, icon: '', border: 'border-red-400' },
+              { label: 'Actions terminées', value: `${actionStats.fait}/${actionStats.total}`, icon: '', border: 'border-green-400' },
             ].map(k => (
               <div key={k.label} className={`bg-white rounded-xl border-l-4 ${k.border} p-4 shadow-sm`}>
                 <div className="flex items-center justify-between">
@@ -1978,7 +1978,7 @@ export default function DuerpDetail() {
                 <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-purple-50 to-amber-50">
                   <div className="flex items-center gap-2">
                     <Bot className="w-6 h-6 text-purple-600" />
-                    <h3 className="font-bold text-gray-900">Audit IA — Complétude du DUERP</h3>
+                    <h3 className="font-bold text-gray-900">Audit IA - Complétude du DUERP</h3>
                   </div>
                   <button onClick={() => { setShowAiAuditModal(false); setAiResult(null) }} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
                 </div>
@@ -2028,7 +2028,7 @@ export default function DuerpDetail() {
                       {aiResult.manques?.length > 0 && (
                         <div>
                           <h4 className="font-semibold text-sm text-gray-900 mb-3">
-                            ⚠️ {aiResult.manques.length} manque(s) identifié(s)
+                             {aiResult.manques.length} manque(s) identifié(s)
                           </h4>
                           <div className="space-y-4">
                             {aiResult.manques.map((m, idx) => {
@@ -2060,7 +2060,7 @@ export default function DuerpDetail() {
                                               <span className="font-medium text-gray-900">{r.danger}</span>
                                               <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${lvl.badge}`}>{lvl.label}</span>
                                               {r.actions?.map((a, ai) => (
-                                                <p key={ai} className="text-gray-400 mt-0.5 pl-2">🎯 {a.action}</p>
+                                                <p key={ai} className="text-gray-400 mt-0.5 pl-2"> {a.action}</p>
                                               ))}
                                             </div>
                                           </div>
@@ -2082,7 +2082,7 @@ export default function DuerpDetail() {
                       {/* Recommandations générales */}
                       {aiResult.recommandations_generales?.length > 0 && (
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                          <h4 className="font-semibold text-sm text-blue-800 mb-2">💡 Recommandations générales</h4>
+                          <h4 className="font-semibold text-sm text-blue-800 mb-2"> Recommandations générales</h4>
                           <ul className="space-y-1">
                             {aiResult.recommandations_generales.map((rec, i) => (
                               <li key={i} className="text-xs text-blue-700 flex items-start gap-1">
@@ -2148,13 +2148,13 @@ export default function DuerpDetail() {
                 <thead>
                   <tr>
                     <th className="p-2 text-xs text-gray-400">F \ G</th>
-                    {GRAVITE_LABELS.map(g => <th key={g.value} className="p-2 text-xs text-gray-500">{g.value} — {g.label}</th>)}
+                    {GRAVITE_LABELS.map(g => <th key={g.value} className="p-2 text-xs text-gray-500">{g.value} - {g.label}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {[...FREQUENCE_LABELS].reverse().map(f => (
                     <tr key={f.value}>
-                      <td className="p-2 text-xs text-gray-500 font-medium text-left">{f.value} — {f.label}</td>
+                      <td className="p-2 text-xs text-gray-500 font-medium text-left">{f.value} - {f.label}</td>
                       {GRAVITE_LABELS.map(g => {
                         const score = f.value * g.value
                         const lvl = getRiskLevel(score)
@@ -2225,8 +2225,8 @@ export default function DuerpDetail() {
                   return (
                     <div key={u.id} className="bg-gray-50 rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-sm text-gray-900">{u.code} — {u.name}</span>
-                        <span className="text-xs text-gray-500">{unitRisks.length} risque{unitRisks.length > 1 ? 's' : ''} {u.effectif ? `• 👥 ${u.effectif}` : ''}</span>
+                        <span className="font-medium text-sm text-gray-900">{u.code} - {u.name}</span>
+                        <span className="text-xs text-gray-500">{unitRisks.length} risque{unitRisks.length > 1 ? 's' : ''} {u.effectif ? `•  ${u.effectif}` : ''}</span>
                       </div>
                       <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-200">
                         {crit > 0 && <div className="bg-red-500" style={{ width: `${(crit / unitRisks.length) * 100}%` }} />}
@@ -2244,7 +2244,7 @@ export default function DuerpDetail() {
                   return (
                     <div className="bg-gray-50 rounded-lg p-3 border-dashed border-2 border-gray-200">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm text-gray-500">⚠️ Sans unité</span>
+                        <span className="font-medium text-sm text-gray-500"> Sans unité</span>
                         <span className="text-xs text-orange-500 font-medium">{orphans.length} à affecter</span>
                       </div>
                     </div>
@@ -2281,16 +2281,16 @@ export default function DuerpDetail() {
 
           {/* Rappels réglementaires */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h4 className="font-medium text-sm text-blue-800 mb-2">📘 Rappels réglementaires</h4>
+            <h4 className="font-medium text-sm text-blue-800 mb-2"> Rappels réglementaires</h4>
             <div className="text-xs text-blue-700 space-y-1">
-              <p>• <strong>Conservation obligatoire 40 ans</strong> (Art. L.4121-3-1 V — loi du 2 août 2021)</p>
+              <p>• <strong>Conservation obligatoire 40 ans</strong> (Art. L.4121-3-1 V - loi du 2 août 2021)</p>
               <p>• Mise à jour : {project.effectif && parseInt(project.effectif) >= 11
                 ? 'au minimum annuelle (obligatoire ≥11 salariés)'
                 : 'recommandée annuellement (<11 salariés)'}, + après aménagement important ou info nouvelle sur les risques</p>
               <p>• Consultation du CSE obligatoire sur le DUERP et ses mises à jour</p>
               <p>• Évaluation : impact différencié selon le sexe (Art. L.4121-3)</p>
               <p>• {parseInt(project.effectif) >= 50
-                ? '⚠️ PAPRIPACT obligatoire (≥50 sal.) : programme annuel avec coûts, indicateurs, calendrier'
+                ? ' PAPRIPACT obligatoire (≥50 sal.) : programme annuel avec coûts, indicateurs, calendrier'
                 : 'Liste des actions de prévention obligatoire dans le DUERP (<50 sal.)'}</p>
               <p>• Transmission médecine du travail à chaque mise à jour</p>
               <p>• Dépôt dématérialisé obligatoire prévu (calendrier échelonné par effectif)</p>
@@ -2304,18 +2304,18 @@ export default function DuerpDetail() {
             if (relevantFormations.length === 0) return null
             return (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <h4 className="font-medium text-sm text-amber-800 mb-2">🎓 Formations réglementaires identifiées ({relevantFormations.length})</h4>
+                <h4 className="font-medium text-sm text-amber-800 mb-2"> Formations réglementaires identifiées ({relevantFormations.length})</h4>
                 <div className="space-y-1.5">
                   {relevantFormations.map(f => {
                     const cat = categories.find(c => c.code === f.category_code)
                     return (
                       <div key={f.id} className="flex items-start gap-2 text-sm bg-white rounded-lg p-2.5">
-                        <span className="shrink-0">{cat?.icon || '📋'}</span>
+                        <span className="shrink-0">{cat?.icon || ''}</span>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-900">{f.formation_label}</p>
                           <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-0.5">
-                            {f.periodicite && <span>🔄 {f.periodicite}</span>}
-                            {f.reglementation && <span>📕 {f.reglementation}</span>}
+                            {f.periodicite && <span> {f.periodicite}</span>}
+                            {f.reglementation && <span> {f.reglementation}</span>}
                             {f.course_code && <span className="text-amber-600 font-medium">Réf: {f.course_code}</span>}
                           </div>
                         </div>

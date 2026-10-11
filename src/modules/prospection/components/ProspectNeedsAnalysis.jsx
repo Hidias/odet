@@ -687,14 +687,14 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
             <p className="text-sm text-gray-700">
               Signez directement sur l'écran. Les signatures apparaîtront sur le PDF généré.
               <br />
-              <span className="text-blue-700 font-medium">✓ Fonctionne sur tablette tactile et souris</span>
+              <span className="text-blue-700 font-medium"> Fonctionne sur tablette tactile et souris</span>
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Signature formateur */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  🖊️ Signature formateur (vous)
+                   Signature formateur (vous)
                 </label>
                 <div className="border-2 border-gray-400 rounded-lg bg-white shadow-sm">
                   <SignatureCanvas
@@ -719,7 +719,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
               {/* Signature client */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  ✍️ Signature client (sur place uniquement)
+                   Signature client (sur place uniquement)
                 </label>
                 <div className="border-2 border-gray-400 rounded-lg bg-white shadow-sm">
                   <SignatureCanvas
@@ -740,7 +740,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                   Effacer
                 </button>
                 <p className="text-xs text-gray-600 bg-white/70 p-2 rounded border border-gray-300">
-                  💡 <strong>À distance ?</strong> Laissez vide. Vous signerez, téléchargerez le PDF, et l'enverrez au client pour signature manuelle.
+                   <strong>À distance ?</strong> Laissez vide. Vous signerez, téléchargerez le PDF, et l'enverrez au client pour signature manuelle.
                 </p>
               </div>
             </div>
@@ -788,9 +788,9 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
             </div>
             <div>
               <span className="font-medium">Signatures :</span> {
-                analysis.signature_trainer && analysis.signature_client ? '✓ Formateur + Client' :
-                analysis.signature_trainer ? '✓ Formateur uniquement' :
-                analysis.signature_client ? '✓ Client uniquement' :
+                analysis.signature_trainer && analysis.signature_client ? ' Formateur + Client' :
+                analysis.signature_trainer ? ' Formateur uniquement' :
+                analysis.signature_client ? ' Client uniquement' :
                 'Aucune'
               }
             </div>

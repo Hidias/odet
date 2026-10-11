@@ -289,7 +289,7 @@ export default function ProcessEditor() {
     }
     setIsConnecting(true)
     setConnectFrom(selectedStep.id)
-    toast('Cliquez sur l\'étape de destination', { icon: '🔗' })
+    toast('Cliquez sur l\'étape de destination', { icon: '' })
   }
   
   const handleAddConnection = async (fromId, toId) => {

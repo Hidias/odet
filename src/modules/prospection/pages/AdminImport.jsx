@@ -4,9 +4,9 @@
  * ============================================================================
  *
  * 3 onglets :
- *   1. Import INSEE   — import par tranche d'effectif × département (inchangé)
- *   2. Enrichissement — scraping sites web (inchangé)
- *   3. Import fichier — xlsx/csv → prospection_massive ou clients
+ *   1. Import INSEE   - import par tranche d'effectif × département (inchangé)
+ *   2. Enrichissement - scraping sites web (inchangé)
+ *   3. Import fichier - xlsx/csv → prospection_massive ou clients
  * ============================================================================
  */
 
@@ -43,7 +43,7 @@ const TRANCHES = [
 // ─── Constantes Import fichier ────────────────────────────────────────────────
 
 const PM_FIELDS = [
-  { value: '',                 label: '— Ignorer —' },
+  { value: '',                 label: '- Ignorer -' },
   { value: 'name',             label: 'Raison sociale / Nom' },
   { value: 'email',            label: 'Email' },
   { value: 'phone',            label: 'Téléphone' },
@@ -62,7 +62,7 @@ const PM_FIELDS = [
 ]
 
 const CLIENTS_FIELDS = [
-  { value: '',            label: '— Ignorer —' },
+  { value: '',            label: '- Ignorer -' },
   { value: 'name',        label: 'Raison sociale / Nom' },
   { value: 'email',       label: 'Email principal' },
   { value: 'mobile',      label: 'Téléphone / Mobile' },
@@ -245,7 +245,7 @@ export default function AdminImport() {
     setImporting(true); stopRef.current = false
     setDeptProgress({}); setTotalStats({ recupere: 0, filtre: 0, insere: 0, doublons: 0 })
     const deptsToImport = selectedDepts.sort()
-    toast(`🚀 Import lancé : ${deptsToImport.length} départements × ${TRANCHES.length} tranches`, { duration: 5000 })
+    toast(`Import lancé : ${deptsToImport.length} départements × ${TRANCHES.length} tranches`, { duration: 5000 })
     let grandTotal = { recupere: 0, filtre: 0, insere: 0, doublons: 0 }
     for (const dept of deptsToImport) {
       if (stopRef.current) break
@@ -276,15 +276,15 @@ export default function AdminImport() {
       await new Promise(resolve => setTimeout(resolve, 1000))
     }
     setCurrentDept(null); setCurrentTranche(null); setImporting(false)
-    stopRef.current ? toast('⏹ Import arrêté', { duration: 3000 }) : toast.success(`✅ Import terminé ! ${grandTotal.insere.toLocaleString()} prospects insérés`)
+    stopRef.current ? toast('Import arrêté', { duration: 3000 }) : toast.success(`Import terminé ! ${grandTotal.insere.toLocaleString()} prospects insérés`)
   }
 
-  function arreterImport() { stopRef.current = true; toast('⏹ Arrêt demandé, fin de la tranche en cours...', { duration: 3000 }) }
+  function arreterImport() { stopRef.current = true; toast('Arrêt demandé, fin de la tranche en cours...', { duration: 3000 }) }
 
   // ════════════════════════ ENRICHISSEMENT ════════════════════════
 
   async function lancerEnrichissement() {
-    setEnriching(true); setEnrichStats(null); toast('🔍 Enrichissement lancé...', { duration: 3000 })
+    setEnriching(true); setEnrichStats(null); toast('Enrichissement lancé...', { duration: 3000 })
     try {
       const response = await apiFetch('/api/enrich-prospects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch_size: enrichBatchSize }) })
       const data = await response.json()
@@ -295,7 +295,7 @@ export default function AdminImport() {
   }
 
   async function lancerEnrichissementBoucle() {
-    setEnriching(true); setEnrichHistory([]); toast('🔄 Enrichissement en boucle (5 batchs)...', { duration: 5000 })
+    setEnriching(true); setEnrichHistory([]); toast('Enrichissement en boucle (5 batchs)...', { duration: 5000 })
     for (let i = 0; i < 5; i++) {
       try {
         const response = await apiFetch('/api/enrich-prospects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch_size: enrichBatchSize }) })
@@ -305,7 +305,7 @@ export default function AdminImport() {
         await new Promise(resolve => setTimeout(resolve, 2000))
       } catch (error) { toast.error('Erreur batch ' + (i + 1) + ': ' + error.message); break }
     }
-    toast.success('✅ Enrichissement en boucle terminé !'); setEnriching(false)
+    toast.success('Enrichissement en boucle terminé !'); setEnriching(false)
   }
 
   // ════════════════════════ IMPORT FICHIER ════════════════════════
@@ -479,7 +479,7 @@ export default function AdminImport() {
     } catch (err) { console.warn('import_logs failed:', err.message) }
     setImportLog({ inserted: done, updated: toUpdate.length, skipped: duplicates.filter(d => d.action === 'skip').length, errors })
     setFileStep(4)
-    errors === 0 ? toast.success(`Import terminé — ${done} ligne${done > 1 ? 's' : ''} traitée${done > 1 ? 's' : ''}`) : toast.error(`Import terminé avec ${errors} erreur${errors > 1 ? 's' : ''}`)
+    errors === 0 ? toast.success(`Import terminé - ${done} ligne${done > 1 ? 's' : ''} traitée${done > 1 ? 's' : ''}`) : toast.error(`Import terminé avec ${errors} erreur${errors > 1 ? 's' : ''}`)
   }
 
   // ── Calculs ──
@@ -495,7 +495,7 @@ export default function AdminImport() {
       <div className="max-w-5xl mx-auto">
 
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">🔧 Import &amp; Enrichissement</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2"> Import &amp; Enrichissement</h1>
           <p className="text-gray-600">Import API INSEE, enrichissement sites web, et import depuis fichier</p>
         </div>
 
@@ -503,9 +503,9 @@ export default function AdminImport() {
         <div className="border-b border-gray-200 mb-6">
           <nav className="-mb-px flex gap-6">
             {[
-              { id: 'import-api',     label: '🌐 Import INSEE' },
-              { id: 'enrichissement', label: '🔍 Enrichissement' },
-              { id: 'import-fichier', label: '📂 Import fichier' },
+              { id: 'import-api',     label: ' Import INSEE' },
+              { id: 'enrichissement', label: ' Enrichissement' },
+              { id: 'import-fichier', label: ' Import fichier' },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
@@ -522,7 +522,7 @@ export default function AdminImport() {
         {activeTab === 'import-api' && (
           <>
             <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-lg font-semibold mb-4">📍 Départements à importer</h2>
+              <h2 className="text-lg font-semibold mb-4"> Départements à importer</h2>
               <div className="flex flex-wrap gap-2 mb-4">
                 {Object.entries(DEPARTEMENTS).map(([code, name]) => (
                   <button key={code} onClick={() => toggleDept(code)} disabled={importing}
@@ -554,12 +554,12 @@ export default function AdminImport() {
             {(importing || completedTranches > 0) && (
               <div className="bg-white rounded-lg shadow p-6 mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold">📊 Progression</h2>
+                  <h2 className="text-lg font-semibold"> Progression</h2>
                   <div className="flex items-center gap-4 text-sm">
                     {importing && currentDept && (
                       <span className="text-blue-600 flex items-center gap-1">
                         <Loader className="w-4 h-4 animate-spin" />
-                        {DEPARTEMENTS[currentDept]} — {TRANCHES.find(t => t.code === currentTranche)?.label || '...'}
+                        {DEPARTEMENTS[currentDept]} - {TRANCHES.find(t => t.code === currentTranche)?.label || '...'}
                       </span>
                     )}
                     <span className="font-mono text-gray-600">{completedTranches}/{totalTranches} ({progressPercent}%)</span>
@@ -613,7 +613,7 @@ export default function AdminImport() {
                                   <div className="font-medium">{tranche.label}</div>
                                   {t?.status === 'loading' && <Loader className="w-3 h-3 animate-spin mx-auto mt-0.5" />}
                                   {t?.status === 'success' && <div>{t.insere > 0 ? `+${t.insere}` : '0 new'}</div>}
-                                  {t?.status === 'error'   && <div>❌</div>}
+                                  {t?.status === 'error'   && <div></div>}
                                 </div>
                               )
                             })}
@@ -627,8 +627,8 @@ export default function AdminImport() {
             )}
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
-              <h3 className="font-semibold text-blue-900 mb-2">💡 Infos</h3>
-              <p className="text-sm text-blue-800 mb-1"><strong>Import :</strong> 14 tranches d'effectif par département — SCI et auto-entrepreneurs exclus</p>
+              <h3 className="font-semibold text-blue-900 mb-2"> Infos</h3>
+              <p className="text-sm text-blue-800 mb-1"><strong>Import :</strong> 14 tranches d'effectif par département - SCI et auto-entrepreneurs exclus</p>
               <p className="text-sm text-blue-800 mb-1"><strong>Enrichissement :</strong> Cron automatique à 3h du matin (20 prospects/nuit)</p>
               <p className="text-sm text-blue-800"><strong>Rapport phoning :</strong> Email hebdo chaque lundi à 8h</p>
             </div>
@@ -639,10 +639,10 @@ export default function AdminImport() {
         {activeTab === 'enrichissement' && (
           <>
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">🔍 Enrichissement - Scraping Sites Web</h2>
+              <h2 className="text-lg font-semibold mb-4"> Enrichissement - Scraping Sites Web</h2>
               <p className="text-sm text-gray-600 mb-2">• Scrape les sites web des prospects pour extraire emails &amp; téléphones</p>
               <p className="text-sm text-gray-600 mb-2">• Traite {enrichBatchSize} prospects par batch (~2-3 minutes)</p>
-              <p className="text-sm text-gray-600 mb-4">• ⏰ Cron automatique chaque nuit à 3h du matin</p>
+              <p className="text-sm text-gray-600 mb-4">•  Cron automatique chaque nuit à 3h du matin</p>
               <div className="flex items-center gap-3 mb-4">
                 <label className="text-sm text-gray-700">Batch size :</label>
                 <select value={enrichBatchSize} onChange={(e) => setEnrichBatchSize(Number(e.target.value))} className="border rounded px-3 py-1 text-sm" disabled={enriching}>
@@ -660,7 +660,7 @@ export default function AdminImport() {
                 <button onClick={lancerEnrichissementBoucle} disabled={enriching}
                   className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium ${enriching ? 'bg-gray-300 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700 text-white'}`}
                 >
-                  🔄 Enrichir en boucle (5 batchs)
+                   Enrichir en boucle (5 batchs)
                 </button>
               </div>
             </div>
@@ -669,9 +669,9 @@ export default function AdminImport() {
                 <h2 className="text-lg font-semibold text-purple-900 mb-4">{enrichStats.message}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div><p className="text-sm text-purple-700">Traités</p><p className="text-2xl font-bold text-purple-900">{enrichStats.stats?.total || 0}</p></div>
-                  <div><p className="text-sm text-purple-700">📧 Emails</p><p className="text-2xl font-bold text-green-700">{enrichStats.stats?.emails_found || 0}</p></div>
-                  <div><p className="text-sm text-purple-700">📞 Téléphones</p><p className="text-2xl font-bold text-green-700">{enrichStats.stats?.phones_found || 0}</p></div>
-                  <div><p className="text-sm text-purple-700">❌ Échecs</p><p className="text-2xl font-bold text-red-700">{enrichStats.stats?.failed || 0}</p></div>
+                  <div><p className="text-sm text-purple-700"> Emails</p><p className="text-2xl font-bold text-green-700">{enrichStats.stats?.emails_found || 0}</p></div>
+                  <div><p className="text-sm text-purple-700"> Téléphones</p><p className="text-2xl font-bold text-green-700">{enrichStats.stats?.phones_found || 0}</p></div>
+                  <div><p className="text-sm text-purple-700"> Échecs</p><p className="text-2xl font-bold text-red-700">{enrichStats.stats?.failed || 0}</p></div>
                 </div>
                 {enrichHistory.length > 1 && (
                   <div className="mt-4 pt-4 border-t border-purple-200">
@@ -693,10 +693,10 @@ export default function AdminImport() {
             {/* Étape 0 : Upload */}
             {fileStep === 0 && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-2">📂 Import depuis fichier</h2>
+                <h2 className="text-lg font-semibold mb-2"> Import depuis fichier</h2>
                 <p className="text-sm text-gray-500 mb-6">
                   Importe n&apos;importe quel fichier Excel (.xlsx, .xls) ou CSV dans la base prospects ou clients.
-                  Les colonnes sont détectées automatiquement — tu peux ajuster le mapping avant l&apos;import.
+                  Les colonnes sont détectées automatiquement - tu peux ajuster le mapping avant l&apos;import.
                 </p>
                 <div onClick={() => fileInputRef.current?.click()}
                   className="border-2 border-dashed border-gray-300 hover:border-blue-400 rounded-xl p-12 text-center cursor-pointer transition-colors group"
@@ -714,7 +714,7 @@ export default function AdminImport() {
               <div className="bg-white rounded-lg shadow p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold">🗂 Correspondance des colonnes</h2>
+                    <h2 className="text-lg font-semibold"> Correspondance des colonnes</h2>
                     <p className="text-sm text-gray-500 mt-0.5">{fileName} · {rawRows.length} ligne{rawRows.length > 1 ? 's' : ''}</p>
                   </div>
                   <button onClick={resetFileImport} className="text-gray-400 hover:text-red-500 transition-colors" title="Recommencer">
@@ -741,7 +741,7 @@ export default function AdminImport() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Code NAF global <span className="text-gray-400 font-normal text-xs">(optionnel — toutes les lignes)</span>
+                      Code NAF global <span className="text-gray-400 font-normal text-xs">(optionnel - toutes les lignes)</span>
                     </label>
                     <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Ex : 5530Z (Terrains de camping)" value={globalNaf} onChange={e => setGlobalNaf(e.target.value)} />
                   </div>
@@ -752,7 +752,7 @@ export default function AdminImport() {
                   {targetTable === 'prospection_massive' && (
                     <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                       <label className="block text-sm font-medium text-purple-700 mb-1">
-                        Groupe / Étiquette <span className="text-purple-400 font-normal">(optionnel — permet de retrouver ces contacts dans Mailing)</span>
+                        Groupe / Étiquette <span className="text-purple-400 font-normal">(optionnel - permet de retrouver ces contacts dans Mailing)</span>
                       </label>
                       <input
                         className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
@@ -765,7 +765,7 @@ export default function AdminImport() {
 
                   <p className="text-sm font-medium text-gray-700 mb-2">
                     Correspondance colonnes → champs
-                    <span className="ml-2 text-xs text-gray-400 font-normal">Détection auto — modifie si besoin</span>
+                    <span className="ml-2 text-xs text-gray-400 font-normal">Détection auto - modifie si besoin</span>
                   </p>
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
@@ -780,7 +780,7 @@ export default function AdminImport() {
                         {rawHeaders.map(h => (
                           <tr key={h} className="hover:bg-gray-50">
                             <td className="px-4 py-2 font-medium text-gray-700 text-xs truncate max-w-xs">{h}</td>
-                            <td className="px-4 py-2 text-gray-400 text-xs truncate max-w-xs">{String(rawRows[0]?.[h] ?? '').slice(0, 35) || '—'}</td>
+                            <td className="px-4 py-2 text-gray-400 text-xs truncate max-w-xs">{String(rawRows[0]?.[h] ?? '').slice(0, 35) || '-'}</td>
                             <td className="px-4 py-2">
                               <select value={colMapping[h] || ''} onChange={e => setColMapping(prev => ({ ...prev, [h]: e.target.value }))} className="border border-gray-200 rounded px-2 py-1 text-xs w-full">
                                 {availableFields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
@@ -808,7 +808,7 @@ export default function AdminImport() {
                             return (
                               <tr key={i} className="border-t border-gray-100">
                                 {Object.entries(colMapping).filter(([, v]) => v).map(([, field]) => (
-                                  <td key={field} className="px-3 py-1.5 text-gray-600 truncate max-w-32">{String(built[field] ?? '—')}</td>
+                                  <td key={field} className="px-3 py-1.5 text-gray-600 truncate max-w-32">{String(built[field] ?? '-')}</td>
                                 ))}
                               </tr>
                             )
@@ -821,7 +821,7 @@ export default function AdminImport() {
 
                 {!Object.values(colMapping).some(Boolean) && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
-                    ⚠️ Aucune colonne n&apos;est mappée. Si le fichier a plusieurs feuilles, sélectionne la bonne ci-dessus (ex: "TOUS" ou "Données").
+                     Aucune colonne n&apos;est mappée. Si le fichier a plusieurs feuilles, sélectionne la bonne ci-dessus (ex: "TOUS" ou "Données").
                   </div>
                 )}
                 <div className="flex justify-end pt-2">
@@ -839,7 +839,7 @@ export default function AdminImport() {
               <div className="bg-white rounded-lg shadow p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold">
-                    {duplicates.length > 0 ? '⚠️ Doublons détectés' : '✅ Aucun doublon'}
+                    {duplicates.length > 0 ? ' Doublons détectés' : ' Aucun doublon'}
                   </h2>
                   <button onClick={resetFileImport} className="text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
                 </div>
@@ -881,8 +881,8 @@ export default function AdminImport() {
                         <tbody className="divide-y divide-amber-50">
                           {duplicates.map(d => (
                             <tr key={d.index} className="bg-white hover:bg-amber-50">
-                              <td className="px-3 py-2 text-gray-700 truncate max-w-xs">{d.row.name || '—'}</td>
-                              <td className="px-3 py-2 text-gray-500">{d.row.email || d.row.siret || '—'}</td>
+                              <td className="px-3 py-2 text-gray-700 truncate max-w-xs">{d.row.name || '-'}</td>
+                              <td className="px-3 py-2 text-gray-500">{d.row.email || d.row.siret || '-'}</td>
                               <td className="px-3 py-2"><span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">{d.reason}</span></td>
                               <td className="px-3 py-2">
                                 <div className="flex items-center justify-center gap-1">

@@ -1,6 +1,6 @@
 // src/components/DuerpConformiteTab.jsx
 // ══════════════════════════════════════════════════════════════
-// Onglet Conformité du DUERP — Équipements, Habilitations, Obligations
+// Onglet Conformité du DUERP - Équipements, Habilitations, Obligations
 // ══════════════════════════════════════════════════════════════
 
 import { orgName, orgPhone } from '../../../core/org/currentOrg'
@@ -19,13 +19,13 @@ import {
 } from '../lib/duerpConformiteData'
 
 const VERIFICATION_TYPES = [
-  { id: 'exercice_evacuation', label: 'Exercice d\'évacuation', icon: '🚪', periodicite: '6 mois' },
-  { id: 'verification_extincteurs', label: 'Vérification extincteurs', icon: '🧯', periodicite: '12 mois' },
-  { id: 'controle_electrique', label: 'Contrôle installation électrique', icon: '⚡', periodicite: '12 mois' },
-  { id: 'test_alarme', label: 'Test alarme incendie', icon: '🔔', periodicite: '6 mois' },
-  { id: 'controle_dae', label: 'Vérification DAE', icon: '💓', periodicite: 'Selon fabricant' },
-  { id: 'verification_baes', label: 'Test BAES / éclairage', icon: '💡', periodicite: '12 mois' },
-  { id: 'autre', label: 'Autre vérification', icon: '📋', periodicite: '-' },
+  { id: 'exercice_evacuation', label: 'Exercice d\'évacuation', icon: '', periodicite: '6 mois' },
+  { id: 'verification_extincteurs', label: 'Vérification extincteurs', icon: '', periodicite: '12 mois' },
+  { id: 'controle_electrique', label: 'Contrôle installation électrique', icon: '', periodicite: '12 mois' },
+  { id: 'test_alarme', label: 'Test alarme incendie', icon: '', periodicite: '6 mois' },
+  { id: 'controle_dae', label: 'Vérification DAE', icon: '', periodicite: 'Selon fabricant' },
+  { id: 'verification_baes', label: 'Test BAES / éclairage', icon: '', periodicite: '12 mois' },
+  { id: 'autre', label: 'Autre vérification', icon: '', periodicite: '-' },
 ]
 
 export default function DuerpConformiteTab({ projectId, project, risks, units }) {
@@ -93,7 +93,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
   }, [equipementsWithStatus, habilitations])
 
   // ═══════════════════════════════════════════════════════════
-  // CRUD — ÉQUIPEMENTS
+  // CRUD - ÉQUIPEMENTS
   // ═══════════════════════════════════════════════════════════
   const saveEquipement = async () => {
     if (!equipForm.type_id) return toast.error('Type d\'équipement requis')
@@ -149,7 +149,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CRUD — HABILITATIONS
+  // CRUD - HABILITATIONS
   // ═══════════════════════════════════════════════════════════
   const saveHabilitation = async () => {
     if (!habForm.person_name || !habForm.type_id) return toast.error('Nom et type requis')
@@ -200,7 +200,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CRUD — VÉRIFICATIONS
+  // CRUD - VÉRIFICATIONS
   // ═══════════════════════════════════════════════════════════
   const saveVerification = async () => {
     if (!verifForm.type || !verifForm.date_realisation) return toast.error('Type et date requis')
@@ -248,7 +248,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
   const scoreColor = conformityScore >= 80 ? 'text-green-600' : conformityScore >= 50 ? 'text-amber-600' : 'text-red-600'
   const scoreBg = conformityScore >= 80 ? 'from-green-50 to-emerald-50 border-green-200' : conformityScore >= 50 ? 'from-amber-50 to-yellow-50 border-amber-200' : 'from-red-50 to-orange-50 border-red-200'
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'
   const daysUntil = (d) => d ? Math.ceil((new Date(d) - new Date()) / (1000*60*60*24)) : null
 
   return (
@@ -256,10 +256,10 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
       {/* ═══ SOUS-NAVIGATION ═══ */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
         {[
-          { id: 'dashboard', label: '📊 Tableau de bord', count: null },
-          { id: 'equipements', label: '🧯 Équipements', count: equipements.length },
-          { id: 'personnel', label: '👥 Personnel', count: habilitations.length },
-          { id: 'verifications', label: '📋 Vérifications', count: verifications.length },
+          { id: 'dashboard', label: ' Tableau de bord', count: null },
+          { id: 'equipements', label: ' Équipements', count: equipements.length },
+          { id: 'personnel', label: ' Personnel', count: habilitations.length },
+          { id: 'verifications', label: ' Vérifications', count: verifications.length },
         ].map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
             className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition ${
@@ -335,12 +335,12 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
           {(() => {
             const urgents = [
               ...equipementsWithStatus.filter(e => ['perime', 'a_verifier'].includes(e.auto_status)).map(e => ({
-                type: 'equip', icon: EQUIPMENT_TYPES.find(t => t.id === e.type_id)?.icon || '🧯',
+                type: 'equip', icon: EQUIPMENT_TYPES.find(t => t.id === e.type_id)?.icon || '',
                 label: e.label || EQUIPMENT_TYPES.find(t => t.id === e.type_id)?.label, sub: e.emplacement,
                 date: e.expiry_date || e.next_check_date, status: e.auto_status
               })),
               ...habilitations.filter(h => ['expiree', 'bientot'].includes(getHabilitationStatus(h))).map(h => ({
-                type: 'hab', icon: HABILITATION_TYPES.find(t => t.id === h.type_id)?.icon || '📋',
+                type: 'hab', icon: HABILITATION_TYPES.find(t => t.id === h.type_id)?.icon || '',
                 label: h.person_name, sub: HABILITATION_TYPES.find(t => t.id === h.type_id)?.short || h.type_id,
                 date: h.expiry_date, status: getHabilitationStatus(h) === 'expiree' ? 'perime' : 'a_verifier'
               }))
@@ -360,7 +360,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                         <span className="text-lg">{u.icon}</span>
                         <div className="flex-1 min-w-0">
                           <span className="font-medium text-gray-900">{u.label}</span>
-                          {u.sub && <span className="text-gray-500 ml-1.5">— {u.sub}</span>}
+                          {u.sub && <span className="text-gray-500 ml-1.5">- {u.sub}</span>}
                         </div>
                         <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                           u.status === 'perime' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
@@ -380,7 +380,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             {/* Équipements requis */}
             <div className="bg-white border rounded-xl p-4">
               <h4 className="font-semibold text-sm text-gray-800 mb-3 flex items-center gap-2">
-                🧯 Équipements requis ({obligations.equipements.length})
+                 Équipements requis ({obligations.equipements.length})
               </h4>
               <div className="space-y-2">
                 {obligations.equipements.map((obl, i) => {
@@ -414,7 +414,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             {/* Formations requises */}
             <div className="bg-white border rounded-xl p-4">
               <h4 className="font-semibold text-sm text-gray-800 mb-3 flex items-center gap-2">
-                🎓 Formations requises ({obligations.formations.length})
+                 Formations requises ({obligations.formations.length})
               </h4>
               <div className="space-y-2">
                 {obligations.formations.map((obl, i) => {
@@ -455,7 +455,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
               {/* Proposition de formation par l'organisme */}
               <div className="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-xl p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0">🎓</div>
+                  <div className="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0"></div>
                   <div className="flex-1">
                     <p className="font-bold text-sm text-amber-900">Besoin de former vos équipes ?</p>
                     <p className="text-xs text-amber-700">{orgName()} : SST, incendie, habilitation électrique, conduite d'engins</p>
@@ -510,7 +510,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                       const nextDays = daysUntil(eq.next_check_date)
                       return (
                         <div key={eq.id} className={`bg-white border rounded-xl p-3 flex items-start gap-3 ring-1 ${st.ring} ring-opacity-30`}>
-                          <span className="text-2xl mt-1">{type?.icon || '📦'}</span>
+                          <span className="text-2xl mt-1">{type?.icon || ''}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-sm text-gray-900">{eq.label || type?.label}</span>
@@ -519,7 +519,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                               </span>
                               {eq.status && eq.status !== eq.auto_status && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200" title="Statut saisi manuellement (écrasé par date)">
-                                  ✏️ saisi : {EQUIPMENT_STATUS[eq.status]?.label || eq.status}
+                                   saisi : {EQUIPMENT_STATUS[eq.status]?.label || eq.status}
                                 </span>
                               )}
                             </div>
@@ -563,7 +563,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setEditEquip(null) } }}>
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-red-50 to-amber-50">
-                  <h3 className="font-bold text-gray-900">🧯 {editEquip === 'new' ? 'Ajouter' : 'Modifier'} un équipement</h3>
+                  <h3 className="font-bold text-gray-900"> {editEquip === 'new' ? 'Ajouter' : 'Modifier'} un équipement</h3>
                   <button onClick={() => setEditEquip(null)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="p-5 space-y-4">
@@ -608,7 +608,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                         onChange={e => setEquipForm(f => ({ ...f, quantite: Math.max(1, parseInt(e.target.value) || 1) }))}
                         className="w-full border rounded-lg px-3 py-2 text-sm" />
                       {(equipForm.quantite || 1) > 1 && (
-                        <p className="text-xs text-amber-600 mt-1">💡 {equipForm.quantite} équipements identiques seront créés</p>
+                        <p className="text-xs text-amber-600 mt-1"> {equipForm.quantite} équipements identiques seront créés</p>
                       )}
                     </div>
                   )}
@@ -619,7 +619,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                     <select value={equipForm.unit_id || ''} onChange={e => setEquipForm(f => ({ ...f, unit_id: e.target.value || null }))}
                       className="w-full border rounded-lg px-3 py-2 text-sm">
                       <option value="">Aucune (général)</option>
-                      {units.map(u => <option key={u.id} value={u.id}>{u.code} — {u.name}</option>)}
+                      {units.map(u => <option key={u.id} value={u.id}>{u.code} - {u.name}</option>)}
                     </select>
                   </div>
 
@@ -700,10 +700,10 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                     if (!type) return null
                     return (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-                        <p className="font-medium">📕 {type.reglementation}</p>
+                        <p className="font-medium"> {type.reglementation}</p>
                         <p className="text-blue-600 mt-1">{type.notes}</p>
-                        {type.periodicite_check && <p className="text-blue-600">🔄 Contrôle tous les {type.periodicite_check} mois</p>}
-                        {type.duree_vie_max && <p className="text-blue-600">⏳ Durée de vie max : {type.duree_vie_max} ans</p>}
+                        {type.periodicite_check && <p className="text-blue-600"> Contrôle tous les {type.periodicite_check} mois</p>}
+                        {type.duree_vie_max && <p className="text-blue-600"> Durée de vie max : {type.duree_vie_max} ans</p>}
                       </div>
                     )
                   })()}
@@ -722,7 +722,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
       )}
 
       {/* ════════════════════════════════════════════════════════ */}
-      {/* PERSONNEL — HABILITATIONS                               */}
+      {/* PERSONNEL - HABILITATIONS                               */}
       {/* ════════════════════════════════════════════════════════ */}
       {subTab === 'personnel' && (
         <div className="space-y-4">
@@ -763,7 +763,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                   </div>
                   <div>
                     <span className="font-semibold text-sm text-gray-900">{name}</span>
-                    {info.function && <span className="text-xs text-gray-500 ml-2">— {info.function}</span>}
+                    {info.function && <span className="text-xs text-gray-500 ml-2">- {info.function}</span>}
                   </div>
                   <div className="ml-auto flex items-center gap-1.5">
                     {info.habs.map(h => {
@@ -785,7 +785,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                     const days = daysUntil(h.expiry_date)
                     return (
                       <div key={h.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50">
-                        <span className="text-lg">{type?.icon || '📋'}</span>
+                        <span className="text-lg">{type?.icon || ''}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-sm text-gray-900">{type?.label || h.type_id}</span>
@@ -799,7 +799,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                                 {days !== null && days <= 90 ? ` (${days < 0 ? 'EXPIRÉE' : days + 'j'})` : ''}
                               </span>
                             )}
-                            {h.organisme && <span>🏫 {h.organisme}</span>}
+                            {h.organisme && <span> {h.organisme}</span>}
                             {h.certificate_ref && <span>N° {h.certificate_ref}</span>}
                           </div>
                         </div>
@@ -827,7 +827,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setEditHab(null) } }}>
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-emerald-50 to-amber-50">
-                  <h3 className="font-bold text-gray-900">👤 {editHab === 'new' ? 'Ajouter' : 'Modifier'} une habilitation</h3>
+                  <h3 className="font-bold text-gray-900"> {editHab === 'new' ? 'Ajouter' : 'Modifier'} une habilitation</h3>
                   <button onClick={() => setEditHab(null)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="p-5 space-y-4">
@@ -914,9 +914,9 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                     if (!type) return null
                     return (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-                        <p className="font-medium">📕 {type.reglementation}</p>
+                        <p className="font-medium"> {type.reglementation}</p>
                         <p className="text-blue-600 mt-1">{type.obligation}</p>
-                        <p className="text-blue-600">🔄 Validité : {type.duree_validite} mois</p>
+                        <p className="text-blue-600"> Validité : {type.duree_validite} mois</p>
                         {type.access_formation && (
                           <p className="mt-2 text-amber-700 font-bold">Formation disponible chez {orgName()}, réf. {type.access_ref}</p>
                         )}
@@ -951,7 +951,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
           {/* Résumé des périodicités */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h4 className="text-sm font-semibold text-blue-800 mb-2">📅 Périodicités réglementaires</h4>
+            <h4 className="text-sm font-semibold text-blue-800 mb-2"> Périodicités réglementaires</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {VERIFICATION_TYPES.filter(v => v.id !== 'autre').map(v => {
                 const last = verifications.find(ver => ver.type === v.id)
@@ -962,7 +962,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                       <span className="font-medium text-gray-900">{v.label}</span>
                     </div>
                     <div className="mt-1 text-gray-500">
-                      <span>🔄 {v.periodicite}</span>
+                      <span> {v.periodicite}</span>
                       {last ? (
                         <span className="ml-2">• Dernier : {formatDate(last.date_realisation)}</span>
                       ) : (
@@ -984,19 +984,19 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                 const vType = VERIFICATION_TYPES.find(t => t.id === v.type)
                 return (
                   <div key={v.id} className={`bg-white border rounded-xl p-3 flex items-start gap-3 ${v.conforme ? '' : 'border-red-300 bg-red-50'}`}>
-                    <span className="text-xl">{vType?.icon || '📋'}</span>
+                    <span className="text-xl">{vType?.icon || ''}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm text-gray-900">{v.label || vType?.label}</span>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${v.conforme ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {v.conforme ? '✅ Conforme' : '❌ Non conforme'}
+                          {v.conforme ? ' Conforme' : ' Non conforme'}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-x-3 text-xs text-gray-500 mt-1">
-                        <span>📅 {formatDate(v.date_realisation)}</span>
-                        {v.realise_par && <span>👤 {v.realise_par}</span>}
-                        {v.organisme && <span>🏫 {v.organisme}</span>}
-                        {v.nb_participants && <span>👥 {v.nb_participants} participants</span>}
+                        <span> {formatDate(v.date_realisation)}</span>
+                        {v.realise_par && <span> {v.realise_par}</span>}
+                        {v.organisme && <span> {v.organisme}</span>}
+                        {v.nb_participants && <span> {v.nb_participants} participants</span>}
                         {v.prochain_prevu && <span className="text-amber-600">Prochain : {formatDate(v.prochain_prevu)}</span>}
                       </div>
                       {v.observations && <p className="text-xs text-gray-400 italic mt-1">{v.observations}</p>}
@@ -1016,7 +1016,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setEditVerif(null) } }}>
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-blue-50 to-amber-50">
-                  <h3 className="font-bold text-gray-900">📋 {editVerif === 'new' ? 'Enregistrer' : 'Modifier'} une vérification</h3>
+                  <h3 className="font-bold text-gray-900"> {editVerif === 'new' ? 'Enregistrer' : 'Modifier'} une vérification</h3>
                   <button onClick={() => setEditVerif(null)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="p-5 space-y-4">
@@ -1064,8 +1064,8 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                       <label className="text-xs font-medium text-gray-600 mb-1 block">Résultat</label>
                       <select value={verifForm.conforme !== false ? 'true' : 'false'} onChange={e => setVerifForm(f => ({ ...f, conforme: e.target.value === 'true' }))}
                         className="w-full border rounded-lg px-3 py-2 text-sm">
-                        <option value="true">✅ Conforme</option>
-                        <option value="false">❌ Non conforme</option>
+                        <option value="true"> Conforme</option>
+                        <option value="false"> Non conforme</option>
                       </select>
                     </div>
                   </div>

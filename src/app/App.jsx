@@ -72,7 +72,7 @@ function PageLoader() {
   )
 }
 
-// Composant de protection des routes — redirige le comptable vers /comptable
+// Composant de protection des routes - redirige le comptable vers /comptable
 function PrivateRoute({ children }) {
   const { user, userRole, loading } = useAuthStore()
   const { branding, loaded } = useBranding()
@@ -196,7 +196,7 @@ export default function App() {
             </PrivateRoute>
           } />
 
-          {/* Routes privées (admins uniquement — comptable redirigé) */}
+          {/* Routes privées (admins uniquement - comptable redirigé) */}
           <Route path="/" element={
             <PrivateRoute>
               <Layout />

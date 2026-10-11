@@ -418,7 +418,7 @@ export async function generateQuotePDF(quote, items, client, contact, options) {
 }
 
 // ============================================================
-// ACCEPTATION PARTIELLE — BON DE COMMANDE
+// ACCEPTATION PARTIELLE - BON DE COMMANDE
 // ============================================================
 export async function generatePartialAcceptancePDF(quote, allItems, client, contact, options) {
   applyOrgSettings(options?.orgSettings)

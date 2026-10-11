@@ -77,7 +77,7 @@ export default function SessionPlanning({ sessions, trainers }) {
       end = endOfWeek(currentDate, { weekStartsOn: 1 })
       const startStr = format(start, 'd', { locale: fr })
       const endStr = format(end, 'd MMMM yyyy', { locale: fr })
-      label = `${startStr} – ${endStr}`
+      label = `${startStr} - ${endStr}`
     } else if (view === 'month') {
       start = startOfMonth(currentDate)
       end = endOfMonth(currentDate)
@@ -395,7 +395,7 @@ export default function SessionPlanning({ sessions, trainers }) {
 
         {/* Aide Google Agenda */}
         <div className="mt-2 text-[10px] text-gray-400">
-          📋 Copier un lien → Google Agenda → <strong>Autres agendas</strong> → <strong>À partir de l'URL</strong> → Coller
+           Copier un lien → Google Agenda → <strong>Autres agendas</strong> → <strong>À partir de l'URL</strong> → Coller
         </div>
       </div>
 
@@ -577,7 +577,7 @@ export default function SessionPlanning({ sessions, trainers }) {
               )}
               {hoveredSession.start_time && (
                 <span className="text-gray-400 ml-1">
-                  {hoveredSession.start_time.substring(0, 5)} – {(hoveredSession.end_time || '17:00').substring(0, 5)}
+                  {hoveredSession.start_time.substring(0, 5)} - {(hoveredSession.end_time || '17:00').substring(0, 5)}
                 </span>
               )}
             </span>
@@ -625,7 +625,7 @@ export default function SessionPlanning({ sessions, trainers }) {
         })}
         {(sessionsByTrainer.get('unassigned') || []).length > 0 && (
           <span className="text-red-500">
-            ⚠ {sessionsByTrainer.get('unassigned').length} non assignée(s)
+             {sessionsByTrainer.get('unassigned').length} non assignée(s)
           </span>
         )}
       </div>

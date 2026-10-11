@@ -223,9 +223,9 @@ export default function CompteRenduModal({ rdv, client, analysisData: analysisDa
             
             attachmentRefs.push({ filename, storagePath, size: pdfBytes.byteLength })
             tempPaths.push(storagePath)
-            console.log('✅ PDF analyse uploadé:', storagePath, pdfBytes.byteLength, 'bytes')
+            console.log('PDF analyse uploadé:', storagePath, pdfBytes.byteLength, 'bytes')
           } else {
-            console.log('ℹ️ Pas d\'analyse de besoins trouvée pour ce client')
+            console.log('ℹ Pas d\'analyse de besoins trouvée pour ce client')
           }
         } catch (pdfError) {
           console.error('Erreur génération/upload PDF analyse:', pdfError)
@@ -325,7 +325,7 @@ export default function CompteRenduModal({ rdv, client, analysisData: analysisDa
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📝 Notes de RDV (en vrac)
+                   Notes de RDV (en vrac)
                 </label>
                 <textarea
                   value={notesCRM}
@@ -343,7 +343,7 @@ Exemple :
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📎 Documents à joindre
+                   Documents à joindre
                 </label>
                 
                 
@@ -443,7 +443,7 @@ Exemple :
 
               {uploadedFiles.length > 0 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-blue-900 mb-2">📎 Pièces jointes ({uploadedFiles.length}) :</p>
+                  <p className="text-sm font-medium text-blue-900 mb-2"> Pièces jointes ({uploadedFiles.length}) :</p>
                   <ul className="text-sm text-blue-800 space-y-1">
                     {uploadedFiles.map(file => (
                       <li key={file.id}>• {file.name}</li>

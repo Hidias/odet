@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// RelancePreviewModal.jsx — Preview et édition email relance IA
+// RelancePreviewModal.jsx - Preview et édition email relance IA
 // Affiche le brouillon IA, permet d'éditer avant envoi
 // ═══════════════════════════════════════════════════════════════
 
@@ -14,7 +14,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
   const [editSubject, setEditSubject] = useState(subject)
   const [editBody, setEditBody] = useState(body)
 
-  const toneLabels = { courtois: '🤝 Courtois', direct: '📌 Direct', ferme: '⚡ Ferme' }
+  const toneLabels = { courtois: ' Courtois', direct: ' Direct', ferme: ' Ferme' }
   const relanceLabel = relanceNum === 1 ? '1ère relance' : relanceNum === 2 ? '2ème relance' : '3ème relance'
 
   const handleSend = () => {
@@ -29,7 +29,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
             <Sparkles className="w-4 h-4" />
-            <span className="font-semibold text-sm">Relance IA — {relanceLabel}</span>
+            <span className="font-semibold text-sm">Relance IA - {relanceLabel}</span>
             {isFallback && (
               <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" /> Fallback (IA indisponible)

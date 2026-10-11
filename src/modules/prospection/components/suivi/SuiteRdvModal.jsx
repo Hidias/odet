@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// SuiteRdvModal.jsx — Compte rendu d'un RDV en 4 choix
+// SuiteRdvModal.jsx - Compte rendu d'un RDV en 4 choix
 // Utilisé par SuiviCommercial.jsx, TriSuiviCommercial.jsx et ProspectRDVDetail.jsx
 // ════════════════════════════════════════════════════════════════
 
@@ -87,7 +87,7 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
       if (choice === 'sans_suite') {
         patch.next_action = null
         patch.next_action_date = null
-        patch.outcome_reason = reason + (note.trim() ? ' — ' + note.trim() : '')
+        patch.outcome_reason = reason + (note.trim() ? ' - ' + note.trim() : '')
       }
 
       const { error } = await supabase.from('prospect_rdv').update(patch).eq('id', rdv.id)
@@ -102,7 +102,7 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
       await logInteraction(supabase, {
         clientId: rdv.client_id,
         type: 'meeting',
-        title: `Suite du RDV — ${OUTCOME_LABELS[choice]}${clientName ? ' — ' + clientName : ''}`,
+        title: `Suite du RDV - ${OUTCOME_LABELS[choice]}${clientName ? ' - ' + clientName : ''}`,
         content: detail,
         author,
       })

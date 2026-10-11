@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// useOrgForPDF.js — Hook React pour préparer l'organisation pour les PDFs
+// useOrgForPDF.js - Hook React pour préparer l'organisation pour les PDFs
 //
 // Wrap `useDataStore` pour fournir un objet `organization` enrichi avec
 // la signature dirigeant préchargée en base64 (prête pour jsPDF).

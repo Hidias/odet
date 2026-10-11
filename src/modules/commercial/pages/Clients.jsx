@@ -361,7 +361,7 @@ export default function Clients() {
           email: siege.email || f.email,
         }))
         setAutoFilled(true)
-        toast.success('📋 Fiche pré-remplie depuis l\u2019INSEE', { duration: 3000 })
+        toast.success('Fiche pré-remplie depuis l\u2019INSEE', { duration: 3000 })
       }
     } catch (e) {
       console.error('Enrichissement SIRET:', e)
@@ -540,7 +540,7 @@ export default function Clients() {
       // ═══════════════════════════════════════════════════════════
       // ENRICHISSEMENT AUTOMATIQUE
       // ═══════════════════════════════════════════════════════════
-      toast.loading('🤖 Enrichissement automatique en cours...', { id: 'enriching' })
+      toast.loading('Enrichissement automatique en cours...', { id: 'enriching' })
       setEnriching(true)
       
       const enrichedProspects = []
@@ -596,7 +596,7 @@ export default function Clients() {
       const enrichedCount = enrichedProspects.filter(p => p.enriched).length
       const notEnrichedCount = enrichedProspects.filter(p => !p.enriched).length
       
-      toast.success(`✅ ${enrichedCount} enrichi(s) • ⚠️ ${notEnrichedCount} non enrichi(s)`)
+      toast.success(`${enrichedCount} enrichi(s) •  ${notEnrichedCount} non enrichi(s)`)
       
       setImportPreview(enrichedProspects)
     } catch (err) {
@@ -636,10 +636,10 @@ export default function Clients() {
         selected: true,
         enriching: false
       }
-      toast.success('✅ Enrichissement réussi !')
+      toast.success('Enrichissement réussi !')
     } else {
       newPreview[index] = { ...prospect, enriching: false }
-      toast.error('⚠️ Enrichissement échoué')
+      toast.error('Enrichissement échoué')
     }
     
     setImportPreview(newPreview)
@@ -727,7 +727,7 @@ export default function Clients() {
       // Recharger les clients
       await fetchClients()
       
-      toast.success(`✅ ${created} prospect(s) importé(s)${skipped > 0 ? ` • ${skipped} ignoré(s) (doublons)` : ''}`)
+      toast.success(`${created} prospect(s) importé(s)${skipped > 0 ? ` • ${skipped} ignoré(s) (doublons)` : ''}`)
       setImportPreview(null)
     } catch (err) {
       console.error('Erreur import:', err)
@@ -788,11 +788,11 @@ export default function Clients() {
           <div className="flex bg-gray-100 rounded-lg p-1 gap-0.5">
             {[
               { key: 'all', label: 'Tous', count: clients.filter(c => c.status !== 'archive').length },
-              { key: 'actif', label: '✅ Actif', count: clients.filter(c => c.status === 'actif').length, cls: 'text-green-700' },
-              { key: 'en_discussion', label: '💬 Discussion', count: clients.filter(c => c.status === 'en_discussion').length, cls: 'text-blue-700' },
-              { key: 'prospect', label: '🎯 Prospect', count: clients.filter(c => c.status === 'prospect').length, cls: 'text-orange-700' },
-              { key: 'a_completer', label: '📝 À compléter', count: clients.filter(c => c.status === 'a_completer').length, cls: 'text-purple-700' },
-              { key: 'archive', label: '📦 Archivé', count: clients.filter(c => c.status === 'archive').length, cls: 'text-gray-500' },
+              { key: 'actif', label: ' Actif', count: clients.filter(c => c.status === 'actif').length, cls: 'text-green-700' },
+              { key: 'en_discussion', label: ' Discussion', count: clients.filter(c => c.status === 'en_discussion').length, cls: 'text-blue-700' },
+              { key: 'prospect', label: ' Prospect', count: clients.filter(c => c.status === 'prospect').length, cls: 'text-orange-700' },
+              { key: 'a_completer', label: ' À compléter', count: clients.filter(c => c.status === 'a_completer').length, cls: 'text-purple-700' },
+              { key: 'archive', label: ' Archivé', count: clients.filter(c => c.status === 'archive').length, cls: 'text-gray-500' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setFilterStatus(tab.key)}
                 className={'px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ' + (filterStatus === tab.key ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900')}>
@@ -1019,8 +1019,8 @@ export default function Clients() {
                 <div>
                   <label className="label flex items-center justify-between">
                     SIRET
-                    {siretEnriching && <span className="text-xs text-blue-500 font-normal flex items-center gap-1"><span className="animate-spin inline-block">⏳</span> Recherche INSEE...</span>}
-                    {autoFilled && !siretEnriching && <span className="text-xs text-green-600 font-normal">✓ Pré-rempli auto</span>}
+                    {siretEnriching && <span className="text-xs text-blue-500 font-normal flex items-center gap-1"><span className="animate-spin inline-block"></span> Recherche INSEE...</span>}
+                    {autoFilled && !siretEnriching && <span className="text-xs text-green-600 font-normal"> Pré-rempli auto</span>}
                   </label>
                   <input className="input font-mono" value={form.siret}
                     onChange={(e) => {
@@ -1076,11 +1076,11 @@ export default function Clients() {
                   <h4 className="font-medium text-gray-700 mb-3">Statut</h4>
                   <div className="flex gap-2 flex-wrap">
                     {[
-                      { value: 'prospect', label: '🎯 Prospect', active: 'bg-orange-500 text-white', inactive: 'bg-orange-50 text-orange-700 hover:bg-orange-100' },
-                      { value: 'en_discussion', label: '💬 En discussion', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                      { value: 'actif', label: '✓ Actif', active: 'bg-green-500 text-white', inactive: 'bg-green-50 text-green-700 hover:bg-green-100' },
-                      { value: 'a_completer', label: '📝 À compléter', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-                      { value: 'archive', label: '📦 Archivé', active: 'bg-gray-500 text-white', inactive: 'bg-gray-50 text-gray-500 hover:bg-gray-100' }
+                      { value: 'prospect', label: ' Prospect', active: 'bg-orange-500 text-white', inactive: 'bg-orange-50 text-orange-700 hover:bg-orange-100' },
+                      { value: 'en_discussion', label: ' En discussion', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                      { value: 'actif', label: ' Actif', active: 'bg-green-500 text-white', inactive: 'bg-green-50 text-green-700 hover:bg-green-100' },
+                      { value: 'a_completer', label: ' À compléter', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+                      { value: 'archive', label: ' Archivé', active: 'bg-gray-500 text-white', inactive: 'bg-gray-50 text-gray-500 hover:bg-gray-100' }
                     ].map(s => (
                       <button key={s.value} type="button" onClick={() => setForm({...form, status: s.value})}
                         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.status === s.value ? s.active : s.inactive}`}>
@@ -1094,10 +1094,10 @@ export default function Clients() {
                   <h4 className="font-medium text-gray-700 mb-3">Type de client <span className="text-xs text-gray-400 font-normal">(pour le BPF)</span></h4>
                   <div className="flex gap-2 flex-wrap">
                     {[
-                      { value: 'entreprise', label: '🏢 Entreprise', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                      { value: 'organisme_formation', label: '🎓 Organisme de formation', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-                      { value: 'public', label: '🏛️ Établissement public', active: 'bg-teal-500 text-white', inactive: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
-                      { value: 'opco', label: '💼 OPCO', active: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                      { value: 'entreprise', label: ' Entreprise', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                      { value: 'organisme_formation', label: ' Organisme de formation', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+                      { value: 'public', label: ' Établissement public', active: 'bg-teal-500 text-white', inactive: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
+                      { value: 'opco', label: ' OPCO', active: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
                     ].map(s => (
                       <button key={s.value} type="button" onClick={() => setForm({...form, client_type: s.value})}
                         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.client_type === s.value ? s.active : s.inactive}`}>
@@ -1132,7 +1132,7 @@ export default function Clients() {
                   <FileText className="w-6 h-6 text-purple-600" />
                   <div>
                     <h2 className="text-lg font-semibold">Import prospects en masse</h2>
-                    <p className="text-sm text-gray-600">Pappers, Infogreffe + 🤖 Enrichissement auto ✨</p>
+                    <p className="text-sm text-gray-600">Pappers, Infogreffe +  Enrichissement auto </p>
                   </div>
                 </div>
                 {!enriching && <button onClick={() => setShowTextImport(false)}><X className="w-5 h-5" /></button>}
@@ -1152,7 +1152,7 @@ export default function Clients() {
               
               <div className="flex items-center justify-between p-4 border-t bg-gray-50">
                 <p className="text-sm text-gray-600">
-                  {enriching ? '🤖 Enrichissement automatique en cours...' : '🤖 API Gratuite • SIRET, Tel, Email, Site web'}
+                  {enriching ? ' Enrichissement automatique en cours...' : ' API Gratuite • SIRET, Tel, Email, Site web'}
                 </p>
                 <div className="flex gap-2">
                   <button 
@@ -1169,7 +1169,7 @@ export default function Clients() {
                   >
                     {enriching ? (
                       <>
-                        <span className="animate-spin">⏳</span> Enrichissement...
+                        <span className="animate-spin"></span> Enrichissement...
                       </>
                     ) : (
                       <>
@@ -1197,8 +1197,8 @@ export default function Clients() {
                     <h2 className="text-lg font-semibold">Prévisualisation import</h2>
                     <p className="text-sm text-gray-600">
                       {importPreview.length} prospect(s) • 
-                      {' '}{importPreview.filter(p => p.enriched).length} enrichi(s) ✅ • 
-                      {' '}{importPreview.filter(p => !p.enriched).length} non enrichi(s) ⚠️
+                      {' '}{importPreview.filter(p => p.enriched).length} enrichi(s)  • 
+                      {' '}{importPreview.filter(p => !p.enriched).length} non enrichi(s) 
                     </p>
                   </div>
                 </div>
@@ -1247,19 +1247,19 @@ export default function Clients() {
                           <td className="py-2 px-3">
                             <div className="font-medium">{societe.name}</div>
                             {societe.city && <div className="text-xs text-gray-500">{societe.postal_code} {societe.city}</div>}
-                            {societe.website && <div className="text-xs text-blue-600">🌐 {societe.website}</div>}
-                            {exists && <span className="text-xs text-yellow-600">⚠️ Existe déjà</span>}
+                            {societe.website && <div className="text-xs text-blue-600"> {societe.website}</div>}
+                            {exists && <span className="text-xs text-yellow-600"> Existe déjà</span>}
                           </td>
                           <td className="py-2 px-3 text-gray-600 font-mono text-xs">{societe.siret || '-'}</td>
                           <td className="py-2 px-3 text-xs">
-                            {societe.phone && <div className="text-gray-600">📞 {societe.phone}</div>}
-                            {societe.email && <div className="text-gray-600">📧 {societe.email}</div>}
+                            {societe.phone && <div className="text-gray-600"> {societe.phone}</div>}
+                            {societe.email && <div className="text-gray-600"> {societe.email}</div>}
                             {!societe.phone && !societe.email && <span className="text-gray-400">-</span>}
                           </td>
                           <td className="py-2 px-3 text-center">
                             {societe.enriching ? (
                               <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                                <span className="animate-spin inline-block">⏳</span>
+                                <span className="animate-spin inline-block"></span>
                               </span>
                             ) : societe.enriched ? (
                               <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium inline-flex items-center gap-1">
@@ -1292,10 +1292,10 @@ export default function Clients() {
               <div className="flex items-center justify-between p-4 border-t bg-gray-50">
                 <div className="text-sm">
                   <p className="text-gray-600">
-                    ✅ Enrichis : Sélectionnés par défaut (SIRET trouvé)
+                     Enrichis : Sélectionnés par défaut (SIRET trouvé)
                   </p>
                   <p className="text-gray-600">
-                    ⚠️ Non enrichis : Non sélectionnés (SIRET manquant)
+                     Non enrichis : Non sélectionnés (SIRET manquant)
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -1313,7 +1313,7 @@ export default function Clients() {
                   >
                     {importing ? (
                       <>
-                        <span className="animate-spin">⏳</span> Import en cours...
+                        <span className="animate-spin"></span> Import en cours...
                       </>
                     ) : (
                       <>

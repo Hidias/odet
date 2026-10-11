@@ -48,10 +48,10 @@ const WIDGET_REGISTRY = {
 }
 
 const CATEGORIES = {
-  formation:  { label: '🎓 Formation',  color: 'amber' },
-  commerce:   { label: '📞 Commerce',   color: 'blue' },
-  alertes:    { label: '🔔 Alertes',    color: 'red' },
-  analytique: { label: '📊 Analytique', color: 'green' },
+  formation:  { label: ' Formation',  color: 'amber' },
+  commerce:   { label: ' Commerce',   color: 'blue' },
+  alertes:    { label: ' Alertes',    color: 'red' },
+  analytique: { label: ' Analytique', color: 'green' },
 }
 
 const SIZE_CLASSES = {
@@ -115,7 +115,7 @@ export default function Dashboard() {
     nonConformites: [], qualityAlerts: [], reclamations: [],
     purgeStats: null, rdvsAPrendre: [], callbacksToday: [], quotes: [],
     notifications: [],
-    // ✅ TABLE CORRECTE: trainee_evaluations (pas evaluations_hot)
+    //  TABLE CORRECTE: trainee_evaluations (pas evaluations_hot)
     traineeEvaluations: [],
     sstCertifications: [], trainingThemes: [],
     invoices: [],
@@ -189,13 +189,13 @@ export default function Dashboard() {
     const [ncR, alertsR, reclR, rdvR, cbR, quotesR, notifR, traineeEvalsR, sstR, themesR, invoicesR] = await Promise.all([
       supabase.from('non_conformites').select('*').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }),
       supabase.from('quality_alerts').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
-      // ✅ reclamations — pas de trainee_id
+      //  reclamations - pas de trainee_id
       supabase.from('reclamations').select('id, reference, subject, description, created_at, session_id, status, date_reception').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
       supabase.from('prospect_rdv').select('*, clients(name)').eq('status', 'a_prendre').order('created_at', { ascending: false }),
       supabase.from('prospect_calls').select('*, clients(name)').eq('needs_callback', true).gte('callback_date', new Date().toISOString().split('T')[0]).order('callback_date').order('callback_time').limit(20),
       supabase.from('quotes').select('*, clients(name)').order('created_at', { ascending: false }).limit(50),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(20),
-      // ✅ TABLE CORRECTE: trainee_evaluations (la vraie table des évals à chaud)
+      //  TABLE CORRECTE: trainee_evaluations (la vraie table des évals à chaud)
       supabase.from('trainee_evaluations').select('session_id, trainee_id, q_org_documents, q_org_accueil, q_org_locaux, q_org_materiel, q_contenu_organisation, q_contenu_supports, q_contenu_duree, q_contenu_programme, q_formateur_pedagogie, q_formateur_expertise, q_formateur_progression, q_formateur_moyens, q_global_adequation, q_global_competences, would_recommend, questionnaire_submitted, submitted_at'),
       supabase.from('sst_certifications').select('id, session_id, trainee_id, formation_type, candidat_certifie, date_certification, created_at'),
       supabase.from('training_themes').select('id, code, name, color'),
@@ -241,7 +241,7 @@ export default function Dashboard() {
       nonConformites: ncR.data || [], qualityAlerts: enrichedAlerts, reclamations: enrichedRecl,
       purgeStats, rdvsAPrendre: rdvR.data || [],
       callbacksToday: cbR.data || [], quotes: quotesR.data || [], notifications: notifR.data || [],
-      // ✅ La bonne table
+      //  La bonne table
       traineeEvaluations: traineeEvalsR.data || [],
       sstCertifications: sstR.data || [],
       trainingThemes: themesR.data || [],
@@ -278,7 +278,7 @@ export default function Dashboard() {
   const sessionsInProgress = useMemo(() => sessions.filter(s => s.status === 'in_progress'), [sessions])
   const completedSessions = useMemo(() => sessions.filter(s => s.status === 'completed'), [sessions])
   
-  // ✅ Personnes formées = presence_complete || early_departure || result renseigné
+  //  Personnes formées = presence_complete || early_departure || result renseigné
   const personnesFormees = useMemo(() => completedSessions.reduce((t, s) => {
     return t + (s.session_trainees || []).filter(st => 
       st.presence_complete === true || st.early_departure === true || st.result
@@ -294,7 +294,7 @@ export default function Dashboard() {
     return formed.length > 0
   }), [sessions])
   
-  // ✅ Émargements incomplets — sessions en cours avec stagiaires sans presence_complete
+  //  Émargements incomplets - sessions en cours avec stagiaires sans presence_complete
   const incompleteAttendance = useMemo(() => {
     return sessions.filter(s => {
       if (s.status !== 'in_progress') return false
@@ -304,7 +304,7 @@ export default function Dashboard() {
     })
   }, [sessions])
   
-  // ✅ Évaluations en attente — cross-ref avec trainee_evaluations (la VRAIE table)
+  //  Évaluations en attente - cross-ref avec trainee_evaluations (la VRAIE table)
   // Un stagiaire a fait son éval si il existe une ligne dans trainee_evaluations avec questionnaire_submitted=true
   const traineeEvalSet = useMemo(() => {
     const s = new Set()
@@ -475,7 +475,7 @@ export default function Dashboard() {
   
   const hoursRealized = useMemo(() => completedSessions.reduce((s, se) => s + (parseFloat(se.courses?.duration_hours) || 0), 0), [completedSessions])
   
-  // ✅ Indicateurs qualité — utilise trainee_evaluations (14 critères q_org/q_contenu/q_formateur/q_global)
+  //  Indicateurs qualité - utilise trainee_evaluations (14 critères q_org/q_contenu/q_formateur/q_global)
   const qualityStats = useMemo(() => {
     const evals = dashData.traineeEvaluations
     const hasEvalData = evals.length > 0
@@ -515,7 +515,7 @@ export default function Dashboard() {
       })
     })
     
-    // ✅ Réussite via result === 'acquired'
+    //  Réussite via result === 'acquired'
     let successTotal = 0, successOk = 0
     completedSessions.forEach(s => {
       (s.session_trainees || []).forEach(st => {
@@ -540,14 +540,14 @@ export default function Dashboard() {
   // Rappels automatiques
   const autoReminders = useMemo(() => {
     const r = []
-    sessionsWithoutTrainer.forEach(s => r.push({ type: 'error', icon: XCircle, text: `Sans formateur: ${s.courses?.title || 'Session'} — ${s.start_date ? format(new Date(s.start_date), 'd MMM', { locale: fr }) : '?'}`, link: `/sessions/${s.id}` }))
+    sessionsWithoutTrainer.forEach(s => r.push({ type: 'error', icon: XCircle, text: `Sans formateur: ${s.courses?.title || 'Session'} - ${s.start_date ? format(new Date(s.start_date), 'd MMM', { locale: fr }) : '?'}`, link: `/sessions/${s.id}` }))
     sessionsJ90.forEach(s => r.push({ type: 'warning', icon: Clock, text: `Éval. à froid J+90: ${s.courses?.title}`, link: `/sessions/${s.id}` }))
     if (dashData.purgeStats?.trainees_to_purge > 0) r.push({ type: 'info', icon: Shield, text: `RGPD: ${dashData.purgeStats.trainees_to_purge} stagiaire(s) à purger`, link: '/stagiaires' })
     documentsMissing.slice(0, 5).forEach(d => r.push({ type: 'warning', icon: FileWarning, text: `${d.type} manquante: ${d.session.courses?.title}`, link: `/sessions/${d.session.id}` }))
     return r
   }, [sessionsWithoutTrainer, sessionsJ90, dashData.purgeStats, documentsMissing])
   
-  // ✅ Audit Qualiopi — Initial 3 février 2026, Surveillance 18 mois après
+  //  Audit Qualiopi - Initial 3 février 2026, Surveillance 18 mois après
   const qualiopiAudit = useMemo(() => {
     const initialDate = new Date('2026-02-03')
     const initialPassed = isBefore(initialDate, today) || differenceInDays(initialDate, today) === 0
@@ -642,25 +642,25 @@ export default function Dashboard() {
             <ProgressBar 
               value={qualityStats.satisfaction ? parseFloat(qualityStats.satisfaction) / 5 * 100 : 0} 
               color="bg-green-500" 
-              label={`Satisfaction: ${qualityStats.satisfaction || '—'}/5`} 
+              label={`Satisfaction: ${qualityStats.satisfaction || '-'}/5`} 
               showValue={false} 
             />
             <ProgressBar 
               value={qualityStats.presence ?? 0} 
               color="bg-blue-500" 
-              label={`Présence: ${qualityStats.presence != null ? qualityStats.presence + '%' : '—'}`} 
+              label={`Présence: ${qualityStats.presence != null ? qualityStats.presence + '%' : '-'}`} 
               showValue={false} 
             />
             <ProgressBar 
               value={qualityStats.success ?? 0} 
               color="bg-emerald-500" 
-              label={`Réussite: ${qualityStats.success != null ? qualityStats.success + '%' : '—'}`} 
+              label={`Réussite: ${qualityStats.success != null ? qualityStats.success + '%' : '-'}`} 
               showValue={false} 
             />
             <ProgressBar 
               value={qualityStats.recommendation ?? 0} 
               color="bg-amber-500" 
-              label={`Recommandation: ${qualityStats.recommendation != null ? qualityStats.recommendation + '%' : '—'}`} 
+              label={`Recommandation: ${qualityStats.recommendation != null ? qualityStats.recommendation + '%' : '-'}`} 
               showValue={false} 
             />
             <div className="col-span-2 pt-2 border-t flex items-center justify-between">
@@ -760,12 +760,12 @@ export default function Dashboard() {
             {/* Alerte relance devis > 7j */}
             {quotesRelance.length > 0 && (
               <div className="bg-orange-50 border border-orange-300 rounded-lg px-3 py-2">
-                <p className="text-xs font-bold text-orange-800 mb-1">⏰ {quotesRelance.length} devis en attente de réponse (&gt;7j)</p>
+                <p className="text-xs font-bold text-orange-800 mb-1"> {quotesRelance.length} devis en attente de réponse (&gt;7j)</p>
                 {quotesRelance.slice(0, 3).map(q => (
                   <div key={q.id} className="flex items-center justify-between text-xs py-0.5">
                     <span className="text-orange-700 truncate">
                       <span className="font-medium">{q.clients?.name || '?'}</span>
-                      <span className="text-orange-500 ml-1">— {q.daysSinceSent}j</span>
+                      <span className="text-orange-500 ml-1">- {q.daysSinceSent}j</span>
                       {q.total_ht > 0 && <span className="text-orange-600 ml-1">({q.total_ht.toLocaleString('fr-FR')}€)</span>}
                     </span>
                     <Link to="/devis" className="text-orange-600 hover:text-orange-800 font-medium underline ml-2 whitespace-nowrap">Relancer</Link>
@@ -888,7 +888,7 @@ export default function Dashboard() {
           <div className="text-center space-y-3">
             {qualiopiAudit.initialPassed && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-                <CheckCircle className="w-3.5 h-3.5" /> Audit initial réussi — {format(qualiopiAudit.initialDate, 'd MMM yyyy', { locale: fr })}
+                <CheckCircle className="w-3.5 h-3.5" /> Audit initial réussi - {format(qualiopiAudit.initialDate, 'd MMM yyyy', { locale: fr })}
               </div>
             )}
             <p className={`text-4xl font-bold ${qualiopiAudit.daysLeft <= 30 ? 'text-orange-600' : qualiopiAudit.daysLeft <= 90 ? 'text-amber-600' : 'text-emerald-600'}`}>
@@ -897,7 +897,7 @@ export default function Dashboard() {
             <p className="text-sm text-gray-500">
               {qualiopiAudit.isSurveillance ? 'Audit de surveillance' : 'Audit initial'}: {format(qualiopiAudit.date, 'd MMMM yyyy', { locale: fr })}
             </p>
-            <p className="text-xs text-gray-400">Céline Le Fur — Certifopac</p>
+            <p className="text-xs text-gray-400">Céline Le Fur - Certifopac</p>
             <Link to="/qualiopi" className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline">Checklist <ArrowRight className="w-3 h-3" /></Link>
           </div>
         )
@@ -986,7 +986,7 @@ export default function Dashboard() {
         <div className="rounded-2xl border border-primary-200 bg-primary-50 p-4">
           <div className="flex items-center gap-2 mb-3">
             <PenLine className="w-5 h-5 text-primary-600" />
-            <h3 className="font-semibold text-primary-900">Aujourd'hui — émargement</h3>
+            <h3 className="font-semibold text-primary-900">Aujourd'hui - émargement</h3>
           </div>
           <div className="space-y-2">
             {sessionsToday.filter(s => s.session_type !== 'subcontract').map(s => (

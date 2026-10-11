@@ -116,8 +116,8 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
 
       toast.success(
         isActive 
-          ? '✅ Document accessible aux stagiaires via QR code' 
-          : '❌ Document désactivé'
+          ? ' Document accessible aux stagiaires via QR code' 
+          : ' Document désactivé'
       )
 
       loadData()
@@ -266,7 +266,7 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
           {stats.total > 0 && stats.downloaded === stats.total && (
             <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 p-2 rounded">
               <CheckCircle className="w-4 h-4" />
-              <span className="font-medium">Tous les stagiaires ont téléchargé le document ! 🎉</span>
+              <span className="font-medium">Tous les stagiaires ont téléchargé le document ! </span>
             </div>
           )}
         </div>
@@ -275,12 +275,12 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
       {/* Note d'aide */}
       <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded border border-blue-100">
         <div className="flex items-start gap-2">
-          <span className="text-blue-600">💡</span>
+          <span className="text-blue-600"></span>
           <div>
             <p className="font-medium text-blue-900 mb-1">Comment les stagiaires accèdent au document ?</p>
             <ol className="list-decimal list-inside space-y-0.5 text-blue-800">
               <li>Ils scannent le QR code de la session</li>
-              <li>Ils cliquent sur "📄 Documents"</li>
+              <li>Ils cliquent sur " Documents"</li>
               <li>Ils téléchargent le livret de formation</li>
             </ol>
           </div>

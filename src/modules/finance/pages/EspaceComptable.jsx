@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 
 // ════════════════════════════════════════════════════════════
-//  ESPACE COMPTABLE — Access Campus
+//  ESPACE COMPTABLE - Access Campus
 //  Balance âgée | Encaissements | Rapprochement | Clôtures | Export | FEC
 // ════
 
@@ -21,13 +21,13 @@ const COMPANY_START = new Date(2025, 3, 18) // 18 avril 2025 (date Kbis)
 function getExercices() {
   const exos = []
   // Premier exercice long
-  exos.push({ label: 'Ex. 1 — 18/04/2025 → 30/06/2026', start: new Date(2025, 3, 18), end: new Date(2026, 5, 30), filename: 'FEC94356386620260630.txt' })
+  exos.push({ label: 'Ex. 1 - 18/04/2025 → 30/06/2026', start: new Date(2025, 3, 18), end: new Date(2026, 5, 30), filename: 'FEC94356386620260630.txt' })
   // Exercices annuels suivants
   let y = 2026
   while (y < new Date().getFullYear() + 2) {
     const start = new Date(y, 6, 1)  // 01 juillet
     const end = new Date(y + 1, 5, 30) // 30 juin
-    exos.push({ label: `Ex. ${exos.length + 1} — 01/07/${y} → 30/06/${y + 1}`, start, end, filename: `FEC943563866${y + 1}0630.txt` })
+    exos.push({ label: `Ex. ${exos.length + 1} - 01/07/${y} → 30/06/${y + 1}`, start, end, filename: `FEC943563866${y + 1}0630.txt` })
     y++
   }
   return exos
@@ -37,13 +37,13 @@ const EXERCICES = getExercices()
 // ════════════════════════════════════════════════════════════
 
 const TABS = [
-  { key: 'balance', label: '📊 Balance âgée' },
-  { key: 'encaissements', label: '💶 Encaissements' },
-  { key: 'rapprochement', label: '🔗 Rapprochement' },
-  { key: 'annotations', label: '✏️ Annotations' },
-  { key: 'clotures', label: '🔒 Clôtures' },
-  { key: 'export', label: '📥 Export Excel' },
-  { key: 'fec', label: '📄 FEC DGFiP' },
+  { key: 'balance', label: ' Balance âgée' },
+  { key: 'encaissements', label: ' Encaissements' },
+  { key: 'rapprochement', label: ' Rapprochement' },
+  { key: 'annotations', label: ' Annotations' },
+  { key: 'clotures', label: ' Clôtures' },
+  { key: 'export', label: ' Export Excel' },
+  { key: 'fec', label: ' FEC DGFiP' },
 ]
 
 const fmt = (n) => {
@@ -119,13 +119,13 @@ function getAgingBucket(invoice) {
 
 const AGING_BUCKETS = [
   { key: 'not_due', label: 'Non échu', color: 'blue', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
-  { key: '0_30', label: '0–30 jours', color: 'yellow', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' },
-  { key: '31_60', label: '31–60 jours', color: 'orange', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' },
-  { key: '61_90', label: '61–90 jours', color: 'red', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700' },
+  { key: '0_30', label: '0-30 jours', color: 'yellow', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' },
+  { key: '31_60', label: '31-60 jours', color: 'orange', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' },
+  { key: '61_90', label: '61-90 jours', color: 'red', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700' },
   { key: '90_plus', label: '+ 90 jours', color: 'red', bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800' },
 ]
 
-// ⚠️ PostgREST plafonne toute requête à 1000 lignes sans plage explicite.
+//  PostgREST plafonne toute requête à 1000 lignes sans plage explicite.
 // Au-delà, les lignes les plus anciennes sont tronquées SILENCIEUSEMENT.
 // fetchAll() pagine par tranches de 1000 jusqu'à tout récupérer.
 async function fetchAll(buildQuery, pageSize = 1000) {
@@ -219,7 +219,7 @@ export default function EspaceComptable() {
             <Calculator className="w-7 h-7 text-violet-600" />
             Espace Comptable
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Access Formation — {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-sm text-gray-500 mt-1">Access Formation - {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-400 hidden sm:block">{user?.email}</span>
@@ -496,7 +496,7 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
     if (!selectedInvoice) { toast.error('Sélectionnez une facture'); return }
     if (!form.amount || parseFloat(form.amount) <= 0) { toast.error('Montant invalide'); return }
     if (isDateLocked(form.payment_date)) {
-      toast.error('⛔ Cette période est clôturée. Contactez l\'administrateur.')
+      toast.error('Cette période est clôturée. Contactez l\'administrateur.')
       return
     }
 
@@ -525,7 +525,7 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
         updated_at: new Date().toISOString()
       }).eq('id', selectedInvoice.id)
 
-      toast.success(`✅ Encaissement de ${fmt(amount)} enregistré`)
+      toast.success(`Encaissement de ${fmt(amount)} enregistré`)
       setShowForm(false)
       setSelectedInvoice(null)
       setForm({ amount: '', payment_date: new Date().toISOString().split('T')[0], payment_method: 'virement bancaire', payment_reference: '', notes: '' })
@@ -560,10 +560,10 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
                 onChange={e => setSelectedInvoice(unpaidInvoices.find(i => i.id === e.target.value) || null)}
                 className="w-full border rounded-lg px-3 py-2 text-sm"
               >
-                <option value="">— Sélectionner une facture —</option>
+                <option value="">- Sélectionner une facture -</option>
                 {unpaidInvoices.map(inv => (
                   <option key={inv.id} value={inv.id}>
-                    {inv.reference} — {inv.clients?.name || '-'} — {fmt(parseFloat(inv.amount_due))} restant
+                    {inv.reference} - {inv.clients?.name || '-'} - {fmt(parseFloat(inv.amount_due))} restant
                   </option>
                 ))}
               </select>
@@ -646,7 +646,7 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
                 disabled={saving}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >
-                {saving ? '⏳ Enregistrement...' : '✅ Enregistrer l\'encaissement'}
+                {saving ? ' Enregistrement...' : ' Enregistrer l\'encaissement'}
               </button>
               <button
                 onClick={() => setShowForm(false)}
@@ -663,7 +663,7 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
       <div className="bg-white rounded-xl border p-4">
         <h3 className="font-semibold text-gray-700 mb-3">Factures en attente d'encaissement ({unpaidInvoices.length})</h3>
         {unpaidInvoices.length === 0 ? (
-          <p className="text-center py-6 text-gray-400 text-sm">✅ Toutes les factures sont soldées</p>
+          <p className="text-center py-6 text-gray-400 text-sm"> Toutes les factures sont soldées</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -826,7 +826,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
   async function handleLink(invoiceId) {
     if (!selectedTx) return
     if (isDateLocked(selectedTx.date)) {
-      toast.error("⛔ Période clôturée — contactez l'administrateur")
+      toast.error("Période clôturée - contactez l'administrateur")
       return
     }
     const inv = invoices.find(i => i.id === invoiceId)
@@ -875,12 +875,12 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
       if (linkErr) console.warn('Lien détaillé non enregistré :', linkErr.message)
 
       if (applied > 0.01) {
-        toast.success(`✅ Rapproché — paiement de ${fmt(applied)} enregistré sur ${inv.reference}`)
+        toast.success(`Rapproché - paiement de ${fmt(applied)} enregistré sur ${inv.reference}`)
       } else {
-        toast.success(`✅ Rapproché — ${inv.reference} était déjà soldée, aucun paiement ajouté`)
+        toast.success(`Rapproché - ${inv.reference} était déjà soldée, aucun paiement ajouté`)
       }
       if (credit - applied > 0.01) {
-        toast(`ℹ️ ${fmt(round2(credit - applied))} du virement non affectés à ${inv.reference} (virement groupé ?)`, { duration: 6000 })
+        toast(`ℹ ${fmt(round2(credit - applied))} du virement non affectés à ${inv.reference} (virement groupé ?)`, { duration: 6000 })
       }
       setSelectedTx(null)
       loadAll()
@@ -899,7 +899,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
 
   async function handleUnlink(tx) {
     if (isDateLocked(tx.date)) {
-      toast.error("⛔ Période clôturée — contactez l'administrateur")
+      toast.error("Période clôturée - contactez l'administrateur")
       setConfirmUnlink(null)
       return
     }
@@ -953,8 +953,8 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
         .eq('id', tx.id)
       if (error) throw error
       toast.success(removed > 0
-        ? `🔓 Rapprochement supprimé — ${removed} paiement(s) annulé(s), facture(s) recalculée(s)`
-        : '🔓 Rapprochement supprimé')
+        ? ` Rapprochement supprimé - ${removed} paiement(s) annulé(s), facture(s) recalculée(s)`
+        : ' Rapprochement supprimé')
       setConfirmUnlink(null)
       loadAll()
     } catch (e) {
@@ -975,7 +975,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
               : 'border text-gray-600 hover:bg-gray-50'
           }`}
         >
-          🔗 À rapprocher
+           À rapprocher
           {unmatched.length > 0 && (
             <span className="ml-2 bg-white/20 text-xs px-1.5 py-0.5 rounded-full">
               {unmatched.length}
@@ -990,7 +990,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
               : 'border text-gray-600 hover:bg-gray-50'
           }`}
         >
-          ✅ Déjà rapprochés
+           Déjà rapprochés
           <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${viewMode === 'matched' ? 'bg-white/20' : 'bg-gray-100'}`}>
             {matched.length}
           </span>
@@ -1014,7 +1014,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
             <div className="max-h-[480px] overflow-y-auto divide-y">
               {unmatched.length === 0 ? (
                 <div className="text-center py-10 text-gray-400">
-                  <div className="text-3xl mb-2">✅</div>
+                  <div className="text-3xl mb-2"></div>
                   <p className="font-medium">Tout est rapproché</p>
                 </div>
               ) : (
@@ -1039,7 +1039,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
             </div>
           </div>
 
-          {/* Factures à lier — toutes statuts */}
+          {/* Factures à lier - toutes statuts */}
           <div className="bg-white rounded-xl border">
             <div className="p-4 border-b space-y-2">
               <h3 className="font-semibold text-gray-700">Factures à rapprocher</h3>
@@ -1129,7 +1129,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
                         {tx.credit > 0 ? `+${fmt(tx.credit)}` : `-${fmt(tx.debit)}`}
                       </td>
                       <td className="px-3 py-2.5 font-mono font-bold text-xs whitespace-nowrap">
-                        {tx.invoice?.reference || <span className="text-orange-500">⚠️ Facture introuvable</span>}
+                        {tx.invoice?.reference || <span className="text-orange-500"> Facture introuvable</span>}
                       </td>
                       <td className="px-3 py-2.5 text-gray-500 text-xs truncate max-w-32">
                         {tx.invoice?.clients?.name || '-'}
@@ -1137,7 +1137,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
                       <td className="px-3 py-2.5 text-center text-xs text-gray-400 whitespace-nowrap">
                         {tx.reconciled_at
                           ? new Date(tx.reconciled_at).toLocaleDateString('fr-FR')
-                          : '—'
+                          : '-'
                         }
                       </td>
                       <td className="px-3 py-2.5">
@@ -1146,7 +1146,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
                           disabled={unlinking === tx.id}
                           className="text-xs px-2.5 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 whitespace-nowrap"
                         >
-                          {unlinking === tx.id ? '⏳' : '🔓 Délier'}
+                          {unlinking === tx.id ? '' : ' Délier'}
                         </button>
                       </td>
                     </tr>
@@ -1193,7 +1193,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
                 disabled={unlinking === confirmUnlink.id || isDateLocked(confirmUnlink.date)}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
               >
-                {unlinking === confirmUnlink.id ? '⏳ Suppression...' : 'Supprimer le rapprochement'}
+                {unlinking === confirmUnlink.id ? ' Suppression...' : 'Supprimer le rapprochement'}
               </button>
             </div>
           </div>
@@ -1229,7 +1229,7 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
 
   async function saveNote(txId, date) {
     if (isDateLocked(date)) {
-      toast.error('⛔ Période clôturée')
+      toast.error('Période clôturée')
       return
     }
     setSaving(true)
@@ -1276,7 +1276,7 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
                   <span className="text-sm font-medium text-gray-900 truncate">{tx.description}</span>
                   <span className="text-xs text-gray-400 shrink-0">{new Date(tx.date).toLocaleDateString('fr-FR')}</span>
                   {tx.note_comptable && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full shrink-0">✏️ annoté</span>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full shrink-0"> annoté</span>
                   )}
                 </div>
                 <p className="text-xs text-gray-400">{tx.category_name || 'Non classé'}</p>
@@ -1297,13 +1297,13 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
                       disabled={saving}
                       className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                     >
-                      ✓
+                      
                     </button>
                     <button
                       onClick={() => setEditingId(null)}
                       className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
                     >
-                      ✕
+                      
                     </button>
                   </div>
                 ) : (
@@ -1323,7 +1323,7 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
                     className="text-xs text-gray-400 hover:text-violet-600 transition-colors p-1"
                     title="Annoter"
                   >
-                    ✏️
+                    
                   </button>
                 )}
               </div>
@@ -1366,7 +1366,7 @@ function CloturesTab({ periods, loadAll, user }) {
           .from('accounting_periods')
           .update({ locked_at: null, locked_by: null })
           .eq('id', item.period.id)
-        toast.success(`🔓 ${MONTH_NAMES[item.month]} ${item.year} déverrouillé`)
+        toast.success(`${MONTH_NAMES[item.month]} ${item.year} déverrouillé`)
       } else {
         // Verrouiller
         const payload = {
@@ -1382,7 +1382,7 @@ function CloturesTab({ periods, loadAll, user }) {
         } else {
           await supabase.from('accounting_periods').insert([payload])
         }
-        toast.success(`🔒 ${MONTH_NAMES[item.month]} ${item.year} clôturé`)
+        toast.success(`${MONTH_NAMES[item.month]} ${item.year} clôturé`)
         setNote('')
       }
       loadAll()
@@ -1397,7 +1397,7 @@ function CloturesTab({ periods, loadAll, user }) {
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
         <strong>Clôture annuelle :</strong> Access Formation clôture son exercice comptable au <strong>30 juin</strong>.
         Une période clôturée bloque la saisie d'encaissements et d'annotations sur cette période.
-        Les admins restent maîtres des données — seule la saisie depuis l'espace comptable est bloquée.
+        Les admins restent maîtres des données - seule la saisie depuis l'espace comptable est bloquée.
       </div>
 
       <div className="bg-white rounded-xl border p-4">
@@ -1533,7 +1533,7 @@ function ExportTab({ invoices, payments, transactions }) {
 
       const filename = `Access_Formation_Compta_${filterYear}_${type}_${new Date().toISOString().split('T')[0]}.xlsx`
       XLSX.writeFile(wb, filename)
-      toast.success(`✅ Export ${filename} téléchargé`)
+      toast.success(`Export ${filename} téléchargé`)
     } catch (e) {
       console.error('Export error:', e)
       toast.error('Erreur export : ' + e.message)
@@ -1593,16 +1593,16 @@ function ExportTab({ invoices, payments, transactions }) {
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
         <strong>Format :</strong> Les fichiers Excel exportés sont compatibles avec Sage, Ciel Compta, EBP et tous les logiciels comptables standard.
-        L'export FEC normalisé DGFiP est disponible dans l'onglet <strong>📄 FEC DGFiP</strong>.
+        L'export FEC normalisé DGFiP est disponible dans l'onglet <strong> FEC DGFiP</strong>.
       </div>
     </div>
   )
 }
 
 // ════════════════════════════════════════════════════════════
-// FEC DGFIP — Fichier des Écritures Comptables
-// Format normalisé DGFiP — Art. L47 A LPF
-// Access Formation SARL — SIREN 943563866
+// FEC DGFIP - Fichier des Écritures Comptables
+// Format normalisé DGFiP - Art. L47 A LPF
+// Access Formation SARL - SIREN 943563866
 // ════════════════════════════════════════════════════════════
 
 // Mapping catégories → comptes PCG
@@ -1883,7 +1883,7 @@ function FecTab({ invoices, payments, transactions }) {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      toast.success(`✅ ${exercice.filename} téléchargé`)
+      toast.success(`${exercice.filename} téléchargé`)
     } catch (e) {
       console.error('FEC error:', e)
       toast.error('Erreur FEC : ' + e.message)
@@ -1897,7 +1897,7 @@ function FecTab({ invoices, payments, transactions }) {
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
         <h3 className="font-semibold text-amber-800 flex items-center gap-2 mb-1">
           <FileText className="w-4 h-4" />
-          Fichier des Écritures Comptables — Format DGFiP
+          Fichier des Écritures Comptables - Format DGFiP
         </h3>
         <p className="text-sm text-amber-700">
           Obligatoire en cas de contrôle fiscal (art. L47 A LPF). Amende minimum <strong>5 000 €</strong> si non produit.
@@ -1907,13 +1907,13 @@ function FecTab({ invoices, payments, transactions }) {
 
       {/* Identité société */}
       <div className="bg-white rounded-xl border p-4">
-        <h3 className="font-semibold text-gray-700 mb-3">Identification — ACCESS FORMATION</h3>
+        <h3 className="font-semibold text-gray-700 mb-3">Identification - ACCESS FORMATION</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div><p className="text-xs text-gray-400">SIREN</p><p className="font-mono font-bold">943 563 866</p></div>
           <div><p className="text-xs text-gray-400">SIRET</p><p className="font-mono font-bold">943 563 866 00012</p></div>
           <div><p className="text-xs text-gray-400">Forme</p><p className="font-bold">SARL</p></div>
           <div><p className="text-xs text-gray-400">Clôture</p><p className="font-bold">30 juin</p></div>
-          <div><p className="text-xs text-gray-400">Banque</p><p className="font-bold">CMB — CCM Concarneau</p></div>
+          <div><p className="text-xs text-gray-400">Banque</p><p className="font-bold">CMB - CCM Concarneau</p></div>
           <div className="col-span-3"><p className="text-xs text-gray-400">IBAN</p><p className="font-mono">FR76 1558 9297 0600 0890 6894 048</p></div>
         </div>
       </div>
@@ -2005,7 +2005,7 @@ function FecTab({ invoices, payments, transactions }) {
             ['645000', 'Charges sociales URSSAF'],
             ['646000', 'Charges prévoyance'],
             ['163000', 'Autres emprunts'],
-            ['455000', 'Associés — comptes courants'],
+            ['455000', 'Associés - comptes courants'],
             ['580000', 'Virements internes'],
             ['658000', 'Charges diverses'],
           ].map(([num, lib]) => (

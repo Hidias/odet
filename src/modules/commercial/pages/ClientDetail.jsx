@@ -15,22 +15,22 @@ import { authorFromEmail } from '../../prospection/components/suivi/suiviUtils'
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
 const STATUS_OPTIONS = [
-  { value: 'prospect', label: '🎯 Prospect', color: 'bg-orange-100 text-orange-700' },
-  { value: 'en_discussion', label: '💬 En discussion', color: 'bg-blue-100 text-blue-700' },
-  { value: 'actif', label: '✅ Actif', color: 'bg-green-100 text-green-700' },
-  { value: 'a_completer', label: '📝 À compléter', color: 'bg-purple-100 text-purple-700' },
-  { value: 'inactif', label: '⏸️ Inactif', color: 'bg-gray-100 text-gray-500' },
+  { value: 'prospect', label: ' Prospect', color: 'bg-orange-100 text-orange-700' },
+  { value: 'en_discussion', label: ' En discussion', color: 'bg-blue-100 text-blue-700' },
+  { value: 'actif', label: ' Actif', color: 'bg-green-100 text-green-700' },
+  { value: 'a_completer', label: ' À compléter', color: 'bg-purple-100 text-purple-700' },
+  { value: 'inactif', label: ' Inactif', color: 'bg-gray-100 text-gray-500' },
 ]
 
 const INTERACTION_TYPES = [
-  { value: 'call', label: '📞 Appel', icon: Phone, color: 'bg-green-100 text-green-600' },
-  { value: 'email', label: '📧 Email', icon: Mail, color: 'bg-blue-100 text-blue-600' },
-  { value: 'sms', label: '💬 SMS', icon: Smartphone, color: 'bg-cyan-100 text-cyan-600' },
-  { value: 'meeting', label: '🤝 Réunion', icon: Calendar, color: 'bg-purple-100 text-purple-600' },
-  { value: 'note', label: '📝 Note interne', icon: StickyNote, color: 'bg-yellow-100 text-yellow-600' },
-  { value: 'devis', label: '📄 Devis', icon: FileText, color: 'bg-indigo-100 text-indigo-600' },
-  { value: 'facture', label: '🧾 Facture', icon: Receipt, color: 'bg-teal-100 text-teal-600' },
-  { value: 'relance', label: '🔄 Relance', icon: RefreshCw, color: 'bg-orange-100 text-orange-600' },
+  { value: 'call', label: ' Appel', icon: Phone, color: 'bg-green-100 text-green-600' },
+  { value: 'email', label: ' Email', icon: Mail, color: 'bg-blue-100 text-blue-600' },
+  { value: 'sms', label: ' SMS', icon: Smartphone, color: 'bg-cyan-100 text-cyan-600' },
+  { value: 'meeting', label: ' Réunion', icon: Calendar, color: 'bg-purple-100 text-purple-600' },
+  { value: 'note', label: ' Note interne', icon: StickyNote, color: 'bg-yellow-100 text-yellow-600' },
+  { value: 'devis', label: ' Devis', icon: FileText, color: 'bg-indigo-100 text-indigo-600' },
+  { value: 'facture', label: ' Facture', icon: Receipt, color: 'bg-teal-100 text-teal-600' },
+  { value: 'relance', label: ' Relance', icon: RefreshCw, color: 'bg-orange-100 text-orange-600' },
 ]
 
 
@@ -249,16 +249,16 @@ export default function ClientDetail() {
     if (!client.siren && p.siren) updates.siren = p.siren
     if (!client.contact_name && p.dirigeant_nom) updates.contact_name = [p.dirigeant_prenom, p.dirigeant_nom].filter(Boolean).join(' ')
     if (!client.contact_function && p.dirigeant_fonction) updates.contact_function = p.dirigeant_fonction
-    // Notes enrichies — concaténer
+    // Notes enrichies - concaténer
     const extraNotes = [p.enrichment_notes, p.ai_summary, p.prospection_notes].filter(Boolean).join(' | ')
     if (extraNotes) {
-      updates.notes = client.notes ? client.notes + '\n\n📊 Enrichissement prospection:\n' + extraNotes : '📊 Enrichissement prospection:\n' + extraNotes
+      updates.notes = client.notes ? client.notes + '\n\n Enrichissement prospection:\n' + extraNotes : ' Enrichissement prospection:\n' + extraNotes
     }
 
     if (Object.keys(updates).length === 0 && !extraNotes) {
       // Rien à importer, mais marquer quand même
       await markDejaClient()
-      toast.success('Prospect marqué "déjà client" — aucun champ à importer')
+      toast.success('Prospect marqué "déjà client" - aucun champ à importer')
       return
     }
 
@@ -271,7 +271,7 @@ export default function ClientDetail() {
       const { data: fresh } = await supabase.from('clients').select('*').eq('id', id).single()
       if (fresh) { setClient(fresh); setEditForm(fresh) }
       const imported = Object.keys(updates).filter(k => k !== 'notes').length
-      toast.success(`✅ ${imported} champ(s) importé(s) — prospect retiré de la file de prospection`)
+      toast.success(`${imported} champ(s) importé(s) - prospect retiré de la file de prospection`)
     } catch (err) {
       toast.error('Erreur import: ' + err.message)
     }
@@ -307,7 +307,7 @@ export default function ClientDetail() {
       }
       // Rafraîchir les liens
       if (client) loadClientLinks(client)
-      toast.success(`✅ ${sirens.size} SIREN marqué(s) "déjà client"`)
+      toast.success(`${sirens.size} SIREN marqué(s) "déjà client"`)
     } catch (err) {
       console.error('Erreur marquage deja_client:', err)
     }
@@ -349,7 +349,7 @@ export default function ClientDetail() {
         // Même sans OPCO, on enrichit l'adresse si dispo
         if (Object.keys(updates).length > 0) {
           setEditForm(prev => ({ ...prev, ...updates }))
-          toast('Adresse enrichie depuis le SIRET', { icon: '📍' })
+          toast('Adresse enrichie depuis le SIRET', { icon: '' })
         } else {
           toast.error(data.message || 'Aucune convention collective trouvée')
         }
@@ -391,7 +391,7 @@ export default function ClientDetail() {
       tva: editForm.tva || null,
     }).eq('id', id)
     if (error) return toast.error('Erreur sauvegarde')
-    toast.success(wasAutoPromoted ? 'Fiche complétée → statut passé en Prospect ✓' : 'Client mis à jour', wasAutoPromoted ? { icon: '🎯' } : {})
+    toast.success(wasAutoPromoted ? 'Fiche complétée → statut passé en Prospect ' : 'Client mis à jour', wasAutoPromoted ? { icon: '' } : {})
     // Marquer prospect deja_client si des liens détectés
     if (sirenVal && clientLinks) {
       const hasUnmarked = [
@@ -417,7 +417,7 @@ export default function ClientDetail() {
       .eq('id', id)
     if (error) { toast.error('Erreur mise à jour'); return }
     setClient(c => ({ ...c, do_not_mail: newVal }))
-    toast.success(newVal ? '🚫 Mailing désactivé pour ce client' : '📧 Mailing réactivé')
+    toast.success(newVal ? ' Mailing désactivé pour ce client' : ' Mailing réactivé')
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -634,7 +634,7 @@ export default function ClientDetail() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
 
-      toast.success(`📧 Email envoyé !${emailAttachments.length > 0 ? ` (${emailAttachments.length} PJ)` : ''}`)
+      toast.success(`Email envoyé !${emailAttachments.length > 0 ? ` (${emailAttachments.length} PJ)` : ''}`)
       setShowEmailForm(false)
       setEmailForm({ to: '', subject: '', body: '', brief: '', sender: currentUserFirstName() })
       setEmailAttachments([])
@@ -669,13 +669,13 @@ export default function ClientDetail() {
 
     // ── Appels de prospection
     phoningCalls.forEach(c => {
-      const resultLabels = { chaud: '🔥 Intéressé', tiede: '🟡 Tiède', froid: '❄️ Pas intéressé', no_answer: '📞 Injoignable', blocked: '⚠️ Barrage', wrong_number: '❌ N° erroné' }
+      const resultLabels = { chaud: ' Intéressé', tiede: ' Tiède', froid: ' Pas intéressé', no_answer: ' Injoignable', blocked: ' Barrage', wrong_number: ' N° erroné' }
       items.push({
         id: 'call-' + c.id, type: 'call',
         title: (resultLabels[c.call_result] || c.call_result || 'Appel') + ' (phoning)',
         content: [
-          c.contact_name ? '👤 ' + c.contact_name + (c.contact_function ? ' — ' + c.contact_function : '') : '',
-          c.formations_mentioned?.length ? '🎓 ' + c.formations_mentioned.join(', ') : '',
+          c.contact_name ? ' ' + c.contact_name + (c.contact_function ? ' - ' + c.contact_function : '') : '',
+          c.formations_mentioned?.length ? ' ' + c.formations_mentioned.join(', ') : '',
           c.notes || ''
         ].filter(Boolean).join('\n'),
         author: c.called_by, date: c.called_at, source: 'phoning', deletable: false,
@@ -687,7 +687,7 @@ export default function ClientDetail() {
       const tplLabels = { suite_echange: 'Suite échange', nrp: 'NRP', relance: 'Relance' }
       items.push({
         id: 'email-' + e.id, type: 'email',
-        title: '✉️ Email "' + (tplLabels[e.template_type] || e.template_type) + '" envoyé',
+        title: ' Email "' + (tplLabels[e.template_type] || e.template_type) + '" envoyé',
         content: ['À : ' + e.to_email, 'Objet : ' + (e.subject || ''), e.body_preview ? e.body_preview.substring(0, 150) + '...' : ''].filter(Boolean).join('\n'),
         author: e.sent_by || 'Système', date: e.sent_at, source: 'email', deletable: false,
       })
@@ -696,10 +696,10 @@ export default function ClientDetail() {
     // ── Sessions / Formations
     formations.forEach(f => {
       if (!f.start_date) return
-      const statusLabels = { planned: '📅 Session planifiée', in_progress: '🔄 Session en cours', completed: '✅ Session terminée', cancelled: '❌ Session annulée', draft: '📝 Session brouillon' }
+      const statusLabels = { planned: ' Session planifiée', in_progress: ' Session en cours', completed: ' Session terminée', cancelled: ' Session annulée', draft: ' Session brouillon' }
       items.push({
         id: 'ses-' + f.id, type: 'meeting',
-        title: (statusLabels[f.status] || '📅 Session') + (f.courses?.title ? ' — ' + f.courses.title : ''),
+        title: (statusLabels[f.status] || ' Session') + (f.courses?.title ? ' - ' + f.courses.title : ''),
         content: [
           format(new Date(f.start_date), 'dd/MM/yyyy', { locale: fr }) + (f.end_date && f.end_date !== f.start_date ? ' → ' + format(new Date(f.end_date), 'dd/MM/yyyy', { locale: fr }) : ''),
           f.session_trainees?.length ? f.session_trainees.length + ' stagiaire(s)' : '',
@@ -711,10 +711,10 @@ export default function ClientDetail() {
     // ── RDV commerciaux
     rdvs.forEach(r => {
       if (!r.rdv_date) return
-      const statusLabels = { prevu: '📅 RDV prévu', realise: '✅ RDV réalisé', annule: '❌ RDV annulé' }
+      const statusLabels = { prevu: ' RDV prévu', realise: ' RDV réalisé', annule: ' RDV annulé' }
       items.push({
         id: 'rdv-' + r.id, type: 'meeting',
-        title: (statusLabels[r.status] || 'RDV') + (r.conducted_by ? ' — ' + r.conducted_by : ''),
+        title: (statusLabels[r.status] || 'RDV') + (r.conducted_by ? ' - ' + r.conducted_by : ''),
         content: r.notes ? r.notes.substring(0, 200) : '',
         author: r.conducted_by, date: r.rdv_date + 'T' + (r.rdv_time || '09:00:00'), source: 'rdv', deletable: false,
       })
@@ -723,10 +723,10 @@ export default function ClientDetail() {
     // ── Devis
     clientQuotes.forEach(q => {
       if (!q.quote_date) return
-      const statusLabels = { draft: '✏️ Devis brouillon', sent: '📤 Devis envoyé', signed: '✅ Devis accepté', rejected: '❌ Devis refusé', expired: '⏰ Devis expiré' }
+      const statusLabels = { draft: ' Devis brouillon', sent: ' Devis envoyé', signed: ' Devis accepté', rejected: ' Devis refusé', expired: ' Devis expiré' }
       items.push({
         id: 'qte-' + q.id, type: 'devis',
-        title: (statusLabels[q.status] || '📄 Devis') + ' ' + q.reference,
+        title: (statusLabels[q.status] || ' Devis') + ' ' + q.reference,
         content: [q.object || '', q.total_ht ? parseFloat(q.total_ht).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) + ' HT' : ''].filter(Boolean).join(' · '),
         author: null, date: q.quote_date + 'T12:00:00', source: 'quote', deletable: false,
       })
@@ -734,18 +734,18 @@ export default function ClientDetail() {
 
     // ── Emails de session (convocations, bilans, évaluations...)
     const emailTypeLabels = {
-      before: '📨 Convocation envoyée',
-      after: '📋 Bilan/évaluation envoyé',
-      reminder: '🔔 Rappel envoyé',
-      certificate: '🎓 Attestation envoyée',
-      convention: '📄 Convention envoyée',
+      before: ' Convocation envoyée',
+      after: ' Bilan/évaluation envoyé',
+      reminder: ' Rappel envoyé',
+      certificate: ' Attestation envoyée',
+      convention: ' Convention envoyée',
     }
     sessionEmailsSent.forEach(e => {
       if (!e.created_at) return
       const sessionTitle = e.sessions?.courses?.title || e.sessions?.reference || 'session'
       items.push({
         id: 'smail-' + e.id, type: 'email',
-        title: (emailTypeLabels[e.email_type] || '✉️ Email envoyé') + ' — ' + sessionTitle,
+        title: (emailTypeLabels[e.email_type] || ' Email envoyé') + ' - ' + sessionTitle,
         content: ['À : ' + e.to_email, e.subject ? 'Objet : ' + e.subject : ''].filter(Boolean).join('\n'),
         author: null, date: e.created_at, source: 'session_email', deletable: false,
       })
@@ -754,11 +754,11 @@ export default function ClientDetail() {
     // ── Factures & avoirs
     clientInvoices.forEach(inv => {
       if (!inv.invoice_date) return
-      const statusLabels = { draft: '✏️ Brouillon', sent: '📤 Envoyée', due: '💰 Émise', paid: '✅ Payée', overdue: '⚠️ En retard', cancelled: '❌ Annulée', credited: '↩️ Annulée par avoir' }
+      const statusLabels = { draft: ' Brouillon', sent: ' Envoyée', due: ' Émise', paid: ' Payée', overdue: ' En retard', cancelled: ' Annulée', credited: '↩ Annulée par avoir' }
       const typeLabel = inv.type === 'credit_note' ? 'Avoir' : 'Facture'
       items.push({
         id: 'inv-' + inv.id, type: 'facture',
-        title: (inv.type === 'credit_note' ? '🧾 Avoir' : (statusLabels[inv.status] || typeLabel)) + ' ' + inv.reference,
+        title: (inv.type === 'credit_note' ? ' Avoir' : (statusLabels[inv.status] || typeLabel)) + ' ' + inv.reference,
         content: [inv.object || '', inv.total_ttc ? parseFloat(inv.total_ttc).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) + ' TTC' : ''].filter(Boolean).join(' · '),
         author: null, date: inv.invoice_date + 'T12:00:00', source: 'invoice', deletable: false,
       })
@@ -875,7 +875,7 @@ export default function ClientDetail() {
                 )}
                 {client.siret && client.contact_email && client.contact_phone && (
                   <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-[11px] font-bold">
-                    ✅ Champs clés remplis — enregistrez pour valider
+                     Champs clés remplis - enregistrez pour valider
                   </span>
                 )}
               </div>
@@ -913,13 +913,13 @@ export default function ClientDetail() {
               {docContact && !editing && (
                 <div className="text-right hidden lg:block">
                   <p className="text-xs text-gray-400">Contact documents</p>
-                  <p className="text-sm font-medium text-gray-700">{docContact.name}{docContact.role ? ' — ' + docContact.role : ''}</p>
+                  <p className="text-sm font-medium text-gray-700">{docContact.name}{docContact.role ? ' - ' + docContact.role : ''}</p>
                 </div>
               )}
               {billingContact && !editing && (
                 <div className="text-right hidden lg:block">
-                  <p className="text-xs text-gray-400">💰 Facturation</p>
-                  <p className="text-sm font-medium text-gray-700">{billingContact.name}{billingContact.email ? ' — ' + billingContact.email : ''}</p>
+                  <p className="text-xs text-gray-400"> Facturation</p>
+                  <p className="text-sm font-medium text-gray-700">{billingContact.name}{billingContact.email ? ' - ' + billingContact.email : ''}</p>
                 </div>
               )}
               {editing ? (
@@ -967,11 +967,11 @@ export default function ClientDetail() {
 
             // Sources à afficher
             const sources = [
-              siren.length > 0 && { icon: '🏢', label: 'SIREN', detail: `${siren.length} établissement(s)`, count: siren.length, color: 'blue', items: siren },
-              domain.length > 0 && { icon: '🌐', label: 'Domaine', detail: `${clientLinks.client_domain}`, count: domain.length, color: 'cyan', items: domain },
-              dirigeant.length > 0 && { icon: '👤', label: 'Dirigeant', detail: `${clientLinks.client_dirigeant}`, count: dirigeant.length, color: 'purple', items: dirigeant },
-              groupProspects.length > 0 && { icon: '🏷️', label: 'Groupe', detail: `"${clientLinks.client_group}"`, count: groupProspects.length, color: 'amber', items: groupProspects },
-              groupClients.length > 0 && { icon: '🔗', label: 'Clients liés', detail: `${groupClients.length} client(s)`, count: groupClients.length, color: 'green', items: groupClients, isClients: true },
+              siren.length > 0 && { icon: '', label: 'SIREN', detail: `${siren.length} établissement(s)`, count: siren.length, color: 'blue', items: siren },
+              domain.length > 0 && { icon: '', label: 'Domaine', detail: `${clientLinks.client_domain}`, count: domain.length, color: 'cyan', items: domain },
+              dirigeant.length > 0 && { icon: '', label: 'Dirigeant', detail: `${clientLinks.client_dirigeant}`, count: dirigeant.length, color: 'purple', items: dirigeant },
+              groupProspects.length > 0 && { icon: '', label: 'Groupe', detail: `"${clientLinks.client_group}"`, count: groupProspects.length, color: 'amber', items: groupProspects },
+              groupClients.length > 0 && { icon: '', label: 'Clients liés', detail: `${groupClients.length} client(s)`, count: groupClients.length, color: 'green', items: groupClients, isClients: true },
             ].filter(Boolean)
 
             return (
@@ -979,7 +979,7 @@ export default function ClientDetail() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-lg">🔍</span>
+                    <span className="text-lg"></span>
                     <h3 className="font-bold text-blue-900 text-sm">Liens détectés</h3>
                     {sources.map((s, i) => (
                       <span key={i} className={`text-xs bg-${s.color}-100 text-${s.color}-700 px-2 py-0.5 rounded-full font-medium`}>
@@ -998,7 +998,7 @@ export default function ClientDetail() {
                         )}
                         <button onClick={() => markDejaClient()}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-xs font-medium transition-colors">
-                          ✓ Marquer {uniqueSirens.length}
+                           Marquer {uniqueSirens.length}
                         </button>
                       </>
                     )}
@@ -1026,7 +1026,7 @@ export default function ClientDetail() {
                     {sources.map((source, si) => (
                       <div key={si}>
                         <p className="text-xs font-bold text-gray-700 mb-1.5">
-                          {source.icon} {source.label} — {source.detail}
+                          {source.icon} {source.label} - {source.detail}
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                           {source.items.slice(0, 10).map((item, ii) => (
@@ -1045,7 +1045,7 @@ export default function ClientDetail() {
                               {!source.isClients && (
                                 <button onClick={() => markDejaClient([item.siren])}
                                   className="ml-2 text-green-600 hover:text-green-800 font-medium whitespace-nowrap">
-                                  ✓
+                                  
                                 </button>
                               )}
                             </div>
@@ -1071,8 +1071,8 @@ export default function ClientDetail() {
             if (!siren) return null
             return (
               <div className="mb-4 bg-green-50 border border-green-200 rounded-lg px-4 py-2 flex items-center gap-2">
-                <span className="text-sm">✅</span>
-                <span className="text-xs text-green-700 font-medium">Tous les prospects liés sont marqués — file de prospection à jour</span>
+                <span className="text-sm"></span>
+                <span className="text-xs text-green-700 font-medium">Tous les prospects liés sont marqués - file de prospection à jour</span>
               </div>
             )
           })()}
@@ -1108,7 +1108,7 @@ export default function ClientDetail() {
               <div className="col-span-2"><label className="text-xs font-medium text-gray-500 mb-1 block">OPCO</label>
                 <select value={editForm.opco_name || ''} onChange={e => setEditForm({ ...editForm, opco_name: e.target.value || null })}
                   className="w-full px-3 py-2 border rounded-lg text-sm">
-                  <option value="">— Aucun OPCO —</option>
+                  <option value="">- Aucun OPCO -</option>
                   {OPCO_LIST.map(o => <option key={o} value={o}>{o}</option>)}
                   {editForm.opco_name && !OPCO_LIST.includes(editForm.opco_name) && (
                     <option value={editForm.opco_name}>{editForm.opco_name} (détecté)</option>
@@ -1118,7 +1118,7 @@ export default function ClientDetail() {
               
               {/* Groupe */}
               <div className="col-span-2">
-                <label className="text-xs font-medium text-gray-500 mb-1 block">🏷️ Groupe (pour lier des sociétés distinctes)</label>
+                <label className="text-xs font-medium text-gray-500 mb-1 block"> Groupe (pour lier des sociétés distinctes)</label>
                 <div className="flex gap-2">
                   <input value={editForm.group_name || ''} onChange={e => setEditForm({ ...editForm, group_name: e.target.value || null })}
                     className="flex-1 px-3 py-2 border rounded-lg text-sm" placeholder="Ex: Groupe Vert, Westerly Sport Group..." />
@@ -1137,10 +1137,10 @@ export default function ClientDetail() {
                 <label className="text-xs font-medium text-gray-500 mb-2 block">Type de client</label>
                 <div className="flex gap-2 flex-wrap">
                   {[
-                    { value: 'entreprise', label: '🏢 Entreprise', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                    { value: 'organisme_formation', label: '🎓 Organisme de formation', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-                    { value: 'public', label: '🏛️ Établissement public', active: 'bg-teal-500 text-white', inactive: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
-                    { value: 'opco', label: '💼 OPCO', active: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                    { value: 'entreprise', label: ' Entreprise', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                    { value: 'organisme_formation', label: ' Organisme de formation', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+                    { value: 'public', label: ' Établissement public', active: 'bg-teal-500 text-white', inactive: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
+                    { value: 'opco', label: ' OPCO', active: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
                   ].map(s => (
                     <button key={s.value} type="button" onClick={() => setEditForm({ ...editForm, client_type: s.value })}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${editForm.client_type === s.value ? s.active : s.inactive}`}>
@@ -1160,8 +1160,8 @@ export default function ClientDetail() {
                     <label className="text-xs text-gray-500 mb-1 block">Mode de facturation</label>
                     <select value={editForm.billing_mode || 'per_session'} onChange={e => setEditForm({ ...editForm, billing_mode: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg text-sm">
-                      <option value="per_session">📄 Après chaque session</option>
-                      <option value="monthly">📅 Fin de mois (groupée)</option>
+                      <option value="per_session"> Après chaque session</option>
+                      <option value="monthly"> Fin de mois (groupée)</option>
                     </select>
                   </div>
                   <div>
@@ -1217,7 +1217,7 @@ export default function ClientDetail() {
                       : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
                   }`}
                 >
-                  {client.do_not_mail ? '🚫 Mailing désactivé' : '📧 Mailing actif'}
+                  {client.do_not_mail ? ' Mailing désactivé' : ' Mailing actif'}
                 </button>
               </div>
               {client.website && (
@@ -1233,7 +1233,7 @@ export default function ClientDetail() {
               )}
               {client.group_name && (
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">🏷️ {client.group_name}</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700"> {client.group_name}</span>
                 </div>
               )}
               {client.client_type && client.client_type !== 'entreprise' && (
@@ -1243,18 +1243,18 @@ export default function ClientDetail() {
                     client.client_type === 'public' ? 'bg-teal-100 text-teal-700' :
                     client.client_type === 'opco' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
                   }`}>
-                    {client.client_type === 'organisme_formation' ? '🎓 Organisme de formation' :
-                     client.client_type === 'public' ? '🏛️ Établissement public' :
-                     client.client_type === 'opco' ? '💼 OPCO' : client.client_type}
+                    {client.client_type === 'organisme_formation' ? ' Organisme de formation' :
+                     client.client_type === 'public' ? ' Établissement public' :
+                     client.client_type === 'opco' ? ' OPCO' : client.client_type}
                   </span>
                 </div>
               )}
-              {/* Préférences facturation — toujours affichées si non par défaut */}
+              {/* Préférences facturation - toujours affichées si non par défaut */}
               {(client.billing_mode === 'monthly' || client.default_payment_terms !== 'à 30 jours' || client.billing_email) && (
                 <div className="col-span-full mt-2 bg-blue-50 rounded-lg p-3 text-sm">
                   <p className="text-xs font-semibold text-blue-700 mb-1.5 flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> Facturation</p>
                   <div className="flex flex-wrap gap-x-6 gap-y-1 text-blue-800">
-                    <span>{client.billing_mode === 'monthly' ? '📅 Fin de mois (groupée)' : '📄 Après chaque session'}</span>
+                    <span>{client.billing_mode === 'monthly' ? ' Fin de mois (groupée)' : ' Après chaque session'}</span>
                     <span>Délai : {client.default_payment_terms || '30 jours'}</span>
                     {client.billing_email && <span>Email compta : {client.billing_email}</span>}
                     {client.client_type === 'organisme_formation' && client.satisfaction_mode === 'monthly' && (
@@ -1270,8 +1270,8 @@ export default function ClientDetail() {
         <div className="border-t bg-gray-50/50 px-4 sm:px-6 py-3">
           {inactivityAlert && (
             <div className="mb-3 flex items-center gap-2 text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
-              <span className="text-base">⚠️</span>
-              <span>Inactif depuis <strong>{daysSinceLastContact} jours</strong> — aucune session prévue</span>
+              <span className="text-base"></span>
+              <span>Inactif depuis <strong>{daysSinceLastContact} jours</strong> - aucune session prévue</span>
             </div>
           )}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center text-sm">
@@ -1293,7 +1293,7 @@ export default function ClientDetail() {
             </div>
             <div className="col-span-2 sm:col-span-1">
               <span className="text-xl font-bold text-teal-600">
-                {caFacture > 0 ? caFacture.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }) : '—'}
+                {caFacture > 0 ? caFacture.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }) : '-'}
               </span>
               <p className="text-gray-500 text-xs mt-0.5">CA facturé TTC</p>
             </div>
@@ -1305,7 +1305,7 @@ export default function ClientDetail() {
       {nextActionRdv && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-lg flex-shrink-0">🎯</span>
+            <span className="text-lg flex-shrink-0"></span>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Prochaine action</p>
               <p className="text-sm font-medium text-amber-900 truncate">{nextActionRdv.next_action}</p>
@@ -1380,14 +1380,14 @@ export default function ClientDetail() {
                         )}
                         {c.is_billing && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] rounded font-medium" title="Contact facturation">
-                            💰 Facturation
+                             Facturation
                           </span>
                         )}
                       </div>
                       {c.role && <p className="text-xs text-primary-600 font-medium mt-0.5">{c.role}</p>}
                       <div className="flex flex-col gap-0.5 mt-1">
-                        {c.email && <a href={'mailto:' + c.email} className="text-xs text-gray-500 hover:text-primary-600 truncate">📧 {c.email}</a>}
-                        {c.phone && <a href={'tel:' + c.phone} className="text-xs text-gray-500 hover:text-primary-600">📞 {c.phone}</a>}
+                        {c.email && <a href={'mailto:' + c.email} className="text-xs text-gray-500 hover:text-primary-600 truncate"> {c.email}</a>}
+                        {c.phone && <a href={'tel:' + c.phone} className="text-xs text-gray-500 hover:text-primary-600"> {c.phone}</a>}
                       </div>
                     </div>
                     <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
@@ -1420,12 +1420,12 @@ export default function ClientDetail() {
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{r.rdv_date ? format(new Date(r.rdv_date), 'dd MMM yyyy', { locale: fr }) : 'Date à fixer'}</span>
                       <span className={'px-2 py-0.5 rounded text-xs font-medium ' + (r.status === 'realise' ? 'bg-green-100 text-green-700' : r.status === 'annule' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700')}>
-                        {r.status === 'realise' ? '✅ Réalisé' : r.status === 'annule' ? '❌ Annulé' : '📅 À prendre'}
+                        {r.status === 'realise' ? ' Réalisé' : r.status === 'annule' ? ' Annulé' : ' À prendre'}
                       </span>
                     </div>
                     {r.conducted_by && <p className="text-gray-500 text-xs mt-1">Par {r.conducted_by}</p>}
                     {r.notes && <p className="text-gray-600 text-xs mt-1 line-clamp-2">{r.notes}</p>}
-                    {r.next_action && <p className="text-amber-700 text-xs mt-1 font-medium">🎯 {r.next_action}</p>}
+                    {r.next_action && <p className="text-amber-700 text-xs mt-1 font-medium"> {r.next_action}</p>}
                   </Link>
                 ))}
               </div>
@@ -1465,7 +1465,7 @@ export default function ClientDetail() {
                 {showEmailForm && (
                   <div className="bg-green-50/50 border border-green-200 rounded-lg p-4 mb-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-green-800">📧 Envoyer un email</h3>
+                      <h3 className="text-sm font-semibold text-green-800"> Envoyer un email</h3>
                       <button onClick={() => setShowEmailForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
                     </div>
 
@@ -1475,9 +1475,9 @@ export default function ClientDetail() {
                       {contacts.filter(c => c.email).length > 0 ? (
                         <select value={emailForm.to} onChange={e => setEmailForm(f => ({ ...f, to: e.target.value }))}
                           className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                          <option value="">— Choisir un contact —</option>
+                          <option value="">- Choisir un contact -</option>
                           {contacts.filter(c => c.email).map(c => (
-                            <option key={c.id} value={c.email}>{c.name} — {c.email} {c.is_primary ? '⭐' : ''}</option>
+                            <option key={c.id} value={c.email}>{c.name} - {c.email} {c.is_primary ? '' : ''}</option>
                           ))}
                           {client?.contact_email && !contacts.find(c => c.email === client.contact_email) && (
                             <option value={client.contact_email}>{client.contact_email} (fiche client)</option>
@@ -1506,7 +1506,7 @@ export default function ClientDetail() {
                     {/* Brief IA */}
                     <div>
                       <label className="text-xs font-medium text-gray-500 mb-1 flex items-center justify-between">
-                        ✨ Décrivez votre email en quelques mots
+                         Décrivez votre email en quelques mots
                         <SpeechToTextButton onTranscript={(text) => setEmailForm(f => ({ ...f, brief: f.brief ? f.brief + ' ' + text : text }))} />
                       </label>
                       <div className="flex gap-2">
@@ -1515,7 +1515,7 @@ export default function ClientDetail() {
                           rows={2} className="flex-1 px-3 py-2 border rounded-lg text-sm" />
                         <button onClick={generateEmailIA} disabled={emailGenerating}
                           className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg text-xs font-medium hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50 whitespace-nowrap flex items-center gap-1.5">
-                          {emailGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '✨'} Générer
+                          {emailGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : ''} Générer
                         </button>
                       </div>
                     </div>
@@ -1691,7 +1691,7 @@ export default function ClientDetail() {
               <div className="px-5 pb-4 space-y-4">
                 {upcomingSessions.length > 0 && (
                   <div>
-                    <h3 className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">📅 À venir / En cours</h3>
+                    <h3 className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2"> À venir / En cours</h3>
                     <div className="space-y-2">
                       {upcomingSessions.map(s => (
                         <Link key={s.id} to={'/sessions/' + s.id} className="block p-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
@@ -1699,12 +1699,12 @@ export default function ClientDetail() {
                             <div>
                               <p className="font-medium text-gray-900 text-sm">{s.courses?.title || s.reference}</p>
                               <p className="text-xs text-gray-500 mt-0.5">
-                                {s.start_date ? format(new Date(s.start_date), 'dd MMM', { locale: fr }) : '?'} — {s.end_date ? format(new Date(s.end_date), 'dd MMM yyyy', { locale: fr }) : '?'}
+                                {s.start_date ? format(new Date(s.start_date), 'dd MMM', { locale: fr }) : '?'} - {s.end_date ? format(new Date(s.end_date), 'dd MMM yyyy', { locale: fr }) : '?'}
                               </p>
                             </div>
                             <div className="text-right">
                               <span className={'px-2 py-0.5 rounded text-xs font-medium ' + (s.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : s.status === 'draft' ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700')}>
-                                {s.status === 'in_progress' ? '🔄 En cours' : s.status === 'draft' ? '📝 Brouillon' : '📅 Planifiée'}
+                                {s.status === 'in_progress' ? ' En cours' : s.status === 'draft' ? ' Brouillon' : ' Planifiée'}
                               </span>
                               {s.session_trainees?.length > 0 && <p className="text-xs text-gray-400 mt-1">{s.session_trainees.length} stagiaire{s.session_trainees.length > 1 ? 's' : ''}</p>}
                             </div>
@@ -1717,7 +1717,7 @@ export default function ClientDetail() {
 
                 {pastSessions.length > 0 && (
                   <div>
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">📋 Historique</h3>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2"> Historique</h3>
                     <div className="space-y-2">
                       {pastSessions.map(s => (
                         <Link key={s.id} to={'/sessions/' + s.id} className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
@@ -1725,7 +1725,7 @@ export default function ClientDetail() {
                             <div>
                               <p className="font-medium text-gray-900 text-sm">{s.courses?.title || s.reference}</p>
                               <p className="text-xs text-gray-500 mt-0.5">
-                                {s.start_date ? format(new Date(s.start_date), 'dd MMM', { locale: fr }) : '?'} — {s.end_date ? format(new Date(s.end_date), 'dd MMM yyyy', { locale: fr }) : '?'}
+                                {s.start_date ? format(new Date(s.start_date), 'dd MMM', { locale: fr }) : '?'} - {s.end_date ? format(new Date(s.end_date), 'dd MMM yyyy', { locale: fr }) : '?'}
                               </p>
                               {s.session_trainees?.length > 0 && (
                                 <p className="text-xs text-gray-400 mt-0.5">
@@ -1734,7 +1734,7 @@ export default function ClientDetail() {
                               )}
                             </div>
                             <span className={'px-2 py-0.5 rounded text-xs font-medium ' + (s.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>
-                              {s.status === 'completed' ? '✅ Terminée' : '❌ Annulée'}
+                              {s.status === 'completed' ? ' Terminée' : ' Annulée'}
                             </span>
                           </div>
                         </Link>
@@ -1802,7 +1802,7 @@ export default function ClientDetail() {
                 </label>
                 <label className="flex items-center gap-2.5 text-sm cursor-pointer p-2 rounded-lg hover:bg-green-50 transition-colors">
                   <input type="checkbox" checked={contactForm.is_billing} onChange={e => setContactForm(f => ({ ...f, is_billing: e.target.checked }))} className="rounded border-gray-300 text-green-500 focus:ring-green-500" />
-                  <span className="text-lg">💰</span>
+                  <span className="text-lg"></span>
                   <div>
                     <p className="font-medium text-gray-700">Contact facturation</p>
                     <p className="text-xs text-gray-400">Reçoit les factures et avoirs</p>

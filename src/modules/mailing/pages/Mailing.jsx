@@ -1,6 +1,6 @@
 // src/pages/Mailing.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Page Mailing — l'application
+// Page Mailing - l'application
 //
 //   Liste des campagnes · statistiques · détail · qualité des adresses
 //   Création sur un seul écran (MailingComposer)
@@ -56,8 +56,8 @@ const secteurOf = (naf) => {
   return hit ? hit[1] : `NAF ${n.slice(0, 2)}`
 }
 
-const fmtDT = (d) => d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
-const fmtD = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—'
+const fmtDT = (d) => d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'
+const fmtD = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-'
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 1000) / 10 : 0
 
 async function fetchAll(build) {
@@ -106,7 +106,7 @@ function MailingBriefingEditor({ campaign, onUpdate }) {
     ? Math.max(0, Math.ceil((new Date(campaign.phoning_active_until) - new Date()) / 86400000))
     : 0
 
-  // Toggle indépendant — ne touche QUE phoning_active + phoning_active_until
+  // Toggle indépendant - ne touche QUE phoning_active + phoning_active_until
   async function toggleActive() {
     setToggling(true)
     const next = !isActive
@@ -119,7 +119,7 @@ function MailingBriefingEditor({ campaign, onUpdate }) {
     setToggling(false)
   }
 
-  // Save indépendant — ne touche QUE phoning_message + phoning_notes
+  // Save indépendant - ne touche QUE phoning_message + phoning_notes
   async function save() {
     setSaving(true)
     const { data, error } = await supabase.from('mailing_campaigns')
@@ -144,17 +144,17 @@ function MailingBriefingEditor({ campaign, onUpdate }) {
     <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h3 className="font-semibold text-gray-800">📞 Briefing Phoning</h3>
+          <h3 className="font-semibold text-gray-800"> Briefing Phoning</h3>
           <button onClick={toggleActive} disabled={toggling}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50 ${
               isActive ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}>
-            {toggling ? '...' : isActive ? `✅ Actif — ${daysLeft}j restants` : 'Inactif — cliquer pour activer'}
+            {toggling ? '...' : isActive ? ` Actif - ${daysLeft}j restants` : 'Inactif - cliquer pour activer'}
           </button>
         </div>
         <button onClick={() => setEditing(e => !e)}
           className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg">
-          {editing ? 'Annuler' : '✏️ Modifier le message'}
+          {editing ? 'Annuler' : ' Modifier le message'}
         </button>
       </div>
 
@@ -199,7 +199,7 @@ function MailingBriefingEditor({ campaign, onUpdate }) {
           {message ? (
             <p className="text-sm text-gray-700 bg-blue-50 border border-blue-100 rounded-lg p-3 whitespace-pre-line">{message}</p>
           ) : (
-            <p className="text-sm text-gray-400 italic">Aucun message — clique "Modifier le message" pour en rédiger un.</p>
+            <p className="text-sm text-gray-400 italic">Aucun message - clique "Modifier le message" pour en rédiger un.</p>
           )}
           {notes.length > 0 && (
             <div className="space-y-1.5">
@@ -214,7 +214,7 @@ function MailingBriefingEditor({ campaign, onUpdate }) {
           )}
           <button onClick={goToPhoning}
             className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium">
-            📞 Aller dans Phoning
+             Aller dans Phoning
           </button>
         </div>
       )}
@@ -244,7 +244,7 @@ function MailingStats() {
       for (const s of sends) {
         const a = audMap.get(String(s.email || '').trim().toLowerCase())
         const kS = secteurOf((a?.nafs || [])[0])
-        const kD = (a?.departements || [])[0] || '—'
+        const kD = (a?.departements || [])[0] || '-'
         for (const [m, k] of [[sect, kS], [dep, kD]]) {
           m[k] = m[k] || { envoyes: 0, reponses: 0, desabonnes: 0 }
           m[k].envoyes++
@@ -384,7 +384,7 @@ export default function Mailing() {
       { email: s.email, name: s.company_name, source: 'mailing' }, excl, { includeRgpd: true, includePartners: true }
     )))
     const removed = sends.length - kept.length
-    if (removed > 0) toast(`${removed} envoi${removed > 1 ? 's' : ''} ignoré${removed > 1 ? 's' : ''} (désabonné, bloqué ou invalide)`, { icon: '🛡️' })
+    if (removed > 0) toast(`${removed} envoi${removed > 1 ? 's' : ''} ignoré${removed > 1 ? 's' : ''} (désabonné, bloqué ou invalide)`, { icon: '' })
     return kept
   }
 
@@ -516,7 +516,7 @@ export default function Mailing() {
       if (!preselectEmails.length) { toast('Aucun non-répondant à relancer'); return }
     }
     setComposeInitial({
-      name: nonRepondants ? `Relance — ${c.name}` : `${c.name} (copie)`,
+      name: nonRepondants ? `Relance - ${c.name}` : `${c.name} (copie)`,
       subject: c.subject,
       body_html: c.body_html,
       signature_caller: c.signature_caller,
@@ -561,7 +561,7 @@ export default function Mailing() {
       <div className="max-w-2xl mx-auto py-12">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
           <h2 className="text-xl font-bold text-gray-900 mb-6">
-            {progress.done ? '✅ Campagne terminée' : progress.stopped ? '⏹ Envoi arrêté' : '📤 Envoi en cours…'}
+            {progress.done ? ' Campagne terminée' : progress.stopped ? ' Envoi arrêté' : ' Envoi en cours…'}
           </h2>
           <div className="w-full bg-gray-100 rounded-full h-3 mb-4">
             <div className="bg-blue-600 h-3 rounded-full transition-all duration-500" style={{ width: `${p}%` }} />
@@ -598,7 +598,7 @@ export default function Mailing() {
 
           {(progress.done || progress.stopped) && (
             <div className="space-y-3">
-              {progress.done && <p className="text-sm text-gray-500">Rapport de campagne envoyé à <strong>{senderEmailFor(activeContext?.signature_caller) || '—'}</strong>.</p>}
+              {progress.done && <p className="text-sm text-gray-500">Rapport de campagne envoyé à <strong>{senderEmailFor(activeContext?.signature_caller) || '-'}</strong>.</p>}
               {progress.stopped && activeCampaign && (
                 <button onClick={() => { continueOnServer(activeCampaign); setView('list') }}
                   className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
@@ -674,7 +674,7 @@ export default function Mailing() {
             {nSkipped > 0 && <p><span className="text-gray-400">Ignorés :</span> {nSkipped} (désabonnés ou bloqués pendant l'envoi)</p>}
             {st.dernier_envoi && <p><span className="text-gray-400">Dernier envoi :</span> {fmtDT(st.dernier_envoi)}</p>}
           </div>
-          {c.last_error && <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠️ {c.last_error}</p>}
+          {c.last_error && <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2"> {c.last_error}</p>}
 
           <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
             {c.status === 'planifiée' && (
@@ -738,7 +738,7 @@ export default function Mailing() {
                   const ss = SEND_STATUS[s.status] || { l: s.status, c: 'bg-gray-100 text-gray-600' }
                   return (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2.5 text-gray-900 font-medium">{s.company_name || '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-900 font-medium">{s.company_name || '-'}</td>
                       <td className="px-4 py-2.5 text-gray-500 text-xs">{s.email}</td>
                       <td className="px-4 py-2.5 text-center space-x-1 whitespace-nowrap">
                         {s.unsubscribed_at
@@ -843,12 +843,12 @@ export default function Mailing() {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_BADGE[c.status] || 'bg-gray-100 text-gray-600'}`}>{STATUS_LABEL[c.status] || c.status}</span>
                       {c.status === 'planifiée' && <p className="text-[10px] text-indigo-600 mt-1"><Clock className="w-3 h-3 inline" /> {fmtDT(c.scheduled_at)}</p>}
                       {c.status === 'en_cours' && c.send_mode === 'serveur' && <p className="text-[10px] text-blue-600 mt-1"><Server className="w-3 h-3 inline" /> serveur</p>}
-                      {c.last_error && <p className="text-[10px] text-red-600 mt-1" title={c.last_error}>⚠️ erreur</p>}
+                      {c.last_error && <p className="text-[10px] text-red-600 mt-1" title={c.last_error}> erreur</p>}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-green-700">{s.envoyes ?? c.sent_count ?? 0}<span className="text-gray-300 font-normal">/{total}</span></td>
-                    <td className="px-4 py-3 text-right text-emerald-700 hidden md:table-cell">{s.reponses || '—'}</td>
-                    <td className="px-4 py-3 text-right text-purple-700 hidden md:table-cell">{s.desabonnes || '—'}</td>
-                    <td className="px-4 py-3 text-right text-red-600">{(s.erreurs ?? c.error_count) > 0 ? (s.erreurs ?? c.error_count) : '—'}</td>
+                    <td className="px-4 py-3 text-right text-emerald-700 hidden md:table-cell">{s.reponses || '-'}</td>
+                    <td className="px-4 py-3 text-right text-purple-700 hidden md:table-cell">{s.desabonnes || '-'}</td>
+                    <td className="px-4 py-3 text-right text-red-600">{(s.erreurs ?? c.error_count) > 0 ? (s.erreurs ?? c.error_count) : '-'}</td>
                     <td className="px-4 py-3 text-right text-xs text-gray-400 hidden lg:table-cell">{fmtD(c.created_at)}</td>
                     <td className="px-4 py-3 text-right">
                       <button onClick={e => { e.stopPropagation(); duplicate(c) }} title="Dupliquer" className="p-1.5 text-gray-400 hover:text-gray-700"><Copy className="w-4 h-4" /></button>

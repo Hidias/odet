@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// KitRdvPanel.jsx — Documents à présenter le jour du RDV
+// KitRdvPanel.jsx - Documents à présenter le jour du RDV
 // Fichiers rangés dans le bucket "documents", dossier rdv-kit/.
 // Aucun envoi par mail (décision : on verra plus tard).
 // ════════════════════════════════════════════════════════════════

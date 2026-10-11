@@ -118,7 +118,7 @@ export default function VeilleQualiopi() {
         console.error('Erreur modification:', error)
         toast.error('Erreur lors de la modification')
       } else {
-        toast.success('✓ Campus a enregistré les modifications')
+        toast.success('Campus a enregistré les modifications')
         fetchVeilles()
         closeModal()
       }
@@ -131,7 +131,7 @@ export default function VeilleQualiopi() {
         console.error('Erreur création:', error)
         toast.error('Erreur lors de la création')
       } else {
-        toast.success('✓ Campus a créé l\'entrée de veille')
+        toast.success('Campus a créé l\'entrée de veille')
         fetchVeilles()
         closeModal()
       }

@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// pdfPreparationRdv.js — Fiche de préparation d'un RDV commercial
+// pdfPreparationRdv.js - Fiche de préparation d'un RDV commercial
 // Page 1 et suivantes : entreprise, interlocuteur, historique, besoin,
 // objections entendues, arguments (avec références à relire),
 // questions à poser, documents à apporter, avant de partir.
@@ -15,7 +15,7 @@ const MARGIN = 15
 const PAGE_W = 210
 const PAGE_H = 297
 const CONTENT_W = PAGE_W - MARGIN * 2
-const CP1252_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ'
+const CP1252_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•--˜™š›œžŸ'
 
 // Police standard : on remplace ce qu'elle ne sait pas afficher
 function clean(text) {

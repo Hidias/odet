@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   return res.status(200).send(JSON.stringify({
     name,
     short_name: shortName,
-    description: b.org_name ? `${name}, ${b.org_name}` : name,
+    description: b.org_name && b.org_name !== name ? `${name}, ${b.org_name}` : name,
     lang: 'fr',
     start_url: '/#/',
     scope: '/',

@@ -124,7 +124,7 @@ export default function MultiEtablissements() {
         
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            🏢 Entreprises Multi-Établissements
+             Entreprises Multi-Établissements
           </h1>
           <p className="text-gray-600">
             {groupes.length} entreprises avec plusieurs établissements • Aide à la décision d'appel
@@ -132,7 +132,7 @@ export default function MultiEtablissements() {
         </div>
 
         <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <h2 className="font-semibold mb-3">📖 Comment utiliser cette page ?</h2>
+          <h2 className="font-semibold mb-3"> Comment utiliser cette page ?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="flex items-start gap-2">
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />

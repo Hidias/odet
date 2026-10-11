@@ -9,21 +9,21 @@ import SirenConflictModal from '../../commercial/components/SirenConflictModal'
 import { useSirenCheck } from '../../commercial/lib/useSirenCheck'
 
 // ════════════════════════════════════════════════════════════
-//  BUDGET MODULE v4 — Access Campus
+//  BUDGET MODULE v4 - Access Campus
 //  + Catégorisation IA intelligente + Prévisionnel 50k€
 // ════════════════════════════════════════════════════════════
 
 const TABS = [
-  { key: 'transactions', label: '📋 Transactions' },
-  { key: 'saisie', label: '➕ Saisie' },
-  { key: 'dashboard', label: '📊 Dashboard' },
-  { key: 'categorisation', label: '🤖 Catégorisation' },
-  { key: 'previsionnel', label: '📈 Prévisionnel' },
-  { key: 'comptable', label: '📮 Comptable' },
-  { key: 'categories', label: '🏷️ Catégories' },
-  { key: 'rules', label: '⚙️ Règles' },
-  { key: 'import', label: '📥 Import' },
-  { key: 'releves', label: '🏦 Relevés' },
+  { key: 'transactions', label: ' Transactions' },
+  { key: 'saisie', label: ' Saisie' },
+  { key: 'dashboard', label: ' Dashboard' },
+  { key: 'categorisation', label: ' Catégorisation' },
+  { key: 'previsionnel', label: ' Prévisionnel' },
+  { key: 'comptable', label: ' Comptable' },
+  { key: 'categories', label: ' Catégories' },
+  { key: 'rules', label: ' Règles' },
+  { key: 'import', label: ' Import' },
+  { key: 'releves', label: ' Relevés' },
 ]
 
 // Seul ce compte peut voir les transactions privées.
@@ -44,9 +44,9 @@ const ML = {
 const fmt = (n) => n ? (n < 0 ? '-' : '') + Math.abs(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '-'
 const fmtS = (n) => { if (!n) return '-'; const a = Math.abs(n); return a >= 1000 ? (a/1000).toFixed(1)+'k€' : Math.round(a)+'€' }
 
-// ⚠️ PostgREST plafonne toute requête à 1000 lignes quand aucune plage n'est
+//  PostgREST plafonne toute requête à 1000 lignes quand aucune plage n'est
 // demandée. Passé ce seuil, les lignes les plus anciennes disparaissent
-// SILENCIEUSEMENT : pas d'erreur, juste un tableau tronqué — et donc des KPI,
+// SILENCIEUSEMENT : pas d'erreur, juste un tableau tronqué - et donc des KPI,
 // un dashboard et un prévisionnel faux.
 // fetchAll() pagine par tranches de 1000 jusqu'à avoir tout récupéré.
 async function fetchAll(buildQuery, pageSize = 1000) {
@@ -106,7 +106,7 @@ export default function BudgetModule() {
   // Depuis la policy RLS, les lignes privées ne parviennent plus au
   // navigateur des autres comptes : leurs totaux seraient minorés.
   // La RPC les calcule en base (SECURITY DEFINER) et ne renvoie que
-  // des agrégats — le détail des lignes reste protégé.
+  // des agrégats - le détail des lignes reste protégé.
   const [serverKpis, setServerKpis] = useState(null)
 
   useEffect(() => {
@@ -130,7 +130,7 @@ export default function BudgetModule() {
       supabase.from('bank_statements').select('*').order('period_end', { ascending: false }),
     ])
 
-    // KPI serveur — non bloquant : en cas d'échec on retombe sur le calcul local
+    // KPI serveur - non bloquant : en cas d'échec on retombe sur le calcul local
     const kpiR = await supabase.rpc('get_budget_kpis')
     if (kpiR.error) {
       console.warn('get_budget_kpis indisponible, calcul local utilisé :', kpiR.error.message)
@@ -155,7 +155,7 @@ export default function BudgetModule() {
   const months = useMemo(() => [...new Set(transactions.map(tx => tx.month).filter(Boolean))].sort(), [transactions])
 
   const filtered = useMemo(() => transactions.filter(tx => {
-    if (tx.linked_transaction_id) return false // Ligne bancaire absorbée par une saisie manuelle — masquée
+    if (tx.linked_transaction_id) return false // Ligne bancaire absorbée par une saisie manuelle - masquée
     if (tx.is_private && !canSeePrivate) return false // Transaction privée : invisible hors propriétaire
     if (filterMonth !== 'all' && tx.month !== filterMonth) return false
     if (filterCat !== 'all' && tx.category_name !== filterCat) return false
@@ -169,7 +169,7 @@ export default function BudgetModule() {
   const stats = useMemo(() => {
     // Entrées / Sorties : une seule ligne par mouvement.
     // On exclut les lignes bancaires absorbées par une saisie manuelle
-    // (linked_transaction_id) — sinon le mouvement est compté deux fois.
+    // (linked_transaction_id) - sinon le mouvement est compté deux fois.
     // Les transactions privées SONT incluses : masquées en liste, comptées ici.
     const co = transactions.filter(tx => !tx.is_personal && !tx.linked_transaction_id)
 
@@ -191,7 +191,7 @@ export default function BudgetModule() {
       byCat[c].debit += tx.debit || 0; byCat[c].credit += tx.credit || 0; byCat[c].count++
     })
     const perso = transactions.filter(tx => tx.is_personal)
-    // Calcul local — sert de repli si la RPC est indisponible
+    // Calcul local - sert de repli si la RPC est indisponible
     const localDebit = co.reduce((s, t) => s + (t.debit || 0), 0)
     const localCredit = co.reduce((s, t) => s + (t.credit || 0), 0)
     const localSolde = Math.round(imports.reduce((s, t) => s + (t.credit || 0) - (t.debit || 0), 0) * 100) / 100
@@ -240,7 +240,7 @@ export default function BudgetModule() {
     setTransactions(p => p.map(t => t.id === tx.id
       ? { ...t, is_private: next, private_owner: next ? PRIVATE_OWNER : null }
       : t))
-    toast.success(next ? '🔒 Masquée pour les autres comptes' : '🔓 Visible par tous')
+    toast.success(next ? ' Masquée pour les autres comptes' : ' Visible par tous')
   }
 
   async function deleteTx(txId) {
@@ -250,18 +250,18 @@ export default function BudgetModule() {
     toast.success('Supprimée'); loadAll()
   }
 
-  if (loading) return <div className="p-8 text-center text-gray-400">⏳ Chargement...</div>
+  if (loading) return <div className="p-8 text-center text-gray-400"> Chargement...</div>
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="bg-white rounded-xl shadow-sm border p-4 mb-4">
         <div className="flex justify-between items-center mb-2">
-          <h2 className="text-xl font-bold text-gray-800">💰 Budget & Trésorerie</h2>
+          <h2 className="text-xl font-bold text-gray-800"> Budget & Trésorerie</h2>
           <span className="text-xs text-gray-400">
             {serverKpis?.nb_transactions ?? transactions.length} opérations
             {serverKpis && Number(serverKpis.nb_transactions) > transactions.length && (
-              <span className="ml-1 text-slate-400" title="Des opérations privées ne vous sont pas visibles, mais restent comptées dans les totaux">🔒</span>
+              <span className="ml-1 text-slate-400" title="Des opérations privées ne vous sont pas visibles, mais restent comptées dans les totaux"></span>
             )}
           </span>
         </div>
@@ -276,7 +276,7 @@ export default function BudgetModule() {
           />
           <KPI
             label="Découvert"
-            value={stats.soldeCompte < 0 ? fmt(Math.abs(stats.soldeCompte)) : '—'}
+            value={stats.soldeCompte < 0 ? fmt(Math.abs(stats.soldeCompte)) : '-'}
             color={stats.soldeCompte >= 0 ? 'green' : (Math.abs(stats.soldeCompte) >= DECOUVERT_AUTORISE * 0.8 ? 'red' : 'amber')}
             sub={`autorisé ${fmtS(DECOUVERT_AUTORISE)}`}
           />
@@ -288,20 +288,20 @@ export default function BudgetModule() {
 
         {stats.soldeCompte < 0 && Math.abs(stats.soldeCompte) >= DECOUVERT_AUTORISE * 0.8 && (
           <div className="mt-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2">
-            ⚠️ Découvert à {Math.round(Math.abs(stats.soldeCompte) / DECOUVERT_AUTORISE * 100)}% de l'autorisation
+             Découvert à {Math.round(Math.abs(stats.soldeCompte) / DECOUVERT_AUTORISE * 100)}% de l'autorisation
             ({fmt(Math.abs(stats.soldeCompte))} / {fmt(DECOUVERT_AUTORISE)})
           </div>
         )}
 
         {stats.kpiSource === 'local' && (
           <div className="mt-2 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2">
-            ⚠️ Totaux calculés localement — si des opérations privées existent, ces montants peuvent être incomplets.
+             Totaux calculés localement - si des opérations privées existent, ces montants peuvent être incomplets.
           </div>
         )}
 
         {canSeePrivate && stats.nbPrivees > 0 && (
           <div className="mt-2 text-xs bg-slate-50 border border-slate-200 text-slate-600 rounded-lg px-3 py-2">
-            🔒 {stats.nbPrivees} transaction(s) privée(s) — visibles uniquement sur votre compte,
+             {stats.nbPrivees} transaction(s) privée(s) - visibles uniquement sur votre compte,
             mais comptées dans les totaux ci-dessus.
           </div>
         )}
@@ -346,7 +346,7 @@ function KPI({ label, value, color = 'blue', sub }) {
   return <div className={`bg-${color}-50 rounded-lg p-2 border border-${color}-100`}><div className={`text-xs text-${color}-600 font-medium`}>{label}</div><div className={`text-lg font-bold text-${color}-700 truncate`}>{value}</div>{sub && <div className="text-xs text-gray-400">{sub}</div>}</div>
 }
 // ════════════════════════════════════════
-// TRANSACTIONS — avec 🍽️ invités + badge rapprochement
+// TRANSACTIONS - avec  invités + badge rapprochement
 // ════════════════════════════════════════
 function TransactionsTab({ filtered, categories, months, filterMonth, setFilterMonth, filterCat, setFilterCat, filterDir, setFilterDir, filterSearch, setFilterSearch, showPerso, setShowPerso, editingTx, setEditingTx, changeCategory, deleteTx, receipts, onMealGuest, canSeePrivate, togglePrivate }) {
   const [filterSpecial, setFilterSpecial] = useState('')
@@ -376,18 +376,18 @@ function TransactionsTab({ filtered, categories, months, filterMonth, setFilterM
           <select value={filterDir} onChange={e => setFilterDir(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
             <option value="all">Tout</option><option value="debit">Sorties</option><option value="credit">Entrées</option>
           </select>
-          <input type="text" value={filterSearch} onChange={e => setFilterSearch(e.target.value)} placeholder="🔍 Rechercher..." className="border rounded-lg px-3 py-2 text-sm" />
+          <input type="text" value={filterSearch} onChange={e => setFilterSearch(e.target.value)} placeholder=" Rechercher..." className="border rounded-lg px-3 py-2 text-sm" />
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
               <input type="checkbox" checked={showPerso} onChange={e => setShowPerso(e.target.checked)} className="rounded" /> Perso
             </label>
             <select value={filterSpecial} onChange={e => setFilterSpecial(e.target.value)} className="border rounded px-2 py-1 text-xs flex-1">
               <option value="">Filtres rapides</option>
-              <option value="resto_no_guest">🍽️ Restos sans invités</option>
-              <option value="credit_no_invoice">💳 Crédits non rapprochés</option>
-              <option value="manual_non_rapproche">✏️ Saisies sans rapprochement banque</option>
-              <option value="manual_rapproche">🏦 Saisies rapprochées banque</option>
-              {canSeePrivate && <option value="privees">🔒 Transactions privées</option>}
+              <option value="resto_no_guest"> Restos sans invités</option>
+              <option value="credit_no_invoice"> Crédits non rapprochés</option>
+              <option value="manual_non_rapproche"> Saisies sans rapprochement banque</option>
+              <option value="manual_rapproche"> Saisies rapprochées banque</option>
+              {canSeePrivate && <option value="privees"> Transactions privées</option>}
             </select>
           </div>
         </div>
@@ -411,12 +411,12 @@ function TransactionsTab({ filtered, categories, months, filterMonth, setFilterM
                 <tr key={tx.id} className={`border-t hover:bg-blue-50/30 ${tx.is_private ? 'bg-slate-100' : (tx.is_personal ? 'bg-purple-50/30' : '')} ${tx.is_manual ? 'border-l-2 border-l-blue-400' : ''}`}>
                   <td className="px-3 py-1.5 text-gray-500 text-xs whitespace-nowrap">
                     {tx.date ? new Date(tx.date).toLocaleDateString('fr-FR') : '-'}
-                    {tx.is_manual && <span className="ml-1 text-blue-500">✏️</span>}
-                    {tx.is_personal && <span className="ml-1 text-purple-500">🏠</span>}
-                    {tx.sent_to_comptable && <span className="ml-1 text-green-500" title="Envoyé au comptable">✓</span>}
-                    {tx.linked_invoice_id && <span className="ml-1 text-blue-500" title="Rapproché avec facture">🔗</span>}
-                    {tx.is_manual && tx.reconciled_at && <span className="ml-1 text-violet-500" title={`Rapproché banque le ${new Date(tx.reconciled_at).toLocaleDateString('fr-FR')}`}>🏦</span>}
-                    {tx.is_private && <span className="ml-1 text-slate-600" title="Privée — invisible pour les autres comptes, mais comptée dans les totaux">🔒</span>}
+                    {tx.is_manual && <span className="ml-1 text-blue-500"></span>}
+                    {tx.is_personal && <span className="ml-1 text-purple-500"></span>}
+                    {tx.sent_to_comptable && <span className="ml-1 text-green-500" title="Envoyé au comptable"></span>}
+                    {tx.linked_invoice_id && <span className="ml-1 text-blue-500" title="Rapproché avec facture"></span>}
+                    {tx.is_manual && tx.reconciled_at && <span className="ml-1 text-violet-500" title={`Rapproché banque le ${new Date(tx.reconciled_at).toLocaleDateString('fr-FR')}`}></span>}
+                    {tx.is_private && <span className="ml-1 text-slate-600" title="Privée - invisible pour les autres comptes, mais comptée dans les totaux"></span>}
                   </td>
                   <td className="px-3 py-1.5 max-w-xs"><div className="truncate text-gray-800 text-xs" title={tx.description}>{tx.description}</div></td>
                   <td className="px-3 py-1.5">
@@ -427,17 +427,17 @@ function TransactionsTab({ filtered, categories, months, filterMonth, setFilterM
                       </select>
                     ) : (
                       <button onClick={() => setEditingTx(tx.id)} className={`text-xs px-2 py-0.5 rounded-full hover:ring-2 hover:ring-blue-300 ${tx.category_name === 'Autre / Non classé' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
-                        {categories.find(c => c.name === tx.category_name)?.icon || '❓'} {tx.category_name || 'Non classé'}
+                        {categories.find(c => c.name === tx.category_name)?.icon || ''} {tx.category_name || 'Non classé'}
                       </button>
                     )}
                   </td>
                   <td className="px-3 py-1.5 text-right font-mono text-xs text-red-600">{tx.debit > 0 ? fmt(tx.debit) : ''}</td>
                   <td className="px-3 py-1.5 text-right font-mono text-xs text-green-600">{tx.credit > 0 ? fmt(tx.credit) : ''}</td>
-                  <td className="px-2 py-1.5 text-center text-xs">{receipts[tx.id]?.length > 0 && <span title={`${receipts[tx.id].length} fichier(s)`}>📎{receipts[tx.id].length}</span>}</td>
+                  <td className="px-2 py-1.5 text-center text-xs">{receipts[tx.id]?.length > 0 && <span title={`${receipts[tx.id].length} fichier(s)`}>{receipts[tx.id].length}</span>}</td>
                   <td className="px-2 py-1.5">
                     <div className="flex gap-0.5">
                       {tx.category_name === 'Restauration pro' && tx.debit > 0 && (
-                        <button onClick={() => onMealGuest && onMealGuest(tx.id)} className="text-amber-400 hover:text-amber-600 text-xs" title="Registre invités">🍽️</button>
+                        <button onClick={() => onMealGuest && onMealGuest(tx.id)} className="text-amber-400 hover:text-amber-600 text-xs" title="Registre invités"></button>
                       )}
                       {canSeePrivate && (
                         <button
@@ -445,10 +445,10 @@ function TransactionsTab({ filtered, categories, months, filterMonth, setFilterM
                           className={`text-xs ${tx.is_private ? 'text-slate-700' : 'text-gray-300 hover:text-slate-600'}`}
                           title={tx.is_private ? 'Rendre visible par tous' : 'Masquer pour les autres comptes'}
                         >
-                          {tx.is_private ? '🔒' : '🔓'}
+                          {tx.is_private ? '' : ''}
                         </button>
                       )}
-                      {tx.is_manual && <button onClick={() => deleteTx(tx.id)} className="text-red-300 hover:text-red-600 text-xs">✕</button>}
+                      {tx.is_manual && <button onClick={() => deleteTx(tx.id)} className="text-red-300 hover:text-red-600 text-xs"></button>}
                     </div>
                   </td>
                 </tr>
@@ -495,7 +495,7 @@ function sanitizeFileName(name) {
 }
 
 // ════════════════════════════════════════
-// SAISIE — avec registre invités repas
+// SAISIE - avec registre invités repas
 // ════════════════════════════════════════
 function SaisieTab({ categories, rules, loadAll, clients }) {
   const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], description: '', amount: '', type: 'debit', category_id: '', payer: 'entreprise', notes: '', note_comptable: '' })
@@ -536,7 +536,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     await supabase.from('budget_meal_guests').delete().eq('transaction_id', txId)
     await supabase.from('budget_transactions').delete().eq('id', txId)
     setRecent(prev => prev.filter(t => t.id !== txId))
-    toast.success('🗑️ Supprimée')
+    toast.success('Supprimée')
     loadAll()
   }
 
@@ -546,7 +546,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     const { error } = await supabase.from('budget_transactions').update({ payer: newPayer, is_personal: isPerso }).eq('id', txId)
     if (error) { toast.error('Erreur: ' + error.message); return }
     setRecent(prev => prev.map(t => t.id === txId ? { ...t, payer: newPayer, is_personal: isPerso } : t))
-    toast.success('✅ Payeur modifié')
+    toast.success('Payeur modifié')
     loadAll()
   }
 
@@ -564,7 +564,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     })
     setEditingTxId(tx.id)
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    toast('📝 Chargée — modifiez puis cliquez Enregistrer', { icon: '✏️' })
+    toast('Chargée - modifiez puis cliquez Enregistrer', { icon: '' })
   }
 
   // Auto-catégorisation par règles
@@ -605,7 +605,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     setPreviews(prev => prev.filter((_, i) => i !== idx))
   }
 
-  // Analyse IA de la facture — MULTI-FICHIERS (batch de 5 max)
+  // Analyse IA de la facture - MULTI-FICHIERS (batch de 5 max)
   async function analyzeWithAI() {
     if (files.length === 0) { toast.error('Ajoutez une facture d\'abord'); return }
     setAnalyzing(true)
@@ -619,7 +619,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     const total = filesToProcess.length
     setAiProgress({ current: 0, total })
     if (files.length > maxBatch) {
-      toast(`📋 Analyse des ${maxBatch} premiers fichiers (${files.length - maxBatch} en attente)`, { icon: 'ℹ️' })
+      toast(`Analyse des ${maxBatch} premiers fichiers (${files.length - maxBatch} en attente)`, { icon: 'ℹ' })
     }
 
     for (let i = 0; i < filesToProcess.length; i++) {
@@ -672,10 +672,10 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     }
     setAnalyzing(false)
     const ok = results.filter(r => !r._error).length
-    const msg = ok === total ? `🤖 ${ok} fichier(s) analysé(s)` : `🤖 ${ok}/${total} analysé(s), ${total - ok} en erreur`
+    const msg = ok === total ? ` ${ok} fichier(s) analysé(s)` : ` ${ok}/${total} analysé(s), ${total - ok} en erreur`
     toast.success(msg)
     if (files.length > maxBatch) {
-      toast(`💡 Relancez l'analyse pour les ${files.length - maxBatch} fichiers restants`, { icon: '📋', duration: 5000 })
+      toast(`Relancez l'analyse pour les ${files.length - maxBatch} fichiers restants`, { icon: '', duration: 5000 })
     }
   }
 
@@ -745,26 +745,26 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
           const safeName = sanitizeFileName(file.name)
           const path = `${txData.id}/${Date.now()}_${safeName}`
           const { error: upErr } = await supabase.storage.from('budget-receipts').upload(path, file)
-          if (upErr) { console.error('Upload error:', upErr); toast.error(`⚠️ Erreur upload ${file.name}`); continue }
+          if (upErr) { console.error('Upload error:', upErr); toast.error(`Erreur upload ${file.name}`); continue }
           const { error: dbErr } = await supabase.from('budget_receipts').insert({
             transaction_id: txData.id, file_name: file.name, file_path: path, file_type: file.type, file_size: file.size
           })
           if (dbErr) { console.error('DB insert error:', dbErr); continue }
           uploaded++
         }
-        if (uploaded > 0) toast.success(`📎 ${uploaded} PJ uploadée(s)`)
+        if (uploaded > 0) toast.success(`${uploaded} PJ uploadée(s)`)
       }
 
-      toast.success(`✅ Sauvegardé : ${form.description}`)
+      toast.success(`Sauvegardé : ${form.description}`)
       setRecent(prev => [txData, ...prev].slice(0, 10))
 
       // Passer au fichier suivant
       const nextIdx = aiCurrentIdx + 1
       if (nextIdx < aiResults.length) {
         goToResult(nextIdx)
-        toast.success(`📄 Suivant : ${nextIdx + 1}/${aiResults.length}`)
+        toast.success(`Suivant : ${nextIdx + 1}/${aiResults.length}`)
       } else {
-        // Batch terminé — vérifier s'il reste des fichiers
+        // Batch terminé - vérifier s'il reste des fichiers
         const allOriginal = allFilesRef.current
         const processedCount = Math.min(allOriginal.length, 5)
         const remaining = allOriginal.slice(processedCount)
@@ -773,10 +773,10 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
         if (remaining.length > 0) {
           setFiles(remaining)
           setPreviews(remaining.map(f => ({ name: f.name, url: null })))
-          toast.success(`🎉 Batch terminé — ${remaining.length} fichier(s) restant(s), relancez l'analyse`)
+          toast.success(`Batch terminé - ${remaining.length} fichier(s) restant(s), relancez l'analyse`)
         } else {
           setFiles([]); setPreviews([])
-          toast.success('🎉 Tous les fichiers ont été traités !')
+          toast.success('Tous les fichiers ont été traités !')
         }
         loadAll()
       }
@@ -803,10 +803,10 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
       if (remaining.length > 0) {
         setFiles(remaining)
         setPreviews(remaining.map(f => ({ name: f.name, url: null })))
-        toast.success(`✅ Batch terminé — ${remaining.length} fichier(s) restant(s), relancez l'analyse`)
+        toast.success(`Batch terminé - ${remaining.length} fichier(s) restant(s), relancez l'analyse`)
       } else {
         setFiles([]); setPreviews([])
-        toast.success('✅ Terminé')
+        toast.success('Terminé')
       }
     }
   }
@@ -837,20 +837,20 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     let txData
     const isEditing = !!editingTxId
     if (isEditing) {
-      // Mode édition — update
+      // Mode édition - update
       const { data, error } = await supabase.from('budget_transactions').update(row).eq('id', editingTxId).select().single()
       if (error) { toast.error('Erreur: ' + error.message); setSaving(false); return }
       txData = data
       setRecent(prev => prev.map(t => t.id === editingTxId ? txData : t))
-      toast.success(`✏️ Transaction modifiée`)
+      toast.success(`Transaction modifiée`)
       setEditingTxId(null)
     } else {
-      // Mode création — insert
+      // Mode création - insert
       const { data, error } = await supabase.from('budget_transactions').insert(row).select().single()
       if (error) { toast.error('Erreur: ' + error.message); setSaving(false); return }
       txData = data
       setRecent(prev => [txData, ...prev].slice(0, 10))
-      toast.success(`✅ ${form.type === 'debit' ? 'Dépense' : 'Entrée'}: ${fmt(amount)}`)
+      toast.success(`${form.type === 'debit' ? 'Dépense' : 'Entrée'}: ${fmt(amount)}`)
     }
 
     // Upload des fichiers (création ET édition)
@@ -868,8 +868,8 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
         if (dbErr) { console.error('DB insert error:', dbErr); errors++; continue }
         uploaded++
       }
-      if (uploaded > 0) toast.success(`📎 ${uploaded} fichier(s) uploadé(s)`)
-      if (errors > 0) toast.error(`⚠️ ${errors} fichier(s) en erreur d'upload`)
+      if (uploaded > 0) toast.success(`${uploaded} fichier(s) uploadé(s)`)
+      if (errors > 0) toast.error(`${errors} fichier(s) en erreur d'upload`)
     }
 
     // Sauvegarder les invités si c'est un repas
@@ -905,33 +905,33 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     <div className="grid md:grid-cols-2 gap-4">
       <div className="bg-white rounded-xl shadow-sm border p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-gray-700">{editingTxId ? '✏️ Modifier l\'opération' : '➕ Nouvelle opération'}</h3>
+          <h3 className="font-bold text-gray-700">{editingTxId ? ' Modifier l\'opération' : ' Nouvelle opération'}</h3>
           {editingTxId && (
             <button onClick={() => {
               setEditingTxId(null)
               setForm({ date: new Date().toISOString().split('T')[0], description: '', amount: '', type: 'debit', category_id: '', payer: 'entreprise', notes: '', note_comptable: '' })
-            }} className="text-xs text-gray-500 hover:text-red-500">✕ Annuler</button>
+            }} className="text-xs text-gray-500 hover:text-red-500"> Annuler</button>
           )}
         </div>
 
         {/* Upload zone */}
         <div>
-          <label className="text-xs text-gray-500 font-medium">📎 Facture(s) / Justificatif(s)</label>
+          <label className="text-xs text-gray-500 font-medium"> Facture(s) / Justificatif(s)</label>
           <div className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer ${dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
             onClick={() => document.getElementById('file-input').click()}
             onDrop={handleDrop}
             onDragOver={e => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}>
             <input id="file-input" type="file" multiple accept="image/*,.pdf" onChange={handleFiles} className="hidden" />
-            <p className="text-sm text-gray-500">{dragOver ? '📥 Lâchez pour ajouter' : '📷 Cliquez ou glissez vos fichiers ici'}</p>
-            <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG — plusieurs fichiers possibles</p>
+            <p className="text-sm text-gray-500">{dragOver ? ' Lâchez pour ajouter' : ' Cliquez ou glissez vos fichiers ici'}</p>
+            <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG - plusieurs fichiers possibles</p>
           </div>
           {previews.length > 0 && (
             <div className="flex gap-2 mt-2 flex-wrap">
               {previews.map((p, i) => (
                 <div key={i} className="relative group">
-                  {p.url ? <img src={p.url} alt={p.name} className="w-16 h-16 object-cover rounded border" /> : <div className="w-16 h-16 bg-gray-100 rounded border flex items-center justify-center text-xs">📄 PDF</div>}
-                  <button onClick={() => removeFile(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs leading-none opacity-0 group-hover:opacity-100">✕</button>
+                  {p.url ? <img src={p.url} alt={p.name} className="w-16 h-16 object-cover rounded border" /> : <div className="w-16 h-16 bg-gray-100 rounded border flex items-center justify-center text-xs"> PDF</div>}
+                  <button onClick={() => removeFile(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs leading-none opacity-0 group-hover:opacity-100"></button>
                 </div>
               ))}
             </div>
@@ -939,7 +939,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
           {files.length > 0 && !analyzing && aiResults.length === 0 && (
             <button onClick={analyzeWithAI} disabled={analyzing}
               className="mt-2 w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
-              {files.length > 1 ? `🤖 Analyser ${Math.min(files.length, 5)} fichier${Math.min(files.length, 5) > 1 ? 's' : ''} avec IA${files.length > 5 ? ` (sur ${files.length})` : ''}` : '🤖 Analyser avec IA'}
+              {files.length > 1 ? ` Analyser ${Math.min(files.length, 5)} fichier${Math.min(files.length, 5) > 1 ? 's' : ''} avec IA${files.length > 5 ? ` (sur ${files.length})` : ''}` : ' Analyser avec IA'}
             </button>
           )}
           {analyzing && (
@@ -955,15 +955,15 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
           )}
         </div>
 
-        {/* Résultat IA — mode multi-fichiers */}
+        {/* Résultat IA - mode multi-fichiers */}
         {aiResults.length > 1 && !analyzing && (
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-purple-800">🤖 Fichier {aiCurrentIdx + 1}/{aiResults.length}</span>
+              <span className="font-bold text-purple-800"> Fichier {aiCurrentIdx + 1}/{aiResults.length}</span>
               <span className="text-purple-600 text-[10px]">{aiResults[aiCurrentIdx]?._fileName}</span>
             </div>
             {aiResults[aiCurrentIdx]?._error ? (
-              <div className="text-red-600">❌ Erreur d'analyse pour ce fichier</div>
+              <div className="text-red-600"> Erreur d'analyse pour ce fichier</div>
             ) : (
               <>
                 <div>Fournisseur : <b>{aiResults[aiCurrentIdx]?.fournisseur}</b></div>
@@ -972,21 +972,21 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
                 <div className="text-gray-600 italic">{aiResults[aiCurrentIdx]?.explication}</div>
               </>
             )}
-            {/* Sélecteur Payé par — bien visible dans le carousel */}
+            {/* Sélecteur Payé par - bien visible dans le carousel */}
             <div>
               <label className="text-[10px] text-gray-500 font-medium">Payé par :</label>
               <div className="flex gap-1 mt-1">
-                {[{ v:'entreprise', l:'🏢 Entreprise', color: 'blue' },{ v:'hicham_perso', l:'🏠 Hicham', color: 'purple' },{ v:'maxime_perso', l:'🏠 Maxime', color: 'purple' }].map(p => (
+                {[{ v:'entreprise', l:' Entreprise', color: 'blue' },{ v:'hicham_perso', l:' Hicham', color: 'purple' },{ v:'maxime_perso', l:' Maxime', color: 'purple' }].map(p => (
                   <button key={p.v} onClick={() => setForm(f => ({ ...f, payer: p.v }))}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${form.payer === p.v ? (p.v === 'entreprise' ? 'bg-blue-500 text-white border-blue-600 ring-2 ring-blue-300' : 'bg-purple-500 text-white border-purple-600 ring-2 ring-purple-300') : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{p.l}</button>
                 ))}
               </div>
-              {form.payer !== 'entreprise' && <p className="text-[10px] text-purple-600 mt-0.5">⚠️ Sera comptabilisé en dette gérant</p>}
+              {form.payer !== 'entreprise' && <p className="text-[10px] text-purple-600 mt-0.5"> Sera comptabilisé en dette gérant</p>}
             </div>
             <div className="flex gap-2 pt-1">
               <button onClick={validateAndNext} disabled={saving || !form.description || !form.amount}
                 className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50">
-                {saving ? '⏳...' : `✅ Valider & ${aiCurrentIdx + 1 < aiResults.length ? 'Suivant' : 'Terminer'}`}
+                {saving ? '...' : ` Valider & ${aiCurrentIdx + 1 < aiResults.length ? 'Suivant' : 'Terminer'}`}
               </button>
               <button onClick={skipResult}
                 className="px-4 bg-gray-200 text-gray-700 py-2 rounded-lg text-xs font-medium hover:bg-gray-300">
@@ -996,10 +996,10 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
           </div>
         )}
 
-        {/* Résultat IA — mode fichier unique */}
+        {/* Résultat IA - mode fichier unique */}
         {aiResult && aiResults.length <= 1 && (
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs space-y-1">
-            <div className="font-bold text-purple-800">🤖 Résultat IA :</div>
+            <div className="font-bold text-purple-800"> Résultat IA :</div>
             <div>Fournisseur : <b>{aiResult.fournisseur}</b></div>
             <div>Montant : <b>{aiResult.montant} €</b></div>
             <div>Catégorie : <b>{aiResult.categorie_suggestion}</b></div>
@@ -1010,8 +1010,8 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
 
         {/* Direction */}
         <div className="flex gap-2">
-          <button onClick={() => setForm(f => ({ ...f, type: 'debit' }))} className={`flex-1 py-2 rounded-lg text-sm font-medium ${form.type === 'debit' ? 'bg-red-500 text-white' : 'bg-gray-100'}`}>🔴 Dépense</button>
-          <button onClick={() => setForm(f => ({ ...f, type: 'credit' }))} className={`flex-1 py-2 rounded-lg text-sm font-medium ${form.type === 'credit' ? 'bg-green-500 text-white' : 'bg-gray-100'}`}>🟢 Entrée</button>
+          <button onClick={() => setForm(f => ({ ...f, type: 'debit' }))} className={`flex-1 py-2 rounded-lg text-sm font-medium ${form.type === 'debit' ? 'bg-red-500 text-white' : 'bg-gray-100'}`}> Dépense</button>
+          <button onClick={() => setForm(f => ({ ...f, type: 'credit' }))} className={`flex-1 py-2 rounded-lg text-sm font-medium ${form.type === 'credit' ? 'bg-green-500 text-white' : 'bg-gray-100'}`}> Entrée</button>
         </div>
         <div><label className="text-xs text-gray-500">Date</label><input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
         <div><label className="text-xs text-gray-500">Description</label><input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Fournisseur / description" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
@@ -1025,19 +1025,19 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
         <div>
           <label className="text-xs text-gray-500">Payé par</label>
           <div className="flex gap-2 mt-1">
-            {[{ v:'entreprise', l:'🏢 Entreprise' },{ v:'hicham_perso', l:'🏠 Hicham' },{ v:'maxime_perso', l:'🏠 Maxime' }].map(p => (
+            {[{ v:'entreprise', l:' Entreprise' },{ v:'hicham_perso', l:' Hicham' },{ v:'maxime_perso', l:' Maxime' }].map(p => (
               <button key={p.v} onClick={() => setForm(f => ({ ...f, payer: p.v }))}
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${form.payer === p.v ? (p.v === 'entreprise' ? 'bg-blue-500 text-white border-blue-600' : 'bg-purple-500 text-white border-purple-600') : 'bg-white text-gray-600'}`}>{p.l}</button>
             ))}
           </div>
-          {form.payer !== 'entreprise' && <p className="text-xs text-purple-600 mt-1">⚠️ Hors budget entreprise → dette gérant</p>}
+          {form.payer !== 'entreprise' && <p className="text-xs text-purple-600 mt-1"> Hors budget entreprise → dette gérant</p>}
         </div>
 
         {/* ══ SECTION REPAS / INVITÉS ══ */}
         {isRestaurant && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-amber-800">🍽️ Registre repas professionnel</span>
+              <span className="text-sm font-medium text-amber-800"> Registre repas professionnel</span>
             </div>
 
             {/* Repas pour qui */}
@@ -1083,9 +1083,9 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
                     <button
                       onClick={() => { setProspectInitial({ name: g.company, contact_name: g.name }); setShowProspectModal(true) }}
                       className="text-xs text-emerald-600 hover:text-emerald-800 whitespace-nowrap" title="Créer comme prospect"
-                    >+🏢</button>
+                    >+</button>
                   )}
-                  <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                  <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600 text-xs"></button>
                 </div>
               ))}
             </div>
@@ -1096,13 +1096,13 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
         <div><label className="text-xs text-gray-500">Notes internes</label><input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="N° facture, détail..." className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
 
         <button onClick={handleSave} disabled={saving} className={`w-full py-3 rounded-lg font-medium disabled:opacity-50 ${editingTxId ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
-          {saving ? '⏳...' : editingTxId ? '✏️ Modifier' : '💾 Enregistrer'}
+          {saving ? '...' : editingTxId ? ' Modifier' : ' Enregistrer'}
         </button>
       </div>
 
       {/* Colonne droite */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <h3 className="font-bold text-gray-700 mb-3">📝 Dernières saisies</h3>
+        <h3 className="font-bold text-gray-700 mb-3"> Dernières saisies</h3>
         {recent.length === 0 ? <div className="text-center py-8 text-gray-400">Aucune saisie</div> : (
           <div className="space-y-2">{recent.map(tx => (
             <div key={tx.id} className={`p-2 rounded-lg border ${tx.is_personal ? 'bg-purple-50 border-purple-200' : 'bg-gray-50'}`}>
@@ -1120,15 +1120,15 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
               {/* Actions rapides */}
               <div className="flex items-center gap-1 mt-1.5 pt-1.5 border-t border-gray-200">
                 <div className="flex gap-0.5 flex-1">
-                  {[{ v:'entreprise', l:'Ent.', icon:'🏢' },{ v:'hicham_perso', l:'Hicham', icon:'🏠' },{ v:'maxime_perso', l:'Maxime', icon:'🏠' }].map(p => (
+                  {[{ v:'entreprise', l:'Ent.', icon:'' },{ v:'hicham_perso', l:'Hicham', icon:'' },{ v:'maxime_perso', l:'Maxime', icon:'' }].map(p => (
                     <button key={p.v} onClick={() => changePayer(tx.id, p.v)}
                       className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${tx.payer === p.v ? (p.v === 'entreprise' ? 'bg-blue-500 text-white' : 'bg-purple-500 text-white') : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                       {p.icon} {p.l}
                     </button>
                   ))}
                 </div>
-                <button onClick={() => editTxInForm(tx)} className="text-blue-500 hover:text-blue-700 text-xs px-1" title="Modifier">✏️</button>
-                <button onClick={() => deleteTxLocal(tx.id)} className="text-red-400 hover:text-red-600 text-xs px-1" title="Supprimer">🗑️</button>
+                <button onClick={() => editTxInForm(tx)} className="text-blue-500 hover:text-blue-700 text-xs px-1" title="Modifier"></button>
+                <button onClick={() => deleteTxLocal(tx.id)} className="text-red-400 hover:text-red-600 text-xs px-1" title="Supprimer"></button>
               </div>
             </div>
           ))}</div>
@@ -1149,7 +1149,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
               updateGuest(gIdx, 'client_id', newClient.id)
             }
             loadAll()
-            toast.success(`🏢 Prospect "${newClient.name}" créé`)
+            toast.success(`Prospect "${newClient.name}" créé`)
           }}
         />
       )}
@@ -1169,7 +1169,7 @@ function fileToBase64(file) {
 // Prépare un fichier pour l'analyse IA.
 // Les requêtes passent désormais par notre serveur (/api/ai-proxy), limité à ~4,5 Mo.
 // On ne touche pas aux fichiers normaux : seuls les PHOTOS volumineuses (> 3,5 Mo)
-// sont redimensionnées/compressées — Anthropic redimensionne de toute façon les
+// sont redimensionnées/compressées - Anthropic redimensionne de toute façon les
 // images au-delà de ~1568px, donc aucune perte de qualité utile pour la lecture.
 function prepareFileForAI(file) {
   const type = file.type || 'image/jpeg'
@@ -1210,7 +1210,7 @@ function prepareFileForAI(file) {
 }
 
 // ════════════════════════════════════════
-// RELEVÉS BANCAIRES — dépôt PDF + contrôle de cohérence
+// RELEVÉS BANCAIRES - dépôt PDF + contrôle de cohérence
 // ════════════════════════════════════════
 function RelevesTab({ statements, transactions, loadAll }) {
   const [uploading, setUploading] = useState(false)
@@ -1257,7 +1257,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
         setManual(true)
         setDraft({
           statement_number: '', statement_year: new Date().getFullYear(),
-          period_start: '', period_end: '', account_label: 'CMB — 00890689 40',
+          period_start: '', period_end: '', account_label: 'CMB - 00890689 40',
           opening_balance: '', closing_balance: '', total_debits: '', total_credits: '',
         })
         return
@@ -1265,9 +1265,9 @@ function RelevesTab({ statements, transactions, loadAll }) {
 
       setDraftFile(file)
       setDraft({ ...data.statement, _arithmetic_ok: data.arithmetic_ok, _delta: data.arithmetic_delta, _detail: data.arithmetic_detail })
-      if (data.warning) toast(data.warning, { icon: '⚠️', duration: 6000 })
+      if (data.warning) toast(data.warning, { icon: '', duration: 6000 })
       if (data.arithmetic_ok) toast.success('Relevé lu et vérifié')
-      else toast.error(`Contrôle arithmétique en échec (${data.arithmetic_delta} €) — vérifiez les valeurs`)
+      else toast.error(`Contrôle arithmétique en échec (${data.arithmetic_delta} €) - vérifiez les valeurs`)
     } catch (err) {
       toast.error('Erreur : ' + err.message)
     } finally {
@@ -1307,7 +1307,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
         statement_year: draft.statement_year ? parseInt(draft.statement_year, 10) : null,
         period_start: draft.period_start || null,
         period_end: draft.period_end,
-        account_label: draft.account_label || 'CMB — 00890689 40',
+        account_label: draft.account_label || 'CMB - 00890689 40',
         opening_balance: opening,
         closing_balance: closing,
         total_debits: debits,
@@ -1382,14 +1382,14 @@ function RelevesTab({ statements, transactions, loadAll }) {
     <div className="space-y-4">
       {/* ── Dépôt ── */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <h3 className="font-bold text-gray-700 mb-1">🏦 Relevés bancaires</h3>
+        <h3 className="font-bold text-gray-700 mb-1"> Relevés bancaires</h3>
         <p className="text-xs text-gray-500 mb-3">
           Déposez le PDF du relevé CMB à chaque début de mois. Les soldes sont lus automatiquement
           puis comparés au solde calculé par Campus : tout écart signale une ligne manquante ou un doublon.
         </p>
         <input ref={fileRef} type="file" accept="application/pdf" onChange={handleFile} disabled={uploading || saving}
           className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-        {uploading && <div className="mt-2 text-sm text-gray-500">⏳ Lecture du relevé...</div>}
+        {uploading && <div className="mt-2 text-sm text-gray-500"> Lecture du relevé...</div>}
       </div>
 
       {/* ── Validation avant enregistrement ── */}
@@ -1397,7 +1397,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
         <div className={`bg-white rounded-xl shadow-sm border-2 p-4 ${draft._arithmetic_ok === false || manual ? 'border-amber-300' : 'border-green-300'}`}>
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-bold text-gray-700">
-              {manual ? '✏️ Saisie manuelle' : (draft._arithmetic_ok ? '✅ Relevé vérifié' : '⚠️ Contrôle en échec')}
+              {manual ? ' Saisie manuelle' : (draft._arithmetic_ok ? ' Relevé vérifié' : ' Contrôle en échec')}
             </h4>
             <button onClick={() => { setDraft(null); setDraftFile(null); setManual(false) }} className="text-xs text-gray-400 hover:text-gray-600">Annuler</button>
           </div>
@@ -1410,7 +1410,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
               <div className="border-t pt-0.5 mt-0.5">= attendu : {fmt(draft._detail.expected_closing)}</div>
               <div>déclaré : {fmt(draft._detail.declared_closing)}</div>
               <div className={draft._arithmetic_ok ? 'text-green-600' : 'text-red-600'}>
-                écart : {fmt(draft._delta)} {draft._arithmetic_ok ? '✓' : '✕'}
+                écart : {fmt(draft._delta)} {draft._arithmetic_ok ? '' : ''}
               </div>
             </div>
           )}
@@ -1442,14 +1442,14 @@ function RelevesTab({ statements, transactions, loadAll }) {
             <div className="mt-3 text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
               Solde Campus au {fmtDateFR(draft.period_end)} : <strong>{fmt(campusBalanceAt(draft.period_end))}</strong>
               {Number.isFinite(parseFloat(draft.closing_balance)) && (
-                <> — écart avec le relevé : <strong>{fmt(Math.round((campusBalanceAt(draft.period_end) - parseFloat(draft.closing_balance)) * 100) / 100)}</strong></>
+                <> - écart avec le relevé : <strong>{fmt(Math.round((campusBalanceAt(draft.period_end) - parseFloat(draft.closing_balance)) * 100) / 100)}</strong></>
               )}
             </div>
           )}
 
           <button onClick={saveDraft} disabled={saving}
             className="mt-3 w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50">
-            {saving ? '⏳ Enregistrement...' : '💾 Enregistrer le relevé'}
+            {saving ? ' Enregistrement...' : ' Enregistrer le relevé'}
           </button>
         </div>
       )}
@@ -1484,37 +1484,37 @@ function RelevesTab({ statements, transactions, loadAll }) {
                   return (
                     <tr key={st.id} className="border-t hover:bg-blue-50/30">
                       <td className="px-3 py-2 whitespace-nowrap">{fmtDateFR(st.period_end)}</td>
-                      <td className="px-3 py-2 text-gray-500 text-xs">{st.statement_number ? `${st.statement_number}/${st.statement_year}` : '—'}</td>
+                      <td className="px-3 py-2 text-gray-500 text-xs">{st.statement_number ? `${st.statement_number}/${st.statement_year}` : '-'}</td>
                       <td className="px-3 py-2 text-right font-mono text-xs">{fmt(st.opening_balance)}</td>
                       <td className={`px-3 py-2 text-right font-mono text-xs font-bold ${st.closing_balance < 0 ? 'text-red-600' : 'text-green-700'}`}>{fmt(st.closing_balance)}</td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-gray-600">{fmt(campusNow)}</td>
                       <td className="px-3 py-2 text-center text-xs">
                         {aligned
-                          ? <span className="text-green-600" title="Campus est aligné sur le relevé">✓ 0,00 €</span>
+                          ? <span className="text-green-600" title="Campus est aligné sur le relevé"> 0,00 €</span>
                           : <span className="text-red-600 font-bold" title="Ligne manquante ou doublon dans Campus">{fmt(delta)}</span>}
-                        {!st.arithmetic_ok && <span className="ml-1 text-amber-500" title="Le relevé lui-même ne se vérifie pas">⚠️</span>}
-                        {st.parse_source === 'manual' && <span className="ml-1 text-gray-400" title="Saisi manuellement">✏️</span>}
+                        {!st.arithmetic_ok && <span className="ml-1 text-amber-500" title="Le relevé lui-même ne se vérifie pas"></span>}
+                        {st.parse_source === 'manual' && <span className="ml-1 text-gray-400" title="Saisi manuellement"></span>}
                       </td>
                       <td className="px-3 py-2 text-center">
                         {st.sent_to_comptable ? (
-                          <span className="text-xs text-green-600" title={st.sent_to_comptable_at ? `Envoyé le ${fmtDateFR(st.sent_to_comptable_at)}` : 'Envoyé'}>✓ envoyé</span>
+                          <span className="text-xs text-green-600" title={st.sent_to_comptable_at ? `Envoyé le ${fmtDateFR(st.sent_to_comptable_at)}` : 'Envoyé'}> envoyé</span>
                         ) : (
                           <button
                             onClick={() => sendToComptable(st)}
                             disabled={sendingId === st.id}
                             className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
                           >
-                            {sendingId === st.id ? '⏳' : '📮 Envoyer'}
+                            {sendingId === st.id ? '' : ' Envoyer'}
                           </button>
                         )}
                       </td>
                       <td className="px-2 py-2 text-right whitespace-nowrap">
                         {st.sent_to_comptable && (
                           <button onClick={() => sendToComptable(st)} disabled={sendingId === st.id}
-                            className="text-gray-300 hover:text-green-600 text-xs mr-2" title="Renvoyer au comptable">🔄</button>
+                            className="text-gray-300 hover:text-green-600 text-xs mr-2" title="Renvoyer au comptable"></button>
                         )}
-                        <button onClick={() => openPdf(st)} className="text-blue-500 hover:text-blue-700 text-xs mr-2" title="Ouvrir le PDF">📄</button>
-                        <button onClick={() => deleteStatement(st)} className="text-red-300 hover:text-red-600 text-xs" title="Supprimer">✕</button>
+                        <button onClick={() => openPdf(st)} className="text-blue-500 hover:text-blue-700 text-xs mr-2" title="Ouvrir le PDF"></button>
+                        <button onClick={() => deleteStatement(st)} className="text-red-300 hover:text-red-600 text-xs" title="Supprimer"></button>
                       </td>
                     </tr>
                   )
@@ -1559,7 +1559,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
   const [showInvResend, setShowInvResend] = useState(false)
   const [invResendSelected, setInvResendSelected] = useState(new Set())
 
-  // Destinataire comptable — lu depuis org_settings (plus aucune adresse en dur)
+  // Destinataire comptable - lu depuis org_settings (plus aucune adresse en dur)
   const [comptable, setComptable] = useState({ name: '', email: '' })
   useEffect(() => {
     supabase.from('org_settings').select('comptable_name, comptable_email').limit(1).maybeSingle()
@@ -1697,7 +1697,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
         .update({ sent_to_comptable: false, sent_to_comptable_at: null })
         .in('id', ids)
       if (error) { toast.error('Erreur: ' + error.message); setResetting(false); return }
-      toast.success(`🔄 ${ids.length} opération(s) remise(s) en file d'envoi`)
+      toast.success(`${ids.length} opération(s) remise(s) en file d'envoi`)
       setResendSelected(new Set())
       setShowResend(false)
       loadAll()
@@ -1717,7 +1717,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
         .update({ sent_to_comptable: false, sent_to_comptable_at: null })
         .in('id', ids)
       if (error) { toast.error('Erreur: ' + error.message); setResetting(false); return }
-      toast.success(`🔄 ${ids.length} facture(s) remise(s) en file d'envoi`)
+      toast.success(`${ids.length} facture(s) remise(s) en file d'envoi`)
       setInvResendSelected(new Set())
       setShowInvResend(false)
       loadInvoices()
@@ -1739,7 +1739,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
       })
       const result = await resp.json()
       if (result.success) {
-        toast.success(`✅ ${result.message}`)
+        toast.success(`${result.message}`)
         setNotes('')
         loadAll()
       } else {
@@ -1815,7 +1815,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
             const inv = r.value?.invoice || r.reason
             const ref = inv?.reference || '?'
             console.error(`Erreur Factur-X ${ref}:`, r.value?.err || r.reason)
-            toast.error(`⚠️ Erreur Factur-X ${ref} — facture ignorée`)
+            toast.error(`Erreur Factur-X ${ref} - facture ignorée`)
           }
         }
       }
@@ -1862,7 +1862,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
       const result = await resp.json()
 
       if (result.success) {
-        toast.success(`✅ ${result.message}`)
+        toast.success(`${result.message}`)
         setInvNotes('')
         loadInvoices()
         supabase.from('invoice_emails_sent').select('*').order('sent_at', { ascending: false }).limit(20)
@@ -1923,7 +1923,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
                 <td className="px-2 py-1">{tx.category_name}</td>
                 <td className="px-2 py-1 text-right font-mono">{tx.debit > 0 ? <span className="text-red-600">-{fmt(tx.debit)}</span> : <span className="text-green-600">+{fmt(tx.credit)}</span>}</td>
                 <td className="px-2 py-1 text-center">{tx.is_personal ? <span className="text-purple-600">Perso</span> : <span className="text-blue-600">Ent.</span>}</td>
-                <td className="px-2 py-1 text-center">{receipts[tx.id]?.length > 0 ? `📎${receipts[tx.id].length}` : <span className="text-orange-400">⚠️</span>}</td>
+                <td className="px-2 py-1 text-center">{receipts[tx.id]?.length > 0 ? `${receipts[tx.id].length}` : <span className="text-orange-400"></span>}</td>
               </tr>
             ))}
           </tbody>
@@ -1937,12 +1937,12 @@ function ComptableTab({ transactions, receipts, loadAll }) {
       {/* ═══════════════ SECTION 1 : Pièces comptables (transactions budget) ═══════════════ */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-gray-700">📮 Pièces comptables (justificatifs)</h3>
+          <h3 className="font-bold text-gray-700"> Pièces comptables (justificatifs)</h3>
           <div className={`text-xs ${comptable.email ? 'text-gray-400' : 'text-amber-600 font-medium'}`}>→ {comptableLabel}</div>
         </div>
 
         {toSend.length === 0 ? (
-          <div className="text-center py-6 text-gray-400 text-sm">✅ Tous les justificatifs ont été envoyés</div>
+          <div className="text-center py-6 text-gray-400 text-sm"> Tous les justificatifs ont été envoyés</div>
         ) : (
           <>
             <TxTable items={toSend} selectedSet={selected} onToggle={toggleSelect} selectAll={setSelected} />
@@ -1950,7 +1950,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
               <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes pour le comptable (optionnel)..." className="w-full border rounded-lg px-3 py-2 text-sm h-16 resize-y" />
               <button onClick={handleSend} disabled={sending || selected.size === 0}
                 className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50">
-                {sending ? '⏳ Envoi en cours...' : `📮 Envoyer ${selected.size} justificatif(s)`}
+                {sending ? ' Envoi en cours...' : ` Envoyer ${selected.size} justificatif(s)`}
               </button>
             </div>
           </>
@@ -1960,14 +1960,14 @@ function ComptableTab({ transactions, receipts, loadAll }) {
           <div className="mt-3 pt-3 border-t">
             <button onClick={() => { setShowResend(!showResend); setResendSelected(new Set()) }}
               className="text-xs text-blue-600 hover:text-blue-800">
-              {showResend ? '▲ Masquer' : `🔄 Renvoyer des justificatifs (${alreadySent.length} déjà envoyé(s))`}
+              {showResend ? '▲ Masquer' : ` Renvoyer des justificatifs (${alreadySent.length} déjà envoyé(s))`}
             </button>
             {showResend && (
               <div className="mt-2">
                 <TxTable items={alreadySent} selectedSet={resendSelected} onToggle={toggleResend} selectAll={setResendSelected} />
                 <button onClick={handleRequeue} disabled={resetting || resendSelected.size === 0}
                   className="mt-2 w-full bg-amber-500 text-white py-2 rounded-lg font-medium hover:bg-amber-600 disabled:opacity-50 text-sm">
-                  {resetting ? '⏳...' : `🔄 Remettre ${resendSelected.size} en file d'envoi`}
+                  {resetting ? '...' : ` Remettre ${resendSelected.size} en file d'envoi`}
                 </button>
               </div>
             )}
@@ -1978,7 +1978,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
       {/* ═══════════════ SECTION 2 : Factures clients ═══════════════ */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-gray-700">🧾 Factures clients (récap mensuel + PDFs)</h3>
+          <h3 className="font-bold text-gray-700"> Factures clients (récap mensuel + PDFs)</h3>
           <div className={`text-xs ${comptable.email ? 'text-gray-400' : 'text-amber-600 font-medium'}`}>→ {comptableLabel}</div>
         </div>
 
@@ -1987,18 +1987,18 @@ function ComptableTab({ transactions, receipts, loadAll }) {
             className="border rounded-lg px-3 py-2 text-sm font-medium">
             {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          {invLoading && <span className="text-xs text-gray-400">⏳ Chargement...</span>}
+          {invLoading && <span className="text-xs text-gray-400"> Chargement...</span>}
           {!invLoading && <span className="text-xs text-gray-500">
             {invoicesData.length} facture(s) • {invToSend.length} à envoyer • {invAlreadySent.length} déjà envoyée(s)
           </span>}
         </div>
 
         {invLoading ? (
-          <div className="text-center py-8 text-gray-400">⏳ Chargement des factures...</div>
+          <div className="text-center py-8 text-gray-400"> Chargement des factures...</div>
         ) : invToSend.length === 0 && invAlreadySent.length === 0 ? (
           <div className="text-center py-8 text-gray-400">Aucune facture pour ce mois</div>
         ) : invToSend.length === 0 ? (
-          <div className="text-center py-6 text-gray-400 text-sm">✅ Toutes les factures du mois ont été envoyées</div>
+          <div className="text-center py-6 text-gray-400 text-sm"> Toutes les factures du mois ont été envoyées</div>
         ) : (
           <>
             <div className="max-h-72 overflow-y-auto border rounded-lg">
@@ -2053,7 +2053,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
                 <div><span className="text-gray-500">TVA :</span> <span className="font-bold">{fmt(invTotals.tva)}</span></div>
                 <div><span className="text-gray-500">TTC :</span> <span className="font-bold text-green-700">{fmt(invTotals.ttc)}</span></div>
                 {invTotals.overdue > 0 && (
-                  <div className="col-span-full"><span className="text-red-600 font-bold">⚠️ {invTotals.overdue} en retard — {fmt(invTotals.overdueAmount)} impayé</span></div>
+                  <div className="col-span-full"><span className="text-red-600 font-bold"> {invTotals.overdue} en retard - {fmt(invTotals.overdueAmount)} impayé</span></div>
                 )}
               </div>
             )}
@@ -2065,8 +2065,8 @@ function ComptableTab({ transactions, receipts, loadAll }) {
               <button onClick={handleSendInvoices} disabled={invSending || invSelected.size === 0}
                 className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50">
                 {invSending
-                  ? `⏳ ${invProgress?.step || 'Envoi...'} (${invProgress?.current || 0}/${invProgress?.total || 0})`
-                  : `🧾 Envoyer ${invSelected.size} facture(s) + PDFs au comptable`}
+                  ? ` ${invProgress?.step || 'Envoi...'} (${invProgress?.current || 0}/${invProgress?.total || 0})`
+                  : ` Envoyer ${invSelected.size} facture(s) + PDFs au comptable`}
               </button>
             </div>
           </>
@@ -2076,7 +2076,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
           <div className="mt-3 pt-3 border-t">
             <button onClick={() => { setShowInvResend(!showInvResend); setInvResendSelected(new Set()) }}
               className="text-xs text-blue-600 hover:text-blue-800">
-              {showInvResend ? '▲ Masquer' : `🔄 Renvoyer des factures (${invAlreadySent.length} déjà envoyée(s))`}
+              {showInvResend ? '▲ Masquer' : ` Renvoyer des factures (${invAlreadySent.length} déjà envoyée(s))`}
             </button>
             {showInvResend && (
               <div className="mt-2">
@@ -2102,7 +2102,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
                           <td className="px-2 py-1 font-mono font-bold">{d.invoice.reference}</td>
                           <td className="px-2 py-1 truncate max-w-32">{d.client?.name || '-'}</td>
                           <td className="px-2 py-1 text-right font-mono">{fmt(d.invoice.total_ttc)}</td>
-                          <td className="px-2 py-1 text-center text-green-600">{d.invoice.sent_to_comptable_at ? new Date(d.invoice.sent_to_comptable_at).toLocaleDateString('fr-FR') : '✓'}</td>
+                          <td className="px-2 py-1 text-center text-green-600">{d.invoice.sent_to_comptable_at ? new Date(d.invoice.sent_to_comptable_at).toLocaleDateString('fr-FR') : ''}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -2110,7 +2110,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
                 </div>
                 <button onClick={handleInvRequeue} disabled={resetting || invResendSelected.size === 0}
                   className="mt-2 w-full bg-amber-500 text-white py-2 rounded-lg font-medium hover:bg-amber-600 disabled:opacity-50 text-sm">
-                  {resetting ? '⏳...' : `🔄 Remettre ${invResendSelected.size} facture(s) en file d'envoi`}
+                  {resetting ? '...' : ` Remettre ${invResendSelected.size} facture(s) en file d'envoi`}
                 </button>
               </div>
             )}
@@ -2120,7 +2120,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
 
       {/* ═══════════════ SECTION 3 : Historique combiné ═══════════════ */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <h3 className="font-bold text-gray-700 mb-3">📋 Historique des envois</h3>
+        <h3 className="font-bold text-gray-700 mb-3"> Historique des envois</h3>
 
         {history.length > 0 && (
           <div className="mb-4">
@@ -2128,7 +2128,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
             <div className="space-y-1.5">
               {history.map(h => (
                 <div key={h.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border text-sm">
-                  <span className="text-green-500">📮</span>
+                  <span className="text-green-500"></span>
                   <div className="flex-1">
                     <div className="font-medium">{new Date(h.sent_at).toLocaleDateString('fr-FR')} à {new Date(h.sent_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
                     <div className="text-xs text-gray-500">{h.nb_transactions} opérations • {h.nb_receipts} PJ • par {h.sent_by}</div>
@@ -2146,7 +2146,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
             <div className="space-y-1.5">
               {invHistory.map(h => (
                 <div key={h.id} className="flex items-center gap-3 p-2 bg-indigo-50 rounded-lg border border-indigo-100 text-sm">
-                  <span className="text-indigo-500">🧾</span>
+                  <span className="text-indigo-500"></span>
                   <div className="flex-1">
                     <div className="font-medium">{new Date(h.sent_at).toLocaleDateString('fr-FR')} à {new Date(h.sent_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
                     <div className="text-xs text-gray-500">
@@ -2179,7 +2179,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
   const defaultMonth = months.includes(curMonthKey) ? curMonthKey : (months[months.length - 1] || curMonthKey)
   const [selMonth, setSelMonth] = useState(defaultMonth)
 
-  // Charger les factures localement (invoicesProp peut arriver vide — pattern identique aux autres tabs)
+  // Charger les factures localement (invoicesProp peut arriver vide - pattern identique aux autres tabs)
   const [localInvoices, setLocalInvoices] = useState(null)
   useEffect(() => {
     supabase.from('invoices')
@@ -2348,22 +2348,22 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
         <div className="space-y-2">
           {facturesRetard.length > 0 && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
-              <span className="text-lg leading-none">🚨</span>
+              <span className="text-lg leading-none"></span>
               <div>
                 <span className="font-semibold">{facturesRetard.length} facture{facturesRetard.length > 1 ? 's' : ''} en retard</span>
-                {' '}— {fmt(montantRetard)} impayé{facturesRetard.length > 1 ? 's' : ''}, jusqu'à <strong>{maxRetardJours} jours</strong> de retard
+                {' '}- {fmt(montantRetard)} impayé{facturesRetard.length > 1 ? 's' : ''}, jusqu'à <strong>{maxRetardJours} jours</strong> de retard
               </div>
             </div>
           )}
           {mCur.resultat < 0 && (
             <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm text-orange-700">
-              <span>⚠️</span>
-              <span><strong>Mois déficitaire</strong> — les charges ({fmt(mCur.charges)}) dépassent le CA encaissé ({fmt(mCur.caEnc)})</span>
+              <span></span>
+              <span><strong>Mois déficitaire</strong> - les charges ({fmt(mCur.charges)}) dépassent le CA encaissé ({fmt(mCur.caEnc)})</span>
             </div>
           )}
           {isCurrentMonth && mCur.caEnc === 0 && (
             <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
-              <span>📭</span>
+              <span></span>
               <span><strong>Aucun CA encaissé</strong> ce mois pour l'instant</span>
             </div>
           )}
@@ -2393,16 +2393,16 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
         />
         <KpiCard
           label="Ratio charges/CA"
-          value={mCur.caEnc > 0 ? mCur.ratioCharges.toFixed(0) + '%' : '—'}
+          value={mCur.caEnc > 0 ? mCur.ratioCharges.toFixed(0) + '%' : '-'}
           color={ratioColor}
-          sub={mCur.caEnc > 0 ? (mCur.ratioCharges > 85 ? '🔴 Critique' : mCur.ratioCharges > 70 ? '🟠 Élevé' : '🟢 Sain') : undefined}
+          sub={mCur.caEnc > 0 ? (mCur.ratioCharges > 85 ? ' Critique' : mCur.ratioCharges > 70 ? ' Élevé' : ' Sain') : undefined}
         />
       </div>
 
       {/* ── CA encaissé vs CA facturé + TVA ── */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border p-4">
-          <h3 className="font-bold text-gray-700 mb-3">💶 CA encaissé vs facturé</h3>
+          <h3 className="font-bold text-gray-700 mb-3"> CA encaissé vs facturé</h3>
           <div className="space-y-3">
             <div>
               <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -2424,7 +2424,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
             </div>
             {caFacture > mCur.caEnc && (
               <div className="text-xs text-orange-600 bg-orange-50 rounded-lg px-3 py-1.5">
-                💡 {fmt(caFacture - mCur.caEnc)} facturé mais pas encore encaissé ce mois
+                 {fmt(caFacture - mCur.caEnc)} facturé mais pas encore encaissé ce mois
               </div>
             )}
             {invMois.length > 0 && (
@@ -2434,7 +2434,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
         </div>
 
         <div className="bg-white rounded-xl border p-4">
-          <h3 className="font-bold text-gray-700 mb-3">🏛️ TVA — estimation indicative</h3>
+          <h3 className="font-bold text-gray-700 mb-3"> TVA - estimation indicative</h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-xs text-gray-500">TVA sur encaissements (20%)</span>
@@ -2447,7 +2447,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
               </div>
             )}
             <div className="border-t pt-2 text-xs text-gray-400">
-              ⚠️ Estimation basée sur 20% du CA TTC encaissé. Certains clients peuvent être exonérés. Vérifier avec votre comptable.
+               Estimation basée sur 20% du CA TTC encaissé. Certains clients peuvent être exonérés. Vérifier avec votre comptable.
             </div>
           </div>
         </div>
@@ -2456,7 +2456,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
       {/* ── Projection fin de mois ── */}
       {isCurrentMonth && joursEcoules >= 3 && projCA > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="font-bold text-blue-700 mb-2">📅 Projection fin de mois — {joursRestants} jours restants</h3>
+          <h3 className="font-bold text-blue-700 mb-2"> Projection fin de mois - {joursRestants} jours restants</h3>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-xs text-gray-500 mb-1">CA projeté</div>
@@ -2480,7 +2480,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
       {/* ── Comparaison mois courant vs précédent ── */}
       {prevMonth && (
         <div className="bg-white rounded-xl border p-4">
-          <h3 className="font-bold text-gray-700 mb-3">📊 Comparaison {ML[selMonth] || selMonth} vs {ML[prevMonth] || prevMonth}</h3>
+          <h3 className="font-bold text-gray-700 mb-3"> Comparaison {ML[selMonth] || selMonth} vs {ML[prevMonth] || prevMonth}</h3>
           <div className="space-y-2">
             {[
               { label: 'CA encaissé', cur: mCur.caEnc, prev: mPrev.caEnc, color: 'green' },
@@ -2522,7 +2522,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
       {/* ── Top dépenses + revenus du mois ── */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border p-4">
-          <h3 className="font-bold text-gray-700 mb-3">🔴 Dépenses du mois</h3>
+          <h3 className="font-bold text-gray-700 mb-3"> Dépenses du mois</h3>
           {topDep.length === 0
             ? <div className="text-center py-6 text-gray-400 text-sm">Aucune dépense ce mois</div>
             : <div className="space-y-1.5">
@@ -2531,7 +2531,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
                   const pct = ((v / mCur.charges) * 100).toFixed(0)
                   return (
                     <div key={n} className="flex items-center gap-2">
-                      <span className="text-sm w-5">{cat?.icon || '📁'}</span>
+                      <span className="text-sm w-5">{cat?.icon || ''}</span>
                       <div className="flex-1">
                         <div className="flex justify-between text-xs">
                           <span className="text-gray-700 truncate">{n}</span>
@@ -2548,7 +2548,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
           }
         </div>
         <div className="bg-white rounded-xl border p-4">
-          <h3 className="font-bold text-gray-700 mb-3">🟢 Revenus du mois</h3>
+          <h3 className="font-bold text-gray-700 mb-3"> Revenus du mois</h3>
           {topRev.length === 0
             ? <div className="text-center py-6 text-gray-400 text-sm">Aucun revenu ce mois</div>
             : <div className="space-y-1.5">
@@ -2556,7 +2556,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
                   const cat = categories.find(c => c.name === n)
                   return (
                     <div key={n} className="flex items-center gap-2">
-                      <span className="text-sm w-5">{cat?.icon || '📁'}</span>
+                      <span className="text-sm w-5">{cat?.icon || ''}</span>
                       <div className="flex-1">
                         <div className="flex justify-between text-xs">
                           <span className="text-gray-700 truncate">{n}</span>
@@ -2576,7 +2576,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
 
       {/* ── Flux mensuels historique ── */}
       <div className="bg-white rounded-xl border p-4">
-        <h3 className="font-bold text-gray-700 mb-3">📈 Historique des flux</h3>
+        <h3 className="font-bold text-gray-700 mb-3"> Historique des flux</h3>
         <div className="space-y-2">
           {sm.map(m => {
             const d = stats.byMonth[m] || { debit: 0, credit: 0 }
@@ -2606,7 +2606,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
       {/* ── CCA gérants ── */}
       {(stats.compteHicham > 0 || stats.compteMaxime > 0) && (
         <div className="bg-purple-50 rounded-xl border border-purple-200 p-4">
-          <h3 className="font-bold text-purple-800 mb-2">🏠 Comptes courants associés</h3>
+          <h3 className="font-bold text-purple-800 mb-2"> Comptes courants associés</h3>
           <div className="grid md:grid-cols-2 gap-3">
             <div className="bg-white rounded-lg p-3 border border-purple-100"><div className="text-sm text-gray-600">Hicham</div><div className="text-xl font-bold text-purple-700">{fmt(stats.compteHicham)}</div></div>
             <div className="bg-white rounded-lg p-3 border border-purple-100"><div className="text-sm text-gray-600">Maxime</div><div className="text-xl font-bold text-purple-700">{fmt(stats.compteMaxime)}</div></div>
@@ -2621,18 +2621,18 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
 // CATEGORIES
 // ════════════════════════════════════════
 function CategoriesTab({ categories, loadAll }) {
-  const [nw, setNw] = useState({ name:'', direction:'depense', type:'variable', icon:'📁' })
+  const [nw, setNw] = useState({ name:'', direction:'depense', type:'variable', icon:'' })
   const [editId, setEditId] = useState(null)
   const [ef, setEf] = useState({})
-  const icons = ['📁','💰','🏦','🚗','⛽','🏥','💻','📱','🍽️','🚄','🎓','🤝','🏠','🛒','🖨️','📋','🧮','📞','🔧','📦','🏢','❓','⚡','🔄','↩️','🛡️']
-  async function add() { if(!nw.name.trim()){toast.error('Nom requis');return}; const ms=Math.max(...categories.map(c=>c.sort_order||0),0); const{error}=await supabase.from('budget_categories').insert({...nw,color:'gray',sort_order:ms+1}); if(error){toast.error(error.code==='23505'?'Existe déjà':'Erreur');return}; toast.success('✅ Créée'); setNw({name:'',direction:'depense',type:'variable',icon:'📁'}); loadAll() }
-  async function upd() { if(!ef.name?.trim())return; await supabase.from('budget_categories').update(ef).eq('id',editId); toast.success('✅ Modifié'); setEditId(null); loadAll() }
+  const icons = ['','','','','','','','','','','','','','','','','','','','','','','','','↩','']
+  async function add() { if(!nw.name.trim()){toast.error('Nom requis');return}; const ms=Math.max(...categories.map(c=>c.sort_order||0),0); const{error}=await supabase.from('budget_categories').insert({...nw,color:'gray',sort_order:ms+1}); if(error){toast.error(error.code==='23505'?'Existe déjà':'Erreur');return}; toast.success('Créée'); setNw({name:'',direction:'depense',type:'variable',icon:''}); loadAll() }
+  async function upd() { if(!ef.name?.trim())return; await supabase.from('budget_categories').update(ef).eq('id',editId); toast.success('Modifié'); setEditId(null); loadAll() }
   async function del(id,n) { const{count}=await supabase.from('budget_transactions').select('id',{count:'exact',head:true}).eq('category_id',id); if(count>0){toast.error(`${count} transactions utilisent "${n}"`);return}; if(!confirm(`Supprimer "${n}" ?`))return; await supabase.from('budget_categories').delete().eq('id',id); toast.success('Supprimé'); loadAll() }
 
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <h3 className="font-bold text-gray-700 mb-3">➕ Nouvelle catégorie</h3>
+        <h3 className="font-bold text-gray-700 mb-3"> Nouvelle catégorie</h3>
         <div className="flex gap-2 flex-wrap">
           <select value={nw.icon} onChange={e=>setNw(n=>({...n,icon:e.target.value}))} className="border rounded-lg px-2 py-2 text-lg w-14">{icons.map(i=><option key={i} value={i}>{i}</option>)}</select>
           <input type="text" value={nw.name} onChange={e=>setNw(n=>({...n,name:e.target.value}))} placeholder="Nom" className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-40"/>
@@ -2649,7 +2649,7 @@ function CategoriesTab({ categories, loadAll }) {
               <td className="px-3 py-1"><input type="text" value={ef.name} onChange={e=>setEf(f=>({...f,name:e.target.value}))} className="border rounded px-2 py-1 text-sm w-full"/></td>
               <td className="px-3 py-1"><select value={ef.direction} onChange={e=>setEf(f=>({...f,direction:e.target.value}))} className="border rounded px-2 py-1 text-xs"><option value="depense">Dépense</option><option value="recette">Recette</option><option value="neutre">Neutre</option></select></td>
               <td className="px-3 py-1"><select value={ef.type} onChange={e=>setEf(f=>({...f,type:e.target.value}))} className="border rounded px-2 py-1 text-xs"><option value="fixe">Fixe</option><option value="variable">Variable</option><option value="exceptionnel">Exceptionnel</option></select></td>
-              <td className="px-3 py-1 text-right"><button onClick={upd} className="text-green-600 text-xs mr-2">✓</button><button onClick={()=>setEditId(null)} className="text-gray-400 text-xs">✕</button></td>
+              <td className="px-3 py-1 text-right"><button onClick={upd} className="text-green-600 text-xs mr-2"></button><button onClick={()=>setEditId(null)} className="text-gray-400 text-xs"></button></td>
             </>):(<>
               <td className="px-3 py-1.5 text-lg">{cat.icon}</td>
               <td className="px-3 py-1.5 font-medium text-gray-700">{cat.name}</td>
@@ -2665,7 +2665,7 @@ function CategoriesTab({ categories, loadAll }) {
 }
 
 // ════════════════════════════════════════
-// RULES — avec édition inline, recherche, filtres
+// RULES - avec édition inline, recherche, filtres
 // ════════════════════════════════════════
 function RulesTab({ rules, categories, loadAll }) {
   const [nw, setNw] = useState({ keyword:'', category_id:'', direction:'both' })
@@ -2682,7 +2682,7 @@ function RulesTab({ rules, categories, loadAll }) {
     const { error } = await supabase.from('budget_rules').insert({ keyword: nw.keyword.toUpperCase().trim(), category_id: nw.category_id, direction: nw.direction })
     setSaving(false)
     if (error) { toast.error(error.code === '23505' ? 'Ce mot-clé existe déjà' : 'Erreur: ' + error.message); return }
-    toast.success('✅ Règle ajoutée')
+    toast.success('Règle ajoutée')
     setNw({ keyword: '', category_id: '', direction: 'both' })
     loadAll()
   }
@@ -2709,7 +2709,7 @@ function RulesTab({ rules, categories, loadAll }) {
     }).eq('id', editId)
     setSaving(false)
     if (error) { toast.error(error.code === '23505' ? 'Ce mot-clé existe déjà' : 'Erreur: ' + error.message); return }
-    toast.success('✅ Règle modifiée')
+    toast.success('Règle modifiée')
     setEditId(null)
     setEditData({})
     loadAll()
@@ -2740,7 +2740,7 @@ function RulesTab({ rules, categories, loadAll }) {
     return Object.entries(map).sort((a, b) => b[1] - a[1])
   }, [rules])
 
-  const dirLabel = { both: '⚪ Tous', debit: '🔴 Débit', credit: '🟢 Crédit' }
+  const dirLabel = { both: ' Tous', debit: ' Débit', credit: ' Crédit' }
 
   return (
     <div className="space-y-4">
@@ -2766,7 +2766,7 @@ function RulesTab({ rules, categories, loadAll }) {
 
       {/* Formulaire ajout */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <h3 className="font-bold text-gray-700 mb-3">➕ Nouvelle règle</h3>
+        <h3 className="font-bold text-gray-700 mb-3"> Nouvelle règle</h3>
         <div className="flex gap-2 flex-wrap">
           <input
             type="text"
@@ -2781,9 +2781,9 @@ function RulesTab({ rules, categories, loadAll }) {
             {categories.sort((a, b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </select>
           <select value={nw.direction} onChange={e => setNw(r => ({ ...r, direction: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm">
-            <option value="both">⚪ Les deux</option>
-            <option value="debit">🔴 Débit</option>
-            <option value="credit">🟢 Crédit</option>
+            <option value="both"> Les deux</option>
+            <option value="debit"> Débit</option>
+            <option value="credit"> Crédit</option>
           </select>
           <button onClick={add} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
             {saving ? '...' : 'Ajouter'}
@@ -2799,25 +2799,25 @@ function RulesTab({ rules, categories, loadAll }) {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="🔍 Rechercher mot-clé ou catégorie..."
+              placeholder=" Rechercher mot-clé ou catégorie..."
               className="w-full border rounded-lg px-3 py-2 text-sm pr-8"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"></button>
             )}
           </div>
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="border rounded-lg px-3 py-2 text-sm min-w-48">
             <option value="">Toutes les catégories</option>
             {catStats.map(([name, count]) => {
               const cat = categories.find(c => c.name === name)
-              return <option key={name} value={cat?.id || ''}>{cat?.icon || '📁'} {name} ({count})</option>
+              return <option key={name} value={cat?.id || ''}>{cat?.icon || ''} {name} ({count})</option>
             })}
           </select>
           <select value={filterDir} onChange={e => setFilterDir(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
             <option value="">Toutes directions</option>
-            <option value="both">⚪ Les deux</option>
-            <option value="debit">🔴 Débit</option>
-            <option value="credit">🟢 Crédit</option>
+            <option value="both"> Les deux</option>
+            <option value="debit"> Débit</option>
+            <option value="credit"> Crédit</option>
           </select>
           {(search || filterCat || filterDir) && (
             <button onClick={() => { setSearch(''); setFilterCat(''); setFilterDir('') }} className="text-sm text-blue-600 hover:text-blue-800">
@@ -2872,18 +2872,18 @@ function RulesTab({ rules, categories, loadAll }) {
                           onChange={e => setEditData(d => ({ ...d, direction: e.target.value }))}
                           className="w-full border rounded px-2 py-1 text-xs bg-white"
                         >
-                          <option value="both">⚪ Tous</option>
-                          <option value="debit">🔴 Débit</option>
-                          <option value="credit">🟢 Crédit</option>
+                          <option value="both"> Tous</option>
+                          <option value="debit"> Débit</option>
+                          <option value="credit"> Crédit</option>
                         </select>
                       </td>
                       <td className="px-3 py-1.5 text-right">
                         <div className="flex gap-1 justify-end">
                           <button onClick={saveEdit} disabled={saving} className="px-2 py-1 bg-emerald-500 text-white rounded text-xs hover:bg-emerald-600 disabled:opacity-50">
-                            {saving ? '...' : '✓'}
+                            {saving ? '...' : ''}
                           </button>
                           <button onClick={cancelEdit} className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs hover:bg-gray-300">
-                            ✕
+                            
                           </button>
                         </div>
                       </td>
@@ -2897,15 +2897,15 @@ function RulesTab({ rules, categories, loadAll }) {
                         </span>
                       </td>
                       <td className="px-3 py-1.5 text-xs">
-                        {r.direction === 'debit' ? '🔴 Débit' : r.direction === 'credit' ? '🟢 Crédit' : '⚪ Tous'}
+                        {r.direction === 'debit' ? ' Débit' : r.direction === 'credit' ? ' Crédit' : ' Tous'}
                       </td>
                       <td className="px-3 py-1.5 text-right">
                         <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100" style={{ opacity: 1 }}>
                           <button onClick={() => startEdit(r)} className="px-2 py-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded text-xs transition" title="Modifier">
-                            ✏️
+                            
                           </button>
                           <button onClick={() => del(r.id, r.keyword)} className="px-2 py-1 text-red-300 hover:text-red-600 hover:bg-red-50 rounded text-xs transition" title="Supprimer">
-                            🗑️
+                            
                           </button>
                         </div>
                       </td>
@@ -2927,7 +2927,7 @@ function RulesTab({ rules, categories, loadAll }) {
 }
 
 // ════════════════════════════════════════════════════════════
-// IMPORT — Texte brut CMB + Matching factures
+// IMPORT - Texte brut CMB + Matching factures
 // ════════════════════════════════════════════════════════════
 function ImportTab({ loadAll, categories, rules, invoices, clients, transactions }) {
   const [imp, setImp] = useState(false)
@@ -3307,7 +3307,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
     const newCount = parsed.filter(t => !t.isDuplicate).length
     const dupCount = parsed.filter(t => t.isDuplicate).length
     const matchedCount = parsed.filter(t => t.matchConfidence === 'high').length
-    if (parsed.length > 0) toast.success(`📊 ${parsed.length} lignes — ${newCount} nouvelles, ${matchedCount} rapprochements`)
+    if (parsed.length > 0) toast.success(`${parsed.length} lignes - ${newCount} nouvelles, ${matchedCount} rapprochements`)
     else toast.error('Aucune transaction détectée')
     return parsed
   }
@@ -3362,7 +3362,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
               payment_date: tx.date,
               payment_method: 'virement bancaire',
               payment_reference: tx.description.substring(0, 100),
-              notes: `Import CSV — ${tx.description.substring(0, 80)} [tx:${insertedTx.id}]`,
+              notes: `Import CSV - ${tx.description.substring(0, 80)} [tx:${insertedTx.id}]`,
               created_by: 'Import CSV CMB',
             })
             if (payErr) { errors.push(`Paiement ${inv.reference}: ${payErr.message}`); continue }
@@ -3375,11 +3375,11 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         }
       }
 
-      const msg = [`✅ ${imported} transactions importées`]
-      if (absorbed > 0) msg.push(`✏️ ${absorbed} saisie(s) rapprochée(s)`)
-      if (reconciled > 0) msg.push(`🔗 ${reconciled} facture(s) rapprochée(s)`)
-      if (errors.length > 0) msg.push(`⚠️ ${errors.length} erreur(s)`)
-      toast.success(msg.join(' — '))
+      const msg = [` ${imported} transactions importées`]
+      if (absorbed > 0) msg.push(` ${absorbed} saisie(s) rapprochée(s)`)
+      if (reconciled > 0) msg.push(` ${reconciled} facture(s) rapprochée(s)`)
+      if (errors.length > 0) msg.push(` ${errors.length} erreur(s)`)
+      toast.success(msg.join(' - '))
       if (errors.length > 0) console.warn('Import errors:', errors)
       setCsv(''); setPre([]); setSelectedRows(new Set()); loadAll()
     } catch (e) { toast.error('Erreur: ' + (e.message || '')) }
@@ -3500,7 +3500,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
     if (result.direction === 'credit' && result.amount > 0) {
       startInvoiceMatching(result)
     }
-    toast.success(`✅ Détecté: ${result.amount > 0 ? fmt(result.amount) : 'Montant non détecté'} — ${result.direction === 'credit' ? 'Entrée' : 'Sortie'}`)
+    toast.success(`Détecté: ${result.amount > 0 ? fmt(result.amount) : 'Montant non détecté'} - ${result.direction === 'credit' ? 'Entrée' : 'Sortie'}`)
   }
 
   // ══ Matching factures ══
@@ -3680,7 +3680,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         await recomputeInvoiceFromPayments(invId)
       }
 
-      toast.success(`✅ Transaction importée + ${matchSelected.size} facture(s) marquée(s) payée(s)`)
+      toast.success(`Transaction importée + ${matchSelected.size} facture(s) marquée(s) payée(s)`)
       setShowMatchModal(false)
       setRawText('')
       setRawParsed(null)
@@ -3715,7 +3715,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
       }
       const { error } = await supabase.from('budget_transactions').insert(txRow)
       if (error) throw error
-      toast.success(`✅ Transaction importée`)
+      toast.success(`Transaction importée`)
       setRawText(''); setRawParsed(null)
       loadAll()
     } catch (err) { toast.error('Erreur: ' + err.message) }
@@ -3724,14 +3724,14 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
   return (
     <div className="space-y-4">
-      {/* ══ IMPORT RAPIDE — Texte brut CMB ══ */}
+      {/* ══ IMPORT RAPIDE - Texte brut CMB ══ */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <h3 className="font-bold text-gray-700 mb-2">⚡ Import rapide — Copier/coller CMB</h3>
+        <h3 className="font-bold text-gray-700 mb-2"> Import rapide - Copier/coller CMB</h3>
         <p className="text-xs text-gray-500 mb-3">Collez le texte brut copié depuis votre relevé CMB (date + libellé). Ex: "20/02\n20/02\nVIR SOFIS 684,42..."</p>
 
         <div className="flex gap-2 mb-2">
-          <button onClick={() => setRawDirection('credit')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${rawDirection === 'credit' ? 'bg-green-500 text-white' : 'bg-gray-100'}`}>🟢 Entrée (encaissement)</button>
-          <button onClick={() => setRawDirection('debit')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${rawDirection === 'debit' ? 'bg-red-500 text-white' : 'bg-gray-100'}`}>🔴 Sortie (paiement)</button>
+          <button onClick={() => setRawDirection('credit')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${rawDirection === 'credit' ? 'bg-green-500 text-white' : 'bg-gray-100'}`}> Entrée (encaissement)</button>
+          <button onClick={() => setRawDirection('debit')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${rawDirection === 'debit' ? 'bg-red-500 text-white' : 'bg-gray-100'}`}> Sortie (paiement)</button>
         </div>
 
         <textarea value={rawText} onChange={e => setRawText(e.target.value)}
@@ -3740,16 +3740,16 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
         <div className="flex gap-2 mt-2">
           <button onClick={handleParseRaw} disabled={!rawText.trim()} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 flex-1">
-            🔍 Analyser
+             Analyser
           </button>
           {rawParsed && rawDirection === 'debit' && (
             <button onClick={saveWithoutMatch} disabled={rawSaving} className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50">
-              {rawSaving ? '⏳...' : '💾 Importer (sortie)'}
+              {rawSaving ? '...' : ' Importer (sortie)'}
             </button>
           )}
           {rawParsed && rawDirection === 'credit' && !showMatchModal && (
             <button onClick={() => startInvoiceMatching(rawParsed)} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">
-              🔗 Rapprocher factures
+               Rapprocher factures
             </button>
           )}
           {rawParsed && rawDirection === 'credit' && (
@@ -3763,7 +3763,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         {rawParsed && (
           <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm space-y-1">
             <div className="flex justify-between items-center">
-              <span className="font-medium text-blue-800">📋 Résultat :</span>
+              <span className="font-medium text-blue-800"> Résultat :</span>
               {rawParsed.detectedClient && (
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Client détecté : {rawParsed.detectedClient.name}</span>
               )}
@@ -3782,10 +3782,10 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b bg-green-50 rounded-t-xl">
               <div>
-                <h3 className="font-bold text-green-800">🔗 Rapprochement bancaire</h3>
+                <h3 className="font-bold text-green-800"> Rapprochement bancaire</h3>
                 <p className="text-xs text-green-600 mt-0.5">Montant reçu : <b>{fmt(matchTx.amount)}</b></p>
               </div>
-              <button onClick={() => setShowMatchModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={() => setShowMatchModal(false)} className="text-gray-400 hover:text-gray-600 text-xl"></button>
             </div>
 
             <div className="overflow-y-auto flex-1 p-4 space-y-4">
@@ -3828,7 +3828,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}`}>
-                                  {isSelected && <span className="text-xs">✓</span>}
+                                  {isSelected && <span className="text-xs"></span>}
                                 </div>
                                 <div>
                                   <span className="font-medium text-sm">{inv.reference}</span>
@@ -3841,7 +3841,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                               </div>
                             </div>
                             <div className="text-xs text-gray-400 mt-1">
-                              {inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('fr-FR') : ''} — 
+                              {inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('fr-FR') : ''} - 
                               <span className={inv.status === 'overdue' ? 'text-red-600 font-medium' : ''}>{inv.status === 'overdue' ? 'En retard' : inv.status === 'partial' ? 'Paiement partiel' : 'À régler'}</span>
                             </div>
 
@@ -3876,12 +3876,12 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                       </div>
                       {!matchExact && (
                         <div className="mt-2 flex items-center gap-2 text-amber-700">
-                          <span className="text-lg">⚠️</span>
-                          <span className="text-xs font-medium">Écart de {fmt(matchDiff)} — {matchTotal > matchTx.amount ? 'Factures > Virement' : 'Virement > Factures'}</span>
+                          <span className="text-lg"></span>
+                          <span className="text-xs font-medium">Écart de {fmt(matchDiff)} - {matchTotal > matchTx.amount ? 'Factures > Virement' : 'Virement > Factures'}</span>
                         </div>
                       )}
                       {matchExact && (
-                        <div className="mt-1 text-green-700 text-xs font-medium">✅ Montants correspondants</div>
+                        <div className="mt-1 text-green-700 text-xs font-medium"> Montants correspondants</div>
                       )}
                     </div>
                   )}
@@ -3898,7 +3898,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
               {matchSelected.size > 0 && (
                 <button onClick={saveReconciliation} disabled={rawSaving}
                   className={`px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${matchExact ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-600 hover:bg-amber-700'}`}>
-                  {rawSaving ? '⏳...' : `✅ Rapprocher ${matchSelected.size} facture(s)${!matchExact ? ' (écart)' : ''}`}
+                  {rawSaving ? '...' : ` Rapprocher ${matchSelected.size} facture(s)${!matchExact ? ' (écart)' : ''}`}
                 </button>
               )}
             </div>
@@ -3906,9 +3906,9 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         </div>
       )}
 
-      {/* ══ IMPORT CSV Crédit Mutuel — Drag & Drop ══ */}
+      {/* ══ IMPORT CSV Crédit Mutuel - Drag & Drop ══ */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <h3 className="font-bold text-gray-700 mb-3">📥 Import CSV Crédit Mutuel</h3>
+        <h3 className="font-bold text-gray-700 mb-3"> Import CSV Crédit Mutuel</h3>
 
         {/* Zone drag & drop */}
         <div
@@ -3921,9 +3921,9 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         >
           <input id="csv-file-input" type="file" accept=".csv,.txt,.CSV" className="hidden"
             onChange={e => { if (e.target.files[0]) handleCsvFile(e.target.files[0]); e.target.value = '' }} />
-          <div className="text-3xl mb-2">📂</div>
+          <div className="text-3xl mb-2"></div>
           <p className="text-sm font-medium text-gray-700">Glisser-déposer votre fichier CSV ici</p>
-          <p className="text-xs text-gray-400 mt-1">ou cliquer pour sélectionner — format CMB (Date operation;Date valeur;Libelle;Debit;Credit)</p>
+          <p className="text-xs text-gray-400 mt-1">ou cliquer pour sélectionner - format CMB (Date operation;Date valeur;Libelle;Debit;Credit)</p>
         </div>
 
         {/* Ou coller manuellement */}
@@ -3934,7 +3934,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
             className="w-full h-32 border rounded-lg p-3 text-xs font-mono resize-y mt-2" />
           <button onClick={handleCsvPaste} disabled={!csv.trim()}
             className="mt-2 bg-gray-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-700">
-            👁️ Analyser
+             Analyser
           </button>
         </details>
       </div>
@@ -3952,12 +3952,12 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
             {/* Header avec stats */}
             <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-green-50 border-b flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold text-gray-700">📊 {pre.length} transactions</span>
+                <span className="text-sm font-bold text-gray-700"> {pre.length} transactions</span>
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{newCount} nouvelles</span>
                 {dupCount > 0 && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{dupCount} doublons</span>}
-                {manualMatchCount > 0 && <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">✏️ {manualMatchCount} saisie(s) à rapprocher</span>}
-                {matchedCount > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">🔗 {matchedCount} rapprochées</span>}
-                {ambiguousCount > 0 && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">❓ {ambiguousCount} à vérifier</span>}
+                {manualMatchCount > 0 && <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full"> {manualMatchCount} saisie(s) à rapprocher</span>}
+                {matchedCount > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"> {matchedCount} rapprochées</span>}
+                {ambiguousCount > 0 && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full"> {ambiguousCount} à vérifier</span>}
               </div>
               <div className="flex gap-2">
                 <button onClick={selectAllNew} className="text-xs text-blue-600 hover:underline">Sélectionner nouvelles</button>
@@ -3970,7 +3970,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="px-2 py-1.5 text-left w-8">✓</th>
+                    <th className="px-2 py-1.5 text-left w-8"></th>
                     <th className="px-2 py-1.5 text-left">Date</th>
                     <th className="px-2 py-1.5 text-left">Description</th>
                     <th className="px-2 py-1.5 text-left">Catégorie</th>
@@ -4006,14 +4006,14 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                               ? <button onClick={() => toggleAbsorb(i)}
                                   className={`text-xs px-1.5 py-0.5 rounded font-medium transition-colors ${tx.absorbManual ? 'bg-violet-200 text-violet-800 hover:bg-violet-300' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
                                   title={tx.absorbManual ? 'Cliquer pour importer séparément' : 'Cliquer pour absorber la saisie'}>
-                                  {tx.absorbManual ? '✏️ absorber' : '↔ séparer'}
+                                  {tx.absorbManual ? ' absorber' : '↔ séparer'}
                                 </button>
                               : tx.matchConfidence === 'high'
-                                ? <button onClick={() => toggleSearchPanel(i)} className="text-xs bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded hover:bg-blue-300">🔗 rapprochée</button>
+                                ? <button onClick={() => toggleSearchPanel(i)} className="text-xs bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded hover:bg-blue-300"> rapprochée</button>
                                 : tx.matchConfidence === 'medium' || tx.matchConfidence === 'ambiguous'
-                                  ? <button onClick={() => toggleSearchPanel(i)} className="text-xs bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded hover:bg-purple-300">❓ à vérifier</button>
+                                  ? <button onClick={() => toggleSearchPanel(i)} className="text-xs bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded hover:bg-purple-300"> à vérifier</button>
                                   : tx.credit > 0
-                                    ? <button onClick={() => toggleSearchPanel(i)} className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded hover:bg-gray-300 cursor-pointer">🔍 matcher</button>
+                                    ? <button onClick={() => toggleSearchPanel(i)} className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded hover:bg-gray-300 cursor-pointer"> matcher</button>
                                     : <span className="text-xs bg-green-200 text-green-800 px-1.5 py-0.5 rounded">nouvelle</span>
                           }
                         </td>
@@ -4025,7 +4025,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                           <td></td>
                           <td colSpan="6" className="px-2 py-1.5" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center gap-2 flex-wrap text-xs">
-                              <span className="text-violet-500 font-medium">✏️ Saisie manuelle existante :</span>
+                              <span className="text-violet-500 font-medium"> Saisie manuelle existante :</span>
                               <span className="text-violet-700 font-medium">{tx.manualMatch.date ? new Date(tx.manualMatch.date).toLocaleDateString('fr-FR') : tx.manualMatch.date}</span>
                               <span className="text-violet-700 truncate max-w-xs" title={tx.manualMatch.description}>{tx.manualMatch.description}</span>
                               <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded">{tx.manualMatch.category_name}</span>
@@ -4041,28 +4041,28 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                         </tr>
                       )}
 
-                      {/* Ligne de détail match pour les crédits — résumé compact */}
+                      {/* Ligne de détail match pour les crédits - résumé compact */}
                       {tx.credit > 0 && !tx.isDuplicate && tx.matchedInvoices?.length > 0 && searchOpenRow !== i && (
                         <tr className="bg-blue-50/30">
                           <td></td>
                           <td colSpan="6" className="px-2 py-1.5" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-xs text-gray-500">
-                                {tx.matchConfidence === 'high' ? '🟢' : '🟠'} {tx.matchType} →
+                                {tx.matchConfidence === 'high' ? '' : ''} {tx.matchType} →
                               </span>
                               {tx.matchedInvoices.map(inv => (
                                 <span key={inv.id} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
-                                  {inv.reference} — {inv.client_name} — {fmt(inv.amount_due)}
+                                  {inv.reference} - {inv.client_name} - {fmt(inv.amount_due)}
                                 </span>
                               ))}
                               {(() => {
                                 const totalM = tx.matchedInvoices.reduce((s, m) => s + m.amount_due, 0)
                                 return Math.abs(totalM - tx.credit) < 0.01
-                                  ? <span className="text-xs text-green-600">✅ exact</span>
-                                  : <span className="text-xs text-amber-600">⚠️ écart {fmt(Math.abs(totalM - tx.credit))}</span>
+                                  ? <span className="text-xs text-green-600"> exact</span>
+                                  : <span className="text-xs text-amber-600"> écart {fmt(Math.abs(totalM - tx.credit))}</span>
                               })()}
-                              <button onClick={() => detachMatch(i)} className="text-xs text-red-400 hover:text-red-600" title="Détacher">✕</button>
-                              <button onClick={() => toggleSearchPanel(i)} className="text-xs text-blue-500 hover:text-blue-700">✏️</button>
+                              <button onClick={() => detachMatch(i)} className="text-xs text-red-400 hover:text-red-600" title="Détacher"></button>
+                              <button onClick={() => toggleSearchPanel(i)} className="text-xs text-blue-500 hover:text-blue-700"></button>
                             </div>
                           </td>
                         </tr>
@@ -4082,25 +4082,25 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                                 {/* Header du panneau */}
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-gray-700">🔍 Rapprocher {fmt(tx.credit)}</span>
+                                    <span className="text-sm font-medium text-gray-700"> Rapprocher {fmt(tx.credit)}</span>
                                     {totalSelected > 0 && (
                                       <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                                         Math.abs(diff) < 0.01 ? 'bg-green-100 text-green-700' :
                                         diff > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
                                       }`}>
-                                        {Math.abs(diff) < 0.01 ? '✅ Correspondance exacte' :
-                                         diff > 0 ? `⚠️ Reste ${fmt(diff)} non couvert` :
-                                         `🔴 Dépasse de ${fmt(Math.abs(diff))}`}
+                                        {Math.abs(diff) < 0.01 ? ' Correspondance exacte' :
+                                         diff > 0 ? ` Reste ${fmt(diff)} non couvert` :
+                                         ` Dépasse de ${fmt(Math.abs(diff))}`}
                                       </span>
                                     )}
                                   </div>
                                   <button onClick={() => { setSearchOpenRow(null); setSearchQuery('') }}
-                                    className="text-gray-400 hover:text-gray-600 text-sm">✕ Fermer</button>
+                                    className="text-gray-400 hover:text-gray-600 text-sm"> Fermer</button>
                                 </div>
 
                                 {/* Recherche */}
                                 <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                                  placeholder="🔍 Filtrer par client, référence, objet..."
+                                  placeholder=" Filtrer par client, référence, objet..."
                                   className="w-full border rounded-lg px-3 py-1.5 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400" />
 
                                 {/* Liste des factures scorées */}
@@ -4117,7 +4117,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2">
                                             <span className="font-medium text-gray-800">{inv.reference}</span>
-                                            <span className="text-gray-500">—</span>
+                                            <span className="text-gray-500">-</span>
                                             <span className="text-gray-700 truncate">{inv.client_name}</span>
                                           </div>
                                           {inv.object && <div className="text-gray-400 truncate">{inv.object}</div>}
@@ -4166,11 +4166,11 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
               {/* Récap rapprochement */}
               {matchedCount > 0 && (
                 <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 space-y-1">
-                  <div className="font-medium">🔗 Rapprochement automatique :</div>
+                  <div className="font-medium"> Rapprochement automatique :</div>
                   {pre.filter(t => selectedRows.has(pre.indexOf(t)) && t.matchConfidence === 'high' && t.matchedInvoices?.length > 0).map((tx, j) => (
                     <div key={j} className="flex justify-between">
-                      <span>{tx.matchedInvoices[0]?.reference} — {tx.matchedInvoices[0]?.client_name}</span>
-                      <span className="font-medium">{fmt(tx.credit)} {Math.abs((tx.matchedInvoices[0]?.amount_due || 0) - tx.credit) < 0.01 ? '→ Payée ✅' : '→ Partiel'}</span>
+                      <span>{tx.matchedInvoices[0]?.reference} - {tx.matchedInvoices[0]?.client_name}</span>
+                      <span className="font-medium">{fmt(tx.credit)} {Math.abs((tx.matchedInvoices[0]?.amount_due || 0) - tx.credit) < 0.01 ? '→ Payée ' : '→ Partiel'}</span>
                     </div>
                   ))}
                 </div>
@@ -4182,7 +4182,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                     className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100">Annuler</button>
                   <button onClick={doImport} disabled={imp || selectedCount === 0}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-blue-700">
-                    {imp ? '⏳ Import en cours...' : `✅ Importer ${selectedCount} transaction(s)${matchedCount > 0 ? ` + ${matchedCount} rapprochement(s)` : ''}${pre.filter((t,i) => selectedRows.has(i) && t.hasManualMatch && t.absorbManual).length > 0 ? ` + ${pre.filter((t,i) => selectedRows.has(i) && t.hasManualMatch && t.absorbManual).length} absorption(s)` : ''}`}
+                    {imp ? ' Import en cours...' : ` Importer ${selectedCount} transaction(s)${matchedCount > 0 ? ` + ${matchedCount} rapprochement(s)` : ''}${pre.filter((t,i) => selectedRows.has(i) && t.hasManualMatch && t.absorbManual).length > 0 ? ` + ${pre.filter((t,i) => selectedRows.has(i) && t.hasManualMatch && t.absorbManual).length} absorption(s)` : ''}`}
                   </button>
                 </div>
               </div>
@@ -4313,7 +4313,7 @@ ${txList}` }]
     }
 
     setApplied(prev => new Set([...prev, s.id]))
-    toast.success(`✅ ${s.description?.substring(0, 30)} → ${cat.icon} ${cat.name}`)
+    toast.success(`${s.description?.substring(0, 30)} → ${cat.icon} ${cat.name}`)
   }
 
   async function applyAll() {
@@ -4322,7 +4322,7 @@ ${txList}` }]
       await applySuggestion(s)
     }
     loadAll()
-    toast.success(`✅ ${pending.length} corrections appliquées`)
+    toast.success(`${pending.length} corrections appliquées`)
   }
 
   const pending = suggestions.filter(s => !applied.has(s.id) && !ignored.has(s.id))
@@ -4334,12 +4334,12 @@ ${txList}` }]
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="font-bold text-gray-700">🤖 Catégorisation intelligente</h3>
+            <h3 className="font-bold text-gray-700"> Catégorisation intelligente</h3>
             <p className="text-xs text-gray-500 mt-1">L'IA analyse {candidates.length} transactions et propose des corrections de catégorie</p>
           </div>
           <button onClick={analyzeAll} disabled={analyzing}
             className="bg-purple-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
-            {analyzing ? `⏳ Analyse... ${progress.done}/${progress.total}` : '🤖 Lancer l\'analyse'}
+            {analyzing ? ` Analyse... ${progress.done}/${progress.total}` : ' Lancer l\'analyse'}
           </button>
         </div>
 
@@ -4348,7 +4348,7 @@ ${txList}` }]
             <div className="bg-gray-200 rounded-full h-2">
               <div className="bg-purple-500 rounded-full h-2 transition-all" style={{ width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%` }} />
             </div>
-            <p className="text-xs text-gray-500 mt-1">Lot {progress.done}/{progress.total} — {candidates.length} transactions analysées</p>
+            <p className="text-xs text-gray-500 mt-1">Lot {progress.done}/{progress.total} - {candidates.length} transactions analysées</p>
           </div>
         )}
       </div>
@@ -4358,12 +4358,12 @@ ${txList}` }]
         <div className="bg-white rounded-xl shadow-sm border p-4">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h3 className="font-bold text-gray-700">📋 {suggestions.length} correction(s) suggérée(s)</h3>
+              <h3 className="font-bold text-gray-700"> {suggestions.length} correction(s) suggérée(s)</h3>
               <p className="text-xs text-gray-500">{applied.size} appliquées • {ignored.size} ignorées • {pending.length} en attente</p>
             </div>
             {highConf.length > 0 && (
               <button onClick={applyAll} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700">
-                ✅ Tout valider ({pending.length})
+                 Tout valider ({pending.length})
               </button>
             )}
           </div>
@@ -4401,12 +4401,12 @@ ${txList}` }]
                       <td className="px-2 py-1.5 whitespace-nowrap">
                         {!done && !skip && (
                           <>
-                            <button onClick={() => applySuggestion(s)} className="text-green-600 hover:text-green-800 text-sm mr-1" title="Valider">✅</button>
-                            <button onClick={() => setIgnored(prev => new Set([...prev, s.id]))} className="text-gray-400 hover:text-gray-600 text-sm" title="Ignorer">❌</button>
+                            <button onClick={() => applySuggestion(s)} className="text-green-600 hover:text-green-800 text-sm mr-1" title="Valider"></button>
+                            <button onClick={() => setIgnored(prev => new Set([...prev, s.id]))} className="text-gray-400 hover:text-gray-600 text-sm" title="Ignorer"></button>
                           </>
                         )}
-                        {done && <span className="text-green-500">✓</span>}
-                        {skip && <span className="text-gray-400">—</span>}
+                        {done && <span className="text-green-500"></span>}
+                        {skip && <span className="text-gray-400">-</span>}
                       </td>
                     </tr>
                   )
@@ -4418,7 +4418,7 @@ ${txList}` }]
           {applied.size > 0 && (
             <div className="mt-3 flex justify-end">
               <button onClick={loadAll} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-                🔄 Rafraîchir les données
+                 Rafraîchir les données
               </button>
             </div>
           )}
@@ -4427,7 +4427,7 @@ ${txList}` }]
 
       {suggestions.length === 0 && !analyzing && (
         <div className="bg-white rounded-xl shadow-sm border p-8 text-center text-gray-400">
-          <div className="text-4xl mb-3">🤖</div>
+          <div className="text-4xl mb-3"></div>
           <p>Cliquez "Lancer l'analyse" pour que l'IA vérifie toutes vos catégorisations</p>
           <p className="text-xs mt-2">L'IA détecte les erreurs de classement et propose des corrections avec auto-création de règles</p>
         </div>
@@ -4498,18 +4498,18 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       })
       // Charges fixes réelles validées
       setChargesFixes({
-        'Salaire Maxime': { icon: '👤', montant: parseFloat(map.charge_salaire_maxime || '0') },
-        'Salaire Hicham': { icon: '👤', montant: parseFloat(map.charge_salaire_hicham || '0') },
-        'Loyer siège': { icon: '🏢', montant: parseFloat(map.charge_loyer || '0') },
-        'URSSAF': { icon: '📋', montant: parseFloat(map.charge_urssaf || '0') },
-        'Prêts': { icon: '🏦', montant: parseFloat(map.charge_prets || '0') },
-        'Comptable': { icon: '🧮', montant: parseFloat(map.charge_comptable || '0') },
-        'Crédit auto': { icon: '🚗', montant: parseFloat(map.charge_credit_auto || '0') },
-        'Télécoms': { icon: '📱', montant: parseFloat(map.charge_telecoms || '0') },
-        'Assurances véhicule': { icon: '🚗', montant: parseFloat(map.charge_assurance_vehicule || '0') },
-        'Assurances santé': { icon: '🏥', montant: parseFloat(map.charge_assurance_sante || '0') },
-        'Logiciels & SaaS': { icon: '💻', montant: parseFloat(map.charge_logiciels || '0') },
-        'Frais bancaires': { icon: '🏦', montant: parseFloat(map.charge_frais_bancaires || '0') },
+        'Salaire Maxime': { icon: '', montant: parseFloat(map.charge_salaire_maxime || '0') },
+        'Salaire Hicham': { icon: '', montant: parseFloat(map.charge_salaire_hicham || '0') },
+        'Loyer siège': { icon: '', montant: parseFloat(map.charge_loyer || '0') },
+        'URSSAF': { icon: '', montant: parseFloat(map.charge_urssaf || '0') },
+        'Prêts': { icon: '', montant: parseFloat(map.charge_prets || '0') },
+        'Comptable': { icon: '', montant: parseFloat(map.charge_comptable || '0') },
+        'Crédit auto': { icon: '', montant: parseFloat(map.charge_credit_auto || '0') },
+        'Télécoms': { icon: '', montant: parseFloat(map.charge_telecoms || '0') },
+        'Assurances véhicule': { icon: '', montant: parseFloat(map.charge_assurance_vehicule || '0') },
+        'Assurances santé': { icon: '', montant: parseFloat(map.charge_assurance_sante || '0') },
+        'Logiciels & SaaS': { icon: '', montant: parseFloat(map.charge_logiciels || '0') },
+        'Frais bancaires': { icon: '', montant: parseFloat(map.charge_frais_bancaires || '0') },
       })
     }
     setConfigLoaded(true)
@@ -4784,7 +4784,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       months.forEach(m => {
         Object.entries(byMonth[m].cats).forEach(([cat, vals]) => {
           if (vals.debit > 0) {
-            if (!depByCat[cat]) depByCat[cat] = { total: 0, months: [], icon: catMap[cat]?.icon || '📦' }
+            if (!depByCat[cat]) depByCat[cat] = { total: 0, months: [], icon: catMap[cat]?.icon || '' }
             depByCat[cat].total += vals.debit
             depByCat[cat].months.push({ m, amount: vals.debit })
           }
@@ -4840,7 +4840,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         if (p.value / totalDep >= 0.03) pieMain.push(p)
         else autresVal += p.value
       })
-      if (autresVal > 0) pieMain.push({ name: 'Autres', value: autresVal, icon: '📦' })
+      if (autresVal > 0) pieMain.push({ name: 'Autres', value: autresVal, icon: '' })
 
       // Donut CA
       const caDonut = [
@@ -4935,7 +4935,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
       const endStr = endOfMonth.toISOString().substring(0, 10)
 
-      // Charges fixes validées — vérifier lesquelles sont déjà débitées ce mois
+      // Charges fixes validées - vérifier lesquelles sont déjà débitées ce mois
       const chargesFixesMap = {
         'Salaire Maxime': { date: endStr, cats: ['Salaire Maxime'] },
         'Salaire Hicham': { date: endStr, cats: ['Salaire Hicham'] },
@@ -4968,14 +4968,14 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       // GOUYA si ce mois (fév-mai 2026) et pas encore débité
       const gouya = curSorties.filter(tx => tx.description?.includes('GOUYA'))
       if (gouya.length === 0 && now.getFullYear() === 2026 && now.getMonth() >= 1 && now.getMonth() <= 4) {
-        cashFlowItems.push({ date: `${currentYearMonth}-25`, label: '🧮 GOUYA Frais juridiques', montant: -673.56, type: 'sortie' })
+        cashFlowItems.push({ date: `${currentYearMonth}-25`, label: ' GOUYA Frais juridiques', montant: -673.56, type: 'sortie' })
       }
 
       // Factures attendues (entrées)
       entreesAVenir.forEach(inv => {
         const cli = effectiveClients.find(c => c.id === inv.client_id)
         const isOverdue = inv.due_date && inv.due_date < today
-        cashFlowItems.push({ date: inv.due_date || inv.invoice_date, label: `${inv.reference} — ${cli?.name || '?'}`, montant: parseFloat(inv.amount_due), type: isOverdue ? 'retard' : 'entree' })
+        cashFlowItems.push({ date: inv.due_date || inv.invoice_date, label: `${inv.reference} - ${cli?.name || '?'}`, montant: parseFloat(inv.amount_due), type: isOverdue ? 'retard' : 'entree' })
       })
 
       cashFlowItems.sort((a, b) => a.date.localeCompare(b.date))
@@ -5062,7 +5062,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
 
     // ══ URGENCE TRÉSORERIE ══
     if (totalChargesFixes > 0 && solde < totalChargesFixes) {
-      recos.push({ type: 'alert', icon: '🚨', priority: 110,
+      recos.push({ type: 'alert', icon: '', priority: 110,
         title: `Trésorerie critique : ${fmt(solde)}`,
         detail: `Charges fixes = ${fmt(totalChargesFixes)}/mois. Le solde ne couvre pas 1 mois complet. Priorité : encaisser les factures.` })
     }
@@ -5070,7 +5070,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
     // Solde projeté négatif
     const lastCF = (cashFlowItems || []).length > 0 ? cashFlowItems[cashFlowItems.length - 1] : null
     if (lastCF && lastCF.soldeApres < 0) {
-      recos.push({ type: 'alert', icon: '🔴', priority: 105,
+      recos.push({ type: 'alert', icon: '', priority: 105,
         title: `Risque de solde négatif fin de mois : ${fmt(lastCF.soldeApres)}`,
         detail: `Sans encaissement supplémentaire, le compte passe dans le rouge. Relancer les impayés EN URGENCE.` })
     }
@@ -5084,7 +5084,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         const jours = Math.floor((new Date() - new Date(inv.due_date)) / 86400000)
         return `${cli?.name || '?'} ${fmt(parseFloat(inv.amount_due))} (+${jours}j)`
       }).join(' · ')
-      recos.push({ type: 'alert', icon: '🔴', priority: 100, title: `${overdue.length} facture(s) en retard — ${fmt(totalO)}`, detail: details })
+      recos.push({ type: 'alert', icon: '', priority: 100, title: `${overdue.length} facture(s) en retard - ${fmt(totalO)}`, detail: details })
     }
 
     // Factures dues ce mois
@@ -5092,7 +5092,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
     const dueThisMonth = unpaidInvoices.filter(inv => !overdue.includes(inv) && inv.due_date && inv.due_date.substring(0, 7) <= curYM)
     if (dueThisMonth.length > 0) {
       const totalD = dueThisMonth.reduce((s, inv) => s + parseFloat(inv.amount_due), 0)
-      recos.push({ type: 'info', icon: '📬', priority: 70, title: `${dueThisMonth.length} facture(s) échéance ce mois — ${fmt(totalD)}`, detail: 'Suivre les virements de près' })
+      recos.push({ type: 'info', icon: '', priority: 70, title: `${dueThisMonth.length} facture(s) échéance ce mois - ${fmt(totalD)}`, detail: 'Suivre les virements de près' })
     }
 
     // ══ FORMATIONS À POUSSER ══
@@ -5101,7 +5101,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       if (top.length > 0) {
         const detail = top.map(f => `${f.code} = ${fmt(f.prixCatalogue)}`).join(' · ')
         const nbFutur = (futureSessions || []).length
-        recos.push({ type: 'levier', icon: '🎓', priority: 85,
+        recos.push({ type: 'levier', icon: '', priority: 85,
           title: 'Formations directes les plus rentables',
           detail: `${detail}. Actuellement ${nbFutur} session(s) planifiée(s) = ${fmt(sessionsTotal || 0)} HT. 1 SST-FI directe (1 175€) = quasi 100% de marge.` })
       }
@@ -5109,7 +5109,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
 
     // Sessions insuffisantes
     if ((futureSessions || []).length < 5) {
-      recos.push({ type: 'levier', icon: '📅', priority: 82,
+      recos.push({ type: 'levier', icon: '', priority: 82,
         title: `Seulement ${(futureSessions || []).length} session(s) planifiée(s)`,
         detail: `CA sessions prévu : ${fmt(sessionsTotal || 0)} HT. Planning trop vide → remplir via prospection directe (Marine).` })
     }
@@ -5118,7 +5118,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
     const totalCA = totalCAFormations + totalCASousTrait
     if (totalCA > 0 && totalCASousTrait / totalCA > 0.5) {
       const ratio = ((totalCASousTrait / totalCA) * 100).toFixed(0)
-      recos.push({ type: 'levier', icon: '📊', priority: 78,
+      recos.push({ type: 'levier', icon: '', priority: 78,
         title: `Sous-traitance = ${ratio}% du CA`,
         detail: `Marge réduite. 1 SST directe (1 175€) rapporte autant net que 2-3 sessions sous-traitées. Marine doit cibler entreprises, pas OF.` })
     }
@@ -5137,7 +5137,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       const info = catMap[cat] || {}
       if (info.direction === 'recette' || info.direction === 'neutre') return
       if (data.last3 > data.monthly * 1.3 && data.last3 > 150) {
-        recos.push({ type: 'optimisation', icon: '💸', priority: 65,
+        recos.push({ type: 'optimisation', icon: '', priority: 65,
           title: `${data.icon} ${cat} en hausse`,
           detail: `${fmt(data.last3)}/mois récent vs ${fmt(data.monthly)} moyenne (+${((data.last3 / data.monthly - 1) * 100).toFixed(0)}%)` })
       }
@@ -5145,15 +5145,15 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
 
     // Budget libre
     if (budgetLibre < 0) {
-      recos.push({ type: 'alert', icon: '⚠️', priority: 90,
+      recos.push({ type: 'alert', icon: '', priority: 90,
         title: `Budget libre négatif : ${fmt(budgetLibre)}`,
         detail: `Il manque ${fmt(Math.abs(budgetLibre))} pour rester au-dessus de la marge de sécurité (${fmt(config.marge_securite)}).` })
     }
 
     // Mois tendu
     if (moisTendu && moisTendu.solde < config.marge_securite && !moisTendu.isCurrent) {
-      recos.push({ type: 'alert', icon: '📅', priority: 80,
-        title: `${moisTendu.label} sera serré — solde ${fmt(moisTendu.solde)}`,
+      recos.push({ type: 'alert', icon: '', priority: 80,
+        title: `${moisTendu.label} sera serré - solde ${fmt(moisTendu.solde)}`,
         detail: 'Anticiper les encaissements et limiter les dépenses.' })
     }
 
@@ -5163,7 +5163,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       const netMens = caLast3 - depLast3
       if (gap > 0 && netMens > 0) {
         const mois = Math.ceil(gap / netMens)
-        recos.push({ type: 'info', icon: '🎯', priority: 45,
+        recos.push({ type: 'info', icon: '', priority: 45,
           title: `Objectif ${fmt(config.objectif)} en ~${mois} mois`,
           detail: `Au rythme actuel (net ${fmt(netMens)}/mois)` })
       }
@@ -5173,7 +5173,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
   }
 
   // ── Chart helpers ──
-  const trendArrow = (pct) => pct > 5 ? '↗️' : pct < -5 ? '↘️' : '→'
+  const trendArrow = (pct) => pct > 5 ? '↗' : pct < -5 ? '↘' : '→'
   const trendColor = (pct, inverse = false) => {
     const good = inverse ? pct < -5 : pct > 5
     return good ? 'text-green-600' : (inverse ? pct > 5 : pct < -5) ? 'text-red-600' : 'text-gray-600'
@@ -5199,7 +5199,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
     </ResponsiveContainer>
   )
 
-  const statusIcons = { todo: '🔘', in_progress: '🟡', done: '✅', partial: '🟠', not_applicable: '❌' }
+  const statusIcons = { todo: '', in_progress: '', done: '', partial: '', not_applicable: '' }
   const statusLabels = { todo: 'À faire', in_progress: 'En cours', done: 'Fait', partial: 'Partiel', not_applicable: 'N/A' }
   const statusCycle = ['todo', 'in_progress', 'partial', 'done', 'not_applicable']
 
@@ -5214,16 +5214,16 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
   return (
     <div className="space-y-4">
 
-      {/* ══ BLOC 1 — Situation actuelle ══ */}
+      {/* ══ BLOC 1 - Situation actuelle ══ */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-4 text-white">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-lg">🏦 Situation — {ML[currentMonthKey.split('/')[0]]} {now.getFullYear()}</h3>
+          <h3 className="font-bold text-lg"> Situation - {ML[currentMonthKey.split('/')[0]]} {now.getFullYear()}</h3>
           <span className={`px-3 py-1 rounded-full text-sm font-bold ${
             analysis.budgetLibre > 1000 ? 'bg-green-400/30 text-green-100' :
             analysis.budgetLibre > 0 ? 'bg-amber-400/30 text-amber-100' :
             'bg-red-400/30 text-red-100'
           }`}>
-            {analysis.budgetLibre > 1000 ? '✅ Confortable' : analysis.budgetLibre > 0 ? '⚠️ Attention' : '🔴 Critique'}
+            {analysis.budgetLibre > 1000 ? ' Confortable' : analysis.budgetLibre > 0 ? ' Attention' : ' Critique'}
           </span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -5237,12 +5237,12 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
             <div className={`font-bold text-xl ${analysis.soldeProjeteFin >= config.marge_securite ? '' : 'text-red-300'}`}>{fmt(analysis.soldeProjeteFin)}</div>
           </div>
           <div className={`rounded-lg p-3 ${analysis.budgetLibre > 1000 ? 'bg-green-500/30' : analysis.budgetLibre > 0 ? 'bg-amber-500/30' : 'bg-red-500/30'}`}>
-            <div className="text-xs opacity-70">💰 Budget libre</div>
+            <div className="text-xs opacity-70"> Budget libre</div>
             <div className="font-bold text-xl">{fmt(analysis.budgetLibre)}</div>
             <div className="text-xs opacity-60">Dépensable sans risque</div>
           </div>
           <div className="bg-white/10 rounded-lg p-3">
-            <div className="text-xs opacity-70">🎯 Objectif</div>
+            <div className="text-xs opacity-70"> Objectif</div>
             <div className="font-bold text-xl">{fmt(config.objectif)}</div>
           </div>
         </div>
@@ -5264,7 +5264,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       {/* Paramètres */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <details>
-          <summary className="font-bold text-gray-700 cursor-pointer hover:text-blue-600">⚙️ Paramètres</summary>
+          <summary className="font-bold text-gray-700 cursor-pointer hover:text-blue-600"> Paramètres</summary>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
             <div>
               <label className="text-xs text-gray-500">Solde réel (€) <span className="text-gray-300">vide = auto</span></label>
@@ -5286,24 +5286,24 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         </details>
       </div>
 
-      {/* ══ BLOC 2 — Mois en cours ══ */}
+      {/* ══ BLOC 2 - Mois en cours ══ */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="px-4 py-3 bg-gray-50 border-b">
-          <h3 className="font-bold text-gray-700">📅 {ML[currentMonthKey.split('/')[0]]} {now.getFullYear()} — Réalisé vs À venir</h3>
+          <h3 className="font-bold text-gray-700"> {ML[currentMonthKey.split('/')[0]]} {now.getFullYear()} - Réalisé vs À venir</h3>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-4 gap-4 text-center text-sm">
             <div></div>
-            <div className="font-medium text-gray-500">✅ Réalisé</div>
-            <div className="font-medium text-gray-500">⏳ À venir</div>
+            <div className="font-medium text-gray-500"> Réalisé</div>
+            <div className="font-medium text-gray-500"> À venir</div>
             <div className="font-medium text-gray-700">Total mois</div>
 
-            <div className="text-left font-medium text-green-700">🟢 Entrées</div>
+            <div className="text-left font-medium text-green-700"> Entrées</div>
             <div className="font-mono text-green-600">{fmt(analysis.totalEntreesRealisees)}</div>
             <div className="font-mono text-green-500">{fmt(analysis.totalEntreesAVenir + analysis.totalPipeMois)}</div>
             <div className="font-mono font-bold text-green-700">{fmt(analysis.totalEntreesMois)}</div>
 
-            <div className="text-left font-medium text-red-700">🔴 Sorties</div>
+            <div className="text-left font-medium text-red-700"> Sorties</div>
             <div className="font-mono text-red-600">{fmt(analysis.totalSortiesRealisees)}</div>
             <div className="font-mono text-red-500">{fmt(analysis.totalSortiesAVenir)}</div>
             <div className="font-mono font-bold text-red-700">{fmt(analysis.totalSortiesMois)}</div>
@@ -5323,14 +5323,14 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
           {/* Détails dépliables */}
           {analysis.entreesAVenir.length > 0 && (
             <details className="mt-4">
-              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">📬 {analysis.entreesAVenir.length} facture(s) en attente</summary>
+              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600"> {analysis.entreesAVenir.length} facture(s) en attente</summary>
               <div className="mt-2 space-y-1">
                 {analysis.entreesAVenir.map(inv => {
                   const cli = effectiveClients.find(c => c.id === inv.client_id)
                   const isOD = inv.due_date && inv.due_date < new Date().toISOString().substring(0, 10)
                   return (
                     <div key={inv.id} className={`flex justify-between text-xs px-2 py-1 rounded ${isOD ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                      <span>{inv.reference} — {cli?.name || '?'} {isOD && <b>⚠️ RETARD</b>}</span>
+                      <span>{inv.reference} - {cli?.name || '?'} {isOD && <b> RETARD</b>}</span>
                       <span className="font-mono font-bold">{fmt(parseFloat(inv.amount_due))}</span>
                     </div>
                   )
@@ -5341,7 +5341,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
 
           {analysis.sortiesAVenir.length > 0 && (
             <details className="mt-2">
-              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">📋 {analysis.sortiesAVenir.length} charge(s) fixe(s) restante(s) ce mois</summary>
+              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600"> {analysis.sortiesAVenir.length} charge(s) fixe(s) restante(s) ce mois</summary>
               <div className="mt-2 space-y-1">
                 {analysis.sortiesAVenir.map((r, i) => (
                   <div key={i} className="flex justify-between text-xs px-2 py-1 rounded bg-red-50 text-red-700">
@@ -5356,14 +5356,14 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
           {/* Budget par catégorie */}
           {analysis.budgetByCat.length > 0 && (
             <details className="mt-3">
-              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">📊 Budget par catégorie ce mois</summary>
+              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600"> Budget par catégorie ce mois</summary>
               <div className="mt-2 space-y-1.5">
                 {analysis.budgetByCat.slice(0, 8).map((b, i) => (
                   <div key={i} className="text-xs">
                     <div className="flex justify-between mb-0.5">
                       <span>{b.icon} {b.name}</span>
                       <span className={`font-mono ${b.remaining < 0 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
-                        {fmt(b.spent)} / ~{fmt(b.budget)} {b.remaining < 0 && '⚠️'}
+                        {fmt(b.spent)} / ~{fmt(b.budget)} {b.remaining < 0 && ''}
                       </span>
                     </div>
                     <div className="bg-gray-100 rounded-full h-1.5">
@@ -5382,7 +5382,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       {analysis.bilanPrev && (
         <div className="bg-white rounded-xl shadow-sm border p-4">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-bold text-gray-700">📋 Bilan {analysis.bilanPrev.month}</h4>
+            <h4 className="text-sm font-bold text-gray-700"> Bilan {analysis.bilanPrev.month}</h4>
             <span className={`text-sm font-bold ${analysis.bilanPrev.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               Net : {analysis.bilanPrev.net >= 0 ? '+' : ''}{fmt(analysis.bilanPrev.net)}
             </span>
@@ -5395,11 +5395,11 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         </div>
       )}
 
-      {/* ══ CASH FLOW — Mouvements prévus ══ */}
+      {/* ══ CASH FLOW - Mouvements prévus ══ */}
       {analysis.cashFlowItems.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
           <div className="px-4 py-3 bg-gray-50 border-b">
-            <h3 className="font-bold text-gray-700">💧 Cash flow — mouvements prévus</h3>
+            <h3 className="font-bold text-gray-700"> Cash flow - mouvements prévus</h3>
           </div>
           <div className="p-4">
             <div className="space-y-1">
@@ -5416,7 +5416,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
                   <div className="flex items-center gap-2 flex-1">
                     <span className="text-gray-400 w-16">{item.date.substring(5)}</span>
                     <span className={item.type === 'retard' ? 'text-red-700 font-medium' : ''}>{item.label}</span>
-                    {item.type === 'retard' && <span className="text-red-500 text-xs">⚠️ retard</span>}
+                    {item.type === 'retard' && <span className="text-red-500 text-xs"> retard</span>}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`font-mono font-medium ${item.montant >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -5431,17 +5431,17 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
             </div>
             {analysis.cashFlowItems.some(i => i.soldeApres < 0) && (
               <div className="mt-3 p-2 bg-red-100 rounded-lg text-xs text-red-800 font-medium text-center">
-                ⚠️ Le solde passe dans le rouge — les encaissements doivent arriver AVANT les prélèvements
+                 Le solde passe dans le rouge - les encaissements doivent arriver AVANT les prélèvements
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ══ BLOC 3 — Tendances & Graphiques ══ */}
+      {/* ══ BLOC 3 - Tendances & Graphiques ══ */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-gray-700">📈 Tendances</h3>
+          <h3 className="font-bold text-gray-700"> Tendances</h3>
           <div className="flex gap-1">
             {['6', '12'].map(p => (
               <button key={p} onClick={() => setChartPeriod(p)}
@@ -5547,7 +5547,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
 
         {/* Projection trimestre */}
         <div className="mt-4 pt-4 border-t">
-          <h4 className="text-sm font-bold text-gray-700 mb-2">🗓️ Projection trimestre</h4>
+          <h4 className="text-sm font-bold text-gray-700 mb-2"> Projection trimestre</h4>
           <div className="grid grid-cols-3 gap-2">
             {analysis.trimProjection.map((m, i) => (
               <div key={i} className={`p-3 rounded-lg border ${m.isCurrent ? 'border-blue-400 bg-blue-50' : 'border-gray-200'} ${m === analysis.moisTendu && m.solde < config.marge_securite ? 'ring-2 ring-red-300' : ''}`}>
@@ -5569,17 +5569,17 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         </div>
       </div>
 
-      {/* ══ BLOC 4 — Pipeline ══ */}
+      {/* ══ BLOC 4 - Pipeline ══ */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h3 className="font-bold text-gray-700">📋 Pipeline — CA prévu</h3>
+            <h3 className="font-bold text-gray-700"> Pipeline - CA prévu</h3>
             <span className="text-xs text-gray-400">
               {pipeline.filter(p => p.source === 'auto').length} devis · {pipeline.filter(p => p.source === 'manual').length} manuels
             </span>
           </div>
           <button onClick={() => setShowPipeForm(f => !f)} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-200">
-            {showPipeForm ? '✕ Fermer' : '+ Manuel'}
+            {showPipeForm ? ' Fermer' : '+ Manuel'}
           </button>
         </div>
 
@@ -5621,14 +5621,14 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
                     <span className={`text-xs px-1.5 py-0.5 rounded ${
                       p.quote_status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {p.quote_status === 'accepted' ? '✅' : '📤'} {p.quote_ref}
+                      {p.quote_status === 'accepted' ? '' : ''} {p.quote_ref}
                     </span>
                   )}
                   {p.source === 'manual' && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">✋ manuel</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500"> manuel</span>
                   )}
                   <span className="font-medium">{p.client}</span>
-                  {p.description && <span className="text-gray-400 truncate max-w-48">— {p.description}</span>}
+                  {p.description && <span className="text-gray-400 truncate max-w-48">- {p.description}</span>}
                   <span className="text-gray-400">{p.expected_month || '?'}</span>
                   {p.trainer && <span className="text-gray-400">{p.trainer}</span>}
                 </div>
@@ -5643,7 +5643,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
                         <option value="facture">Facturé</option>
                         <option value="annule">Annulé</option>
                       </select>
-                      <button onClick={() => deletePipe(p.id)} className="text-red-400 hover:text-red-600">✕</button>
+                      <button onClick={() => deletePipe(p.id)} className="text-red-400 hover:text-red-600"></button>
                     </>
                   ) : (
                     <span className={`text-xs px-1.5 py-0.5 rounded ${
@@ -5665,10 +5665,10 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         )}
       </div>
 
-      {/* ══ BLOC 5 — Recommandations auto ══ */}
+      {/* ══ BLOC 5 - Recommandations auto ══ */}
       {analysis.recos.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border p-4">
-          <h3 className="font-bold text-gray-700 mb-3">🧠 Recommandations</h3>
+          <h3 className="font-bold text-gray-700 mb-3"> Recommandations</h3>
           <div className="space-y-2">
             {analysis.recos.map((reco, i) => (
               <div key={i} className={`p-3 rounded-lg border-l-4 ${
@@ -5690,10 +5690,10 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         </div>
       )}
 
-      {/* ══ BLOC 5b — Formations à pousser ══ */}
+      {/* ══ BLOC 5b - Formations à pousser ══ */}
       {analysis.formationsRank.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border p-4">
-          <h3 className="font-bold text-gray-700 mb-3">🎓 Formations — Classement rentabilité</h3>
+          <h3 className="font-bold text-gray-700 mb-3"> Formations - Classement rentabilité</h3>
           <div className="space-y-2">
             {analysis.formationsRank.map((f, i) => {
               const ratio = f.prixCatalogue > 0 && f.prixMoyenRealise > 0 ? ((f.prixMoyenRealise / f.prixCatalogue) * 100).toFixed(0) : null
@@ -5709,7 +5709,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
                   </div>
                   <div className="flex gap-4 mt-1 text-xs text-gray-500">
                     <span>{f.nbDone} session(s) réalisée(s)</span>
-                    {f.nbDone > 0 && <span>Prix moyen réalisé : {fmt(f.prixMoyenRealise)} {ratio && ratio < 80 ? <span className="text-amber-600">(⚠️ {ratio}% du tarif)</span> : ''}</span>}
+                    {f.nbDone > 0 && <span>Prix moyen réalisé : {fmt(f.prixMoyenRealise)} {ratio && ratio < 80 ? <span className="text-amber-600">( {ratio}% du tarif)</span> : ''}</span>}
                     {f.sesFutures > 0 && <span className="text-blue-600">{f.sesFutures} à venir</span>}
                     {isTop && f.sesFutures === 0 && f.nbDone < 3 && <span className="text-red-500 font-medium">→ À développer !</span>}
                   </div>
@@ -5718,17 +5718,17 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
             })}
           </div>
           <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 text-xs text-blue-800">
-            💡 <b>Stratégie :</b> Prioriser SST-FI (1 175€), R489/R485 (785€) et B0H0V (775€) en vente directe. 
+             <b>Stratégie :</b> Prioriser SST-FI (1 175€), R489/R485 (785€) et B0H0V (775€) en vente directe. 
             Les formations à 345-350€ (extincteurs, IGPS) sont idéales en pack combiné pour augmenter le panier moyen.
           </div>
         </div>
       )}
 
-      {/* ══ BLOC 5c — Sessions planifiées ══ */}
+      {/* ══ BLOC 5c - Sessions planifiées ══ */}
       {Object.keys(analysis.sessionsByMonth).length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-gray-700">📆 Sessions planifiées</h3>
+            <h3 className="font-bold text-gray-700"> Sessions planifiées</h3>
             <span className="text-sm font-mono font-bold text-green-700">{fmt(analysis.sessionsTotal)} HT</span>
           </div>
           {Object.entries(analysis.sessionsByMonth).sort(([a], [b]) => a.localeCompare(b)).map(([ym, sesList]) => {
@@ -5738,7 +5738,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
               <div key={ym} className="mb-3">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-bold text-gray-600">{ML[m]} {y}</span>
-                  <span className="text-xs font-mono text-gray-500">{sesList.length} session(s) — {fmt(total)} HT</span>
+                  <span className="text-xs font-mono text-gray-500">{sesList.length} session(s) - {fmt(total)} HT</span>
                 </div>
                 <div className="space-y-1">
                   {sesList.map(ses => (
@@ -5746,7 +5746,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
                       <div className="flex items-center gap-2">
                         <span className="text-gray-400">{ses.start_date.substring(5)}</span>
                         <span className="font-medium">{ses.courseCode}</span>
-                        <span className="text-gray-500">— {ses.clientName}</span>
+                        <span className="text-gray-500">- {ses.clientName}</span>
                       </div>
                       <span className="font-mono font-medium text-green-600">{fmt(ses.prix)}</span>
                     </div>
@@ -5758,11 +5758,11 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         </div>
       )}
 
-      {/* ══ BLOC 6 — Plan d'action ══ */}
+      {/* ══ BLOC 6 - Plan d'action ══ */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <h3 className="font-bold text-gray-700">📝 Plan d'action</h3>
+            <h3 className="font-bold text-gray-700"> Plan d'action</h3>
             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{doneCount}/{actions.length} fait{doneCount > 1 ? 's' : ''}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -5774,7 +5774,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
             </div>
             <button onClick={() => setShowActionForm(f => !f)}
               className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-200">
-              {showActionForm ? '✕' : '+ Ajouter'}
+              {showActionForm ? '' : '+ Ajouter'}
             </button>
           </div>
         </div>
@@ -5806,7 +5806,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
 
         {filteredActions.length === 0 ? (
           <div className="text-center py-4 text-gray-400 text-xs">
-            {actionFilter === 'done' ? 'Aucune action terminée' : 'Aucune action en cours — ajoutez-en !'}
+            {actionFilter === 'done' ? 'Aucune action terminée' : 'Aucune action en cours - ajoutez-en !'}
           </div>
         ) : (
           <div className="space-y-1.5">
@@ -5844,7 +5844,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
                       onChange={e => updateActionNote(action.id, e.target.value)}
                       className="text-xs border-0 border-b border-transparent hover:border-gray-200 focus:border-blue-300 w-full mt-1 px-0 py-0.5 bg-transparent focus:outline-none focus:ring-0" />
                   </div>
-                  <button onClick={() => deleteAction(action.id)} className="text-gray-300 hover:text-red-500 text-xs">✕</button>
+                  <button onClick={() => deleteAction(action.id)} className="text-gray-300 hover:text-red-500 text-xs"></button>
                 </div>
               </div>
             ))}
@@ -5854,7 +5854,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         {/* Résumé impact */}
         {actions.filter(a => a.status === 'done' && a.impact_monthly > 0).length > 0 && (
           <div className="mt-3 p-2 bg-green-50 rounded-lg border border-green-200 text-xs text-green-700 flex justify-between">
-            <span>💰 Impact des actions réalisées</span>
+            <span> Impact des actions réalisées</span>
             <span className="font-bold">{fmt(actions.filter(a => a.status === 'done' && a.impact_monthly > 0).reduce((s, a) => s + a.impact_monthly, 0))}/mois</span>
           </div>
         )}
@@ -5864,7 +5864,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <details>
           <summary className="font-bold text-gray-700 cursor-pointer hover:text-blue-600">
-            📋 Charges fixes validées — {fmt(analysis.avgFixed)}/mois
+             Charges fixes validées - {fmt(analysis.avgFixed)}/mois
           </summary>
           <p className="text-xs text-gray-400 mt-2 mb-3">Montants réels validés. Cliquer sur un montant pour modifier.</p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -5902,7 +5902,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
   )
 }
 
-// CLIENT SEARCH — Recherche intelligente pour rapprochement
+// CLIENT SEARCH - Recherche intelligente pour rapprochement
 // ════════════════════════════════════════════════════════════
 function ClientSearchForMatch({ clients: clientsProp, invoices: invoicesProp, unpaidInvoices, bankDescription, onSelect }) {
   const [search, setSearch] = useState('')
@@ -5999,7 +5999,7 @@ function ClientSearchForMatch({ clients: clientsProp, invoices: invoicesProp, un
     <div>
       <p className="text-sm text-gray-700 mb-2">Sélectionnez le client : <span className="text-xs text-gray-400">({clients.length} clients chargés)</span></p>
 
-      {!loaded && <div className="text-center py-4 text-gray-400 text-sm">⏳ Chargement des clients...</div>}
+      {!loaded && <div className="text-center py-4 text-gray-400 text-sm"> Chargement des clients...</div>}
 
       {bankWords.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
@@ -6012,7 +6012,7 @@ function ClientSearchForMatch({ clients: clientsProp, invoices: invoicesProp, un
       )}
 
       <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="🔍 Rechercher un client (nom, mot-clé)..."
+        placeholder=" Rechercher un client (nom, mot-clé)..."
         className="w-full border-2 border-blue-300 rounded-lg px-3 py-2 text-sm mb-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" autoFocus />
 
       <div className="max-h-64 overflow-y-auto space-y-1">
@@ -6029,7 +6029,7 @@ function ClientSearchForMatch({ clients: clientsProp, invoices: invoicesProp, un
               <div className="flex items-center justify-between">
                 <span className="font-medium">{c.name}</span>
                 <div className="flex gap-1">
-                  {c.score >= 20 && !search && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">🎯 suggestion</span>}
+                  {c.score >= 20 && !search && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded"> suggestion</span>}
                   {c.unpaidCount > 0 && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">{c.unpaidCount} en attente</span>}
                   {c.unpaidCount === 0 && c.allInvCount > 0 && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{c.allInvCount} fact.</span>}
                 </div>
@@ -6110,7 +6110,7 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
         await supabase.from('budget_meal_guests').insert(guestRows)
       }
 
-      toast.success('🍽️ Registre invités mis à jour')
+      toast.success('Registre invités mis à jour')
       onSaved()
     } catch (err) {
       toast.error('Erreur: ' + err.message)
@@ -6123,18 +6123,18 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
         <div className="flex items-center justify-between p-4 border-b bg-amber-50 rounded-t-xl">
           <div>
-            <h3 className="font-bold text-amber-800">🍽️ Registre repas professionnel</h3>
+            <h3 className="font-bold text-amber-800"> Registre repas professionnel</h3>
             {transaction && (
               <p className="text-xs text-amber-600 mt-0.5">
-                {new Date(transaction.date).toLocaleDateString('fr-FR')} — {transaction.description?.substring(0, 50)} — <b>{fmt(transaction.debit)}</b>
+                {new Date(transaction.date).toLocaleDateString('fr-FR')} - {transaction.description?.substring(0, 50)} - <b>{fmt(transaction.debit)}</b>
               </p>
             )}
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl"></button>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-gray-400">⏳ Chargement...</div>
+          <div className="p-8 text-center text-gray-400"> Chargement...</div>
         ) : (
           <div className="p-4 space-y-3">
             {/* Repas pour qui */}
@@ -6182,13 +6182,13 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
                     </div>
                     {g.company && !(clients || []).find(c => c.name.toUpperCase() === g.company.toUpperCase()) && (
                       <button onClick={() => { setProspectInit({ name: g.company, contact_name: g.name }); setShowProspect(true) }}
-                        className="text-xs text-emerald-600 hover:text-emerald-800 whitespace-nowrap" title="Créer comme prospect">+🏢</button>
+                        className="text-xs text-emerald-600 hover:text-emerald-800 whitespace-nowrap" title="Créer comme prospect">+</button>
                     )}
-                    <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600">✕</button>
+                    <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600"></button>
                   </div>
                 ))}
                 {guests.length === 0 && (
-                  <p className="text-xs text-gray-400 italic py-2">Aucun invité ajouté — vous pouvez en ajouter maintenant ou plus tard</p>
+                  <p className="text-xs text-gray-400 italic py-2">Aucun invité ajouté - vous pouvez en ajouter maintenant ou plus tard</p>
                 )}
               </div>
             </div>
@@ -6199,7 +6199,7 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
           <button onClick={onClose} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100">Annuler</button>
           <div className="flex-1" />
           <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50">
-            {saving ? '⏳...' : '💾 Enregistrer'}
+            {saving ? '...' : ' Enregistrer'}
           </button>
         </div>
 
@@ -6215,7 +6215,7 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
                 updateGuest(gIdx, 'company', newClient.name)
                 updateGuest(gIdx, 'client_id', newClient.id)
               }
-              toast.success(`🏢 Prospect "${newClient.name}" créé`)
+              toast.success(`Prospect "${newClient.name}" créé`)
             }}
           />
         )}
@@ -6285,8 +6285,8 @@ function ProspectCreateModal({ initial, onClose, onCreated }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-4 border-b bg-emerald-50 rounded-t-xl">
-          <h3 className="font-bold text-emerald-800">🏢 Créer un prospect</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          <h3 className="font-bold text-emerald-800"> Créer un prospect</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl"></button>
         </div>
 
         <div className="p-4 space-y-3">
@@ -6347,7 +6347,7 @@ function ProspectCreateModal({ initial, onClose, onCreated }) {
           <button onClick={onClose} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100">Annuler</button>
           <div className="flex-1" />
           <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
-            {saving ? '⏳...' : '🏢 Créer le prospect'}
+            {saving ? '...' : ' Créer le prospect'}
           </button>
         </div>
       </div>

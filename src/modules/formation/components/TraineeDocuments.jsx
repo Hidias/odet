@@ -117,7 +117,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
               <FileText className="w-8 h-8 text-blue-600" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              📄 Documents de formation
+               Documents de formation
             </h1>
             <h2 className="text-lg text-gray-700 mb-1">
               {session.courses?.title}
@@ -172,7 +172,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
                         {doc.file_name}
                       </p>
                       <div className="flex items-center gap-3 text-xs text-gray-500">
-                        <span>📄 PDF</span>
+                        <span> PDF</span>
                         <span>•</span>
                         <span>{(doc.file_size / 1024 / 1024).toFixed(1)} MB</span>
                       </div>
@@ -210,7 +210,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
             <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm text-blue-900 font-medium mb-1">
-                💡 À propos de ce document
+                 À propos de ce document
               </p>
               <p className="text-sm text-blue-800">
                 Ce livret contient les supports pédagogiques de votre formation. 

@@ -147,7 +147,7 @@ export default function ProspectionMassive() {
   }
 
   async function exportCSV() {
-    toast('🔄 Préparation export CSV...', { duration: 2000 })
+    toast('Préparation export CSV...', { duration: 2000 })
     
     let query = supabase
       .from('prospection_massive')
@@ -227,7 +227,7 @@ export default function ProspectionMassive() {
     link.click()
     URL.revokeObjectURL(url)
     
-    toast.success(`✅ ${data.length} prospects exportés !`)
+    toast.success(`${data.length} prospects exportés !`)
   }
 
   function toggleDept(dept) {
@@ -254,7 +254,7 @@ export default function ProspectionMassive() {
         
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            📞 Prospection Massive
+             Prospection Massive
           </h1>
           <p className="text-gray-600">
             Bretagne + Pays de la Loire • 6-499 salariés
@@ -459,23 +459,23 @@ export default function ProspectionMassive() {
                         {prospect.is_multi_etablissement && (
                           <div className="mt-1">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">
-                              🏢 {prospect.etablissements_count} établissements
+                               {prospect.etablissements_count} établissements
                               {prospect.is_siege && " (Siège)"}
                             </span>
                             
                             {prospect.contact_recommendation === 'call_siege_only' && (
                               <div className="mt-1 text-xs text-orange-600">
-                                ⚠️ Même ville → Appeler le siège uniquement
+                                 Même ville → Appeler le siège uniquement
                               </div>
                             )}
                             {prospect.contact_recommendation === 'call_all' && (
                               <div className="mt-1 text-xs text-green-600">
-                                ✅ Villes différentes → Appeler tous
+                                 Villes différentes → Appeler tous
                               </div>
                             )}
                             {prospect.contact_recommendation === 'verify_first' && (
                               <div className="mt-1 text-xs text-blue-600">
-                                🔍 Vérifier si même contact avant
+                                 Vérifier si même contact avant
                               </div>
                             )}
                           </div>

@@ -205,7 +205,7 @@ export default function SessionChecklist({ session }) {
 
       return `
         <div style="margin-bottom: 5px; page-break-inside: avoid; display: flex; align-items: center; font-size: 8.5pt; line-height: 1.2;">
-          <span style="font-size: 12px; margin-right: 4px;">${checked ? '☑' : '☐'}</span>
+          <span style="font-size: 12px; margin-right: 4px;">${checked ? '' : ''}</span>
           <span style="font-weight: 500; min-width: 200px; max-width: 200px;">${item.label}${item.sst ? ' [SST]' : ''}</span>
           <span style="margin: 0 8px;">|</span>
           <span style="min-width: 100px;">Date: ${dateRealized || '_________'}</span>
@@ -460,14 +460,14 @@ export default function SessionChecklist({ session }) {
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <FileCheck className="w-5 h-5" />
-          <span>📋 Imprimer fiche (état actuel)</span>
+          <span> Imprimer fiche (état actuel)</span>
         </button>
         <button
           onClick={() => handlePrint(true)}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
         >
           <Printer className="w-5 h-5" />
-          <span>📄 Imprimer vierge</span>
+          <span> Imprimer vierge</span>
         </button>
       </div>
 
@@ -478,7 +478,7 @@ export default function SessionChecklist({ session }) {
 
       {/* Note */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-        <strong>📌 Note :</strong> Cette fiche de contrôle facilite le suivi et l'archivage papier pour la conformité Qualiopi.
+        <strong> Note :</strong> Cette fiche de contrôle facilite le suivi et l'archivage papier pour la conformité Qualiopi.
         Les modifications sont sauvegardées automatiquement.
       </div>
     </div>

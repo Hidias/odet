@@ -58,7 +58,7 @@ export default function ProspectionTabs() {
                 <Icon className="w-5 h-5" />
                 {tab.label}
                 {tab.adminOnly && (
-                  <span className="ml-0.5 text-[10px] text-gray-300" title="Réservé à la direction">🔒</span>
+                  <span className="ml-0.5 text-[10px] text-gray-300" title="Réservé à la direction"></span>
                 )}
               </button>
             )

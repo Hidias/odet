@@ -16,12 +16,12 @@ import { fr } from 'date-fns/locale'
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
 const STATUS_CONFIG = {
-  brouillon:       { label: 'Brouillon',       emoji: '📝', color: 'bg-gray-100 text-gray-700',   dot: 'bg-gray-400' },
-  en_cours:        { label: 'En cours',         emoji: '🔄', color: 'bg-blue-100 text-blue-700',   dot: 'bg-blue-500' },
-  visite_terrain:  { label: 'Visite terrain',   emoji: '👷', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
-  finalisation:    { label: 'Finalisation',     emoji: '✏️', color: 'bg-purple-100 text-purple-700', dot: 'bg-purple-500' },
-  termine:         { label: 'Terminé',          emoji: '✅', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
-  archive:         { label: 'Archivé',          emoji: '📁', color: 'bg-stone-100 text-stone-600', dot: 'bg-stone-400' },
+  brouillon:       { label: 'Brouillon',       emoji: '', color: 'bg-gray-100 text-gray-700',   dot: 'bg-gray-400' },
+  en_cours:        { label: 'En cours',         emoji: '', color: 'bg-blue-100 text-blue-700',   dot: 'bg-blue-500' },
+  visite_terrain:  { label: 'Visite terrain',   emoji: '', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
+  finalisation:    { label: 'Finalisation',     emoji: '', color: 'bg-purple-100 text-purple-700', dot: 'bg-purple-500' },
+  termine:         { label: 'Terminé',          emoji: '', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+  archive:         { label: 'Archivé',          emoji: '', color: 'bg-stone-100 text-stone-600', dot: 'bg-stone-400' },
 }
 
 const COTATION_COLORS = {
@@ -370,7 +370,7 @@ export default function DuerpProjects() {
         await supabase.from('duerp_actions').delete().in('risk_id', toDelete)
         await supabase.from('duerp_risks').delete().in('id', toDelete)
       }
-      toast.success(`Rattachement enregistré — ${updates.length} risque(s) affecté(s)${toDelete.length ? `, ${toDelete.length} supprimé(s)` : ''}`)
+      toast.success(`Rattachement enregistré - ${updates.length} risque(s) affecté(s)${toDelete.length ? `, ${toDelete.length} supprimé(s)` : ''}`)
       setShowRattachement(false)
       setRattachementData(null)
       setRattachAssignments({})
@@ -508,7 +508,7 @@ export default function DuerpProjects() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Shield className="w-7 h-7 text-amber-600" />
-            DUERP — Documents Uniques
+            DUERP - Documents Uniques
           </h1>
           <p className="text-gray-500 text-sm mt-1">Évaluation des Risques Professionnels</p>
         </div>
@@ -521,10 +521,10 @@ export default function DuerpProjects() {
       {/* STATS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Total', value: stats.total, icon: '📋', color: 'border-gray-300' },
-          { label: 'En cours', value: stats.en_cours, icon: '🔄', color: 'border-blue-400' },
-          { label: 'Terminés', value: stats.termines, icon: '✅', color: 'border-green-400' },
-          { label: 'Brouillons', value: stats.brouillons, icon: '📝', color: 'border-gray-400' },
+          { label: 'Total', value: stats.total, icon: '', color: 'border-gray-300' },
+          { label: 'En cours', value: stats.en_cours, icon: '', color: 'border-blue-400' },
+          { label: 'Terminés', value: stats.termines, icon: '', color: 'border-green-400' },
+          { label: 'Brouillons', value: stats.brouillons, icon: '', color: 'border-gray-400' },
         ].map(s => (
           <div key={s.label} className={`bg-white rounded-xl border-l-4 ${s.color} p-4 shadow-sm`}>
             <div className="flex items-center justify-between">
@@ -604,11 +604,11 @@ export default function DuerpProjects() {
                         )}
                         {p.siret && <span className="font-mono">{p.siret}</span>}
                         {sectorLabels.length > 0 && <span className="text-amber-600">{sectorLabels.join(' + ')}</span>}
-                        {p.effectif && <span>👥 {p.effectif}</span>}
+                        {p.effectif && <span> {p.effectif}</span>}
                       </div>
                     </div>
 
-                    {/* Droite — métriques */}
+                    {/* Droite - métriques */}
                     <div className="flex items-center gap-4 ml-4 shrink-0">
                       {/* Risques */}
                       <div className="text-center">
@@ -627,7 +627,7 @@ export default function DuerpProjects() {
                         <div className="flex items-center gap-1">
                           <CheckCircle className="w-3.5 h-3.5 text-gray-400" />
                           <span className="text-lg font-bold text-gray-700">
-                            {ac.total > 0 ? `${ac.done}/${ac.total}` : '—'}
+                            {ac.total > 0 ? `${ac.done}/${ac.total}` : '-'}
                           </span>
                         </div>
                         <p className="text-[10px] text-gray-400">actions</p>
@@ -637,7 +637,7 @@ export default function DuerpProjects() {
                       <div className="text-center hidden md:block">
                         <div className="flex items-center gap-1 text-xs text-gray-400">
                           <Calendar className="w-3 h-3" />
-                          {p.updated_at ? format(new Date(p.updated_at), 'dd/MM/yy', { locale: fr }) : '—'}
+                          {p.updated_at ? format(new Date(p.updated_at), 'dd/MM/yy', { locale: fr }) : '-'}
                         </div>
                         <p className="text-[10px] text-gray-400">modifié</p>
                       </div>
@@ -784,7 +784,7 @@ export default function DuerpProjects() {
                               {r.siret && <span className="font-mono">{r.siret}</span>}
                               {r.city && <span>{r.postal_code} {r.city}</span>}
                               {r.naf_code && <span className="text-amber-600">NAF {r.naf_code}</span>}
-                              {r.effectif && <span>👥 {getEffectifLabel(r.effectif)}</span>}
+                              {r.effectif && <span> {getEffectifLabel(r.effectif)}</span>}
                             </div>
                           </button>
                         ))}
@@ -815,7 +815,7 @@ export default function DuerpProjects() {
                     Sélectionnez un ou plusieurs secteurs d'activité pour pré-remplir les risques et unités.
                     {newProject.naf_code && (
                       <span className="ml-1 text-amber-600 font-medium">
-                        (NAF détecté : {newProject.naf_code} — {newProject.naf_label})
+                        (NAF détecté : {newProject.naf_code} - {newProject.naf_label})
                       </span>
                     )}
                   </p>
@@ -866,10 +866,10 @@ export default function DuerpProjects() {
                   <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
                     <h3 className="font-bold text-gray-900 mb-2">{newProject.company_name}</h3>
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div><span className="text-gray-500">SIRET :</span> <span className="font-mono">{newProject.siret || '—'}</span></div>
-                      <div><span className="text-gray-500">NAF :</span> {newProject.naf_code || '—'}</div>
-                      <div><span className="text-gray-500">Ville :</span> {newProject.postal_code} {newProject.city || '—'}</div>
-                      <div><span className="text-gray-500">Effectif :</span> {newProject.effectif || '—'}</div>
+                      <div><span className="text-gray-500">SIRET :</span> <span className="font-mono">{newProject.siret || '-'}</span></div>
+                      <div><span className="text-gray-500">NAF :</span> {newProject.naf_code || '-'}</div>
+                      <div><span className="text-gray-500">Ville :</span> {newProject.postal_code} {newProject.city || '-'}</div>
+                      <div><span className="text-gray-500">Effectif :</span> {newProject.effectif || '-'}</div>
                       <div className="col-span-2"><span className="text-gray-500">Secteur(s) :</span> <span className="text-amber-700 font-medium">{selectedSectors.map(s => s.sector_label).join(' + ')}</span></div>
                     </div>
                   </div>
@@ -955,7 +955,7 @@ export default function DuerpProjects() {
             <div className="flex items-center justify-between p-5 border-b">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Rattachement des risques types</h2>
-                <p className="text-sm text-gray-500 mt-0.5">{rattachementData.orphanRisks.length} risques pré-chargés depuis les templates — à affecter aux unités ou à supprimer</p>
+                <p className="text-sm text-gray-500 mt-0.5">{rattachementData.orphanRisks.length} risques pré-chargés depuis les templates - à affecter aux unités ou à supprimer</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">Étape obligatoire</span>
@@ -996,11 +996,11 @@ export default function DuerpProjects() {
                     onChange={e => setRattachAssignments(prev => ({ ...prev, [risk.id]: e.target.value }))}
                     className="text-xs border rounded-lg px-2 py-1.5 bg-white min-w-[160px] focus:ring-1 focus:ring-teal-400"
                   >
-                    <option value="">— Affecter à... —</option>
+                    <option value="">- Affecter à... -</option>
                     {rattachementData.units.map(u => (
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
-                    <option value="__skip">🗑 Supprimer ce risque</option>
+                    <option value="__skip"> Supprimer ce risque</option>
                   </select>
                 </div>
               ))}
@@ -1015,7 +1015,7 @@ export default function DuerpProjects() {
                 <Link to={`/duerp/${rattachementData.projectId}`}
                   onClick={() => { setShowRattachement(false); setRattachementData(null) }}
                   className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition">
-                  Passer — gérer dans le projet
+                  Passer - gérer dans le projet
                 </Link>
                 <button onClick={saveRattachement} disabled={rattachSaving}
                   className="px-6 py-2.5 bg-teal-600 text-white rounded-xl text-sm font-medium hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2">

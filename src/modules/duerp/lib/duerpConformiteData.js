@@ -1,6 +1,6 @@
 // src/lib/duerpConformiteData.js
 // ══════════════════════════════════════════════════════════════════
-// Moteur de conformité DUERP — Obligations réglementaires automatiques
+// Moteur de conformité DUERP - Obligations réglementaires automatiques
 // Basé sur Code du Travail, INRS, normes NF
 // ══════════════════════════════════════════════════════════════════
 
@@ -9,7 +9,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'extincteur_eau',
     label: 'Extincteur eau pulvérisée 6L',
-    icon: '🧯',
+    icon: '',
     category: 'incendie',
     reglementation: 'Art. R4227-29 Code du Travail',
     periodicite_check: 12, // mois
@@ -20,9 +20,9 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'extincteur_co2',
     label: 'Extincteur CO₂ 2kg/5kg',
-    icon: '🧯',
+    icon: '',
     category: 'incendie',
-    reglementation: 'Art. R4227-29 — risques électriques',
+    reglementation: 'Art. R4227-29 - risques électriques',
     periodicite_check: 12,
     periodicite_visuelle: 3,
     duree_vie_max: null, // pas de limite pour CO2
@@ -31,9 +31,9 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'extincteur_poudre',
     label: 'Extincteur poudre ABC',
-    icon: '🧯',
+    icon: '',
     category: 'incendie',
-    reglementation: 'Art. R4227-29 — risques spécifiques',
+    reglementation: 'Art. R4227-29 - risques spécifiques',
     periodicite_check: 12,
     periodicite_visuelle: 3,
     duree_vie_max: 20,
@@ -42,7 +42,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'dae',
     label: 'Défibrillateur (DAE)',
-    icon: '💓',
+    icon: '',
     category: 'secours',
     reglementation: 'Art. L157-2 Code construction (ERP) / Recommandé INRS',
     periodicite_check: null, // selon fabricant
@@ -53,7 +53,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'trousse_secours',
     label: 'Trousse / Armoire de secours',
-    icon: '🩹',
+    icon: '',
     category: 'secours',
     reglementation: 'Art. R4224-14 Code du Travail',
     periodicite_check: 3, // vérif contenu trimestrielle recommandée
@@ -64,7 +64,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'couverture_anti_feu',
     label: 'Couverture anti-feu',
-    icon: '🔥',
+    icon: '',
     category: 'incendie',
     reglementation: 'Norme EN 1869',
     periodicite_check: 12,
@@ -75,9 +75,9 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'ria',
     label: 'Robinet d\'Incendie Armé (RIA)',
-    icon: '🚿',
+    icon: '',
     category: 'incendie',
-    reglementation: 'APSAD R5 — Norme NF S 62-201',
+    reglementation: 'APSAD R5 - Norme NF S 62-201',
     periodicite_check: 12,
     periodicite_visuelle: 3,
     duree_vie_max: null,
@@ -86,7 +86,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'alarme_incendie',
     label: 'Système alarme incendie',
-    icon: '🔔',
+    icon: '',
     category: 'incendie',
     reglementation: 'Art. R4227-34 à R4227-36 Code du Travail',
     periodicite_check: 12,
@@ -97,7 +97,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'eclairage_securite',
     label: 'Éclairage de sécurité (BAES)',
-    icon: '💡',
+    icon: '',
     category: 'evacuation',
     reglementation: 'Art. R4227-14 Code du Travail',
     periodicite_check: 12,
@@ -108,7 +108,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'plan_evacuation',
     label: 'Plan d\'évacuation',
-    icon: '🗺️',
+    icon: '',
     category: 'evacuation',
     reglementation: 'Art. R4227-37 Code du Travail',
     periodicite_check: null,
@@ -119,7 +119,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'point_rassemblement',
     label: 'Signalisation point de rassemblement',
-    icon: '🟢',
+    icon: '',
     category: 'evacuation',
     reglementation: 'Norme EN ISO 7010',
     periodicite_check: null,
@@ -130,7 +130,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'detecteur_fumee',
     label: 'Détecteur de fumée / Incendie',
-    icon: '🔍',
+    icon: '',
     category: 'incendie',
     reglementation: 'NF S 61-970',
     periodicite_check: 12,
@@ -141,7 +141,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: 'douche_oculaire',
     label: 'Douche / Rince-œil de sécurité',
-    icon: '🚿',
+    icon: '',
     category: 'secours',
     reglementation: 'Norme NF EN 15154',
     periodicite_check: 3,
@@ -152,27 +152,27 @@ export const EQUIPMENT_TYPES = [
 ]
 
 export const EQUIPMENT_CATEGORIES = {
-  incendie: { label: 'Lutte incendie', icon: '🔥', color: 'red' },
-  secours: { label: 'Premiers secours', icon: '🩹', color: 'green' },
-  evacuation: { label: 'Évacuation', icon: '🚪', color: 'blue' },
+  incendie: { label: 'Lutte incendie', icon: '', color: 'red' },
+  secours: { label: 'Premiers secours', icon: '', color: 'green' },
+  evacuation: { label: 'Évacuation', icon: '', color: 'blue' },
 }
 
 // ── STATUTS ÉQUIPEMENT ───────────────────────────────────────────
 export const EQUIPMENT_STATUS = {
-  conforme: { label: 'Conforme', icon: '✅', color: 'bg-green-100 text-green-800', ring: 'ring-green-500' },
-  a_verifier: { label: 'Vérification requise', icon: '🔶', color: 'bg-amber-100 text-amber-800', ring: 'ring-amber-500' },
-  non_conforme: { label: 'Non conforme', icon: '🔴', color: 'bg-red-100 text-red-800', ring: 'ring-red-500' },
-  perime: { label: 'Périmé', icon: '⛔', color: 'bg-red-200 text-red-900', ring: 'ring-red-700' },
-  manquant: { label: 'Manquant', icon: '❌', color: 'bg-gray-100 text-gray-600', ring: 'ring-gray-400' },
+  conforme: { label: 'Conforme', icon: '', color: 'bg-green-100 text-green-800', ring: 'ring-green-500' },
+  a_verifier: { label: 'Vérification requise', icon: '', color: 'bg-amber-100 text-amber-800', ring: 'ring-amber-500' },
+  non_conforme: { label: 'Non conforme', icon: '', color: 'bg-red-100 text-red-800', ring: 'ring-red-500' },
+  perime: { label: 'Périmé', icon: '', color: 'bg-red-200 text-red-900', ring: 'ring-red-700' },
+  manquant: { label: 'Manquant', icon: '', color: 'bg-gray-100 text-gray-600', ring: 'ring-gray-400' },
 }
 
 // ── HABILITATIONS & FORMATIONS TRAÇABLES ─────────────────────────
 export const HABILITATION_TYPES = [
   {
     id: 'sst',
-    label: 'SST — Sauveteur Secouriste du Travail',
+    label: 'SST - Sauveteur Secouriste du Travail',
     short: 'SST',
-    icon: '🩺',
+    icon: '',
     duree_validite: 24, // mois
     reglementation: 'Art. R4224-15 Code du Travail',
     obligation: 'Min. 1 SST par atelier / chantier à travaux dangereux. Recommandation : 10-15% effectif',
@@ -182,9 +182,9 @@ export const HABILITATION_TYPES = [
   },
   {
     id: 'mac_sst',
-    label: 'MAC SST — Maintien & Actualisation des Compétences',
+    label: 'MAC SST - Maintien & Actualisation des Compétences',
     short: 'MAC SST',
-    icon: '🔄',
+    icon: '',
     duree_validite: 24,
     reglementation: 'Art. R4224-15 Code du Travail',
     obligation: 'Recyclage obligatoire tous les 24 mois',
@@ -194,9 +194,9 @@ export const HABILITATION_TYPES = [
   },
   {
     id: 'epi_incendie',
-    label: 'EPI — Équipier de Première Intervention',
+    label: 'EPI - Équipier de Première Intervention',
     short: 'EPI',
-    icon: '🧯',
+    icon: '',
     duree_validite: 12, // recommandé annuel
     reglementation: 'Art. R4227-28 et R4227-39 Code du Travail',
     obligation: 'Min. 1 personne formée présente durant les heures de travail',
@@ -208,7 +208,7 @@ export const HABILITATION_TYPES = [
     id: 'evacuation',
     label: 'Exercice évacuation',
     short: 'ÉVAC',
-    icon: '🚪',
+    icon: '',
     duree_validite: 6,
     reglementation: 'Art. R4227-39 Code du Travail',
     obligation: 'Exercice tous les 6 mois minimum (recommandation INRS)',
@@ -218,9 +218,9 @@ export const HABILITATION_TYPES = [
   },
   {
     id: 'caces_r489',
-    label: 'CACES R489 — Chariots automoteurs',
+    label: 'CACES R489 - Chariots automoteurs',
     short: 'CACES R489',
-    icon: '🏗️',
+    icon: '',
     duree_validite: 60,
     reglementation: 'Art. R4323-55 Code du Travail',
     obligation: 'Obligatoire pour la conduite de chariots élévateurs',
@@ -230,9 +230,9 @@ export const HABILITATION_TYPES = [
   },
   {
     id: 'caces_r482',
-    label: 'CACES R482 — Engins de chantier',
+    label: 'CACES R482 - Engins de chantier',
     short: 'CACES R482',
-    icon: '🏗️',
+    icon: '',
     duree_validite: 60,
     reglementation: 'Art. R4323-55 Code du Travail',
     obligation: 'Obligatoire pour la conduite d\'engins de chantier',
@@ -242,9 +242,9 @@ export const HABILITATION_TYPES = [
   },
   {
     id: 'caces_r486',
-    label: 'CACES R486 — Nacelles (PEMP)',
+    label: 'CACES R486 - Nacelles (PEMP)',
     short: 'CACES R486',
-    icon: '🏗️',
+    icon: '',
     duree_validite: 60,
     reglementation: 'Art. R4323-55 Code du Travail',
     obligation: 'Obligatoire pour la conduite de nacelles élévatrices',
@@ -256,7 +256,7 @@ export const HABILITATION_TYPES = [
     id: 'habilitation_electrique',
     label: 'Habilitation électrique',
     short: 'ELEC',
-    icon: '⚡',
+    icon: '',
     duree_validite: 36,
     reglementation: 'Art. R4544-10 Code du Travail',
     obligation: 'Obligatoire pour travaux d\'ordre électrique ou à proximité',
@@ -268,7 +268,7 @@ export const HABILITATION_TYPES = [
     id: 'travail_hauteur',
     label: 'Travail en hauteur / Port du harnais',
     short: 'HAUTEUR',
-    icon: '🪜',
+    icon: '',
     duree_validite: 36,
     reglementation: 'Art. R4323-89 Code du Travail',
     obligation: 'Recyclage recommandé tous les 3 ans',
@@ -278,9 +278,9 @@ export const HABILITATION_TYPES = [
   },
   {
     id: 'aipr',
-    label: 'AIPR — Réseaux',
+    label: 'AIPR - Réseaux',
     short: 'AIPR',
-    icon: '🔌',
+    icon: '',
     duree_validite: 60,
     reglementation: 'Décret 2011-1241',
     obligation: 'Obligatoire pour travaux à proximité de réseaux',
@@ -289,9 +289,9 @@ export const HABILITATION_TYPES = [
   },
   {
     id: 'prap',
-    label: 'PRAP — Prévention des Risques liés à l\'Activité Physique',
+    label: 'PRAP - Prévention des Risques liés à l\'Activité Physique',
     short: 'PRAP',
-    icon: '🏋️',
+    icon: '',
     duree_validite: 24,
     reglementation: 'Art. R4541-4 Code du Travail',
     obligation: 'Recommandé pour les postes avec manutention manuelle',
@@ -301,7 +301,7 @@ export const HABILITATION_TYPES = [
   },
 ]
 
-// ── MOTEUR DE RÈGLES — Obligations automatiques ──────────────────
+// ── MOTEUR DE RÈGLES - Obligations automatiques ──────────────────
 // Génère les obligations en fonction des risques identifiés, effectif, secteur
 
 /**
@@ -358,7 +358,7 @@ export function computeObligations({ risks = [], units = [], effectif = 0, secto
     quantite_requise: daeRecommande ? 1 : 0,
     obligatoire: false,
     raison: daeRecommande
-      ? `Recommandé : ${effectif >= 50 ? 'effectif > 50' : 'risque électrique identifié'} — formation SST inclut manipulation DAE`
+      ? `Recommandé : ${effectif >= 50 ? 'effectif > 50' : 'risque électrique identifié'} - formation SST inclut manipulation DAE`
       : 'Non obligatoire mais recommandé pour la sécurité des salariés',
     priorite: daeRecommande ? 'elevee' : 'recommandee',
   })
@@ -368,7 +368,7 @@ export function computeObligations({ risks = [], units = [], effectif = 0, secto
     type_id: 'trousse_secours',
     quantite_requise: Math.max(1, units.length),
     obligatoire: true,
-    raison: `${Math.max(1, units.length)} trousse(s) requise(s) — 1 par unité de travail minimum`,
+    raison: `${Math.max(1, units.length)} trousse(s) requise(s) - 1 par unité de travail minimum`,
     priorite: 'critique',
   })
 
@@ -425,17 +425,17 @@ export function computeObligations({ risks = [], units = [], effectif = 0, secto
 
   // ═══ FORMATIONS OBLIGATOIRES ═══
 
-  // SST — toujours
+  // SST - toujours
   const nbSSTrecommande = Math.max(1, Math.ceil(effectif * 0.15))
   formationsObl.push({
     type_id: 'sst',
     nb_personnes_requises: nbSSTrecommande,
     obligatoire: true,
-    raison: `${nbSSTrecommande} SST recommandé(s) (15% de ${effectif || '?'} salariés) — min. 1 par atelier dangereux`,
+    raison: `${nbSSTrecommande} SST recommandé(s) (15% de ${effectif || '?'} salariés) - min. 1 par atelier dangereux`,
     priorite: 'critique',
   })
 
-  // EPI — toujours
+  // EPI - toujours
   formationsObl.push({
     type_id: 'epi_incendie',
     nb_personnes_requises: Math.max(1, Math.ceil(effectif * 0.10)),
@@ -444,7 +444,7 @@ export function computeObligations({ risks = [], units = [], effectif = 0, secto
     priorite: 'critique',
   })
 
-  // Évacuation — toujours
+  // Évacuation - toujours
   formationsObl.push({
     type_id: 'evacuation',
     nb_personnes_requises: effectif || 1,

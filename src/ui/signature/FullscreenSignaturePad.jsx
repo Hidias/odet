@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { X, RotateCcw, Check } from 'lucide-react'
 
 // ═══════════════════════════════════════════════════════════════
-// FullscreenSignaturePad — pad plein écran pour faire signer
+// FullscreenSignaturePad - pad plein écran pour faire signer
 // le stagiaire sur le téléphone du formateur.
 //
 // - le tracé est conservé en mémoire et redessiné si le téléphone
@@ -12,9 +12,9 @@ import { X, RotateCcw, Check } from 'lucide-react'
 //   format fixe (600 × 240), pour un rendu propre sur la feuille
 //
 // Props :
-//   title        — nom affiché en grand (ex : « Marie DUPONT »)
-//   subtitle     — ligne d'explication (ex : « Matin du 17/09 »)
-//   confirmLabel — texte du bouton de validation
+//   title        - nom affiché en grand (ex : « Marie DUPONT »)
+//   subtitle     - ligne d'explication (ex : « Matin du 17/09 »)
+//   confirmLabel - texte du bouton de validation
 //   onValidate(dataUrl)
 //   onCancel()
 // ═══════════════════════════════════════════════════════════════

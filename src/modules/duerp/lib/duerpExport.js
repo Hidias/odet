@@ -1,5 +1,5 @@
 // src/lib/duerpExport.js
-// Export DUERP — PDF & Excel Premium
+// Export DUERP - PDF & Excel Premium
 // Export DUERP v5.1 : formations catalogue + texte agrandi + formation dans plan d'action
 //
 // CORRECTIFS v5.1 :
@@ -53,8 +53,8 @@ const TYPE_A = { prevention: 'Prevention', protection: 'Protection', formation: 
 const fmtDate = (d) => { if (!d) return '--'; try { return new Date(d).toLocaleDateString('fr-FR') } catch { return String(d) } }
 
 // ── FILIGRANE ──
-const WATERMARK_TEXT = "DOCUMENT D'APPUI — SANS VALEUR JURIDIQUE"
-const BANNER_TEXT = () => "Document d'appui a la redaction — Sans valeur juridique — L'employeur reste seul responsable de son DUERP (Art. L.4121-1) — " + ORGN() + " decline toute responsabilite"
+const WATERMARK_TEXT = "DOCUMENT D'APPUI - SANS VALEUR JURIDIQUE"
+const BANNER_TEXT = () => "Document d'appui a la redaction - Sans valeur juridique - L'employeur reste seul responsable de son DUERP (Art. L.4121-1) - " + ORGN() + " decline toute responsabilite"
 
 const DISCLAIMER_SHORT = () => "Document d'appui a la redaction elabore avec l'assistance de " + ORGN() + ". Ce document n'a PAS de valeur juridique et ne se substitue pas au DUERP officiel de l'employeur. L'employeur reste seul responsable de la redaction, de l'exhaustivite, de l'exactitude de l'evaluation des risques et de la mise en oeuvre des actions de prevention (Art. L.4121-1 et suivants du Code du travail). " + ORGN() + " decline toute responsabilite en cas d'oubli ou de risques non evalues."
 
@@ -107,7 +107,7 @@ function getAccompagnateurName(userEmail) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// PDF GENERATION — v5.1 : filigrane + formations + texte agrandi
+// PDF GENERATION - v5.1 : filigrane + formations + texte agrandi
 // ═══════════════════════════════════════════════════════════
 export function generateDuerpPDF({ project, units, risks, actions, categories, userEmail }) {
   const doc = new jsPDF()
@@ -144,7 +144,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
     doc.setFont(undefined, 'normal')
     doc.restoreGraphicsState()
 
-    // 2) Bandeau rouge en bas (au-dessus du footer) — 9mm, 7pt bold
+    // 2) Bandeau rouge en bas (au-dessus du footer) - 9mm, 7pt bold
     const bH2 = 9
     const bannerY = footerY - bH2 - 2
     doc.saveGraphicsState()
@@ -212,7 +212,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
   y += 4
   // Mention "document d'appui" visible
   doc.setFontSize(9); doc.setTextColor(...C.red)
-  doc.text("DOCUMENT D'APPUI A LA REDACTION — SANS VALEUR JURIDIQUE", pw / 2, y + 4, { align: 'center' })
+  doc.text("DOCUMENT D'APPUI A LA REDACTION - SANS VALEUR JURIDIQUE", pw / 2, y + 4, { align: 'center' })
   doc.setTextColor(...C.teal)
   y += 9; doc.setDrawColor(...C.amber); doc.setLineWidth(1); doc.line(pw / 2 - 50, y, pw / 2 + 50, y)
   y += 14; doc.setTextColor(...C.black); doc.setFontSize(22)
@@ -378,7 +378,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
   } else { y = para(y, 'Aucune action definie.', { italic: true }) }
 
   // ── v5 : catalogue des formations de l'organisme ──
-  y = checkY(y, 40); y = subTitle(y, 'FORMATIONS RECOMMANDEES — ' + ORGN() + '')
+  y = checkY(y, 40); y = subTitle(y, 'FORMATIONS RECOMMANDEES - ' + ORGN() + '')
   y = para(y, "En lien avec les risques identifies dans votre entreprise, " + ORGN() + " vous propose les formations suivantes. Les formations cochees correspondent directement aux risques detectes dans ce document.")
   y += 2
 
@@ -554,7 +554,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
 }
 
 // ═══════════════════════════════════════════════════════════
-// EXCEL PREMIUM — 9 ONGLETS (xlsx-js-style)
+// EXCEL PREMIUM - 9 ONGLETS (xlsx-js-style)
 // ═══════════════════════════════════════════════════════════
 
 // ── Style helpers ──

@@ -3,7 +3,7 @@ import { RotateCcw, Check, AlertCircle, Shield } from 'lucide-react'
 import { supabase } from '../../core/supabase'
 
 // ═══════════════════════════════════════════════════════════════
-// SignaturePad — Composant réutilisable signature électronique
+// SignaturePad - Composant réutilisable signature électronique
 // Avec piste d'audit complète (hash, IP, user-agent, horodatage)
 // ═══════════════════════════════════════════════════════════════
 
@@ -28,7 +28,7 @@ async function getPublicIP() {
 }
 
 /**
- * SignaturePad — Composant de signature avec piste d'audit
+ * SignaturePad - Composant de signature avec piste d'audit
  * 
  * Props:
  * @param {string} documentType - convention, emargement, attestation, certificat, evaluation, etc.
@@ -259,9 +259,9 @@ export default function SignaturePad({
           </div>
           {showAuditInfo && savedAudit && (
             <div className="mt-2 text-[10px] text-gray-400 space-y-0.5">
-              <p>📅 {new Date(savedAudit.signed_at).toLocaleString('fr-FR')}</p>
-              <p>🔒 Hash: {savedAudit.document_hash?.substring(0, 16)}…</p>
-              <p>🌐 IP: {savedAudit.ip_address}</p>
+              <p> {new Date(savedAudit.signed_at).toLocaleString('fr-FR')}</p>
+              <p> Hash: {savedAudit.document_hash?.substring(0, 16)}…</p>
+              <p> IP: {savedAudit.ip_address}</p>
             </div>
           )}
         </div>
@@ -291,9 +291,9 @@ export default function SignaturePad({
           </div>
           {showAuditInfo && savedAudit && (
             <div className="mt-2 pt-2 border-t border-green-200 text-[10px] text-gray-500 flex flex-wrap gap-x-4 gap-y-0.5">
-              <span>📅 {new Date(savedAudit.signed_at).toLocaleString('fr-FR')}</span>
-              <span>🔒 {savedAudit.document_hash?.substring(0, 16)}…</span>
-              <span>🌐 {savedAudit.ip_address}</span>
+              <span> {new Date(savedAudit.signed_at).toLocaleString('fr-FR')}</span>
+              <span> {savedAudit.document_hash?.substring(0, 16)}…</span>
+              <span> {savedAudit.ip_address}</span>
             </div>
           )}
         </div>
@@ -388,7 +388,7 @@ export default function SignaturePad({
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SignatureAuditBadge — Badge affichant le statut de signature
+// SignatureAuditBadge - Badge affichant le statut de signature
 // ═══════════════════════════════════════════════════════════════
 export function SignatureAuditBadge({ sessionId, documentType, traineeId }) {
   const [signatures, setSignatures] = useState([])
@@ -429,16 +429,16 @@ export function SignatureAuditBadge({ sessionId, documentType, traineeId }) {
   return (
     <span
       className="text-[10px] text-green-600 flex items-center gap-1"
-      title={`Signé le ${new Date(latest.signed_at).toLocaleString('fr-FR')} — Hash: ${latest.document_hash?.substring(0, 16)}… — IP: ${latest.ip_address}`}
+      title={`Signé le ${new Date(latest.signed_at).toLocaleString('fr-FR')} - Hash: ${latest.document_hash?.substring(0, 16)}… - IP: ${latest.ip_address}`}
     >
       <Check className="w-3 h-3" />
-      Signé ({signatures.length}) — {new Date(latest.signed_at).toLocaleDateString('fr-FR')}
+      Signé ({signatures.length}) - {new Date(latest.signed_at).toLocaleDateString('fr-FR')}
     </span>
   )
 }
 
 // ═══════════════════════════════════════════════════════════════
-// loadSignatures — Helper pour charger les signatures existantes
+// loadSignatures - Helper pour charger les signatures existantes
 // ═══════════════════════════════════════════════════════════════
 export async function loadSignatures({ sessionId, documentType, traineeId }) {
   let query = supabase

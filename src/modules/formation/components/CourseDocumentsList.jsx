@@ -7,17 +7,17 @@ import { buildStorageFileName } from '../../../core/storageUtils'
 const DOCUMENT_TYPES = {
   support_formateur: {
     label: 'Support pédagogique formateur',
-    icon: '📊',
+    icon: '',
     description: 'PowerPoint, PDF utilisé par le formateur (usage interne)',
   },
   document_stagiaire: {
     label: 'Document stagiaire (livret de formation)',
-    icon: '📄',
+    icon: '',
     description: 'PDF mis à disposition des stagiaires via QR code',
   },
   programme: {
     label: 'Programme de formation',
-    icon: '📋',
+    icon: '',
     description: 'Détail du déroulé pédagogique (usage interne)',
   }
 }
@@ -140,7 +140,7 @@ export default function CourseDocumentsList() {
 
     try {
       // Upload Storage
-      // ⚠️ Supabase Storage refuse les clés avec accents / espaces → nom sanitisé
+      //  Supabase Storage refuse les clés avec accents / espaces → nom sanitisé
       const fileName = `${courseId}/${type}/${buildStorageFileName(file.name)}`
       const { error: uploadError } = await supabase.storage
         .from('course-documents')
@@ -444,7 +444,7 @@ export default function CourseDocumentsList() {
       {/* Note Qualiopi */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex gap-3">
-          <div className="text-blue-600">ℹ️</div>
+          <div className="text-blue-600">ℹ</div>
           <div className="flex-1">
             <h5 className="font-semibold text-blue-900 mb-1">
               Conformité Qualiopi - Indicateur 19

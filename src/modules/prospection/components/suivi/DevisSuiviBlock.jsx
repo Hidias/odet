@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// DevisSuiviBlock.jsx — Devis en cours, une ligne par client
+// DevisSuiviBlock.jsx - Devis en cours, une ligne par client
 // Relance « faite » et mise en veille : pour tous les devis du client.
 // Gagné / perdu : devis par devis (un devis = un besoin).
 // ════════════════════════════════════════════════════════════════
@@ -34,7 +34,7 @@ function PerduModal({ quote, author, onClose, onDone }) {
     setSaving(true)
     try {
       const now = new Date().toISOString()
-      const lost = reason + (note.trim() ? ' — ' + note.trim() : '')
+      const lost = reason + (note.trim() ? ' - ' + note.trim() : '')
       const patch = { lost_reason: lost, triaged_at: now, updated_at: now }
       if (!isPartial) patch.status = 'refused'
       const { error } = await supabase.from('quotes').update(patch).eq('id', quote.id)
@@ -131,7 +131,7 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
       await logInteraction(supabase, {
         clientId: group.clientId,
         type: 'relance',
-        title: `Relance devis (${group.quotes.length}) — ${client.name || ''}`,
+        title: `Relance devis (${group.quotes.length}) - ${client.name || ''}`,
         content: group.quotes.map(q => q.reference).join(', '),
         author,
       })

@@ -346,7 +346,7 @@ export default function SessionDetail() {
       const { trainee, expectations, observation, stId } = expectationsModalData
       
       // DEBUG: Afficher les valeurs
-      console.log('💾 Sauvegarde attentes/observation:', {
+      console.log('Sauvegarde attentes/observation:', {
         trainee_id: trainee?.id,
         trainee_name: `${trainee?.first_name} ${trainee?.last_name}`,
         stId,
@@ -387,7 +387,7 @@ export default function SessionDetail() {
       }
       
       // 2. Mettre à jour l'observation dans session_trainees
-      console.log('🔄 Mise à jour session_trainees avec:', { stId, observation })
+      console.log('Mise à jour session_trainees avec:', { stId, observation })
       
       const { data: updateData, error: updateError } = await supabase
         .from('session_trainees')
@@ -395,7 +395,7 @@ export default function SessionDetail() {
         .eq('id', stId)
         .select()
       
-      console.log('✅ Résultat update session_trainees:', { updateData, updateError })
+      console.log('Résultat update session_trainees:', { updateData, updateError })
       
       if (updateError) {
         throw updateError
@@ -473,7 +473,7 @@ export default function SessionDetail() {
       })
       
       setInfoSheets(sheetsMap)
-      console.log('📄 InfoSheets chargées:', sheetsMap)
+      console.log('InfoSheets chargées:', sheetsMap)
     } catch (err) {
       console.error('Erreur loadInfoSheets:', err)
     }
@@ -496,7 +496,7 @@ export default function SessionDetail() {
       loadObjectives(found)
       loadSessionEquipment(found.id)
       loadAccessCodes(found.id) // Charger les codes d'accès
-      loadInfoSheets(found.id) // 📄 Charger les fiches de renseignements
+      loadInfoSheets(found.id) //  Charger les fiches de renseignements
       
       // Vérifier si une facture existe pour cette session
       // (facture mono-session via invoices.session_id, ou facture multi-sessions via invoice_sessions)
@@ -693,19 +693,19 @@ export default function SessionDetail() {
       if (h.morning !== null && h.morning !== undefined) {
         const isMorningPresent = h.morning === true || h.morning === 't' || h.morning === 'true'
         halfDayMap[`${h.trainee_id}_${dateStr}_morning`] = isMorningPresent
-        console.log(`  morning: ${isMorningPresent}`)
+        console.log(`morning: ${isMorningPresent}`)
       }
       if (h.afternoon !== null && h.afternoon !== undefined) {
         const isAfternoonPresent = h.afternoon === true || h.afternoon === 't' || h.afternoon === 'true'
         halfDayMap[`${h.trainee_id}_${dateStr}_afternoon`] = isAfternoonPresent
-        console.log(`  afternoon: ${isAfternoonPresent}`)
+        console.log(`afternoon: ${isAfternoonPresent}`)
       }
       
       // Compatibilité ancien format avec period/present (si jamais)
       if (h.period && h.present !== null && h.present !== undefined) {
         const isPresent = h.present === true || h.present === 't' || h.present === 'true'
         halfDayMap[`${h.trainee_id}_${dateStr}_${h.period}`] = isPresent
-        console.log(`  period ${h.period}: ${isPresent}`)
+        console.log(`period ${h.period}: ${isPresent}`)
       }
     })
     console.log('halfDayMap final:', halfDayMap)
@@ -948,7 +948,7 @@ export default function SessionDetail() {
       }
     }
     
-    toast.success('Tous les objectifs marqués acquis ✓')
+    toast.success('Tous les objectifs marqués acquis ')
   }
   
   // Ouvrir la modal de forçage du résultat
@@ -1043,7 +1043,7 @@ export default function SessionDetail() {
     setSessionCosts(prev => [...prev, data])
     setCostForm({ cost_type: 'material', label: '', amount: '', per_trainee: false, notes: '' })
     setShowAddCost(false)
-    toast.success('Coût ajouté ✓')
+    toast.success('Coût ajouté ')
   }
   
   const handleDeleteCost = async (costId) => {
@@ -1139,7 +1139,7 @@ export default function SessionDetail() {
 
       if (error) { toast.error('Erreur modification'); console.error(error); return }
       setSessionFundings(prev => prev.map(f => f.id === editingFunding.id ? data : f))
-      toast.success('Financement modifié ✓')
+      toast.success('Financement modifié ')
     } else {
       const { data, error } = await supabase
         .from('session_fundings')
@@ -1149,7 +1149,7 @@ export default function SessionDetail() {
 
       if (error) { toast.error('Erreur ajout financement'); console.error(error); return }
       setSessionFundings(prev => [...prev, data])
-      toast.success('Financement ajouté ✓')
+      toast.success('Financement ajouté ')
     }
 
     resetFundingForm()
@@ -1518,7 +1518,7 @@ export default function SessionDetail() {
         p_reason: motif || null, p_by: user?.email || null,
       })
       if (error || !data?.ok) { toast.error(error?.message || data?.error || 'Erreur'); return }
-      toast.success('Stagiaire noté absent — son accès par QR code est bloqué')
+      toast.success('Stagiaire noté absent - son accès par QR code est bloqué')
     } else {
       const { data, error } = await supabase.rpc('set_trainee_absent', {
         p_session_id: session.id, p_trainee_id: trainee.id, p_absent: false,
@@ -1679,7 +1679,7 @@ export default function SessionDetail() {
       await updatePresenceComplete(session.id, trainee.id, true)
     }
     
-    toast.success('Tous les stagiaires marqués présents ✓')
+    toast.success('Tous les stagiaires marqués présents ')
   }
   
   // Gérer le départ anticipé
@@ -1954,8 +1954,8 @@ export default function SessionDetail() {
       
       if (hasData) {
         // Double confirmation pour stagiaire avec données
-        if (!confirm('⚠️ Ce stagiaire a déjà des données enregistrées (fiche, émargements ou évaluation).\n\nÊtes-vous sûr de vouloir le retirer ?')) return
-        if (!confirm('🚨 ATTENTION : Cette action supprimera TOUTES ses données pour cette session.\n\nConfirmer la suppression définitive ?')) return
+        if (!confirm(' Ce stagiaire a déjà des données enregistrées (fiche, émargements ou évaluation).\n\nÊtes-vous sûr de vouloir le retirer ?')) return
+        if (!confirm(' ATTENTION : Cette action supprimera TOUTES ses données pour cette session.\n\nConfirmer la suppression définitive ?')) return
       } else {
         // Simple confirmation
         if (!confirm('Retirer ce stagiaire de la session ?')) return
@@ -1992,7 +1992,7 @@ export default function SessionDetail() {
       toast.loading('Upload en cours...', { id: 'forprev-upload' })
       
       // Upload vers Supabase Storage
-      // ⚠️ Supabase refuse les clés avec accents / espaces → nom sanitisé
+      //  Supabase refuse les clés avec accents / espaces → nom sanitisé
       const fileName = `forprev/${session.id}/${traineeId}_${buildStorageFileName(file.name)}`
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documents')
@@ -2051,7 +2051,7 @@ export default function SessionDetail() {
       const convention = await generatePDF('convention', session, { trainees: traineesWithResult, trainer, costs: sessionCosts })
       if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
 
-      // 2. Programme — fichier uploadé en priorité, sinon pdfGenerator
+      // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
       let programmeAdded = false
       const programUrl = session?.courses?.program_url
       if (programUrl) {
@@ -2069,7 +2069,7 @@ export default function SessionDetail() {
         if (programme) zip.file(`Programme_${ref}.pdf`, programme.base64, { base64: true })
       }
 
-      // 3. Convocations — tous stagiaires dans un seul PDF
+      // 3. Convocations - tous stagiaires dans un seul PDF
       const convocations = await generateAllPDF('convocation', session, traineesWithResult, { trainer })
       if (convocations) {
         zip.file(`Convocations_${ref}.pdf`, convocations.base64, { base64: true })
@@ -2077,7 +2077,7 @@ export default function SessionDetail() {
           .eq('session_id', session.id).is('convocation_sent_at', null)
       }
 
-      // 4. Fiches de renseignements — titre rempli, juste nom/prénom, reste vierge
+      // 4. Fiches de renseignements - titre rempli, juste nom/prénom, reste vierge
       const fichesBase64 = await Promise.all(
         traineesWithResult.map(async trainee => {
           const fiche = await generatePDF('ficheRenseignements', session, {
@@ -2091,7 +2091,7 @@ export default function SessionDetail() {
       const mergedFiches = await mergeMultiplePDFs(fichesBase64.filter(Boolean))
       if (mergedFiches) zip.file(`Fiches_Renseignements_${ref}.pdf`, mergedFiches, { base64: true })
 
-      // 5. Émargement — cartouche rempli, cases vierges (pas de attendanceData)
+      // 5. Émargement - cartouche rempli, cases vierges (pas de attendanceData)
       const emargement = await generatePDF('emargement', session, {
         trainees: traineesWithResult,
         trainer,
@@ -2100,11 +2100,11 @@ export default function SessionDetail() {
       })
       if (emargement) zip.file(`Emargement_${ref}.pdf`, emargement.base64, { base64: true })
 
-      // 6. Éval à chaud — tous stagiaires dans un seul PDF
+      // 6. Éval à chaud - tous stagiaires dans un seul PDF
       const evalChaud = await generateAllPDF('evaluation', session, traineesWithResult, { trainer })
       if (evalChaud) zip.file(`Eval_Chaud_${ref}.pdf`, evalChaud.base64, { base64: true })
 
-      // 7. Éval à froid — vierge
+      // 7. Éval à froid - vierge
       const evalFroid = await generatePDF('evaluationFroid', session, { isBlank: true })
       if (evalFroid) zip.file(`Eval_Froid_${ref}.pdf`, evalFroid.base64, { base64: true })
 
@@ -2112,7 +2112,7 @@ export default function SessionDetail() {
       const analyseBesoin = await generatePDF('analyseBesoin', session, { isBlank: false })
       if (analyseBesoin) zip.file(`Analyse_Besoin_${ref}.pdf`, analyseBesoin.base64, { base64: true })
 
-      // 9. Tests de positionnement — rempli si fait, sinon vierge, tous mergés en un seul PDF
+      // 9. Tests de positionnement - rempli si fait, sinon vierge, tous mergés en un seul PDF
       const testParts = []
       for (const trainee of traineesWithResult) {
         const stData = session.session_trainees?.find(st => st.trainee_id === trainee.id)
@@ -2156,7 +2156,7 @@ export default function SessionDetail() {
     }
   }
 
-  // ZIP rempli — tous les documents avec les données complètes
+  // ZIP rempli - tous les documents avec les données complètes
   const handleDownloadZipFilled = async () => {
     setGeneratingZip(true)
     setShowZipDropdown(false)
@@ -2172,7 +2172,7 @@ export default function SessionDetail() {
         access_code: st.access_code
       })) || []
 
-      // 1. Convention — signée si uploadée, sinon générée
+      // 1. Convention - signée si uploadée, sinon générée
       if (session.convention_signed_file_url) {
         try {
           const { data: convBlob, error: convErr } = await supabase.storage
@@ -2186,7 +2186,7 @@ export default function SessionDetail() {
         if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
       }
 
-      // 2. Programme — fichier uploadé en priorité, sinon pdfGenerator
+      // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
       let programmeAdded = false
       const programUrl = session?.courses?.program_url
       if (programUrl) {
@@ -2212,7 +2212,7 @@ export default function SessionDetail() {
           .eq('session_id', session.id).is('convocation_sent_at', null)
       }
 
-      // 4. Fiches de renseignements — remplies avec infoSheet
+      // 4. Fiches de renseignements - remplies avec infoSheet
       const fichesParts = []
       for (const trainee of traineesWithResult) {
         const fiche = await generatePDF('ficheRenseignements', session, {
@@ -2227,7 +2227,7 @@ export default function SessionDetail() {
         if (mergedFiches) zip.file(`Fiches_Renseignements_${ref}.pdf`, mergedFiches, { base64: true })
       }
 
-      // 5. Émargement — rempli avec données de présence + signature formateur
+      // 5. Émargement - rempli avec données de présence + signature formateur
       const [{ data: signatures }, { data: halfDays }, { data: digitalSigs }, trainerSignatureBase64, { data: proxies }] = await Promise.all([
         supabase.from('attendances').select('*').eq('session_id', session.id),
         supabase.from('attendance_halfdays').select('*').eq('session_id', session.id),
@@ -2246,15 +2246,15 @@ export default function SessionDetail() {
       })
       if (emargement) zip.file(`Emargement_${ref}.pdf`, emargement.base64, { base64: true })
 
-      // 6. Éval à chaud — avec réponses des stagiaires
+      // 6. Éval à chaud - avec réponses des stagiaires
       const evalChaud = await generateAllPDF('evaluation', session, traineesWithResult, { trainer, evaluationsData })
       if (evalChaud) zip.file(`Eval_Chaud_${ref}.pdf`, evalChaud.base64, { base64: true })
 
-      // 7. Éval à froid — vierge (pas de données disponibles)
+      // 7. Éval à froid - vierge (pas de données disponibles)
       const evalFroid = await generatePDF('evaluationFroid', session, { isBlank: true })
       if (evalFroid) zip.file(`Eval_Froid_${ref}.pdf`, evalFroid.base64, { base64: true })
 
-      // 8. Analyse de besoins — remplie si existe dans session_needs_analysis, sinon générée
+      // 8. Analyse de besoins - remplie si existe dans session_needs_analysis, sinon générée
       try {
         const { data: analysisData } = await supabase
           .from('session_needs_analysis')
@@ -2279,7 +2279,7 @@ export default function SessionDetail() {
       const attestations = await generateAllPDF('attestation', session, traineesWithResult, { trainer })
       if (attestations) zip.file(`Attestations_${ref}.pdf`, attestations.base64, { base64: true })
 
-      // 11. Tests de positionnement — rempli si fait, sinon vierge
+      // 11. Tests de positionnement - rempli si fait, sinon vierge
       const testParts = []
       for (const trainee of traineesWithResult) {
         const stData = session.session_trainees?.find(st => st.trainee_id === trainee.id)
@@ -2524,7 +2524,7 @@ export default function SessionDetail() {
         // Nettoyer l'URL blob
         setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100)
         
-        console.log('✅ Programme téléchargé:', programme.file_name)
+        console.log('Programme téléchargé:', programme.file_name)
         
       } catch (fetchError) {
         // Fallback: ouverture directe dans nouvel onglet
@@ -2779,7 +2779,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-600">
                   <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-                  <span>{session.location_name || session.location || '—'}</span>
+                  <span>{session.location_name || session.location || '-'}</span>
                 </div>
                 {trainer && (
                   <div className="flex items-center gap-3 text-sm text-gray-600">
@@ -2986,7 +2986,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
       </div>
       
-      {/* Bannière création facture — après envoi "Après formation" */}
+      {/* Bannière création facture - après envoi "Après formation" */}
       {showInvoicePrompt && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between animate-in fade-in">
           <div className="flex items-center gap-3">
@@ -3006,11 +3006,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
       )}
 
-      {/* Bannière persistante — session terminée sans facture (hors Sellsy) */}
+      {/* Bannière persistante - session terminée sans facture (hors Sellsy) */}
       {!showInvoicePrompt && session.status === 'completed' && sessionHasInvoice === false && !(session.notes || '').includes('Sellsy') && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between">
           <p className="text-sm text-amber-800 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" /> Formation terminée — aucune facture créée pour cette session
+            <AlertCircle className="w-4 h-4" /> Formation terminée - aucune facture créée pour cette session
           </p>
           <button onClick={() => navigate(`/factures?from_session=${session.id}`)}
             className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm flex items-center gap-2">
@@ -3162,11 +3162,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             { id: 'presence', label: 'Présence' },
             { id: 'objectifs', label: 'Validation objectifs' },
             { id: 'suivi', label: 'Évaluations' },
-            { id: 'materiel', label: '📦 Matériel' },
+            { id: 'materiel', label: ' Matériel' },
             { id: 'costs', label: 'Coûts supplémentaires' },
-            { id: 'funding', label: `💰 Financement${sessionFundings.length > 0 ? ` (${sessionFundings.length})` : ''}` },
+            { id: 'funding', label: ` Financement${sessionFundings.length > 0 ? ` (${sessionFundings.length})` : ''}` },
             { id: 'documents', label: 'Documents' },
-            ...(isSST ? [{ id: 'sst_certification', label: '🏥 Certification SST' }] : []),
+            ...(isSST ? [{ id: 'sst_certification', label: ' Certification SST' }] : []),
             { id: 'positionnement', label: 'Test positionnement' },
             { id: 'scans', label: 'Scans uploadés' },
             { id: 'attendance', label: 'QR Émargement' },
@@ -3201,8 +3201,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <p className="font-medium">{t.first_name} {t.last_name}</p>
                         <p className="text-sm text-gray-500">{t.email}</p>
                       </div>
-                      {result === 'acquis' && <span className="badge badge-green text-xs">✓ Acquis</span>}
-                      {result === 'non_acquis' && <span className="badge badge-red text-xs">✗ Non acquis</span>}
+                      {result === 'acquis' && <span className="badge badge-green text-xs"> Acquis</span>}
+                      {result === 'non_acquis' && <span className="badge badge-red text-xs"> Non acquis</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       {/* Bouton fiche de renseignement */}
@@ -3214,7 +3214,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         className={`btn btn-sm flex items-center gap-1 ${hasInfoSheet ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
                       >
                         <FileText className="w-3 h-3" />
-                        {hasInfoSheet ? 'Fiche ✓' : 'Fiche'}
+                        {hasInfoSheet ? 'Fiche ' : 'Fiche'}
                       </button>
                       
                       {/* Bouton test de positionnement */}
@@ -3246,7 +3246,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         disabled={loadingPositioningTest}
                       >
                         <Target className="w-3 h-3" />
-                        {stData?.positioning_test_completed ? 'Test ✓' : 'Test'}
+                        {stData?.positioning_test_completed ? 'Test ' : 'Test'}
                       </button>
                       
                       {/* Upload carte FORPREV si session SST */}
@@ -3289,11 +3289,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-green-700 font-medium">🏥 Session FORPREV (SST)</span>
+                  <span className="text-green-700 font-medium"> Session FORPREV (SST)</span>
                   {session.forprev_done ? (
-                    <span className="badge badge-green text-xs">✓ Cartes générées</span>
+                    <span className="badge badge-green text-xs"> Cartes générées</span>
                   ) : (
-                    <span className="badge badge-amber text-xs">⏳ En attente</span>
+                    <span className="badge badge-amber text-xs"> En attente</span>
                   )}
                 </div>
                 <a 
@@ -3358,7 +3358,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     ))}
                     <th className="text-center py-3 px-2 font-medium">Total</th>
                     <th className="text-center py-3 px-2 font-medium">Statut</th>
-                    <th className="text-center py-3 px-2 font-medium" title="Demi-journées signées par le stagiaire">✍️</th>
+                    <th className="text-center py-3 px-2 font-medium" title="Demi-journées signées par le stagiaire"></th>
                     <th className="text-center py-3 px-2 font-medium" title="Absent sur toute la session">ABS</th>
                     <th className="text-center py-3 px-2 font-medium" title="Départ Anticipé">DA</th>
                   </tr>
@@ -3561,7 +3561,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                     }`}
                                     title={!hasFullPresence ? 'Présence 100% requise' : ''}
                                   >
-                                    {isValidated ? '✓' : '○'}
+                                    {isValidated ? '' : '○'}
                                   </button>
                                   
                                   {/* Commentaire si objectif non acquis */}
@@ -3574,7 +3574,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                       rows={2}
                                       onBlur={(e) => {
                                         if (e.target.value.trim()) {
-                                          toast.success('💾 Commentaire sauvegardé', { duration: 1500 })
+                                          toast.success('Commentaire sauvegardé', { duration: 1500 })
                                         }
                                       }}
                                     />
@@ -3612,7 +3612,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               {/* Bouton forcer le résultat */}
                               <div className="relative group">
                                 <button className="text-xs text-gray-400 hover:text-gray-600 px-1" title="Forcer le résultat">
-                                  ⚙️
+                                  
                                 </button>
                                 <div className="absolute right-0 mt-1 w-32 bg-white border rounded shadow-lg hidden group-hover:block z-10">
                                   <button 
@@ -3642,7 +3642,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             {/* Légende */}
             <div className="mt-4 pt-4 border-t text-sm text-gray-500">
               <p><strong>Règle de validation :</strong> Un stagiaire obtient le résultat "Acquis" si tous ses objectifs sont validés ET s'il a été présent à toutes les journées de formation.</p>
-              <p className="mt-1 text-xs"><strong>⚙️ Forcer :</strong> Permet de modifier manuellement le résultat en cas d'exception (rattrapage, absence justifiée validée...).</p>
+              <p className="mt-1 text-xs"><strong> Forcer :</strong> Permet de modifier manuellement le résultat en cas d'exception (rattrapage, absence justifiée validée...).</p>
             </div>
           </div>
         </div>
@@ -3929,7 +3929,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold flex items-center gap-2">
-                📦 Checklist Matériel
+                 Checklist Matériel
               </h3>
               <p className="text-sm text-gray-500">
                 {sessionTrainees.length} stagiaire(s) inscrit(s) - quantités calculées automatiquement
@@ -3940,7 +3940,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 onClick={generateEquipmentFromCourse}
                 className="btn btn-secondary flex items-center gap-2"
               >
-                🔄 Recalculer depuis formation
+                 Recalculer depuis formation
               </button>
               <button 
                 onClick={() => setShowAddEquipmentModal(true)}
@@ -4011,7 +4011,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           </p>
                           {eq.is_prepared && eq.prepared_by && (
                             <p className="text-xs text-green-600 mt-0.5">
-                              ✓ par {eq.prepared_by.split('@')[0]} le {format(new Date(eq.prepared_at), 'dd/MM HH:mm')}
+                               par {eq.prepared_by.split('@')[0]} le {format(new Date(eq.prepared_at), 'dd/MM HH:mm')}
                             </p>
                           )}
                         </td>
@@ -4027,7 +4027,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                             }`}
                           >
-                            {eq.is_prepared ? '✓ Préparé' : 'À préparer'}
+                            {eq.is_prepared ? ' Préparé' : 'À préparer'}
                           </button>
                         </td>
                         <td className="p-3 text-center">
@@ -4064,7 +4064,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   }}
                   className="btn btn-secondary w-full"
                 >
-                  ✓ Tout marquer comme préparé
+                   Tout marquer comme préparé
                 </button>
               )}
             </div>
@@ -4172,7 +4172,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               × {sessionTrainees.length} stagiaire{sessionTrainees.length > 1 ? 's' : ''}
                             </span>
                           ) : (
-                            <span className="text-gray-400">—</span>
+                            <span className="text-gray-400">-</span>
                           )}
                         </td>
                         <td className="py-2 px-3 text-right font-medium">{totalAmount.toFixed(2)} €</td>
@@ -4199,7 +4199,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
                 <p className="text-blue-800">
-                  💡 Ces coûts seront ajoutés au prix de la formation dans la convention.
+                   Ces coûts seront ajoutés au prix de la formation dans la convention.
                   {session?.total_price && (
                     <span className="block mt-1 font-medium">
                       Total convention : {(parseFloat(session.total_price || 0) + calculateTotalCosts()).toFixed(2)} € HT
@@ -4335,12 +4335,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 {!isExact && (
                   <p className={`text-xs mt-1 ${isOver ? 'text-red-600' : 'text-orange-600'}`}>
                     {isOver 
-                      ? `⚠️ Surfinancement de ${(fundingTotal - totalHT).toFixed(2)} €` 
-                      : `💡 Reste à financer : ${diff.toFixed(2)} € HT`}
+                      ? ` Surfinancement de ${(fundingTotal - totalHT).toFixed(2)} €` 
+                      : ` Reste à financer : ${diff.toFixed(2)} € HT`}
                   </p>
                 )}
                 {isExact && sessionFundings.length > 0 && (
-                  <p className="text-xs mt-1 text-green-600">✅ Financement complet</p>
+                  <p className="text-xs mt-1 text-green-600"> Financement complet</p>
                 )}
               </div>
             )
@@ -4348,7 +4348,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
           {/* Liste des financeurs */}
           {sessionFundings.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Aucun financement renseigné — cliquez sur "Ajouter un financeur" pour commencer</p>
+            <p className="text-gray-500 text-center py-8">Aucun financement renseigné - cliquez sur "Ajouter un financeur" pour commencer</p>
           ) : (
             <div className="space-y-3">
               <table className="w-full text-sm">
@@ -4394,11 +4394,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           {funding.funder_contact_email && <div className="text-xs text-gray-400">{funding.funder_contact_email}</div>}
                         </td>
                         <td className="py-2 px-3 text-right font-medium">{parseFloat(funding.amount_ht).toFixed(2)} €</td>
-                        <td className="py-2 px-3 text-center text-gray-500">{funding.percentage ? `${funding.percentage}%` : '—'}</td>
+                        <td className="py-2 px-3 text-center text-gray-500">{funding.percentage ? `${funding.percentage}%` : '-'}</td>
                         <td className="py-2 px-3">
                           {funding.dossier_number ? (
                             <span className="text-xs bg-gray-100 px-2 py-1 rounded">{funding.dossier_number}</span>
-                          ) : <span className="text-gray-400">—</span>}
+                          ) : <span className="text-gray-400">-</span>}
                         </td>
                         <td className="py-2 px-3 text-center">
                           <select
@@ -4475,7 +4475,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 }}
                 className="text-sm text-blue-600 hover:text-blue-800 underline"
               >
-                💡 Pré-remplir avec le client de la session (100%)
+                 Pré-remplir avec le client de la session (100%)
               </button>
             </div>
           )}
@@ -4516,7 +4516,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           value={fundingForm.funder_client_id}
                           onChange={(e) => handlePrefillClientFunding(e.target.value)}
                         >
-                          <option value="">— Saisie manuelle —</option>
+                          <option value="">- Saisie manuelle -</option>
                           {clients.filter(c => c.status === 'active' || c.status === 'client').map(c => (
                             <option key={c.id} value={c.id}>{c.name}{c.siret ? ` (${c.siret})` : ''}</option>
                           ))}
@@ -4623,7 +4623,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     {/* Infos contact facturation */}
                     <details className="border rounded-lg">
                       <summary className="p-3 cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800">
-                        📧 Coordonnées de facturation (optionnel)
+                         Coordonnées de facturation (optionnel)
                       </summary>
                       <div className="p-3 pt-0 space-y-3">
                         <div>
@@ -4696,15 +4696,15 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       onClick={handleDownloadZip}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
-                      <p className="text-sm font-medium text-gray-900">📦 Documents vierges</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Tous les docs avec juste les noms — à remplir manuellement</p>
+                      <p className="text-sm font-medium text-gray-900"> Documents vierges</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Tous les docs avec juste les noms - à remplir manuellement</p>
                     </button>
                     <div className="border-t border-gray-100" />
                     <button
                       onClick={handleDownloadZipFilled}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
-                      <p className="text-sm font-medium text-gray-900">📦 Documents remplis</p>
+                      <p className="text-sm font-medium text-gray-900"> Documents remplis</p>
                       <p className="text-xs text-gray-500 mt-0.5">Tous les docs avec les données existantes</p>
                     </button>
                   </div>
@@ -4866,7 +4866,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               
               {/* Boutons de téléchargement */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm font-medium text-blue-800 mb-3">📄 Générer les tests de positionnement</p>
+                <p className="text-sm font-medium text-blue-800 mb-3"> Générer les tests de positionnement</p>
                 <div className="flex flex-wrap gap-2 relative">
                   <button 
                     onClick={() => handleDownloadAll('positionnement')} 
@@ -4961,7 +4961,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <div className="mt-2 text-sm text-gray-600 space-y-1">
                           {options.map((opt, optIdx) => (
                             <p key={optIdx} className={q.correct_index === optIdx ? 'text-green-700 font-medium' : ''}>
-                              {q.correct_index === optIdx ? '✓' : '○'} {opt}
+                              {q.correct_index === optIdx ? '' : '○'} {opt}
                             </p>
                           ))}
                         </div>
@@ -5014,7 +5014,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="card">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <QrCode className="w-5 h-5 text-primary-600" />
-              📱 QR Code Stagiaires
+               QR Code Stagiaires
               <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded ml-2">Ind. 8, 11, 30</span>
             </h3>
             
@@ -5069,11 +5069,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </div>
           </div>
 
-          {/* QR Code formateur — signature sur son téléphone */}
+          {/* QR Code formateur - signature sur son téléphone */}
           <div className="card">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <Smartphone className="w-5 h-5 text-primary-600" />
-              📲 QR Code formateur — faire signer sur le téléphone
+               QR Code formateur - faire signer sur le téléphone
             </h3>
 
             <div className="grid md:grid-cols-2 gap-6">
@@ -5136,7 +5136,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="card">
             <h3 className="font-semibold mb-3 flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" />
-              📄 Document stagiaire (QR code)
+               Document stagiaire (QR code)
             </h3>
             <p className="text-sm text-gray-600 mb-4">
               Activez l'accès au livret de formation pour les stagiaires via QR code
@@ -5162,7 +5162,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         <thead>
           <tr className="border-b">
             <th className="text-left py-2 px-2">Stagiaire</th>
-            <th className="text-center py-2 px-1 w-10" title="Attentes & Observations">💬</th>
+            <th className="text-center py-2 px-1 w-10" title="Attentes & Observations"></th>
             <th className="text-center py-2 px-2">Code</th>
             <th className="text-center py-2 px-2">Fiche</th>
             <th className="text-center py-2 px-2">Éval.</th>
@@ -5201,10 +5201,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         className="p-1 hover:bg-gray-100 rounded transition"
                         title="Régénérer le code"
                       >
-                        🔄
+                        
                       </button>
                       {accessCodes[t.id].locked && (
-                        <span className="text-xs text-red-600" title="Compte verrouillé">🔒</span>
+                        <span className="text-xs text-red-600" title="Compte verrouillé"></span>
                       )}
                     </div>
                   ) : (
@@ -5226,7 +5226,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
   )}
   
   <p className="text-xs text-gray-400 mt-4">
-    💡 Les données de présence par demi-journée sont visibles dans l'onglet "Présence".
+     Les données de présence par demi-journée sont visibles dans l'onglet "Présence".
   </p>
 </div>
         </div>
@@ -5356,13 +5356,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 
                 {/* Contact pour convocations */}
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
-                  <p className="font-medium text-blue-800 text-sm">📧 Contact & Signataire</p>
+                  <p className="font-medium text-blue-800 text-sm"> Contact & Signataire</p>
                   <div>
                     <label className="label text-xs">Contact convocations</label>
                     <select className="input" value={editForm.contact_id} onChange={(e) => setEditForm({...editForm, contact_id: e.target.value})}>
                       <option value="">Contact générique (entreprise)</option>
                       {(session?.clients?.contacts || []).map(c => (
-                        <option key={c.id} value={c.id}>👤 {c.name}{c.role ? ` (${c.role})` : ''}</option>
+                        <option key={c.id} value={c.id}> {c.name}{c.role ? ` (${c.role})` : ''}</option>
                       ))}
                     </select>
                     <p className="text-xs text-gray-500 mt-0.5">Personne mentionnée sur les convocations</p>
@@ -5382,14 +5382,14 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 <div>
                   <label className="label flex items-center gap-2">
                     Statut
-                    {session?.status_locked && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">🔒 Forcé</span>}
+                    {session?.status_locked && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded"> Forcé</span>}
                   </label>
                   <select className="input" value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})}>
                     {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
                     {session?.status_locked 
-                      ? '⚠️ Statut verrouillé (pas de changement auto)' 
+                      ? ' Statut verrouillé (pas de changement auto)' 
                       : 'Le statut change automatiquement selon les dates'}
                   </p>
                   {session?.status_locked && (
@@ -5403,7 +5403,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       }}
                       className="text-xs text-blue-600 hover:underline mt-1"
                     >
-                      🔓 Déverrouiller (revenir au mode automatique)
+                       Déverrouiller (revenir au mode automatique)
                     </button>
                   )}
                 </div>
@@ -5414,7 +5414,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 
                 {/* FORPREV - pour formations SST/secourisme */}
                 <div className="col-span-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="font-medium text-green-800 mb-2">🏥 FORPREV (INRS) - Formations SST</p>
+                  <p className="font-medium text-green-800 mb-2"> FORPREV (INRS) - Formations SST</p>
                   <div className="flex items-center gap-6">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input 
@@ -5433,12 +5433,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           checked={editForm.forprev_done} 
                           onChange={(e) => setEditForm({...editForm, forprev_done: e.target.checked})}
                         />
-                        <span className="text-sm text-gray-700">✓ Cartes générées sur FORPREV</span>
+                        <span className="text-sm text-gray-700"> Cartes générées sur FORPREV</span>
                       </label>
                     )}
                   </div>
                   {editForm.requires_forprev && !editForm.forprev_done && (
-                    <p className="text-xs text-orange-600 mt-2">⚠️ Pensez à générer les cartes SST sur le site FORPREV de l'INRS</p>
+                    <p className="text-xs text-orange-600 mt-2"> Pensez à générer les cartes SST sur le site FORPREV de l'INRS</p>
                   )}
                 </div>
               </div>
@@ -5667,7 +5667,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     
                     {/* Coordonnées - Section importante */}
                     <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg">
-                      <p className="text-xs text-amber-700 font-medium mb-2">📧 Coordonnées pour certificat et Passeport Prévention</p>
+                      <p className="text-xs text-amber-700 font-medium mb-2"> Coordonnées pour certificat et Passeport Prévention</p>
                       <div className="grid md:grid-cols-2 gap-3">
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Email</p>
@@ -5695,7 +5695,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       </div>
                       <div className="bg-gray-50 p-3 rounded">
                         <p className="text-xs text-gray-500 mb-1">Consentement RGPD</p>
-                        <p className="font-medium">{selectedTraineeInfo.info.rgpd_consent ? '✓ Accepté' : '✗ Non'}</p>
+                        <p className="font-medium">{selectedTraineeInfo.info.rgpd_consent ? ' Accepté' : ' Non'}</p>
                       </div>
                     </div>
                   </div>
@@ -5739,7 +5739,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b bg-indigo-50">
                 <div>
-                  <h2 className="text-lg font-semibold">🎯 Test de positionnement</h2>
+                  <h2 className="text-lg font-semibold"> Test de positionnement</h2>
                   <p className="text-sm text-gray-600">{selectedPositioningTest.trainee?.first_name} {selectedPositioningTest.trainee?.last_name?.toUpperCase()}</p>
                 </div>
                 <button onClick={() => setShowPositioningTest(false)}><X className="w-5 h-5" /></button>
@@ -5792,13 +5792,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             {/* Points de vigilance */}
                             {(failedCritical.length > 0 || dontKnow.length > 0) && (
                               <div className="pt-3 border-t border-gray-200">
-                                <p className="text-sm font-medium text-orange-700 mb-2">⚠️ Points de vigilance :</p>
+                                <p className="text-sm font-medium text-orange-700 mb-2"> Points de vigilance :</p>
                                 <ul className="space-y-2 text-sm">
                                   {failedCritical.map((q, idx) => {
                                     const options = typeof q.options === 'string' ? JSON.parse(q.options) : q.options
                                     return (
                                       <li key={idx} className="flex items-start gap-2">
-                                        <span className="text-red-600 font-bold">✗</span>
+                                        <span className="text-red-600 font-bold"></span>
                                         <div>
                                           <p className="font-medium text-gray-900">{q.question_text}</p>
                                           <p className="text-red-600">Réponse donnée : {options[q.selected_option_index]}</p>
@@ -5823,7 +5823,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             {/* Points forts */}
                             {correctCritical > 0 && (
                               <div className="pt-3 border-t border-gray-200">
-                                <p className="text-sm font-medium text-green-700 mb-2">✅ Points forts :</p>
+                                <p className="text-sm font-medium text-green-700 mb-2"> Points forts :</p>
                                 <p className="text-sm text-gray-600">
                                   {correctCritical} question{correctCritical > 1 ? 's critiques maîtrisées' : ' critique maîtrisée'}
                                 </p>
@@ -5874,15 +5874,15 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                           'bg-white text-gray-600'
                                         }`}
                                       >
-                                        {isSelected && '👉 '}
-                                        {isCorrect && !isSelected && '✓ '}
+                                        {isSelected && ' '}
+                                        {isCorrect && !isSelected && ' '}
                                         {opt}
                                       </div>
                                     )
                                   })}
                                   {answer.selected_option_index === -1 && (
                                     <div className="p-2 rounded text-sm bg-gray-100 text-gray-600 italic">
-                                      👉 Je ne sais pas
+                                       Je ne sais pas
                                     </div>
                                   )}
                                 </div>
@@ -6077,7 +6077,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   className="btn btn-primary flex items-center gap-2"
                 >
                   {savingExpectations ? (
-                    <span className="animate-spin">⏳</span>
+                    <span className="animate-spin"></span>
                   ) : (
                     <Save className="w-4 h-4" />
                   )}

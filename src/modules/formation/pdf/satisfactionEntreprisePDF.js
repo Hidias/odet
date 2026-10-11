@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
 /**
- * Génère le questionnaire de satisfaction entreprise — 1 PAGE GARANTIE
+ * Génère le questionnaire de satisfaction entreprise - 1 PAGE GARANTIE
  * Calcul Y précis : total ≈ 275mm, tient sur A4 (297mm)
  */
 export async function generateSatisfactionEntreprisePDF(session, client) {
@@ -216,14 +216,14 @@ export async function generateSatisfactionEntreprisePDF(session, client) {
   y += commentBoxHeight + 8  // y=233
 
   // ══════════════════════════════════════════════════════════════
-  // SIGNATURE  (y=233→275 — dans pageHeight=297)
+  // SIGNATURE  (y=233→275 - dans pageHeight=297)
   // ══════════════════════════════════════════════════════════════
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
   doc.setTextColor(0, 0, 0)
 
-  // Date (gauche) + Nom répondant (droite) — même ligne
+  // Date (gauche) + Nom répondant (droite) - même ligne
   doc.text('Date :', 15, y)
   doc.setFont('helvetica', 'normal')
   doc.setDrawColor(150, 150, 150)

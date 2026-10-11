@@ -148,12 +148,12 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
       if (updateError) throw updateError
 
       setCurrentSignature(publicUrl)
-      toast.success('✅ Signature enregistrée avec succès')
+      toast.success('Signature enregistrée avec succès')
       
       if (onUpdate) onUpdate({ ...trainer, signature_url: publicUrl })
     } catch (error) {
       console.error('Erreur sauvegarde signature:', error)
-      toast.error('❌ Erreur lors de l\'enregistrement')
+      toast.error('Erreur lors de l\'enregistrement')
     } finally {
       setUploading(false)
     }
@@ -220,12 +220,12 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
       if (updateError) throw updateError
 
       setCurrentSignature(publicUrl)
-      toast.success('✅ Signature importée avec succès')
+      toast.success('Signature importée avec succès')
       
       if (onUpdate) onUpdate({ ...trainer, signature_url: publicUrl })
     } catch (error) {
       console.error('Erreur upload signature:', error)
-      toast.error('❌ Erreur lors de l\'import')
+      toast.error('Erreur lors de l\'import')
     } finally {
       setUploading(false)
     }
@@ -234,7 +234,7 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
   const deleteSignature = async () => {
     if (!currentSignature) return
 
-    if (!confirm('⚠️ Supprimer définitivement cette signature ?')) return
+    if (!confirm(' Supprimer définitivement cette signature ?')) return
 
     setUploading(true)
 
@@ -256,12 +256,12 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
       if (error) throw error
 
       setCurrentSignature(null)
-      toast.success('🗑️ Signature supprimée')
+      toast.success('Signature supprimée')
       
       if (onUpdate) onUpdate({ ...trainer, signature_url: null })
     } catch (error) {
       console.error('Erreur suppression signature:', error)
-      toast.error('❌ Erreur lors de la suppression')
+      toast.error('Erreur lors de la suppression')
     } finally {
       setUploading(false)
     }
@@ -383,7 +383,7 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
           {/* Conseils */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-xs text-blue-800">
-              <strong>💡 Conseil :</strong> Signez lentement pour un trait net. 
+              <strong> Conseil :</strong> Signez lentement pour un trait net. 
               Sur mobile, orientez l'écran en mode paysage pour plus d'espace.
             </p>
           </div>
@@ -434,7 +434,7 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
           {/* Conseils */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-xs text-blue-800">
-              <strong>💡 Conseil :</strong> Utilisez une signature sur fond blanc transparent (PNG) 
+              <strong> Conseil :</strong> Utilisez une signature sur fond blanc transparent (PNG) 
               ou fond blanc uni. Dimensions recommandées : 400x150 pixels.
             </p>
           </div>
