@@ -3,6 +3,7 @@
 // Utilisation : WeeklyPlanner, Quotes.jsx, ou tout composant avec relance
 // ═══════════════════════════════════════════════════════════════
 
+import { apiFetch } from '../../../core/api'
 import { useState } from 'react'
 import { supabase } from '../../../core/supabase'
 import { format } from 'date-fns'
@@ -53,7 +54,7 @@ export function useRelanceIA() {
       const daysSinceQuote = Math.floor((new Date() - new Date(quote.quote_date)) / 86400000)
 
       // Appel API IA
-      const res = await fetch('/api/generate-relance-email', {
+      const res = await apiFetch('/api/generate-relance-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -134,7 +135,7 @@ export function useRelanceIA() {
       // Convertir le body texte en HTML
       const htmlBody = body.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '').join('')
 
-      const res = await fetch('/api/send-prospect-email', {
+      const res = await apiFetch('/api/send-prospect-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

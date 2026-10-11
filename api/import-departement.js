@@ -12,6 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { requireUser } from './_lib/auth.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Clé serveur : la table prospection_massive est protégée (RLS, accès connecté uniquement)
@@ -219,6 +220,12 @@ async function insertProspects(supabase, prospects) {
 }
 
 export default async function handler(req, res) {
+  if (req.method !== 'OPTIONS') {
+    const ctx = await requireUser(req)
+    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+    req.user = ctx.user
+    req.profile = ctx.profile
+  }
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')

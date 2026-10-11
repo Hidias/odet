@@ -1,3 +1,4 @@
+import { requireUser } from './_lib/auth.js'
 /**
  * ============================================================================
  * API - AUTO-ENRICHISSEMENT PROSPECT v3 (Anthropic + Web Search)
@@ -18,6 +19,12 @@ export const config = {
 }
 
 export default async function handler(req, res) {
+  if (req.method !== 'OPTIONS') {
+    const ctx = await requireUser(req)
+    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+    req.user = ctx.user
+    req.profile = ctx.profile
+  }
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')

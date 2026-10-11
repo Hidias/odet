@@ -1,8 +1,15 @@
+import { requireUser } from './_lib/auth.js'
 // api/generate-relance-email.js
 // Génère un email de relance de devis personnalisé via Claude
 // Prend en compte : contexte client, âge du devis, historique de relances, formations concernées
 
 export default async function handler(req, res) {
+  if (req.method !== 'OPTIONS') {
+    const ctx = await requireUser(req)
+    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+    req.user = ctx.user
+    req.profile = ctx.profile
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

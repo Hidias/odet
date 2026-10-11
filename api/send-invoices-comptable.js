@@ -3,12 +3,19 @@
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML } from './_lib/mailer.js'
 import { getComptableConfig } from './_lib/comptable.js'
+import { requireUser } from './_lib/auth.js'
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } }
 }
 
 export default async function handler(req, res) {
+  if (req.method !== 'OPTIONS') {
+    const ctx = await requireUser(req)
+    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+    req.user = ctx.user
+    req.profile = ctx.profile
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

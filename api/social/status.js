@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
+import { requireUser } from '../_lib/auth.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -11,6 +12,12 @@ const supabase = createClient(
 )
 
 export default async function handler(req, res) {
+  if (req.method !== 'OPTIONS') {
+    const ctx = await requireUser(req)
+    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+    req.user = ctx.user
+    req.profile = ctx.profile
+  }
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

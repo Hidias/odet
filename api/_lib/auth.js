@@ -54,3 +54,19 @@ export function requireCronSecret(req, res) {
   }
   return true
 }
+
+/**
+ * Pour les tâches planifiées : accepte le secret CRON_SECRET (appel par Vercel ou Supabase)
+ * ou un utilisateur connecté (lancement manuel depuis l'application).
+ * Répond 401 et retourne false si aucun des deux n'est valide.
+ */
+export async function requireCronOrUser(req, res) {
+  const expected = process.env.CRON_SECRET
+  const header = req.headers?.authorization || ''
+  const given = header.startsWith('Bearer ') ? header.slice(7) : (req.query?.secret || '')
+  if (expected && given === expected) return { cron: true }
+  const ctx = await requireUser(req)
+  if (ctx) return ctx
+  res.status(401).json({ error: 'Connexion requise' })
+  return false
+}

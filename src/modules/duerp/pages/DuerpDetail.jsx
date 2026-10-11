@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -397,7 +398,7 @@ export default function DuerpDetail() {
     try {
       const unit = units.find(u => u.id === risk.unit_id)
       const cat = categories.find(c => c.code === risk.category_code)
-      const res = await fetch('/api/duerp-ai-evaluate', {
+      const res = await apiFetch('/api/duerp-ai-evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -480,7 +481,7 @@ export default function DuerpDetail() {
         danger: r.danger,
         category: categories.find(c => c.code === r.category_code)?.label || '',
       }))
-      const res = await fetch('/api/duerp-ai-evaluate', {
+      const res = await apiFetch('/api/duerp-ai-evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -572,7 +573,7 @@ export default function DuerpDetail() {
         category: categories.find(c => c.code === r.category_code)?.label || '',
         unit: units.find(u => u.id === r.unit_id)?.name || '',
       }))
-      const res = await fetch('/api/duerp-ai-evaluate', {
+      const res = await apiFetch('/api/duerp-ai-evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -680,7 +681,7 @@ export default function DuerpDetail() {
         frequence: r.frequence, gravite: r.gravite, maitrise: r.maitrise,
       }))
       const risksWithActionIds = new Set(actions.map(a => a.risk_id).filter(Boolean))
-      const res = await fetch('/api/duerp-ai-evaluate', {
+      const res = await apiFetch('/api/duerp-ai-evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

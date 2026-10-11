@@ -7,6 +7,7 @@
 //   Envoi : côté serveur (api/mailing-cron.js) ou depuis ce navigateur
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import { useAuthStore } from '../../../core/store'
@@ -395,7 +396,7 @@ export default function Mailing() {
       setProgress(p => ({ ...p, current: send.company_name || send.email }))
       const vars = send.vars || {}
       try {
-        const res = await fetch('/api/send-mailing-single', {
+        const res = await apiFetch('/api/send-mailing-single', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             send_id: send.id, to: send.email,
@@ -423,7 +424,7 @@ export default function Mailing() {
     setView('sending')
     await sendLoop(sends, context, attachment)
     if (!stopRef.current) {
-      await fetch('/api/send-mailing-report', {
+      await apiFetch('/api/send-mailing-report', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ campaign_id: campaign.id }),
       }).catch(() => {})

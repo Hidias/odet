@@ -1,3 +1,4 @@
+import { requireUser } from './_lib/auth.js'
 // api/generate-mailing-body.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Génère le corps HTML d'un email de prospection via Claude (Haiku)
@@ -12,6 +13,12 @@
 export const config = { maxDuration: 20 }
 
 export default async function handler(req, res) {
+  if (req.method !== 'OPTIONS') {
+    const ctx = await requireUser(req)
+    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+    req.user = ctx.user
+    req.profile = ctx.profile
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

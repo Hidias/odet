@@ -6,6 +6,7 @@
 import { ImapFlow } from 'imapflow'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { requireCronOrUser } from './_lib/auth.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -316,6 +317,7 @@ async function syncAccount(emailConfig, cursor) {
 }
 
 export default async function handler(req, res) {
+  if (!(await requireCronOrUser(req, res))) return
   console.log('=== SYNC SENT EMAILS START ===')
 
   try {

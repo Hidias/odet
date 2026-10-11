@@ -1,268 +1,270 @@
-// ═══════════════════════════════════════════════════════════════
-// api/_lib/mailer.js — Config SMTP partagée Access Campus
-// ═══════════════════════════════════════════════════════════════
-// Fichier dans _lib/ → Vercel ne le route PAS comme un endpoint API
-// Import: import { getSupabaseAdmin, getMailer, sendWithRetry } from './_lib/mailer.js'
+// api/_lib/mailer.js : envoi d'emails côté serveur (configuration SMTP par utilisateur),
+// identité de l'organisme, signatures et redirection des envois en mode démonstration.
+// Import : import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, wrapEmailHTML } from './_lib/mailer.js'
 
 import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 import crypto from 'crypto'
 
-// ─── Supabase Admin ──────────────────────────────────────────
+// ---- Supabase (clé serveur) -------------------------------------------------
 export function getSupabaseAdmin() {
-  return createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error('SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY doivent être définies')
+  return createClient(url, key, { auth: { persistSession: false } })
 }
 
-// ─── Decrypt mot de passe SMTP ───────────────────────────────
+// ---- Mot de passe SMTP (chiffré en base avec ENCRYPTION_KEY) ---------------
 export function decrypt(encryptedText) {
-  const algorithm = 'aes-256-cbc'
+  if (!process.env.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY manquante')
   const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
-  const [ivHex, encrypted] = encryptedText.split(':')
-  const iv = Buffer.from(ivHex, 'hex')
-  const decipher = crypto.createDecipheriv(algorithm, key, iv)
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-  decrypted += decipher.final('utf8')
-  return decrypted
+  const [ivHex, encrypted] = String(encryptedText).split(':')
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(ivHex, 'hex'))
+  let out = decipher.update(encrypted, 'hex', 'utf8')
+  out += decipher.final('utf8')
+  return out
 }
 
-// ─── Créer un transporter SMTP ───────────────────────────────
-export function createTransporter(emailConfig, smtpPassword) {
-  return nodemailer.createTransport({
+export function encrypt(text) {
+  if (!process.env.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY manquante')
+  const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
+  const iv = crypto.randomBytes(16)
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv)
+  let enc = cipher.update(String(text), 'utf8', 'hex')
+  enc += cipher.final('hex')
+  return `${iv.toString('hex')}:${enc}`
+}
+
+// ---- Identité de l'organisme ----------------------------------------------
+let orgCache = { at: 0, value: null }
+
+/**
+ * Ligne organization_settings, avec quelques champs dérivés. Cache 30 s par instance de fonction.
+ */
+export async function getOrg(supabase) {
+  if (orgCache.value && Date.now() - orgCache.at < 30000) return orgCache.value
+  const client = supabase || getSupabaseAdmin()
+  const { data } = await client.from('organization_settings').select('*').limit(1).maybeSingle()
+  const o = data || {}
+  const city = o.city || ''
+  const org = {
+    ...o,
+    name: o.name || '',
+    legal_name: o.legal_name || o.name || '',
+    addressLine: [o.address, [o.postal_code, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+    website: o.website || '',
+    websiteLabel: (o.website || '').replace(/^https?:\/\//, '').replace(/\/$/, ''),
+    phone: o.phone || '',
+    email: o.email || '',
+    qualiopi: !!o.qualiopi_certified,
+    brand_nav: o.brand_nav || (o.brand_primary || '#1C2024'),
+    brand_highlight: o.brand_highlight || '#D9A62E',
+    app_url: (process.env.APP_URL || '').replace(/\/$/, ''),
+  }
+  orgCache = { at: Date.now(), value: org }
+  return org
+}
+
+// ---- Expéditeur (profil de l'utilisateur) ----------------------------------
+/**
+ * Personne qui signe l'email, d'après son adresse d'envoi (profiles.sender_email ou profiles.email).
+ * Repli : l'organisme lui-même.
+ */
+export async function getSender(supabase, email) {
+  const client = supabase || getSupabaseAdmin()
+  const org = await getOrg(client)
+  let p = null
+  if (email) {
+    const { data } = await client.from('profiles').select('first_name, last_name, display_name, fonction, phone, email, sender_email')
+      .or(`sender_email.eq.${email},email.eq.${email}`).limit(1).maybeSingle()
+    p = data
+  }
+  const name = p ? (p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ')) : ''
+  return {
+    name: name || org.name,
+    title: p?.fonction || '',
+    phone: p?.phone || org.phone,
+    email: email || p?.email || org.email,
+    isOrg: !p,
+  }
+}
+
+// ---- Transport SMTP ----------------------------------------------------------
+/**
+ * En mode démonstration (organization_settings.demo_mode), tous les envois partent vers MAIL_SINK.
+ * Les destinataires d'origine sont rappelés dans l'objet et en tête du message.
+ */
+export async function applyMailSink(mailOptions, supabase) {
+  const org = await getOrg(supabase)
+  if (!org.demo_mode) return mailOptions
+  const sink = process.env.MAIL_SINK
+  if (!sink) throw new Error('Mode démonstration actif mais MAIL_SINK non définie : envoi refusé')
+  const list = (v) => (Array.isArray(v) ? v : v ? [v] : []).map((x) => (typeof x === 'string' ? x : x?.address || '')).filter(Boolean)
+  const original = { to: list(mailOptions.to), cc: list(mailOptions.cc), bcc: list(mailOptions.bcc) }
+  const summary = [original.to.length ? `à : ${original.to.join(', ')}` : '', original.cc.length ? `cc : ${original.cc.join(', ')}` : '', original.bcc.length ? `cci : ${original.bcc.join(', ')}` : ''].filter(Boolean).join(' / ')
+  const banner = `<div style="font-family:Arial,sans-serif;font-size:12px;background:#fff4d6;color:#8a5a00;padding:8px 12px;border-radius:6px;margin-bottom:12px;">Mode démonstration : cet email aurait été envoyé ${summary || 'sans destinataire'}.</div>`
+  return {
+    ...mailOptions,
+    to: sink,
+    cc: undefined,
+    bcc: undefined,
+    subject: `[DEMO] ${mailOptions.subject || ''}`,
+    html: mailOptions.html ? banner + mailOptions.html : undefined,
+    text: mailOptions.text ? `Mode démonstration : destinataires d'origine ${summary}\n\n${mailOptions.text}` : mailOptions.text,
+  }
+}
+
+export function createTransporter(emailConfig, smtpPassword, supabase) {
+  const transporter = nodemailer.createTransport({
     host: emailConfig.smtp_host,
     port: emailConfig.smtp_port,
     secure: emailConfig.smtp_secure,
-    auth: {
-      user: emailConfig.email,
-      pass: smtpPassword
-    },
+    auth: { user: emailConfig.email, pass: smtpPassword },
     tls: { rejectUnauthorized: false },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 30000,
     pool: false,
     maxConnections: 1,
-    maxMessages: 1
+    maxMessages: 1,
   })
+  // La redirection démo s'applique à chaque envoi, quel que soit l'appelant
+  const rawSend = transporter.sendMail.bind(transporter)
+  transporter.sendMail = async (options) => rawSend(await applyMailSink(options, supabase))
+  return transporter
 }
 
-// ─── Raccourci : config + transporter en un appel ────────────
 /**
- * @param {object} supabase - Client Supabase admin
- * @param {string} userId - UUID utilisateur
- * @param {object} [options]
- * @param {string} [options.preferEmail] - Email à préférer si plusieurs configs
+ * Configuration email active d'un utilisateur + transporteur prêt à l'emploi.
  * @returns {{ transporter, emailConfig, fromEmail, error }}
  */
 export async function getMailer(supabase, userId, options = {}) {
-  // Récupérer config(s) email
-  const query = supabase
-    .from('user_email_configs')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-
-  const { data: configs, error: configError } = await query
-
+  const { data: configs, error: configError } = await supabase
+    .from('user_email_configs').select('*').eq('user_id', userId).eq('is_active', true)
   if (configError || !configs || configs.length === 0) {
-    return { transporter: null, emailConfig: null, fromEmail: null, error: 'Config email non trouvée' }
+    return { transporter: null, emailConfig: null, fromEmail: null, error: 'Aucune configuration email active pour cet utilisateur' }
   }
-
-  // Sélectionner la bonne config
   let emailConfig = configs[0]
   if (options.preferEmail) {
-    const preferred = configs.find(c => c.email === options.preferEmail)
+    const preferred = configs.find((c) => c.email === options.preferEmail)
     if (preferred) emailConfig = preferred
   }
-
-  // Déchiffrer et créer le transporter
-  const smtpPassword = decrypt(emailConfig.smtp_password_encrypted)
-  const transporter = createTransporter(emailConfig, smtpPassword)
-
-  return {
-    transporter,
-    emailConfig,
-    fromEmail: emailConfig.email,
-    error: null
-  }
+  const transporter = createTransporter(emailConfig, decrypt(emailConfig.smtp_password_encrypted), supabase)
+  return { transporter, emailConfig, fromEmail: emailConfig.email, error: null }
 }
 
-// ─── Envoi avec retry ────────────────────────────────────────
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+/**
+ * Transporteur à partir d'une adresse d'envoi (toutes configurations confondues).
+ */
+export async function getMailerByEmail(supabase, email) {
+  const { data: emailConfig } = await supabase.from('user_email_configs').select('*').eq('email', email).eq('is_active', true).limit(1).maybeSingle()
+  if (!emailConfig) return { transporter: null, emailConfig: null, fromEmail: null, error: `Aucune configuration email pour ${email}` }
+  const transporter = createTransporter(emailConfig, decrypt(emailConfig.smtp_password_encrypted), supabase)
+  return { transporter, emailConfig, fromEmail: emailConfig.email, error: null }
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
- * Envoyer un email avec retry automatique
- * @param {object} transporter - Nodemailer transporter
- * @param {object} mailOptions - Options nodemailer (from, to, subject, html, attachments...)
- * @param {number} [maxRetries=3]
- * @returns {object} Info d'envoi nodemailer
+ * Envoi avec nouvelles tentatives. Pas de transporter.verify() : il ouvrirait une seconde
+ * connexion SMTP et certains fournisseurs limitent les connexions simultanées.
  */
 export async function sendWithRetry(transporter, mailOptions, maxRetries = 3) {
   let lastError = null
-
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`📧 Tentative d'envoi ${attempt}/${maxRetries}`)
-      // Pas de transporter.verify() : avec pool:false il ouvre une 2e connexion SMTP
-      // redondante → saturation IONOS (421 max concurrent connections). sendMail() établit
-      // la connexion lui-même, verify() ne sert qu'à doubler le nombre de connexions.
       const info = await transporter.sendMail(mailOptions)
-      console.log('✅ Email envoyé:', info.messageId)
       return info
     } catch (error) {
       lastError = error
-      console.error(`❌ Tentative ${attempt} échouée:`, error.message)
-
+      console.error(`Envoi email, tentative ${attempt}/${maxRetries} :`, error.message)
       try { transporter.close() } catch {}
-
-      // 421 / 4.3.2 = saturation de connexions IONOS : réessayer ouvre encore plus de
-      // connexions et aggrave le problème. On abandonne immédiatement.
       const isConnLimit = error?.responseCode === 421 || /concurrent|4\.3\.2|too many/i.test(error?.message || '')
-      if (isConnLimit) { console.error('🚫 Limite de connexions SMTP atteinte — abandon sans retry'); break }
-
-      if (attempt < maxRetries) {
-        const waitTime = attempt * 2000
-        console.log(`⏳ Attente ${waitTime}ms avant nouvelle tentative...`)
-        await sleep(waitTime)
-      }
+      if (isConnLimit) break
+      if (/MAIL_SINK/.test(error?.message || '')) break
+      if (attempt < maxRetries) await sleep(attempt * 2000)
     }
   }
-
   throw lastError
 }
 
-// ─── Signatures HTML Access Formation ────────────────────────
-export const SIGNATURES = {
-  Hicham: {
-    name: 'Hicham SAIDI',
-    title: 'Dirigeant associé',
-    phone: '06 35 20 04 28',
-    email: 'hicham.saidi@accessformation.pro',
-    senderEmail: 'hicham.saidi@accessformation.pro',
-  },
-  Maxime: {
-    name: 'Maxime LANGLAIS',
-    title: 'Dirigeant associé',
-    phone: '07 83 51 17 95',
-    email: 'maxime.langlais@accessformation.pro',
-    senderEmail: 'maxime.langlais@accessformation.pro',
-  },
-  Marine: {
-    name: 'Marine',
-    title: '',
-    phone: '02 98 90 30 24',
-    email: 'contact@accessformation.pro',
-    senderEmail: 'entreprise@accessformation.pro',
-  },
-}
-
+// ---- HTML : signature et habillage -----------------------------------------
 /**
- * Détermine le caller (Hicham/Maxime/Marine) depuis une adresse email
+ * Bloc de signature aux couleurs de l'organisme.
+ * @param {object} sender résultat de getSender()
+ * @param {object} org résultat de getOrg()
+ * @param {string} variant 'standard' | 'chaud' (bandeau de prise en charge)
  */
-export function getCallerByEmail(email) {
-  if (email?.includes('hicham')) return 'Hicham'
-  if (email?.includes('maxime')) return 'Maxime'
-  return 'Marine'
-}
-
-/**
- * Génère le bloc HTML de signature
- */
-export function buildSignatureHTML(caller, variant = 'standard') {
-  const sig = SIGNATURES[caller] || SIGNATURES.Marine
+export function buildSignatureHTML(sender, org, variant = 'standard') {
+  const s = sender || {}
+  const o = org || {}
   const chaudBanner = variant === 'chaud' ? `
     <table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; margin-bottom: 8px; border-collapse: collapse; width: 440px;">
       <tr>
         <td bgcolor="#fff7ed" style="background-color: #fff7ed; padding: 10px 18px; border-radius: 8px; border: 1px solid #fed7aa;">
-          <p style="margin: 0; font-size: 13px; color: #9a3412; line-height: 1.5;">
-            🔥 <strong>Nous avons bien noté votre besoin.</strong> Un de nos formateurs vous recontactera rapidement pour affiner les détails avec vous.
-          </p>
+          <p style="margin: 0; font-size: 13px; color: #9a3412; line-height: 1.5;"><strong>Nous avons bien noté votre besoin.</strong> Un de nos formateurs vous recontactera rapidement pour affiner les détails avec vous.</p>
         </td>
       </tr>
     </table>` : ''
-
+  const nav = o.brand_nav || '#1C2024'
+  const highlight = o.brand_highlight || '#D9A62E'
+  const contact = [
+    s.phone ? `Tél. ${s.phone}` : '',
+    s.email ? `<a href="mailto:${s.email}" style="color: #2563eb; text-decoration: none;">${s.email}</a>` : '',
+  ].filter(Boolean).join(' &middot; ')
   return `${chaudBanner}
     <table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; margin-top: 16px; border-collapse: collapse; width: 440px;">
       <tr>
-        <td bgcolor="#1a2e3d" style="background-color: #1a2e3d; padding: 14px 18px; border-radius: 8px 8px 0 0;">
-          <p style="margin: 0; font-size: 15px; font-weight: bold; color: #ffffff;">${sig.name}</p>
-          ${sig.title ? `<p style="margin: 2px 0 0 0; font-size: 11px; color: rgba(255,255,255,0.7);">${sig.title}</p>` : ''}
+        <td bgcolor="${nav}" style="background-color: ${nav}; padding: 14px 18px; border-radius: 8px 8px 0 0;">
+          <p style="margin: 0; font-size: 15px; font-weight: bold; color: #ffffff;">${s.name || o.name || ''}</p>
+          ${s.title ? `<p style="margin: 2px 0 0 0; font-size: 11px; color: rgba(255,255,255,0.7);">${s.title}</p>` : ''}
         </td>
       </tr>
       <tr>
-        <td bgcolor="#f8f9fa" style="background-color: #f8f9fa; padding: 12px 18px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
-          <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: bold; color: #1a2e3d;">ACCESS FORMATION</p>
-          <p style="margin: 0 0 1px 0; font-size: 12px; color: #555;">📞 ${sig.phone} · ✉️ <a href="mailto:${sig.email}" style="color: #2563eb; text-decoration: none;">${sig.email}</a></p>
-          <p style="margin: 0; font-size: 12px;">🌐 <a href="https://www.accessformation.pro" style="color: #2563eb; text-decoration: none;">www.accessformation.pro</a></p>
+        <td bgcolor="#f8f9fa" style="background-color: #f8f9fa; padding: 12px 18px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;${o.qualiopi ? '' : ' border-bottom: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;'}">
+          <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: bold; color: ${nav};">${(o.name || '').toUpperCase()}</p>
+          ${contact ? `<p style="margin: 0 0 1px 0; font-size: 12px; color: #555;">${contact}</p>` : ''}
+          ${o.addressLine ? `<p style="margin: 0 0 1px 0; font-size: 12px; color: #555;">${o.addressLine}</p>` : ''}
+          ${o.website ? `<p style="margin: 0; font-size: 12px;"><a href="${o.website}" style="color: #2563eb; text-decoration: none;">${o.websiteLabel}</a></p>` : ''}
         </td>
       </tr>
-      <tr>
-        <td bgcolor="#c8993c" style="background-color: #c8993c; padding: 5px 18px; border-radius: 0 0 8px 8px;">
-          <p style="margin: 0; font-size: 10px; color: #1a2e3d; font-weight: bold; text-transform: uppercase; letter-spacing: 1.2px; text-align: center;">Organisme de formation certifié Qualiopi</p>
+      ${o.qualiopi ? `<tr>
+        <td bgcolor="${highlight}" style="background-color: ${highlight}; padding: 5px 18px; border-radius: 0 0 8px 8px;">
+          <p style="margin: 0; font-size: 10px; color: ${nav}; font-weight: bold; text-transform: uppercase; letter-spacing: 1.2px; text-align: center;">Organisme de formation certifié Qualiopi</p>
         </td>
-      </tr>
+      </tr>` : ''}
     </table>`
 }
 
 /**
- * Normalise les styles inline d'un body HTML pour compatibilité email.
- * (Outlook et clients email n'héritent pas les polices du parent)
- *
- * Étape 1 : supprime toute déclaration font-family existante dans les attributs
- *           style inline (évite qu'un copier-coller depuis Gmail/Word impose
- *           Georgia, Times New Roman, etc.)
- * Étape 2 : injecte font-family:Arial,sans-serif sur tous les <p>, <ul>, <li>
- *           qui n'en ont pas encore.
+ * Normalise les styles inline d'un corps HTML pour les clients email (Outlook n'hérite pas les polices).
  */
-function normalizeBodyStyles(body) {
-  const P_STYLE  = 'font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;margin:0 0 10px 0;'
+export function normalizeBodyStyles(body) {
+  const P_STYLE = 'font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;margin:0 0 10px 0;'
   const UL_STYLE = 'font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;margin:0 0 10px 0;padding-left:20px;'
   const LI_STYLE = 'font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;margin:0 0 4px 0;'
-
-  // Si texte brut (pas de balises block HTML) → convertir les sauts de ligne en HTML
-  if (!/<(p|div|h[1-6]|ul|ol|br)[\s>/]/i.test(body)) {
-    body = body
-      .split(/\n{2,}/)
-      .map(para => para.trim())
-      .filter(Boolean)
-      .map(para => `<p style="${P_STYLE}">${para.replace(/\n/g, '<br>')}</p>`)
-      .join('')
+  let b = body || ''
+  if (!/<(p|div|h[1-6]|ul|ol|br)[\s>/]/i.test(b)) {
+    b = b.split(/\n{2,}/).map((para) => para.trim()).filter(Boolean).map((para) => `<p style="${P_STYLE}">${para.replace(/\n/g, '<br>')}</p>`).join('')
   }
-
-  // Étape 1 — écraser toute font-family déjà présente dans un style="..."
-  // (gère les espaces autour des : et les guillemets simples/doubles)
-  let normalized = body.replace(
-    /(<[^>]+style=["'][^"']*?)font-family\s*:[^;]+;?/gi,
-    '$1'
-  )
-
-  // Étape 2 — injecter nos styles sur les balises sans style
+  let normalized = b.replace(/(<[^>]+style=["'][^"']*?)font-family\s*:[^;]+;?/gi, '$1')
   normalized = normalized
-    // <p> sans style → injecter
     .replace(/<p(?![^>]*style=)([^>]*)>/gi, `<p style="${P_STYLE}"$1>`)
-    // <p style="..."> existant (font-family déjà purgée) → préfixer
-    .replace(/<p style="/gi, `<p style="font-family:Arial,sans-serif;`)
-    // <ul> sans style → injecter
+    .replace(/<p style="/gi, '<p style="font-family:Arial,sans-serif;')
     .replace(/<ul(?![^>]*style=)([^>]*)>/gi, `<ul style="${UL_STYLE}"$1>`)
-    // <li> sans style → injecter
     .replace(/<li(?![^>]*style=)([^>]*)>/gi, `<li style="${LI_STYLE}"$1>`)
-
   return normalized
 }
 
 /**
- * Wrap un body HTML avec "Bien cordialement," + signature
+ * Corps HTML + formule de politesse + signature.
  */
-export function wrapEmailHTML(body, caller, variant = 'standard') {
-  const signature = buildSignatureHTML(caller, variant)
-  const normalizedBody = normalizeBodyStyles(body || '')
+export function wrapEmailHTML(body, sender, org, variant = 'standard') {
   return `
     <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; max-width: 650px;">
-      ${normalizedBody}
+      ${normalizeBodyStyles(body || '')}
       <p style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;margin:16px 0 10px 0;">Bien cordialement,</p>
-      ${signature}
+      ${buildSignatureHTML(sender, org, variant)}
     </div>
   `
 }

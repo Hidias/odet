@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import { X, FileText, Send, Loader, CheckCircle, AlertCircle, Upload, Trash2, Eye, Edit3, History, Mail, AlertTriangle } from 'lucide-react'
@@ -875,7 +876,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       }
 
       // Envoi test : destinataire = userEmail, pas de tracking session_emails_sent
-      const response = await fetch('/api/send-email-session', {
+      const response = await apiFetch('/api/send-email-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -970,7 +971,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       }
 
       // 2) Appeler l'API avec les chemins (léger)
-      const response = await fetch('/api/send-email-session', {
+      const response = await apiFetch('/api/send-email-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1102,7 +1103,7 @@ Le compte rendu doit :
 Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
     try {
-      const response = await fetch('/api/generate-compte-rendu-formation', {
+      const response = await apiFetch('/api/generate-compte-rendu-formation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })

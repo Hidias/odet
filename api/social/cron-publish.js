@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
+import { requireCronOrUser } from '../_lib/auth.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -14,14 +15,7 @@ const supabase = createClient(
 const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
 
 export default async function handler(req, res) {
-  // Sécurité : vérifier que c'est bien Vercel Cron qui appelle
-  const authHeader = req.headers.authorization
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    // En dev/test, on laisse passer si pas de CRON_SECRET configuré
-    if (process.env.CRON_SECRET) {
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
-  }
+  if (!(await requireCronOrUser(req, res))) return
 
   try {
     const now = new Date().toISOString()

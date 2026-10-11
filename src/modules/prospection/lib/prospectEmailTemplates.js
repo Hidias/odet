@@ -4,6 +4,7 @@
 // avec le mode session. Texte inchangé.
 // ════════════════════════════════════════════════════════════════
 
+import { apiFetch } from '../../../core/api'
 import { supabase } from '../../../core/supabase'
 
 export const EMAIL_TEMPLATES = {
@@ -130,7 +131,7 @@ export async function sendProspectEmail({ to, subject, body, caller, prospect, c
   if (prospect?.id && to && to !== prospect.email) {
     await supabase.from('prospection_massive').update({ email: to, updated_at: new Date().toISOString() }).eq('id', prospect.id)
   }
-  const res = await fetch('/api/send-prospect-email', {
+  const res = await apiFetch('/api/send-prospect-email', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useDataStore } from '../../../core/store'
 import { 
@@ -302,7 +303,7 @@ export default function CourierEditor() {
     setGenerating(true)
     setGeneratingAction(action)
     try {
-      const res = await fetch('/api/generate-document', {
+      const res = await apiFetch('/api/generate-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
+import { requireUser } from './_lib/auth.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -34,6 +35,12 @@ function decrypt(encryptedText) {
 }
 
 export default async function handler(req, res) {
+  if (req.method !== 'OPTIONS') {
+    const ctx = await requireUser(req)
+    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+    req.user = ctx.user
+    req.profile = ctx.profile
+  }
   const { method } = req
 
   try {

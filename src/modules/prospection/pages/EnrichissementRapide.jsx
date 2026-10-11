@@ -17,6 +17,7 @@
  * ============================================================================
  */
 
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -405,7 +406,7 @@ export default function EnrichissementRapide() {
     setLushaLoading(true)
     setLusha(null)
     try {
-      const res = await fetch('/api/enrich-entreprise', {
+      const res = await apiFetch('/api/enrich-entreprise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -507,7 +508,7 @@ export default function EnrichissementRapide() {
       const dept = current.departement || (current.postal_code || '').slice(0, 2)
       const nafCode = current.naf ? current.naf.replace(/\./g, '').substring(0, 2) : null
       
-      const res = await fetch('/api/offres-emploi', {
+      const res = await apiFetch('/api/offres-emploi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ departement: dept, ...(nafCode ? { codeNAF: nafCode } : {}) })
@@ -550,7 +551,7 @@ export default function EnrichissementRapide() {
     if (!siteWeb || scraping) return
     setScraping(true)
     try {
-      const res = await fetch('/api/scrape-phone', {
+      const res = await apiFetch('/api/scrape-phone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: siteWeb })
@@ -572,7 +573,7 @@ export default function EnrichissementRapide() {
     if (!url || scraping) return
     setScraping(true)
     try {
-      const res = await fetch('/api/scrape-phone', {
+      const res = await apiFetch('/api/scrape-phone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })

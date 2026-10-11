@@ -21,6 +21,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { applyMailingVars } from '../src/lib/mailingVars.js'
 import sendMailingSingle from './send-mailing-single.js'
+import { requireCronOrUser } from './_lib/auth.js'
 
 export const config = { maxDuration: 60 }
 
@@ -118,12 +119,7 @@ async function sendOne(body) {
 }
 
 export default async function handler(req, res) {
-  if (process.env.CRON_SECRET) {
-    const auth = req.headers?.authorization || ''
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return res.status(401).json({ error: 'Non autorisé' })
-    }
-  }
+  if (!(await requireCronOrUser(req, res))) return
 
   const campaignId = String(req.query?.campaign || '')
   if (!UUID_RE.test(campaignId)) {

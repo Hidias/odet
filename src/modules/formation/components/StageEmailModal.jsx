@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import { X, Send, Loader, CheckCircle, AlertCircle, Mail, FileText, Upload, Trash2, Eye, ChevronLeft, ShieldCheck } from 'lucide-react'
@@ -331,7 +332,7 @@ export default function StageEmailModal({ session, onClose }) {
         const sstPath = await uploadSstForTrainee(t)
         const attachmentPaths = [...individualPaths, ...(sstPath ? [sstPath] : []), ...commonPaths]
 
-        const response = await fetch('/api/send-email-stagiaire', {
+        const response = await apiFetch('/api/send-email-stagiaire', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

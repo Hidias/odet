@@ -21,6 +21,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import * as cheerio from 'cheerio'
+import { requireCronOrUser } from './_lib/auth.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Clé serveur : la table prospection_massive est protégée (RLS, accès connecté uniquement)
@@ -343,6 +344,7 @@ async function scrapeWebsite(siteUrl) {
 // ============================================================================
 
 export default async function handler(req, res) {
+  if (!(await requireCronOrUser(req, res))) return
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')

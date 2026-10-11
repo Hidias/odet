@@ -16,6 +16,7 @@
 import { ImapFlow } from 'imapflow'
 import { createClient } from '@supabase/supabase-js'
 import { decrypt } from './_lib/mailer.js'
+import { requireCronOrUser } from './_lib/auth.js'
 
 export const config = { maxDuration: 60 }
 
@@ -150,10 +151,7 @@ async function saveCursor(email, lastUid, uidValidity, lastError) {
 }
 
 export default async function handler(req, res) {
-  if (process.env.CRON_SECRET) {
-    const auth = req.headers?.authorization || ''
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) return res.status(401).json({ error: 'Non autorisé' })
-  }
+  if (!(await requireCronOrUser(req, res))) return
 
   try {
     getSupabase()

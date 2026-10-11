@@ -1,3 +1,4 @@
+import { apiFetch } from '../api'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { Mail, Save, Loader, CheckCircle, AlertCircle, TestTube } from 'lucide-react'
@@ -62,7 +63,7 @@ export default function EmailSettings() {
     setTesting(true)
 
     try {
-      const response = await fetch('/api/user-email-config', {
+      const response = await apiFetch('/api/user-email-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -155,7 +156,7 @@ export default function EmailSettings() {
     setSaving(true)
 
     try {
-      const response = await fetch('/api/user-email-config', {
+      const response = await apiFetch('/api/user-email-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

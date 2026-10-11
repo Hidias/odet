@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -367,7 +368,7 @@ export default function Invoices() {
 
       const nextRelanceNumber = sendModalRelances.length + 1
 
-      const res = await fetch('/api/send-invoice-email', {
+      const res = await apiFetch('/api/send-invoice-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

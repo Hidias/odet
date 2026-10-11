@@ -12,6 +12,7 @@
 //   • création campagne + pièce jointe stockée + destinataires personnalisés
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import { sanitizeStorageKey } from '../../../core/storageUtils'
@@ -135,7 +136,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
     if (!aiPrompt.trim()) return
     setAiLoading(true)
     try {
-      const res = await fetch('/api/generate-mailing-body', {
+      const res = await apiFetch('/api/generate-mailing-body', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: aiPrompt }),
       })
@@ -183,7 +184,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
         .from('mailing_sends')
         .insert({ campaign_id: null, source: 'test', source_id: null, email: user?.email || 'test@test.com', company_name: 'TEST', status: 'pending' })
         .select().single()
-      const res = await fetch('/api/send-mailing-single', {
+      const res = await apiFetch('/api/send-mailing-single', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           send_id: fakeRow?.id || 'test', to: user?.email,

@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
@@ -647,7 +648,7 @@ export async function generateFacturXPDF(invoice, items, client, contact, option
   var pdfBase64 = btoa(binary)
 
   // 3. Appeler l'endpoint Vercel pour embarquer le XML CII
-  var response = await fetch('/api/generate-facturx', {
+  var response = await apiFetch('/api/generate-facturx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

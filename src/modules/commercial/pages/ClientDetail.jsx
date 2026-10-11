@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -320,7 +321,7 @@ export default function ClientDetail() {
     if (!siret || siret.length < 9) return toast.error('SIRET requis (min 9 chiffres)')
     setDetectingOpco(true)
     try {
-      const res = await fetch(`/api/detect-opco?siret=${siret}`)
+      const res = await apiFetch(`/api/detect-opco?siret=${siret}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erreur API')
 
@@ -536,7 +537,7 @@ export default function ClientDetail() {
       const timeline = getMergedTimeline()
       const selectedContact = contacts.find(c => c.email === emailForm.to)
 
-      const res = await fetch('/api/generate-client-email', {
+      const res = await apiFetch('/api/generate-client-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -612,7 +613,7 @@ export default function ClientDetail() {
         htmlBody = htmlBody.split(/\n\n+/).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('')
       }
 
-      const res = await fetch('/api/send-prospect-email', {
+      const res = await apiFetch('/api/send-prospect-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

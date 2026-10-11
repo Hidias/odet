@@ -6,6 +6,7 @@ import nodemailer from 'nodemailer'
 import crypto from 'crypto'
 import { saveToSentFolder } from './_lib/save-to-sent.js'
 import { buildSignatureHTML, getCallerByEmail } from './_lib/mailer.js'
+import { requireUser } from './_lib/auth.js'
 
 // Augmenter la limite du body parser Vercel (défaut 4.5MB)
 export const config = {
@@ -64,6 +65,12 @@ async function sendEmailWithRetry(transporter, mailOptions, maxRetries = 3) {
 // Signatures importées depuis _lib/mailer.js
 
 export default async function handler(req, res) {
+  if (req.method !== 'OPTIONS') {
+    const ctx = await requireUser(req)
+    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+    req.user = ctx.user
+    req.profile = ctx.profile
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

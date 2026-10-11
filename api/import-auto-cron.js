@@ -1,3 +1,4 @@
+import { requireCronOrUser } from './_lib/auth.js'
 /**
  * ============================================================================
  * API ENDPOINT - IMPORT AUTO CRON
@@ -13,12 +14,8 @@
 const DEPARTEMENTS = ['22', '29', '35', '56', '44', '49', '53', '72', '85']
 
 export default async function handler(req, res) {
+  if (!(await requireCronOrUser(req, res))) return
   // Vérifier que c'est bien le cron Vercel qui appelle
-  const authHeader = req.headers.authorization
-  
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
   
   console.log('🤖 CRON JOB - Import automatique lancé')
   

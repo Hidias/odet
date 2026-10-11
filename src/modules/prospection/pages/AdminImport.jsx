@@ -10,6 +10,7 @@
  * ============================================================================
  */
 
+import { apiFetch } from '../../../core/api'
 import { useState, useRef } from 'react'
 import {
   Play, Check, X, Loader, RefreshCw, Square,
@@ -232,7 +233,7 @@ export default function AdminImport() {
 
   async function importTrancheForDept(dept, trancheCode) {
     try {
-      const response = await fetch('/api/import-departement', {
+      const response = await apiFetch('/api/import-departement', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ departement: dept, tranche_effectif: trancheCode })
       })
@@ -285,7 +286,7 @@ export default function AdminImport() {
   async function lancerEnrichissement() {
     setEnriching(true); setEnrichStats(null); toast('🔍 Enrichissement lancé...', { duration: 3000 })
     try {
-      const response = await fetch('/api/enrich-prospects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch_size: enrichBatchSize }) })
+      const response = await apiFetch('/api/enrich-prospects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch_size: enrichBatchSize }) })
       const data = await response.json()
       setEnrichStats(data); setEnrichHistory(prev => [...prev, data])
       data.success ? toast.success(data.message) : toast.error('Erreur: ' + (data.error || 'inconnue'))
@@ -297,7 +298,7 @@ export default function AdminImport() {
     setEnriching(true); setEnrichHistory([]); toast('🔄 Enrichissement en boucle (5 batchs)...', { duration: 5000 })
     for (let i = 0; i < 5; i++) {
       try {
-        const response = await fetch('/api/enrich-prospects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch_size: enrichBatchSize }) })
+        const response = await apiFetch('/api/enrich-prospects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch_size: enrichBatchSize }) })
         const data = await response.json()
         setEnrichStats(data); setEnrichHistory(prev => [...prev, data])
         if (!data.success || data.stats?.total === 0) break

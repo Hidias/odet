@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import toast from 'react-hot-toast'
@@ -633,7 +634,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
         // Retry jusqu'à 3 fois en cas de 429
         let data = null
         for (let attempt = 0; attempt < 3; attempt++) {
-          const response = await fetch('/api/ai-proxy', {
+          const response = await apiFetch('/api/ai-proxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1243,7 +1244,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
     setManual(false)
     try {
       const base64 = await fileToBase64(file)
-      const res = await fetch('/api/parse-bank-statement', {
+      const res = await apiFetch('/api/parse-bank-statement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ base64, fileName: file.name })
@@ -1351,7 +1352,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Session expirée')
-      const res = await fetch('/api/send-statement-comptable', {
+      const res = await apiFetch('/api/send-statement-comptable', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, statementId: st.id })
@@ -1731,7 +1732,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
     setSending(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      const resp = await fetch('/api/send-budget-comptable', {
+      const resp = await apiFetch('/api/send-budget-comptable', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, transactionIds: [...selected], notes })
@@ -1847,7 +1848,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
       }))
 
       const { data: { user } } = await supabase.auth.getUser()
-      const resp = await fetch('/api/send-invoices-comptable', {
+      const resp = await apiFetch('/api/send-invoices-comptable', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -4233,7 +4234,7 @@ function CategorisationIATab({ transactions, categories, rules, loadAll }) {
       const txList = batch.map((tx, i) => `${i}|${tx.id}|${tx.description}|${tx.debit > 0 ? 'DEBIT ' + tx.debit : 'CREDIT ' + tx.credit}|${tx.category_name}`).join('\n')
 
       try {
-        const response = await fetch('/api/ai-proxy', {
+        const response = await apiFetch('/api/ai-proxy', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

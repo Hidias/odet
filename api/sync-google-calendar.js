@@ -22,6 +22,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { createHash, createSign } from 'crypto'
+import { requireCronOrUser } from './_lib/auth.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -749,6 +750,7 @@ async function notifyIfNeeded(trainerLabel, stats) {
 
 // ═══ HANDLER ══════════════════════════════════════════════
 export default async function handler(req, res) {
+  if (!(await requireCronOrUser(req, res))) return
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

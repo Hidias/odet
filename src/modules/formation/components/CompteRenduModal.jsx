@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { X, FileText, Send, Loader, CheckCircle, AlertCircle, Upload, Trash2 } from 'lucide-react'
@@ -149,7 +150,7 @@ export default function CompteRenduModal({ rdv, client, analysisData: analysisDa
       }
 
       // Appeler l'API backend (pas directement Claude)
-      const response = await fetch('/api/generate-compte-rendu', {
+      const response = await apiFetch('/api/generate-compte-rendu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(context)
@@ -255,7 +256,7 @@ export default function CompteRenduModal({ rdv, client, analysisData: analysisDa
       }
 
       // Envoyer via l'API (payload léger, sans base64)
-      const response = await fetch('/api/send-email-rdv', {
+      const response = await apiFetch('/api/send-email-rdv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

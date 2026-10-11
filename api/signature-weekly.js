@@ -12,6 +12,7 @@
 
 import nodemailer from 'nodemailer'
 import { getSupabaseAdmin, decrypt } from './_lib/mailer.js'
+import { requireCronOrUser } from './_lib/auth.js'
 
 export const config = { maxDuration: 60 }
 
@@ -71,12 +72,7 @@ function buildHTML(groupes) {
 }
 
 export default async function handler(req, res) {
-  if (process.env.CRON_SECRET) {
-    const auth = req.headers?.authorization || ''
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return res.status(401).json({ error: 'Non autorisé' })
-    }
-  }
+  if (!(await requireCronOrUser(req, res))) return
 
   const dry = !!req.query?.dry
   const supabase = getSupabaseAdmin()

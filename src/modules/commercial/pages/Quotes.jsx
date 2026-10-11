@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
 import { format } from 'date-fns'
@@ -721,7 +722,7 @@ export default function Quotes() {
     try {
       const { quote, client, contact, items } = sendWizard
       const enabledPrograms = sendAttachments.filter(a => a.type === 'program' && a.enabled)
-      const resp = await fetch('/api/generate-quote-email', {
+      const resp = await apiFetch('/api/generate-quote-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -774,7 +775,7 @@ export default function Quotes() {
         .filter(att => att.type === 'manual' && att.enabled && att.base64)
         .map(att => ({ filename: att.filename, base64: att.base64 }))
 
-      const resp = await fetch('/api/send-quote-email', {
+      const resp = await apiFetch('/api/send-quote-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

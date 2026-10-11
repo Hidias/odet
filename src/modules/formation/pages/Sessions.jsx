@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useDataStore } from '../../../core/store'
@@ -283,7 +284,7 @@ export default function Sessions() {
     if (!importText.trim()) { toast.error('Collez le planning dans la zone de texte'); return }
     setImportParsing(true)
     try {
-      const res = await fetch('/api/parse-planning-import', {
+      const res = await apiFetch('/api/parse-planning-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawText: importText, baseTitle: formData.subcontract_course_title })

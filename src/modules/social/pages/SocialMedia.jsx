@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import toast from 'react-hot-toast'
@@ -87,7 +88,7 @@ export default function SocialMedia() {
   // Charger le statut des connexions
   const loadConnections = async () => {
     try {
-      const res = await fetch('/api/social/status')
+      const res = await apiFetch('/api/social/status')
       if (res.ok) {
         const data = await res.json()
         setConnections(data)
@@ -611,7 +612,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
   ${selectedPlatforms.map(p => `"${p}": "texte du post pour ${p}"`).join(',\n  ')}${hasLinkedIn ? `,\n  "linkedin_hashtags": "3-5 hashtags pour le commentaire LinkedIn — #AccessFormation OBLIGATOIRE"` : ''}${withStory ? `,\n  "story": "texte story 5-7 mots percutants pour Instagram/Facebook Stories"` : ''}
 }`
 
-      const response = await fetch('/api/ai-proxy', {
+      const response = await apiFetch('/api/ai-proxy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1093,7 +1094,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                     }
 
                     // Appeler l'API de publication
-                    const pubRes = await fetch('/api/social/publish', {
+                    const pubRes = await apiFetch('/api/social/publish', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ post_id: postId }),
@@ -1444,7 +1445,7 @@ function CalendarTab({ posts, onUpdate }) {
   const publishNow = async (postId) => {
     if (!confirm('Publier maintenant ?')) return
     try {
-      const pubRes = await fetch('/api/social/publish', {
+      const pubRes = await apiFetch('/api/social/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ post_id: postId }),

@@ -1,3 +1,4 @@
+import { apiFetch } from '../../core/api'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore, useDataStore } from '../../core/store'
@@ -990,7 +991,7 @@ export default function Dashboard() {
         const handleFileToMaxime = async (t) => {
           setTransferSaving(true)
           try {
-            await fetch('/api/send-transfer-maxime', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            await apiFetch('/api/send-transfer-maxime', { method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ transferId: t.id, prospectName: t.prospect_name || t.clients?.name, prospectPhone: t.prospect_phone || t.clients?.phone, prospectCity: t.prospect_city || t.clients?.city, contactName: t.contact_name, contactFunction: t.contact_function, transferNotes: t.transfer_notes }) })
             await supabase.from('prospect_rdv').insert({
               client_id: t.client_id,

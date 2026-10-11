@@ -1,9 +1,16 @@
+import { requireUser } from './_lib/auth.js'
 // api/scrape-phone.js
 // Scrape un site web pour extraire le numéro de téléphone français
 
 export const config = { maxDuration: 10 }
 
 export default async function handler(req, res) {
+  if (req.method !== 'OPTIONS') {
+    const ctx = await requireUser(req)
+    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+    req.user = ctx.user
+    req.profile = ctx.profile
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
