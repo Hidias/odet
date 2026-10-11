@@ -3,7 +3,7 @@ import 'jspdf-autotable'
 import { format, eachDayOfInterval, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import QRCode from 'qrcode'
-import { buildORG, publicBaseUrl, prepareOrgForPDF } from '../../../core/org/orgUtils'
+import { buildORG, publicBaseUrl, prepareOrgForPDF, formatSiret } from '../../../core/org/orgUtils'
 import {
   PAGE_MARGIN, drawHeaderBand, drawRunningHeader, drawFooter, numberPages, drawDocTitle, drawSectionTitle,
   drawPartyCard, drawKeyValues, drawCheckmark, drawImageFitted, formatMoney, formatHour,
@@ -311,7 +311,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
   const benefLines = [
     client.name || '',
     clientAddr,
-    client.siret ? `SIRET ${client.siret}` : 'SIRET non renseigné',
+    client.siret ? `SIRET ${formatSiret(client.siret)}` : 'SIRET non renseigné',
     `Représenté par ${signatory.name || ''}${signatory.role ? ', ' + signatory.role : ''}`,
   ]
   while (benefLines.length < ofLines.length) benefLines.push('')
