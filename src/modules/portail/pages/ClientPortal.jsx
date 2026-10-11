@@ -63,11 +63,13 @@ export default function ClientPortal() {
     if (c.length < 4) { setError('Saisissez le code reçu'); return }
     setChecking(true); setError('')
     try {
-      const [{ data: d, error: e1 }, { data: org, error: e2 }] = await Promise.all([
-        supabase.rpc('client_portal_data', { p_token: token, p_code: c }),
-        supabase.rpc('client_portal_org', { p_token: token, p_code: c }),
-      ])
-      if (e1 || e2) throw (e1 || e2)
+      // Données d'abord : un code faux ne compte qu'une tentative. Les erreurs arrivent en JSON { error }.
+      const { data: d, error: e1 } = await supabase.rpc('client_portal_data', { p_token: token, p_code: c })
+      if (e1) throw e1
+      if (d?.error) throw new Error(d.error)
+      const { data: org, error: e2 } = await supabase.rpc('client_portal_org', { p_token: token, p_code: c })
+      if (e2) throw e2
+      if (org?.error) throw new Error(org.error)
       const prepared = await prepareOrgForPDF(org)
       setOrganization(prepared)
       setOrgReady(true)
