@@ -2,66 +2,83 @@ import { create } from 'zustand'
 import { supabase, ADMIN_EMAILS } from './supabase'
 import { buildStorageFileName } from './storageUtils'
 
-// ─── Helper : résoudre le rôle d'un email authentifié ─────
-// 'admin'     → email dans ADMIN_EMAILS
-// 'comptable' → email correspond à org_settings.comptable_email
-// null        → non autorisé → signOut
-async function resolveUserRole(email) {
-  const emailLower = email?.toLowerCase()
-  if (!emailLower) return null
+// ─── Résolution du rôle et du profil d'un utilisateur connecté ─────
+// Source de vérité : la table profiles (rôle, identité affichée, préférences).
+// Replis temporaires du lot 0 : administrateurs d'amorçage (variable d'environnement)
+// et comptable déclaré dans org_settings.
+async function resolveAccess(authUser) {
+  const email = authUser?.email?.toLowerCase()
+  if (!email) return null
 
-  // Admins hardcodés
-  if (ADMIN_EMAILS.includes(emailLower)) return 'admin'
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', authUser.id)
+    .maybeSingle()
 
-  // Comptable dynamique depuis org_settings
+  if (profile && profile.is_active === false) return null
+  if (profile?.role) return { role: profile.role, profile }
+
+  if (ADMIN_EMAILS.includes(email)) {
+    return { role: 'admin', profile: profile || { id: authUser.id, email, display_name: email.split('@')[0], role: 'admin', ui_prefs: {} } }
+  }
+
   const { data: orgSettings } = await supabase
     .from('org_settings')
     .select('comptable_email')
-    .single()
-
-  if (
-    orgSettings?.comptable_email &&
-    orgSettings.comptable_email.toLowerCase() === emailLower
-  ) {
-    return 'comptable'
+    .maybeSingle()
+  if (orgSettings?.comptable_email && orgSettings.comptable_email.toLowerCase() === email) {
+    return { role: 'comptable', profile: profile || { id: authUser.id, email, display_name: email.split('@')[0], role: 'comptable', ui_prefs: {} } }
   }
 
   return null
 }
 
+async function fetchEnabledModules() {
+  const { data } = await supabase.from('org_modules').select('key, enabled, position').order('position')
+  return (data || []).filter((m) => m.enabled).map((m) => m.key)
+}
+
 // Store pour l'authentification
 export const useAuthStore = create((set, get) => ({
   user: null,
-  userRole: 'admin', // 'admin' | 'comptable'
+  profile: null,
+  userRole: null, // superadmin | admin | direction | gestionnaire | formateur | commercial | comptable | lecture
+  modules: [],
   loading: true,
   error: null,
+
+  applySession: async (session) => {
+    if (!session?.user) {
+      set({ user: null, profile: null, userRole: null, modules: [] })
+      return false
+    }
+    const access = await resolveAccess(session.user)
+    if (!access) {
+      await supabase.auth.signOut()
+      set({ user: null, profile: null, userRole: null, modules: [] })
+      return false
+    }
+    const modules = await fetchEnabledModules()
+    set({ user: session.user, profile: access.profile, userRole: access.role, modules })
+    return true
+  },
 
   initialize: async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        const role = await resolveUserRole(session.user.email)
-        if (role) {
-          set({ user: session.user, userRole: role, loading: false })
-        } else {
-          await supabase.auth.signOut()
-          set({ user: null, userRole: 'admin', loading: false })
-        }
-      } else {
-        set({ user: null, userRole: 'admin', loading: false })
-      }
+      await get().applySession(session)
+      set({ loading: false })
 
       supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          const role = await resolveUserRole(session.user.email)
-          if (role) {
-            set({ user: session.user, userRole: role })
-          } else {
-            await supabase.auth.signOut()
-            set({ user: null, userRole: 'admin' })
+        if (event === 'SIGNED_OUT') {
+          set({ user: null, profile: null, userRole: null, modules: [] })
+          return
+        }
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          if (!get().user || get().user.id !== session?.user?.id) {
+            await get().applySession(session)
           }
-        } else {
-          set({ user: null, userRole: 'admin' })
         }
       })
     } catch (error) {
@@ -71,28 +88,41 @@ export const useAuthStore = create((set, get) => ({
 
   login: async (email, password) => {
     set({ loading: true, error: null })
-
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       set({ loading: false, error: error.message })
       return { error: error.message }
     }
-
-    const role = await resolveUserRole(email)
-    if (!role) {
-      await supabase.auth.signOut()
-      set({ loading: false, error: 'Email non autorisé' })
-      return { error: 'Email non autorisé' }
+    const ok = await get().applySession(data.session)
+    if (!ok) {
+      set({ loading: false, error: 'Ce compte n\'a pas accès à cette instance' })
+      return { error: 'Ce compte n\'a pas accès à cette instance' }
     }
-
-    set({ user: data.user, userRole: role, loading: false })
+    set({ loading: false })
     return { data }
   },
 
   logout: async () => {
     await supabase.auth.signOut()
-    set({ user: null, userRole: 'admin' })
+    set({ user: null, profile: null, userRole: null, modules: [] })
   },
+
+  refreshModules: async () => {
+    const modules = await fetchEnabledModules()
+    set({ modules })
+  },
+
+  // Préférences d'affichage : mémorisées sur le profil (et en cache local par le hook)
+  saveUiPrefs: async (ui_prefs) => {
+    const profile = get().profile
+    if (!profile?.id) return
+    set({ profile: { ...profile, ui_prefs } })
+    await supabase.from('profiles').update({ ui_prefs }).eq('id', profile.id)
+  },
+
+  hasRole: (...roles) => roles.includes(get().userRole),
+  isAdmin: () => ['superadmin', 'admin'].includes(get().userRole),
+  isSuperadmin: () => get().userRole === 'superadmin',
 }))
 
 

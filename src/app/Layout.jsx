@@ -1,156 +1,81 @@
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useAuthStore, useDataStore } from '../core/store'
-import { 
-  LayoutDashboard, Users, GraduationCap, Calendar, Building2, 
-  Settings, LogOut, Menu, X, FileText, AlertTriangle, UserCheck, BarChart3, Award,
-  Bell, Check, ExternalLink, FolderCheck, CheckCircle, Briefcase, Receipt,
-  Phone, Search, Globe, Layers, FolderInput, ChevronDown, Eye, Shield, Target,
-  ClipboardCheck, FileQuestion, CreditCard, Wallet, Megaphone, Calculator, Mail
+import { useState, useEffect, useMemo, useRef } from 'react'
+import {
+  Menu, X, Bell, Check, LogOut, ChevronDown, Search, Settings, Sliders, SlidersHorizontal,
+  AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info,
 } from 'lucide-react'
-import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '../core/supabase'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { useAuthStore } from '../core/store'
+import { supabase } from '../core/supabase'
+import { useBranding, brandLogo } from '../core/branding/BrandingProvider'
+import { useUiPrefs } from '../core/branding/useUiPrefs'
+import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS } from '../core/branding/presets'
+import { visibleSections, SETTINGS_ITEMS, pageTitleFor, sectionIdFor } from '../core/modules/registry'
 
-// ═══════════════════════════════════════════════════════════
-// NAVIGATION ADMINS
-// ═══════════════════════════════════════════════════════════
-const navSections = [
-  {
-    id: 'formation',
-    label: 'Formation',
-    emoji: '🎓',
-    activeClass: 'bg-accent-500 text-primary-900 font-semibold shadow-md',
-    headerActiveClass: 'text-accent-400',
-    items: [
-      { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
-      { to: '/sessions', icon: Calendar, label: 'Sessions' },
-      { to: '/formations', icon: GraduationCap, label: 'Formations' },
-      { to: '/stagiaires', icon: Users, label: 'Stagiaires' },
-      { to: '/formateurs', icon: UserCheck, label: 'Formateurs' },
-      { to: '/documents', icon: FileText, label: 'Documents' },
-      { to: '/documents-vierges', icon: FileQuestion, label: 'Documents vierges' },
-      { to: '/tests-positionnement', icon: ClipboardCheck, label: 'Tests positionnement' },
-    ],
-  },
-  {
-    id: 'commerce',
-    label: 'Commerce',
-    emoji: '📞',
-    activeClass: 'bg-blue-500 text-white font-semibold shadow-md',
-    headerActiveClass: 'text-blue-400',
-    items: [
-      { to: '/clients', icon: Building2, label: 'Clients' },
-      { to: '/devis', icon: Receipt, label: 'Devis' },
-      { to: '/factures', icon: CreditCard, label: 'Factures' },
-      { to: '/prospection', icon: Phone, label: 'Phoning' },
-      { to: '/mailing', icon: Mail, label: 'Mailing' },
-      { to: '/prospection-massive', icon: Globe, label: 'Base prospects' },
-      { to: '/multi-etablissements', icon: Layers, label: 'Multi-établissements' },
-      { to: '/admin/import', icon: FolderInput, label: 'Import' },
-    ],
-  },
-  {
-    id: 'prestations',
-    label: 'Prestations',
-    emoji: '🛡️',
-    activeClass: 'bg-amber-500 text-white font-semibold shadow-md',
-    headerActiveClass: 'text-amber-400',
-    items: [
-      { to: '/duerp', icon: Shield, label: 'DUERP' },
-    ],
-  },
-  {
-    id: 'gestion',
-    label: 'Gestion',
-    emoji: '💰',
-    activeClass: 'bg-violet-500 text-white font-semibold shadow-md',
-    headerActiveClass: 'text-violet-400',
-    items: [
-      { to: '/budget', icon: Wallet, label: 'Budget' },
-    ],
-  },
-  {
-    id: 'social',
-    label: 'Communication',
-    emoji: '📱',
-    activeClass: 'bg-cyan-500 text-white font-semibold shadow-md',
-    headerActiveClass: 'text-cyan-400',
-    items: [
-      { to: '/social', icon: Megaphone, label: 'Social & Comm' },
-    ],
-  },
-  {
-    id: 'qualite',
-    label: 'Qualité',
-    emoji: '✅',
-    activeClass: 'bg-emerald-500 text-white font-semibold shadow-md',
-    headerActiveClass: 'text-emerald-400',
-    items: [
-      { to: '/qualite', icon: FolderCheck, label: 'Processus qualité' },
-      { to: '/qualite/completude', icon: CheckCircle, label: 'Complétude' },
-      { to: '/indicateurs', icon: BarChart3, label: 'Indicateurs' },
-      { to: '/non-conformites', icon: AlertTriangle, label: 'Non-conformités' },
-      { to: '/qualiopi', icon: Award, label: 'Qualiopi' },
-      { to: '/bpf', icon: FileText, label: 'BPF' },
-      { to: '/veille-qualiopi', icon: Eye, label: 'Veille' },
-      { to: '/registre-psh', icon: Shield, label: 'Registre PSH' },
-      { to: '/profil-stagiaires', icon: Target, label: 'Profil stagiaires' },
-      { to: '/audit-logs', icon: Search, label: 'Audit logs' },
-    ],
-  },
-]
+const ROLE_LABELS = {
+  superadmin: 'Super administrateur',
+  admin: 'Administrateur',
+  direction: 'Direction',
+  gestionnaire: 'Gestionnaire',
+  formateur: 'Formateur',
+  commercial: 'Commercial',
+  comptable: 'Comptable',
+  lecture: 'Lecture seule',
+}
 
-// Toutes les routes pour détection de section active
-const allRoutes = navSections.flatMap(s => s.items.map(i => ({ ...i, sectionId: s.id })))
+const NOTIF_ICONS = {
+  completude: AlertCircle,
+  reclamation: MessageSquare,
+  veille: Eye,
+  materiel: Wrench,
+  audit: ClipboardList,
+  revue_direction: BarChart3,
+  j90: CalendarClock,
+  rdv_phoning: Phone,
+  rappel_phoning: Phone,
+}
+
+function initials(profile, user) {
+  const name = profile?.display_name || user?.email || ''
+  const parts = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean)
+  return (parts[0]?.[0] || '') + (parts[1]?.[0] || '')
+}
 
 export default function Layout() {
-  const { user, userRole, logout } = useAuthStore()
+  const { user, profile, userRole, modules, logout } = useAuthStore()
+  const { branding } = useBranding()
+  const { prefs, update } = useUiPrefs()
   const navigate = useNavigate()
   const location = useLocation()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showDisplay, setShowDisplay] = useState(false)
 
-  const isComptable = userRole === 'comptable'
+  const sections = useMemo(() => visibleSections(modules, userRole), [modules, userRole])
+  const settingsItems = useMemo(() => SETTINGS_ITEMS.filter((i) => i.roles.includes(userRole)), [userRole])
+  const activeSectionId = useMemo(() => sectionIdFor(location.pathname) || sections[0]?.id, [location.pathname, sections])
+  const pageTitle = useMemo(() => pageTitleFor(location.pathname), [location.pathname])
 
-  // Déterminer la section active selon la route courante
-  const activeSectionId = useMemo(() => {
-    const path = location.pathname
-    const match = allRoutes.find(r => {
-      if (r.to === '/') return path === '/'
-      return path === r.to || path.startsWith(r.to + '/')
-    })
-    return match?.sectionId || 'formation'
-  }, [location.pathname])
-
-  const [openSections, setOpenSections] = useState({ formation: true, commerce: false, qualite: false })
-
+  const [openSections, setOpenSections] = useState({})
   useEffect(() => {
-    setOpenSections(prev => ({ ...prev, [activeSectionId]: true }))
+    if (activeSectionId) setOpenSections((prev) => ({ ...prev, [activeSectionId]: true }))
   }, [activeSectionId])
 
-  const toggleSection = (sectionId) => {
-    setOpenSections(prev => {
-      const isOpen = prev[sectionId]
-      const allClosed = Object.keys(prev).reduce((acc, key) => ({ ...acc, [key]: false }), {})
-      return { ...allClosed, [sectionId]: !isOpen }
-    })
-  }
+  // Barre d'icônes : section sélectionnée dans le rail
+  const [railSection, setRailSection] = useState(activeSectionId)
+  useEffect(() => { if (activeSectionId) setRailSection(activeSectionId) }, [activeSectionId])
+
+  useEffect(() => { setDrawerOpen(false) }, [location.pathname])
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
+    loadNotifications()
+    const interval = setInterval(loadNotifications, 60000)
+    return () => clearInterval(interval)
   }, [])
-
-  useEffect(() => {
-    if (!isComptable) {
-      loadNotifications()
-      const interval = setInterval(loadNotifications, 30000)
-      return () => clearInterval(interval)
-    }
-  }, [isComptable])
 
   const loadNotifications = async () => {
     const { data } = await supabase
@@ -160,335 +85,350 @@ export default function Layout() {
       .limit(20)
     setNotifications(data || [])
   }
-
-  const unreadCount = notifications.filter(n => !n.read_at).length
-
+  const unreadCount = notifications.filter((n) => !n.read_at).length
   const markAsRead = async (id) => {
-    await supabase
-      .from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .eq('id', id)
+    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id)
     loadNotifications()
   }
-
   const markAllAsRead = async () => {
-    const unreadIds = notifications.filter(n => !n.read_at).map(n => n.id)
-    if (unreadIds.length === 0) return
-    await supabase
-      .from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .in('id', unreadIds)
+    const ids = notifications.filter((n) => !n.read_at).map((n) => n.id)
+    if (ids.length === 0) return
+    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).in('id', ids)
     loadNotifications()
   }
-
-  const getNotificationIcon = (notif) => {
-    if (notif.type === 'completude') {
-      const priority = notif.metadata?.priority
-      if (priority === 'bloquant') return '🔴'
-      if (priority === 'important') return '🟠'
-      if (priority === 'mineur') return '🟡'
-      return '🔴'
-    }
-    switch(notif.type) {
-      case 'reclamation': return '📩'
-      case 'veille': return '👁️'
-      case 'materiel': return '🔧'
-      case 'audit': return '📋'
-      case 'revue_direction': return '📊'
-      case 'j90': return '📅'
-      case 'rdv_phoning': return '🔥'
-      case 'rappel_phoning': return '📞'
-      default: return '🔔'
-    }
-  }
-
-  const getUserName = (email) => {
-    const mapping = {
-      'hicham.saidi@accessformation.pro': 'Hicham',
-      'maxime.langlais@accessformation.pro': 'Maxime',
-      'contact@accessformation.pro': 'Access'
-    }
-    return mapping[email] || null
-  }
-  const userName = getUserName(user?.email)
-  const greeting = userName && userName !== 'Access' ? `Bonjour ${userName}` : null
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // Navigation comptable — version épurée
-  // ═══════════════════════════════════════════════════════════
-  const ComptableNav = ({ onItemClick }) => (
-    <div className="space-y-1">
-      <NavLink
-        to="/comptable"
-        onClick={onItemClick}
-        className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${
-          isActive
-            ? 'bg-violet-500 text-white font-semibold shadow-md'
-            : 'text-white/70 hover:bg-white/8 hover:text-white'
-        }`}
-      >
-        <Calculator className="w-[18px] h-[18px]" />
-        <span>Espace comptable</span>
-      </NavLink>
+  const logo = brandLogo(branding, prefs.nav !== 'light')
+  const navIsDark = prefs.nav !== 'light'
+  const navText = navIsDark ? 'text-nav-fg' : 'text-gray-900'
+  const navMuted = navIsDark ? 'text-nav-fg/60' : 'text-gray-500'
+  const navHover = navIsDark ? 'hover:bg-nav-fg/10 hover:text-nav-fg' : 'hover:bg-gray-100 hover:text-gray-900'
+  const navActive = navIsDark
+    ? 'bg-nav-fg/10 text-nav-fg font-semibold border-l-2 border-accent-500'
+    : 'bg-accent-500/10 text-accent-700 font-semibold'
+  const navBg = navIsDark ? 'bg-nav' : 'bg-white border-r border-gray-200'
+
+  // ─── Blocs communs ─────────────────────────────────────────
+  const Brand = ({ compact = false }) => (
+    <div className={`flex items-center gap-3 ${compact ? '' : 'px-2'}`}>
+      {logo ? (
+        <div className={`${navIsDark ? 'bg-white' : ''} rounded-ui-sm p-1 flex items-center justify-center`}>
+          <img src={logo} alt={branding.org_name || 'Logo'} className={compact ? 'h-7 w-auto' : 'h-9 w-auto max-w-[140px] object-contain'} />
+        </div>
+      ) : (
+        <div className="h-9 w-9 rounded-ui-sm bg-accent-500 text-accent-fg flex items-center justify-center font-display font-bold">
+          {(branding.app_short_name || branding.app_name || 'O').slice(0, 1)}
+        </div>
+      )}
+      {!compact && (
+        <div className="min-w-0 leading-tight">
+          <div className={`font-display font-semibold truncate ${navText}`}>{branding.app_name || branding.org_name || ''}</div>
+          {branding.org_name && branding.app_name && branding.org_name !== branding.app_name && (
+            <div className={`text-ui-sm truncate ${navMuted}`}>{branding.org_name}</div>
+          )}
+        </div>
+      )}
     </div>
   )
 
-  // ═══════════════════════════════════════════════════════════
-  // Navigation admin — sections complètes
-  // ═══════════════════════════════════════════════════════════
-  const SidebarNav = ({ onItemClick }) => (
-    <>
-      {navSections.map(section => {
-        const isOpen = openSections[section.id]
-        const isActiveSection = activeSectionId === section.id
+  const NavItem = ({ item, indent = false }) => (
+    <NavLink
+      to={item.to}
+      end={item.to === '/'}
+      className={({ isActive }) => `flex items-center gap-3 ${indent ? 'pl-5 pr-3' : 'px-3'} py-2 rounded-ui-sm text-ui transition-colors ${
+        isActive ? navActive : `${navMuted} ${navHover}`
+      }`}
+    >
+      <item.icon className="w-[18px] h-[18px] flex-none" />
+      <span className="truncate">{item.label}</span>
+      {item.soon && <span className="ml-auto badge badge-neutral" style={{ height: 18, fontSize: 10.5 }}>bientôt</span>}
+    </NavLink>
+  )
 
+  const SectionedNav = () => (
+    <nav className="flex-1 overflow-y-auto min-h-0 px-2 py-2">
+      {sections.map((section) => {
+        const isOpen = openSections[section.id] !== false
+        const isActiveSection = activeSectionId === section.id
         return (
           <div key={section.id} className="mb-1">
             <button
-              onClick={() => toggleSection(section.id)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all ${
-                isActiveSection ? 'bg-white/10' : 'hover:bg-white/5'
-              }`}
+              type="button"
+              onClick={() => setOpenSections((prev) => ({ ...prev, [section.id]: !isOpen }))}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-ui-sm ${navHover}`}
             >
-              <div className="flex items-center gap-2.5">
-                <span className="text-base">{section.emoji}</span>
-                <span className={`text-xs font-bold uppercase tracking-wider ${
-                  isActiveSection ? section.headerActiveClass : 'text-white/50'
-                }`}>
-                  {section.label}
-                </span>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-white/30 transition-transform duration-200 ${
-                isOpen ? 'rotate-180' : ''
-              }`} />
+              <span className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${isActiveSection ? (navIsDark ? 'text-nav-fg' : 'text-gray-900') : navMuted}`}>
+                {section.label}
+              </span>
+              <ChevronDown className={`w-4 h-4 ${navMuted} transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
-
-            <div
-              className="overflow-hidden transition-all duration-200 ease-in-out"
-              style={{ maxHeight: isOpen ? `${section.items.length * 42}px` : '0px' }}
-            >
-              {section.items.map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/'}
-                  onClick={onItemClick}
-                  className={({ isActive }) => `flex items-center gap-3 pl-6 pr-3 py-2 rounded-lg transition-all text-sm ${
-                    isActive
-                      ? section.activeClass
-                      : 'text-white/70 hover:bg-white/8 hover:text-white'
-                  }`}
-                >
-                  <item.icon className="w-[18px] h-[18px]" />
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
-            </div>
+            {isOpen && (
+              <div className="mt-0.5 space-y-0.5">
+                {section.items.map((item) => <NavItem key={item.to} item={item} indent />)}
+              </div>
+            )}
           </div>
         )
       })}
+      {settingsItems.length > 0 && (
+        <div className={`mt-2 pt-2 border-t ${navIsDark ? 'border-nav-fg/10' : 'border-gray-200'} space-y-0.5`}>
+          {settingsItems.map((item) => <NavItem key={item.to} item={item} />)}
+        </div>
+      )}
+    </nav>
+  )
 
-      <div className="mt-2 pt-2 border-t border-white/10">
-        <NavLink
-          to="/parametres"
-          onClick={onItemClick}
-          className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${
-            isActive
-              ? 'bg-white/15 text-white font-semibold'
-              : 'text-white/50 hover:bg-white/5 hover:text-white/70'
-          }`}
-        >
-          <Settings className="w-[18px] h-[18px]" />
-          <span>Paramètres</span>
-        </NavLink>
+  const UserBlock = () => (
+    <div className={`px-3 py-3 border-t ${navIsDark ? 'border-nav-fg/10' : 'border-gray-200'} flex items-center gap-3`}>
+      <div className="w-9 h-9 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase">
+        {initials(profile, user)}
+      </div>
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className={`text-ui font-medium truncate ${navText}`}>{profile?.display_name || user?.email}</div>
+        <div className={`text-ui-sm truncate ${navMuted}`}>{ROLE_LABELS[userRole] || userRole}</div>
+      </div>
+      <button type="button" onClick={handleLogout} aria-label="Se déconnecter" className={`p-2 rounded-ui-sm ${navMuted} ${navHover}`}>
+        <LogOut className="w-4 h-4" />
+      </button>
+    </div>
+  )
+
+  // ─── Variante rail : barre d'icônes + sous-menu ───────────
+  const railSectionObj = sections.find((s) => s.id === railSection) || sections[0]
+  const Rail = () => (
+    <>
+      <div className="w-16 bg-nav flex flex-col items-center py-3 gap-1.5 flex-none">
+        <div className="bg-white rounded-ui-sm p-1 mb-2 flex items-center justify-center w-11 h-11">
+          {logo ? <img src={logo} alt="" className="max-h-9 max-w-9 object-contain" /> : <span className="font-display font-bold">{(branding.app_name || 'O').slice(0, 1)}</span>}
+        </div>
+        {sections.map((s) => {
+          const Icon = s.items[0]?.icon
+          const on = railSection === s.id
+          return (
+            <button
+              key={s.id}
+              type="button"
+              title={s.label}
+              aria-label={s.label}
+              onClick={() => { setRailSection(s.id); if (s.items[0]) navigate(s.items[0].to) }}
+              className={`w-11 h-11 rounded-ui-sm flex items-center justify-center transition-colors ${on ? 'bg-accent-500 text-accent-fg' : 'text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg'}`}
+            >
+              {Icon ? <Icon className="w-5 h-5" /> : null}
+            </button>
+          )
+        })}
+        <div className="flex-1" />
+        {settingsItems.map((item) => (
+          <NavLink key={item.to} to={item.to} title={item.label} aria-label={item.label}
+            className={({ isActive }) => `w-11 h-11 rounded-ui-sm flex items-center justify-center ${isActive ? 'bg-nav-fg/15 text-nav-fg' : 'text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg'}`}>
+            <item.icon className="w-5 h-5" />
+          </NavLink>
+        ))}
+        <button type="button" onClick={handleLogout} aria-label="Se déconnecter" className="w-11 h-11 rounded-ui-sm flex items-center justify-center text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg">
+          <LogOut className="w-5 h-5" />
+        </button>
+        <div className="w-9 h-9 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-[11px] uppercase mt-1" title={profile?.display_name || user?.email}>
+          {initials(profile, user)}
+        </div>
+      </div>
+      <div className="w-52 bg-white border-r border-gray-200 flex flex-col flex-none">
+        <div className="px-3 pt-4 pb-2">
+          <div className="font-display font-semibold text-gray-900">{railSectionObj?.label}</div>
+          <div className="text-ui-sm text-gray-500 truncate">{branding.app_name || branding.org_name}</div>
+        </div>
+        <nav className="flex-1 overflow-y-auto px-2 space-y-0.5">
+          {railSectionObj?.items.map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.to === '/'}
+              className={({ isActive }) => `flex items-center justify-between px-2.5 py-1.5 rounded-ui-sm text-ui ${isActive ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+              <span className="truncate">{item.label}</span>
+              {item.soon && <span className="badge badge-neutral" style={{ height: 18, fontSize: 10.5 }}>bientôt</span>}
+            </NavLink>
+          ))}
+        </nav>
       </div>
     </>
   )
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mobile header */}
-      <div className="lg:hidden bg-primary-500 px-4 py-3 flex items-center justify-between" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
-        <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-primary-600 rounded-lg text-white">
-          <Menu className="w-6 h-6" />
-        </button>
-        <div className="flex items-center gap-2">
-          <img src="/assets/logo-campus.png" alt="Campus" className="h-8" />
-          <span className="font-bold text-white">Campus</span>
-        </div>
-        <div className="w-10" />
+  // ─── Menu Affichage ────────────────────────────────────────
+  const Choice = ({ label, options, value, onChange, render }) => (
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <span className="text-ui-sm text-gray-500">{label}</span>
+      <div className="flex rounded-ui-sm border border-gray-200 overflow-hidden">
+        {options.map((o) => (
+          <button key={o} type="button" onClick={() => onChange(o)}
+            className={`px-2.5 py-1 text-ui-sm ${value === o ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+            {render ? render(o) : o}
+          </button>
+        ))}
       </div>
+    </div>
+  )
+  const DisplayMenu = () => (
+    <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-xl z-50 p-3 animate-fadeIn">
+      <div className="font-display font-semibold mb-2">Affichage</div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {Object.entries(UI_PRESETS).map(([key, p]) => (
+          <button key={key} type="button" onClick={() => update({ preset: key })}
+            className={`rounded-ui-sm border p-2 text-left ${prefs.preset === key ? 'border-accent-500 ring-2 ring-accent-500/20' : 'border-gray-200 hover:border-gray-300'}`}>
+            <div className="text-ui font-semibold">{p.label}</div>
+            <div className="text-[11px] text-gray-500 leading-tight mt-0.5">{p.description}</div>
+          </button>
+        ))}
+      </div>
+      <div className="border-t border-gray-100 pt-2">
+        <Choice label="Densité" options={DENSITIES} value={prefs.density} onChange={(v) => update({ density: v })}
+          render={(o) => ({ compact: 'Compacte', normal: 'Normale', large: 'Large' })[o]} />
+        <Choice label="Navigation" options={NAVS} value={prefs.nav} onChange={(v) => update({ nav: v })}
+          render={(o) => ({ dark: 'Sombre', light: 'Claire', rail: 'Icônes' })[o]} />
+        <Choice label="Arrondis" options={RADII} value={prefs.radius} onChange={(v) => update({ radius: v })}
+          render={(o) => ({ sm: 'Nets', md: 'Moyens', lg: 'Ronds' })[o]} />
+        <Choice label="Listes" options={LISTS} value={prefs.lists} onChange={(v) => update({ lists: v })}
+          render={(o) => ({ table: 'Tableaux', cards: 'Cartes' })[o]} />
+      </div>
+      <div className="text-[11px] text-gray-400 mt-2">Réglages personnels, mémorisés sur votre compte.</div>
+    </div>
+  )
 
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
+  const NotificationsMenu = () => (
+    <div className="absolute right-0 top-11 w-[360px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-xl z-50 overflow-hidden animate-fadeIn">
+      <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
+        <span className="font-display font-semibold">Notifications</span>
+        {unreadCount > 0 && (
+          <button type="button" onClick={markAllAsRead} className="text-ui-sm text-accent-700 hover:underline flex items-center gap-1">
+            <Check className="w-3.5 h-3.5" />Tout marquer comme lu
+          </button>
+        )}
+      </div>
+      <div className="max-h-96 overflow-y-auto">
+        {notifications.length === 0 ? (
+          <p className="p-4 text-center text-gray-500 text-ui">Aucune notification</p>
+        ) : notifications.map((n) => {
+          const Icon = NOTIF_ICONS[n.type] || Info
+          return (
+            <button key={n.id} type="button"
+              onClick={() => { markAsRead(n.id); if (n.link) navigate(n.link); setShowNotifications(false) }}
+              className={`w-full text-left px-3 py-2.5 border-b border-gray-100 hover:bg-gray-50 flex items-start gap-3 ${!n.read_at ? 'bg-accent-500/5' : ''}`}>
+              <span className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-none ${!n.read_at ? 'bg-accent-500/10 text-accent-700' : 'bg-gray-100 text-gray-500'}`}>
+                <Icon className="w-4 h-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className={`block text-ui ${!n.read_at ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>{n.title}</span>
+                {n.message && <span className="block text-ui-sm text-gray-500 truncate">{n.message}</span>}
+                <span className="block text-[11px] text-gray-400 mt-0.5">{format(new Date(n.created_at), 'd MMM à HH:mm', { locale: fr })}</span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  const closeMenus = () => { setShowNotifications(false); setShowUserMenu(false); setShowDisplay(false) }
+
+  return (
+    <div className="min-h-screen flex">
+      {/* Navigation bureau */}
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 z-30">
+        {prefs.nav === 'rail' ? (
+          <div className="flex h-full"><Rail /></div>
+        ) : (
+          <div className={`w-64 h-full flex flex-col ${navBg}`}>
+            <div className="px-3 pt-4 pb-3"><Brand /></div>
+            <SectionedNav />
+            <UserBlock />
+          </div>
+        )}
+      </aside>
+
+      {/* Tiroir mobile */}
+      {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed left-0 top-0 bottom-0 w-72 bg-primary-500 shadow-xl overflow-y-auto" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-            <div className="p-4 border-b border-primary-400 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <img src="/assets/logo-campus.png" alt="Campus" className="h-10" />
-                <div>
-                  <p className="text-accent-400 font-bold">Access Campus</p>
-                  <p className="text-xs text-white/50">V3.0.0</p>
-                </div>
-              </div>
-              <button onClick={() => setSidebarOpen(false)} className="text-white"><X className="w-6 h-6" /></button>
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} />
+          <div className={`absolute left-0 top-0 bottom-0 w-72 flex flex-col ${navBg}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className="px-3 pt-4 pb-3 flex items-center justify-between">
+              <Brand />
+              <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Fermer" className={`p-2 ${navMuted}`}><X className="w-5 h-5" /></button>
             </div>
-            <nav className="p-3">
-              {isComptable
-                ? <ComptableNav onItemClick={() => setSidebarOpen(false)} />
-                : <SidebarNav onItemClick={() => setSidebarOpen(false)} />
-              }
-            </nav>
+            <SectionedNav />
+            <UserBlock />
           </div>
         </div>
       )}
 
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-1 bg-primary-500 h-full">
-          <div className="p-5 border-b border-primary-400">
-            <div className="flex items-center gap-3">
-              <img src="/assets/logo-campus.png" alt="Access Campus" className="h-12" />
-            </div>
-            <div className="mt-2">
-              <p className="text-accent-400 font-bold text-lg">Access Campus</p>
-              <p className="text-xs text-white/60">V3.0.0</p>
-            </div>
-          </div>
-
-          <nav className="flex-1 p-3 overflow-y-auto min-h-0">
-            {isComptable
-              ? <ComptableNav onItemClick={() => {}} />
-              : <SidebarNav onItemClick={() => {}} />
-            }
-          </nav>
-
-          <div className="p-4 border-t border-primary-400">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-accent-500 rounded-full flex items-center justify-center">
-                <span className="text-primary-900 font-bold">{user?.email?.[0]?.toUpperCase()}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{user?.email}</p>
-                <p className="text-xs text-white/60">
-                  {isComptable ? 'Comptable' : 'Administrateur'}
-                </p>
-              </div>
-            </div>
-            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-white/80 hover:bg-red-500/20 hover:text-red-300 rounded-lg transition-colors">
-              <LogOut className="w-4 h-4" />Déconnexion
+      {/* Contenu */}
+      <div className={`flex-1 min-w-0 ${prefs.nav === 'rail' ? 'lg:pl-[272px]' : 'lg:pl-64'}`}>
+        <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-gray-200" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="flex items-center gap-2 sm:gap-3 h-14" style={{ paddingLeft: 'var(--page-px)', paddingRight: 'var(--page-px)' }}>
+            <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Menu" className="lg:hidden p-2 -ml-2 rounded-ui-sm text-gray-700 hover:bg-gray-100">
+              <Menu className="w-5 h-5" />
             </button>
-          </div>
-        </div>
-      </aside>
+            <div className="lg:hidden"><Brand compact /></div>
+            <h1 className="hidden lg:block font-display font-semibold text-gray-900 truncate" style={{ fontSize: 'calc(var(--text-ui) * 1.15)' }}>{pageTitle}</h1>
+            <div className="flex-1" />
+            <button type="button" title="Recherche (bientôt)" className="hidden md:flex items-center gap-2 h-9 px-3 rounded-ui-sm border border-gray-200 text-gray-400 text-ui-sm w-64 bg-white">
+              <Search className="w-4 h-4" /><span className="flex-1 text-left">Rechercher</span>
+            </button>
 
-      {/* Main content */}
-      <main className="lg:pl-64">
-        {/* Top header bar */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-end gap-3 sm:gap-4">
-          {/* Notification bell — admins uniquement */}
-          {!isComptable && (
             <div className="relative">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 hover:bg-gray-100 rounded-full relative"
-              >
-                <Bell className="w-5 h-5 text-gray-600" />
+              <button type="button" onClick={() => { const v = !showDisplay; closeMenus(); setShowDisplay(v) }} aria-label="Affichage" title="Affichage"
+                className={`h-9 w-9 rounded-ui-sm flex items-center justify-center hover:bg-gray-100 ${showDisplay ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}>
+                <SlidersHorizontal className="w-5 h-5" />
+              </button>
+              {showDisplay && <DisplayMenu />}
+            </div>
+
+            <div className="relative">
+              <button type="button" onClick={() => { const v = !showNotifications; closeMenus(); setShowNotifications(v) }} aria-label="Notifications"
+                className={`h-9 w-9 rounded-ui-sm flex items-center justify-center hover:bg-gray-100 relative ${showNotifications ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}>
+                <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-accent-500 text-accent-fg text-[11px] rounded-full flex items-center justify-center font-semibold">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
+              {showNotifications && <NotificationsMenu />}
+            </div>
 
-              {showNotifications && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                  <div className="absolute right-0 top-12 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white rounded-xl shadow-xl border z-50 overflow-hidden">
-                    <div className="p-3 border-b bg-gray-50 flex items-center justify-between">
-                      <span className="font-semibold text-gray-900">Notifications</span>
-                      {unreadCount > 0 && (
-                        <button
-                          onClick={markAllAsRead}
-                          className="text-xs text-primary-600 hover:underline flex items-center gap-1"
-                        >
-                          <Check className="w-3 h-3" />
-                          Tout marquer comme lu
-                        </button>
-                      )}
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <p className="p-4 text-center text-gray-500 text-sm">Aucune notification</p>
-                      ) : (
-                        notifications.map(notif => (
-                          <div
-                            key={notif.id}
-                            className={`p-3 border-b hover:bg-gray-50 cursor-pointer ${!notif.read_at ? 'bg-blue-50' : ''}`}
-                            onClick={() => {
-                              markAsRead(notif.id)
-                              if (notif.link) navigate(notif.link)
-                              setShowNotifications(false)
-                            }}
-                          >
-                            <div className="flex items-start gap-2">
-                              <span className="text-lg">{getNotificationIcon(notif)}</span>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-sm ${!notif.read_at ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
-                                  {notif.title}
-                                </p>
-                                {notif.message && (
-                                  <p className="text-xs text-gray-500 truncate">{notif.message}</p>
-                                )}
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {format(new Date(notif.created_at), 'd MMM à HH:mm', { locale: fr })}
-                                </p>
-                              </div>
-                              {!notif.read_at && (
-                                <span className="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></span>
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
+            <div className="relative">
+              <button type="button" onClick={() => { const v = !showUserMenu; closeMenus(); setShowUserMenu(v) }} aria-label="Compte"
+                className="h-9 pl-1 pr-2 rounded-ui-sm flex items-center gap-2 hover:bg-gray-100">
+                <span className="w-7 h-7 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-[11px] uppercase">{initials(profile, user)}</span>
+                <ChevronDown className="w-4 h-4 text-gray-500 hidden sm:block" />
+              </button>
+              {showUserMenu && (
+                <div className="absolute right-0 top-11 w-64 bg-white rounded-ui border border-gray-200 shadow-xl z-50 overflow-hidden animate-fadeIn">
+                  <div className="px-3 py-3 border-b border-gray-100">
+                    <div className="text-ui font-semibold text-gray-900 truncate">{profile?.display_name || user?.email}</div>
+                    <div className="text-ui-sm text-gray-500 truncate">{user?.email}</div>
+                    <div className="mt-1"><span className="badge badge-neutral">{ROLE_LABELS[userRole] || userRole}</span></div>
                   </div>
-                </>
+                  <div className="py-1">
+                    {settingsItems.map((item) => (
+                      <NavLink key={item.to} to={item.to} onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
+                        <item.icon className="w-4 h-4" />{item.label}
+                      </NavLink>
+                    ))}
+                    <button type="button" onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
+                      <LogOut className="w-4 h-4" />Se déconnecter
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
-          )}
-
-          {/* Badge comptable */}
-          {isComptable && (
-            <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-lg px-3 py-1.5">
-              <Calculator className="w-4 h-4 text-violet-600" />
-              <span className="text-sm font-medium text-violet-700">Espace comptable</span>
-            </div>
-          )}
-
-          {/* Clock and greeting */}
-          <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2">
-            <span className="text-lg font-mono tabular-nums text-gray-700">
-              {currentTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            {greeting && (
-              <span className="text-sm font-medium text-primary-600 border-l border-gray-300 pl-3">
-                {greeting}
-              </span>
-            )}
           </div>
-        </div>
+        </header>
 
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+        {(showNotifications || showUserMenu || showDisplay) && <div className="fixed inset-0 z-10" onClick={closeMenus} />}
+
+        <main className="max-w-7xl mx-auto" style={{ padding: 'var(--space-4) var(--page-px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

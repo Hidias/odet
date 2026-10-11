@@ -2,247 +2,239 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   JETONS
+   Les couleurs de marque (--c-primary-*, --c-accent-*, --c-highlight-*, --c-nav)
+   sont posées à l'exécution par BrandingProvider. Les valeurs ci-dessous
+   servent de repli avant le premier chargement.
+   ============================================================ */
+:root {
+  --c-primary-50: 243 244 246; --c-primary-100: 230 232 236; --c-primary-200: 205 209 216;
+  --c-primary-300: 160 167 178; --c-primary-400: 108 117 131; --c-primary-500: 28 32 36;
+  --c-primary-600: 24 27 31; --c-primary-700: 20 22 25; --c-primary-800: 15 18 20; --c-primary-900: 11 13 14;
+  --c-primary-fg: 255 255 255;
+  --c-accent-50: 253 237 239; --c-accent-100: 250 219 223; --c-accent-200: 243 182 190;
+  --c-accent-300: 233 135 149; --c-accent-400: 220 80 102; --c-accent-500: 200 16 46;
+  --c-accent-600: 170 14 39; --c-accent-700: 140 11 32; --c-accent-800: 110 9 25; --c-accent-900: 80 6 18;
+  --c-accent-fg: 255 255 255;
+  --c-highlight-50: 253 248 234; --c-highlight-100: 250 241 212; --c-highlight-200: 243 225 170;
+  --c-highlight-300: 235 205 120; --c-highlight-400: 226 186 78; --c-highlight-500: 217 166 46;
+  --c-highlight-600: 184 141 39; --c-highlight-700: 152 116 32; --c-highlight-800: 119 91 25; --c-highlight-900: 87 66 18;
+  --c-highlight-fg: 22 24 29;
+  --c-nav: 28 32 36;
+  --c-nav-fg: 255 255 255;
+
+  --font-display: 'Sora', system-ui, sans-serif;
+  --font-body: 'Instrument Sans', system-ui, sans-serif;
+
+  /* Densité normale */
+  --text-ui: 14px;
+  --text-ui-sm: 12.5px;
+  --space-1: 0.5rem;
+  --space-2: 0.75rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --control-h: 38px;
+  --row-py: 0.75rem;
+  --page-px: 1.5rem;
+
+  /* Rayons moyens */
+  --radius-ui-sm: 6px;
+  --radius-ui: 10px;
+  --radius-ui-lg: 14px;
+
+  /* Couleurs sémantiques : fixes, indépendantes du thème de l'organisme */
+  --c-success: 26 107 67;
+  --c-success-bg: 230 244 236;
+  --c-warning: 138 90 0;
+  --c-warning-bg: 255 244 214;
+  --c-danger: 180 35 24;
+  --c-danger-bg: 253 236 236;
+  --c-info: 35 74 143;
+  --c-info-bg: 231 238 249;
+
+  --ground: 244 245 247;
+}
+
+html[data-density='compact'] {
+  --text-ui: 13px;
+  --text-ui-sm: 12px;
+  --space-1: 0.375rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --control-h: 32px;
+  --row-py: 0.5rem;
+  --page-px: 1.25rem;
+}
+
+html[data-density='large'] {
+  --text-ui: 15px;
+  --text-ui-sm: 13.5px;
+  --space-1: 0.625rem;
+  --space-2: 0.875rem;
+  --space-3: 1.125rem;
+  --space-4: 1.75rem;
+  --control-h: 44px;
+  --row-py: 0.875rem;
+  --page-px: 1.75rem;
+  --ground: 247 244 238;
+}
+
+html[data-radius='sm'] { --radius-ui-sm: 4px; --radius-ui: 6px; --radius-ui-lg: 8px; }
+html[data-radius='lg'] { --radius-ui-sm: 10px; --radius-ui: 14px; --radius-ui-lg: 18px; }
+
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
-    /* Safe area support for notch/Dynamic Island */
+    font-family: var(--font-body);
+    font-size: var(--text-ui);
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-font-smoothing: antialiased;
   }
-  
+
   body {
-    @apply bg-gray-50 text-gray-900;
-    /* Prevent pull-to-refresh on iOS when scrolling modals */
+    background-color: rgb(var(--ground));
+    @apply text-gray-900;
     overscroll-behavior-y: contain;
   }
 
-  /* ============================================
-     iOS ZOOM PREVENTION
-     iOS Safari zooms in when focusing inputs
-     with font-size < 16px. Force 16px on focus.
-     ============================================ */
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  /* iOS zoome sur les champs de moins de 16px */
   @supports (-webkit-touch-callout: none) {
-    input, select, textarea {
-      font-size: 16px !important;
-    }
+    input, select, textarea { font-size: 16px !important; }
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent-500));
+    outline-offset: 2px;
   }
 }
 
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
-    /* Minimum touch target 44px (Apple HIG) */
-    min-height: 44px;
+    @apply inline-flex items-center justify-center gap-2 font-medium transition-colors select-none;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2;
+    height: var(--control-h);
+    padding: 0 calc(var(--space-3) - 0.125rem);
+    border-radius: var(--radius-ui-sm);
+    font-size: var(--text-ui);
+    border: 1px solid transparent;
   }
-  
-  .btn-primary {
-    @apply bg-accent-500 text-primary-900 hover:bg-accent-600 focus:ring-accent-400 font-semibold;
-  }
-  
-  .btn-secondary {
-    @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-accent-400;
-  }
-  
-  .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
-  }
-  
-  .btn-success {
-    @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
-  }
-  
-  .btn-campus {
-    @apply bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-400;
-  }
-  
-  .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent;
-    /* Prevent iOS zoom on focus */
+  .btn:disabled { @apply opacity-50 cursor-not-allowed; }
+
+  .btn-primary { @apply bg-accent-500 text-accent-fg hover:bg-accent-600; }
+  .btn-secondary { @apply bg-white text-gray-800 border-gray-300 hover:bg-gray-50; }
+  .btn-ghost { @apply bg-transparent text-gray-700 hover:bg-gray-100; }
+  .btn-danger { @apply bg-red-600 text-white hover:bg-red-700; }
+  .btn-success { @apply bg-green-700 text-white hover:bg-green-800; }
+  .btn-sm { height: calc(var(--control-h) - 8px); padding: 0 var(--space-2); font-size: var(--text-ui-sm); }
+  .btn-icon { width: var(--control-h); padding: 0; }
+
+  .input, .select, .textarea {
+    @apply w-full bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400;
+    @apply focus:outline-none focus:ring-2 focus:ring-accent-400 focus:border-accent-400;
+    min-height: var(--control-h);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-ui-sm);
     font-size: 16px;
-    min-height: 44px;
   }
-  
-  .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
-  }
-  
+  .textarea { padding: var(--space-2); }
+
+  .label { @apply block font-medium text-gray-700 mb-1; font-size: var(--text-ui-sm); }
+
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply bg-white border border-gray-200;
+    border-radius: var(--radius-ui);
+    padding: var(--space-4);
   }
-  
+  .card-flush { padding: 0; overflow: hidden; }
+
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1 font-semibold whitespace-nowrap;
+    height: 22px;
+    padding: 0 0.5rem;
+    border-radius: 999px;
+    font-size: var(--text-ui-sm);
   }
-  
-  .badge-green {
-    @apply bg-green-100 text-green-800;
-  }
-  
-  .badge-yellow {
-    @apply bg-yellow-100 text-yellow-800;
-  }
-  
-  .badge-red {
-    @apply bg-red-100 text-red-800;
-  }
-  
-  .badge-blue {
-    @apply bg-blue-100 text-blue-800;
-  }
-  
-  .badge-gray {
-    @apply bg-gray-100 text-gray-800;
-  }
-  
-  .badge-campus {
-    @apply bg-accent-100 text-accent-800;
-  }
+  .badge-success { background: rgb(var(--c-success-bg)); color: rgb(var(--c-success)); }
+  .badge-warning { background: rgb(var(--c-warning-bg)); color: rgb(var(--c-warning)); }
+  .badge-danger { background: rgb(var(--c-danger-bg)); color: rgb(var(--c-danger)); }
+  .badge-info { background: rgb(var(--c-info-bg)); color: rgb(var(--c-info)); }
+  .badge-neutral { @apply bg-gray-100 text-gray-700; }
+  .badge-brand { @apply bg-accent-500/10 text-accent-700; }
+
+  /* Anciennes classes conservées le temps de la migration des pages */
+  .badge-green { @apply badge-success; }
+  .badge-yellow { @apply badge-warning; }
+  .badge-red { @apply badge-danger; }
+  .badge-blue { @apply badge-info; }
+  .badge-gray { @apply badge-neutral; }
+  .badge-campus { @apply badge-brand; }
+  .btn-campus { @apply btn-primary; }
+
+  .page-title { @apply font-display font-semibold text-gray-900; font-size: calc(var(--text-ui) * 1.7); }
+  .section-title { @apply font-display font-semibold text-gray-900; font-size: calc(var(--text-ui) * 1.1); }
+  .muted { @apply text-gray-500; }
+
+  .tabs { @apply flex gap-1 border-b border-gray-200 overflow-x-auto; }
+  .tab { @apply px-3 py-2.5 font-medium text-gray-500 border-b-2 border-transparent -mb-px whitespace-nowrap hover:text-gray-900; }
+  .tab-active { @apply text-gray-900 border-accent-500; }
 }
 
-/* Signature canvas */
+/* Signature */
 .signature-canvas {
   border: 2px dashed #d1d5db;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-ui-sm);
   background: #fff;
   touch-action: none;
 }
+.signature-canvas.signed { border-color: #10b981; border-style: solid; }
 
-.signature-canvas.signed {
-  border-color: #10b981;
-  border-style: solid;
-}
-
-/* Tables */
-.table-container {
-  @apply overflow-x-auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-table {
-  @apply w-full text-sm;
-}
-
+/* Tableaux : style de base, remplacé progressivement par le composant DataTable */
+table { @apply w-full; font-size: var(--text-ui); }
 th {
-  @apply text-left font-medium text-gray-500 uppercase tracking-wider px-4 py-3 bg-gray-50;
+  @apply text-left font-semibold text-gray-500 bg-gray-50;
+  font-size: var(--text-ui-sm);
+  padding: calc(var(--row-py) - 0.125rem) var(--space-2);
   white-space: nowrap;
 }
+td { @apply border-t border-gray-100; padding: var(--row-py) var(--space-2); }
+tr:hover td { @apply bg-gray-50; }
 
-td {
-  @apply px-4 py-3 border-t border-gray-100;
-}
-
-tr:hover td {
-  @apply bg-gray-50;
-}
-
-/* Loading spinner */
-.spinner {
-  @apply animate-spin h-5 w-5 text-accent-500;
-}
-
-/* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
+  from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+.animate-fadeIn { animation: fadeIn 0.2s ease-out; }
 
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
-}
+/* Défilement horizontal discret */
+.overflow-x-auto { -webkit-overflow-scrolling: touch; }
+.overflow-x-auto::-webkit-scrollbar { height: 4px; }
+.overflow-x-auto::-webkit-scrollbar-track { background: transparent; }
+.overflow-x-auto::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+nav.overflow-x-auto { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
 
-/* Campus Toast Styles */
-.campus-toast {
-  @apply bg-primary-500 text-white;
-}
+button, a, nav { -webkit-tap-highlight-color: transparent; }
 
-/* ============================================
-   MOBILE / TABLET IMPROVEMENTS
-   ============================================ */
-
-/* Horizontal scroll indicator (subtle scrollbar) */
-.overflow-x-auto {
-  -webkit-overflow-scrolling: touch;
-}
-
-.overflow-x-auto::-webkit-scrollbar {
-  height: 4px;
-}
-
-.overflow-x-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.overflow-x-auto::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
-}
-
-/* Tab bars - scrollable on mobile with visible thin scrollbar */
-nav.overflow-x-auto {
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-}
-
-nav.overflow-x-auto::-webkit-scrollbar {
-  height: 3px;
-}
-
-nav.overflow-x-auto::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
-}
-
-/* Prevent text selection on tap (buttons/nav) */
-button, a, nav {
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Fix iOS Safari bottom bar overlap */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .fixed.bottom-0,
-  .sticky.bottom-0 {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
+  .fixed.bottom-0, .sticky.bottom-0 { padding-bottom: env(safe-area-inset-bottom); }
 }
 
-/* Improve touch targets for small buttons */
+/* Cibles tactiles */
 @media (pointer: coarse) {
-  /* Coarse pointer = touch device */
-  button, [role="button"], a {
-    min-height: 36px;
-    min-width: 36px;
-  }
-  
-  /* Table action buttons */
-  td button, td a {
-    min-height: 32px;
-    min-width: 32px;
-  }
+  button, [role="button"], a { min-height: 36px; min-width: 36px; }
+  td button, td a { min-height: 32px; min-width: 32px; }
 }
 
-/* ============================================
-   MOBILE-SPECIFIC LAYOUT IMPROVEMENTS
-   ============================================ */
-
-/* Cards: tighter padding on small screens */
 @media (max-width: 639px) {
-  .card {
-    padding: 1rem;
-  }
-  
-  /* Reduce heavy headings on mobile */
-  h1 { font-size: 1.25rem; }
-  h2 { font-size: 1.1rem; }
-  
-  /* Table cells: tighter on mobile */
-  th { padding: 0.5rem 0.75rem; font-size: 0.7rem; }
-  td { padding: 0.5rem 0.75rem; }
-  
-  /* Modals: full width on mobile */
-  .fixed .max-w-md,
-  .fixed .max-w-lg,
-  .fixed .max-w-xl,
-  .fixed .max-w-2xl {
+  .card { padding: var(--space-3); }
+  th { padding: 0.5rem 0.625rem; }
+  td { padding: 0.5rem 0.625rem; }
+  .fixed .max-w-md, .fixed .max-w-lg, .fixed .max-w-xl, .fixed .max-w-2xl {
     max-width: calc(100vw - 1rem);
     margin-left: 0.5rem;
     margin-right: 0.5rem;
