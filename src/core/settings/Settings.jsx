@@ -10,6 +10,7 @@ import { callApi } from '../api'
 import { useBranding } from '../branding/BrandingProvider'
 import { FONT_PAIRS } from '../branding/presets'
 import { missingOrgFields, ORG_REQUIRED } from '../org/orgUtils'
+import EmailSettings from './EmailSettings'
 import { THEMES, FORMES, ROLES, Field, Toggle, uploadBrandingFile, ModulesSection, ColorPicker } from './shared'
 
 const SECTIONS = [
@@ -19,6 +20,7 @@ const SECTIONS = [
   { id: 'documents', label: 'Documents et textes', icon: FileText },
   { id: 'banque', label: 'Banque et facturation', icon: Landmark },
   { id: 'modules', label: 'Modules', icon: Layers },
+  { id: 'emails', label: 'Comptes email', icon: Mail },
   { id: 'utilisateurs', label: 'Utilisateurs', icon: Users },
   { id: 'comptable', label: 'Accès comptable', icon: Calculator },
 ]
@@ -311,6 +313,7 @@ export default function Settings() {
           )}
 
           {section === 'modules' && <ModulesSection onChanged={refreshModules} />}
+          {section === 'emails' && <EmailSettings embedded />}
           {section === 'utilisateurs' && <UsersSection isSuperadmin={isSuperadmin} />}
           {section === 'comptable' && <ComptableSection />}
         </div>
@@ -434,7 +437,6 @@ function ComptableSection() {
         <Field label="Copie cachée (BCC)"><input className="input" value={form.comptable_bcc} onChange={(e) => setForm({ ...form, comptable_bcc: e.target.value })} /></Field>
       </div>
       <button type="button" onClick={save} disabled={saving} className="btn btn-primary"><Save className="w-4 h-4" />Enregistrer</button>
-      <p className="text-ui-sm text-gray-400">Configuration des comptes d'envoi (SMTP) : <Link to="/settings/email" className="underline">Comptes email</Link>.</p>
     </>
   )
 }

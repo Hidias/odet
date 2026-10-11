@@ -1,8 +1,7 @@
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  Menu, X, Bell, Check, LogOut, ChevronDown, Search, Settings, Sliders, SlidersHorizontal,
-  AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info,
+  Menu, X, Bell, Check, LogOut, ChevronDown, Search, Settings, Sliders, SlidersHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -413,6 +412,12 @@ export default function Layout() {
                         <item.icon className="w-4 h-4" />{item.label}
                       </NavLink>
                     ))}
+                    <NavLink to="/settings/email" onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
+                      <Mail className="w-4 h-4" />Mes comptes email
+                    </NavLink>
+                    <NavLink to="/mot-de-passe" onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
+                      <KeyRound className="w-4 h-4" />Changer mon mot de passe
+                    </NavLink>
                     <button type="button" onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                       <LogOut className="w-4 h-4" />Se déconnecter
                     </button>
@@ -426,6 +431,12 @@ export default function Layout() {
         {(showNotifications || showUserMenu || showDisplay) && <div className="fixed inset-0 z-10" onClick={closeMenus} />}
 
         <main className="max-w-7xl mx-auto" style={{ padding: 'var(--space-4) var(--page-px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+          {branding?.demo_mode && (
+            <div className="mb-4 rounded-ui px-3 py-2 text-ui-sm flex items-center gap-2" style={{ background: 'rgb(var(--c-warning-bg))', color: 'rgb(var(--c-warning))' }}>
+              <span className="font-semibold">Mode démonstration</span>
+              <span>Les emails ne partent pas vers leurs destinataires : ils sont redirigés vers l'adresse de test.</span>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

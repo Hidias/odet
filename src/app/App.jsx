@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'r
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from '../core/store'
 import { BrandingProvider, useBranding } from '../core/branding/BrandingProvider'
+import { authModeFromUrl } from '../core/auth/SetPassword'
 
 // ─── Chargement immédiat (pages critiques) ───────────────────
 import Layout from './Layout'
@@ -23,6 +24,7 @@ const Documents = lazy(() => import('../modules/formation/pages/Documents'))
 const DocumentsVierges = lazy(() => import('../modules/formation/pages/DocumentsVierges'))
 const Settings = lazy(() => import('../core/settings/Settings'))
 const SetupWizard = lazy(() => import('../core/setup/SetupWizard'))
+const SetPassword = lazy(() => import('../core/auth/SetPassword'))
 const Console = lazy(() => import('../core/console/Console'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
@@ -132,6 +134,16 @@ export default function App() {
     initialize()
   }, [initialize])
 
+  // Lien d'invitation ou de réinitialisation : écran dédié, hors routeur
+  const authMode = authModeFromUrl()
+  if (authMode) {
+    return (
+      <BrandingProvider>
+        <Suspense fallback={<PageLoader />}><SetPassword mode={authMode} /></Suspense>
+      </BrandingProvider>
+    )
+  }
+
   return (
     <BrandingProvider>
     <HashRouter>
@@ -225,6 +237,7 @@ export default function App() {
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="parametres" element={<Settings />} />
             <Route path="console" element={<Console />} />
+            <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />
           </Route>
 

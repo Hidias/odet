@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store'
+import { supabase } from '../supabase'
 import { useBranding, brandLogo } from '../branding/BrandingProvider'
 
 export default function Login() {
@@ -30,6 +31,13 @@ export default function Login() {
       setIsLoading(false)
     }
     // Connexion réussie : la redirection est faite par <Navigate> ci-dessus dès que l'utilisateur est en mémoire
+  }
+
+  const forgot = async () => {
+    if (!email.trim()) return toast.error('Saisissez votre adresse email, puis cliquez à nouveau')
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/?auth=reset` })
+    if (err) toast.error(err.message)
+    else toast.success('Si ce compte existe, un lien de réinitialisation vient de vous être envoyé')
   }
 
   const logo = brandLogo(branding, false)
@@ -103,6 +111,7 @@ export default function Login() {
               {isLoading ? 'Connexion en cours' : 'Se connecter'}
             </button>
           </form>
+          <button type="button" onClick={forgot} className="mt-4 text-ui-sm text-gray-500 hover:text-gray-800 underline">Mot de passe oublié</button>
 
           <p className="text-ui-sm text-gray-400 mt-8 text-center">
             Accès réservé aux utilisateurs autorisés par {branding.org_name || 'votre organisme'}.

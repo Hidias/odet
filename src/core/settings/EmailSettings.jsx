@@ -1,316 +1,144 @@
-import { apiFetch } from '../api'
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabase'
-import { Mail, Save, Loader, CheckCircle, AlertCircle, TestTube } from 'lucide-react'
+import { Mail, Save, Loader2, CheckCircle, PlugZap, Trash2, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiFetch } from '../api'
+import { Field } from './shared'
 
-export default function EmailSettings() {
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [testing, setTesting] = useState(false)
-  
-  const [userId, setUserId] = useState(null)
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    signatureImage: null // Image de signature en base64
+// Comptes email d'envoi de l'utilisateur connecté (SMTP). Le mot de passe est chiffré côté serveur
+// et n'est jamais relu par l'application.
+
+const PRESETS = [
+  { key: 'ionos-exchange', label: 'IONOS Exchange', host: 'smtp.exchange.ionos.eu', port: 587, secure: false },
+  { key: 'ionos-basic', label: 'IONOS Mail Basic', host: 'smtp.ionos.fr', port: 587, secure: false },
+  { key: 'ovh', label: 'OVH', host: 'ssl0.ovh.net', port: 587, secure: false },
+  { key: 'outlook', label: 'Microsoft 365 / Outlook', host: 'smtp.office365.com', port: 587, secure: false },
+  { key: 'gmail', label: 'Gmail / Google Workspace', host: 'smtp.gmail.com', port: 587, secure: false },
+  { key: 'orange', label: 'Orange', host: 'smtp.orange.fr', port: 465, secure: true },
+  { key: 'custom', label: 'Autre serveur', host: '', port: 587, secure: false },
+]
+
+const emptyForm = { email: '', password: '', preset: 'ionos-exchange', smtpHost: 'smtp.exchange.ionos.eu', smtpPort: 587, smtpSecure: false }
+
+async function call(method, body, query = '') {
+  const res = await apiFetch(`/api/user-email-config${query}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
   })
-  const [hasConfig, setHasConfig] = useState(false)
-  const [signaturePreview, setSignaturePreview] = useState(null)
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok && !json.error) json.error = `Erreur ${res.status}`
+  return json
+}
 
-  useEffect(() => {
-    loadConfig()
-  }, [])
+export default function EmailSettings({ embedded = false }) {
+  const [loading, setLoading] = useState(true)
+  const [configs, setConfigs] = useState([])
+  const [form, setForm] = useState(emptyForm)
+  const [editing, setEditing] = useState(false)
+  const [busy, setBusy] = useState('')
 
-  const loadConfig = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      
-      setUserId(user.id)
+  const load = async () => {
+    setLoading(true)
+    const r = await call('GET')
+    if (r.error) toast.error(r.error)
+    setConfigs(r.configs || [])
+    setEditing((r.configs || []).length === 0)
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [])
 
-      // Récupérer la config existante
-      const { data, error } = await supabase
-        .from('user_email_configs')
-        .select('email, signature_image')
-        .eq('user_id', user.id)
-        .order('email')
-        .limit(1)
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const choosePreset = (key) => {
+    const p = PRESETS.find((x) => x.key === key)
+    setForm((f) => ({ ...f, preset: key, smtpHost: p.host || f.smtpHost, smtpPort: p.port, smtpSecure: p.secure }))
+  }
+  const payload = (extra) => ({ email: form.email, password: form.password, smtpHost: form.smtpHost, smtpPort: Number(form.smtpPort), smtpSecure: !!form.smtpSecure, preset: form.preset === 'custom' ? undefined : form.preset, ...extra })
 
-      const config = Array.isArray(data) ? data[0] : data
-      if (config && !error) {
-        setFormData(prev => ({ 
-          ...prev, 
-          email: config.email,
-          signatureImage: config.signature_image 
-        }))
-        setSignaturePreview(config.signature_image)
-        setHasConfig(true)
-      }
-    } catch (error) {
-      console.error('Erreur chargement config:', error)
-    } finally {
-      setLoading(false)
-    }
+  const test = async () => {
+    if (!form.email || !form.password || !form.smtpHost) return toast.error('Email, mot de passe et serveur requis')
+    setBusy('test')
+    const r = await call('POST', payload({ testConnection: true }))
+    setBusy('')
+    if (r.success) toast.success('Connexion réussie')
+    else toast.error(r.error || 'Connexion impossible')
+  }
+  const save = async () => {
+    if (!form.email || !form.smtpHost) return toast.error('Email et serveur requis')
+    setBusy('save')
+    const r = await call('POST', payload({ testConnection: false }))
+    setBusy('')
+    if (r.success) {
+      toast.success('Compte enregistré')
+      setForm(emptyForm)
+      await load()
+    } else toast.error(r.error || 'Enregistrement impossible')
+  }
+  const remove = async (email) => {
+    if (!confirm(`Retirer le compte ${email} ?`)) return
+    const r = await call('DELETE', null, `?email=${encodeURIComponent(email)}`)
+    if (r.success) { toast.success('Compte retiré'); load() } else toast.error(r.error || 'Suppression impossible')
   }
 
-  const handleTest = async () => {
-    if (!formData.email || !formData.password) {
-      toast.error('Email et mot de passe obligatoires')
-      return
-    }
-
-    setTesting(true)
-
-    try {
-      const response = await apiFetch('/api/user-email-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          email: formData.email,
-          password: formData.password,
-          testConnection: true
-        })
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        toast.success('✅ Connexion SMTP réussie !')
-      } else {
-        toast.error('❌ Échec : ' + result.error)
-      }
-    } catch (error) {
-      toast.error('Erreur lors du test')
-    } finally {
-      setTesting(false)
-    }
-  }
-
-  const handleSignatureUpload = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    
-    // Vérifier que c'est une image
-    if (!file.type.startsWith('image/')) {
-      toast.error('Le fichier doit être une image')
-      return
-    }
-    
-    // Vérifier la taille (max 1MB)
-    if (file.size > 1024 * 1024) {
-      toast.error('Image trop volumineuse (max 1MB)')
-      return
-    }
-    
-    // Lire et compresser l'image
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const img = new Image()
-      img.onload = () => {
-        // Créer un canvas pour redimensionner
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        
-        // Limiter la largeur max à 600px
-        const maxWidth = 600
-        let width = img.width
-        let height = img.height
-        
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width
-          width = maxWidth
-        }
-        
-        canvas.width = width
-        canvas.height = height
-        
-        // Dessiner l'image redimensionnée
-        ctx.drawImage(img, 0, 0, width, height)
-        
-        // Convertir en base64 avec compression
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8)
-        
-        setFormData(prev => ({ ...prev, signatureImage: compressedBase64 }))
-        setSignaturePreview(compressedBase64)
-        toast.success('Signature ajoutée et compressée')
-      }
-      img.src = event.target.result
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleRemoveSignature = () => {
-    setFormData(prev => ({ ...prev, signatureImage: null }))
-    setSignaturePreview(null)
-    toast.success('Signature supprimée')
-  }
-
-  const handleSave = async () => {
-    if (!formData.email || !formData.password) {
-      toast.error('Email et mot de passe obligatoires')
-      return
-    }
-
-    setSaving(true)
-
-    try {
-      const response = await apiFetch('/api/user-email-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          email: formData.email,
-          password: formData.password,
-          signatureImage: formData.signatureImage,
-          testConnection: false
-        })
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        toast.success('Configuration sauvegardée !')
-        setHasConfig(true)
-      } else {
-        toast.error('Erreur : ' + result.error)
-      }
-    } catch (error) {
-      toast.error('Erreur lors de la sauvegarde')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader className="w-8 h-8 text-primary-600 animate-spin" />
+  const content = (
+    <div className="space-y-5">
+      <div>
+        <h2 className="section-title flex items-center gap-2"><Mail className="w-5 h-5 text-accent-500" /> Comptes email d'envoi</h2>
+        <p className="muted mt-1">Les emails (convocations, devis, factures, relances) partent depuis votre propre boîte. Le mot de passe est chiffré et n'est jamais affiché.</p>
       </div>
-    )
-  }
 
-  return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Mail className="w-6 h-6 text-primary-600" />
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Configuration Email</h2>
-            <p className="text-sm text-gray-600">Pour envoyer les comptes-rendus depuis Campus</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Votre email professionnel
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="prenom.nom@accessformation.pro"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mot de passe email
-            </label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Votre mot de passe est chiffré et stocké en sécurité
-            </p>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800 font-medium mb-2">📧 Serveur SMTP : IONOS Exchange</p>
-            <div className="text-xs text-blue-700 space-y-1">
-              <p>• Host : smtp.exchange.ionos.eu</p>
-              <p>• Port : 587 (STARTTLS)</p>
-              <p>• Les emails apparaîtront dans vos "Envoyés"</p>
-            </div>
-          </div>
-
-          {/* Signature */}
-          <div className="border-t border-gray-200 pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              ✍️ Signature email (optionnel)
-            </label>
-            
-            {signaturePreview ? (
-              <div className="space-y-2">
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <img 
-                    src={signaturePreview} 
-                    alt="Signature" 
-                    className="max-w-full h-auto"
-                    style={{ maxHeight: '150px' }}
-                  />
+      {loading ? (
+        <div className="py-6 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></div>
+      ) : (
+        <>
+          {configs.length > 0 && (
+            <div className="divide-y divide-gray-100 border border-gray-200 rounded-ui">
+              {configs.map((c) => (
+                <div key={c.id} className="flex items-center gap-3 px-3 py-2.5">
+                  <CheckCircle className="w-4 h-4 text-[rgb(var(--c-success))] flex-none" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-ui font-medium text-gray-900 truncate">{c.email}</div>
+                    <div className="text-ui-sm text-gray-500">{c.smtp_host}:{c.smtp_port}{c.last_tested_at ? `, enregistré le ${new Date(c.last_tested_at).toLocaleDateString('fr-FR')}` : ''}</div>
+                  </div>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setForm({ ...emptyForm, email: c.email, preset: 'custom', smtpHost: c.smtp_host, smtpPort: c.smtp_port, smtpSecure: c.smtp_secure }); setEditing(true) }}>Modifier</button>
+                  <button type="button" className="btn btn-ghost btn-icon text-red-600" onClick={() => remove(c.email)} aria-label="Retirer"><Trash2 className="w-4 h-4" /></button>
                 </div>
-                <button
-                  onClick={handleRemoveSignature}
-                  className="text-sm text-red-600 hover:text-red-700"
-                >
-                  Supprimer la signature
-                </button>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                <label className="flex flex-col items-center cursor-pointer">
-                  <Mail className="w-8 h-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-600">Ajouter une image de signature</span>
-                  <span className="text-xs text-gray-500 mt-1">PNG, JPG (max 1MB)</span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg"
-                    onChange={handleSignatureUpload}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            )}
-            <p className="text-xs text-gray-500 mt-2">
-              Cette signature sera automatiquement ajoutée à la fin de vos emails
-            </p>
-          </div>
-
-          {hasConfig && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <p className="text-sm text-green-800">Configuration active</p>
+              ))}
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={handleTest}
-              disabled={testing || !formData.email || !formData.password}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
-              {testing ? <Loader className="w-4 h-4 animate-spin" /> : <TestTube className="w-4 h-4" />}
-              Tester la connexion
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !formData.email || !formData.password}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
-            >
-              {saving ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Sauvegarder
-            </button>
-          </div>
-        </div>
-      </div>
+          {!editing ? (
+            <button type="button" className="btn btn-secondary" onClick={() => { setForm(emptyForm); setEditing(true) }}><Plus className="w-4 h-4" /> Ajouter un compte</button>
+          ) : (
+            <div className="rounded-ui border border-gray-200 p-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Adresse email"><input type="email" className="input" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="prenom.nom@exemple.fr" autoComplete="off" /></Field>
+                <Field label="Mot de passe de la boîte" hint="Laissez vide pour garder le mot de passe enregistré"><input type="password" className="input" value={form.password} onChange={(e) => set('password', e.target.value)} autoComplete="new-password" /></Field>
+                <Field label="Fournisseur">
+                  <select className="select" value={form.preset} onChange={(e) => choosePreset(e.target.value)}>
+                    {PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+                  </select>
+                </Field>
+                <div className="grid grid-cols-[1fr_90px] gap-2">
+                  <Field label="Serveur SMTP"><input className="input" value={form.smtpHost} onChange={(e) => set('smtpHost', e.target.value)} /></Field>
+                  <Field label="Port"><input className="input" inputMode="numeric" value={form.smtpPort} onChange={(e) => set('smtpPort', e.target.value.replace(/\D/g, ''))} /></Field>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-ui cursor-pointer">
+                <input type="checkbox" checked={!!form.smtpSecure} onChange={(e) => set('smtpSecure', e.target.checked)} className="w-4 h-4 accent-[rgb(var(--c-accent-500))]" />
+                Connexion SSL directe (port 465). Décoché : STARTTLS (port 587)
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="btn btn-secondary" onClick={test} disabled={!!busy}>{busy === 'test' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />} Tester</button>
+                <button type="button" className="btn btn-primary" onClick={save} disabled={!!busy}>{busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer</button>
+                {configs.length > 0 && <button type="button" className="btn btn-ghost" onClick={() => setEditing(false)}>Annuler</button>}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
+
+  if (embedded) return content
+  return <div className="card max-w-3xl">{content}</div>
 }

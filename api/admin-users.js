@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       }
       const { data, error } = await admin.auth.admin.inviteUserByEmail(email.trim().toLowerCase(), {
         data: { role: wanted, display_name, first_name, last_name },
-        redirectTo: appUrl ? `${appUrl}/#/bienvenue` : undefined,
+        redirectTo: appUrl ? `${appUrl}/?auth=welcome` : undefined,
       })
       if (error) return res.status(400).json({ error: error.message })
       return res.status(200).json({ ok: true, user_id: data.user?.id })
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
       const { data, error } = await admin.auth.admin.generateLink({
         type: 'recovery',
         email: email.trim().toLowerCase(),
-        options: { redirectTo: appUrl ? `${appUrl}/#/nouveau-mot-de-passe` : undefined },
+        options: { redirectTo: appUrl ? `${appUrl}/?auth=reset` : undefined },
       })
       if (error) return res.status(400).json({ error: error.message })
       // Le lien est renvoyé à l'administrateur, qui le transmet (utile quand l'email ne part pas)
