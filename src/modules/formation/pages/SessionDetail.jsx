@@ -1775,9 +1775,13 @@ export default function SessionDetail() {
   }
   
   // Obtenir le lieu (Intra = adresse client)
+  // Lieu complet : adresse saisie sur la session en priorité, sinon adresse du client (intra)
   const getDisplayLocation = () => {
+    const cpVille = (cp, ville) => [cp, ville].filter(Boolean).join(' ')
+    const fromSession = [session?.location_address, cpVille(session?.location_postal_code, session?.location_city)].filter(Boolean).join(', ')
+    if (fromSession) return [session?.location_name, fromSession].filter(Boolean).join(', ')
     if (session?.is_intra && session?.clients?.address) {
-      return session.clients.address
+      return [session.clients.address, cpVille(session.clients.postal_code, session.clients.city)].filter(Boolean).join(', ')
     }
     return session?.location_name || session?.location || 'À définir'
   }
@@ -2759,8 +2763,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </div>
             <div className="flex gap-2 flex-wrap">
               <button onClick={handleDownloadSatisfactionDO} className="btn btn-secondary flex items-center gap-2"><FileText className="w-4 h-4" />Éval. DO</button>
-              <button onClick={() => setShowEdit(true)} className="btn btn-secondary flex items-center gap-2"><Edit className="w-4 h-4" />Modifier</button>
-              <button onClick={handleDelete} className="btn btn-danger"><Trash2 className="w-4 h-4" /></button>
+              <button onClick={() => setShowEdit(true)} className="btn btn-ghost"><Edit className="w-4 h-4" />Modifier</button>
+              <button onClick={handleDelete} className="btn btn-ghost btn-icon text-red-600" aria-label="Supprimer la session"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
 
@@ -2968,17 +2972,17 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         <div className="flex gap-2 flex-wrap justify-end">
           {/* Signature sur le téléphone du formateur */}
           <button onClick={() => navigate(`/signature/${session.id}`)}
-            className="btn flex items-center gap-2 bg-primary-600 text-white hover:bg-primary-700">
+            className="btn btn-primary">
             <PenLine className="w-4 h-4" />Faire signer
           </button>
           {/* Boutons Email */}
-          <button onClick={() => handleSendEmailBefore()} className="btn btn-secondary flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
+          <button onClick={() => handleSendEmailBefore()} className="btn btn-secondary">
             <Send className="w-4 h-4" />Avant formation
           </button>
-          <button onClick={() => handleSendEmailAfter()} className="btn btn-secondary flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50">
+          <button onClick={() => handleSendEmailAfter()} className="btn btn-secondary">
             <Send className="w-4 h-4" />Après formation
           </button>
-          <button onClick={() => setShowStageEmailModal(true)} className="btn btn-secondary flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
+          <button onClick={() => setShowStageEmailModal(true)} className="btn btn-secondary">
             <Mail className="w-4 h-4" />Aux stagiaires
           </button>
           <button onClick={() => setShowEdit(true)} className="btn btn-secondary flex items-center gap-2"><Edit className="w-4 h-4" />Modifier</button>
@@ -3024,12 +3028,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         <div className="card">
           <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><Calendar className="w-4 h-4" />Dates</h3>
           <p className="text-sm text-gray-600">{format(new Date(session.start_date), 'd MMM yyyy', { locale: fr })}{session.end_date !== session.start_date && ` - ${format(new Date(session.end_date), 'd MMM yyyy', { locale: fr })}`}</p>
-          <p className="text-sm text-gray-500">{session.start_time} - {session.end_time}</p>
+          <p className="text-sm text-gray-500">{session.start_time?.substring(0, 5)} - {session.end_time?.substring(0, 5)}</p>
         </div>
         <div className="card">
           <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><MapPin className="w-4 h-4" />Lieu</h3>
           <p className="text-sm text-gray-600">{getDisplayLocation()}</p>
-          {session.is_intra && <p className="text-xs text-purple-600 mt-1">(Chez le client)</p>}
+          {session.is_intra && <p className="text-ui-sm text-gray-500 mt-1">Intra-entreprise</p>}
         </div>
         <div className="card">
           <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><Users className="w-4 h-4" />Effectif</h3>

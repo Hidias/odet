@@ -3,6 +3,20 @@
 
 export const CHANGELOG = [
   {
+    version: '0.4.0',
+    date: '2026-10-11',
+    title: 'Sécurité, emails et préparation de la démonstration',
+    notes: [
+      'Accès public verrouillé : seules les fonctions du portail stagiaire restent ouvertes, toutes les données de gestion demandent une connexion.',
+      'Chaque utilisateur configure ses comptes email (IONOS, OVH, Outlook, Gmail, Orange ou serveur personnalisé) dans Paramètres, Comptes email.',
+      'Tous les envois passent par le compte de l\'utilisateur connecté, avec sa signature et l\'identité de l\'organisme.',
+      'Mode démonstration : bandeau visible et emails redirigés vers une boîte de contrôle, objet préfixé [DEMO].',
+      'Création et réinitialisation du mot de passe depuis l\'application, lien Mot de passe oublié sur la connexion.',
+      'Hébergement des fonctions serveur à Paris.',
+      'Détail de session : lieu complet avec code postal et ville, horaires simplifiés, boutons harmonisés.',
+    ],
+  },
+  {
     version: '0.3.0',
     date: '2026-10-11',
     title: 'Quiz gamifiés et espace stagiaire',
