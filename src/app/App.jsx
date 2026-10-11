@@ -59,10 +59,6 @@ const EspaceComptable = lazy(() => import('../modules/finance/pages/EspaceCompta
 const SignatureFormateur = lazy(() => import('../modules/formation/pages/SignatureFormateur'))
 
 // Pages publiques
-const PublicAttendance = lazy(() => import('../modules/portail/pages/Attendance'))
-const PublicQuestionnaire = lazy(() => import('../modules/portail/pages/Questionnaire'))
-const PublicInfoSheet = lazy(() => import('../modules/portail/pages/InfoSheet'))
-const PublicHotEvaluation = lazy(() => import('../modules/portail/pages/HotEvaluation'))
 const TraineePortal = lazy(() => import('../modules/portail/pages/TraineePortal'))
 const PublicReclamation = lazy(() => import('../modules/portail/pages/Reclamation'))
 
@@ -166,24 +162,6 @@ export default function App() {
           <Route path="/reclamation" element={<PublicReclamation />} />
 
           <Route path="/portail/:token" element={<TraineePortal />} />
-
-          {/* Anciennes routes (rétrocompatibilité) */}
-          <Route path="/emargement/:token" element={
-            <PublicLayout>
-              <PublicAttendance />
-            </PublicLayout>
-          } />
-          <Route path="/questionnaire/:token" element={
-            <PublicLayout>
-              <PublicQuestionnaire />
-            </PublicLayout>
-          } />
-          <Route path="/fiche-renseignement/:token" element={
-            <PublicInfoSheet />
-          } />
-          <Route path="/evaluation-chaud/:token" element={
-            <PublicHotEvaluation />
-          } />
 
           {/* ─── Route Espace Comptable (comptable + admins) ─── */}
           <Route path="/comptable" element={
