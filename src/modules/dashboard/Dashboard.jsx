@@ -1247,10 +1247,8 @@ export default function Dashboard() {
       </div>
       
       {/* Footer */}
-      <div className="text-center text-xs text-gray-400 p-4 bg-primary-500/5 rounded-lg border border-primary-500/10">
-        <p className="font-medium text-primary-600">Access Campus — Version 3.3.0</p>
-        <p>© {new Date().getFullYear()} Access Formation — Tous droits réservés</p>
-        <p>Données protégées conformément au RGPD</p>
+      <div className="text-center text-ui-sm text-gray-400 py-2">
+        Données protégées conformément au RGPD
       </div>
       
       {/* Settings modal */}

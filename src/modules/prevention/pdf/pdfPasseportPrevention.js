@@ -6,34 +6,12 @@
 import jsPDF from 'jspdf'
 import { buildORG } from '../../../core/org/orgUtils'
 
-const ORG_DEFAULTS = {
-  name: 'Access Formation',
-  address: '24 rue Kerbleiz, 29900 Concarneau',
-  phone: '02 98 90 30 24',
-  email: 'contact@accessformation.pro',
-  website: 'www.accessformation.pro',
-  nda: '53 29 10261 29',
-  siret: '943 563 866 00012',
-}
-
-let ORG = { ...ORG_DEFAULTS }
+// Identité de l'organisme : uniquement depuis organization_settings (aucun repli)
+let ORG = { name: '', address: '', phone: '', email: '', website: '', nda: '', siret: '', theme: null }
 
 function applyOrgSettings(orgSettings) {
-  if (!orgSettings) {
-    ORG = { ...ORG_DEFAULTS }
-    return
-  }
-  const base = buildORG(orgSettings)
-  ORG = {
-    ...ORG_DEFAULTS,
-    name: base.name,
-    address: base.address,
-    phone: base.phone,
-    email: base.email,
-    website: base.website,
-    nda: base.nda,
-    siret: base.siret,
-  }
+  const base = buildORG(orgSettings || {})
+  ORG = { name: base.name, address: base.address, phone: base.phone, email: base.email, website: base.website, nda: base.nda, siret: base.siret, theme: base.theme, qualiopi: base.qualiopi_certified }
 }
 
 function addOrgHeader(doc) {
@@ -43,7 +21,7 @@ function addOrgHeader(doc) {
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(18)
-  doc.text('ACCESS FORMATION', pw / 2, 15, { align: 'center' })
+  doc.text((ORG.name || '').toUpperCase(), pw / 2, 15, { align: 'center' })
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.text(`${ORG.address} | ${ORG.phone} | ${ORG.email}`, pw / 2, 22, { align: 'center' })
@@ -135,7 +113,7 @@ function generateVersionStagiaire() {
 
   const items1 = [
     "Les attestations, certificats et diplômes obtenus dans le cadre de formations relatives à la santé et sécurité au travail",
-    "Les formations suivies à l'initiative de votre employeur (SST, incendie, CACES, habilitation électrique, gestes et postures...)",
+    "Les formations suivies à l'initiative de votre employeur (SST, incendie, conduite d'engins, habilitation électrique, gestes et postures...)",
     "Les formations que vous avez suivies de votre propre initiative",
     "Les compétences acquises lors de ces formations",
   ]
@@ -157,7 +135,7 @@ function generateVersionStagiaire() {
   const actors = [
     "VOUS-MÊME : vous pouvez y renseigner vos formations et certifications",
     "VOTRE EMPLOYEUR : il peut y inscrire les formations qu'il a financées pour vous",
-    "VOTRE ORGANISME DE FORMATION : Access Formation peut y inscrire directement vos formations SST, CACES, etc.",
+    `VOTRE ORGANISME DE FORMATION : ${ORG.name} peut y inscrire directement vos formations SST, CACES, etc.`,
   ]
   actors.forEach(item => { y = drawBulletPoint(doc, y, item) })
 
@@ -178,10 +156,10 @@ function generateVersionStagiaire() {
   })
 
   y += 4
-  y = drawSectionTitle(doc, y, 'VOS FORMATIONS ACCESS FORMATION ET LE PASSEPORT')
+  y = drawSectionTitle(doc, y, `VOS FORMATIONS ${(ORG.name || '').toUpperCase()} ET LE PASSEPORT`)
 
   y = drawInfoBox(doc, y,
-    "Toutes les formations dispensées par Access Formation en santé et sécurité au travail sont éligibles " +
+    `Toutes les formations dispensées par ${ORG.name} en santé et sécurité au travail sont éligibles ` +
     "au Passeport de Prévention. En tant qu'organisme certifié Qualiopi, nous vous remettons systématiquement " +
     "les attestations et certificats nécessaires à l'alimentation de votre passeport.", [230, 255, 230])
 
@@ -194,8 +172,8 @@ function generateVersionStagiaire() {
     'SST — Sauveteur Secouriste du Travail (certification INRS)',
     'MAC SST — Maintien et Actualisation des Compétences SST',
     'Sécurité Incendie — EPI (Équipier de Première Intervention)',
-    'CACES R489 — Conduite de chariots élévateurs',
-    'CACES R485 — Conduite de gerbeurs à conducteur accompagnant',
+    'Conduite de chariots élévateurs (R489)',
+    'Conduite de gerbeurs à conducteur accompagnant (R485)',
     'Habilitation Électrique B0/H0V — Opérations d\'ordre non-électrique',
     'Gestes et Postures / PRAP — Prévention des Risques liés à l\'Activité Physique',
   ]
@@ -210,11 +188,11 @@ function generateVersionStagiaire() {
   y = drawSectionTitle(doc, y, 'QUE DEVEZ-VOUS FAIRE APRÈS VOTRE FORMATION ?')
 
   const postFormation = [
-    "Conservez précieusement votre attestation de formation ou certificat remis par Access Formation",
+    `Conservez précieusement votre attestation de formation ou certificat remis par ${ORG.name}`,
     "Connectez-vous à votre Passeport de Prévention sur moncompteformation.gouv.fr",
-    "Vérifiez que votre formation y figure bien (elle peut être renseignée par Access Formation ou votre employeur)",
+    `Vérifiez que votre formation y figure bien (elle peut être renseignée par ${ORG.name} ou votre employeur)`,
     "Si elle n'apparaît pas, ajoutez-la manuellement en joignant votre attestation/certificat",
-    "Notez les dates de recyclage (MAC SST tous les 24 mois, habilitation électrique tous les 3 ans, CACES tous les 5 ans)",
+    "Notez les dates de recyclage (MAC SST tous les 24 mois, habilitation électrique tous les 3 ans, conduite d'engins tous les 5 ans)",
   ]
   postFormation.forEach(item => { y = drawBulletPoint(doc, y, item) })
 
@@ -239,7 +217,7 @@ function generateVersionStagiaire() {
     body: [
       ['SST', '24 mois', 'MAC SST (1 jour)'],
       ['Incendie / EPI', 'Recommandé : 12 mois', 'Recyclage incendie'],
-      ['CACES R489 / R485', '5 ans', 'Recyclage CACES'],
+      ['Conduite d\'engins R489 / R485', '5 ans', 'Recyclage conseillé'],
       ['Habilitation Électrique', '3 ans', 'Recyclage habilitation'],
       ['Gestes et Postures', 'Pas de limite', 'Recommandé tous les 2 ans'],
     ],
@@ -251,7 +229,7 @@ function generateVersionStagiaire() {
   y = doc.lastAutoTable.finalY + 8
 
   y = drawInfoBox(doc, y,
-    "BESOIN D'AIDE ? N'hésitez pas à contacter Access Formation pour toute question concernant " +
+    `BESOIN D'AIDE ? N'hésitez pas à contacter ${ORG.name} pour toute question concernant ` +
     "le Passeport de Prévention ou vos attestations de formation.\n\n" +
     `Tel : ${ORG.phone} | Email : ${ORG.email} | Web : ${ORG.website}`, [255, 248, 230])
 
@@ -299,7 +277,7 @@ function generateVersionEntreprise() {
   const obligations = [
     "Renseigner les formations santé-sécurité dispensées à vos salariés dans leur Passeport de Prévention",
     "Fournir les attestations et certificats de formation à vos salariés pour qu'ils puissent compléter leur passeport",
-    "Veiller au recyclage des formations à échéance (SST, CACES, habilitation électrique...)",
+    "Veiller au recyclage des formations à échéance (SST, conduite d'engins, habilitation électrique...)",
     "Consulter le passeport de vos salariés pour vérifier la validité de leurs certifications (avec leur accord)",
     "Conserver les preuves de formation dans vos registres (obligation Code du travail, art. L.4141-5)",
   ]
@@ -310,7 +288,7 @@ function generateVersionEntreprise() {
 
   y = drawInfoBox(doc, y,
     "Toutes les formations relatives à la santé et sécurité au travail sont concernées. " +
-    "Access Formation, certifié Qualiopi, vous accompagne dans les formations suivantes :")
+    `${ORG.name}, certifié Qualiopi, vous accompagne dans les formations suivantes :`)
 
   doc.autoTable({
     startY: y,
@@ -319,8 +297,8 @@ function generateVersionEntreprise() {
       ['SST (Sauveteur Secouriste du Travail)', '14h (2 jours)', '24 mois', 'Obligatoire (ateliers dangereux)'],
       ['MAC SST (recyclage)', '7h (1 jour)', 'Renouvelle 24 mois', 'Obligatoire'],
       ['Incendie / EPI', '4h à 7h', '12 mois (reco.)', 'Code du travail R.4227-39'],
-      ['CACES R489 (chariots)', '14 à 21h', '5 ans', 'Recommandation CNAM'],
-      ['CACES R485 (gerbeurs)', '7 à 14h', '5 ans', 'Recommandation CNAM'],
+      ['Conduite de chariots (R489)', '14 à 21h', '5 ans', 'Recommandation CNAM'],
+      ['Conduite de gerbeurs (R485)', '7 à 14h', '5 ans', 'Recommandation CNAM'],
       ['Habilitation Électrique B0/H0V', '7h (1 jour)', '3 ans', 'NF C18-510 obligatoire'],
       ['Gestes et Postures / PRAP', '7h (1 jour)', 'Pas de limite', 'Code du travail R.4541-8'],
     ],
@@ -332,11 +310,11 @@ function generateVersionEntreprise() {
   })
   y = doc.lastAutoTable.finalY + 8
 
-  y = drawSectionTitle(doc, y, 'COMMENT ACCESS FORMATION VOUS ACCOMPAGNE')
+  y = drawSectionTitle(doc, y, `COMMENT ${(ORG.name || '').toUpperCase()} VOUS ACCOMPAGNE`)
 
   const accompagnement = [
     "Remise systématique des attestations et certificats conformes aux exigences réglementaires",
-    "Traçabilité complète via notre plateforme Access Campus (émargement, évaluations, fiches)",
+    "Traçabilité complète via notre plateforme en ligne (émargement, évaluations, fiches)",
     "Alertes de recyclage : nous vous prévenons avant l'échéance de validité des certifications",
     "Conseil personnalisé sur votre plan de formation en prévention des risques",
     "Formations intra-entreprise dans vos locaux, adaptées à vos risques spécifiques",
@@ -362,9 +340,9 @@ function generateVersionEntreprise() {
   doc.setFont('helvetica', 'normal')
 
   const circle = [
-    "1. Vous identifiez les risques dans votre DUERP (Access Formation peut réaliser votre Document Unique)",
+    `1. Vous identifiez les risques dans votre DUERP (${ORG.name} peut réaliser votre Document Unique)`,
     "2. Vous planifiez les formations de prévention correspondantes",
-    "3. Access Formation dispense les formations et délivre les attestations",
+    `3. ${ORG.name} dispense les formations et délivre les attestations`,
     "4. Les formations sont inscrites dans le Passeport de Prévention de chaque salarié",
     "5. Lors de votre prochain audit ou contrôle, tout est tracé et conforme",
   ]
@@ -399,8 +377,8 @@ function generateVersionEntreprise() {
   const nextSteps = [
     "Faites un état des lieux des formations santé-sécurité de vos salariés",
     "Identifiez les certifications arrivant à échéance dans les 6 prochains mois",
-    "Planifiez les recyclages nécessaires (MAC SST, CACES, habilitations...)",
-    "Contactez Access Formation pour établir un plan de formation adapté",
+    "Planifiez les recyclages nécessaires (MAC SST, conduite d'engins, habilitations...)",
+    `Contactez ${ORG.name} pour établir un plan de formation adapté`,
     "Informez vos salariés de l'existence du Passeport de Prévention",
   ]
   nextSteps.forEach(item => { y = drawBulletPoint(doc, y, item) })
@@ -408,7 +386,7 @@ function generateVersionEntreprise() {
   y += 6
   y = drawInfoBox(doc, y,
     `CONTACTEZ-NOUS POUR UN ACCOMPAGNEMENT PERSONNALISÉ\n\n` +
-    `Access Formation — Organisme certifié Qualiopi\n` +
+    `${ORG.name}${ORG.qualiopi ? ' - Organisme certifié Qualiopi' : ''}\n` +
     `Tel : ${ORG.phone} | Email : ${ORG.email}\n` +
     `Web : ${ORG.website}\n\n` +
     `Nos indicateurs qualité : 4.96/5 satisfaction | 100% réussite | 98% assiduité`, [255, 248, 230])

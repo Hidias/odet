@@ -4,65 +4,47 @@ import { format } from 'date-fns'
 import { buildORG } from '../../../core/org/orgUtils'
 
 // ============================================================
-// CONSTANTES ACCESS FORMATION
+// IDENTITÉ DE L'ORGANISME : uniquement depuis organization_settings (options.orgSettings)
 // ============================================================
-// Valeurs par défaut (fallback ultime si pas de orgSettings ou si certains champs absents)
-const ORG_DEFAULTS = {
-  name: 'Access Formation',
-  address_line1: '24 Rue Kerbleiz',
-  address_line2: '29900 Concarneau',
-  country: 'France',
-  phone: '02 98 90 30 24',
-  email: 'contact@accessformation.pro',
-  siret: '943 563 866 00012',
-  naf: '8559A',
-  tva: 'FR71943563866',
-  rcs: '943 563 866 R.C.S. Quimper',
-  nda: '53 29 10261 29',
-  capital: '2 500',
-  bank_name: 'Credit Mutuel de Bretagne - COMPTE CHEQUES 1',
-  bic: 'CMBRFR2BXXX',
-  iban: 'FR76 1558 9297 0600 0890 6894 048',
+function emptyOrg() {
+  return { name: '', legal: '', forme: '', address_line1: '', address_line2: '', country: 'France', phone: '', email: '', siret: '', naf: '',
+    tva: '', tva_applicable: true, rcs: '', nda: '', ndaFull: '', capital: '', bank_name: '', bic: '', iban: '', logo_base64: null, logo_url: null, theme: null }
 }
+let ORG = emptyOrg()
 
-// État courant — peut être remplacé par applyOrgSettings() au début de chaque génération
-let ORG = { ...ORG_DEFAULTS }
-
-/**
- * Met à jour ORG depuis orgSettings (organization_settings de la BDD).
- * Si orgSettings null/undefined → ORG repart à ORG_DEFAULTS (comportement legacy).
- */
 function applyOrgSettings(orgSettings) {
-  if (!orgSettings) {
-    ORG = { ...ORG_DEFAULTS }
-    return
-  }
-  const base = buildORG(orgSettings)
+  const base = buildORG(orgSettings || {})
   ORG = {
-    ...ORG_DEFAULTS,
-    name: base.name,
-    address_line1: orgSettings.address || ORG_DEFAULTS.address_line1,
-    address_line2: (orgSettings.postal_code && orgSettings.city)
-      ? `${orgSettings.postal_code} ${orgSettings.city}`
-      : ORG_DEFAULTS.address_line2,
+    name: base.legal_name || base.name,
+    legal: base.legal_name,
+    forme: base.forme_juridique,
+    address_line1: base.street,
+    address_line2: [base.postal_code, base.city].filter(Boolean).join(' '),
     country: 'France',
     phone: base.phone,
     email: base.email,
     siret: base.siret,
     naf: base.naf,
     tva: base.tva,
+    tva_applicable: base.tva_applicable,
     rcs: base.rcs,
     nda: base.nda,
+    ndaFull: base.ndaFull,
     capital: base.capital_social,
-    bank_name: ORG_DEFAULTS.bank_name,
+    bank_name: base.bank_name,
     bic: base.bic,
     iban: base.iban,
+    logo_base64: base.logo_base64,
+    logo_url: base.logo_url,
+    theme: base.theme,
   }
 }
 
-const CONTACTS = {
-  'Hicham Saidi': { name: 'Hicham Saidi', phone: '06 35 20 04 28', email: 'hicham.saidi@accessformation.pro' },
-  'Maxime Langlais': { name: 'Maxime Langlais', phone: '07 83 51 17 95', email: 'maxime.langlais@accessformation.pro' },
+// Contact affiché sur le document : la personne connectée (options.contactPerson), sinon l'organisme
+function contactFor(options) {
+  const p = options && options.contactPerson
+  if (p && p.name) return { name: p.name, phone: p.phone || ORG.phone, email: p.email || ORG.email }
+  return { name: ORG.name, phone: ORG.phone, email: ORG.email }
 }
 
 // ============================================================
@@ -100,11 +82,15 @@ function fmtEuro(val) {
 // LOAD LOGO
 // ============================================================
 var logoCache = null
+var logoCacheKey = null
 
 async function loadLogo() {
-  if (logoCache) return logoCache
+  var src = ORG.logo_base64 || ORG.logo_url
+  if (!src) return null
+  if (logoCache && logoCacheKey === src) return logoCache
+  logoCacheKey = src
   try {
-    var resp = await fetch('/assets/logo-access.png')
+    var resp = await fetch(src)
     var blob = await resp.blob()
     return new Promise(function (resolve) {
       var reader = new FileReader()
@@ -129,8 +115,8 @@ function addFooter(doc, font, pageNum, totalPages) {
   doc.setFontSize(7)
   doc.setTextColor(120, 120, 120)
   doc.text(`${ORG.name} - ${ORG.address_line1} - ${ORG.address_line2} - ${ORG.country}`, cx, 275, { align: 'center' })
-  doc.text(`Declaration d'activite enregistree sous le numero ${ORG.nda} aupres du prefet de la region Bretagne`, cx, 279, { align: 'center' })
-  doc.text(`SARL au capital de ${ORG.capital} EUR - Siret : ${ORG.siret} - Naf : ${ORG.naf} - TVA : ${ORG.tva} - RCS ${ORG.rcs}`, cx, 283, { align: 'center' })
+  if (ORG.ndaFull) doc.text(`Declaration d'activite enregistree sous le numero ${ORG.ndaFull}`, cx, 279, { align: 'center' })
+  doc.text([ORG.forme ? `${ORG.forme}${ORG.capital ? ' au capital de ' + ORG.capital + ' EUR' : ''}` : '', ORG.siret ? `Siret : ${ORG.siret}` : '', ORG.naf ? `Naf : ${ORG.naf}` : '', ORG.tva ? `TVA : ${ORG.tva}` : '', ORG.rcs ? `RCS ${ORG.rcs}` : ''].filter(Boolean).join(' - '), cx, 283, { align: 'center' })
   doc.text(`Tel : ${ORG.phone} - Email : ${ORG.email}`, cx, 287, { align: 'center' })
   // Page number bottom right
   doc.setFont(font, 'bold')
@@ -206,7 +192,7 @@ export async function generateQuotePDF(quote, items, client, contact, options) {
   options = options || {}
   var doc = new jsPDF()
   var FONT = 'helvetica'
-  var createdBy = CONTACTS[quote.created_by] || CONTACTS['Hicham Saidi']
+  var createdBy = contactFor(options)
   var logo = await loadLogo()
   var y = 12
 
@@ -214,7 +200,7 @@ export async function generateQuotePDF(quote, items, client, contact, options) {
   if (logo) {
     try { doc.addImage(logo, 'PNG', ML, y, 52, 13) } catch (e) {
       doc.setFontSize(14); doc.setFont(FONT, 'bold'); doc.setTextColor(233, 180, 76)
-      doc.text('ACCESS FORMATION', ML, y + 14); doc.setTextColor(0, 0, 0)
+      doc.text((ORG.name || '').toUpperCase(), ML, y + 14); doc.setTextColor(0, 0, 0)
     }
   }
 
@@ -447,7 +433,7 @@ export async function generatePartialAcceptancePDF(quote, allItems, client, cont
 
   var doc = new jsPDF()
   var FONT = 'helvetica'
-  var createdBy = CONTACTS[quote.created_by] || CONTACTS['Hicham Saidi']
+  var createdBy = contactFor(options)
   var logo = await loadLogo()
   var y = 12
 
@@ -455,7 +441,7 @@ export async function generatePartialAcceptancePDF(quote, allItems, client, cont
   if (logo) {
     try { doc.addImage(logo, 'PNG', ML, y, 52, 13) } catch (e) {
       doc.setFontSize(14); doc.setFont(FONT, 'bold'); doc.setTextColor(233, 180, 76)
-      doc.text('ACCESS FORMATION', ML, y + 14); doc.setTextColor(0, 0, 0)
+      doc.text((ORG.name || '').toUpperCase(), ML, y + 14); doc.setTextColor(0, 0, 0)
     }
   }
 

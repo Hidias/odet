@@ -6,79 +6,47 @@ import { LiberationSans_Bold } from '../../../core/pdf/fonts/LiberationSans-Bold
 import { buildORG } from '../../../core/org/orgUtils'
 
 // ============================================================
-// CONSTANTES ACCESS FORMATION
+// IDENTITÉ DE L'ORGANISME : uniquement depuis organization_settings (options.orgSettings)
 // ============================================================
-// Valeurs par défaut (fallback ultime si pas de orgSettings ou si certains champs absents)
-const ORG_DEFAULTS = {
-  name: 'Access Formation',
-  address1: '24 Rue Kerbleiz',
-  address2: '29900 Concarneau',
-  country: 'France',
-  phone: '02 98 90 30 24',
-  email: 'contact@accessformation.pro',
-  siret: '943 563 866 00012',
-  naf: '8559A',
-  tva: 'FR71943563866',
-  rcs: '943 563 866 R.C.S. Quimper',
-  nda: '53 29 10261 29',
-  capital: '2 500',
-  bank: 'Credit Mutuel de Bretagne - COMPTE CHEQUES 1',
-  bic: 'CMBRFR2BXXX',
-  iban: 'FR76 1558 9297 0600 0890 6894 048',
+function emptyOrg() {
+  return { name: '', legal: '', forme: '', address1: '', address2: '', country: 'France', phone: '', email: '', siret: '', naf: '',
+    tva: '', tva_applicable: true, rcs: '', nda: '', ndaFull: '', capital: '', bank: '', bic: '', iban: '', logo_base64: null, logo_url: null, theme: null }
 }
+let ORG = emptyOrg()
 
-// État courant — peut être remplacé par applyOrgSettings() au début de chaque génération
-let ORG = { ...ORG_DEFAULTS }
-
-/**
- * Met à jour ORG depuis orgSettings (organization_settings de la BDD).
- * À appeler au début de chaque génération de PDF.
- *
- * Si orgSettings est null/undefined → ORG repart à ORG_DEFAULTS (comportement legacy).
- *
- * Note : on garde les noms de champs locaux (address1, address2, capital, bank...)
- * car ils sont utilisés dans le rendu du PDF. On les remplit depuis les champs
- * normalisés de buildORG (orgUtils.js).
- */
 function applyOrgSettings(orgSettings) {
-  if (!orgSettings) {
-    ORG = { ...ORG_DEFAULTS }
-    return
-  }
-  const base = buildORG(orgSettings)
+  const base = buildORG(orgSettings || {})
   ORG = {
-    ...ORG_DEFAULTS,
-    name: base.name,
-    address1: orgSettings.address || ORG_DEFAULTS.address1,
-    address2: (orgSettings.postal_code && orgSettings.city)
-      ? `${orgSettings.postal_code} ${orgSettings.city}`
-      : ORG_DEFAULTS.address2,
+    name: base.legal_name || base.name,
+    legal: base.legal_name,
+    forme: base.forme_juridique,
+    address1: base.street,
+    address2: [base.postal_code, base.city].filter(Boolean).join(' '),
     country: 'France',
     phone: base.phone,
     email: base.email,
     siret: base.siret,
     naf: base.naf,
     tva: base.tva,
+    tva_applicable: base.tva_applicable,
     rcs: base.rcs,
     nda: base.nda,
+    ndaFull: base.ndaFull,
     capital: base.capital_social,
-    bank: ORG_DEFAULTS.bank,
+    bank: base.bank_name,
     bic: base.bic,
     iban: base.iban,
+    logo_base64: base.logo_base64,
+    logo_url: base.logo_url,
+    theme: base.theme,
   }
 }
 
-const CONTACTS = {
-  'Hicham Saidi': {
-    name: 'Hicham Saidi',
-    phone: '06 35 20 04 28',
-    email: 'hicham.saidi@accessformation.pro'
-  },
-  'Maxime Langlais': {
-    name: 'Maxime Langlais',
-    phone: '07 83 51 17 95',
-    email: 'maxime.langlais@accessformation.pro'
-  },
+// Contact affiché sur le document : la personne connectée (options.contactPerson), sinon l'organisme
+function contactFor(options) {
+  const p = options && options.contactPerson
+  if (p && p.name) return { name: p.name, phone: p.phone || ORG.phone, email: p.email || ORG.email }
+  return { name: ORG.name, phone: ORG.phone, email: ORG.email }
 }
 
 // ============================================================
@@ -110,11 +78,15 @@ function fe(v) {
 // LOGO
 // ============================================================
 var logoCache = null
+var logoCacheKey = null
 
 async function loadLogo() {
-  if (logoCache) return logoCache
+  var src = ORG.logo_base64 || ORG.logo_url
+  if (!src) return null
+  if (logoCache && logoCacheKey === src) return logoCache
+  logoCacheKey = src
   try {
-    var r = await fetch('/assets/logo-access.png')
+    var r = await fetch(src)
     var b = await r.blob()
     var dataUrl = await new Promise(function (res) {
       var rd = new FileReader()
@@ -154,8 +126,8 @@ function addFooter(doc, f, p, t) {
   doc.setFontSize(7)
   doc.setTextColor(120, 120, 120)
   doc.text(`${ORG.name} - ${ORG.address1} - ${ORG.address2} - ${ORG.country}`, cx, 275, { align: 'center' })
-  doc.text(`Declaration d'activite enregistree sous le numero ${ORG.nda} aupres du prefet de la region Bretagne`, cx, 279, { align: 'center' })
-  doc.text(`SARL au capital de ${ORG.capital} EUR - Siret : ${ORG.siret} - Naf : ${ORG.naf} - TVA : ${ORG.tva} - RCS ${ORG.rcs}`, cx, 283, { align: 'center' })
+  if (ORG.ndaFull) doc.text(`Déclaration d'activité enregistrée sous le numéro ${ORG.ndaFull}`, cx, 279, { align: 'center' })
+  doc.text([ORG.forme ? `${ORG.forme}${ORG.capital ? ' au capital de ' + ORG.capital + ' EUR' : ''}` : '', ORG.siret ? `Siret : ${ORG.siret}` : '', ORG.naf ? `Naf : ${ORG.naf}` : '', ORG.tva ? `TVA : ${ORG.tva}` : '', ORG.rcs ? `RCS ${ORG.rcs}` : ''].filter(Boolean).join(' - '), cx, 283, { align: 'center' })
   doc.text(`Tel : ${ORG.phone} - Email : ${ORG.email}`, cx, 287, { align: 'center' })
   doc.setFont(f, 'bold')
   doc.setFontSize(7)
@@ -222,7 +194,7 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
   doc.addFileToVFS('LiberationSans-Bold.ttf', LiberationSans_Bold)
   doc.addFont('LiberationSans-Bold.ttf', 'LiberationSans', 'bold')
   var F = 'LiberationSans' 
-  var cb = CONTACTS[invoice.created_by] || CONTACTS['Hicham Saidi']
+  var cb = contactFor(options)
   var logo = await loadLogo()
   var y = 12
 
@@ -234,7 +206,7 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
       doc.setFontSize(14)
       doc.setFont(F, 'bold')
       doc.setTextColor(233, 180, 76)
-      doc.text('ACCESS FORMATION', ML, y + 14)
+      doc.text((ORG.name || '').toUpperCase(), ML, y + 14)
       doc.setTextColor(0, 0, 0)
     }
   }

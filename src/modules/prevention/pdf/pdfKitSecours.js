@@ -11,27 +11,15 @@ import { generatePDF, setOrganization } from '../../formation/pdf/pdfGenerator'
 import { generateCompetencyGridPDF } from './pdfCompetencyGrids'
 import { buildORG } from '../../../core/org/orgUtils'
 
-// Valeurs par défaut (fallback ultime)
-const ORG_DEFAULTS = {
-  nameFull: 'ACCESS FORMATION',
-  addressLine: '24 rue Kerbleiz — 29900 Concarneau — 02 98 90 30 24',
-  ndaLine: 'NDA 53 29 10261 29 — Qualiopi certifié',
-}
-
-let ORG_KIT = { ...ORG_DEFAULTS }
+// Identité de l'organisme : uniquement depuis organization_settings (aucun repli)
+let ORG_KIT = { nameFull: '', addressLine: '', ndaLine: '' }
 
 function applyOrgSettings(orgSettings) {
-  if (!orgSettings) {
-    ORG_KIT = { ...ORG_DEFAULTS }
-    return
-  }
-  const base = buildORG(orgSettings)
+  const base = buildORG(orgSettings || {})
   ORG_KIT = {
-    nameFull: (base.name || ORG_DEFAULTS.nameFull).toUpperCase(),
-    addressLine: orgSettings.address && orgSettings.postal_code && orgSettings.city
-      ? `${orgSettings.address} — ${orgSettings.postal_code} ${orgSettings.city} — ${base.phone}`
-      : ORG_DEFAULTS.addressLine,
-    ndaLine: `NDA ${base.nda} — Qualiopi certifié`,
+    nameFull: (base.name || '').toUpperCase(),
+    addressLine: [base.address, base.phone].filter(Boolean).join(' - '),
+    ndaLine: [base.nda ? `NDA ${base.nda}` : '', base.qualiopi_certified ? 'Organisme certifié Qualiopi' : ''].filter(Boolean).join(' - '),
   }
 }
 
@@ -290,7 +278,7 @@ function generatePageDeGarde(config, documentsList) {
   doc.text('⚠️  MODE DÉGRADÉ — INSTRUCTIONS', 20, y + 7)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
-  doc.text('Ce kit est prévu en cas d\'indisponibilité de la plateforme Access Campus.', 20, y + 13)
+  doc.text('Ce kit est prévu en cas d\'indisponibilité de la plateforme en ligne.', 20, y + 13)
   doc.text('1. Distribuer les fiches de renseignements dès l\'arrivée des stagiaires', 20, y + 18)
   doc.text('2. Faire émarger matin et après-midi sur la feuille d\'émargement', 20, y + 23)
   doc.text('3. À la fin de la session, récupérer toutes les évaluations remplies', 20, y + 28)
@@ -300,7 +288,7 @@ function generatePageDeGarde(config, documentsList) {
   // Footer
   doc.setFontSize(7)
   doc.setTextColor(150, 150, 150)
-  doc.text(`Kit généré le ${new Date().toLocaleDateString('fr-FR')} — Access Campus V3.0`, pw / 2, ph - 10, { align: 'center' })
+  doc.text(`Kit généré le ${new Date().toLocaleDateString('fr-FR')} - ${ORG_KIT.nameFull}`, pw / 2, ph - 10, { align: 'center' })
   doc.setTextColor(0, 0, 0)
 
   // Page blanche verso (recto-verso)

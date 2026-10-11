@@ -7,56 +7,35 @@ import {
 import toast from 'react-hot-toast'
 import jsPDF from 'jspdf'
 import { supabase } from '../../../core/supabase'
+import { buildORG } from '../../../core/org/orgUtils'
 const STAMP_BASE64 = null // tampon uniquement depuis les paramètres de l'organisme
 
 const DOC_TYPES = [
-  { id: 'attestation', label: '📜 Attestation libre', description: 'Attestation officielle Access Formation' },
-  { id: 'note_interne', label: '📋 Note interne', description: 'Note de service ou compte-rendu' },
-  { id: 'courrier', label: '✉️ Courrier', description: 'Courrier officiel avec en-tête' },
+  { id: 'attestation', label: 'Attestation libre', description: "Attestation officielle de l'organisme" },
+  { id: 'note_interne', label: 'Note interne', description: 'Note de service ou compte-rendu' },
+  { id: 'courrier', label: 'Courrier', description: 'Courrier officiel avec en-tête' },
 ]
-
-const ORG_DEFAULTS = {
-  name: 'Access Formation',
-  nameFull: 'SARL Access Formation - Organisme de formation certifié Qualiopi',
-  address: '24 rue Kerbleiz – 29900 Concarneau',
-  phone: '02 98 90 30 24',
-  email: 'contact@accessformation.pro',
-  siret: '943 563 866 00012',
-  nda: '53 29 10261 29',
-  dirigeant: 'Hicham SAIDI',
-}
-
-function buildOrgAddress(o) {
-  if (!o?.address) return ORG_DEFAULTS.address
-  const cpVille = [o.postal_code, o.city].filter(Boolean).join(' ')
-  // Pas de doublon si l'adresse en base contient déjà le code postal
-  if (!cpVille || (o.postal_code && o.address.includes(o.postal_code))) return o.address
-  return `${o.address} – ${cpVille}`
-}
 
 export default function CourierEditor() {
   const { organization } = useDataStore()
-  // Important : `name` en base contient le nom légal complet, on l'utilise aussi comme nameFull
-  // (sinon on garderait la valeur courte par défaut, héritée des ORG_DEFAULTS)
-  // `address` en base = rue seule (CP et ville sont dans postal_code / city),
-  // on recompose l'adresse complète pour l'en-tête et le pied de page du courrier.
-  const org = organization
-    ? {
-        ...ORG_DEFAULTS,
-        ...organization,
-        nameFull: organization.name || ORG_DEFAULTS.nameFull,
-        address: buildOrgAddress(organization),
-      }
-    : ORG_DEFAULTS
+  // Identité de l'organisme : uniquement depuis organization_settings (aucun repli)
+  const base = buildORG(organization || {})
+  const org = { ...(organization || {}), ...base, dirigeant: base.dirigeant }
   
   const [docType, setDocType] = useState('courrier')
   const [destinataire, setDestinataire] = useState('')
   const [objet, setObjet] = useState('')
-  const [lieu, setLieu] = useState('Concarneau')
+  const [lieu, setLieu] = useState('')
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0])
   const [body, setBody] = useState('')
-  const [signataire, setSignataire] = useState('Hicham SAIDI - Directeur')
+  const [signataire, setSignataire] = useState('')
   const [context, setContext] = useState('')
+
+  useEffect(() => {
+    if (!lieu && base.lieu_signature) setLieu(base.lieu_signature)
+    if (!signataire && base.dirigeant) setSignataire([base.dirigeant, base.dirigeant_title].filter(Boolean).join(' - '))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organization])
   
   const [generating, setGenerating] = useState(false)
   const [generatingAction, setGeneratingAction] = useState(null)
@@ -150,7 +129,7 @@ export default function CourierEditor() {
           const fmt = logoBase64.includes('image/png') ? 'PNG' : 'JPEG'
           doc.addImage(logoBase64, fmt, 15, 10, 50, 12.5)
         } catch {
-          doc.setFillColor(26, 54, 72)
+          doc.setFillColor(...(org.theme?.primary || [28, 32, 36]))
           doc.rect(15, 10, 50, 12, 'F')
           doc.setFontSize(10)
           doc.setFont('helvetica', 'bold')
@@ -158,12 +137,12 @@ export default function CourierEditor() {
           doc.text('ACCESS FORMATION', 20, 18)
         }
       } else {
-        doc.setFillColor(26, 54, 72)
+        doc.setFillColor(...(org.theme?.primary || [28, 32, 36]))
         doc.rect(15, 10, 50, 12, 'F')
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(255, 255, 255)
-        doc.text('ACCESS FORMATION', 20, 18)
+        doc.text((org.name || '').toUpperCase().slice(0, 22), 20, 18)
       }
 
       // Infos société à droite du logo
@@ -171,12 +150,12 @@ export default function CourierEditor() {
       doc.setFontSize(7.5)
       doc.setFont('helvetica', 'normal')
       doc.text((org.nameFull || org.name).toUpperCase(), 70, 12)
-      doc.text(org.address || '24 rue Kerbleiz – 29900 Concarneau', 70, 17)
-      doc.text('Tél : ' + (org.phone || '02 98 90 30 24') + ' - ' + (org.email || 'contact@accessformation.pro'), 70, 22)
-      doc.text('SIRET : ' + (org.siret || '943 563 866 00012') + ' - NDA : ' + (org.nda || '53 29 10261 29'), 70, 27)
+      doc.text(org.address || '', 70, 17)
+      doc.text('Tél : ' + (org.phone || '') + ' - ' + (org.email || ''), 70, 22)
+      doc.text('SIRET : ' + (org.siret || '') + (org.nda ? ' - NDA : ' + org.nda : ''), 70, 27)
 
       // Ligne de séparation
-      doc.setDrawColor(26, 54, 72)
+      doc.setDrawColor(...(org.theme?.primary || [28, 32, 36]))
       doc.setLineWidth(0.5)
       doc.line(15, 32, pw - 15, 32)
       y = 38
@@ -207,7 +186,7 @@ export default function CourierEditor() {
       if (objet) {
         doc.setFontSize(11)
         doc.setFont('helvetica', 'bold')
-        doc.setTextColor(26, 54, 72)
+        doc.setTextColor(...(org.theme?.primary || [28, 32, 36]))
         doc.text('Objet : ' + objet, 15, y)
         y += 10
       }
@@ -216,7 +195,7 @@ export default function CourierEditor() {
       if (docType === 'attestation') {
         doc.setFontSize(14)
         doc.setFont('helvetica', 'bold')
-        doc.setTextColor(26, 54, 72)
+        doc.setTextColor(...(org.theme?.primary || [28, 32, 36]))
         doc.text('ATTESTATION', pw / 2, y, { align: 'center' })
         y += 12
       }
@@ -361,7 +340,7 @@ export default function CourierEditor() {
       const doc = buildPDF()
       const dateStr = docDate ? docDate.replace(/-/g, '') : 'undated'
       const typeStr = docType === 'attestation' ? 'Attestation' : docType === 'note_interne' ? 'Note_interne' : 'Courrier'
-      doc.save(typeStr + '_Access_Formation_' + dateStr + '.pdf')
+      doc.save(typeStr + '_' + (org.name || 'document').replace(/[^a-zA-Z0-9]+/g, '_') + '_' + dateStr + '.pdf')
       toast.success('PDF téléchargé')
     } catch (err) {
       console.error('Erreur download:', err)
@@ -379,7 +358,7 @@ export default function CourierEditor() {
     try {
       const dateStr = docDate ? docDate.replace(/-/g, '') : 'undated'
       const typeStr = docType === 'attestation' ? 'Attestation' : docType === 'note_interne' ? 'Note_interne' : 'Courrier'
-      const fileName = typeStr + '_Access_Formation_' + dateStr + '.pdf'
+      const fileName = typeStr + '_' + (org.name || 'document').replace(/[^a-zA-Z0-9]+/g, '_') + '_' + dateStr + '.pdf'
 
       // Générer le blob directement depuis le PDF actuel
       // On regenere pour obtenir un blob frais (pdfUrl blob peut être expiré)

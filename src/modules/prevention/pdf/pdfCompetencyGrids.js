@@ -8,38 +8,12 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { buildORG } from '../../../core/org/orgUtils'
 
-// Valeurs par défaut (fallback ultime)
-const ORG_DEFAULTS = {
-  name: 'Access Formation',
-  address: '24 rue Kerbleiz, 29900 Concarneau',
-  phone: '02 98 90 30 24',
-  email: 'contact@accessformation.pro',
-  nda: '53 29 10261 29',
-  siret: '943 563 866 00012',
-}
+// Identité de l'organisme : uniquement depuis organization_settings (aucun repli)
+let ORG = { name: '', address: '', phone: '', email: '', nda: '', siret: '', theme: null }
 
-// État courant — peut être remplacé par applyOrgSettings()
-let ORG = { ...ORG_DEFAULTS }
-
-/**
- * Met à jour ORG depuis orgSettings (organization_settings).
- * Si orgSettings null → repart à ORG_DEFAULTS.
- */
 function applyOrgSettings(orgSettings) {
-  if (!orgSettings) {
-    ORG = { ...ORG_DEFAULTS }
-    return
-  }
-  const base = buildORG(orgSettings)
-  ORG = {
-    ...ORG_DEFAULTS,
-    name: base.name,
-    address: base.address,
-    phone: base.phone,
-    email: base.email,
-    nda: base.nda,
-    siret: base.siret,
-  }
+  const base = buildORG(orgSettings || {})
+  ORG = { name: base.name, address: base.address, phone: base.phone, email: base.email, nda: base.nda, siret: base.siret, theme: base.theme }
 }
 
 // ─── Templates de compétences par formation ──────────────
@@ -124,7 +98,7 @@ const GRIDS = {
   },
 
   r489: {
-    title: 'CACES R489 — Chariots élévateurs',
+    title: 'Conduite de chariots élévateurs (R489)',
     subtitle: 'Conduite en sécurité des chariots automoteurs de manutention à conducteur porté',
     reference: 'AF-GRID-R489',
     duration: '14h à 21h (2 à 3 jours)',
@@ -174,7 +148,7 @@ const GRIDS = {
   },
 
   r485: {
-    title: 'CACES R485 — Gerbeurs accompagnants',
+    title: 'Conduite de gerbeurs accompagnants (R485)',
     subtitle: 'Conduite en sécurité des gerbeurs à conducteur accompagnant',
     reference: 'AF-GRID-R485',
     duration: '7h à 14h (1 à 2 jours)',

@@ -3,15 +3,16 @@ import 'jspdf-autotable'
 import { format, eachDayOfInterval, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import QRCode from 'qrcode'
-import { buildORG } from '../../../core/org/orgUtils'
+import { buildORG, publicBaseUrl, prepareOrgForPDF } from '../../../core/org/orgUtils'
 
-const APP_VERSION = 'V2.0.0'
+import { APP_VERSION } from '../../../core/version'
+// Codes documentaires : préfixe propre à l'organisme (ORG.doc_prefix) + code du type de document
 const DOC_CODES = {
-  convention: 'AF-CONV', convocation: 'AF-CONVOC', attestation: 'AF-ATTP',
-  certificat: 'AF-CERT', emargement: 'AF-EMARG', programme: 'AF-PROG',
-  evaluation: 'AF-EVAL', evaluationFroid: 'AF-EVALF', reglement: 'AF-RI',
-  livret: 'AF-LIVRET', analyseBesoin: 'AF-BESOIN', evaluationFormateur: 'AF-EVFORM',
-  positionnement: 'AF-POS',
+  convention: 'CONV', convocation: 'CONVOC', attestation: 'ATTP',
+  certificat: 'CERT', emargement: 'EMARG', programme: 'PROG',
+  evaluation: 'EVAL', evaluationFroid: 'EVALF', reglement: 'RI',
+  livret: 'LIVRET', analyseBesoin: 'BESOIN', evaluationFormateur: 'EVFORM',
+  positionnement: 'POS',
 }
 
 // Masque le NSS pour impression : garde sexe + année + mois (5 premiers chiffres), masque le reste
@@ -22,6 +23,21 @@ const DOC_CODES = {
 // Initialisé avec les valeurs par défaut (cf. orgUtils.js).
 // Mis à jour par setOrganization() depuis les composants React qui détiennent organization_settings.
 let ORG = buildORG(null)
+const T = () => ORG.theme || buildORG(null).theme
+
+// Dessine le logo dans une boîte en conservant ses proportions (boîte max 50 x 16 mm)
+function drawLogoFitted(doc, logoBase64, x = 15, y = 9, maxW = 50, maxH = 16) {
+  const format = logoBase64.includes('image/png') ? 'PNG' : 'JPEG'
+  let w = maxW, h = maxH
+  try {
+    const props = doc.getImageProperties(logoBase64)
+    if (props?.width && props?.height) {
+      const ratio = props.width / props.height
+      if (maxW / ratio <= maxH) { w = maxW; h = maxW / ratio } else { h = maxH; w = maxH * ratio }
+    }
+  } catch { /* proportions inconnues : boîte par défaut */ }
+  doc.addImage(logoBase64, format, x, y + (maxH - h) / 2, w, h)
+}
 
 /**
  * Met à jour les infos organisation utilisées par tous les générateurs PDF du fichier.
@@ -31,8 +47,11 @@ let ORG = buildORG(null)
  * @param {object|null} orgSettings - ligne de la table organization_settings
  */
 export function setOrganization(orgSettings) {
-  if (orgSettings) {
-    ORG = buildORG(orgSettings)
+  if (!orgSettings) return
+  ORG = buildORG(orgSettings)
+  // Le logo est stocké en URL : on le précharge en base64 pour jsPDF
+  if (!ORG.logo_base64 && ORG.logo_url) {
+    prepareOrgForPDF(orgSettings).then((o) => { if (o) ORG = buildORG(o) }).catch(() => {})
   }
 }
 
@@ -160,32 +179,28 @@ function addHeader(doc, sessionRef = null, options = {}) {
   const org = options.orgInfo || ORG
   
   // Logo: soit image paramétrable, soit rectangle bleu par défaut
-  // Ratio correct du logo Access Formation: environ 4:1 (largeur/hauteur)
   if (logoBase64) {
     try {
-      // Détecter le format (PNG ou JPEG)
-      const format = logoBase64.includes('image/png') ? 'PNG' : 'JPEG'
-      // Logo avec ratio 4:1 : largeur 50, hauteur 12.5
-      doc.addImage(logoBase64, format, 15, 10, 50, 12.5)
+      drawLogoFitted(doc, logoBase64)
     } catch (e) {
       console.warn('Erreur chargement logo:', e)
       // Fallback: rectangle bleu + texte
-      doc.setFillColor(0, 102, 204)
+      doc.setFillColor(...T().primary)
       doc.rect(15, 10, 50, 12, 'F')
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(255, 255, 255)
-      doc.text('ACCESS FORMATION', 20, 18)
+      doc.text((org.name || '').toUpperCase().slice(0, 22), 20, 18)
       doc.setTextColor(0, 0, 0)
     }
   } else {
     // Rectangle bleu + texte par défaut
-    doc.setFillColor(0, 102, 204)
+    doc.setFillColor(...T().primary)
     doc.rect(15, 10, 50, 12, 'F')
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(255, 255, 255)
-    doc.text('ACCESS FORMATION', 20, 18)
+    doc.text((org.name || '').toUpperCase().slice(0, 22), 20, 18)
     doc.setTextColor(0, 0, 0)
   }
   
@@ -193,10 +208,10 @@ function addHeader(doc, sessionRef = null, options = {}) {
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(0, 0, 0)
-  doc.text((org.nameFull || org.name).toUpperCase(), 70, 12)
-  doc.text(org.address, 70, 17)
-  doc.text(`Tél : ${org.phone} - Email : ${org.email}`, 70, 22)
-  doc.text(`SIRET : ${org.siret} - NDA : ${org.nda}`, 70, 27)
+  doc.text((org.nameFull || org.name || '').toUpperCase(), 70, 12)
+  doc.text(org.address || '', 70, 17)
+  doc.text([org.phone ? `Tél : ${org.phone}` : '', org.email ? `Email : ${org.email}` : ''].filter(Boolean).join(' - '), 70, 22)
+  doc.text([org.siret ? `SIRET : ${org.siret}` : '', org.nda ? `NDA : ${org.nda}` : ''].filter(Boolean).join(' - '), 70, 27)
   
   // Référence session en haut à droite
   if (sessionRef) {
@@ -211,7 +226,7 @@ function addHeader(doc, sessionRef = null, options = {}) {
 
 function addTitle(doc, title, y) {
   const pw = doc.internal.pageSize.getWidth()
-  doc.setFillColor(0, 102, 204)
+  doc.setFillColor(...T().primary)
   doc.rect(15, y, pw - 30, 10, 'F')
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
@@ -230,12 +245,12 @@ function addFooter(doc, docCode, pageNum = null) {
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(100)
-  doc.text(`${ORG.name} - ${ORG.addressFull}`, pw / 2, ph - 17, { align: 'center' })
-  doc.text(`NDA : ${ORG.ndaFull}`, pw / 2, ph - 13, { align: 'center' })
-  doc.text(`SIRET: ${ORG.siret} - NAF: ${ORG.naf} - TVA: ${ORG.tva}`, pw / 2, ph - 9, { align: 'center' })
+  doc.text([ORG.name, ORG.addressFull].filter(Boolean).join(' - '), pw / 2, ph - 17, { align: 'center' })
+  if (ORG.ndaFull) doc.text(`NDA : ${ORG.ndaFull}`, pw / 2, ph - 13, { align: 'center' })
+  doc.text([ORG.siret ? `SIRET : ${ORG.siret}` : '', ORG.naf ? `NAF : ${ORG.naf}` : '', ORG.tva ? `TVA : ${ORG.tva}` : ''].filter(Boolean).join(' - '), pw / 2, ph - 9, { align: 'center' })
   doc.setFontSize(6)
   doc.setTextColor(180)
-  doc.text(`${docCode}-${APP_VERSION}`, pw - 15, ph - 5, { align: 'right' })
+  doc.text(`${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}${docCode}-${APP_VERSION}`, pw - 15, ph - 5, { align: 'right' })
   if (pageNum) doc.text(`Page ${pageNum}`, 15, ph - 5)
   doc.setTextColor(0)
 }
@@ -244,8 +259,14 @@ function addFooter(doc, docCode, pageNum = null) {
 // HELPER - Obtenir le lieu (Intra = adresse client)
 // ============================================================
 function getLocation(session) {
+  // Lieu complet : nom du site, rue, code postal et ville
+  const join = (...parts) => parts.filter(Boolean).join(', ')
+  if (session?.location_address || session?.location_city) {
+    return join(session.location_name, session.location_address, [session.location_postal_code, session.location_city].filter(Boolean).join(' '))
+  }
   if (session?.is_intra && session?.clients?.address) {
-    return session.clients.address
+    const c = session.clients
+    return join(c.name, c.address, [c.postal_code, c.city].filter(Boolean).join(' '))
   }
   return session?.location_name || session?.location || ''
 }
@@ -292,7 +313,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
   
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
-  doc.setTextColor(0, 102, 153)
+  doc.setTextColor(...T().primary)
   doc.text("L'ORGANISME DE FORMATION", 22, y + 4)
   doc.setTextColor(0, 0, 0)
   
@@ -323,7 +344,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
   
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
-  doc.setTextColor(0, 102, 153)
+  doc.setTextColor(...T().primary)
   doc.text("LE BÉNÉFICIAIRE", 22, y + 4)
   doc.setTextColor(0, 0, 0)
   
@@ -546,10 +567,10 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
     { title: 'ARTICLE 4 – Moyens et modalités pédagogiques', text: "La formation est dispensée selon une approche pédagogique active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues. Les supports pédagogiques utilisés sont adaptés aux objectifs de la formation et aux spécificités du public accueilli.\n\nLa présence des stagiaires est attestée par un dispositif d'émargement dématérialisé par QR Code individuel, ou sur support papier en cas d'indisponibilité du réseau numérique. Un émargement est réalisé par demi-journée, signé par chaque stagiaire et contresigné par le formateur." },
     { title: "ARTICLE 5 – Modalités de suivi et d'évaluation", text: "Un positionnement préalable des participants est réalisé en amont de la formation afin d'adapter le déroulé pédagogique au niveau et aux besoins de chaque stagiaire.\n\nTout au long de la formation, des évaluations formatives permettent de mesurer la progression des acquis (mises en situation, exercices pratiques, questionnements oraux ou écrits). En fin de parcours, une évaluation sommative est conduite selon les critères du référentiel applicable à la formation suivie.\n\nUn certificat de réalisation mentionnant le niveau d'atteinte des objectifs est remis à l'issue de la formation." },
     { title: 'ARTICLE 6 – Sanction et documents délivrés', text: "À l'issue de la formation, l'Organisme de Formation délivrera : une attestation de présence, un certificat de réalisation (Acquis / Non acquis) et, le cas échéant, une attestation officielle selon le module suivi." },
-    { title: 'ARTICLE 7 – Annulation et dédommagement', text: "En cas de désistement du Bénéficiaire moins de 14 jours avant le début de la formation, une indemnité forfaitaire de 50 % du coût total sera facturée. En cas de désistement moins de 7 jours avant, une indemnité de 75 % sera facturée. En cas d'annulation par Access Formation moins de 7 jours avant, une nouvelle date sera proposée sans frais." },
-    { title: 'ARTICLE 8 – Accessibilité', text: `Access Formation s'engage à favoriser l'accès à ses formations pour toute personne en situation de handicap. Toute demande d'adaptation doit être signalée en amont à ${ORG.email} afin de mettre en place les mesures nécessaires.` },
+    { title: 'ARTICLE 7 – Annulation et dédommagement', text: ORG.conditions_annulation || "En cas de désistement du Bénéficiaire moins de 14 jours avant le début de la formation, une indemnité forfaitaire de 50 % du coût total sera facturée. En cas de désistement moins de 7 jours avant, une indemnité de 75 % sera facturée. En cas d'annulation par l'Organisme de Formation moins de 7 jours avant, une nouvelle date sera proposée sans frais supplémentaires." },
+    { title: 'ARTICLE 8 – Accessibilité', text: `${ORG.name} s'engage à favoriser l'accès à ses formations pour toute personne en situation de handicap. Toute demande d'adaptation doit être signalée en amont à ${ORG.email} afin de mettre en place les mesures nécessaires.` },
     { title: 'ARTICLE 9 – Protection des données (RGPD)', text: "Les données personnelles collectées sont utilisées exclusivement dans le cadre de la gestion administrative et pédagogique des formations. Elles sont conservées 5 ans et accessibles sur demande conformément au RGPD." },
-    { title: 'ARTICLE 10 – Litiges', text: "En cas de différend, les parties s'efforceront de trouver une solution amiable. À défaut, le litige sera porté devant le tribunal de commerce de Quimper." },
+    { title: 'ARTICLE 10 – Litiges', text: "En cas de différend, les parties s'efforceront de trouver une solution amiable. À défaut, le litige sera porté devant " + (ORG.tribunal_competent ? `le ${ORG.tribunal_competent}` : 'le tribunal compétent') + "." },
   ]
   
   articles.forEach(art => {
@@ -706,7 +727,7 @@ function generateConvocation(session, trainee, trainer = null) {
   doc.setFont('helvetica', 'normal')
   doc.text('Votre présence sera enregistrée via votre QR Code personnel (ou sur feuille papier en cas d\'indisponibilité du réseau).', 20, y, { maxWidth: 170 }); y += 10
   
-  doc.text(`Contact Access Formation : Pour toute question, contactez-nous au ${ORG.phone} ou par mail à ${ORG.email}`, 20, y, { maxWidth: 170 }); y += 8
+  doc.text(`Contact ${ORG.name} : Pour toute question, contactez-nous au ${ORG.phone} ou par mail à ${ORG.email}`, 20, y, { maxWidth: 170 }); y += 8
   
   const convContact = getSessionContact(session)
   if (convContact.name) {
@@ -850,24 +871,23 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
       const logoBase64 = ORG.logo_base64
       if (logoBase64) {
         try {
-          const fmt = logoBase64.includes('image/png') ? 'PNG' : 'JPEG'
-          doc.addImage(logoBase64, fmt, 15, 10, 50, 12.5)
+          drawLogoFitted(doc, logoBase64)
         } catch (e) {
-          doc.setFillColor(0, 102, 204)
+          doc.setFillColor(...T().primary)
           doc.rect(15, 10, 50, 12, 'F')
           doc.setFontSize(10)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(255, 255, 255)
-          doc.text('ACCESS FORMATION', 20, 18)
+          doc.text((ORG.name || '').toUpperCase().slice(0, 22), 20, 18)
           doc.setTextColor(0, 0, 0)
         }
       } else {
-        doc.setFillColor(0, 102, 204)
+        doc.setFillColor(...T().primary)
         doc.rect(15, 10, 50, 12, 'F')
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(255, 255, 255)
-        doc.text('ACCESS FORMATION', 20, 18)
+        doc.text((ORG.name || '').toUpperCase().slice(0, 22), 20, 18)
         doc.setTextColor(0, 0, 0)
       }
       doc.setFontSize(8)
@@ -1383,7 +1403,7 @@ function generateCertificat(session, trainee, trainer = null) {
   y += 18
   
   doc.setFontSize(10)
-  doc.text(`Fait à : Concarneau`, 20, y); y += 6
+  doc.text(`Fait à : ${ORG.lieu_signature || ''}`, 20, y); y += 6
   doc.text(`Le : ${formatDate(session?.end_date || new Date())}`, 20, y); y += 10
   
   doc.text('Cachet et signature du responsable du dispensateur de formation :', 20, y); y += 5
@@ -1960,6 +1980,20 @@ function generateReglement() {
   let y = addHeader(doc)
   y = addTitle(doc, 'RÈGLEMENT INTÉRIEUR', y)
   doc.setFontSize(9)
+  if (ORG.reglement_interieur && ORG.reglement_interieur.trim()) {
+    // Texte saisi dans Paramètres : paragraphes séparés par une ligne vide, titres = lignes courtes sans point
+    const ph = doc.internal.pageSize.getHeight()
+    ORG.reglement_interieur.trim().split(/\n{2,}/).forEach((para) => {
+      const isTitle = para.length < 80 && !para.includes('\n') && !/[.:;]$/.test(para.trim())
+      doc.setFont('helvetica', isTitle ? 'bold' : 'normal')
+      const lines = doc.splitTextToSize(para.trim(), 170)
+      if (y + lines.length * 4 > ph - 30) { addFooter(doc, DOC_CODES.reglement); doc.addPage(); y = addHeader(doc) }
+      lines.forEach((l) => { doc.text(l, 20, y); y += 4 })
+      y += isTitle ? 1 : 5
+    })
+    addFooter(doc, DOC_CODES.reglement)
+    return doc
+  }
   const sections = [
     { title: 'Article 1 - Objet et champ d\'application', text: 'Le présent règlement est établi conformément aux articles L.6352-3 et L.6352-4 du Code du travail. Il s\'applique à tous les stagiaires participant aux formations dispensées par Access Formation.' },
     { title: 'Article 2 - Discipline', text: 'Les stagiaires doivent respecter les horaires, les consignes de sécurité et les règles de fonctionnement de l\'établissement.' },
@@ -1985,12 +2019,25 @@ function generateLivret(session = null) {
   let y = addHeader(doc, session?.reference)
   y = addTitle(doc, "LIVRET D'ACCUEIL DU STAGIAIRE", y)
   doc.setFontSize(10)
-  doc.text('Bienvenue chez Access Formation !', 20, y)
+  doc.text(`Bienvenue chez ${ORG.name} !`, 20, y)
   y += 10
+  if (ORG.livret_accueil && ORG.livret_accueil.trim()) {
+    const ph = doc.internal.pageSize.getHeight()
+    ORG.livret_accueil.trim().split(/\n{2,}/).forEach((para) => {
+      const isTitle = para.length < 80 && !para.includes('\n') && !/[.:;]$/.test(para.trim())
+      doc.setFont('helvetica', isTitle ? 'bold' : 'normal')
+      const lines = doc.splitTextToSize(para.trim(), 170)
+      if (y + lines.length * 4.5 > ph - 30) { addFooter(doc, DOC_CODES.livret); doc.addPage(); y = addHeader(doc, session?.reference) }
+      lines.forEach((l) => { doc.text(l, 20, y); y += 4.5 })
+      y += isTitle ? 1 : 5
+    })
+    addFooter(doc, DOC_CODES.livret)
+    return doc
+  }
   const sections = [
-    { title: 'Qui sommes-nous ?', text: `${ORG.nameFull} est un organisme de formation spécialisé dans la sécurité au travail.` },
+    { title: 'Qui sommes-nous ?', text: `${ORG.nameFull || ORG.name}.` },
     { title: 'Vos interlocuteurs', text: `Responsable : ${ORG.dirigeant}\nContact : ${ORG.phone} - ${ORG.email}` },
-    { title: 'Déroulement de la formation', text: 'Horaires habituels : 9h00-12h30 / 13h30-17h00\nPauses : 10h30 et 15h30' },
+    { title: 'Déroulement de la formation', text: session?.start_time && session?.end_time ? `Horaires : ${String(session.start_time).slice(0, 5)} - ${String(session.end_time).slice(0, 5)} (pauses en milieu de matinée et d'après-midi)` : 'Les horaires sont indiqués sur votre convocation.' },
     { title: 'Règles de vie', text: '- Ponctualité\n- Téléphones en silencieux\n- Respect des autres participants' },
     { title: 'En cas de problème', text: `Contactez-nous : ${ORG.phone}` },
   ]
@@ -2042,7 +2089,7 @@ function generateAnalyseBesoin(session = null, isBlank = false) {
   })
   doc.text('Signature entreprise :', 20, y)
   doc.rect(20, y + 3, 60, 18)
-  doc.text('Signature Access Formation :', 110, y)
+  doc.text(`Signature ${ORG.name} :`, 110, y)
   doc.rect(110, y + 3, 60, 18)
   addFooter(doc, DOC_CODES.analyseBesoin)
   return doc
@@ -2278,7 +2325,7 @@ function generateFicheRenseignements(session, trainee = null, isBlank = false, i
   
   // Consentement RGPD
   doc.setFontSize(6)
-  doc.text('J\'accepte que mes données soient traitées par Access Formation dans le cadre de cette formation (RGPD).', 17, y)
+  doc.text(`J'accepte que mes données soient traitées par ${ORG.name} dans le cadre de cette formation (RGPD).`, 17, y)
   doc.rect(pw - 30, y - 2, 3, 3)
   const rgpdChecked = !isBlank && infoSheet?.rgpd_consent === true
   if (rgpdChecked) {
@@ -2328,7 +2375,7 @@ export async function downloadDocument(docType, session, options = {}) {
       let qrCodeDataURL = null
       if (session?.attendance_token) {
         try {
-          const portalURL = `https://app.accessformation.pro/#/portail/${session.attendance_token}`
+          const portalURL = `${publicBaseUrl()}/#/portail/${session.attendance_token}`
           qrCodeDataURL = await QRCode.toDataURL(portalURL, { width: 150, margin: 1 })
         } catch (err) { console.error('Erreur QR convocation individuelle:', err) }
       }
@@ -2363,7 +2410,7 @@ export async function downloadAllDocuments(docType, session, trainees, options =
   // Générer le QR code de la session UNE SEULE FOIS (pour convocations)
   let qrCodeDataURL = null
   if (docType === 'convocation' && session?.attendance_token) {
-    const portalURL = `https://app.accessformation.pro/#/portail/${session.attendance_token}`
+    const portalURL = `${publicBaseUrl()}/#/portail/${session.attendance_token}`
     try {
       qrCodeDataURL = await QRCode.toDataURL(portalURL, {
         width: 150,
@@ -2452,7 +2499,7 @@ export async function generatePDF(docType, session, options = {}) {
       let qrCodeDataURL = null
       if (session?.attendance_token) {
         try {
-          const portalURL = `https://app.accessformation.pro/#/portail/${session.attendance_token}`
+          const portalURL = `${publicBaseUrl()}/#/portail/${session.attendance_token}`
           qrCodeDataURL = await QRCode.toDataURL(portalURL, { width: 150, margin: 1 })
         } catch (err) { console.error('Erreur QR convocation individuelle:', err) }
       }
@@ -2485,7 +2532,7 @@ export async function generateAllPDF(docType, session, trainees, options = {}) {
   
   let qrCodeDataURL = null
   if (docType === 'convocation' && session?.attendance_token) {
-    const portalURL = `https://app.accessformation.pro/#/portail/${session.attendance_token}`
+    const portalURL = `${publicBaseUrl()}/#/portail/${session.attendance_token}`
     try {
       qrCodeDataURL = await QRCode.toDataURL(portalURL, {
         width: 150,
@@ -2622,7 +2669,7 @@ function generateCertificatContent(doc, session, trainee, trainer) {
   doc.text('  Non acquis', 75, y)
   y += 12
   
-  doc.text(`Fait à : Concarneau`, 20, y); y += 6
+  doc.text(`Fait à : ${ORG.lieu_signature || ''}`, 20, y); y += 6
   doc.text(`Le : ${formatDate(session?.end_date || new Date())}`, 20, y); y += 10
   
   doc.text('Cachet et signature du responsable du dispensateur de formation :', 20, y); y += 5
@@ -2698,7 +2745,7 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
   doc.setFont('helvetica', 'normal')
   doc.text('Scannez le QR Code ci-dessous pour acceder au portail stagiaire et completer votre fiche de renseignement et test de positionnement AVANT le jour de la formation.', 20, y, { maxWidth: 170 }); y += 10
   
-  doc.text(`Contact Access Formation : Pour toute question, contactez-nous au ${ORG.phone} ou par mail à ${ORG.email}`, 20, y, { maxWidth: 170 }); y += 8
+  doc.text(`Contact ${ORG.name} : Pour toute question, contactez-nous au ${ORG.phone} ou par mail à ${ORG.email}`, 20, y, { maxWidth: 170 }); y += 8
   
   const convContact2 = getSessionContact(session)
   if (convContact2.name) {

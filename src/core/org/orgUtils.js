@@ -1,23 +1,10 @@
-// ═══════════════════════════════════════════════════════════════
-// orgUtils.js — Source unique de vérité pour les infos organisation
-// utilisées dans les générateurs PDF (factures, devis, conventions, etc.)
-//
-// Au lieu d'avoir chaque générateur qui hardcode ses propres valeurs
-// ou qui maintient sa propre logique de fallback, tout passe par
-// buildORG(orgSettings) qui retourne un objet complet et normalisé.
-//
-// `orgSettings` correspond à la ligne de la table `organization_settings`
-// (chargée via store.fetchOrganization). Peut être null/undefined.
-// ═══════════════════════════════════════════════════════════════
+// Source unique de vérité pour l'identité de l'organisme dans les documents (PDF, emails).
+// Tout vient de la table organization_settings. Aucune valeur d'organisme n'est écrite ici :
+// un champ absent reste vide, et les générateurs vérifient les champs obligatoires
+// avec missingOrgFields() avant de produire un document.
 
-/**
- * Formate un SIRET de 14 chiffres en groupes typographiques 3-3-3-5.
- * Ex : "94356386600012" → "943 563 866 00012"
- * Si la chaîne ne fait pas 14 chiffres (format inconnu), retourne tel quel.
- *
- * En BDD le SIRET est stocké au format ISO (14 chars sans espace, varchar(14)),
- * mais à l'affichage on préfère la version groupée plus lisible.
- */
+import { hexToRgb } from '../branding/colors'
+
 export function formatSiret(siret) {
   if (!siret) return ''
   const digits = String(siret).replace(/\s/g, '')
@@ -25,11 +12,6 @@ export function formatSiret(siret) {
   return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 9)} ${digits.slice(9, 14)}`
 }
 
-/**
- * Formate un NDA (Numéro de Déclaration d'Activité formation pro)
- * de 11 chiffres en groupes 2-2-5-2.
- * Ex : "53291026129" → "53 29 10261 29"
- */
 export function formatNda(nda) {
   if (!nda) return ''
   const digits = String(nda).replace(/\s/g, '')
@@ -37,162 +19,199 @@ export function formatNda(nda) {
   return `${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 9)} ${digits.slice(9, 11)}`
 }
 
-/**
- * Valeurs par défaut hardcoded — fallback ultime si orgSettings est absent
- * ou si un champ spécifique manque en base.
- */
-export const ORG_DEFAULTS = {
-  // Identité légale
-  name: 'Access Formation',
-  nameFull: 'SARL Access Formation - Organisme de formation certifié Qualiopi',
-  // Adresse
-  address: '24 rue Kerbleiz, 29900 Concarneau',
-  addressFull: '24 Rue Kerbleiz - 29900 Concarneau - France',
-  city: 'Concarneau',
-  postal_code: '29900',
-  // Contact
-  phone: '02 98 90 30 24',
-  email: 'contact@accessformation.pro',
-  website: 'www.accessformation.pro',
-  // Identifiants entreprise (formatés pour affichage)
-  siret: '943 563 866 00012',
-  siren: '943 563 866',
-  naf: '8559A',
-  tva: 'FR71943563866',
-  rcs: '943 563 866 R.C.S. Quimper',
-  capital_social: '2 500',
-  // Numéro Déclaration d'Activité
-  nda: '53 29 10261 29',
-  ndaFull: '53 29 10261 29 auprès du préfet de la région Bretagne',
-  // Bancaire
-  iban: 'FR76 1558 9297 0600 0890 6894 048',
-  bic: 'CMBRFR2BXXXX',
-  // Représentant légal
-  dirigeant: 'Hicham SAIDI',
-  dirigeant_signature_url: null,
-  dirigeant_signature_base64: null,
-  // Visuels
-  logo_base64: null,
-  stamp_base64: null,
+export function formatIban(iban) {
+  if (!iban) return ''
+  return String(iban).replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim()
+}
+
+// Libellés des champs pour les messages d'erreur
+export const ORG_FIELD_LABELS = {
+  name: "Nom de l'organisme",
+  legal_name: 'Raison sociale',
+  address: 'Adresse',
+  postal_code: 'Code postal',
+  city: 'Ville',
+  phone: 'Téléphone',
+  email: 'Email',
+  siret: 'SIRET',
+  nda: "Numéro de déclaration d'activité",
+  tva_intra: 'TVA intracommunautaire',
+  iban: 'IBAN',
+  bic: 'BIC',
+  dirigeant_name: 'Nom du dirigeant',
+  forme_juridique: 'Forme juridique',
+  naf: 'Code NAF',
+}
+
+// Champs nécessaires selon le type de document
+export const ORG_REQUIRED = {
+  convention: ['name', 'address', 'postal_code', 'city', 'siret', 'nda', 'email', 'phone', 'dirigeant_name'],
+  convocation: ['name', 'address', 'postal_code', 'city', 'email', 'phone'],
+  attestation: ['name', 'address', 'postal_code', 'city', 'siret', 'nda', 'dirigeant_name'],
+  facture: ['legal_name', 'address', 'postal_code', 'city', 'siret', 'iban', 'bic'],
+  devis: ['legal_name', 'address', 'postal_code', 'city', 'siret', 'email', 'phone'],
+  base: ['name', 'address', 'postal_code', 'city'],
+}
+
+const rgb = (hex, fallback) => {
+  const c = hexToRgb(hex) || hexToRgb(fallback)
+  return [Math.round(c.r), Math.round(c.g), Math.round(c.b)]
+}
+
+function emptyORG() {
+  return buildORG({})
 }
 
 /**
- * Construit un objet ORG normalisé pour les PDFs depuis orgSettings (BDD).
- *
- * Règles :
- * - Champ présent en BDD non-vide → utilisé tel quel (avec formatage automatique
- *   pour SIRET et NDA via formatSiret/formatNda)
- * - Champ absent/vide en BDD → fallback ORG_DEFAULTS
- * - `name` contient déjà le nom légal complet (ex: "SARL Access Formation - ...")
- *   donc on ne préfixe PAS "SARL " devant pour nameFull (évite le doublon)
- *
- * @param {object|null} orgSettings - ligne de la table organization_settings
- * @returns {object} - objet ORG complet, prêt à être consommé par les générateurs PDF
+ * Construit l'objet ORG consommé par les générateurs à partir de la ligne organization_settings.
+ * Les champs absents sont des chaînes vides (jamais une valeur d'un autre organisme).
  */
-export function buildORG(orgSettings) {
-  if (!orgSettings) return { ...ORG_DEFAULTS }
+export function buildORG(o) {
+  const s = o || {}
+  const name = s.name || ''
+  const legalName = s.legal_name || name
+  const siretFormatted = s.siret ? formatSiret(s.siret) : ''
+  const ndaFormatted = s.nda ? formatNda(s.nda) : ''
+  const city = s.city || ''
+  const postal = s.postal_code || ''
+  const street = s.address || ''
+  const address = [street, [postal, city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+  const addressFull = [street, [postal, city].filter(Boolean).join(' '), 'France'].filter(Boolean).join(' - ')
+  const qualiopi = !!s.qualiopi_certified
+  const legalWithForm = s.forme_juridique && !legalName.toLowerCase().includes(s.forme_juridique.toLowerCase())
+    ? `${s.forme_juridique} ${legalName}`
+    : legalName
 
-  // SIRET et NDA : on les formate à l'affichage (en BDD ils sont au format brut ISO)
-  const siretFormatted = orgSettings.siret ? formatSiret(orgSettings.siret) : ORG_DEFAULTS.siret
-  const ndaFormatted = orgSettings.nda ? formatNda(orgSettings.nda) : ORG_DEFAULTS.nda
+  const primary = s.brand_primary || '#1C2024'
+  const accent = s.brand_accent || '#C8102E'
+  const highlight = s.brand_highlight || '#D9A62E'
 
   return {
-    ...ORG_DEFAULTS,
-
-    // Identité légale
-    name: orgSettings.name || ORG_DEFAULTS.name,
-    nameFull: orgSettings.name || ORG_DEFAULTS.nameFull,
-
-    // Adresse — recomposée si address + postal_code + city dispo, sinon fallback
-    address: orgSettings.address
-      ? `${orgSettings.address}, ${orgSettings.postal_code} ${orgSettings.city}`
-      : ORG_DEFAULTS.address,
-    addressFull: orgSettings.address
-      ? `${orgSettings.address} - ${orgSettings.postal_code} ${orgSettings.city} - France`
-      : ORG_DEFAULTS.addressFull,
-    city: orgSettings.city || ORG_DEFAULTS.city,
-    postal_code: orgSettings.postal_code || ORG_DEFAULTS.postal_code,
-
+    // Identité
+    name,
+    legal_name: legalName,
+    nameFull: legalWithForm ? `${legalWithForm}${qualiopi ? ' - Organisme de formation certifié Qualiopi' : ''}` : '',
+    forme_juridique: s.forme_juridique || '',
+    capital_social: s.capital_social || '',
+    qualiopi_certified: qualiopi,
+    activity_kind: s.activity_kind || 'of',
+    doc_prefix: s.doc_prefix || (s.app_short_name || name).replace(/[^A-Za-z0-9]/g, '').slice(0, 5).toUpperCase(),
+    // Adresse
+    address,
+    addressFull,
+    street,
+    city,
+    postal_code: postal,
+    lieu_signature: s.lieu_signature || city,
     // Contact
-    phone: orgSettings.phone || ORG_DEFAULTS.phone,
-    email: orgSettings.email || ORG_DEFAULTS.email,
-    website: orgSettings.website || ORG_DEFAULTS.website,
-
-    // Identifiants entreprise — formatés pour affichage
+    phone: s.phone || '',
+    email: s.email || '',
+    website: s.website || '',
+    // Identifiants
     siret: siretFormatted,
-    siren: orgSettings.siren || ORG_DEFAULTS.siren,
-    naf: orgSettings.naf || orgSettings.naf_code || ORG_DEFAULTS.naf,
-    tva: orgSettings.tva || ORG_DEFAULTS.tva,
-    rcs: orgSettings.rcs || ORG_DEFAULTS.rcs,
-    capital_social: orgSettings.capital_social || ORG_DEFAULTS.capital_social,
-
-    // Numéro Déclaration d'Activité — formaté pour affichage
+    siren: s.siren || (s.siret ? String(s.siret).replace(/\s/g, '').slice(0, 9) : ''),
+    naf: s.naf || '',
+    tva: s.tva_intra || '',
+    tva_applicable: s.tva_applicable !== false,
+    rcs: s.rcs || '',
+    tribunal_competent: s.tribunal_competent || '',
     nda: ndaFormatted,
-    ndaFull: orgSettings.nda
-      ? `${ndaFormatted} auprès du préfet de la région Bretagne`
-      : ORG_DEFAULTS.ndaFull,
-
-    // Bancaire
-    iban: orgSettings.iban || ORG_DEFAULTS.iban,
-    bic: orgSettings.bic || ORG_DEFAULTS.bic,
-
+    ndaFull: ndaFormatted ? `${ndaFormatted}${s.nda_region ? ` auprès du préfet de la région ${s.nda_region}` : ''}` : '',
+    nda_region: s.nda_region || '',
+    // Banque
+    bank_name: s.bank_name || '',
+    iban: formatIban(s.iban),
+    bic: s.bic || '',
     // Représentant légal
-    dirigeant: orgSettings.dirigeant_name || ORG_DEFAULTS.dirigeant,
-    dirigeant_signature_url: orgSettings.dirigeant_signature_url || null,
-    // Préchargé en amont par l'appelant (composant React) ; data URL base64
-    dirigeant_signature_base64: orgSettings.dirigeant_signature_base64 || null,
-
+    dirigeant: s.dirigeant_name || '',
+    dirigeant_title: s.dirigeant_title || '',
+    dirigeant_signature_url: s.dirigeant_signature_url || null,
+    dirigeant_signature_base64: s.dirigeant_signature_base64 || null,
+    // Référent handicap
+    referent_handicap_nom: s.referent_handicap_nom || '',
+    referent_handicap_email: s.referent_handicap_email || '',
+    referent_handicap_phone: s.referent_handicap_phone || '',
+    // Textes
+    reglement_interieur: s.reglement_interieur || '',
+    livret_accueil: s.livret_accueil || '',
+    conditions_annulation: s.conditions_annulation || '',
+    cgv_url: s.cgv_url || '',
+    google_review_url: s.google_review_url || '',
     // Visuels
-    logo_base64: orgSettings.logo_base64 || null,
-    stamp_base64: orgSettings.stamp_base64 || null,
+    logo_url: s.logo_url || null,
+    logo_base64: s.logo_base64 || null,
+    stamp_base64: s.stamp_base64 || null,
+    // Thème des documents (dérivé de la marque)
+    theme: {
+      primaryHex: primary,
+      accentHex: accent,
+      highlightHex: highlight,
+      primary: rgb(primary, '#1C2024'),
+      accent: rgb(accent, '#C8102E'),
+      highlight: rgb(highlight, '#D9A62E'),
+      text: [22, 24, 29],
+      muted: [107, 114, 128],
+      line: [228, 231, 235],
+      surface: [244, 245, 247],
+    },
   }
 }
 
 /**
- * Précharge la signature manuscrite du dirigeant (URL → data URL base64).
- *
- * Pourquoi : les générateurs PDF (jsPDF) doivent recevoir l'image en base64
- * pour pouvoir l'embarquer dans le PDF (`doc.addImage(base64, ...)`).
- * Or `organization.dirigeant_signature_url` est une URL Supabase Storage,
- * il faut donc faire un fetch et convertir.
- *
- * Cette fonction est idempotente :
- * - Si organization a déjà un `dirigeant_signature_base64` non-vide, retourne tel quel
- * - Si pas d'URL ni de base64, retourne tel quel (signature absente)
- * - Sinon fetch + convert + retourne organization enrichi
- *
- * En cas d'erreur réseau ou de fetch, retourne organization tel quel sans signature
- * pour ne pas bloquer la génération du PDF (la signature est optionnelle).
- *
- * @param {object|null} organization - ligne de la table organization_settings
- * @returns {Promise<object|null>} organization enrichi avec dirigeant_signature_base64
+ * Liste des champs manquants pour un type de document (libellés lisibles).
+ * @param {object} orgSettings ligne organization_settings
+ * @param {string} docKind clé de ORG_REQUIRED
+ */
+export function missingOrgFields(orgSettings, docKind = 'base') {
+  const required = ORG_REQUIRED[docKind] || ORG_REQUIRED.base
+  const s = orgSettings || {}
+  return required
+    .filter((f) => (f === 'legal_name' ? !(s.legal_name || s.name) : !s[f]))
+    .map((f) => ORG_FIELD_LABELS[f] || f)
+}
+
+/**
+ * Lève une erreur explicite si des champs obligatoires manquent.
+ */
+export function assertOrgReady(orgSettings, docKind = 'base') {
+  const missing = missingOrgFields(orgSettings, docKind)
+  if (missing.length > 0) {
+    throw new Error(`Paramètres de l'organisme incomplets : ${missing.join(', ')}. Complétez-les dans Paramètres avant de générer ce document.`)
+  }
+}
+
+async function urlToDataUrl(url) {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const blob = await response.blob()
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+/**
+ * Précharge en base64 les images nécessaires aux PDF (logo, signature du dirigeant)
+ * à partir de leurs URL de stockage. Idempotent ; une image absente n'empêche pas la génération.
  */
 export async function prepareOrgForPDF(organization) {
   if (!organization) return null
-
-  // Déjà préchargée → ne rien faire
-  if (organization.dirigeant_signature_base64) return organization
-
-  // Pas d'URL → rien à précharger
-  if (!organization.dirigeant_signature_url) return organization
-
-  try {
-    const response = await fetch(organization.dirigeant_signature_url)
-    if (!response.ok) {
-      console.warn(`Signature dirigeant introuvable (HTTP ${response.status}):`, organization.dirigeant_signature_url)
-      return organization
-    }
-    const blob = await response.blob()
-    // Convertir le blob en data URL base64
-    const base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result)
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
-    })
-    return { ...organization, dirigeant_signature_base64: base64 }
-  } catch (err) {
-    console.warn('Erreur préchargement signature dirigeant:', err)
-    return organization
+  let out = organization
+  if (!out.logo_base64 && out.logo_url) {
+    try { out = { ...out, logo_base64: await urlToDataUrl(out.logo_url) } } catch (err) { console.warn('Logo introuvable :', err.message) }
   }
+  if (!out.dirigeant_signature_base64 && out.dirigeant_signature_url) {
+    try { out = { ...out, dirigeant_signature_base64: await urlToDataUrl(out.dirigeant_signature_url) } } catch (err) { console.warn('Signature du dirigeant introuvable :', err.message) }
+  }
+  return out
+}
+
+// Adresse publique de l'instance (liens dans les documents et les emails)
+export function publicBaseUrl() {
+  const fromEnv = import.meta.env.VITE_PUBLIC_URL
+  if (fromEnv) return fromEnv.replace(/\/$/, '')
+  if (typeof window !== 'undefined') return window.location.origin
+  return ''
 }

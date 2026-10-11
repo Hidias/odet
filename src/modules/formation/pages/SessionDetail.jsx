@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { downloadDocument, downloadAllDocuments, generatePDF, generateAllPDF, setOrganization } from '../pdf/pdfGenerator'
+import { missingOrgFields } from '../../../core/org/orgUtils'
 import { 
   ArrowLeft, Calendar, MapPin, Users, Clock, FileText, QrCode, UserPlus, UserMinus,
   Download, CheckCircle, AlertCircle, Copy, ExternalLink, X, Edit, Trash2, Save,
@@ -2359,6 +2360,13 @@ export default function SessionDetail() {
   }
 
   const handleDownload = async (docType, trainee = null) => {
+    // Jamais un document avec une identité d'organisme incomplète
+    const kind = { convention: 'convention', convocation: 'convocation', attestation: 'attestation', certificat: 'attestation' }[docType] || 'base'
+    const missing = missingOrgFields(organization, kind)
+    if (missing.length > 0) {
+      toast.error(`Paramètres de l'organisme incomplets : ${missing.join(', ')}. Complétez-les dans Paramètres.`, { duration: 7000 })
+      return
+    }
     const trainer = session.trainers
     const traineesWithResult = session.session_trainees?.map(st => ({ 
       ...st.trainees, 
