@@ -10,6 +10,7 @@ import { fr } from 'date-fns/locale'
 import SpeechToTextButton from '../../../ui/SpeechToTextButton'
 import { useAuthStore } from '../../../core/store'
 import { authorFromEmail } from '../../prospection/components/suivi/suiviUtils'
+import { canExportVCard, buildVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
@@ -50,7 +51,25 @@ export default function ClientDetail() {
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [detectingOpco, setDetectingOpco] = useState(false)
-  const { user } = useAuthStore()
+  const { user, userRole } = useAuthStore()
+  const vcardAllowed = canExportVCard(userRole)
+
+  function exportContactVCard(contact) {
+    if (!vcardAllowed) return
+    downloadVCard(buildVCard(contact, client), vcfFilename(`${contact.name || 'contact'}_${client?.name || ''}`))
+  }
+
+  function exportAllContactsVCard() {
+    if (!vcardAllowed) return
+    const entries = contacts.map(contact => ({ contact, client }))
+    if (entries.length === 0) {
+      const generic = clientAsContact(client)
+      if (generic) entries.push({ contact: generic, client })
+    }
+    if (entries.length === 0) { toast.error('Aucun contact à exporter'); return }
+    downloadVCard(buildVCards(entries), vcfFilename(`contacts_${client?.name || 'client'}`))
+    toast.success(`${entries.length} contact${entries.length > 1 ? 's' : ''} exporté${entries.length > 1 ? 's' : ''}`)
+  }
 
   // Navigation entre clients (A→Z)
   const [allClientIds, setAllClientIds] = useState([])
@@ -1391,6 +1410,7 @@ export default function ClientDetail() {
                       </div>
                     </div>
                     <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                      {vcardAllowed && <button onClick={() => exportContactVCard(c)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Enregistrer sur le téléphone (vCard)"><Smartphone className="w-3.5 h-3.5" /></button>}
                       <button onClick={() => openEditContact(c)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Modifier"><Edit className="w-3.5 h-3.5" /></button>
                       <button onClick={() => deleteContact(c.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-white" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
@@ -1398,6 +1418,13 @@ export default function ClientDetail() {
                 ))}
 
                 {contacts.length === 0 && <p className="text-sm text-gray-400 text-center py-3">Aucun contact enregistré</p>}
+
+                {vcardAllowed && (contacts.length > 0 || clientAsContact(client)) && (
+                  <button onClick={exportAllContactsVCard}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                    <Smartphone className="w-4 h-4" /> Exporter vers le téléphone (vCard)
+                  </button>
+                )}
 
                 <button onClick={() => { setEditingContact(null); setContactForm({ name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false }); setShowContactForm(true) }}
                   className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm text-primary-600 hover:bg-primary-50 rounded-lg border border-dashed border-primary-300 transition-colors">

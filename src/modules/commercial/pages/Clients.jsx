@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { useDataStore } from '../../../core/store'
+import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
-import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, User, Eye, Users, Upload, FileSpreadsheet, FileText, RefreshCw, CheckCircle, AlertCircle, Archive, MoreVertical } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, User, Eye, Users, Upload, FileSpreadsheet, FileText, RefreshCw, CheckCircle, AlertCircle, Archive, MoreVertical, Smartphone } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SirenConflictModal from '../components/SirenConflictModal'
 import { useSirenCheck } from '../lib/useSirenCheck'
+import { canExportVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 
 // Formatage nom entreprise (majuscules)
 const formatCompanyName = (value) => {
@@ -384,6 +385,42 @@ export default function Clients() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
   
+  const userRole = useAuthStore(state => state.userRole)
+  const vcardAllowed = canExportVCard(userRole)
+  const [exportingVcf, setExportingVcf] = useState(false)
+
+  // Export groupé des contacts des clients affichés (filtre et recherche appliqués) en un seul fichier .vcf
+  async function exportContactsVCard() {
+    if (!vcardAllowed || filtered.length === 0) return
+    setExportingVcf(true)
+    try {
+      const ids = filtered.map(c => c.id)
+      const entries = []
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data, error } = await supabase.from('client_contacts').select('*').in('client_id', ids.slice(i, i + 200))
+        if (error) throw error
+        ;(data || []).forEach(contact => {
+          const client = filtered.find(c => c.id === contact.client_id)
+          entries.push({ contact, client })
+        })
+      }
+      // Clients sans contact détaillé : contact générique de la fiche
+      filtered.forEach(client => {
+        if (entries.some(e => e.client?.id === client.id)) return
+        const generic = clientAsContact(client)
+        if (generic) entries.push({ contact: generic, client })
+      })
+      if (entries.length === 0) { toast.error('Aucun contact à exporter'); return }
+      downloadVCard(buildVCards(entries), vcfFilename(`contacts_${filtered.length}_clients`))
+      toast.success(`${entries.length} contact${entries.length > 1 ? 's' : ''} exporté${entries.length > 1 ? 's' : ''}`)
+    } catch (err) {
+      console.error('Export vCard :', err)
+      toast.error("Export impossible : " + (err.message || 'erreur inconnue'))
+    } finally {
+      setExportingVcf(false)
+    }
+  }
+
   const filtered = clients.filter(c => {
     const searchFields = `${c.name || ''} ${c.siret || ''} ${c.contact_name || ''} ${c.address || ''} ${c.email || ''} ${c.contact_email || ''}`.toLowerCase()
     const matchSearch = !search || searchFields.includes(search.toLowerCase())
@@ -745,6 +782,17 @@ export default function Clients() {
           <p className="text-gray-600 text-sm mt-1">{filtered.length} client{filtered.length > 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
+          {vcardAllowed && (
+            <button
+              onClick={exportContactsVCard}
+              className="btn btn-secondary flex items-center gap-2"
+              disabled={exportingVcf || filtered.length === 0}
+              title="Exporter les contacts des clients affichés vers le téléphone (fichier vCard)"
+            >
+              <Smartphone className="w-4 h-4" />
+              {exportingVcf ? 'Export...' : 'Contacts vCard'}
+            </button>
+          )}
           <button 
             onClick={() => setShowTextImport(true)} 
             className="btn btn-secondary flex items-center gap-2"
