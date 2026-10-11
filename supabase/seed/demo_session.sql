@@ -1,4 +1,4 @@
--- Session de démonstration (données fictives) : SST le vendredi 16 octobre 2026, 4 stagiaires.
+-- Session de démonstration (données fictives) : MAC SST (7 h, une journée) le vendredi 16 octobre 2026, 4 stagiaires.
 -- Émargement ouvert toute la journée, pas de code d'accès : on scanne, on choisit son nom.
 -- Rejouable : supprime d'abord la session de démonstration existante.
 
@@ -6,7 +6,7 @@ do $$
 declare
   v_client uuid;
   v_session uuid;
-  v_course uuid := (select id from courses where title ilike 'Formation initiale de Sauveteur Secouriste%' limit 1);
+  v_course uuid := (select id from courses where title ilike 'Maintien et Actualisation des Comp%Sauveteur Secouriste%' limit 1);
   v_trainer uuid := (select id from trainers order by created_at limit 1);
   v_t uuid;
   r record;
@@ -15,17 +15,18 @@ begin
   delete from trainees where notes = 'DEMO-PORTAIL';
   delete from clients where notes = 'DEMO-PORTAIL';
 
-  insert into clients (name, address, postal_code, city, notes, type, client_type, status)
-  values ('Atelier Démo Kerlan (fictif)', '12 rue des Embruns', '29000', 'Quimper', 'DEMO-PORTAIL', 'client', 'entreprise', 'actif')
+  insert into clients (name, address, postal_code, city, siret, siren, contact_name, contact_function, contact_email, contact_phone, notes, type, client_type, status)
+  values ('Atelier Démo Kerlan (fictif)', '12 rue des Embruns', '29000', 'Quimper', '12345678900012', '123456789',
+          'Nolwenn Le Bihan', 'Responsable QSE', 'demo.kerlan@exemple.fr', '02 98 00 00 00', 'DEMO-PORTAIL', 'client', 'entreprise', 'actif')
   returning id into v_client;
 
   insert into sessions (reference, course_id, client_id, trainer_id, start_date, end_date, start_time, end_time,
                         location_name, location_address, location_postal_code, location_city, session_type, is_intra,
-                        status, day_type, signature_mode, notes, min_participants, max_participants)
+                        status, day_type, signature_mode, notes, min_participants, max_participants, signatory_name, signatory_role)
   values ('SES-DEMO1016', v_course, v_client, v_trainer, '2026-10-16', '2026-10-16', '09:00', '17:00',
           'Salle de formation', (select address from organization_settings limit 1),
           (select postal_code from organization_settings limit 1), (select city from organization_settings limit 1),
-          'intra', true, 'planned', 'full', 'ouvert', 'DEMO-PORTAIL', 2, 10)
+          'intra', true, 'planned', 'full', 'ouvert', 'DEMO-PORTAIL', 2, 10, 'Nolwenn Le Bihan', 'Responsable QSE')
   returning id into v_session;
 
   for r in select * from (values
