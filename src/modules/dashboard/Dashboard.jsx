@@ -12,7 +12,7 @@ import {
   ClipboardCheck, FileWarning, RefreshCw, Zap, Activity,
   ThumbsUp, Mail, BookOpen, Layers, PieChart, X, Maximize2, Minimize2, PenLine
 } from 'lucide-react'
-import { format, isAfter, isBefore, startOfToday, addDays, differenceInDays, subMonths, startOfMonth, endOfMonth } from 'date-fns'
+import { format, isAfter, isBefore, startOfToday, addDays, addMonths, differenceInDays, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 
@@ -100,7 +100,7 @@ function ProgressBar({ value, max = 100, color = 'bg-blue-500', label, showValue
 // MAIN DASHBOARD
 // ═══════════════════════════════════════════════════════════
 export default function Dashboard() {
-  const { clients, fetchClients, courses, fetchCourses, trainees, fetchTrainees, sessions, fetchSessions, getPurgeStats } = useDataStore()
+  const { clients, fetchClients, courses, fetchCourses, trainees, fetchTrainees, sessions, fetchSessions, getPurgeStats, organization, fetchOrganization } = useDataStore()
   const { user } = useAuthStore()
   const navigate = useNavigate()
   
@@ -252,6 +252,7 @@ export default function Dashboard() {
 
   // ─── Computed data ─────────────────────────────────────
   const today = startOfToday()
+  useEffect(() => { if (!organization) fetchOrganization() }, [])
   const next7Days = addDays(today, 7)
   const next30Days = addDays(today, 30)
   const thisMonth = startOfMonth(today)
@@ -547,20 +548,23 @@ export default function Dashboard() {
     return r
   }, [sessionsWithoutTrainer, sessionsJ90, dashData.purgeStats, documentsMissing])
   
-  //  Audit Qualiopi - Initial 3 février 2026, Surveillance 18 mois après
+  // Audit Qualiopi : depuis organization_settings (qualiopi_certified, qualiopi_since, qualiopi_organisme).
+  // Cycle : audit initial à la date de certification, audit de surveillance 18 mois après, renouvellement à 3 ans.
   const qualiopiAudit = useMemo(() => {
-    const initialDate = new Date('2026-02-03')
-    const initialPassed = isBefore(initialDate, today) || differenceInDays(initialDate, today) === 0
-    const surveillanceDate = new Date('2027-08-03')
-    const targetDate = initialPassed ? surveillanceDate : initialDate
-    return { 
-      daysLeft: differenceInDays(targetDate, today), 
+    if (!organization?.qualiopi_certified || !organization?.qualiopi_since) return null
+    const initialDate = new Date(organization.qualiopi_since)
+    if (Number.isNaN(initialDate.getTime())) return null
+    const surveillanceDate = addMonths(initialDate, 18)
+    const renewalDate = addMonths(initialDate, 36)
+    const targetDate = isAfter(surveillanceDate, today) ? surveillanceDate : renewalDate
+    return {
+      daysLeft: differenceInDays(targetDate, today),
       date: targetDate,
       initialDate,
-      initialPassed,
-      isSurveillance: initialPassed,
+      label: isAfter(surveillanceDate, today) ? 'Audit de surveillance' : 'Audit de renouvellement',
+      certifier: organization.qualiopi_organisme || '',
     }
-  }, [])
+  }, [organization, today])
 
   // ─── Config management ─────────────────────────────────
   const configsRef = useRef(widgetConfigs)
@@ -884,20 +888,24 @@ export default function Dashboard() {
         )
 
       case 'qualiopi_audit':
-        return (
+        return !qualiopiAudit ? (
+          <div className="text-center py-3 space-y-2">
+            <p className="text-sm font-medium text-gray-700">Certification Qualiopi non renseignée</p>
+            <p className="text-xs text-gray-400">Renseignez la date de certification et l'organisme certificateur dans Paramètres.</p>
+            <Link to="/qualiopi" className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline">Checklist <ArrowRight className="w-3 h-3" /></Link>
+          </div>
+        ) : (
           <div className="text-center space-y-3">
-            {qualiopiAudit.initialPassed && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-                <CheckCircle className="w-3.5 h-3.5" /> Audit initial réussi - {format(qualiopiAudit.initialDate, 'd MMM yyyy', { locale: fr })}
-              </div>
-            )}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+              <CheckCircle className="w-3.5 h-3.5" /> Certifié depuis le {format(qualiopiAudit.initialDate, 'd MMM yyyy', { locale: fr })}
+            </div>
             <p className={`text-4xl font-bold ${qualiopiAudit.daysLeft <= 30 ? 'text-orange-600' : qualiopiAudit.daysLeft <= 90 ? 'text-amber-600' : 'text-emerald-600'}`}>
               J-{qualiopiAudit.daysLeft}
             </p>
             <p className="text-sm text-gray-500">
-              {qualiopiAudit.isSurveillance ? 'Audit de surveillance' : 'Audit initial'}: {format(qualiopiAudit.date, 'd MMMM yyyy', { locale: fr })}
+              {qualiopiAudit.label} : {format(qualiopiAudit.date, 'd MMMM yyyy', { locale: fr })}
             </p>
-            <p className="text-xs text-gray-400">Céline Le Fur - Certifopac</p>
+            {qualiopiAudit.certifier && <p className="text-xs text-gray-400">{qualiopiAudit.certifier}</p>}
             <Link to="/qualiopi" className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline">Checklist <ArrowRight className="w-3 h-3" /></Link>
           </div>
         )
@@ -907,7 +915,7 @@ export default function Dashboard() {
           <div className="text-center py-2 space-y-2">
             <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mx-auto"><FileText className="w-5 h-5 text-purple-600" /></div>
             <p className="text-sm font-medium text-gray-700">BPF à générer</p>
-            <p className="text-xs text-gray-400">NDA: 53291026129</p>
+            <p className="text-xs text-gray-400">NDA : {organization?.nda || "en cours d'attribution"}</p>
           </div>
         )
 
