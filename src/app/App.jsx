@@ -63,6 +63,7 @@ const SignatureFormateur = lazy(() => import('../modules/formation/pages/Signatu
 // Pages publiques
 const TraineePortal = lazy(() => import('../modules/portail/pages/TraineePortal'))
 const PublicReclamation = lazy(() => import('../modules/portail/pages/Reclamation'))
+const ClientPortal = lazy(() => import('../modules/portail/pages/ClientPortal'))
 
 function PageLoader() {
   return (
@@ -174,6 +175,7 @@ export default function App() {
           <Route path="/reclamation" element={<PublicReclamation />} />
 
           <Route path="/portail/:token" element={<TraineePortal />} />
+          <Route path="/entreprise/:token" element={<ClientPortal />} />
 
           {/* ─── Route Espace Comptable (comptable + admins) ─── */}
           <Route path="/comptable" element={

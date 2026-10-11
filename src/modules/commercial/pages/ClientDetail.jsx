@@ -3,7 +3,7 @@ import { apiFetch } from '../../../core/api'
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
-import { ArrowLeft, Building2, MapPin, Phone, Mail, Globe, Edit, Save, X, Plus, Trash2, User, Clock, MessageSquare, Calendar, FileText, GraduationCap, Star, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Send, StickyNote, Receipt, RefreshCw, Briefcase, FileSignature, Smartphone, Loader2, Search, CreditCard, Paperclip } from 'lucide-react'
+import { ArrowLeft, Building2, MapPin, Phone, Mail, Globe, Edit, Save, X, Plus, Trash2, User, Clock, MessageSquare, Calendar, FileText, GraduationCap, Star, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Send, StickyNote, Receipt, RefreshCw, Briefcase, FileSignature, Smartphone, Loader2, Search, CreditCard, Paperclip, KeyRound, Copy, Power } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -11,6 +11,7 @@ import SpeechToTextButton from '../../../ui/SpeechToTextButton'
 import { useAuthStore } from '../../../core/store'
 import { authorFromEmail } from '../../prospection/components/suivi/suiviUtils'
 import { canExportVCard, buildVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
+import { publicBaseUrl } from '../../../core/org/orgUtils'
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
@@ -118,6 +119,43 @@ export default function ClientDetail() {
   // Sections dépliées
   const [sections, setSections] = useState({ contacts: true, timeline: true, formations: true })
 
+  // Accès entreprise (lien + code) : table client_portal_access
+  const [portalAccess, setPortalAccess] = useState(null)
+  const [portalBusy, setPortalBusy] = useState(false)
+  const portalUrl = portalAccess ? `${publicBaseUrl()}/#/entreprise/${portalAccess.token}` : ''
+  const newCode = () => String(Math.floor(100000 + Math.random() * 900000))
+
+  async function loadPortalAccess() {
+    const { data } = await supabase.from('client_portal_access').select('*').eq('client_id', id).maybeSingle()
+    setPortalAccess(data || null)
+  }
+  async function createPortalAccess() {
+    setPortalBusy(true)
+    try {
+      const { data, error } = await supabase.from('client_portal_access')
+        .insert({ client_id: id, access_code: newCode(), contact_email: client?.contact_email || null })
+        .select().single()
+      if (error) throw error
+      setPortalAccess(data)
+      toast.success('Accès entreprise créé')
+    } catch (err) { toast.error('Création impossible : ' + (err.message || '')) } finally { setPortalBusy(false) }
+  }
+  async function updatePortalAccess(patch, msg) {
+    if (!portalAccess) return
+    setPortalBusy(true)
+    try {
+      const { data, error } = await supabase.from('client_portal_access')
+        .update({ ...patch, updated_at: new Date().toISOString() }).eq('id', portalAccess.id).select().single()
+      if (error) throw error
+      setPortalAccess(data)
+      if (msg) toast.success(msg)
+    } catch (err) { toast.error('Mise à jour impossible : ' + (err.message || '')) } finally { setPortalBusy(false) }
+  }
+  async function copyText(text, label) {
+    try { await navigator.clipboard.writeText(text); toast.success(`${label} copié`) } catch { toast.error('Copie impossible') }
+  }
+
+
   useEffect(() => { if (id) loadAll() }, [id])
 
   // Charger la liste de tous les clients (A→Z) pour navigation
@@ -161,7 +199,7 @@ export default function ClientDetail() {
   // ═══════════════════════════════════════════════════════════
   async function loadAll() {
     setLoading(true)
-    await Promise.all([loadClient(), loadContacts(), loadInteractions(), loadFormations(), loadRdvs(), loadQuotes(), loadInvoices(), loadSessionEmails()])
+    await Promise.all([loadClient(), loadContacts(), loadInteractions(), loadFormations(), loadRdvs(), loadQuotes(), loadInvoices(), loadSessionEmails(), loadPortalAccess()])
     setLoading(false)
   }
 
@@ -1432,6 +1470,51 @@ export default function ClientDetail() {
                 </button>
               </div>
             )}
+          </div>
+
+          {/* ──── Accès entreprise : lien + code pour consulter les documents ──── */}
+          <div className="bg-white rounded-xl border border-gray-200">
+            <div className="flex items-center gap-2 px-5 py-3.5">
+              <KeyRound className="w-5 h-5 text-primary-600" />
+              <h2 className="font-semibold text-gray-900">Accès entreprise</h2>
+              {portalAccess && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${portalAccess.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {portalAccess.is_active ? 'Actif' : 'Désactivé'}
+                </span>
+              )}
+            </div>
+            <div className="px-5 pb-4">
+              {!portalAccess ? (
+                <>
+                  <p className="text-xs text-gray-500 mb-3">Donne au client un lien et un code pour consulter ses sessions et télécharger ses documents (convention, convocations, émargement, attestations, certificats).</p>
+                  <button onClick={createPortalAccess} disabled={portalBusy}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm text-primary-600 hover:bg-primary-50 rounded-lg border border-dashed border-primary-300 transition-colors">
+                    {portalBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Créer l'accès
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
+                    <span className="text-xs text-gray-500 w-10 shrink-0">Lien</span>
+                    <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 truncate flex-1 hover:underline">{portalUrl}</a>
+                    <button onClick={() => copyText(portalUrl, 'Lien')} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Copier le lien"><Copy className="w-3.5 h-3.5" /></button>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
+                    <span className="text-xs text-gray-500 w-10 shrink-0">Code</span>
+                    <span className="font-mono text-base tracking-[0.3em] text-gray-900 flex-1">{portalAccess.access_code}</span>
+                    <button onClick={() => copyText(portalAccess.access_code, 'Code')} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Copier le code"><Copy className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => updatePortalAccess({ access_code: newCode(), attempts: 0, locked_until: null }, 'Nouveau code généré')} disabled={portalBusy} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Générer un nouveau code"><RefreshCw className="w-3.5 h-3.5" /></button>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
+                    <span>{portalAccess.last_access_at ? `Dernier accès le ${format(new Date(portalAccess.last_access_at), 'd MMM yyyy à HH:mm', { locale: fr })}` : 'Jamais consulté'}{portalAccess.locked_until && new Date(portalAccess.locked_until) > new Date() ? ' (verrouillé après 5 échecs)' : ''}</span>
+                    <button onClick={() => updatePortalAccess({ is_active: !portalAccess.is_active }, portalAccess.is_active ? 'Accès désactivé' : 'Accès réactivé')} disabled={portalBusy}
+                      className={`flex items-center gap-1 ${portalAccess.is_active ? 'text-red-500 hover:text-red-700' : 'text-green-600 hover:text-green-800'}`}>
+                      <Power className="w-3.5 h-3.5" /> {portalAccess.is_active ? 'Désactiver' : 'Réactiver'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {rdvs.length > 0 && (

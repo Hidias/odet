@@ -58,3 +58,8 @@ delete from attendance_halfdays where trainee_id in (select id from trainees whe
 delete from trainee_evaluations where trainee_id in (select id from trainees where notes = 'DEMO-PORTAIL');
 update session_trainees set positioning_test_completed = false, positioning_test_completed_at = null
 where trainee_id in (select id from trainees where notes = 'DEMO-PORTAIL');
+
+-- Accès entreprise de démonstration : lien stable /#/entreprise/demo2a7f1c9e4b5d6083, code 246810
+insert into client_portal_access (client_id, token, access_code)
+select id, 'demo2a7f1c9e4b5d6083', '246810' from clients where notes = 'DEMO-PORTAIL'
+on conflict (client_id) do update set token = excluded.token, access_code = excluded.access_code, is_active = true, attempts = 0, locked_until = null;
