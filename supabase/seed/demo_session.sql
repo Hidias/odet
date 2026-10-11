@@ -13,12 +13,15 @@ declare
 begin
   delete from sessions where notes = 'DEMO-PORTAIL';
   delete from trainees where notes = 'DEMO-PORTAIL';
-  delete from clients where notes = 'DEMO-PORTAIL';
+  delete from clients where name = 'Atelier Démo Kerlan (fictif)';
 
   insert into clients (name, address, postal_code, city, siret, siren, contact_name, contact_function, contact_email, contact_phone, notes, type, client_type, status)
   values ('Atelier Démo Kerlan (fictif)', '12 rue des Embruns', '29000', 'Quimper', '12345678900012', '123456789',
-          'Nolwenn Le Bihan', 'Responsable QSE', 'demo.kerlan@exemple.fr', '02 98 00 00 00', 'DEMO-PORTAIL', 'client', 'entreprise', 'actif')
+          'Nolwenn Le Bihan', 'Responsable QSE', 'demo.kerlan@exemple.fr', '02 98 00 00 00', 'Client fictif créé pour la démonstration.', 'client', 'entreprise', 'actif')
   returning id into v_client;
+
+  insert into client_contacts (client_id, name, first_name, last_name, civilite, role, fonction, email, phone, mobile, is_primary, is_document_contact)
+  values (v_client, 'Nolwenn Le Bihan', 'Nolwenn', 'Le Bihan', 'Mme', 'Responsable QSE', 'Responsable QSE', 'demo.kerlan@exemple.fr', '02 98 00 00 00', '06 00 00 00 00', true, true);
 
   insert into sessions (reference, course_id, client_id, trainer_id, start_date, end_date, start_time, end_time,
                         location_name, location_address, location_postal_code, location_city, session_type, is_intra,
@@ -62,5 +65,5 @@ where trainee_id in (select id from trainees where notes = 'DEMO-PORTAIL');
 
 -- Accès entreprise de démonstration : lien stable /#/entreprise/demo2a7f1c9e4b5d6083, code 246810
 insert into client_portal_access (client_id, token, access_code)
-select id, 'demo2a7f1c9e4b5d6083', '246810' from clients where notes = 'DEMO-PORTAIL'
+select id, 'demo2a7f1c9e4b5d6083', '246810' from clients where name = 'Atelier Démo Kerlan (fictif)'
 on conflict (client_id) do update set token = excluded.token, access_code = excluded.access_code, is_active = true, attempts = 0, locked_until = null;
