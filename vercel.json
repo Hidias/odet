@@ -1,0 +1,103 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/import-departement.js": {
+      "maxDuration": 300
+    },
+    "api/import-auto-cron.js": {
+      "maxDuration": 300
+    },
+    "api/enrich-prospects.js": {
+      "maxDuration": 300
+    },
+    "api/report-phoning-hebdo.js": {
+      "maxDuration": 60
+    },
+    "api/send-phoning-report.js": {
+      "maxDuration": 60
+    },
+    "api/send-phoning-summary.js": {
+      "maxDuration": 30
+    },
+    "api/send-prospect-email.js": {
+      "maxDuration": 30
+    },
+    "api/send-invoices-comptable.js": {
+      "maxDuration": 300
+    },
+    "api/generate-relance-email.js": {
+      "maxDuration": 30
+    },
+    "api/sync-sent-emails.js": {
+      "maxDuration": 60
+    },
+    "api/sync-google-calendar.js": {
+      "maxDuration": 300
+    },
+    "api/social/publish.js": {
+      "maxDuration": 60
+    },
+    "api/social/cron-publish.js": {
+      "maxDuration": 60
+    },
+    "api/mailing-cron.js": {
+      "maxDuration": 60
+    },
+    "api/mailing-replies-cron.js": {
+      "maxDuration": 60
+    },
+    "api/signature-alert.js": {
+      "maxDuration": 60
+    },
+    "api/signature-weekly.js": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/import-auto-cron",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/enrich-prospects",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/report-phoning-hebdo",
+      "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/send-phoning-report",
+      "schedule": "0 17 * * 1-5"
+    },
+    {
+      "path": "/api/send-phoning-summary?period=morning",
+      "schedule": "0 11 * * 1-5"
+    },
+    {
+      "path": "/api/send-phoning-summary?period=noreply",
+      "schedule": "0 6 * * 2,4"
+    },
+    {
+      "path": "/api/sync-sent-emails",
+      "schedule": "*/30 6-18 * * 1-5"
+    },
+    {
+      "path": "/api/sync-google-calendar",
+      "schedule": "0 6-18/2 * * 1-6"
+    },
+    {
+      "path": "/api/mailing-replies-cron",
+      "schedule": "0 5 * * *"
+    }
+  ]
+}

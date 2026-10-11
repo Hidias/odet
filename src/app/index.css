@@ -1,0 +1,250 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    /* Safe area support for notch/Dynamic Island */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900;
+    /* Prevent pull-to-refresh on iOS when scrolling modals */
+    overscroll-behavior-y: contain;
+  }
+
+  /* ============================================
+     iOS ZOOM PREVENTION
+     iOS Safari zooms in when focusing inputs
+     with font-size < 16px. Force 16px on focus.
+     ============================================ */
+  @supports (-webkit-touch-callout: none) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+    /* Minimum touch target 44px (Apple HIG) */
+    min-height: 44px;
+  }
+  
+  .btn-primary {
+    @apply bg-accent-500 text-primary-900 hover:bg-accent-600 focus:ring-accent-400 font-semibold;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-accent-400;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+  
+  .btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
+  }
+  
+  .btn-campus {
+    @apply bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-400;
+  }
+  
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent;
+    /* Prevent iOS zoom on focus */
+    font-size: 16px;
+    min-height: 44px;
+  }
+  
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-green {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .badge-yellow {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .badge-red {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .badge-blue {
+    @apply bg-blue-100 text-blue-800;
+  }
+  
+  .badge-gray {
+    @apply bg-gray-100 text-gray-800;
+  }
+  
+  .badge-campus {
+    @apply bg-accent-100 text-accent-800;
+  }
+}
+
+/* Signature canvas */
+.signature-canvas {
+  border: 2px dashed #d1d5db;
+  border-radius: 0.5rem;
+  background: #fff;
+  touch-action: none;
+}
+
+.signature-canvas.signed {
+  border-color: #10b981;
+  border-style: solid;
+}
+
+/* Tables */
+.table-container {
+  @apply overflow-x-auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  @apply w-full text-sm;
+}
+
+th {
+  @apply text-left font-medium text-gray-500 uppercase tracking-wider px-4 py-3 bg-gray-50;
+  white-space: nowrap;
+}
+
+td {
+  @apply px-4 py-3 border-t border-gray-100;
+}
+
+tr:hover td {
+  @apply bg-gray-50;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin h-5 w-5 text-accent-500;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Campus Toast Styles */
+.campus-toast {
+  @apply bg-primary-500 text-white;
+}
+
+/* ============================================
+   MOBILE / TABLET IMPROVEMENTS
+   ============================================ */
+
+/* Horizontal scroll indicator (subtle scrollbar) */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+  height: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+/* Tab bars - scrollable on mobile with visible thin scrollbar */
+nav.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+nav.overflow-x-auto::-webkit-scrollbar {
+  height: 3px;
+}
+
+nav.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+/* Prevent text selection on tap (buttons/nav) */
+button, a, nav {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Fix iOS Safari bottom bar overlap */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .fixed.bottom-0,
+  .sticky.bottom-0 {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Improve touch targets for small buttons */
+@media (pointer: coarse) {
+  /* Coarse pointer = touch device */
+  button, [role="button"], a {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  
+  /* Table action buttons */
+  td button, td a {
+    min-height: 32px;
+    min-width: 32px;
+  }
+}
+
+/* ============================================
+   MOBILE-SPECIFIC LAYOUT IMPROVEMENTS
+   ============================================ */
+
+/* Cards: tighter padding on small screens */
+@media (max-width: 639px) {
+  .card {
+    padding: 1rem;
+  }
+  
+  /* Reduce heavy headings on mobile */
+  h1 { font-size: 1.25rem; }
+  h2 { font-size: 1.1rem; }
+  
+  /* Table cells: tighter on mobile */
+  th { padding: 0.5rem 0.75rem; font-size: 0.7rem; }
+  td { padding: 0.5rem 0.75rem; }
+  
+  /* Modals: full width on mobile */
+  .fixed .max-w-md,
+  .fixed .max-w-lg,
+  .fixed .max-w-xl,
+  .fixed .max-w-2xl {
+    max-width: calc(100vw - 1rem);
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+  }
+}
