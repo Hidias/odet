@@ -19,13 +19,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from '@supabase/supabase-js'
-import { applyMailingVars } from '../src/lib/mailingVars.js'
+import { applyMailingVars } from '../src/modules/mailing/lib/mailingVars.js'
 import sendMailingSingle from './send-mailing-single.js'
 import { requireCronOrUser } from './_lib/auth.js'
 
 export const config = { maxDuration: 60 }
 
-const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
+const APP_URL = (process.env.APP_URL || '').replace(/\/$/, '')
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const supabase = createClient(
@@ -89,9 +89,10 @@ async function finishCampaign(campaignId) {
   if ((count || 0) > 0) return { finished: false }
 
   try {
+    if (!APP_URL) throw new Error('APP_URL non définie')
     const r = await fetch(`${APP_URL}/api/send-mailing-report`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.CRON_SECRET || ''}` },
       body: JSON.stringify({ campaign_id: campaignId }),
     })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -114,7 +115,8 @@ async function sendOne(body) {
     setHeader() { return this },
     end() { return this },
   }
-  await sendMailingSingle({ method: 'POST', body, headers: {}, query: {} }, fakeRes)
+  // Appel interne (pas de jeton utilisateur) : le handler saute la vérification grâce à req.internal
+  await sendMailingSingle({ method: 'POST', body, headers: {}, query: {}, internal: true }, fakeRes)
   return out
 }
 
@@ -136,7 +138,7 @@ export default async function handler(req, res) {
     // ── Campagne toujours active en mode serveur ? ──
     const { data: c } = await supabase
       .from('mailing_campaigns')
-      .select('id, name, status, send_mode, subject, body_html, signature_caller, attachment')
+      .select('id, name, status, send_mode, subject, body_html, sender_email, attachment')
       .eq('id', campaignId)
       .maybeSingle()
     if (!c || c.status !== 'en_cours' || c.send_mode !== 'serveur') {
@@ -180,7 +182,7 @@ export default async function handler(req, res) {
         to: send.email,
         subject: applyMailingVars(c.subject, vars),
         body_html: applyMailingVars(c.body_html, vars, { html: true }),
-        caller: c.signature_caller,
+        sender_email: c.sender_email,
         unsubscribe_token: send.unsubscribe_token,
         attachments,
       })

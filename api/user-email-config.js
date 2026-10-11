@@ -1,173 +1,109 @@
 // api/user-email-config.js
-// CRUD pour la configuration email de l'utilisateur
+// Comptes email d'envoi de l'utilisateur connecté : lecture, test de connexion, enregistrement, suppression.
+// Le serveur SMTP est fourni par l'utilisateur (hôte, port, sécurité) ; le mot de passe est chiffré en base.
 
-import { createClient } from '@supabase/supabase-js'
-import crypto from 'crypto'
 import nodemailer from 'nodemailer'
+import { getSupabaseAdmin, encrypt } from './_lib/mailer.js'
 import { requireUser } from './_lib/auth.js'
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const supabase = getSupabaseAdmin()
 
-// Fonction de chiffrement AES-256
-function encrypt(text) {
-  const algorithm = 'aes-256-cbc'
-  const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
-  const iv = crypto.randomBytes(16)
-  const cipher = crypto.createCipheriv(algorithm, key, iv)
-  let encrypted = cipher.update(text, 'utf8', 'hex')
-  encrypted += cipher.final('hex')
-  return `${iv.toString('hex')}:${encrypted}`
+// Préréglages courants ; l'utilisateur peut saisir n'importe quel serveur
+export const SMTP_PRESETS = {
+  'ionos-basic': { smtp_host: 'smtp.ionos.fr', smtp_port: 587, smtp_secure: false, imap_host: 'imap.ionos.fr' },
+  'ionos-exchange': { smtp_host: 'smtp.exchange.ionos.eu', smtp_port: 587, smtp_secure: false, imap_host: 'exchange.ionos.eu' },
+  ovh: { smtp_host: 'ssl0.ovh.net', smtp_port: 587, smtp_secure: false, imap_host: 'ssl0.ovh.net' },
+  gmail: { smtp_host: 'smtp.gmail.com', smtp_port: 587, smtp_secure: false, imap_host: 'imap.gmail.com' },
+  outlook: { smtp_host: 'smtp.office365.com', smtp_port: 587, smtp_secure: false, imap_host: 'outlook.office365.com' },
+  orange: { smtp_host: 'smtp.orange.fr', smtp_port: 465, smtp_secure: true, imap_host: 'imap.orange.fr' },
 }
 
-// Fonction de déchiffrement
-function decrypt(encryptedText) {
-  const algorithm = 'aes-256-cbc'
-  const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
-  const [ivHex, encrypted] = encryptedText.split(':')
-  const iv = Buffer.from(ivHex, 'hex')
-  const decipher = crypto.createDecipheriv(algorithm, key, iv)
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-  decrypted += decipher.final('utf8')
-  return decrypted
+function smtpSettings(body, existing) {
+  const preset = body.preset ? SMTP_PRESETS[body.preset] : null
+  return {
+    smtp_host: body.smtpHost || preset?.smtp_host || existing?.smtp_host || '',
+    smtp_port: Number(body.smtpPort || preset?.smtp_port || existing?.smtp_port || 587),
+    smtp_secure: typeof body.smtpSecure === 'boolean' ? body.smtpSecure : (preset?.smtp_secure ?? existing?.smtp_secure ?? false),
+    imap_host: body.imapHost || preset?.imap_host || existing?.imap_host || null,
+  }
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireUser(req)
+  if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+  const userId = ctx.user.id
   const { method } = req
 
   try {
-    // GET : Récupérer la config de l'utilisateur
     if (method === 'GET') {
-      const { userId } = req.query
-
       const { data, error } = await supabase
         .from('user_email_configs')
-        .select('id, user_id, email, smtp_host, smtp_port, smtp_secure, is_active, last_tested_at')
+        .select('id, user_id, email, smtp_host, smtp_port, smtp_secure, imap_host, is_active, last_tested_at')
         .eq('user_id', userId)
         .order('email')
-
-      if (error) {
-        return res.status(500).json({ error: error.message })
-      }
-
-      // Rétro-compat : si le frontend attend un seul objet, renvoyer le premier + la liste complète
-      return res.status(200).json({ data: data?.[0] || null, configs: data || [] })
+      if (error) return res.status(500).json({ error: error.message })
+      return res.status(200).json({ data: data?.[0] || null, configs: data || [], presets: SMTP_PRESETS })
     }
 
-    // POST : Créer ou mettre à jour la config
     if (method === 'POST') {
-      const { userId, email, password, signatureImage, testConnection } = req.body
+      const { email, password, signatureImage, testConnection } = req.body || {}
+      if (!email) return res.status(400).json({ error: 'Adresse email requise' })
+      const cleanEmail = String(email).trim().toLowerCase()
 
-      // Si testConnection = true, on teste juste la connexion
+      const { data: existing } = await supabase
+        .from('user_email_configs').select('*').eq('user_id', userId).eq('email', cleanEmail).maybeSingle()
+      const smtp = smtpSettings(req.body || {}, existing)
+      if (!smtp.smtp_host) return res.status(400).json({ error: 'Serveur SMTP requis' })
+
       if (testConnection) {
-        // Détecter le bon serveur SMTP : lire la config existante ou déduire du type de compte
-        let smtpHost = 'smtp.ionos.fr' // défaut Mail Basic
-        if (userId) {
-          const { data: existingCfg } = await supabase
-            .from('user_email_configs')
-            .select('smtp_host')
-            .eq('user_id', userId)
-            .eq('email', email)
-            .maybeSingle()
-          if (existingCfg?.smtp_host) smtpHost = existingCfg.smtp_host
-        }
-        // Fallback : entreprise@ = Basic, les autres = Exchange
-        if (!userId || !smtpHost || smtpHost === 'smtp.ionos.fr') {
-          if (email !== 'entreprise@accessformation.pro' && email.endsWith('@accessformation.pro')) {
-            smtpHost = 'smtp.exchange.ionos.eu'
-          }
-        }
-
+        if (!password) return res.status(400).json({ error: 'Mot de passe requis pour tester' })
         const transporter = nodemailer.createTransport({
-          host: smtpHost,
-          port: 587,
-          secure: false,
-          auth: { user: email, pass: password },
-          tls: { rejectUnauthorized: false }
+          host: smtp.smtp_host, port: smtp.smtp_port, secure: smtp.smtp_secure,
+          auth: { user: cleanEmail, pass: password },
+          tls: { rejectUnauthorized: false }, connectionTimeout: 10000, greetingTimeout: 10000,
         })
-
         try {
           await transporter.verify()
-          return res.status(200).json({ success: true, message: 'Connexion SMTP réussie !' })
+          return res.status(200).json({ success: true, message: 'Connexion SMTP réussie' })
         } catch (error) {
-          console.error('SMTP test error:', error.message)
-          return res.status(400).json({ success: false, error: `SMTP: ${error.message}` })
+          return res.status(400).json({ success: false, error: `SMTP : ${error.message}` })
+        } finally {
+          try { transporter.close() } catch {}
         }
       }
 
-      // Sinon, on sauvegarde
-      const encryptedPassword = encrypt(password)
-
-      // Vérifier si config existe déjà pour cet email
-      const { data: existing } = await supabase
-        .from('user_email_configs')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('email', email)
-        .maybeSingle()
+      const payload = {
+        email: cleanEmail,
+        ...smtp,
+        signature_image: signatureImage || null,
+        is_active: true,
+        last_tested_at: new Date().toISOString(),
+      }
+      if (password) payload.smtp_password_encrypted = encrypt(password)
 
       if (existing) {
-        // Update
-        const { error } = await supabase
-          .from('user_email_configs')
-          .update({
-            email,
-            smtp_password_encrypted: encryptedPassword,
-            signature_image: signatureImage || null,
-            is_active: true,
-            last_tested_at: new Date().toISOString()
-          })
-          .eq('id', existing.id)
-
+        const { error } = await supabase.from('user_email_configs').update(payload).eq('id', existing.id)
         if (error) throw error
       } else {
-        // Insert
-        const { error } = await supabase
-          .from('user_email_configs')
-          .insert([{
-            user_id: userId,
-            email,
-            smtp_password_encrypted: encryptedPassword,
-            signature_image: signatureImage || null,
-            smtp_host: (email === 'entreprise@accessformation.pro' || !email.endsWith('@accessformation.pro')) ? 'smtp.ionos.fr' : 'smtp.exchange.ionos.eu',
-            smtp_port: 587,
-            smtp_secure: false,
-            is_active: true,
-            last_tested_at: new Date().toISOString()
-          }])
-
+        if (!password) return res.status(400).json({ error: 'Mot de passe requis pour un nouveau compte' })
+        const { error } = await supabase.from('user_email_configs').insert([{ user_id: userId, ...payload }])
         if (error) throw error
       }
-
-      return res.status(200).json({ success: true, message: 'Configuration sauvegardée !' })
+      return res.status(200).json({ success: true, message: 'Configuration enregistrée' })
     }
 
-    // DELETE : Supprimer la config
     if (method === 'DELETE') {
-      const { userId } = req.query
-
-      const { error } = await supabase
-        .from('user_email_configs')
-        .delete()
-        .eq('user_id', userId)
-
+      const email = String(req.query?.email || '').trim().toLowerCase()
+      let q = supabase.from('user_email_configs').delete().eq('user_id', userId)
+      if (email) q = q.eq('email', email)
+      const { error } = await q
       if (error) throw error
-
       return res.status(200).json({ success: true, message: 'Configuration supprimée' })
     }
 
-    return res.status(405).json({ error: 'Method not allowed' })
-
+    return res.status(405).json({ error: 'Méthode non autorisée' })
   } catch (error) {
-    console.error('Erreur API user-email-config:', error)
+    console.error('user-email-config :', error.message)
     return res.status(500).json({ error: error.message })
   }
 }

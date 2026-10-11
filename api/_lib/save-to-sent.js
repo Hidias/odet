@@ -9,9 +9,13 @@ import MailComposer from 'nodemailer/lib/mail-composer/index.js'
 /**
  * Détermine le host IMAP à partir du host SMTP
  */
-function getImapHost(smtpHost) {
-  if (smtpHost?.includes('exchange')) return 'exchange.ionos.eu'
-  return 'imap.ionos.fr'
+function getImapHost(emailConfig) {
+  if (emailConfig?.imap_host) return emailConfig.imap_host
+  const smtpHost = emailConfig?.smtp_host || ''
+  if (smtpHost.includes('exchange.ionos')) return 'exchange.ionos.eu'
+  if (smtpHost.includes('ionos')) return 'imap.ionos.fr'
+  // Convention la plus répandue : smtp.domaine -> imap.domaine
+  return smtpHost.replace(/^smtp\./, 'imap.')
 }
 
 /**
@@ -23,7 +27,7 @@ function getImapHost(smtpHost) {
 export async function saveToSentFolder(emailConfig, smtpPassword, mailOptions) {
   let client = null
   try {
-    const imapHost = getImapHost(emailConfig.smtp_host)
+    const imapHost = getImapHost(emailConfig)
     console.log(`[save-to-sent] Connecting to ${imapHost} for ${emailConfig.email}`)
 
     // Construire le message RFC822 complet (avec pièces jointes)

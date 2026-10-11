@@ -19,15 +19,6 @@
     "api/enrich-prospects.js": {
       "maxDuration": 300
     },
-    "api/report-phoning-hebdo.js": {
-      "maxDuration": 60
-    },
-    "api/send-phoning-report.js": {
-      "maxDuration": 60
-    },
-    "api/send-phoning-summary.js": {
-      "maxDuration": 30
-    },
     "api/send-prospect-email.js": {
       "maxDuration": 30
     },
@@ -72,22 +63,6 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/report-phoning-hebdo",
-      "schedule": "0 8 * * 1"
-    },
-    {
-      "path": "/api/send-phoning-report",
-      "schedule": "0 17 * * 1-5"
-    },
-    {
-      "path": "/api/send-phoning-summary?period=morning",
-      "schedule": "0 11 * * 1-5"
-    },
-    {
-      "path": "/api/send-phoning-summary?period=noreply",
-      "schedule": "0 6 * * 2,4"
-    },
-    {
       "path": "/api/sync-sent-emails",
       "schedule": "*/30 6-18 * * 1-5"
     },
@@ -98,6 +73,18 @@
     {
       "path": "/api/mailing-replies-cron",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/social/cron-publish",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/signature-alert",
+      "schedule": "0 7 * * 1-5"
+    },
+    {
+      "path": "/api/signature-weekly",
+      "schedule": "0 7 * * 1"
     }
   ]
 }

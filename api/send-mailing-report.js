@@ -10,37 +10,16 @@
 //   4. Met à jour mailing_campaigns (status, sent_count, error_count, completed_at)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import nodemailer from 'nodemailer'
-import { createClient } from '@supabase/supabase-js'
-import { decrypt } from './_lib/mailer.js'
-import { requireUser } from './_lib/auth.js'
+import { getSupabaseAdmin, getMailerByEmail, getOrg } from './_lib/mailer.js'
+import { requireCronOrUser } from './_lib/auth.js'
 
 export const config = { maxDuration: 20 }
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const supabase = getSupabaseAdmin()
 
-// ─── Config SMTP ──────────────────────────────────────────────────────────────
-async function findSmtpConfig(senderEmail) {
-  const { data: configs } = await supabase
-    .from('user_email_configs')
-    .select('*')
-    .eq('is_active', true)
-
-  if (!configs || configs.length === 0) return null
-
-  return (
-    configs.find(c => c.email === senderEmail) ||
-    configs.find(c => c.email === 'entreprise@accessformation.pro') ||
-    configs.find(c => c.email === 'contact@accessformation.pro') ||
-    configs[0]
-  )
-}
 
 // ─── Construction du rapport HTML ────────────────────────────────────────────
-function buildReportHTML(campaign, sends) {
+function buildReportHTML(campaign, sends, org) {
   const sent      = sends.filter(s => s.status === 'sent')
   const errors    = sends.filter(s => s.status === 'error')
   const skipped   = sends.filter(s => s.status === 'skipped')
@@ -65,7 +44,7 @@ function buildReportHTML(campaign, sends) {
     errorsBlock = `
       <div style="margin-top:24px;">
         <p style="font-family:Arial,sans-serif;font-size:14px;font-weight:bold;color:#dc2626;margin:0 0 8px 0;">
-          ❌ Erreurs d'envoi (${errors.length})
+          Erreurs d'envoi (${errors.length})
         </p>
         <table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;background:#fef2f2;border-radius:8px;overflow:hidden;">
           <thead>
@@ -95,7 +74,7 @@ function buildReportHTML(campaign, sends) {
   const sentBlock = sent.length > 0 ? `
     <div style="margin-top:24px;">
       <p style="font-family:Arial,sans-serif;font-size:14px;font-weight:bold;color:#059669;margin:0 0 8px 0;">
-        ✅ Envois réussis (${sent.length})
+        Envois réussis (${sent.length})
       </p>
       <table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;">
         <thead>
@@ -115,7 +94,7 @@ function buildReportHTML(campaign, sends) {
       <table cellpadding="0" cellspacing="0" style="width:100%;background:#1a2e3d;border-radius:8px 8px 0 0;border-collapse:collapse;">
         <tr>
           <td style="padding:18px 24px;">
-            <p style="margin:0;font-size:18px;font-weight:bold;color:#fff;">📊 Rapport de campagne mailing</p>
+            <p style="margin:0;font-size:18px;font-weight:bold;color:#fff;">Rapport de campagne mailing</p>
             <p style="margin:4px 0 0 0;font-size:12px;color:rgba(255,255,255,0.6);">Terminée le ${dateStr}</p>
           </td>
         </tr>
@@ -140,7 +119,7 @@ function buildReportHTML(campaign, sends) {
               </tr>
               <tr>
                 <td style="padding:4px 12px 4px 0;color:#6b7280;">Signature</td>
-                <td style="padding:4px 0;">${campaign.signature_caller}</td>
+                <td style="padding:4px 0;">${campaign.sender_email || ''}</td>
               </tr>
             </table>
 
@@ -168,7 +147,7 @@ function buildReportHTML(campaign, sends) {
               </tr>
             </table>
 
-            ${skipped.length > 0 ? `<p style="margin:12px 0 0 0;font-size:12px;color:#9ca3af;">⚠️ ${skipped.length} destinataires ignorés (do_not_call ou email vide).</p>` : ''}
+            ${skipped.length > 0 ? `<p style="margin:12px 0 0 0;font-size:12px;color:#9ca3af;">${skipped.length} destinataires ignorés (do_not_call ou email vide).</p>` : ''}
 
           </td>
         </tr>
@@ -178,7 +157,7 @@ function buildReportHTML(campaign, sends) {
       ${sentBlock}
 
       <p style="margin-top:24px;font-size:11px;color:#9ca3af;">
-        Ce rapport a été généré automatiquement par Access Campus.
+        Ce rapport a été généré automatiquement par ${org.app_name || org.name}.
       </p>
     </div>
   `
@@ -186,12 +165,7 @@ function buildReportHTML(campaign, sends) {
 
 // ─── Handler principal ────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  if (!(await requireCronOrUser(req, res))) return
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -242,32 +216,19 @@ export default async function handler(req, res) {
       .eq('id', campaign_id)
 
     // ── 4. Construire et envoyer le rapport ──
-    const emailConfig = await findSmtpConfig(campaign.sender_email)
-    if (!emailConfig) {
-      // On ne bloque pas — la campagne est quand même marquée terminée
-      return res.status(200).json({ success: true, warning: 'Rapport non envoyé : config SMTP introuvable' })
+    const org = await getOrg(supabase)
+    const mailer = await getMailerByEmail(supabase, campaign.sender_email || org.email_default_sender)
+    if (mailer.error) {
+      // On ne bloque pas : la campagne est quand même marquée terminée
+      return res.status(200).json({ success: true, warning: 'Rapport non envoyé : ' + mailer.error })
     }
-
-    const smtpPassword = decrypt(emailConfig.smtp_password_encrypted)
-    const transporter = nodemailer.createTransport({
-      host: emailConfig.smtp_host,
-      port: emailConfig.smtp_port,
-      secure: emailConfig.smtp_secure,
-      pool: false,
-      auth: { user: emailConfig.email, pass: smtpPassword },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
-    })
-
-    const reportHTML = buildReportHTML(campaign, allSends)
+    const { transporter, emailConfig } = mailer
+    const reportHTML = buildReportHTML(campaign, allSends, org)
 
     await transporter.sendMail({
-      from: `"Access Campus" <${emailConfig.email}>`,
-      sender: emailConfig.email,
-      to: campaign.sender_email,
-      subject: `📊 Rapport campagne — ${campaign.name} (${sentCount} envoyés, ${errorCount} erreurs)`,
+      from: `"${org.app_name || org.name}" <${emailConfig.email}>`,
+      to: campaign.sender_email || emailConfig.email,
+      subject: `Rapport campagne : ${campaign.name} (${sentCount} envoyés, ${errorCount} erreurs)`,
       html: reportHTML,
     })
 

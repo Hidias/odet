@@ -139,6 +139,7 @@ export function createTransporter(emailConfig, smtpPassword, supabase) {
  * @returns {{ transporter, emailConfig, fromEmail, error }}
  */
 export async function getMailer(supabase, userId, options = {}) {
+  if (!userId) return { transporter: null, emailConfig: null, fromEmail: null, error: 'Utilisateur inconnu' }
   const { data: configs, error: configError } = await supabase
     .from('user_email_configs').select('*').eq('user_id', userId).eq('is_active', true)
   if (configError || !configs || configs.length === 0) {

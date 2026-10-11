@@ -1,11 +1,8 @@
 // api/send-quote-email.js
 // Envoyer un devis par email via SMTP (utilise user_email_configs existant)
 
-import { createClient } from '@supabase/supabase-js'
-import nodemailer from 'nodemailer'
-import crypto from 'crypto'
+import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, decrypt } from './_lib/mailer.js'
 import { saveToSentFolder } from './_lib/save-to-sent.js'
-import { buildSignatureHTML, getCallerByEmail } from './_lib/mailer.js'
 import { requireUser } from './_lib/auth.js'
 
 // Augmenter la limite du body parser Vercel (défaut 4.5MB)
@@ -18,49 +15,13 @@ export const config = {
   maxDuration: 60
 }
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const supabase = getSupabaseAdmin()
 
 // Déchiffrement AES-256
-function decrypt(encryptedText) {
-  const algorithm = 'aes-256-cbc'
-  const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
-  const [ivHex, encrypted] = encryptedText.split(':')
-  const iv = Buffer.from(ivHex, 'hex')
-  const decipher = crypto.createDecipheriv(algorithm, key, iv)
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-  decrypted += decipher.final('utf8')
-  return decrypted
-}
 
 // Sleep pour retry
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
 // Envoi avec retry
-async function sendEmailWithRetry(transporter, mailOptions, maxRetries = 3) {
-  let lastError = null
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`Tentative d'envoi ${attempt}/${maxRetries}`)
-      await transporter.verify()
-      const info = await transporter.sendMail(mailOptions)
-      console.log('Email envoyé avec succès:', info.messageId)
-      return info
-    } catch (error) {
-      lastError = error
-      console.error(`Tentative ${attempt} échouée:`, error.message)
-      try { transporter.close() } catch (e) { /* ignore */ }
-      if (attempt < maxRetries) {
-        const waitTime = attempt * 2000
-        console.log(`Attente de ${waitTime}ms avant nouvelle tentative...`)
-        await sleep(waitTime)
-      }
-    }
-  }
-  throw lastError
-}
 
 // Signatures importées depuis _lib/mailer.js
 
@@ -91,52 +52,26 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `Paramètres manquants: ${missing.join(', ')}` })
     }
 
-    // 1. Récupérer la config SMTP de l'utilisateur
-    const { data: emailConfig, error: configError } = await supabase
-      .from('user_email_configs')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single()
-
-    if (configError || !emailConfig) {
-      return res.status(400).json({
-        error: 'Configuration email non trouvée. Configurez votre email dans Paramètres.'
-      })
+    // 1. Configuration SMTP de l'utilisateur connecté et transporteur (redirection démo incluse)
+    const mailer = await getMailer(supabase, req.user?.id || userId)
+    if (mailer.error) {
+      return res.status(400).json({ error: 'Configuration email non trouvée. Configurez votre email dans Paramètres.' })
     }
-
-    // 2. Déchiffrer le mot de passe
+    const emailConfig = mailer.emailConfig
+    transporter = mailer.transporter
     const smtpPassword = decrypt(emailConfig.smtp_password_encrypted)
-
-    // 3. Créer le transporteur SMTP
-    transporter = nodemailer.createTransport({
-      host: emailConfig.smtp_host,
-      port: emailConfig.smtp_port,
-      secure: emailConfig.smtp_secure,
-      auth: {
-        user: emailConfig.email,
-        pass: smtpPassword
-      },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 60000,
-      pool: false,
-      maxConnections: 1,
-      maxMessages: 1
-    })
+    const org = await getOrg(supabase)
+    const sender = await getSender(supabase, emailConfig.email)
 
     // 4. Préparer le corps HTML avec signature pro
     let htmlBody = body.replace(/\n/g, '<br>')
-    const caller = getCallerByEmail(emailConfig.email)
-    htmlBody += `<br><br><p style="margin: 0;">Bien cordialement,</p>${buildSignatureHTML(caller)}`
+        htmlBody += `<br><br><p style="margin: 0;">Bien cordialement,</p>${buildSignatureHTML(sender, org)}`
 
     // 5. Construire les options du mail
-    const senderName = emailConfig.email.includes('maxime') ? 'Maxime Langlais' : 'Hicham Saidi'
     const mailOptions = {
-      from: `"${senderName} - Access Formation" <${emailConfig.email}>`,
+      from: `"${sender.name} - ${org.name}" <${emailConfig.email}>`,
       to: to,
-      bcc: 'contact@accessformation.pro',
+      bcc: org.email_bcc || undefined,
       subject: subject,
       text: body,
       html: htmlBody,
@@ -155,7 +90,7 @@ export default async function handler(req, res) {
       console.warn('Pas de PJ PDF!', { hasPdfBase64: !!pdfBase64, hasPdfFilename: !!pdfFilename, base64Length: pdfBase64?.length || 0 })
     }
 
-    // 6b. Programmes de formation — nodemailer streame directement depuis l'URL (pas de téléchargement préalable)
+    // 6b. Programmes de formation : le transporteur lit directement depuis l'URL (pas de téléchargement préalable)
     if (programUrls && programUrls.length > 0) {
       for (const prog of programUrls) {
         if (prog.url && prog.filename) {
@@ -199,7 +134,7 @@ export default async function handler(req, res) {
     console.log('Total attachments:', mailOptions.attachments.length)
 
     // 7. Envoyer avec retry
-    const info = await sendEmailWithRetry(transporter, mailOptions, 3)
+    const info = await sendWithRetry(transporter, mailOptions, 3)
 
     // 7b. Copier dans le dossier Envoyés (non-bloquant)
     saveToSentFolder(emailConfig, smtpPassword, mailOptions).catch(err => {
@@ -223,7 +158,7 @@ export default async function handler(req, res) {
       const now = new Date()
       const dateStr = now.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })
       const timeStr = now.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })
-      const authorName = (createdBy || 'Hicham Saidi').split(' ')[0]
+      const authorName = sender.name
 
       const { error: interactionError } = await supabase
         .from('client_interactions')

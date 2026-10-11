@@ -2,53 +2,14 @@
 // Envoie un email de compte-rendu via SMTP IONOS avec retry
 // Les PJ sont récupérées depuis Supabase Storage (pas en JSON body → évite la limite 4.5MB Vercel)
 
-import nodemailer from 'nodemailer'
-import { createClient } from '@supabase/supabase-js'
-import crypto from 'crypto'
-import { buildSignatureHTML, getCallerByEmail } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML } from './_lib/mailer.js'
 import { requireUser } from './_lib/auth.js'
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const supabase = getSupabaseAdmin()
 
 // Déchiffrement AES-256
-function decrypt(encryptedText) {
-  const algorithm = 'aes-256-cbc'
-  const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
-  const [ivHex, encrypted] = encryptedText.split(':')
-  const iv = Buffer.from(ivHex, 'hex')
-  const decipher = crypto.createDecipheriv(algorithm, key, iv)
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-  decrypted += decipher.final('utf8')
-  return decrypted
-}
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
-async function sendEmailWithRetry(transporter, mailOptions, maxRetries = 3) {
-  let lastError = null
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`Tentative d'envoi ${attempt}/${maxRetries}`)
-      await transporter.verify()
-      const info = await transporter.sendMail(mailOptions)
-      console.log('Email envoyé avec succès:', info.messageId)
-      return info
-    } catch (error) {
-      lastError = error
-      console.error(`Tentative ${attempt} échouée:`, error.message)
-      try { transporter.close() } catch (e) { /* ignore */ }
-      if (attempt < maxRetries) {
-        const waitTime = attempt * 2000
-        console.log(`Attente de ${waitTime}ms avant nouvelle tentative...`)
-        await sleep(waitTime)
-      }
-    }
-  }
-  throw lastError
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
@@ -71,35 +32,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Paramètres manquants' })
     }
 
-    // 1. Récupérer la config SMTP
-    const { data: emailConfig, error: configError } = await supabase
-      .from('user_email_configs')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single()
-
-    if (configError || !emailConfig) {
+    // 1. Configuration SMTP de l'utilisateur connecté et transporteur (redirection démo incluse)
+    const mailer = await getMailer(supabase, req.user?.id || userId)
+    if (mailer.error) {
       return res.status(400).json({ error: 'Configuration email non trouvée. Configurez votre email dans Paramètres.' })
     }
-
-    // 2. Déchiffrer le mot de passe
-    const smtpPassword = decrypt(emailConfig.smtp_password_encrypted)
-
-    // 3. Créer le transporteur SMTP
-    transporter = nodemailer.createTransport({
-      host: emailConfig.smtp_host,
-      port: emailConfig.smtp_port,
-      secure: emailConfig.smtp_secure,
-      auth: { user: emailConfig.email, pass: smtpPassword },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 30000,
-      pool: false,
-      maxConnections: 1,
-      maxMessages: 1
-    })
+    const emailConfig = mailer.emailConfig
+    transporter = mailer.transporter
+    const org = await getOrg(supabase)
+    const sender = await getSender(supabase, emailConfig.email)
 
     // 4. Télécharger les PJ depuis Supabase Storage
     const mailAttachments = []
@@ -121,7 +62,7 @@ export default async function handler(req, res) {
           content: buffer
         })
         tempPaths.push(ref.storagePath)
-        console.log('✅ PJ chargée:', ref.filename, buffer.length, 'bytes')
+        console.log('PJ chargée:', ref.filename, buffer.length, 'bytes')
       } catch (err) {
         console.error('Erreur PJ:', ref.filename, err.message)
       }
@@ -130,13 +71,12 @@ export default async function handler(req, res) {
     // 5. Préparer le corps avec signature pro
     let htmlBody = body.replace(/\n/g, '<br>')
 
-    const caller = getCallerByEmail(emailConfig.email)
-    htmlBody += `<br><br><p style="margin: 0;">Bien cordialement,</p>${buildSignatureHTML(caller)}`
+        htmlBody += `<br><br><p style="margin: 0;">Bien cordialement,</p>${buildSignatureHTML(sender, org)}`
 
     const mailOptions = {
-      from: `"${emailConfig.email.split('@')[0]}" <${emailConfig.email}>`,
+      from: `"${sender.name}" <${emailConfig.email}>`,
       to,
-      bcc: 'contact@accessformation.pro',
+      bcc: org.email_bcc || undefined,
       subject,
       text: body,
       html: htmlBody,
@@ -144,7 +84,7 @@ export default async function handler(req, res) {
     }
 
     // 6. Envoyer avec retry
-    const info = await sendEmailWithRetry(transporter, mailOptions, 3)
+    const info = await sendWithRetry(transporter, mailOptions, 3)
 
     // 7. Sauvegarder dans l'historique
     const { error: historyError } = await supabase
@@ -173,7 +113,7 @@ export default async function handler(req, res) {
           const now = new Date()
           const dateStr = now.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })
           const timeStr = now.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })
-          const authorName = emailConfig.email.includes('hicham') ? 'Hicham' : emailConfig.email.includes('maxime') ? 'Maxime' : 'Access Formation'
+          const authorName = sender.name
 
           await supabase.from('client_interactions').insert({
             client_id: rdvData.client_id,
@@ -182,7 +122,7 @@ export default async function handler(req, res) {
             content: `Email envoyé par ${authorName} le ${dateStr} à ${timeStr}\nDestinataire : ${to}\nObjet : ${subject}`,
             author: authorName,
           })
-          console.log('📋 Traçabilité CRM ajoutée pour client:', rdvData.client_id)
+          console.log('Traçabilité CRM ajoutée pour client:', rdvData.client_id)
         }
       } catch (traceErr) {
         console.error('Erreur traçabilité CRM (non bloquant):', traceErr.message)
@@ -197,7 +137,7 @@ export default async function handler(req, res) {
       if (deleteError) {
         console.error('Erreur nettoyage Storage:', deleteError)
       } else {
-        console.log('🧹 Fichiers temp nettoyés:', tempPaths.length)
+        console.log('Fichiers temp nettoyés:', tempPaths.length)
       }
     }
 
