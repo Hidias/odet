@@ -98,7 +98,7 @@ export default function MaJournee({ technicians, isManager, isTechnician, profil
                     <div className="text-ui-sm text-gray-500">{[v.sites?.city, v.sites?.name].filter(Boolean).join(', ')}</div>
                     <div className="text-ui-sm text-gray-500">{[v.planned_time ? v.planned_time.slice(0, 5).replace(':', 'h') : null, famText || `${c.total} appareils`].filter(Boolean).join(', ')}</div>
                   </div>
-                  {v.due_on && v.due_on < todayIso() && !done ? <DueBadge date={v.due_on} short /> : <VisitBadge status={v.status} />}
+                  {v.due_on && String(v.due_on).slice(0, 7) < todayIso().slice(0, 7) && !done ? <DueBadge date={v.due_on} short /> : <VisitBadge status={v.status} />}
                 </Link>
                 {(current || done) && v.progress?.total > 0 && (
                   <div>

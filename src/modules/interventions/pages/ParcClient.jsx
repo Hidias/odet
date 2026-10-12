@@ -12,11 +12,13 @@ import { todayIso, frShort, monthLabel, dueState } from '../lib/schedule'
 import { DueBadge, VisitBadge, Kpi, Empty, Sheet } from '../components/ui'
 import EquipmentForm from '../components/EquipmentForm'
 import { ContractForm } from './Contrats'
+import { useAuthStore } from '../../../core/store'
 import { buildEtiquettesPDF } from '../pdf/etiquettesPDF'
 import { buildRegistrePDF } from '../pdf/registrePDF'
 
 export default function ParcClient({ settings, types, isManager, canWrite, isTechnician, profile }) {
   const { clientId } = useParams()
+  const fieldOnly = useAuthStore((st) => st.fieldOnly)
   const navigate = useNavigate()
   const [client, setClient] = useState(null)
   const [sites, setSites] = useState([])
@@ -92,7 +94,7 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
           <h2 className="font-display font-semibold text-xl">{client.name}</h2>
           <div className="muted text-ui-sm">{[client.address, client.postal_code, client.city].filter(Boolean).join(' ')}</div>
         </div>
-        <Link to={`/clients/${client.id}`} className="btn btn-ghost btn-sm"><ExternalLink className="w-4 h-4" />Fiche client</Link>
+        {!fieldOnly && <Link to={`/clients/${client.id}`} className="btn btn-ghost btn-sm"><ExternalLink className="w-4 h-4" />Fiche client</Link>}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -113,7 +115,7 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
           <div key={c.id} className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2">
             <div className="flex-1 min-w-[200px]">
               <div className="font-semibold">{c.label}{c.reference ? ` (${c.reference})` : ''}</div>
-              <div className="text-ui-sm text-gray-500">Visites en {(c.visit_months || []).map(monthLabel).join(' et ') || 'mois à définir'}. {Number(c.annual_price_ht || 0).toLocaleString('fr-FR')} € HT par an. Depuis le {frShort(c.start_on)}.</div>
+              <div className="text-ui-sm text-gray-500">Visites en {(c.visit_months || []).map(monthLabel).join(' et ') || 'mois à définir'}. {!fieldOnly && `${Number(c.annual_price_ht || 0).toLocaleString('fr-FR')} € HT par an. `}Depuis le {frShort(c.start_on)}.</div>
             </div>
             <span className={`badge ${c.status === 'actif' ? 'badge-success' : 'badge-neutral'}`}>{c.status === 'actif' ? 'Actif' : c.status === 'suspendu' ? 'Suspendu' : 'Terminé'}</span>
             {isManager && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditContract(c)}><Pencil className="w-4 h-4" />Modifier</button>}

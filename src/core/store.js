@@ -47,18 +47,19 @@ export const useAuthStore = create((set, get) => ({
   profile: null,
   userRole: null, // superadmin | admin | direction | gestionnaire | formateur | commercial | comptable | lecture
   modules: [],
+  fieldOnly: false, // technicien de terrain (Interventions seulement)
   loading: true,
   error: null,
 
   applySession: async (session) => {
     if (!session?.user) {
-      set({ user: null, profile: null, userRole: null, modules: [] })
+      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
       return false
     }
     const access = await resolveAccess(session.user)
     if (!access) {
       await supabase.auth.signOut()
-      set({ user: null, profile: null, userRole: null, modules: [] })
+      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
       return false
     }
     const modules = await fetchEnabledModules()
@@ -71,7 +72,16 @@ export const useAuthStore = create((set, get) => ({
     } catch {
       setTeamCache([])
     }
-    set({ user: session.user, profile: access.profile, userRole: access.role, modules })
+    // Technicien de terrain : compte en lecture coché technicien dans le module Interventions.
+    // Il ne voit que ses interventions (menu, pages et recherche limités dans Layout).
+    let fieldOnly = false
+    if (access.role === 'lecture' && modules.includes('interventions')) {
+      try {
+        const { data: tech } = await supabase.from('itv_technicians').select('is_active').eq('profile_id', access.profile.id).maybeSingle()
+        fieldOnly = !!tech?.is_active
+      } catch { fieldOnly = false }
+    }
+    set({ user: session.user, profile: access.profile, userRole: access.role, modules, fieldOnly })
     return true
   },
 
@@ -83,7 +93,7 @@ export const useAuthStore = create((set, get) => ({
 
       supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_OUT') {
-          set({ user: null, profile: null, userRole: null, modules: [] })
+          set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
           return
         }
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
@@ -115,7 +125,7 @@ export const useAuthStore = create((set, get) => ({
 
   logout: async () => {
     await supabase.auth.signOut()
-    set({ user: null, profile: null, userRole: null, modules: [] })
+    set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
   },
 
   refreshModules: async () => {

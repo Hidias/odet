@@ -4,11 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, Loader2, ChevronRight } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { useAuthStore } from '../../../core/store'
 import { loadClientsLight } from '../lib/itvData'
 import { todayIso } from '../lib/schedule'
 import { ScanButton, Empty } from '../components/ui'
 
-export default function Parc({ isManager }) {
+export default function Parc({ isManager, profile }) {
+  // Technicien de terrain : seulement les clients de ses propres visites.
+  const fieldOnly = useAuthStore((st) => st.fieldOnly)
   const navigate = useNavigate()
   const [clients, setClients] = useState(null)
   const [stats, setStats] = useState({})
@@ -17,11 +20,14 @@ export default function Parc({ isManager }) {
 
   useEffect(() => {
     (async () => {
-      const [cl, { data: eq }, { data: ct }] = await Promise.all([
+      const [cl0, { data: eq }, { data: ct }, { data: mine }] = await Promise.all([
         loadClientsLight(),
         supabase.from('itv_equipment').select('client_id, next_check_on, status').neq('status', 'retire'),
         supabase.from('itv_contracts').select('client_id').eq('status', 'actif'),
+        fieldOnly && profile?.id ? supabase.from('itv_visits').select('client_id').eq('technician_id', profile.id) : { data: null },
       ])
+      const allowed = mine ? new Set(mine.map((v) => v.client_id)) : null
+      const cl = allowed ? (cl0 || []).filter((c) => allowed.has(c.id)) : cl0
       const t = todayIso()
       const st = {}
       for (const e of eq || []) {
@@ -33,18 +39,18 @@ export default function Parc({ isManager }) {
       for (const c of ct || []) (st[c.client_id] = st[c.client_id] || { total: 0, late: 0, replace: 0 }).contract = true
       setStats(st); setClients(cl || [])
     })()
-  }, [])
+  }, [fieldOnly, profile?.id])
 
   const list = useMemo(() => {
     const n = q.trim().toLowerCase()
     return (clients || [])
-      .filter((c) => (showAll || n ? true : stats[c.id]))
+      .filter((c) => (showAll || n || fieldOnly ? true : stats[c.id]))
       .filter((c) => !n || `${c.name} ${c.city || ''}`.toLowerCase().includes(n))
       .sort((a, b) => ((stats[b.id]?.late || 0) - (stats[a.id]?.late || 0)) || a.name.localeCompare(b.name, 'fr', { numeric: true }))
   }, [clients, stats, q, showAll])
 
   if (!clients) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
-  const followed = Object.keys(stats).length
+  const followed = fieldOnly ? clients.length : Object.keys(stats).length
 
   return (
     <div className="space-y-3">
@@ -58,7 +64,7 @@ export default function Parc({ isManager }) {
       </div>
       <div className="flex items-center gap-3 text-ui-sm">
         <span className="muted">{followed} clients suivis</span>
-        <label className="flex items-center gap-2"><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />Afficher tous les clients (pour créer un parc)</label>
+        {!fieldOnly && <label className="flex items-center gap-2"><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />Afficher tous les clients (pour créer un parc)</label>}
       </div>
       {list.length === 0 ? (
         <Empty title="Aucun client suivi">{isManager ? 'Cochez « Afficher tous les clients » puis ouvrez un client pour créer son parc.' : 'Aucun parc enregistré pour le moment.'}</Empty>
@@ -80,7 +86,7 @@ export default function Parc({ isManager }) {
           })}
         </div>
       )}
-      <p className="muted text-ui-sm">Les clients viennent de la liste des clients ; rien n'est ressaisi. <Link to="/clients">Ouvrir les clients</Link></p>
+      {!fieldOnly && <p className="muted text-ui-sm">Les clients viennent de la liste des clients ; rien n'est ressaisi. <Link to="/clients">Ouvrir les clients</Link></p>}
     </div>
   )
 }

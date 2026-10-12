@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Menu, X, Bell, Check, LogOut, ChevronDown, Search, Settings, Sliders, SlidersHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
@@ -42,7 +42,7 @@ function initials(profile, user) {
 }
 
 export default function Layout() {
-  const { user, profile, userRole, modules, logout } = useAuthStore()
+  const { user, profile, userRole, modules, logout, fieldOnly } = useAuthStore()
   const { branding } = useBranding()
   const { prefs, update } = useUiPrefs()
   const navigate = useNavigate()
@@ -54,8 +54,14 @@ export default function Layout() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showDisplay, setShowDisplay] = useState(false)
 
-  const sections = useMemo(() => visibleSections(modules, userRole), [modules, userRole])
-  const settingsItems = useMemo(() => SETTINGS_ITEMS.filter((i) => i.roles.includes(userRole)), [userRole])
+  // Technicien de terrain : seulement l'entrée Interventions, ni paramètres, ni recherche, ni notifications
+  const sections = useMemo(() => {
+    const all = visibleSections(modules, userRole)
+    if (!fieldOnly) return all
+    return all.map((s) => ({ ...s, items: s.items.filter((i) => i.to === '/interventions') })).filter((s) => s.items.length > 0)
+  }, [modules, userRole, fieldOnly])
+  const settingsItems = useMemo(() => (fieldOnly ? [] : SETTINGS_ITEMS.filter((i) => i.roles.includes(userRole))), [userRole, fieldOnly])
+  const fieldAllowed = !fieldOnly || location.pathname.startsWith('/interventions') || location.pathname === '/mot-de-passe'
   const activeSectionId = useMemo(() => sectionIdFor(location.pathname) || sections[0]?.id, [location.pathname, sections])
   const pageTitle = useMemo(() => pageTitleFor(location.pathname), [location.pathname])
 
@@ -71,10 +77,11 @@ export default function Layout() {
   useEffect(() => { setDrawerOpen(false) }, [location.pathname])
 
   useEffect(() => {
+    if (fieldOnly) return undefined
     loadNotifications()
     const interval = setInterval(loadNotifications, 60000)
     return () => clearInterval(interval)
-  }, [])
+  }, [fieldOnly])
 
   const loadNotifications = async () => {
     const { data } = await supabase
@@ -188,7 +195,7 @@ export default function Layout() {
       </div>
       <div className="min-w-0 flex-1 leading-tight">
         <div className={`text-ui font-medium truncate ${navText}`}>{profile?.display_name || user?.email}</div>
-        <div className={`text-ui-sm truncate ${navMuted}`}>{ROLE_LABELS[userRole] || userRole}</div>
+        <div className={`text-ui-sm truncate ${navMuted}`}>{fieldOnly ? 'Technicien' : (ROLE_LABELS[userRole] || userRole)}</div>
       </div>
       <button type="button" onClick={handleLogout} aria-label="Se déconnecter" className={`p-2 rounded-ui-sm ${navMuted} ${navHover}`}>
         <LogOut className="w-4 h-4" />
@@ -368,9 +375,9 @@ export default function Layout() {
             <div className="lg:hidden"><Brand compact /></div>
             <h1 className="hidden lg:block font-display font-semibold text-gray-900 truncate" style={{ fontSize: 'calc(var(--text-ui) * 1.15)' }}>{pageTitle}</h1>
             <div className="flex-1" />
-            <button type="button" title="Recherche (bientôt)" className="hidden md:flex items-center gap-2 h-9 px-3 rounded-ui-sm border border-gray-200 text-gray-400 text-ui-sm w-64 bg-white">
+            {!fieldOnly && <button type="button" title="Recherche (bientôt)" className="hidden md:flex items-center gap-2 h-9 px-3 rounded-ui-sm border border-gray-200 text-gray-400 text-ui-sm w-64 bg-white">
               <Search className="w-4 h-4" /><span className="flex-1 text-left">Rechercher</span>
-            </button>
+            </button>}
 
             <div className="relative">
               <button type="button" onClick={() => { const v = !showDisplay; closeMenus(); setShowDisplay(v) }} aria-label="Affichage" title="Affichage"
@@ -380,7 +387,7 @@ export default function Layout() {
               {showDisplay && <DisplayMenu />}
             </div>
 
-            <div className="relative">
+            {!fieldOnly && <div className="relative">
               <button type="button" onClick={() => { const v = !showNotifications; closeMenus(); setShowNotifications(v) }} aria-label="Notifications"
                 className={`h-9 w-9 rounded-ui-sm flex items-center justify-center hover:bg-gray-100 relative ${showNotifications ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}>
                 <Bell className="w-5 h-5" />
@@ -391,7 +398,7 @@ export default function Layout() {
                 )}
               </button>
               {showNotifications && <NotificationsMenu />}
-            </div>
+            </div>}
 
             <div className="relative">
               <button type="button" onClick={() => { const v = !showUserMenu; closeMenus(); setShowUserMenu(v) }} aria-label="Compte"
@@ -437,7 +444,7 @@ export default function Layout() {
               <span>Les emails ne partent pas vers leurs destinataires : ils sont redirigés vers l'adresse de test.</span>
             </div>
           )}
-          <Outlet />
+          {fieldAllowed ? <Outlet /> : <Navigate to="/interventions" replace />}
         </main>
       </div>
     </div>
