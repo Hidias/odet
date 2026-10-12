@@ -6,7 +6,7 @@ import { buildStorageFileName } from './storageUtils'
 // ─── Résolution du rôle et du profil d'un utilisateur connecté ─────
 // Source de vérité : la table profiles (rôle, identité affichée, préférences).
 // Replis temporaires du lot 0 : administrateurs d'amorçage (variable d'environnement)
-// et comptable déclaré dans org_settings.
+// et comptable déclaré dans les paramètres de l'organisme (organization_settings).
 async function resolveAccess(authUser) {
   const email = authUser?.email?.toLowerCase()
   if (!email) return null
@@ -25,8 +25,9 @@ async function resolveAccess(authUser) {
   }
 
   const { data: orgSettings } = await supabase
-    .from('org_settings')
+    .from('organization_settings')
     .select('comptable_email')
+    .limit(1)
     .maybeSingle()
   if (orgSettings?.comptable_email && orgSettings.comptable_email.toLowerCase() === email) {
     return { role: 'comptable', profile: profile || { id: authUser.id, email, display_name: email.split('@')[0], role: 'comptable', ui_prefs: {} } }
@@ -1040,31 +1041,22 @@ export const useDataStore = create((set, get) => ({
   },
 
   // ========== PARAMÈTRES ORGANISME ==========
+  // Une seule source : organization_settings (voir fetchOrganization / updateOrganization).
+  // Conservés pour compatibilité, ils lisent et écrivent la même ligne.
   orgSettings: null,
-  
+
   fetchOrgSettings: async () => {
-    const { data, error } = await supabase
-      .from('org_settings')
-      .select('*')
-      .single()
+    const { data, error } = await supabase.from('organization_settings').select('*').limit(1).maybeSingle()
     if (!error && data) set({ orgSettings: data })
     return { data, error }
   },
-  
+
   updateOrgSettings: async (settings) => {
-    const { data: existing } = await supabase.from('org_settings').select('id').single()
-    
-    let result
-    if (existing) {
-      result = await supabase.from('org_settings').update(settings).eq('id', existing.id).select().single()
-    } else {
-      result = await supabase.from('org_settings').insert([settings]).select().single()
-    }
-    
+    const result = await get().updateOrganization(settings)
     if (!result.error && result.data) set({ orgSettings: result.data })
     return result
   },
-  
+
   // ========== FICHIERS UPLOADÉS ==========
   uploadedFiles: [],
   uploadedFilesLoading: false,

@@ -1,7 +1,7 @@
 // api/send-statement-comptable.js
 // Envoi d'un relevé bancaire (PDF) au cabinet comptable.
 //
-// Le destinataire est lu dans org_settings (helper partagé) : aucune adresse
+// Le destinataire est lu dans les paramètres de l'organisme (helper partagé) : aucune adresse
 // en dur, et refus d'envoi si aucun comptable n'est configuré.
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML } from './_lib/mailer.js'

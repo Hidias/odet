@@ -131,16 +131,16 @@ export default function Completude() {
           convention_sent,
           convention_signed,
           funding_type,
-          location,
+          location_name,
           clients(name),
-          courses(name),
-          session_trainers(trainers(id))
+          courses(title),
+          trainer_id
         `)
         .eq('status', 'completed')
       
       sessions?.forEach(s => {
         const clientName = s.clients?.name || 'Client inconnu'
-        const courseName = s.courses?.name || 'Formation inconnue'
+        const courseName = s.courses?.title || 'Formation inconnue'
         
         if (!s.convention_sent) {
           allIssues.push({
@@ -189,7 +189,7 @@ export default function Completude() {
             since: s.start_date
           })
         }
-        if (!s.session_trainers || s.session_trainers.length === 0) {
+        if (!s.trainer_id) {
           allIssues.push({
             category: 'sessions',
             priority: 'important',
@@ -201,7 +201,7 @@ export default function Completude() {
             since: s.start_date
           })
         }
-        if (!s.location) {
+        if (!s.location_name) {
           allIssues.push({
             category: 'sessions',
             priority: 'important',
@@ -221,7 +221,7 @@ export default function Completude() {
         .select(`
           id,
           trainees(first_name, last_name),
-          sessions(id, reference, start_date, courses(name)),
+          sessions(id, reference, start_date, courses(title)),
           attendance_halfdays(morning, afternoon)
         `)
         .in('sessions.status', ['ongoing', 'completed'])
@@ -231,7 +231,7 @@ export default function Completude() {
         if (!hasAttendance) {
           const traineeName = `${st.trainees?.first_name} ${st.trainees?.last_name}`
           const sessionRef = st.sessions?.reference || 'Session'
-          const courseName = st.sessions?.courses?.name || ''
+          const courseName = st.sessions?.courses?.title || ''
           
           allIssues.push({
             category: 'emargements',
@@ -269,7 +269,7 @@ export default function Completude() {
           id,
           questionnaire_submitted,
           trainees(first_name, last_name),
-          sessions(id, reference, end_date, courses(name))
+          sessions(id, reference, end_date, courses(title))
         `)
         .eq('sessions.status', 'completed')
         .is('questionnaire_submitted', false)
@@ -298,7 +298,7 @@ export default function Completude() {
         .select(`
           id,
           trainees(first_name, last_name),
-          sessions(id, reference, end_date, courses(name))
+          sessions(id, reference, end_date, courses(title))
         `)
         .eq('sessions.status', 'completed')
         .lt('sessions.end_date', threeMonthsAgo.toISOString())
@@ -335,8 +335,8 @@ export default function Completude() {
           id,
           reference,
           end_date,
-          courses(name),
-          session_trainers(trainers(id, first_name, last_name))
+          courses(title),
+          trainer_id, trainers(id, first_name, last_name)
         `)
         .eq('status', 'completed')
       
@@ -351,11 +351,12 @@ export default function Completude() {
         })
         
         trainerEvals.forEach(s => {
-          s.session_trainers?.forEach(st => {
+          // Formateur de la session : sessions.trainer_id (seule affectation utilisée)
+          ;(s.trainers ? [{ trainers: s.trainers }] : []).forEach(st => {
             const key = `${s.id}-${st.trainers?.id}`
             if (!evalMap.has(key)) {
               const trainerName = `${st.trainers?.first_name} ${st.trainers?.last_name}`
-              const courseName = s.courses?.name || 'Formation'
+              const courseName = s.courses?.title || 'Formation'
               
               allIssues.push({
                 category: 'evaluations',
@@ -377,7 +378,7 @@ export default function Completude() {
         .select(`
           id,
           trainees(first_name, last_name),
-          sessions(id, reference, courses(name)),
+          sessions(id, reference, courses(title)),
           trainee_objectives(result, remediation_comment)
         `)
         .eq('sessions.status', 'completed')

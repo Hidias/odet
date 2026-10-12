@@ -723,8 +723,9 @@ export default function Clients() {
             name: societe.name,
             siret: societe.siret || null,
             address: societe.address || null,
-            contact_email: societe.email || null,
-            contact_phone: societe.phone || null,
+            // Avec une liste de contacts, ce sont eux qui alimentent les champs contact (contact principal)
+            contact_email: societe.contacts?.length ? null : (societe.email || null),
+            contact_phone: societe.contacts?.length ? null : (societe.phone || null),
             notes: societe.notes || null,
             status: 'a_completer',
             city: societe.city || null,
@@ -756,6 +757,7 @@ export default function Clients() {
           if (contactsError) {
             console.error('Erreur création contacts:', contactsError)
           }
+          await supabase.rpc('client_contact_sync_primary', { p_client_id: newClient.id }).then(() => {}, () => {})
         }
         
         created++
@@ -990,6 +992,7 @@ export default function Clients() {
                     <h4 className="font-medium text-gray-700">Contacts ({contacts.length})</h4>
                     <ContactForm onAdd={async (contactData) => {
                       const { error } = await supabase.from('client_contacts').insert({ ...contactData, client_id: selectedClient.id })
+                      await supabase.rpc('client_contact_sync_primary', { p_client_id: selectedClient.id }).then(() => {}, () => {})
                       if (error) return toast.error('Erreur')
                       const { data } = await supabase.from('client_contacts').select('*').eq('client_id', selectedClient.id).order('is_primary', { ascending: false })
                       setContacts(data || [])
@@ -1017,6 +1020,7 @@ export default function Clients() {
                               buttonLabel={<Edit className="w-4 h-4" />}
                               onEdit={async (id, contactData) => {
                                 const { error } = await supabase.from('client_contacts').update(contactData).eq('id', id)
+                                await supabase.rpc('client_contact_sync_primary', { p_client_id: selectedClient.id }).then(() => {}, () => {})
                                 if (error) return toast.error('Erreur')
                                 const { data } = await supabase.from('client_contacts').select('*').eq('client_id', selectedClient.id).order('is_primary', { ascending: false })
                                 setContacts(data || [])
@@ -1027,6 +1031,7 @@ export default function Clients() {
                               onClick={async () => {
                                 if (!confirm('Supprimer ce contact ?')) return
                                 const { error } = await supabase.from('client_contacts').delete().eq('id', c.id)
+                                await supabase.rpc('client_contact_sync_primary', { p_client_id: selectedClient.id }).then(() => {}, () => {})
                                 if (error) return toast.error('Erreur')
                                 const { data } = await supabase.from('client_contacts').select('*').eq('client_id', selectedClient.id).order('is_primary', { ascending: false })
                                 setContacts(data || [])

@@ -44,7 +44,9 @@ export function buildQualityDocPDF(ORG, { docId, docInfo, code, version, data = 
   const today = format(new Date(), 'dd/MM/yyyy')
 
   if (docId === 'organigramme') {
+    // Calculé à l'édition : direction (paramètres), rôles qualité (titulaire et suppléant), formateurs (fiches formateurs)
     const direction = data.direction || []
+    const roles = data.roles || []
     const formateurs = data.formateurs || []
     f.section('Direction')
     const gap = 6
@@ -56,16 +58,31 @@ export function buildQualityDocPDF(ORG, { docId, docInfo, code, version, data = 
       bottom = Math.max(bottom, drawPartyCard(doc, ORG, f.M + i * (colW + gap), f.y, colW, 'Direction', [d.nom || '', ...(d.roles || [])]))
     })
     f.y = bottom + 6
-    f.section('Équipe pédagogique')
-    if (formateurs.length) {
-      f.table(['Formateur', 'Spécialités'], formateurs.map(x => [x.nom || '', (x.specialites || []).join(', ') || '-']), { columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } } })
-    } else f.note('Aucun formateur enregistré.')
+    f.section('Responsables et référents qualité')
+    if (roles.length) {
+      f.table(['Rôle', 'Titulaire', 'Suppléant'], roles.map((r) => [r.label, r.nom || 'Non désigné', r.suppleant || '-']), { columnStyles: { 0: { cellWidth: 70, fontStyle: 'bold' } } })
+    } else f.note('Aucun rôle qualité désigné.')
+    f.section('Formateurs salariés')
+    const internes = formateurs.filter((x) => x.interne)
+    if (internes.length) f.table(['Formateur', 'Domaines'], internes.map((x) => [x.nom || '', x.specialites || '-']), { columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } } })
+    else f.note('Aucun formateur salarié enregistré.')
+    const externes = formateurs.filter((x) => !x.interne)
+    if (externes.length) {
+      f.section('Intervenants extérieurs (sous-traitants)')
+      f.table(['Formateur ou organisme', 'Domaines'], externes.map((x) => [x.nom || '', x.specialites || '-']), { columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } } })
+      f.note('Intervenants extérieurs : ils ne font pas partie du personnel de l\'organisme.')
+    }
+    f.note(`Organigramme établi le ${today} à partir des paramètres, des rôles qualité et des fiches formateurs.`)
   } else if (docId.startsWith('des-')) {
+    // Mission lue dans « Fiches de mission des référents » (Documents qualité), personne dans les rôles qualité
     const dateStr = data.date ? format(new Date(data.date), 'd MMMM yyyy', { locale: fr }) : format(new Date(), 'd MMMM yyyy', { locale: fr })
     const legal = ORG.nameFull ? ORG.nameFull.replace(/ - Organisme de formation certifié Qualiopi$/, '') : (ORG.legal_name || ORG.name)
     f.para(`La société ${legal}, représentée par ${ORG.dirigeant || 'son représentant légal'}${ORG.dirigeant_title ? `, ${ORG.dirigeant_title}` : ''}, désigne par la présente :`, { size: 10, after: 5 })
-    f.cards([{ label: 'Personne désignée', lines: [data.personne || 'Non désignée', `en qualité de ${data.role || docInfo.name}`, `à compter du ${dateStr}`] }])
-    if ((data.missions || []).length) { f.section('Missions'); f.bullets(data.missions) }
+    f.cards([{ label: 'Personne désignée', lines: [data.personne || 'Non désignée', `en qualité de ${data.role || docInfo.name}`, `à compter du ${dateStr}`, data.suppleant ? `Suppléant : ${data.suppleant}` : ''].filter(Boolean) }])
+    if (data.mission) { f.section('Mission'); f.para(data.mission) }
+    if ((data.missions || []).length) { f.section('Tâches principales'); f.bullets(data.missions) }
+    if (data.competences) { f.section('Compétences ou formation attendues'); f.para(data.competences) }
+    if (data.publie) { f.section('Coordonnées publiées'); f.para(data.publie) }
     f.y += 4
     f.ensure(40)
     f.body(9)
@@ -73,7 +90,7 @@ export function buildQualityDocPDF(ORG, { docId, docInfo, code, version, data = 
     f.y += 4
     f.signatures([
       { label: 'Le représentant légal', name: [ORG.dirigeant, ORG.dirigeant_title].filter(Boolean).join(', '), hint: 'Signature', image: ORG.dirigeant_signature_base64 },
-      { label: 'La personne désignée', name: data.personne || '', hint: 'Signature précédée de « Bon pour accord »' },
+      { label: 'La personne désignée', name: data.personne || '', hint: 'Signature précédée de « Mission acceptée »' },
     ], { height: 30 })
   } else if (docId.startsWith('proc-')) {
     f.kv([

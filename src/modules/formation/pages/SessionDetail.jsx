@@ -407,7 +407,7 @@ export default function SessionDetail() {
       
       if (hasExpectations && !hasObservation && !stData?.expectations_notification_sent) {
         // Trouver le formateur assigné
-        const assignedTrainer = session.session_trainers?.[0]?.trainer_id
+        const assignedTrainer = session.trainer_id || session.session_trainers?.[0]?.trainer_id
         if (assignedTrainer) {
           // Créer la notification
           await supabase.from('notifications').insert({

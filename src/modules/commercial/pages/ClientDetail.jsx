@@ -508,15 +508,20 @@ export default function ClientDetail() {
       if (error) return toast.error('Erreur: ' + error.message)
       toast.success('Contact ajouté')
     }
+    // Le contact principal alimente les champs contact de la fiche (base, migration 0037)
+    await supabase.rpc('client_contact_sync_primary', { p_client_id: id }).then(() => {}, () => {})
     closeContactForm()
     loadContacts()
+    loadClient()
   }
 
   async function deleteContact(contactId) {
     if (!confirm('Supprimer ce contact ?')) return
     await supabase.from('client_contacts').delete().eq('id', contactId)
+    await supabase.rpc('client_contact_sync_primary', { p_client_id: id }).then(() => {}, () => {})
     toast.success('Contact supprimé')
     loadContacts()
+    loadClient()
   }
 
   function openEditContact(c) {
@@ -1156,9 +1161,9 @@ export default function ClientDetail() {
                 <input value={editForm.postal_code || ''} onChange={e => setEditForm({ ...editForm, postal_code: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
               <div><label className="text-xs font-medium text-gray-500 mb-1 block">Ville</label>
                 <input value={editForm.city || ''} onChange={e => setEditForm({ ...editForm, city: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-              <div><label className="text-xs font-medium text-gray-500 mb-1 block">Téléphone</label>
+              <div><label className="text-xs font-medium text-gray-500 mb-1 block">Téléphone (contact principal)</label>
                 <input value={editForm.contact_phone || ''} onChange={e => setEditForm({ ...editForm, contact_phone: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-              <div><label className="text-xs font-medium text-gray-500 mb-1 block">Email</label>
+              <div><label className="text-xs font-medium text-gray-500 mb-1 block">Email (contact principal)</label>
                 <input type="email" value={editForm.contact_email || ''} onChange={e => setEditForm({ ...editForm, contact_email: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
               <div className="col-span-2"><label className="text-xs font-medium text-gray-500 mb-1 flex items-center justify-between">Notes <SpeechToTextButton onTranscript={(text) => setEditForm(f => ({ ...f, notes: f.notes ? f.notes + ' ' + text : text }))} /></label>
                 <textarea value={editForm.notes || ''} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} rows={3} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>

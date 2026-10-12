@@ -394,14 +394,20 @@ function QualiteSection({ onReferentHandicap }) {
 
 function UsersSection({ isSuperadmin }) {
   const [profiles, setProfiles] = useState([])
+  // Compte relié à sa fiche formateur : nom et téléphone identiques des deux côtés (migration 0038)
+  const [trainers, setTrainers] = useState([])
   const [invite, setInvite] = useState({ email: '', display_name: '', role: 'gestionnaire' })
   const [busy, setBusy] = useState(false)
   const [resetLink, setResetLink] = useState(null)
   const me = useAuthStore((s) => s.profile)
 
   const load = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('created_at')
+    const [{ data }, { data: tr }] = await Promise.all([
+      supabase.from('profiles').select('*').order('created_at'),
+      supabase.from('trainers').select('id, first_name, last_name').order('last_name'),
+    ])
     setProfiles(data || [])
+    setTrainers(tr || [])
   }
   useEffect(() => { load() }, [])
 
@@ -435,7 +441,7 @@ function UsersSection({ isSuperadmin }) {
       <h2 className="section-title">Utilisateurs et rôles</h2>
       <div className="overflow-x-auto">
         <table>
-          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Actif</th><th></th></tr></thead>
+          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Fiche formateur</th><th>Actif</th><th></th></tr></thead>
           <tbody>
             {profiles.map((p) => (
               <tr key={p.id}>
@@ -444,6 +450,13 @@ function UsersSection({ isSuperadmin }) {
                   <select className="select" style={{ minHeight: 32, width: 190 }} value={p.role} disabled={p.id === me?.id || (p.role === 'superadmin' && !isSuperadmin)}
                     onChange={(e) => update(p.id, { role: e.target.value })}>
                     {ROLES.filter(([r]) => r !== 'superadmin' || isSuperadmin).map(([r, l]) => <option key={r} value={r}>{l}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <select className="select" style={{ minHeight: 32, width: 190 }} aria-label={`Fiche formateur de ${p.display_name || p.email}`} value={p.trainer_id || ''}
+                    onChange={(e) => update(p.id, { trainer_id: e.target.value || null })}>
+                    <option value="">Aucune</option>
+                    {trainers.filter((t) => t.id === p.trainer_id || !profiles.some((x) => x.trainer_id === t.id)).map((t) => <option key={t.id} value={t.id}>{[t.first_name, t.last_name].filter(Boolean).join(' ')}</option>)}
                   </select>
                 </td>
                 <td><Toggle checked={p.is_active} onChange={(v) => update(p.id, { is_active: v })} label="" /></td>
@@ -480,18 +493,18 @@ function UsersSection({ isSuperadmin }) {
 }
 
 function ComptableSection() {
+  // Coordonnées du comptable : colonnes des paramètres de l'organisme (une seule ligne, une seule source)
+  const { organization, fetchOrganization, updateOrganization } = useDataStore()
   const [form, setForm] = useState({ comptable_email: '', comptable_name: '', comptable_cc: '', comptable_bcc: '' })
   const [saving, setSaving] = useState(false)
+  useEffect(() => { if (!organization) fetchOrganization() }, [organization, fetchOrganization])
   useEffect(() => {
-    supabase.from('org_settings').select('comptable_email, comptable_name, comptable_cc, comptable_bcc').limit(1).maybeSingle()
-      .then(({ data }) => { if (data) setForm({ comptable_email: data.comptable_email || '', comptable_name: data.comptable_name || '', comptable_cc: data.comptable_cc || '', comptable_bcc: data.comptable_bcc || '' }) })
-  }, [])
+    if (organization) setForm({ comptable_email: organization.comptable_email || '', comptable_name: organization.comptable_name || '', comptable_cc: organization.comptable_cc || '', comptable_bcc: organization.comptable_bcc || '' })
+  }, [organization?.id])
   const save = async () => {
     setSaving(true)
-    const { data: existing } = await supabase.from('org_settings').select('id').limit(1).maybeSingle()
-    const r = existing
-      ? await supabase.from('org_settings').update(form).eq('id', existing.id)
-      : await supabase.from('org_settings').insert([{ ...form, name: 'organisation' }])
+    if (!organization?.id) await fetchOrganization()
+    const r = await updateOrganization(form)
     setSaving(false)
     if (r.error) return toast.error(r.error.message)
     toast.success('Accès comptable enregistré')

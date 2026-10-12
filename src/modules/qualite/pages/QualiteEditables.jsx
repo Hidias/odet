@@ -12,6 +12,7 @@ import { buildQualityDocPDF } from '../pdf/qualityDocsPDF'
 import { loadTemplates, isRich, fromTemplate, docStatus } from '../richdocs/model'
 import RichDocEditor, { StatusChip } from '../richdocs/RichDocEditor'
 import { buildRichDocPDF } from '../richdocs/richDocPDF'
+import { loadPublishedDoc } from '../richdocs/published'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { APP_VERSION } from '../../../core/version'
 import { format } from 'date-fns'
@@ -38,7 +39,7 @@ const P = (i) => teamNames()[i] || teamNames()[0] || ''
 // ===== STRUCTURE DOCUMENTS COMPLÈTE =====
 const QUALITY_DOCS = {
   gouvernance: { name: 'Gouvernance', icon: Building2, color: 'blue', docs: [
-    { id: 'organigramme', name: 'Organigramme', code: 'ORG-001', editable: true },
+    { id: 'organigramme', name: 'Organigramme (calculé : direction, rôles qualité, formateurs)', code: 'ORG-001', computed: true },
     { id: 'des-qual', name: 'Désignation Responsable Qualité', code: 'QUAL-DESQUAL', editable: true },
     { id: 'des-hand', name: 'Désignation Référent Handicap', code: 'QUAL-DESHAND', editable: true },
     { id: 'des-deon', name: 'Désignation Référent Déontologie', code: 'QUAL-DESDEON', editable: true },
@@ -47,6 +48,7 @@ const QUALITY_DOCS = {
     { id: 'des-amel', name: 'Désignation Référent Amélioration', code: 'QUAL-DESAMEL', editable: true },
     { id: 'des-sign', name: 'Désignation Référent violences, harcèlement et discriminations', code: 'QUAL-DESSIGN', editable: true },
     { id: 'des-rgpd', name: 'Désignation Référent données personnelles', code: 'QUAL-DESRGPD', editable: true },
+    { id: 'des-peda', name: 'Désignation Référent pédagogique', code: 'QUAL-DESPEDA', editable: true },
   ]},
   // Procédures, documents stagiaires et clients, fiches : nouveau modèle (richdocs/templates.js)
   registres: { name: 'Registres', icon: Table, color: 'purple', docs: [
@@ -75,6 +77,30 @@ const QUALITY_DOCS = {
   ]},
 }
 
+// Désignations : rôle qualité (personne, suppléant) et ligne des « Fiches de mission des référents »
+const DES_ROLE = {
+  'des-qual': ['responsable_qualite', 'Responsable qualité'], 'des-hand': ['referent_handicap', 'Référent handicap'],
+  'des-deon': ['referent_deontologie', 'Référent déontologie'], 'des-recl': ['referent_reclamations', 'Référent réclamations'],
+  'des-veil': ['referent_veille', 'Référent veille'], 'des-amel': ['referent_amelioration', 'Référent amélioration continue'],
+  'des-rgpd': ['referent_rgpd', 'Référent données personnelles'], 'des-sign': ['referent_signalements', 'Référent signalements'],
+  'des-peda': ['validation_programmes', 'Référent pédagogique'],
+}
+const stripMd = (x) => String(x || '').replace(/\*\*([^*]+)\*\*/g, '$1').trim()
+/** Ligne de mission d'un rôle dans le document des fiches de mission (brouillon, version validée ou modèle) */
+async function missionRow(label) {
+  const pub = await loadPublishedDoc('des-fiches')
+  for (const sec of pub?.content?.sections || []) {
+    for (const b of sec.blocks || []) {
+      if (b.t !== 'table') continue
+      const row = (b.rows || []).find((r) => stripMd(r[0]).toLowerCase() === label.toLowerCase())
+      if (row) {
+        return { mission: stripMd(row[1]), missions: [stripMd(row[2])].filter(Boolean), competences: stripMd(row[3]), publie: stripMd(row[4]) }
+      }
+    }
+  }
+  return {}
+}
+
 // ===== DONNÉES PAR DÉFAUT =====
 const DEFAULT_DATA = {
   'organigramme': {
@@ -93,6 +119,7 @@ const DEFAULT_DATA = {
   'des-recl': { personne: '{{role.referent_reclamations}}', role: 'Référent Réclamations', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Réceptionner les réclamations', 'Analyser les causes', 'Clôturer sous 5 jours ouvrés', 'Communiquer les résultats', 'Proposer des actions préventives'] },
   'des-veil': { personne: '{{role.referent_veille}}', role: 'Référent Veille', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veille réglementaire mensuelle', 'Suivre les référentiels INRS', 'Informer l\'équipe sous 30 jours', 'Mettre à jour les documents'] },
   'des-amel': { personne: '{{role.referent_amelioration}}', role: 'Référent Amélioration Continue', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Analyser les NC', 'Suivre les actions correctives', 'Animer l\'amélioration continue', 'Mesurer l\'efficacité', 'Préparer la RDD'] },
+  'des-peda': { personne: '{{role.validation_programmes}}', role: 'Référent pédagogique', date: format(new Date(), 'yyyy-MM-dd'), missions: [] },
   'des-sign': { personne: '{{role.referent_signalements}}', role: 'Référent violences, harcèlement et discriminations', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Recevoir les signalements de violences, harcèlement, agissements sexistes et discriminations', 'Écouter, orienter et protéger la victime', 'Conduire l\'examen des faits avec un second membre de la direction', 'Proposer les mesures et suivre la victime un mois après', 'Établir le bilan annuel anonymisé'] },
   'des-rgpd': { personne: '{{role.referent_rgpd}}', role: 'Référent données personnelles', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Conformité RGPD', 'Registre des traitements', 'Répondre aux demandes de droits', 'Sensibiliser le personnel', 'Gérer les violations'] },
   'proc-recl': { 
@@ -491,7 +518,23 @@ export default function QualiteEditables() {
     try {
       const v = APP_VERSION
       const ctx = tplCtx || await loadTemplateContext()
-      const data = fillDeep(savedDocs[docId] || DEFAULT_DATA[docId] || {}, ctx)
+      let data = fillDeep(savedDocs[docId] || DEFAULT_DATA[docId] || {}, ctx)
+      if (docId === 'organigramme') {
+        const { data: tr } = await supabase.from('trainers').select('first_name, last_name, specialties, qualifications_list, is_internal').order('last_name')
+        data = {
+          direction: [{ nom: ctx.org.dirigeant || '', roles: [ctx.org.dirigeant_qualite || 'Direction'] }],
+          roles: Object.values(ctx.role || {}).filter((r) => r.label).map((r) => ({ label: r.label, nom: r.nom, suppleant: r.suppleant })),
+          formateurs: (tr || []).map((x) => ({
+            nom: [x.first_name, x.last_name ? String(x.last_name).toUpperCase() : ''].filter(Boolean).join(' '),
+            specialites: (Array.isArray(x.qualifications_list) && x.qualifications_list.length ? x.qualifications_list.join(', ') : x.specialties) || '',
+            interne: x.is_internal !== false,
+          })),
+        }
+      }
+      if (DES_ROLE[docId]) {
+        const [code, label] = DES_ROLE[docId]
+        data = { date: data.date, personne: ctx.role?.[code]?.nom || '', suppleant: ctx.role?.[code]?.suppleant || '', role: ctx.role?.[code]?.label || label, ...(await missionRow(label)) }
+      }
       const pdfOrg = await loadPdfOrg(true)
       const doc = buildQualityDocPDF(pdfOrg, {
         docId, docInfo, code: docCode(docInfo.code), version: v, data, rddData,
@@ -558,42 +601,24 @@ export default function QualiteEditables() {
               </>
             )}
             
-            {/* DÉSIGNATIONS */}
+            {/* DÉSIGNATIONS : personne et suppléant dans Paramètres, mission dans les fiches de mission */}
             {editingDoc.startsWith('des-') && (
               <>
                 <div>
                   <label className="block text-sm font-medium mb-1">Personne désignée</label>
-                  {String(editData.personne || '').startsWith('{{role.') ? (
-                    <div className="input w-full bg-gray-50 text-gray-700">
-                      {fillTemplate(editData.personne, tplCtx) || 'Non désignée'}
-                      <span className="block text-xs text-gray-500 mt-1">Se change dans Paramètres &gt; Qualité</span>
-                    </div>
-                  ) : (
-                    <select value={editData.personne || ''} onChange={e => setEditData({...editData, personne: e.target.value})} className="input w-full">
-                      {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Fonction</label>
-                  <input type="text" value={editData.role || ''} onChange={e => setEditData({...editData, role: e.target.value})} className="input w-full" />
+                  <div className="input w-full bg-gray-50 text-gray-700">
+                    {(DES_ROLE[editingDoc] && tplCtx?.role?.[DES_ROLE[editingDoc][0]]?.nom) || 'Non désignée'}
+                    {DES_ROLE[editingDoc] && tplCtx?.role?.[DES_ROLE[editingDoc][0]]?.suppleant ? `, suppléant ${tplCtx.role[DES_ROLE[editingDoc][0]].suppleant}` : ''}
+                    <span className="block text-xs text-gray-500 mt-1">Se change dans Paramètres &gt; Qualité et référents</span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Date de désignation</label>
                   <input type="date" value={editData.date || ''} onChange={e => setEditData({...editData, date: e.target.value})} className="input w-full" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Missions</label>
-                  {(editData.missions || []).map((m, i) => (
-                    <div key={i} className="flex gap-2 mb-2">
-                      <input type="text" value={m} onChange={e => {
-                        const newM = [...(editData.missions || [])]; newM[i] = e.target.value
-                        setEditData({...editData, missions: newM})
-                      }} className="input flex-1" />
-                      <button onClick={() => setEditData({...editData, missions: (editData.missions || []).filter((_, idx) => idx !== i)})} className="btn btn-sm btn-secondary"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  ))}
-                  <button onClick={() => setEditData({...editData, missions: [...(editData.missions || []), '']})} className="btn btn-sm btn-secondary"><Plus className="w-4 h-4 mr-1" /> Ajouter</button>
+                <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+                  La mission, les tâches et les compétences attendues viennent des « Fiches de mission des référents ».
+                  <button type="button" className="block mt-1 text-primary-600 font-semibold" onClick={() => { setEditingDoc(null); setRichOpen('des-fiches') }}>Ouvrir les fiches de mission</button>
                 </div>
               </>
             )}

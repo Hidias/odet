@@ -24,5 +24,5 @@ export const ADMIN_EMAILS = (import.meta.env.VITE_BOOTSTRAP_ADMIN_EMAILS || '')
 export const isAdminEmail = (email) => ADMIN_EMAILS.includes(email?.toLowerCase())
 
 // Rétrocompatibilité : isEmailAllowed vérifie uniquement les admins.
-// Le rôle comptable est géré dynamiquement dans store.js (org_settings).
+// Le rôle comptable est géré dynamiquement dans store.js (organization_settings.comptable_email).
 export const isEmailAllowed = (email) => ADMIN_EMAILS.includes(email?.toLowerCase())

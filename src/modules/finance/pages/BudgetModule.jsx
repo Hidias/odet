@@ -1559,10 +1559,10 @@ function ComptableTab({ transactions, receipts, loadAll }) {
   const [showInvResend, setShowInvResend] = useState(false)
   const [invResendSelected, setInvResendSelected] = useState(new Set())
 
-  // Destinataire comptable - lu depuis org_settings (plus aucune adresse en dur)
+  // Destinataire comptable - lu dans les paramètres de l'organisme (plus aucune adresse en dur)
   const [comptable, setComptable] = useState({ name: '', email: '' })
   useEffect(() => {
-    supabase.from('org_settings').select('comptable_name, comptable_email').limit(1).maybeSingle()
+    supabase.from('organization_settings').select('comptable_name, comptable_email').limit(1).maybeSingle()
       .then(({ data }) => {
         if (data) setComptable({ name: data.comptable_name || '', email: data.comptable_email || '' })
       })
