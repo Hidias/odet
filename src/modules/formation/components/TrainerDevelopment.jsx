@@ -1,4 +1,3 @@
-import { orgName } from '../../../core/org/currentOrg'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -6,8 +5,8 @@ import {
   Users, Award, FileText, CheckCircle, XCircle 
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { jsPDF } from 'jspdf'
-import 'jspdf-autotable'
+import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { buildTrainerDevelopmentPDF } from '../pdf/trainerDevelopmentPDF'
 
 const TRAINING_TYPES = {
   externe: { label: 'Formation externe', color: 'blue', icon: '' },
@@ -251,109 +250,16 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
   // ============================================
   // EXPORT PDF
   // ============================================
-  const exportPDF = () => {
-    const doc = new jsPDF()
-
-    // Title
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Plan de Développement des Compétences', 14, 50)
-    
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Formateur : ${trainerName}`, 14, 58)
-    doc.text(`Date d'édition : ${new Date().toLocaleDateString('fr-FR')}`, 14, 64)
-
-    let yPos = 75
-
-    // FORMATIONS
-    if (trainings.length > 0) {
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.text(' Formations suivies et planifiées', 14, yPos)
-      yPos += 8
-
-      const trainingRows = trainings.map(t => [
-        new Date(t.training_date).toLocaleDateString('fr-FR'),
-        t.training_name,
-        TRAINING_TYPES[t.training_type]?.label || t.training_type,
-        t.organizer || '-',
-        t.duration_days ? `${t.duration_days}j` : t.duration_hours ? `${t.duration_hours}h` : '-',
-        t.certificate_obtained ? 'Oui' : 'Non'
-      ])
-
-      doc.autoTable({
-        startY: yPos,
-        head: [['Date', 'Formation', 'Type', 'Organisme', 'Durée', 'Certificat']],
-        body: trainingRows,
-        theme: 'grid',
-        headStyles: { fillColor: [59, 130, 246], fontSize: 9 },
-        styles: { fontSize: 8, cellPadding: 2 },
-        columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 35 },
-          4: { cellWidth: 15 },
-          5: { cellWidth: 20 }
-        }
-      })
-
-      yPos = doc.lastAutoTable.finalY + 15
+  const exportPDF = async () => {
+    try {
+      const ORG = await loadPdfOrg(true)
+      const doc = buildTrainerDevelopmentPDF(ORG, { trainerName, trainings, interviews })
+      doc.save(`Plan-Formation-${(trainerName || 'formateur').replace(/\s/g, '-')}.pdf`)
+      toast.success('PDF généré avec succès')
+    } catch (e) {
+      console.error('Erreur PDF :', e)
+      toast.error('Erreur lors de la génération du PDF')
     }
-
-    // ENTRETIENS
-    if (interviews.length > 0) {
-      if (yPos > 250) {
-        doc.addPage()
-        yPos = 20
-      }
-
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.text(' Entretiens professionnels', 14, yPos)
-      yPos += 8
-
-      const interviewRows = interviews.map(i => [
-        new Date(i.interview_date).toLocaleDateString('fr-FR'),
-        INTERVIEW_TYPES[i.interview_type]?.label || i.interview_type,
-        i.interviewer_name,
-        i.themes_discussed || '-',
-        i.identified_needs || '-'
-      ])
-
-      doc.autoTable({
-        startY: yPos,
-        head: [['Date', 'Type', 'Réalisé par', 'Thèmes', 'Besoins identifiés']],
-        body: interviewRows,
-        theme: 'grid',
-        headStyles: { fillColor: [34, 197, 94], fontSize: 9 },
-        styles: { fontSize: 8, cellPadding: 2 },
-        columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 35 },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 45 },
-          4: { cellWidth: 50 }
-        }
-      })
-    }
-
-    // Footer
-    const pageCount = doc.internal.getNumberOfPages()
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i)
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'normal')
-      doc.text(
-        `${orgName()} - Plan de développement - ${trainerName} - Page ${i}/${pageCount}`,
-        14,
-        doc.internal.pageSize.height - 10
-      )
-    }
-
-    doc.save(`Plan-Formation-${trainerName.replace(/\s/g, '-')}.pdf`)
-    toast.success('PDF généré avec succès')
   }
 
   // ============================================

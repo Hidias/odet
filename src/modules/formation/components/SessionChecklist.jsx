@@ -1,8 +1,9 @@
-import { orgName } from '../../../core/org/currentOrg'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { Printer, FileCheck, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { buildSessionChecklistPDF } from '../pdf/sessionChecklistPDF'
 
 // Liste complète des contrôles
 const CHECKLIST_ITEMS = {
@@ -158,159 +159,39 @@ export default function SessionChecklist({ session }) {
     }
   }
 
-  const handlePrint = (blank = false) => {
-    const printWindow = window.open('', '_blank')
-    printWindow.document.write(generatePrintHTML(blank))
-    printWindow.document.close()
-    setTimeout(() => {
-      printWindow.print()
-    }, 500)
+  const getLocation = () => {
+    if (session.location_name) return session.location_name
+    const parts = [session.location_address, session.location_postal_code, session.location_city].filter(Boolean)
+    if (parts.length > 0) return parts.join(', ')
+    return session.clients?.address || ''
   }
 
-  const generatePrintHTML = (blank = false) => {
-    const data = blank ? {} : checklistData
-    const formatDate = (date) => date ? new Date(date).toLocaleDateString('fr-FR') : ''
-    
-    // Construire l'adresse complète du lieu
-    const getLocation = () => {
-      // 1. Si location_name est rempli, l'utiliser (adresse complète)
-      if (session.location_name) {
-        return session.location_name
-      }
-      
-      // 2. Sinon construire depuis location_address + postal_code + city
-      const parts = [
-        session.location_address,
-        session.location_postal_code,
-        session.location_city
-      ].filter(Boolean)
-      
-      if (parts.length > 0) {
-        return parts.join(', ')
-      }
-      
-      // 3. Fallback sur adresse client
-      if (session.clients?.address) {
-        return session.clients.address
-      }
-      
-      return 'N/A'
+  // Fiche de contrôle en PDF (mise en page commune), ouverte dans un nouvel onglet pour impression
+  const handlePrint = async (blank = false) => {
+    const win = window.open('', '_blank')
+    try {
+      const ORG = await loadPdfOrg(true)
+      const keep = (items) => items.filter(item => !item.sst || isSST)
+      const doc = buildSessionChecklistPDF(ORG, {
+        session,
+        traineeCount,
+        blank,
+        location: getLocation(),
+        data: checklistData,
+        phases: [
+          { title: 'Avant la formation', items: keep(CHECKLIST_ITEMS.avant) },
+          { title: 'Pendant la formation', items: keep(CHECKLIST_ITEMS.pendant) },
+          { title: 'Après la formation', items: keep(CHECKLIST_ITEMS.apres) },
+        ],
+      })
+      const url = URL.createObjectURL(doc.output('blob'))
+      if (win) win.location.href = url
+      else doc.save(`Fiche_controle_${session.reference || 'session'}.pdf`)
+    } catch (e) {
+      if (win) win.close()
+      console.error('Erreur fiche de contrôle :', e)
+      toast.error('Erreur lors de la génération de la fiche')
     }
-
-    const renderItem = (item) => {
-      const itemData = data[item.code] || {}
-      const checked = blank ? false : itemData.is_checked
-      const dateRealized = blank ? '' : formatDate(itemData.date_realized)
-      const comment = blank ? '' : itemData.comment || ''
-
-      return `
-        <div style="margin-bottom: 5px; page-break-inside: avoid; display: flex; align-items: center; font-size: 8.5pt; line-height: 1.2;">
-          <span style="font-size: 12px; margin-right: 4px;">${checked ? '' : ''}</span>
-          <span style="font-weight: 500; min-width: 200px; max-width: 200px;">${item.label}${item.sst ? ' [SST]' : ''}</span>
-          <span style="margin: 0 8px;">|</span>
-          <span style="min-width: 100px;">Date: ${dateRealized || '_________'}</span>
-          <span style="margin: 0 8px;">|</span>
-          <span style="flex: 1;">Commentaire: ${comment || '___________________________'}</span>
-        </div>
-      `
-    }
-
-    const renderSection = (title, items) => {
-      const filteredItems = items.filter(item => !item.sst || isSST)
-      if (filteredItems.length === 0) return ''
-
-      return `
-        <div style="margin-top: 8px;">
-          <h3 style="background: #f3f4f6; padding: 4px 8px; margin: 0; font-size: 10px; font-weight: bold; border-left: 3px solid #3b82f6;">
-            ${title} (${filteredItems.length} contrôles)
-          </h3>
-          <div style="padding: 4px 0;">
-            ${filteredItems.map(renderItem).join('')}
-          </div>
-        </div>
-      `
-    }
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Fiche de contrôle - ${session.reference}</title>
-        <style>
-          @media print {
-            @page {
-              size: A4 portrait;
-              margin: 0.5cm;
-            }
-            body { margin: 0; }
-          }
-          body {
-            font-family: Arial, sans-serif;
-            font-size: 8.5pt;
-            line-height: 1.2;
-            color: #000;
-          }
-          .header {
-            text-align: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 4px;
-            margin-bottom: 8px;
-          }
-          .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2px 12px;
-            margin-bottom: 8px;
-            font-size: 9.5px;
-          }
-          .info-label {
-            font-weight: bold;
-          }
-          .footer {
-            margin-top: 8px;
-            padding-top: 4px;
-            border-top: 2px solid #000;
-            font-size: 8.5px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1 style="margin: 0; font-size: 14px; font-weight: bold;">FICHE DE CONTRÔLE FORMATION</h1>
-          <p style="margin: 2px 0; font-size: 9.5px;">${orgName()} - Archivage papier</p>
-        </div>
-
-        <div class="info-grid">
-          <div><span class="info-label">Session :</span> ${session.reference}</div>
-          <div><span class="info-label">Formateur :</span> ${session.trainers?.first_name} ${session.trainers?.last_name}</div>
-          <div><span class="info-label">Formation :</span> ${session.courses?.title}</div>
-          <div><span class="info-label">Stagiaires :</span> ${traineeCount}</div>
-          <div><span class="info-label">Date :</span> ${formatDate(session.start_date)}${session.end_date && session.end_date !== session.start_date ? ' au ' + formatDate(session.end_date) : ''}</div>
-          <div><span class="info-label">Lieu :</span> ${getLocation()}</div>
-          <div style="grid-column: 1 / -1;"><span class="info-label">Client :</span> ${session.clients?.name || 'N/A'}</div>
-        </div>
-
-        ${renderSection('AVANT LA FORMATION', CHECKLIST_ITEMS.avant)}
-        ${renderSection('PENDANT LA FORMATION', CHECKLIST_ITEMS.pendant)}
-        ${renderSection('APRÈS LA FORMATION', CHECKLIST_ITEMS.apres)}
-
-        <div class="footer">
-          <div style="margin-bottom: 4px;">
-            <strong>Date d'impression :</strong> ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px;">
-            <div>
-              <div>Vérifié par : ___________________________</div>
-            </div>
-            <div>
-              <div>Signature : ___________________________</div>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
   }
 
   const getUncheckedCount = (phase) => {

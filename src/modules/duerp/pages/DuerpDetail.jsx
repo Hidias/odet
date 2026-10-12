@@ -2116,9 +2116,9 @@ export default function DuerpDetail() {
                 <p className="text-xs text-gray-500 mt-1">Rapport complet avec inventaire, plan d'action et mentions légales</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => {
+                <button onClick={async () => {
                   try {
-                    generateDuerpPDF({ project, units, risks, actions, categories })
+                    await generateDuerpPDF({ project, units, risks, actions, categories })
                     toast.success('PDF généré et téléchargé')
                   } catch (err) { console.error(err); toast.error('Erreur génération PDF') }
                 }}

@@ -1,4 +1,4 @@
-import { orgName, orgNda, orgLegalName, orgAddressLine, orgPhone, orgEmail } from '../../../core/org/currentOrg'
+// Identité affichée : lue dans organization_settings (core/pdf/pdfOrg, core/org/templateContext)
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../core/supabase'
 import { useDataStore } from '../../../core/store'
@@ -14,6 +14,8 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import ProcessEditor from './ProcessEditor'
 import { loadTemplateContext, fillTemplate, TEMPLATE_FIELDS } from '../../../core/org/templateContext'
+import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { brandQualityHtml } from '../lib/qualityHtml'
 
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -393,141 +395,46 @@ export default function Qualiopi() {
     }
   }
 
-  // Prévisualiser un document
-  const previewDocument = (doc) => {
+  // Prévisualiser un document : mise en forme commune (mêmes en-tête, couleurs et pied que les PDF)
+  const QUALITY_CODES = { cgv: 'CGV', reglement: 'RI', livret: 'LIVRET', procedure_reclamation: 'PROC-RECL', procedure_veille: 'PROC-VEILLE', procedure_handicap: 'PROC-PSH', politique_qualite: 'POLQ', charte_deontologie: 'CHARTE' }
+  const renderQualityPage = async (doc, toolbar) => {
     const config = DOCUMENT_TYPES[doc.type]
     const content = fillTemplate(doc.content || '', tplCtx, { html: true })
-    
-    // Si le contenu est déjà du HTML complet, l'afficher directement
-    if (content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html') || content.trim().startsWith('<HTML')) {
-      const previewWindow = window.open('', '_blank')
-      // Ajouter une barre d'outils au HTML existant
-      const htmlWithToolbar = content.replace('</body>', `
-        <div style="position:fixed;top:20px;right:20px;display:flex;gap:10px;z-index:1000;">
-          <button onclick="window.print()" style="background:#1a5276;color:white;border:none;padding:12px 20px;border-radius:8px;cursor:pointer;font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"> Imprimer / PDF</button>
-          <button onclick="window.close()" style="background:#1a5276;color:white;border:none;padding:12px 20px;border-radius:8px;cursor:pointer;font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"> Fermer</button>
-        </div>
-      </body>`)
-      previewWindow.document.write(htmlWithToolbar)
-      previewWindow.document.close()
-      return
-    }
-    
-    // Sinon, générer le HTML avec le template standard
-    const htmlContent = `
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>${doc.title || config?.label} - ${orgName()}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.7; color: #333; background: #f5f5f5; }
-        .container { max-width: 900px; margin: 0 auto; background: white; box-shadow: 0 0 30px rgba(0,0,0,0.1); min-height: 100vh; }
-        .header { background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%); color: white; padding: 40px; text-align: center; }
-        .header h1 { font-size: 2em; margin-bottom: 8px; }
-        .header .subtitle { font-size: 1em; opacity: 0.9; }
-        .header .version { margin-top: 12px; font-size: 0.85em; opacity: 0.8; }
-        .content { padding: 40px 50px; white-space: pre-wrap; font-size: 11pt; line-height: 1.8; }
-        .footer { background: #2c3e50; color: white; padding: 25px; text-align: center; font-size: 0.9em; }
-        .footer p { margin: 4px 0; }
-        .toolbar { position: fixed; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1000; }
-        .toolbar button { background: #1a5276; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .toolbar button:hover { background: #2980b9; }
-        @media print { .toolbar { display: none; } body { background: white; } .container { box-shadow: none; } }
-    </style>
-</head>
-<body>
-    <div class="toolbar">
-        <button onclick="window.print()"> Imprimer / PDF</button>
-        <button onclick="window.close()"> Fermer</button>
-    </div>
-    <div class="container">
-        <div class="header">
-            <h1>${doc.title || config?.label}</h1>
-            <div class="subtitle">${orgName()} - Organisme de formation professionnelle</div>
-            <div class="version">Version ${doc.version || '1.0'}${orgNda() ? ` | NDA : ${orgNda()}` : ''}</div>
-        </div>
-        <div class="content">${content.replace(/\n/g, '<br>')}</div>
-        <div class="footer">
-            <p><strong>${orgLegalName().toUpperCase()}</strong></p>
-            <p>${orgAddressLine()}</p>
-            <p>${[orgPhone() ? `Tél : ${orgPhone()}` : '', orgEmail() ? `Email : ${orgEmail()}` : ''].filter(Boolean).join(' | ')}</p>
-        </div>
-    </div>
-</body>
-</html>`
-
-    const previewWindow = window.open('', '_blank')
-    previewWindow.document.write(htmlContent)
-    previewWindow.document.close()
+    const ORG = await loadPdfOrg()
+    return brandQualityHtml(content, ORG, {
+      title: doc.title || config?.label || '',
+      version: doc.version || '1.0',
+      code: QUALITY_CODES[doc.type] || 'QUAL',
+      toolbar,
+    })
   }
 
-  // Télécharger un document en PDF
-  const downloadDocumentAsPDF = (doc) => {
-    const config = DOCUMENT_TYPES[doc.type]
-    const content = fillTemplate(doc.content || '', tplCtx, { html: true })
-    
-    // Si le contenu est déjà du HTML complet, l'utiliser directement
-    if (content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html') || content.trim().startsWith('<HTML')) {
-      const printWindow = window.open('', '_blank')
-      printWindow.document.write(content)
-      printWindow.document.close()
-      printWindow.onload = () => {
-        setTimeout(() => { printWindow.print() }, 250)
-      }
-      return
+  const previewDocument = async (doc) => {
+    const win = window.open('', '_blank')
+    if (!win) { toast.error("Autorisez l'ouverture des fenêtres pour afficher le document"); return }
+    try {
+      win.document.write(await renderQualityPage(doc, true))
+      win.document.close()
+    } catch (e) {
+      console.error('Aperçu document :', e)
+      win.close()
+      toast.error("Erreur lors de l'affichage du document")
     }
-    
-    // Sinon, générer le HTML avec le template standard
-    const htmlContent = `
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>${doc.title || config?.label}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; padding: 40px; max-width: 800px; margin: 0 auto; }
-        .header { background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%); color: white; padding: 30px; margin: -40px -40px 30px -40px; text-align: center; }
-        .header h1 { font-size: 1.8em; margin-bottom: 5px; }
-        .header .subtitle { font-size: 0.95em; opacity: 0.9; }
-        .header .version { margin-top: 10px; font-size: 0.85em; opacity: 0.8; }
-        .content { white-space: pre-wrap; font-size: 11pt; }
-        .content h2, .content h3 { color: #1a5276; margin: 20px 0 10px 0; }
-        .content ul, .content ol { margin-left: 25px; }
-        .content li { margin: 5px 0; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #e0e0e0; text-align: center; font-size: 0.85em; color: #666; }
-        @media print { 
-            body { padding: 20px; } 
-            .header { margin: -20px -20px 20px -20px; padding: 20px; }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>${doc.title || config?.label}</h1>
-        <div class="subtitle">${orgName()} - Organisme de formation professionnelle</div>
-        <div class="version">Version ${doc.version || '1.0'}${orgNda() ? ` | NDA : ${orgNda()}` : ''}</div>
-    </div>
-    <div class="content">${content.replace(/\n/g, '<br>')}</div>
-    <div class="footer">
-        <p><strong>${orgLegalName().toUpperCase()}</strong></p>
-        <p>${orgAddressLine()}</p>
-        <p>${[orgPhone() ? `Tél : ${orgPhone()}` : '', orgEmail() ? `Email : ${orgEmail()}` : ''].filter(Boolean).join(' | ')}</p>
-    </div>
-</body>
-</html>`
+  }
 
-    const printWindow = window.open('', '_blank')
-    printWindow.document.write(htmlContent)
-    printWindow.document.close()
-    
-    // Attendre que le contenu soit chargé puis lancer l'impression
-    printWindow.onload = () => {
-      setTimeout(() => {
-        printWindow.print()
-      }, 250)
+  // Télécharger un document en PDF (impression du navigateur, même mise en forme)
+  const downloadDocumentAsPDF = async (doc) => {
+    const win = window.open('', '_blank')
+    if (!win) { toast.error("Autorisez l'ouverture des fenêtres pour imprimer le document"); return }
+    try {
+      win.document.write(await renderQualityPage(doc, false))
+      win.document.close()
+      const go = () => setTimeout(() => { try { win.focus(); win.print() } catch { /* fenêtre fermée */ } }, 300)
+      if (win.document.readyState === 'complete') go(); else win.onload = go
+    } catch (e) {
+      console.error('Impression document :', e)
+      win.close()
+      toast.error("Erreur lors de l'impression du document")
     }
   }
 

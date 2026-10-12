@@ -6,6 +6,7 @@
 import { PDFDocument } from 'pdf-lib'
 import { generatePDF, downloadDocument } from './pdfGenerator'
 import { generateCompetencyGridPDF } from '../../prevention/pdf/pdfCompetencyGrids'
+import { loadOrgRowForPDF } from '../../../core/pdf/pdfOrg'
 
 // Configuration des documents par formation
 const DOSSIER_CONFIG = {
@@ -127,7 +128,7 @@ export async function downloadDossierComplet(formationKey, onProgress = null) {
   // Ajouter la grille de compétences si applicable
   if (config.competencyGrid) {
     try {
-      const gridDoc = generateCompetencyGridPDF(config.competencyGrid)
+      const gridDoc = generateCompetencyGridPDF(config.competencyGrid, await loadOrgRowForPDF())
       const gridBuffer = jsPDFToArrayBuffer(gridDoc)
       const gridPdf = await PDFDocument.load(gridBuffer)
       const pages = await mergedPdf.copyPages(gridPdf, gridPdf.getPageIndices())

@@ -8,13 +8,10 @@
 // ════════════════════════════════════════════════════════════════
 
 import jsPDF from 'jspdf'
-import { supabase } from '../../../core/supabase'
-import { buildORG } from '../../../core/org/orgUtils'
+import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { startDocument, drawDocTitle, numberPages, setF } from '../../../core/pdf/layout'
 
-const MARGIN = 15
-const PAGE_W = 210
-const PAGE_H = 297
-const CONTENT_W = PAGE_W - MARGIN * 2
+// Mise en page commune des documents (core/pdf/layout.js) ; identité lue dans organization_settings.
 const CP1252_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•--˜™š›œžŸ'
 
 // Police standard : on remplace ce qu'elle ne sait pas afficher
@@ -80,191 +77,64 @@ const DIAGNOSTIC_ROWS = [
   'Qui décide, et quand',
 ]
 
-class Writer {
-  constructor(doc, org) {
-    this.doc = doc
-    this.org = org
-    this.y = MARGIN
-  }
-
-  ensure(h) {
-    if (this.y + h > PAGE_H - 18) {
-      this.doc.addPage()
-      this.y = MARGIN
-    }
-  }
-
-  title(text) {
-    const d = this.doc
-    d.setFont('helvetica', 'bold')
-    d.setFontSize(18)
-    d.setTextColor(20, 20, 20)
-    d.text(clean(text), MARGIN, this.y + 6)
-    this.y += 10
-  }
-
-  subtitle(text) {
-    const d = this.doc
-    d.setFont('helvetica', 'normal')
-    d.setFontSize(11)
-    d.setTextColor(80, 80, 80)
-    const lines = d.splitTextToSize(clean(text), CONTENT_W)
-    d.text(lines, MARGIN, this.y + 4)
-    this.y += lines.length * 5 + 3
-  }
-
-  section(text) {
-    this.ensure(14)
-    const d = this.doc
-    this.y += 3
-    d.setDrawColor(30, 58, 95)
-    d.setLineWidth(0.4)
-    d.line(MARGIN, this.y, PAGE_W - MARGIN, this.y)
-    d.setFont('helvetica', 'bold')
-    d.setFontSize(12)
-    d.setTextColor(30, 58, 95)
-    d.text(clean(text), MARGIN, this.y + 6)
-    this.y += 10
-  }
-
-  line(label, value) {
-    if (value === null || value === undefined || value === '') return
-    const d = this.doc
-    d.setFontSize(10)
-    const labelW = 42
-    const lines = d.splitTextToSize(clean(value), CONTENT_W - labelW)
-    this.ensure(lines.length * 4.6 + 1)
-    d.setFont('helvetica', 'bold')
-    d.setTextColor(90, 90, 90)
-    d.text(clean(label), MARGIN, this.y + 4)
-    d.setFont('helvetica', 'normal')
-    d.setTextColor(20, 20, 20)
-    d.text(lines, MARGIN + labelW, this.y + 4)
-    this.y += lines.length * 4.6 + 1.5
-  }
-
-  paragraph(text, { size = 10, color = [20, 20, 20], indent = 0, bold = false } = {}) {
-    if (!text) return
-    const d = this.doc
-    d.setFont('helvetica', bold ? 'bold' : 'normal')
-    d.setFontSize(size)
-    d.setTextColor(...color)
-    const lines = d.splitTextToSize(clean(text), CONTENT_W - indent)
-    this.ensure(lines.length * (size * 0.46) + 1)
-    d.text(lines, MARGIN + indent, this.y + 4)
-    this.y += lines.length * (size * 0.46) + 1.5
-  }
-
-  bullet(text) {
-    const d = this.doc
-    d.setFont('helvetica', 'normal')
-    d.setFontSize(10)
-    const lines = d.splitTextToSize(clean(text), CONTENT_W - 6)
-    this.ensure(lines.length * 4.6 + 1)
-    d.setTextColor(20, 20, 20)
-    d.text('-', MARGIN + 1, this.y + 4)
-    d.text(lines, MARGIN + 6, this.y + 4)
-    this.y += lines.length * 4.6 + 1
-  }
-
-  checkbox(text, checked = false) {
-    const d = this.doc
-    d.setFont('helvetica', 'normal')
-    d.setFontSize(10)
-    const lines = d.splitTextToSize(clean(text), CONTENT_W - 8)
-    this.ensure(lines.length * 4.6 + 1.5)
-    d.setDrawColor(60, 60, 60)
-    d.setLineWidth(0.3)
-    d.rect(MARGIN + 0.5, this.y + 1, 3.6, 3.6)
-    if (checked) {
-      d.line(MARGIN + 1.2, this.y + 3, MARGIN + 2.2, this.y + 4)
-      d.line(MARGIN + 2.2, this.y + 4, MARGIN + 3.6, this.y + 1.6)
-    }
-    d.setTextColor(20, 20, 20)
-    d.text(lines, MARGIN + 7, this.y + 4)
-    this.y += lines.length * 4.6 + 1.5
-  }
-
-  gap(h = 2) { this.y += h }
-
-  footers() {
-    const d = this.doc
-    const total = d.getNumberOfPages()
-    for (let i = 1; i <= total; i++) {
-      d.setPage(i)
-      d.setFont('helvetica', 'normal')
-      d.setFontSize(8)
-      d.setTextColor(140, 140, 140)
-      d.text(clean(`${this.org.name} est certifié Qualiopi · Document interne de préparation`), MARGIN, PAGE_H - 8)
-      d.text(`${i} / ${total}`, PAGE_W - MARGIN, PAGE_H - 8, { align: 'right' })
-    }
-  }
-}
-
 export async function generatePrepRdvPDF({ rdv, clientName, client, ctx, prep, argumentsList = [], kitDocs = [], objectionLabels = [] }) {
-  let orgSettings = null
-  try {
-    const { data } = await supabase.from('organization_settings').select('*').limit(1).maybeSingle()
-    orgSettings = data || null
-  } catch { orgSettings = null }
-  const org = buildORG(orgSettings)
-
+  const ORG = await loadPdfOrg(true)
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
-  const w = new Writer(doc, org)
   const themes = prep.themes || []
+  const company = clean(clientName || client?.name || 'Entreprise')
+  const f = startDocument(doc, ORG, { docLabel: 'Préparation de rendez-vous · document interne', code: 'PREPRDV', title: 'Préparation du rendez-vous', subtitle: company })
+  const kv = (rows) => f.kv(rows.filter(r => r[1] !== null && r[1] !== undefined && r[1] !== '').map(r => [clean(r[0]), clean(r[1])]), { labelW: 42 }) || f.space(3)
 
-  // ── En-tête ──
-  w.title('Préparation du RDV')
-  w.subtitle(clientName || client?.name || 'Entreprise')
-  w.line('Date', [fmtDate(rdv.rdv_date), rdv.rdv_time ? 'à ' + String(rdv.rdv_time).slice(0, 5).replace(':', 'h') : ''].filter(Boolean).join(' '))
-  w.line('Mené par', rdv.conducted_by)
-  w.line('Lieu', rdv.rdv_address || [client?.address, client?.postal_code, client?.city].filter(Boolean).join(' '))
+  // ── Rendez-vous ──
+  f.cards([
+    { label: 'Rendez-vous', lines: [clean([fmtDate(rdv.rdv_date), rdv.rdv_time ? 'à ' + String(rdv.rdv_time).slice(0, 5).replace(':', 'h') : ''].filter(Boolean).join(' ')), clean(rdv.conducted_by ? 'Mené par ' + rdv.conducted_by : ''), clean(rdv.rdv_address || [client?.address, client?.postal_code, client?.city].filter(Boolean).join(' '))] },
+    { label: 'Interlocuteur', lines: [clean(rdv.contact_name || ''), clean(rdv.contact_phone || ''), clean(rdv.contact_email || '')] },
+  ])
 
   // ── Entreprise ──
-  w.section('Entreprise')
-  w.line('Raison sociale', client?.name || clientName)
-  w.line('SIRET', client?.siret)
-  w.line('Activité', [client?.naf_code || client?.naf, client?.naf_label].filter(Boolean).join(' - '))
-  w.line('Effectif', prep.effectif || client?.effectif || client?.taille_entreprise)
-  w.line('Sites', prep.sites)
-  w.line('Métiers', prep.metiers)
-  w.line('OPCO', prep.opco || client?.opco_name)
-  w.line('Statut', client?.status ? `Client ${client.status}` : 'Prospect')
+  f.section('Entreprise')
+  kv([
+    ['Raison sociale', client?.name || clientName],
+    ['SIRET', client?.siret],
+    ['Activité', [client?.naf_code || client?.naf, client?.naf_label].filter(Boolean).join(' - ')],
+    ['Effectif', prep.effectif || client?.effectif || client?.taille_entreprise],
+    ['Sites', prep.sites],
+    ['Métiers', prep.metiers],
+    ['OPCO', prep.opco || client?.opco_name],
+    ['Statut', client?.status ? `Client ${client.status}` : 'Prospect'],
+  ])
 
   // ── Interlocuteur ──
-  w.section('Interlocuteur')
-  w.line('Contact du RDV', [rdv.contact_name, rdv.contact_phone, rdv.contact_email].filter(Boolean).join(' · '))
-  w.line('Qui décide', prep.decideur)
-  if (ctx?.contacts?.length) {
-    w.line('Contacts connus', ctx.contacts.slice(0, 6).map(c => `${c.name}${c.role ? ' (' + c.role + ')' : ''}${c.phone ? ' ' + c.phone : ''}`).join('\n'))
+  const contacts = ctx?.contacts?.length ? ctx.contacts.slice(0, 6).map(c => `${c.name}${c.role ? ' (' + c.role + ')' : ''}${c.phone ? ' ' + c.phone : ''}`).join('\n') : null
+  if (prep.decideur || contacts) {
+    f.section('Interlocuteurs')
+    kv([['Qui décide', prep.decideur], ['Contacts connus', contacts]])
   }
 
   // ── Historique ──
-  w.section('Historique')
-  w.line('Formations suivies', ctx?.sessions?.length
-    ? ctx.sessions.slice(0, 6).map(s => `${s.courses?.title || 'Formation'} (${fmtShort(s.end_date)})`).join('\n')
-    : 'Aucune')
-  w.line('Recyclage SST', ctx?.macDue ? `Échéance le ${fmtShort(ctx.macDue)}` : null)
-  w.line('Devis en cours', ctx?.openQuotes?.length
-    ? ctx.openQuotes.map(q => `${q.reference} du ${fmtShort(q.quote_date)} - ${money(q.total_ht)}`).join('\n')
-    : null)
-  w.line('Dernier appel', ctx?.lastCall ? `${fmtShort(ctx.lastCall.called_at)} (${ctx.lastCall.called_by || '-'}) : ${ctx.lastCall.notes || ctx.lastCall.call_result}` : null)
-  w.line('Dernier échange', ctx?.lastInteraction ? `${fmtShort(ctx.lastInteraction.interaction_date)} : ${ctx.lastInteraction.title}` : null)
+  f.section('Historique')
+  kv([
+    ['Formations suivies', ctx?.sessions?.length ? ctx.sessions.slice(0, 6).map(s => `${s.courses?.title || 'Formation'} (${fmtShort(s.end_date)})`).join('\n') : 'Aucune'],
+    ['Recyclage SST', ctx?.macDue ? `Échéance le ${fmtShort(ctx.macDue)}` : null],
+    ['Devis en cours', ctx?.openQuotes?.length ? ctx.openQuotes.map(q => `${q.reference} du ${fmtShort(q.quote_date)} - ${money(q.total_ht)}`).join('\n') : null],
+    ['Dernier appel', ctx?.lastCall ? `${fmtShort(ctx.lastCall.called_at)} (${ctx.lastCall.called_by || '-'}) : ${ctx.lastCall.notes || ctx.lastCall.call_result}` : null],
+    ['Dernier échange', ctx?.lastInteraction ? `${fmtShort(ctx.lastInteraction.interaction_date)} : ${ctx.lastInteraction.title}` : null],
+  ])
 
   // ── Besoin ──
-  w.section('Besoin exprimé')
-  w.line('Thèmes visés', (prep.themeLabels || []).join(', '))
-  w.paragraph(prep.besoin)
-  if (ctx?.providers?.length) {
-    w.line('Prestataires en place', ctx.providers.map(p => `${p.theme} : ${p.provider_name || '?'}${p.last_training_year ? ' (' + p.last_training_year + ')' : ''}`).join('\n'))
-  }
-  if (rdv.notes || rdv.notes_crm) w.line('Notes de l\'appel', [rdv.notes, rdv.notes_crm].filter(Boolean).join('\n'))
+  f.section('Besoin exprimé')
+  kv([
+    ['Thèmes visés', (prep.themeLabels || []).join(', ')],
+    ['Prestataires en place', ctx?.providers?.length ? ctx.providers.map(p => `${p.theme} : ${p.provider_name || '?'}${p.last_training_year ? ' (' + p.last_training_year + ')' : ''}`).join('\n') : null],
+    ['Notes de l\'appel', (rdv.notes || rdv.notes_crm) ? [rdv.notes, rdv.notes_crm].filter(Boolean).join('\n') : null],
+  ])
+  if (prep.besoin) f.callout('Besoin en quelques mots', clean(prep.besoin))
 
   // ── Objections ──
   const objections = [...new Set([...(prep.objections || []), ...objectionLabels])]
   if (objections.length) {
-    w.section('Objections entendues au téléphone')
-    objections.forEach(o => w.bullet(o))
+    f.section('Objections entendues au téléphone')
+    f.bullets(objections.map(clean))
   }
 
   // ── Arguments ──
@@ -273,58 +143,61 @@ export async function generatePrepRdvPDF({ rdv, clientName, client, ctx, prep, a
   const args = argumentsList.filter(a => a.is_active && (!a.valid_until || a.valid_until >= today))
     .filter(a => !a.themes?.length || a.themes.some(t => themes.includes(t)))
   if (args.length) {
-    w.section('Arguments')
+    f.ensure(34)
+    f.section('Arguments')
     args.forEach(a => {
-      w.paragraph(a.title, { bold: true })
-      w.paragraph(a.say_text, { indent: 4 })
-      if (a.detail) w.paragraph(a.detail, { indent: 4, color: [70, 70, 70], size: 9 })
-      if (a.legal_reference) w.paragraph('Référence : ' + a.legal_reference, { indent: 4, color: [120, 70, 20], size: 9 })
-      w.gap(1)
+      f.ensure(14)
+      f.para(clean(a.title), { style: 'bold', after: 1 })
+      if (a.say_text) f.para(clean(a.say_text), { x: f.M + 4, w: f.W - 4, after: 1 })
+      if (a.detail) f.para(clean(a.detail), { x: f.M + 4, w: f.W - 4, size: 8.5, color: f.t.muted, after: 1 })
+      if (a.legal_reference) f.para('Référence : ' + clean(a.legal_reference), { x: f.M + 4, w: f.W - 4, size: 8.5, color: f.t.accent, after: 1 })
+      f.space(2)
     })
   }
 
   // ── Questions ──
   const questions = String(prep.questions || '').split('\n').map(q => q.trim()).filter(Boolean)
   if (questions.length) {
-    w.section('Questions à poser')
-    questions.forEach(q => w.checkbox(q))
+    f.section('Questions à poser')
+    f.checks(questions.map(q => ({ label: clean(q) })))
   }
 
   // ── À apporter ──
-  w.section('À apporter')
-  ALWAYS_BRING.forEach(t => w.checkbox(t))
-  ;(prep.themeLabels || []).forEach(t => w.checkbox(`Programme : ${t}`))
-  kitDocs.filter(d => (prep.documents || []).includes(d.id)).forEach(d => w.checkbox(`Kit : ${d.title}`))
-  if (themes.includes('opco')) w.checkbox('Fiche démarches de prise en charge OPCO')
+  f.section('À apporter')
+  f.checks([
+    ...ALWAYS_BRING,
+    ...(prep.themeLabels || []).map(t => `Programme : ${t}`),
+    ...kitDocs.filter(d => (prep.documents || []).includes(d.id)).map(d => `Kit : ${d.title}`),
+    ...(themes.includes('opco') ? ['Fiche démarches de prise en charge OPCO'] : []),
+  ].map(t => ({ label: clean(t) })))
 
   // ── Avant de partir ──
-  w.section('Avant de partir')
-  BEFORE_LEAVING.forEach(t => w.checkbox(t))
+  f.section('Avant de partir')
+  f.checks(BEFORE_LEAVING.map(t => ({ label: clean(t) })))
 
   if (prep.notes) {
-    w.section('Notes')
-    w.paragraph(prep.notes)
+    f.section('Notes')
+    f.para(clean(prep.notes))
   }
 
   // ── Grille de diagnostic express ──
-  doc.addPage()
-  w.y = MARGIN
-  w.title('Diagnostic express')
-  w.subtitle(`${clientName || client?.name || ''} · à remplir avec l'interlocuteur`)
-  const rowH = 17
+  f.newPage()
+  f.y = drawDocTitle(doc, ORG, 'Diagnostic express', clean(`${company} · à remplir avec l'interlocuteur`), f.y)
+  const rowH = 16.5
   DIAGNOSTIC_ROWS.forEach(label => {
-    w.ensure(rowH)
-    doc.setDrawColor(200, 200, 200)
-    doc.setLineWidth(0.3)
-    doc.rect(MARGIN, w.y, CONTENT_W, rowH)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(60, 60, 60)
-    doc.text(clean(label), MARGIN + 2, w.y + 4.5)
-    w.y += rowH
+    f.ensure(rowH)
+    doc.setDrawColor(...ORG.theme.line); doc.setLineWidth(0.3)
+    doc.rect(f.M, f.y, f.W, rowH)
+    doc.setFillColor(...ORG.theme.accent); doc.rect(f.M, f.y, 1, rowH, 'F')
+    setF(doc, 'bold'); doc.setFontSize(8); doc.setTextColor(...ORG.theme.muted)
+    doc.text(clean(label).toUpperCase(), f.M + 4, f.y + 4.5, { charSpace: 0.2 })
+    f.y += rowH
   })
+  doc.setTextColor(...ORG.theme.text)
 
-  w.footers()
+  f.finish()
+  numberPages(doc, ORG)
   const safeName = clean(clientName || client?.name || 'client').replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 40)
   doc.save(`Preparation_RDV_${safeName}_${String(rdv.rdv_date || '').slice(0, 10)}.pdf`)
+  return doc
 }

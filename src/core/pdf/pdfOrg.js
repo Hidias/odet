@@ -12,6 +12,12 @@ export async function pdfOrgFrom(row) {
   return { ...r, ...buildORG(r) }
 }
 
+/** Ligne organization_settings brute, logo et signature préchargés (pour les générateurs qui appellent buildORG eux-mêmes) */
+export async function loadOrgRowForPDF() {
+  const { data } = await supabase.from('organization_settings').select('*').limit(1).maybeSingle()
+  return (await prepareOrgForPDF(data || {})) || data || {}
+}
+
 /** Charge organization_settings (une fois, force: true pour relire) */
 export async function loadPdfOrg(force = false) {
   if (cache && !force) return cache

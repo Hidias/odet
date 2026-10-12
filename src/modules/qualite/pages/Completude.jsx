@@ -8,8 +8,8 @@ import {
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
-import { jsPDF } from 'jspdf'
-import 'jspdf-autotable'
+import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { buildCompletudePDF } from '../pdf/completudePDF'
 
 const PRIORITIES = {
   bloquant: { label: 'Bloquant', color: 'red', icon: '' },
@@ -695,41 +695,19 @@ export default function Completude() {
     toast.success('Export CSV téléchargé')
   }
 
-  const exportPDF = () => {
-    const doc = new jsPDF()
-    
-    // Header
-    doc.setFontSize(18)
-    doc.text('Rapport de Complétude', 20, 20)
-    doc.setFontSize(10)
-    doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`, 20, 28)
-    
-    // Stats
-    doc.setFontSize(12)
-    doc.text(`Total : ${stats.total} éléments manquants`, 20, 40)
-    doc.setFontSize(10)
-    doc.text(` Bloquant : ${stats.bloquant} |  Important : ${stats.important} |  Mineur : ${stats.mineur}`, 20, 47)
-    
-    // Table
-    const tableData = filteredIssues.map(issue => [
-      PRIORITIES[issue.priority].icon,
-      CATEGORIES[issue.category].label,
-      issue.element,
-      issue.detail,
-      issue.client || '-',
-      issue.since ? format(new Date(issue.since), 'dd/MM/yy') : '-'
-    ])
-    
-    doc.autoTable({
-      startY: 55,
-      head: [['', 'Catégorie', 'Élément', 'Détail', 'Client', 'Depuis']],
-      body: tableData,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [30, 58, 68] }
-    })
-    
-    doc.save(`completude-${format(new Date(), 'yyyy-MM-dd')}.pdf`)
-    toast.success('Export PDF téléchargé')
+  const exportPDF = async () => {
+    try {
+      const ORG = await loadPdfOrg(true)
+      const doc = buildCompletudePDF(ORG, {
+        stats,
+        issues: filteredIssues.map(issue => ({ ...issue, categoryLabel: CATEGORIES[issue.category]?.label || issue.category })),
+      })
+      doc.save(`completude-${format(new Date(), 'yyyy-MM-dd')}.pdf`)
+      toast.success('Export PDF téléchargé')
+    } catch (e) {
+      console.error('Erreur PDF :', e)
+      toast.error("Erreur lors de l'export PDF")
+    }
   }
 
   const completionRate = stats.total > 0 
