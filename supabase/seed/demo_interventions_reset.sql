@@ -9,7 +9,8 @@ begin;
 create temporary table _demo16 on commit drop as
 select v.id, v.site_id, v.invoice_id, v.quote_id from public.itv_visits v
 join public.demo_records r on r.id = v.client_id and r.tbl = 'clients'
-where v.planned_on = '2026-10-16';
+where v.planned_on = '2026-10-16'
+   or v.reference in ('ITV-2026-0024', 'ITV-2026-0025', 'ITV-2026-0026', 'ITV-2026-0027', 'ITV-2026-0028'); -- même si déplacées pendant les répétitions
 
 -- Facture et devis préparés depuis ces visites
 update public.itv_visits set invoice_id = null, quote_id = null where id in (select id from _demo16);
@@ -24,7 +25,7 @@ delete from public.itv_equipment where id in (
 delete from public.itv_visit_items where visit_id in (select id from _demo16);
 delete from public.itv_visit_parts where visit_id in (select id from _demo16);
 
-update public.itv_visits set status = 'planifiee', started_at = null, finished_at = null, signer_name = null, client_signature = null,
+update public.itv_visits set status = 'planifiee', planned_on = '2026-10-16', started_at = null, finished_at = null, signer_name = null, client_signature = null,
   observations = null, site_observations = '[]'::jsonb, photos = '[]'::jsonb, report_sent_at = null
 where id in (select id from _demo16);
 
