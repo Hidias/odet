@@ -155,10 +155,15 @@ def ts(d, h, m=0):
     return datetime(d.year, d.month, d.day, h, m).isoformat() + ('+02:00' if summer(d) else '+01:00')
 
 
-emit('-- Données fictives du module Interventions (généré par generer_demo_interventions.py). Effaçables avec le reste.')
-emit('begin;')
+ACCOUNTS = []
+def emit_acc(s):
+    ACCOUNTS.append(s)
 
-# ─── Comptes des techniciens fictifs ───
+# ─── Comptes des techniciens fictifs (fichier séparé : il porte le mot de passe) ───
+_emit = emit
+emit = emit_acc
+emit('-- Comptes des deux techniciens fictifs (généré par generer_demo_interventions.py). Effacés avec les données de démonstration.')
+emit('begin;')
 for t in TECHS:
     meta = {'display_name': f"{t['first']} {t['last'].title()}", 'first_name': t['first'], 'last_name': t['last'], 'role': 'lecture'}
     emit(f"""insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token, email_change, email_change_token_new)
@@ -168,6 +173,11 @@ values (gen_random_uuid(), '{t['id']}', '{t['id']}', '{{"sub":"{t['id']}","email
     emit(f"update public.profiles set role = 'lecture', first_name = {q(t['first'])}, last_name = {q(t['last'])}, display_name = {q(t['first'] + ' ' + t['last'].title())}, phone = {q(t['phone'])}, fonction = 'Technicien', is_active = true where id = '{t['id']}';")
     ins('itv_technicians', {'profile_id': t['id'], 'color': t['color'], 'is_active': True})
     ins('demo_records', {'tbl': 'auth_users', 'id': t['id']})
+emit('commit;')
+emit = _emit
+emit('-- Données fictives du module Interventions (généré par generer_demo_interventions.py). Effaçables avec le reste.')
+emit('-- À appliquer après demo_interventions_comptes.sql.')
+emit('begin;')
 
 # ─── Sites, appareils, contrats, visites ───
 visit_n = [0]
@@ -228,7 +238,7 @@ for ci, (name, town, cp, sites, contract, last_month, tech_i) in enumerate(CLIEN
                                'technician_id': tech_ref(TECHS[(tech_i + vi) % 2]['email']), 'due_on': date(d.year, d.month, 1), 'planned_on': d, 'route_order': 1,
                                'status': 'terminee', 'started_at': start, 'finished_at': end,
                                'signer_name': random.choice(['Gaëlle Le Floc\'h, responsable technique', 'Yannick Cariou, directeur', 'Morgane Tanguy, responsable sécurité', 'Erwan Le Goff, chef d\'atelier']),
-                               'client_signature': random.choice(SIGS), 'observations': random.choice([None, None, 'Accès au local technique encombré, signalé au responsable.', 'RAS.']),
+                               'client_signature': Raw(f"(select signature_morning from public.attendance_halfdays where signature_morning like 'data:image%' order by id offset {random.randint(0, 40)} limit 1)"), 'observations': random.choice([None, None, 'Accès au local technique encombré, signalé au responsable.', 'RAS.']),
                                'site_observations': random.choice([[], [], ['Signalétique de sécurité manquante ou dégradée'], ['Plan d\'évacuation absent ou à mettre à jour']])})
             for e in equipment:
                 result, defect = 'conforme', None
@@ -277,7 +287,9 @@ emit("update public.org_modules set enabled = true where key = 'interventions';"
 emit('commit;')
 
 with open(os.path.join(HERE, 'demo_interventions.sql'), 'w') as fh:
-    fh.write('\n'.join(OUT).replace(PASSWORD, '[MOT_DE_PASSE]') + '\n')
-with open(os.environ.get('DEMO_SQL_WITH_PASSWORD', '/tmp/demo_interventions_with_password.sql'), 'w') as fh:
     fh.write('\n'.join(OUT) + '\n')
+with open(os.path.join(HERE, 'demo_interventions_comptes.sql'), 'w') as fh:
+    fh.write('\n'.join(ACCOUNTS).replace(PASSWORD, '[MOT_DE_PASSE]') + '\n')
+with open(os.environ.get('DEMO_SQL_WITH_PASSWORD', '/tmp/demo_interventions_comptes_pw.sql'), 'w') as fh:
+    fh.write('\n'.join(ACCOUNTS) + '\n')
 print(f'{label_n[0]} appareils, {visit_n[0]} visites passées, {late_quote_items} appareils à remplacer, {sum(len(v) for v in plan_16.values())} visites le 16/10')
