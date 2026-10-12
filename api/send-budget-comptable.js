@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
     const supabase = getSupabaseAdmin()
 
-    // 0. Destinataire comptable (paramètres de l'organisme) — bloquant si non configuré
+    // 0. Destinataire comptable (paramètres de l'organisme), bloquant si non configuré
     const comptable = await getComptableConfig(supabase)
     if (comptable.error) {
       return res.status(400).json({ error: comptable.error })
