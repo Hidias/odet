@@ -1,4 +1,6 @@
--- Comptes des deux techniciens fictifs (généré par generer_demo_interventions.py). Effacés avec les données de démonstration.
+-- Comptes des deux techniciens fictifs (rôle « lecture », cochés techniciens dans le module). Effacés avec les données
+-- de démonstration (demo_records, tbl = 'auth_users'). Remplacer [MOT_DE_PASSE] avant de l'appliquer ; le mot de passe
+-- n'est jamais écrit dans le dépôt.
 begin;
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token, email_change, email_change_token_new)
 values ('00000000-0000-0000-0000-000000000000', '83c9e5db-8f89-497f-ba6d-d33e22266a0b', 'authenticated', 'authenticated', 'ronan.gourmelen@gld-demo.fr', extensions.crypt('[MOT_DE_PASSE]', extensions.gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}'::jsonb, '{"display_name": "Ronan Gourmelen", "first_name": "Ronan", "last_name": "GOURMELEN", "role": "lecture"}'::jsonb, now(), now(), '', '', '', '');

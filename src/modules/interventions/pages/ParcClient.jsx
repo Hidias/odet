@@ -48,7 +48,7 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
 
   const late = equipment.filter((e) => dueState(e.next_check_on) === 'late').length
   const toReplace = equipment.filter((e) => e.status === 'a_remplacer').length
-  const lastDone = visits.find((v) => v.status === 'terminee')
+  const lastDone = [...visits].filter((v) => v.status === 'terminee').sort((a, b) => String(b.started_at || b.planned_on || '').localeCompare(String(a.started_at || a.planned_on || '')))[0]
 
   const ensureSite = async () => {
     try { await createDefaultSite(client); await load(); toast.success('Site créé depuis l\'adresse du client') } catch (e) { toast.error(e.message) }
@@ -99,7 +99,7 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
         <Kpi value={equipment.length} label={`appareils, ${sites.length} site${sites.length > 1 ? 's' : ''}`} />
         <Kpi value={late} label="vérifications en retard" tone={late ? 'danger' : null} />
         <Kpi value={toReplace} label="à remplacer" tone={toReplace ? 'warning' : null} />
-        <Kpi value={lastDone ? frShort(lastDone.started_at?.slice(0, 10) || lastDone.planned_on, { year: false }) : '-'} label="dernière visite" />
+        <Kpi value={lastDone ? frShort(lastDone.started_at?.slice(0, 10) || lastDone.planned_on) : '-'} label="dernière visite" />
       </div>
 
       {/* Contrats */}

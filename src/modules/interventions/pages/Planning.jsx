@@ -143,10 +143,10 @@ export default function Planning({ technicians }) {
                 <GripVertical className="w-4 h-4 text-gray-300 flex-none mt-0.5 hidden xl:block" />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-ui truncate">{d.client?.name}</div>
-                  <div className="text-ui-sm text-gray-500 truncate">{[d.site?.city, fam || (d.pending_visit ? 'visite de contrat' : null), d.contract ? 'contrat' : null].filter(Boolean).join('. ')}</div>
+                  <div className="text-ui-sm text-gray-500 truncate">{[d.site?.city, d.site?.name, fam || (d.pending_visit ? 'visite de contrat' : null), d.contract ? 'contrat' : null].filter(Boolean).join('. ')}</div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  {d.first_due && <span className={`badge ${late ? 'badge-danger' : n <= 31 ? 'badge-warning' : 'badge-neutral'}`}>{late ? `${n} j` : frShort(d.first_due, { year: false })}</span>}
+                  {d.first_due && <span className={`badge ${late ? 'badge-danger' : n <= 31 ? 'badge-warning' : 'badge-neutral'}`}>{late ? `Retard ${-n} j` : frShort(d.first_due, { year: false })}</span>}
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPlacing(d)} disabled={!technicians.length}>Placer</button>
                 </div>
               </div>
