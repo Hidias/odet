@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check,
+  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck,
 } from 'lucide-react'
 import { useDataStore, useAuthStore } from '../store'
 import { supabase } from '../supabase'
@@ -18,6 +18,7 @@ const SECTIONS = [
   { id: 'coordonnees', label: 'Coordonnées et signataire', icon: MapPin },
   { id: 'marque', label: 'Marque et affichage', icon: Palette },
   { id: 'documents', label: 'Documents et textes', icon: FileText },
+  { id: 'qualite', label: 'Qualité et référents', icon: ShieldCheck },
   { id: 'banque', label: 'Banque et facturation', icon: Landmark },
   { id: 'modules', label: 'Modules', icon: Layers },
   { id: 'emails', label: 'Comptes email', icon: Mail },
@@ -211,7 +212,9 @@ export default function Settings() {
               </div>
               <h2 className="section-title">Référent handicap</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Field label="Nom"><input className="input" value={form.referent_handicap_nom || ''} onChange={(e) => set('referent_handicap_nom', e.target.value)} /></Field>
+                <Field label="Nom" hint="Se choisit dans Qualité et référents">
+                  <div className="input bg-gray-50 text-gray-700">{form.referent_handicap_nom || 'Non désigné'}</div>
+                </Field>
                 <Field label="Email"><input className="input" value={form.referent_handicap_email || ''} onChange={(e) => set('referent_handicap_email', e.target.value)} /></Field>
                 <Field label="Téléphone"><input className="input" value={form.referent_handicap_phone || ''} onChange={(e) => set('referent_handicap_phone', e.target.value)} /></Field>
               </div>
@@ -315,12 +318,74 @@ export default function Settings() {
           )}
 
           {section === 'modules' && <ModulesSection onChanged={refreshModules} />}
+          {section === 'qualite' && <QualiteSection onReferentHandicap={(r) => { set('referent_handicap_nom', r.nom); if (r.email) set('referent_handicap_email', r.email); if (r.telephone) set('referent_handicap_phone', r.telephone) }} />}
           {section === 'emails' && <EmailSettings embedded />}
           {section === 'utilisateurs' && <UsersSection isSuperadmin={isSuperadmin} />}
           {section === 'comptable' && <ComptableSection />}
         </div>
       </div>
     </div>
+  )
+}
+
+// Rôles qualité : chaque responsable ou référent est un compte utilisateur, jamais un nom écrit à la main.
+// Les documents qualité, le livret et les procédures reprennent le titulaire au moment de l'affichage.
+function QualiteSection({ onReferentHandicap }) {
+  const [roles, setRoles] = useState([])
+  const [profiles, setProfiles] = useState([])
+  const [busy, setBusy] = useState(null)
+
+  const personName = (p) => (p ? [p.first_name, p.last_name ? String(p.last_name).toUpperCase() : ''].filter(Boolean).join(' ').trim() || p.display_name || p.email : '')
+
+  const load = async () => {
+    const [r, p] = await Promise.all([
+      supabase.from('quality_roles').select('*').order('sort_order'),
+      supabase.from('profiles').select('id, first_name, last_name, display_name, email, sender_email, phone, role, is_active').order('created_at'),
+    ])
+    if (r.error) toast.error(r.error.message)
+    setRoles(r.data || [])
+    setProfiles((p.data || []).filter((x) => x.is_active !== false && !['entreprise', 'formateur_externe'].includes(x.role)))
+  }
+  useEffect(() => { load() }, [])
+
+  const choose = async (role, profileId) => {
+    setBusy(role.code)
+    const { error } = await supabase.from('quality_roles').update({ profile_id: profileId || null, updated_at: new Date().toISOString() }).eq('code', role.code)
+    if (error) { setBusy(null); return toast.error(error.message) }
+    if (role.code === 'referent_handicap') {
+      const p = profiles.find((x) => x.id === profileId)
+      const r = { nom: personName(p), email: p?.sender_email || p?.email || '', telephone: p?.phone || '' }
+      const patch = { referent_handicap_nom: r.nom || null }
+      if (r.email) patch.referent_handicap_email = r.email
+      if (r.telephone) patch.referent_handicap_phone = r.telephone
+      await supabase.from('organization_settings').update(patch).not('id', 'is', null)
+      onReferentHandicap?.(r)
+    }
+    setBusy(null)
+    toast.success('Référent mis à jour')
+    load()
+  }
+
+  return (
+    <>
+      <h2 className="section-title">Responsables et référents qualité</h2>
+      <p className="text-ui-sm text-gray-500">Chaque rôle est tenu par un utilisateur. Les documents qualité (désignations, livret d'accueil, règlement, procédures) affichent automatiquement la personne choisie ici. Le changement est enregistré immédiatement.</p>
+      <div className="divide-y border rounded-ui">
+        {roles.map((r) => (
+          <div key={r.code} className="flex items-center justify-between gap-3 px-3 py-2 flex-wrap">
+            <div className="text-ui font-medium text-gray-800">{r.label}</div>
+            <div className="flex items-center gap-2">
+              {busy === r.code && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+              <select className="select min-w-[220px]" value={r.profile_id || ''} disabled={busy === r.code} onChange={(e) => choose(r, e.target.value)}>
+                <option value="">Non désigné</option>
+                {profiles.map((p) => <option key={p.id} value={p.id}>{personName(p)}</option>)}
+              </select>
+            </div>
+          </div>
+        ))}
+        {roles.length === 0 && <div className="px-3 py-3 text-ui text-gray-500">Aucun rôle qualité en base.</div>}
+      </div>
+    </>
   )
 }
 

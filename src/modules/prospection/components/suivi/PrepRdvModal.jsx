@@ -11,6 +11,7 @@ import { loadCallContext, themeOfTitle } from '../../lib/callContext'
 import { THEMES, labelOf } from '../../lib/phoningLabels'
 import { generatePrepRdvPDF } from '../../pdf/pdfPreparationRdv'
 import { fmtDate, kitCategoryLabel } from './suiviUtils'
+import { loadTemplateContext, fillTemplate } from '../../../../core/org/templateContext'
 
 const DEFAULT_QUESTIONS = [
   'Combien de salariés par site, et sur quels postes ?',
@@ -69,7 +70,10 @@ export default function PrepRdvModal({ rdvId, clientName, onClose, onDone }) {
         const kit = kitRes.data || []
         setRdv(r)
         setCtx(context)
-        setArgumentsList(argsRes.data || [])
+        // Textes d'argumentaire : champs {{org.nom}}, {{app.nom}} remplis depuis les paramètres
+        const tpl = await loadTemplateContext().catch(() => null)
+        if (cancelled) return
+        setArgumentsList((argsRes.data || []).map(a => ({ ...a, say_text: fillTemplate(a.say_text, tpl), detail: fillTemplate(a.detail, tpl), title: fillTemplate(a.title, tpl) })))
         setKitDocs(kit)
         setHeardObjections(heard)
         setForm(saved ? { ...form, ...saved } : {

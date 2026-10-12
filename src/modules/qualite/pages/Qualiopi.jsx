@@ -13,6 +13,7 @@ import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import ProcessEditor from './ProcessEditor'
+import { loadTemplateContext, fillTemplate, TEMPLATE_FIELDS } from '../../../core/org/templateContext'
 
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -89,6 +90,10 @@ export default function Qualiopi() {
   
   // Réclamations
   const [reclamations, setReclamations] = useState([])
+
+  // Champs {{org.*}}, {{role.*}} des documents : remplis à l'affichage depuis les paramètres
+  const [tplCtx, setTplCtx] = useState(null)
+  useEffect(() => { loadTemplateContext(true).then(setTplCtx).catch(() => {}) }, [])
 
   useEffect(() => {
     loadAllData()
@@ -391,7 +396,7 @@ export default function Qualiopi() {
   // Prévisualiser un document
   const previewDocument = (doc) => {
     const config = DOCUMENT_TYPES[doc.type]
-    const content = doc.content || ''
+    const content = fillTemplate(doc.content || '', tplCtx, { html: true })
     
     // Si le contenu est déjà du HTML complet, l'afficher directement
     if (content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html') || content.trim().startsWith('<HTML')) {
@@ -461,7 +466,7 @@ export default function Qualiopi() {
   // Télécharger un document en PDF
   const downloadDocumentAsPDF = (doc) => {
     const config = DOCUMENT_TYPES[doc.type]
-    const content = doc.content || ''
+    const content = fillTemplate(doc.content || '', tplCtx, { html: true })
     
     // Si le contenu est déjà du HTML complet, l'utiliser directement
     if (content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html') || content.trim().startsWith('<HTML')) {
@@ -814,7 +819,7 @@ export default function Qualiopi() {
                   
                   {doc ? (
                     <div className="space-y-2">
-                      <p className="text-sm text-gray-500 line-clamp-2">{doc.content?.substring(0, 100)}...</p>
+                      <p className="text-sm text-gray-500 line-clamp-2">{fillTemplate(doc.content || '', tplCtx).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').substring(0, 100)}...</p>
                       <p className="text-xs text-gray-400">
                         Mis à jour le {format(new Date(doc.updated_at), 'd MMM yyyy', { locale: fr })}
                       </p>
@@ -1047,6 +1052,14 @@ export default function Qualiopi() {
                   className="input min-h-[400px] font-mono text-sm"
                   placeholder="Saisissez le contenu du document..."
                 />
+                <details className="mt-2 text-xs text-gray-500">
+                  <summary className="cursor-pointer">Champs remplis automatiquement depuis Paramètres</summary>
+                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+                    {TEMPLATE_FIELDS.map(([code, label]) => (
+                      <div key={code}><code className="font-mono text-gray-700">{code}</code> : {label}</div>
+                    ))}
+                  </div>
+                </details>
               </div>
             </div>
             

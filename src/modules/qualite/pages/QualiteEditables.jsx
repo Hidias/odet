@@ -1,4 +1,5 @@
 import { teamNames, docCode } from '../../../core/org/currentOrg'
+import { loadTemplateContext, fillDeep, fillTemplate } from '../../../core/org/templateContext'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -7,6 +8,7 @@ import {
   Loader2, RefreshCw, Plus, Trash2, CheckCircle
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
+import { APP_VERSION } from '../../../core/version'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -92,13 +94,13 @@ const DEFAULT_DATA = {
       { nom: P(1), specialites: ['SST', 'Gestes & postures', 'Incendie', 'Conduite de chariots'] },
     ],
   },
-  'des-qual': { personne: P(0), role: 'Responsable Qualité', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Piloter le système qualité', 'Suivre les indicateurs', 'Préparer les audits', 'Proposer les améliorations', 'Garantir la conformité Qualiopi'] },
-  'des-hand': { personne: P(1), role: 'Référent Handicap', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Accueillir les PSH', 'Identifier les besoins d\'adaptation', 'Lien avec Agefiph/MDPH', 'Sensibiliser l\'équipe', 'Suivre les aménagements'] },
-  'des-deon': { personne: P(1), role: 'Référent Déontologie', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veiller au respect des règles éthiques', 'Traiter les signalements', 'Conseiller la direction', 'Sensibiliser l\'équipe'] },
-  'des-recl': { personne: P(0), role: 'Référent Réclamations', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Réceptionner les réclamations', 'Analyser les causes', 'Clôturer sous 5 jours ouvrés', 'Communiquer les résultats', 'Proposer des actions préventives'] },
-  'des-veil': { personne: P(0), role: 'Référent Veille', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veille réglementaire mensuelle', 'Suivre les référentiels INRS/CACES', 'Informer l\'équipe sous 30 jours', 'Mettre à jour les documents'] },
-  'des-amel': { personne: P(1), role: 'Référent Amélioration Continue', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Analyser les NC', 'Suivre les actions correctives', 'Animer l\'amélioration continue', 'Mesurer l\'efficacité', 'Préparer la RDD'] },
-  'des-rgpd': { personne: P(0), role: 'DPO', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Conformité RGPD', 'Registre des traitements', 'Répondre aux demandes de droits', 'Sensibiliser le personnel', 'Gérer les violations'] },
+  'des-qual': { personne: '{{role.responsable_qualite}}', role: 'Responsable Qualité', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Piloter le système qualité', 'Suivre les indicateurs', 'Préparer les audits', 'Proposer les améliorations', 'Garantir la conformité Qualiopi'] },
+  'des-hand': { personne: '{{role.referent_handicap}}', role: 'Référent Handicap', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Accueillir les PSH', 'Identifier les besoins d\'adaptation', 'Lien avec Agefiph/MDPH', 'Sensibiliser l\'équipe', 'Suivre les aménagements'] },
+  'des-deon': { personne: '{{role.referent_deontologie}}', role: 'Référent Déontologie', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veiller au respect des règles éthiques', 'Traiter les signalements', 'Conseiller la direction', 'Sensibiliser l\'équipe'] },
+  'des-recl': { personne: '{{role.referent_reclamations}}', role: 'Référent Réclamations', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Réceptionner les réclamations', 'Analyser les causes', 'Clôturer sous 5 jours ouvrés', 'Communiquer les résultats', 'Proposer des actions préventives'] },
+  'des-veil': { personne: '{{role.referent_veille}}', role: 'Référent Veille', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veille réglementaire mensuelle', 'Suivre les référentiels INRS/CACES', 'Informer l\'équipe sous 30 jours', 'Mettre à jour les documents'] },
+  'des-amel': { personne: '{{role.referent_amelioration}}', role: 'Référent Amélioration Continue', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Analyser les NC', 'Suivre les actions correctives', 'Animer l\'amélioration continue', 'Mesurer l\'efficacité', 'Préparer la RDD'] },
+  'des-rgpd': { personne: '{{role.referent_rgpd}}', role: 'DPO', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Conformité RGPD', 'Registre des traitements', 'Répondre aux demandes de droits', 'Sensibiliser le personnel', 'Gérer les violations'] },
   'proc-recl': { 
     objectif: 'Définir les modalités de traitement des réclamations pour garantir la satisfaction des parties prenantes.',
     responsable: P(0), delaiAccuse: '48h', delaiCloture: '5 jours ouvrés',
@@ -274,9 +276,12 @@ export default function QualiteEditables() {
   const [loadingData, setLoadingData] = useState(false)
   const [rddData, setRddData] = useState(null)
   
+  // Champs {{org.*}}, {{role.*}} : remplis à l'affichage depuis Paramètres (identité et rôles qualité)
+  const [tplCtx, setTplCtx] = useState(null)
   useEffect(() => {
     loadSavedDocs()
     supabase.from('organization_settings').select('*').limit(1).maybeSingle().then(({ data }) => syncOrg(data))
+    loadTemplateContext(true).then(setTplCtx).catch(() => {})
   }, [])
   
   const loadSavedDocs = async () => {
@@ -423,9 +428,10 @@ export default function QualiteEditables() {
       const doc = new jsPDF()
       const w = doc.internal.pageSize.getWidth()
       const h = doc.internal.pageSize.getHeight()
-      const v = '2.8.0'
+      const v = APP_VERSION
       const d = format(new Date(), 'dd/MM/yyyy')
-      const data = savedDocs[docId] || DEFAULT_DATA[docId] || {}
+      const ctx = tplCtx || await loadTemplateContext()
+      const data = fillDeep(savedDocs[docId] || DEFAULT_DATA[docId] || {}, ctx)
       
       const header = () => { doc.setFontSize(9); doc.setTextColor(100); doc.text(`${ORG.nom} ${ORG.forme} - ${ORG.siret}`, 20, 15); doc.text(`${ORG.adresse}, ${ORG.cp} ${ORG.ville}`, 20, 20) }
       const footer = (p = 1) => { doc.setFontSize(8); doc.setTextColor(128); doc.text(`${docCode(docInfo.code)}-V${v}`, 20, h - 10); doc.text(d, w/2, h - 10, { align: 'center' }); doc.text(`Page ${p}`, w - 20, h - 10, { align: 'right' }) }
@@ -701,9 +707,16 @@ export default function QualiteEditables() {
               <>
                 <div>
                   <label className="block text-sm font-medium mb-1">Personne désignée</label>
-                  <select value={editData.personne || ''} onChange={e => setEditData({...editData, personne: e.target.value})} className="input w-full">
-                    {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                  {String(editData.personne || '').startsWith('{{role.') ? (
+                    <div className="input w-full bg-gray-50 text-gray-700">
+                      {fillTemplate(editData.personne, tplCtx) || 'Non désignée'}
+                      <span className="block text-xs text-gray-500 mt-1">Se change dans Paramètres &gt; Qualité</span>
+                    </div>
+                  ) : (
+                    <select value={editData.personne || ''} onChange={e => setEditData({...editData, personne: e.target.value})} className="input w-full">
+                      {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Fonction</label>
