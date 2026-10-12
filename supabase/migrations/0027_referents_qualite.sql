@@ -230,10 +230,9 @@ update public.process_steps
    set responsible_id = (select id from public.process_responsibles where name = 'Hicham' limit 1)
  where responsible_id in (select id from public.process_responsibles where name = 'Maxime')
    and exists (select 1 from public.process_responsibles where name = 'Hicham');
-delete from public.process_responsibles
- where name = 'Maxime'
-   and not exists (select 1 from public.process_steps s where s.responsible_id = process_responsibles.id);
 update public.process_responsibles set name = 'Direction' where name = 'Hicham';
+update public.process_responsibles set name = 'Responsable qualité'
+ where name = 'Maxime' and not exists (select 1 from public.process_responsibles where name = 'Responsable qualité');
 
 update public.call_arguments
    set say_text = replace(replace(say_text, 'Access Formation', '{{org.nom}}'), 'Access Campus', '{{app.nom}}'),
