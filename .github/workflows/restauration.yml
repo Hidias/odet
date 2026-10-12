@@ -1,0 +1,91 @@
+# Restauration d'une sauvegarde de nuit dans un projet Supabase NEUF.
+# Ne touche jamais la production : le script s'arrête si la base cible contient déjà des tables,
+# et ce workflow refuse l'URL du projet de production.
+# Procédure complète : docs/sauvegarde-restauration.md
+
+name: Restauration
+
+on:
+  workflow_dispatch:
+    inputs:
+      projet_cible:
+        description: "URL du projet Supabase NEUF (https://xxxx.supabase.co)"
+        required: true
+      execution:
+        description: "Numéro de l'exécution « Sauvegarde de nuit » à restaurer (vide = la plus récente réussie)"
+        required: false
+        default: ""
+      confirmation:
+        description: "Écrire RESTAURER pour confirmer"
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: restauration
+  cancel-in-progress: false
+
+env:
+  URL_PRODUCTION: https://thcngystpaiamejoaejn.supabase.co
+
+jobs:
+  restauration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Contrôles avant restauration
+        env:
+          CIBLE: ${{ inputs.projet_cible }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          A: ${{ secrets.RESTORE_DB_URL }}
+          B: ${{ secrets.RESTORE_SERVICE_ROLE_KEY }}
+          C: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          [ "$CONFIRMATION" = "RESTAURER" ] || { echo "::error::Confirmation absente : écrire RESTAURER"; exit 1; }
+          CIBLE="${CIBLE%/}"
+          [[ "$CIBLE" =~ ^https://[a-z0-9]+\.supabase\.co$ ]] || { echo "::error::URL du projet cible invalide : $CIBLE"; exit 1; }
+          [ "$CIBLE" != "$URL_PRODUCTION" ] || { echo "::error::C'est l'URL de la production. Créer un projet neuf."; exit 1; }
+          manque=""
+          [ -n "$A" ] || manque="$manque RESTORE_DB_URL"
+          [ -n "$B" ] || manque="$manque RESTORE_SERVICE_ROLE_KEY"
+          [ -n "$C" ] || manque="$manque BACKUP_PASSPHRASE"
+          [ -z "$manque" ] || { echo "::error::Secrets manquants :$manque"; exit 1; }
+          REF="${CIBLE#https://}"; REF="${REF%%.*}"
+          case "$A" in *"$REF"*) ;; *) echo "::error::Le secret RESTORE_DB_URL ne pointe pas vers le projet $REF"; exit 1;; esac
+          case "$A" in *thcngystpaiamejoaejn*) echo "::error::RESTORE_DB_URL pointe vers la production"; exit 1;; esac
+
+      - uses: actions/checkout@v4
+
+      - name: Choix de la sauvegarde
+        id: choix
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXECUTION: ${{ inputs.execution }}
+        run: |
+          if [ -z "$EXECUTION" ]; then
+            EXECUTION="$(gh run list -R "$GITHUB_REPOSITORY" --workflow sauvegarde-nuit.yml --status success --limit 1 --json databaseId -q '.[0].databaseId')"
+          fi
+          [ -n "$EXECUTION" ] || { echo "::error::Aucune sauvegarde réussie trouvée"; exit 1; }
+          echo "execution=$EXECUTION" >> "$GITHUB_OUTPUT"
+          echo "Sauvegarde restaurée : exécution n° $EXECUTION" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ steps.choix.outputs.execution }}
+          github-token: ${{ github.token }}
+          pattern: odet-sauvegarde-*
+          path: ${{ runner.temp }}/sauvegarde
+          merge-multiple: true
+
+      - name: Restauration et comparaison
+        env:
+          RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+          RESTORE_SUPABASE_URL: ${{ inputs.projet_cible }}
+          RESTORE_SERVICE_ROLE_KEY: ${{ secrets.RESTORE_SERVICE_ROLE_KEY }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          ls "$RUNNER_TEMP"/sauvegarde
+          bash scripts/sauvegarde/restaurer.sh "$(ls "$RUNNER_TEMP"/sauvegarde/*.tar.gz.gpg | head -1)"
+          echo "Restauration terminée et vérifiée table par table." >> "$GITHUB_STEP_SUMMARY"

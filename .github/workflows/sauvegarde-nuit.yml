@@ -1,0 +1,111 @@
+# Sauvegarde de la base Supabase odet, chaque nuit.
+# 1. Export chiffré (base + comptes + fichiers du Storage), gardé 30 jours dans l'onglet Actions.
+# 2. Test de restauration de cet export dans un Supabase vierge monté sur la machine GitHub,
+#    avec comparaison table par table. Si l'un des deux échoue, GitHub envoie un email.
+# Procédure complète : docs/sauvegarde-restauration.md
+
+name: Sauvegarde de nuit
+
+on:
+  schedule:
+    - cron: '17 1 * * *' # 3h17 en été, 2h17 en hiver (heure de Paris)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sauvegarde
+  cancel-in-progress: false
+
+env:
+  SUPABASE_URL: https://thcngystpaiamejoaejn.supabase.co
+  SUPABASE_CLI_VERSION: 2.120.0
+
+jobs:
+  sauvegarde:
+    name: Export chiffré
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artefact: ${{ steps.nom.outputs.artefact }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secrets présents ?
+        env:
+          A: ${{ secrets.SUPABASE_DB_URL }}
+          B: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          C: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          manque=""
+          [ -n "$A" ] || manque="$manque SUPABASE_DB_URL"
+          [ -n "$B" ] || manque="$manque SUPABASE_SERVICE_ROLE_KEY"
+          [ -n "$C" ] || manque="$manque BACKUP_PASSPHRASE"
+          if [ -n "$manque" ]; then
+            echo "::error::Secrets à créer dans Settings > Secrets and variables > Actions :$manque"
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Nom de l'export
+        id: nom
+        run: echo "artefact=odet-sauvegarde-$(TZ=Europe/Paris date +%Y-%m-%d_%H%M)" >> "$GITHUB_OUTPUT"
+
+      - name: Export, comptage, fichiers, chiffrement
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          DOSSIER_SORTIE: ${{ runner.temp }}/sortie
+        run: bash scripts/sauvegarde/sauvegarder.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.nom.outputs.artefact }}
+          path: ${{ runner.temp }}/sortie/
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+
+  test-restauration:
+    name: Test de restauration (Supabase vierge)
+    needs: sauvegarde
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.sauvegarde.outputs.artefact }}
+          path: ${{ runner.temp }}/sauvegarde
+
+      - name: Supabase vierge sur la machine GitHub
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir vierge && cd vierge
+          supabase init --force > /dev/null
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
+          supabase status -o env > "$RUNNER_TEMP/vierge.env"
+
+      - name: Restauration et comparaison
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -a; . "$RUNNER_TEMP/vierge.env"; set +a
+          export RESTORE_DB_URL="$DB_URL" RESTORE_SUPABASE_URL="$API_URL" RESTORE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          bash scripts/sauvegarde/restaurer.sh "$RUNNER_TEMP"/sauvegarde/*.tar.gz.gpg
+
+      - name: Résumé
+        if: success()
+        run: |
+          echo "### Sauvegarde ${{ needs.sauvegarde.outputs.artefact }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Export chiffré gardé 30 jours, restauration testée dans un Supabase vierge : identique table par table." >> "$GITHUB_STEP_SUMMARY"
