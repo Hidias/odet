@@ -16,6 +16,7 @@ import { format, isAfter, isBefore, startOfToday, addDays, addMonths, difference
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { qualiopiCycle } from '../certification/lib/certData'
+import InterventionsDashboardCard from '../interventions/components/DashboardCard'
 
 // ═══════════════════════════════════════════════════════════
 // WIDGET REGISTRY
@@ -1064,6 +1065,7 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
+      {(modules || []).includes('interventions') && <InterventionsDashboardCard />}
       
 
       {/* Widget grid */}

@@ -216,6 +216,16 @@ export default function Quotes() {
     }
   }, [previewData])
 
+  // Devis préparé ailleurs (ex. remplacements relevés pendant une visite d'intervention) : ?open=<id>
+  useEffect(() => {
+    const openId = searchParams.get('open')
+    if (!openId || mode !== 'list') return
+    supabase.from('quotes').select('*').eq('id', openId).maybeSingle().then(({ data }) => {
+      if (data) openEdit(data)
+      setSearchParams({}, { replace: true })
+    })
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-open create mode if ?client_id=xxx in URL (from RDV "Créer devis")
   useEffect(() => {
     const clientIdParam = searchParams.get('client_id')

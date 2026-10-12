@@ -259,7 +259,12 @@ export default function Invoices() {
     loadAll().then(({ quotes: qs }) => {
       const fq = searchParams.get('from_quote')
       const fs = searchParams.get('from_session')
-      if (fq && qs.length > 0) {
+      const fo = searchParams.get('open')
+      if (fo) {
+        // Brouillon préparé ailleurs (ex. visite d'intervention) : ouvert directement
+        supabase.from('invoices').select('*').eq('id', fo).maybeSingle().then(({ data }) => { if (data) handleEdit(data) })
+        setSearchParams({})
+      } else if (fq && qs.length > 0) {
         const q = qs.find(x => x.id === fq)
         if (q) { handleFromQuote(q); setSearchParams({}) }
       } else if (fs) {

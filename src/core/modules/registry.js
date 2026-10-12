@@ -95,7 +95,7 @@ export const NAV_SECTIONS = [
     module: 'interventions',
     label: 'Entreprise',
     items: [
-      { to: '/interventions', icon: MapPin, label: 'Interventions', roles: STAFF, soon: true },
+      { to: '/interventions', icon: MapPin, label: 'Interventions', roles: STAFF },
       { to: '/collaborateurs', icon: Briefcase, label: 'Collaborateurs', roles: MANAGERS, module: 'rh', soon: true },
     ],
   },
