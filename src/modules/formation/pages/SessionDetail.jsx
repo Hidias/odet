@@ -3162,13 +3162,17 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={handleDownloadConvention}
-                  className="btn btn-secondary btn-sm w-full flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Télécharger la convention signée
-                </button>
+                {session.convention_signed_file_url ? (
+                  <button
+                    onClick={handleDownloadConvention}
+                    className="btn btn-secondary btn-sm w-full flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Télécharger la convention signée
+                  </button>
+                ) : (
+                  <p className="text-xs text-gray-500 text-center">Réception notée, aucun scan déposé.</p>
+                )}
               </div>
             )}
           </div>
