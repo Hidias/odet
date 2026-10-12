@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { downloadDocument, downloadAllDocuments, generatePDF, generateAllPDF, setOrganization } from '../pdf/pdfGenerator'
 import { missingOrgFields } from '../../../core/org/orgUtils'
+import { computePresenceHours, formatHours } from '../lib/presence'
 import { 
   ArrowLeft, Calendar, MapPin, Users, Clock, FileText, QrCode, UserPlus, UserMinus,
   Download, CheckCircle, AlertCircle, Copy, ExternalLink, X, Edit, Trash2, Save,
@@ -230,13 +231,11 @@ export default function SessionDetail() {
     first_name: '', last_name: '', email: '', phone: '', client_id: '', gender: 'male'
   })
   
-  // Départ anticipé
+  // Présence partielle : arrivée tardive et/ou départ anticipé (heures locales)
+  const EMPTY_PARTIAL = { has_arrival: false, arrival_date: '', arrival_time: '', has_departure: false, departure_date: '', departure_time: '', departure_reason: '', presence_hours: '' }
   const [showDepartureModal, setShowDepartureModal] = useState(false)
   const [departureTrainee, setDepartureTrainee] = useState(null)
-  const [departureForm, setDepartureForm] = useState({
-    departure_date: '',
-    departure_reason: ''
-  })
+  const [departureForm, setDepartureForm] = useState(EMPTY_PARTIAL)
   
   // Codes d'accès stagiaires
   const [accessCodes, setAccessCodes] = useState({}) // { trainee_id: { code, attempts, locked } }
@@ -1682,73 +1681,99 @@ export default function SessionDetail() {
     toast.success('Tous les stagiaires marqués présents ')
   }
   
-  // Gérer le départ anticipé
+  // Gérer la présence partielle (arrivée tardive, départ anticipé)
   const openDepartureModal = (trainee) => {
     setDepartureTrainee(trainee)
     const stData = session.session_trainees?.find(st => st.trainee_id === trainee.id)
-    if (stData?.early_departure) {
-      setDepartureForm({
-        departure_date: stData.departure_date || '',
-        departure_reason: stData.departure_reason || ''
-      })
-    } else {
-      setDepartureForm({ departure_date: '', departure_reason: '' })
-    }
+    const oneDay = session?.start_date && session.start_date === session?.end_date ? session.start_date : ''
+    setDepartureForm({
+      ...EMPTY_PARTIAL,
+      has_arrival: !!stData?.arrival_time,
+      arrival_date: stData?.arrival_date || oneDay,
+      arrival_time: (stData?.arrival_time || '').slice(0, 5),
+      has_departure: !!stData?.early_departure || !stData?.arrival_time,
+      departure_date: stData?.departure_date || oneDay,
+      departure_time: (stData?.departure_time || '').slice(0, 5),
+      departure_reason: stData?.departure_reason || '',
+      presence_hours: stData?.presence_hours != null ? String(stData.presence_hours) : '',
+    })
     setShowDepartureModal(true)
   }
-  
+
+  // Heures calculées à partir de la saisie (heure de Paris, sans conversion)
+  const partialComputed = () => computePresenceHours(session, session?.courses, {
+    arrival_date: departureForm.has_arrival ? departureForm.arrival_date : null,
+    arrival_time: departureForm.has_arrival ? departureForm.arrival_time : null,
+    early_departure: departureForm.has_departure,
+    departure_date: departureForm.has_departure ? departureForm.departure_date : null,
+    departure_time: departureForm.has_departure ? departureForm.departure_time : null,
+  })
+
   const handleSaveDeparture = async () => {
     if (!departureTrainee) return
-    if (!departureForm.departure_date) {
-      toast.error('La date de départ est requise')
-      return
-    }
-    if (!departureForm.departure_reason.trim()) {
-      toast.error('Le motif de départ est requis')
-      return
-    }
-    
+    const f = departureForm
+    if (!f.has_arrival && !f.has_departure) { toast.error("Cochez l'arrivée tardive ou le départ anticipé"); return }
+    if (f.has_arrival && (!f.arrival_date || !f.arrival_time)) { toast.error("La date et l'heure d'arrivée sont requises"); return }
+    if (f.has_departure && (!f.departure_date || !f.departure_time)) { toast.error("La date et l'heure de départ sont requises"); return }
+    if (!f.departure_reason.trim()) { toast.error('Le motif est requis'); return }
+    const startT = (session?.start_time || '').slice(0, 5)
+    const endT = (session?.end_time || '').slice(0, 5)
+    const outOfRange = (t) => startT && endT && (t < startT || t > endT)
+    if (f.has_arrival && outOfRange(f.arrival_time)) { toast.error(`L'heure d'arrivée doit être comprise entre ${startT} et ${endT}`); return }
+    if (f.has_departure && outOfRange(f.departure_time)) { toast.error(`L'heure de départ doit être comprise entre ${startT} et ${endT}`); return }
+    const hoursTxt = String(f.presence_hours).replace(',', '.').trim()
+    const hours = hoursTxt === '' ? partialComputed().hours : Number(hoursTxt)
+    if (!Number.isFinite(hours) || hours < 0) { toast.error('Heures de présence invalides'); return }
+
     const { error } = await supabase
       .from('session_trainees')
       .update({
-        early_departure: true,
-        departure_date: departureForm.departure_date,
-        departure_reason: departureForm.departure_reason
+        early_departure: f.has_departure,
+        departure_date: f.has_departure ? f.departure_date : null,
+        departure_time: f.has_departure ? f.departure_time : null,
+        arrival_date: f.has_arrival ? f.arrival_date : null,
+        arrival_time: f.has_arrival ? f.arrival_time : null,
+        departure_reason: f.departure_reason,
+        presence_hours: hours,
       })
       .eq('session_id', session.id)
       .eq('trainee_id', departureTrainee.id)
-    
+
     if (error) {
-      console.error('Erreur départ anticipé:', error)
+      console.error('Erreur présence partielle:', error)
       toast.error('Erreur lors de l\'enregistrement')
       return
     }
-    
-    toast.success('Départ anticipé enregistré')
+
+    toast.success('Présence partielle enregistrée')
     setShowDepartureModal(false)
     setDepartureTrainee(null)
     fetchSessions()
   }
-  
+
   const handleCancelDeparture = async (trainee) => {
-    if (!confirm('Annuler le départ anticipé de ce stagiaire ?')) return
-    
+    if (!confirm('Annuler la présence partielle de ce stagiaire (arrivée tardive et départ anticipé) ?')) return
+
     const { error } = await supabase
       .from('session_trainees')
       .update({
         early_departure: false,
         departure_date: null,
-        departure_reason: null
+        departure_time: null,
+        arrival_date: null,
+        arrival_time: null,
+        departure_reason: null,
+        presence_hours: null,
       })
       .eq('session_id', session.id)
       .eq('trainee_id', trainee.id)
-    
+
     if (error) {
       toast.error('Erreur lors de l\'annulation')
       return
     }
-    
-    toast.success('Départ anticipé annulé')
+
+    toast.success('Présence partielle annulée')
     fetchSessions()
   }
   
@@ -3372,6 +3397,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     const status = getTraineeHalfDayStatus(t.id)
                     const stData = session.session_trainees?.find(st => st.trainee_id === t.id)
                     const hasEarlyDeparture = stData?.early_departure
+                    const hasLateArrival = !!stData?.arrival_time
                     return (
                       <tr key={t.id} className={`hover:bg-gray-50 ${stData?.absent ? 'bg-gray-100 text-gray-400' : hasEarlyDeparture ? 'bg-red-50' : ''}`}>
                         <td className={`py-3 px-2 font-medium sticky left-0 ${hasEarlyDeparture ? 'bg-red-50' : 'bg-white'}`}>
@@ -3380,7 +3406,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               {t.first_name} {t.last_name?.toUpperCase()}
                             </span>
                             {hasEarlyDeparture && (
-                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Abandon</span>
+                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Départ {(stData.departure_time || '').slice(0, 5).replace(':', 'h')}</span>
+                            )}
+                            {hasLateArrival && (
+                              <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Arrivée {stData.arrival_time.slice(0, 5).replace(':', 'h')}</span>
+                            )}
+                            {stData?.presence_hours != null && (hasEarlyDeparture || hasLateArrival) && (
+                              <span className="text-xs text-gray-500">{formatHours(stData.presence_hours)}</span>
                             )}
                           </div>
                         </td>
@@ -3439,18 +3471,20 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           )}
                         </td>
                         <td className="text-center py-3 px-2">
-                          {hasEarlyDeparture ? (
-                            <button
-                              onClick={() => handleCancelDeparture(t)}
-                              className="text-xs text-red-600 hover:text-red-800 underline"
-                            >
-                              Annuler
-                            </button>
+                          {(hasEarlyDeparture || hasLateArrival) ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <button onClick={() => openDepartureModal(t)} className="text-xs text-gray-600 hover:text-gray-900 underline">
+                                Modifier
+                              </button>
+                              <button onClick={() => handleCancelDeparture(t)} className="text-xs text-red-600 hover:text-red-800 underline">
+                                Annuler
+                              </button>
+                            </div>
                           ) : (
                             <button
                               onClick={() => openDepartureModal(t)}
                               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                              title="Départ anticipé"
+                              title="Arrivée tardive ou départ anticipé"
                             >
                               <LogOut className="w-4 h-4" />
                             </button>
@@ -5937,76 +5971,126 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
       )}
       
-      {/* Modal Départ Anticipé */}
-      {showDepartureModal && departureTrainee && (
+      {/* Modal Présence partielle (arrivée tardive, départ anticipé) */}
+      {showDepartureModal && departureTrainee && (() => {
+        const f = departureForm
+        const set = (patch) => setDepartureForm({ ...f, ...patch })
+        const calc = partialComputed()
+        const multiDay = session?.start_date !== session?.end_date
+        const minT = (session?.start_time || '').slice(0, 5)
+        const maxT = (session?.end_time || '').slice(0, 5)
+        return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <LogOut className="w-5 h-5 text-red-600" />
-                Départ anticipé
+                Présence partielle
               </h3>
               <button onClick={() => setShowDepartureModal(false)} className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-4 space-y-4">
-              <p className="text-gray-600">
-                Enregistrer le départ anticipé de <strong>{departureTrainee.first_name} {departureTrainee.last_name}</strong>
+              <p className="text-gray-600 text-sm">
+                <strong>{departureTrainee.first_name} {departureTrainee.last_name}</strong>. Sans saisie, le stagiaire est compté de {minT.replace(':', 'h')} à {maxT.replace(':', 'h')}. Heures en heure de Paris.
               </p>
-              
-              <div>
-                <label className="label">Date de départ *</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={departureForm.departure_date}
-                  onChange={(e) => setDepartureForm({...departureForm, departure_date: e.target.value})}
-                  min={session?.start_date}
-                  max={session?.end_date}
-                />
+
+              <div className="rounded-lg border p-3 space-y-3">
+                <label className="flex items-center gap-2 font-medium text-sm">
+                  <input type="checkbox" checked={f.has_arrival} onChange={(e) => set({ has_arrival: e.target.checked, presence_hours: '' })} />
+                  Arrivée tardive
+                </label>
+                {f.has_arrival && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {multiDay ? (
+                      <div>
+                        <label className="label">Date</label>
+                        <input type="date" className="input" value={f.arrival_date} min={session?.start_date} max={session?.end_date}
+                          onChange={(e) => set({ arrival_date: e.target.value, presence_hours: '' })} />
+                      </div>
+                    ) : <div className="text-sm text-gray-500 self-end pb-2">Le {f.arrival_date ? f.arrival_date.split('-').reverse().join('/') : ''}</div>}
+                    <div>
+                      <label className="label">Heure d'arrivée</label>
+                      <input type="time" className="input" value={f.arrival_time} min={minT} max={maxT}
+                        onChange={(e) => set({ arrival_time: e.target.value, presence_hours: '' })} />
+                    </div>
+                  </div>
+                )}
               </div>
-              
+
+              <div className="rounded-lg border p-3 space-y-3">
+                <label className="flex items-center gap-2 font-medium text-sm">
+                  <input type="checkbox" checked={f.has_departure} onChange={(e) => set({ has_departure: e.target.checked, presence_hours: '' })} />
+                  Départ anticipé (compte comme abandon dans les indicateurs)
+                </label>
+                {f.has_departure && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {multiDay ? (
+                      <div>
+                        <label className="label">Date</label>
+                        <input type="date" className="input" value={f.departure_date} min={session?.start_date} max={session?.end_date}
+                          onChange={(e) => set({ departure_date: e.target.value, presence_hours: '' })} />
+                      </div>
+                    ) : <div className="text-sm text-gray-500 self-end pb-2">Le {f.departure_date ? f.departure_date.split('-').reverse().join('/') : ''}</div>}
+                    <div>
+                      <label className="label">Heure de départ</label>
+                      <input type="time" className="input" value={f.departure_time} min={minT} max={maxT}
+                        onChange={(e) => set({ departure_time: e.target.value, presence_hours: '' })} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
-                <label className="label">Motif du départ *</label>
+                <label className="label">Motif *</label>
                 <select
                   className="input"
-                  value={departureForm.departure_reason}
-                  onChange={(e) => setDepartureForm({...departureForm, departure_reason: e.target.value})}
+                  value={['', 'Abandon volontaire', 'Maladie / Accident', 'Contrainte professionnelle', 'Contrainte personnelle', 'Retard de transport', 'Exclusion'].includes(f.departure_reason) ? f.departure_reason : 'Autre'}
+                  onChange={(e) => set({ departure_reason: e.target.value === 'Autre' ? 'Autre' : e.target.value })}
                 >
                   <option value="">Sélectionner...</option>
                   <option value="Abandon volontaire">Abandon volontaire</option>
                   <option value="Maladie / Accident">Maladie / Accident</option>
                   <option value="Contrainte professionnelle">Contrainte professionnelle</option>
                   <option value="Contrainte personnelle">Contrainte personnelle</option>
+                  <option value="Retard de transport">Retard de transport</option>
                   <option value="Exclusion">Exclusion</option>
                   <option value="Autre">Autre</option>
                 </select>
               </div>
-              
-              {departureForm.departure_reason === 'Autre' && (
+              {!['', 'Abandon volontaire', 'Maladie / Accident', 'Contrainte professionnelle', 'Contrainte personnelle', 'Retard de transport', 'Exclusion'].includes(f.departure_reason) && (
                 <div>
                   <label className="label">Préciser le motif</label>
-                  <input
-                    type="text"
-                    className="input"
-                    placeholder="Motif personnalisé..."
-                    onChange={(e) => setDepartureForm({...departureForm, departure_reason: e.target.value})}
-                  />
+                  <input type="text" className="input" placeholder="Motif..." value={f.departure_reason === 'Autre' ? '' : f.departure_reason}
+                    onChange={(e) => set({ departure_reason: e.target.value || 'Autre' })} />
                 </div>
               )}
+
+              <div className="rounded-lg bg-gray-50 p-3">
+                <label className="label">Heures de présence retenues (attestation)</label>
+                <div className="flex items-center gap-2">
+                  <input type="text" inputMode="decimal" className="input w-28" placeholder={String(calc.hours).replace('.', ',')}
+                    value={f.presence_hours} onChange={(e) => set({ presence_hours: e.target.value })} />
+                  <span className="text-sm text-gray-600">heures</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Calcul : {formatHours(calc.hours)}{calc.breakLabel ? ` (${calc.breakLabel})` : ''}. Laissez vide pour retenir le calcul, ou corrigez si besoin.
+                </p>
+              </div>
             </div>
             <div className="p-4 border-t flex justify-end gap-2">
               <button onClick={() => setShowDepartureModal(false)} className="btn btn-secondary">
                 Annuler
               </button>
               <button onClick={handleSaveDeparture} className="btn bg-red-600 text-white hover:bg-red-700">
-                Enregistrer le départ
+                Enregistrer
               </button>
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
       
       {/* Modal Attentes & Observations */}
       {showExpectationsModal && expectationsModalData.trainee && (

@@ -10,6 +10,7 @@ import {
 } from '../../../core/pdf/layout'
 
 import { APP_VERSION } from '../../../core/version'
+import { computePresenceHours, formatHours } from '../lib/presence'
 // Codes documentaires : préfixe propre à l'organisme (ORG.doc_prefix) + code du type de document
 const DOC_CODES = {
   convention: 'CONV', convocation: 'CONVOC', attestation: 'ATTP',
@@ -507,94 +508,11 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
 }
 
 // ============================================================
-// CONVOCATION
+// CONVOCATION (document seul, sans QR code). Contenu : generateConvocationContent.
 // ============================================================
 function generateConvocation(session, trainee, trainer = null) {
   const doc = new jsPDF({ compress: true })
-  const pw = doc.internal.pageSize.getWidth()
-  const course = session?.courses || {}
-  const client = session?.clients || {}
-  const ref = session?.reference || ''
-  const lieu = getLocation(session)
-  
-  let y = addHeader(doc, ref)
-  y = addTitle(doc, 'CONVOCATION À LA FORMATION', y)
-  
-  // Civilité selon le genre
-  const civilite = trainee?.gender === 'female' ? 'Madame' : (trainee?.gender === 'non_binary' ? '' : 'Monsieur')
-  const fullName = civilite ? `${civilite} ${trainee?.first_name || ''} ${trainee?.last_name?.toUpperCase() || ''}` : `${trainee?.first_name || ''} ${trainee?.last_name?.toUpperCase() || ''}`
-  
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  doc.text(fullName, pw / 2, y, { align: 'center' })
-  y += 10
-  
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Merci de vous présenter à la session de formation selon les informations suivantes :', 20, y)
-  y += 10
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Intitulé de la formation : ${course.title || ''}`, 20, y); y += 6
-  doc.setFont('helvetica', 'normal')
-  if (course.objectives) {
-    const objLines = doc.splitTextToSize(`Objectif(s) : ${course.objectives}`, 170)
-    objLines.forEach(l => { doc.text(l, 20, y); y += 5 })
-  }
-  y += 3
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Date(s) de formation : ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`, 20, y); y += 6
-  doc.text(`Horaires : ${session?.start_time || ''} - ${session?.end_time || ''}`, 20, y); y += 6
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Durée totale : ${course.duration_hours || course.duration || '7'} heures`, 20, y); y += 8
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Lieu de formation : ${lieu}`, 20, y); y += 6
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Formateur : ${trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant}`, 20, y); y += 10
-  
-  // Documents requis
-  doc.setFont('helvetica', 'bold')
-  doc.text('Nous vous demandons de venir avec :', 20, y); y += 6
-  doc.setFont('helvetica', 'normal')
-  doc.text('• Votre pièce d\'identité', 25, y); y += 5
-  doc.text('• Votre numéro de sécurité sociale', 25, y); y += 8
-  
-  if (course.material) {
-    doc.text(`Merci de vous munir d'une tenue adaptée et du matériel indiqué par le formateur, le cas échéant : ${course.material}`, 20, y, { maxWidth: 170 }); y += 10
-  } else {
-    doc.text("Merci de vous munir d'une tenue adaptée et du matériel indiqué par le formateur, le cas échéant.", 20, y, { maxWidth: 170 }); y += 8
-  }
-  
-  doc.text(`Accessibilité : en cas de besoins spécifiques (mobilité, auditif, visuel...), merci de nous en informer à ${ORG.email} au moins 72 heures avant la formation.`, 20, y, { maxWidth: 170 }); y += 12
-  
-  // Mention émargement QR Code
-  doc.setFont('helvetica', 'bold')
-  doc.text('Émargement dématérialisé :', 20, y); y += 5
-  doc.setFont('helvetica', 'normal')
-  doc.text('Votre présence sera enregistrée via votre QR Code personnel (ou sur feuille papier en cas d\'indisponibilité du réseau).', 20, y, { maxWidth: 170 }); y += 10
-  
-  doc.text(`Contact ${ORG.name} : Pour toute question, contactez-nous au ${ORG.phone} ou par mail à ${ORG.email}`, 20, y, { maxWidth: 170 }); y += 8
-  
-  const convContact = getSessionContact(session)
-  if (convContact.name) {
-    doc.text(`Contact de votre entreprise : ${convContact.name}${convContact.role ? ' - ' + convContact.role : ''}`, 20, y, { maxWidth: 170 }); y += 10
-  } else if (client.contact_name) {
-    doc.text(`Contact de votre entreprise : ${client.contact_name}${client.contact_function ? ' - ' + client.contact_function : ''}`, 20, y, { maxWidth: 170 }); y += 10
-  }
-  
-  doc.text('Nous vous remercions pour votre ponctualité et votre participation active.', 20, y); y += 15
-  
-  // Signature et tampon
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Fait à ${ORG.city}, le ${new Date().toLocaleDateString('fr-FR')}`, 20, y); y += 10
-  try { doc.addImage(ORG.stamp_base64, 'PNG', 165, y - 5, 30, 30) } catch {}
-  
-  doc.text(`${ORG.dirigeant}`, 20, y + 5)
-  doc.text(`Dirigeant ${ORG.name}`, 20, y + 10)
-  
-  addFooter(doc, DOC_CODES.convocation)
+  generateConvocationContent(doc, session, trainee, trainer, null)
   return doc
 }
 
@@ -902,48 +820,11 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
 }
 
 // ============================================================
-// ATTESTATION DE PRÉSENCE
+// ATTESTATION DE PRÉSENCE (document seul). Contenu : generateAttestationContent.
 // ============================================================
 function generateAttestation(session, trainee, trainer = null) {
   const doc = new jsPDF({ compress: true })
-  const pw = doc.internal.pageSize.getWidth()
-  const course = session?.courses || {}
-  const client = session?.clients || {}
-  const ref = session?.reference || ''
-  const lieu = getLocation(session)
-  
-  let y = addHeader(doc, ref)
-  y = addTitle(doc, 'ATTESTATION DE PRÉSENCE', y)
-  
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Je soussigné, ${ORG.dirigeant}, représentant l'organisme de formation ${ORG.name}, atteste que :`, 20, y, { maxWidth: 170 })
-  y += 12
-  
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
-  doc.text(`${trainee?.first_name || ''} ${trainee?.last_name?.toUpperCase() || ''}`, pw / 2, y, { align: 'center' })
-  y += 8
-  
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.text(`Entreprise : ${client.name || ''}`, 20, y); y += 8
-  doc.text(`A participé à la formation intitulée : ${course.title || ''}`, 20, y); y += 8
-  doc.text(`Dates : du ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`, 20, y); y += 8
-  doc.text(`Durée totale : ${course.duration_hours || course.duration || '7'} heures`, 20, y); y += 8
-  doc.text(`Lieu : ${lieu}`, 20, y); y += 8
-  doc.text(`Cette formation a été animée par : ${trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant}`, 20, y); y += 8
-  doc.text(`Horaires suivis : ${session?.start_time || ''} - ${session?.end_time || ''}`, 20, y); y += 8
-  doc.text(`Nombre total d'heures de présence : ${course.duration_hours || course.duration || '7'}`, 20, y); y += 12
-  
-  doc.text('Fait pour servir et valoir ce que de droit.', 20, y); y += 10
-  doc.text(`Fait à ${ORG.city}, le ${formatDate(session?.end_date || new Date())}`, 20, y); y += 10
-  
-  doc.text(`Pour ${ORG.name}`, 20, y); y += 5
-  try { doc.addImage(ORG.stamp_base64, 'PNG', 155, y - 5, 30, 30) } catch {}
-  doc.text(ORG.dirigeant, 20, y + 10)
-  
-  addFooter(doc, DOC_CODES.attestation)
+  generateAttestationContent(doc, session, trainee, trainer)
   return doc
 }
 
@@ -2412,153 +2293,268 @@ function generateCertificatContent(doc, session, trainee, trainer) {
   addFooter(doc, DOC_CODES.certificat)
 }
 
+// ============================================================
+// CONVOCATION ET ATTESTATION DE PRÉSENCE
+// Mise en page : core/pdf/layout.js (comme la convention et l'émargement).
+// Une page par stagiaire ; ces fonctions dessinent sur un document existant (envoi groupé).
+// Aucune donnée d'organisme en dur : tout vient de ORG.
+// ============================================================
+
+// Texte des dates : « Le vendredi 16 octobre 2026 » ou « Du ... au ... »
+function sessionDatesText(session) {
+  const s = session?.start_date, e = session?.end_date
+  if (!s) return ''
+  if (!e || s === e) return `Le ${formatDateLong(s)}`
+  return `Du ${formatDateLong(s)} au ${formatDateLong(e)}`
+}
+
+function courseHoursText(course) {
+  const hours = parseFloat(course?.duration_hours || course?.duration || 7)
+  const nbDays = parseInt(course?.duration_days, 10) || 1
+  return `${hours.toLocaleString('fr-FR')} heures${nbDays > 1 ? ` sur ${nbDays} jours` : ''}`
+}
+
+function trainerName(trainer) {
+  return trainer ? `${trainer.first_name || ''} ${trainer.last_name || ''}`.trim() : ORG.dirigeant
+}
+
+// Aide de mise en page pour les documents d'une page avec débordement éventuel
+function pageFlow(doc, { ref, docLabel, code, startY }) {
+  const t = T()
+  const M = PAGE_MARGIN
+  const W = doc.internal.pageSize.getWidth() - M * 2
+  const BOTTOM = 278
+  const LINE = 4.1
+  const f = { y: startY, M, W, LINE, t }
+  f.body = (size = 9) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(size); doc.setTextColor(...t.text) }
+  f.ensure = (h) => {
+    if (f.y + h > BOTTOM) {
+      drawFooter(doc, ORG, code)
+      doc.addPage()
+      f.y = drawRunningHeader(doc, ORG, { ref, docLabel })
+    }
+  }
+  f.para = (text, { x = M, w = W, size = 9, after = 2.5, style = 'normal', color = null } = {}) => {
+    f.body(size)
+    const lines = doc.splitTextToSize(text, w)
+    f.ensure(lines.length * LINE)
+    f.body(size); doc.setFont('helvetica', style); if (color) doc.setTextColor(...color)
+    lines.forEach(l => { doc.text(l, x, f.y); f.y += LINE })
+    f.y += after
+    doc.setTextColor(...t.text)
+  }
+  f.bullets = (items, { x = M, w = W } = {}) => {
+    items.forEach(it => {
+      f.body(9)
+      const lines = doc.splitTextToSize(it, w - 5)
+      f.ensure(lines.length * LINE)
+      f.body(9)
+      doc.setFillColor(...t.highlight); doc.circle(x + 1.5, f.y - 1.1, 0.7, 'F')
+      lines.forEach(l => { doc.text(l, x + 5, f.y); f.y += LINE })
+    })
+    f.y += 2
+  }
+  f.section = (label) => { f.ensure(8 + LINE * 2); f.y = drawSectionTitle(doc, ORG, label, f.y) }
+  f.kv = (rows) => {
+    // Hauteur estimée pour ne pas couper le tableau au milieu d'une ligne
+    rows.forEach(r => {
+      const h = Math.max(1, doc.splitTextToSize(String(r[1] ?? ''), W - 34).length) * 4 + 2.6
+      f.ensure(h)
+      f.y = drawKeyValues(doc, ORG, M, f.y, W, [r]) - 1
+    })
+    f.y += 1
+  }
+  return f
+}
+
 function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataURL = null) {
-  const pw = doc.internal.pageSize.getWidth()
   const course = session?.courses || {}
   const client = session?.clients || {}
   const ref = session?.reference || ''
   const lieu = getLocation(session)
-  
-  let y = addHeader(doc, ref)
-  y = addTitle(doc, 'CONVOCATION À LA FORMATION', y)
-  
-  // Civilité selon le genre
-  const civilite = trainee?.gender === 'female' ? 'Madame' : (trainee?.gender === 'non_binary' ? '' : 'Monsieur')
-  const fullName = civilite ? `${civilite} ${trainee?.first_name || ''} ${trainee?.last_name?.toUpperCase() || ''}` : `${trainee?.first_name || ''} ${trainee?.last_name?.toUpperCase() || ''}`
-  
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  doc.text(fullName, pw / 2, y, { align: 'center' })
-  y += 10
-  
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Merci de vous présenter à la session de formation selon les informations suivantes :', 20, y)
-  y += 10
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Intitulé de la formation : ${course.title || ''}`, 20, y); y += 6
-  doc.setFont('helvetica', 'normal')
-  if (course.objectives) {
-    const objLines = doc.splitTextToSize(`Objectif(s) : ${course.objectives}`, 170)
-    objLines.forEach(l => { doc.text(l, 20, y); y += 5 })
+  const CODE = DOC_CODES.convocation
+  const docLabel = 'Convocation'
+  const M = PAGE_MARGIN
+  const W = doc.internal.pageSize.getWidth() - M * 2
+
+  let y = drawHeaderBand(doc, ORG, { ref, docLabel })
+  y = drawDocTitle(doc, ORG, 'Convocation à la formation', sessionDatesText(session), y)
+  const f = pageFlow(doc, { ref, docLabel, code: CODE, startY: y })
+  const t = f.t
+
+  // ── Destinataire et contacts ──
+  const civilite = trainee?.gender === 'female' ? 'Madame' : (trainee?.gender === 'male' ? 'Monsieur' : '')
+  const fullName = [civilite, trainee?.first_name, (trainee?.last_name || '').toUpperCase()].filter(Boolean).join(' ')
+  const gap = 6
+  const colW = (W - gap) / 2
+  const contact = getSessionContact(session)
+  const stagLines = [fullName, trainee?.job_title || '', client.name || ''].filter(Boolean)
+  const contactLines = [
+    ORG.name,
+    [ORG.phone, ORG.email].filter(Boolean).join('   '),
+    contact.name ? `Entreprise : ${contact.name}${contact.role ? ', ' + contact.role : ''}` : '',
+  ].filter(Boolean)
+  while (stagLines.length < contactLines.length) stagLines.push('')
+  while (contactLines.length < stagLines.length) contactLines.push('')
+  const y1 = drawPartyCard(doc, ORG, M, f.y, colW, 'Stagiaire convoqué', stagLines)
+  const y2 = drawPartyCard(doc, ORG, M + colW + gap, f.y, colW, 'Vos contacts', contactLines)
+  f.y = Math.max(y1, y2) + 7
+
+  f.para('Merci de vous présenter à la session de formation selon les informations suivantes. Pour toute question, vos contacts sont indiqués ci-dessus.', { after: 2 })
+
+  // ── La formation ──
+  f.section('La formation')
+  const horaires = session?.start_time ? `De ${formatHour(session.start_time)} à ${formatHour(session?.end_time)}` : ''
+  f.kv([
+    ['Intitulé', course.title || ''],
+    ['Dates', sessionDatesText(session)],
+    ['Horaires', horaires],
+    ['Durée', courseHoursText(course)],
+    ['Lieu', lieu || 'Communiqué ultérieurement'],
+    ['Formateur', trainerName(trainer)],
+  ])
+  const objectifs = (course.objectives || '').split('\n').map(s => s.trim()).filter(Boolean)
+  if (objectifs.length) {
+    f.y += 3
+    f.ensure(5 + f.LINE * 2)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...t.muted)
+    doc.text('OBJECTIFS', M, f.y, { charSpace: 0.2 })
+    f.y += 4.5
+    f.bullets(objectifs)
   }
-  y += 3
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Date(s) de formation : ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`, 20, y); y += 6
-  doc.text(`Horaires : ${session?.start_time || ''} - ${session?.end_time || ''}`, 20, y); y += 6
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Durée totale : ${course.duration_hours || course.duration || '7'} heures`, 20, y); y += 8
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Lieu de formation : ${lieu}`, 20, y); y += 6
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Formateur : ${trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant}`, 20, y); y += 10
-  
-  // Documents requis
-  doc.setFont('helvetica', 'bold')
-  doc.text('Nous vous demandons de venir avec :', 20, y); y += 6
-  doc.setFont('helvetica', 'normal')
-  doc.text('• Votre pièce d\'identité', 25, y); y += 5
-  doc.text('• Votre numéro de sécurité sociale', 25, y); y += 8
-  
-  if (course.material) {
-    doc.text(`Merci de vous munir d'une tenue adaptée et du matériel indiqué par le formateur, le cas échéant : ${course.material}`, 20, y, { maxWidth: 170 }); y += 10
-  } else {
-    doc.text("Merci de vous munir d'une tenue adaptée et du matériel indiqué par le formateur, le cas échéant.", 20, y, { maxWidth: 170 }); y += 8
-  }
-  
-  doc.text(`Accessibilité : en cas de besoins spécifiques (mobilité, auditif, visuel...), merci de nous en informer à ${ORG.email} au moins 72 heures avant la formation.`, 20, y, { maxWidth: 170 }); y += 12
-  
-  // Mention portail stagiaire avec QR Code
-  doc.setFont('helvetica', 'bold')
-  doc.text('Portail stagiaire :', 20, y); y += 5
-  doc.setFont('helvetica', 'normal')
-  doc.text('Scannez le QR Code ci-dessous pour acceder au portail stagiaire et completer votre fiche de renseignement et test de positionnement AVANT le jour de la formation.', 20, y, { maxWidth: 170 }); y += 10
-  
-  doc.text(`Contact ${ORG.name} : Pour toute question, contactez-nous au ${ORG.phone} ou par mail à ${ORG.email}`, 20, y, { maxWidth: 170 }); y += 8
-  
-  const convContact2 = getSessionContact(session)
-  if (convContact2.name) {
-    doc.text(`Contact de votre entreprise : ${convContact2.name}${convContact2.role ? ' - ' + convContact2.role : ''}`, 20, y, { maxWidth: 170 }); y += 10
-  } else if (client.contact_name) {
-    doc.text(`Contact de votre entreprise : ${client.contact_name}${client.contact_function ? ' - ' + client.contact_function : ''}`, 20, y, { maxWidth: 170 }); y += 10
-  }
-  
-  doc.text('Nous vous remercions pour votre ponctualite et votre participation active.', 20, y); y += 15
-  
-  // Signature à gauche
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Fait a ${ORG.city}, le ${new Date().toLocaleDateString('fr-FR')}`, 20, y); y += 5
-  doc.text(`${ORG.dirigeant}`, 20, y + 5)
-  doc.text(`Dirigeant ${ORG.name}`, 20, y + 10)
-  
-  // QR Code à droite (remplace logo + tampon)
+
+  // ── À prévoir ──
+  f.section('À prévoir')
+  f.bullets([
+    "Votre pièce d'identité",
+    'Votre numéro de sécurité sociale',
+    "Une tenue adaptée et le matériel indiqué par le formateur, le cas échéant",
+    ...(course.material ? [`Matériel : ${course.material}`] : []),
+  ])
+
+  // ── Portail stagiaire (QR code) ──
+  const qrSize = 28
+  const portalTxt = "Avant la formation, scannez le QR code pour accéder au portail stagiaire et compléter votre fiche de renseignements et votre test de positionnement. Le jour de la formation, votre présence est enregistrée par demi-journée depuis ce même portail (ou sur feuille papier en cas d'indisponibilité du réseau)."
+  const textW = qrCodeDataURL ? W - qrSize - 14 : W - 8
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+  const pLines = doc.splitTextToSize(portalTxt, textW)
+  const boxH = Math.max(qrCodeDataURL ? qrSize + 11 : 0, 12 + pLines.length * 4.2 + 3)
+  f.ensure(boxH + 2)
+  const by = f.y
+  doc.setFillColor(...t.surface); doc.rect(M, by, W, boxH, 'F')
+  doc.setFillColor(...t.accent); doc.rect(M, by, 1.2, boxH, 'F')
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)
+  doc.text('PORTAIL STAGIAIRE ET ÉMARGEMENT', M + 4, by + 5.5, { charSpace: 0.4 })
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
+  pLines.forEach((l, i) => doc.text(l, M + 4, by + 11.5 + i * 4.2))
   if (qrCodeDataURL) {
-    const qrSize = 30 // 30x30mm
-    const qrX = pw - 20 - qrSize // Aligné à droite avec marge 20
-    
-    try {
-      doc.addImage(qrCodeDataURL, 'PNG', qrX, y, qrSize, qrSize)
-    } catch (err) {
-      console.error('Erreur ajout QR code convocation au PDF:', err)
-    }
-    
-    // Texte sous le QR
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.text('Scannez pour acceder', qrX + qrSize/2, y + qrSize + 3, { align: 'center' })
-    doc.text('au portail stagiaire', qrX + qrSize/2, y + qrSize + 6, { align: 'center' })
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'bold')
+    const qx = M + W - qrSize - 5
+    const qy = by + 4
+    doc.setFillColor(255, 255, 255); doc.rect(qx - 1.5, qy - 1.5, qrSize + 3, qrSize + 3, 'F')
+    try { doc.addImage(qrCodeDataURL, 'PNG', qx, qy, qrSize, qrSize) } catch (err) { console.error('QR code non inséré :', err) }
+    doc.setFontSize(7); doc.setTextColor(...t.muted)
     if (trainee?.access_code) {
-      doc.text(`Code : ${trainee.access_code}`, qrX + qrSize/2, y + qrSize + 11, { align: 'center' })
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...t.text)
+      doc.text(`Code : ${trainee.access_code}`, qx + qrSize / 2, qy + qrSize + 5, { align: 'center' })
+    } else {
+      doc.text('Scannez avec votre téléphone', qx + qrSize / 2, qy + qrSize + 5, { align: 'center' })
     }
+    doc.setTextColor(...t.text)
   }
-  
-  addFooter(doc, DOC_CODES.convocation)
+  f.y = by + boxH + 6
+
+  // ── Accessibilité, contact, ponctualité ──
+  const handi = ORG.referent_handicap_email ? `au référent handicap (${ORG.referent_handicap_email})` : `à ${ORG.email}`
+  f.para(`Accessibilité : en cas de besoins spécifiques (mobilité, audition, vision ou autre), merci de nous en informer ${handi} au moins 72 heures avant la formation.`)
+  f.ensure(f.LINE + 12) // la formule de fin reste avec la signature
+  f.para('Nous vous remercions pour votre ponctualité et votre participation active.', { after: 4 })
+
+  // ── Signature : lieu et date à gauche, signataire à droite ──
+  f.ensure(8)
+  f.body(9)
+  doc.text(`Fait à ${ORG.lieu_signature || ORG.city}, le ${formatDate(new Date())}.`, M, f.y)
+  const rx = M + W
+  if (ORG.dirigeant_signature_base64) drawImageFitted(doc, ORG.dirigeant_signature_base64, rx - 75, f.y - 6, 28, 12)
+  doc.setFont('helvetica', 'bold'); doc.text(ORG.dirigeant || '', rx, f.y, { align: 'right' })
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(...t.muted)
+  doc.text([ORG.dirigeant_title, ORG.name].filter(Boolean).join(', '), rx, f.y + 4.5, { align: 'right' })
+  doc.setTextColor(...t.text)
+
+  drawFooter(doc, ORG, CODE)
+}
+
+// Champs de présence éventuellement portés directement par l'objet stagiaire
+function pickPresence(t) {
+  const out = {}
+  ;['early_departure', 'departure_date', 'departure_time', 'arrival_date', 'arrival_time', 'presence_hours'].forEach(k => {
+    if (t && t[k] !== undefined && t[k] !== null) out[k] = t[k]
+  })
+  return out
 }
 
 function generateAttestationContent(doc, session, trainee, trainer) {
   const course = session?.courses || {}
   const client = session?.clients || {}
-  const pw = doc.internal.pageSize.getWidth()
   const ref = session?.reference || ''
   const lieu = getLocation(session)
-  
-  let y = addHeader(doc, ref)
-  y = addTitle(doc, 'ATTESTATION DE PRÉSENCE', y)
-  
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Je soussigné, ${ORG.dirigeant}, représentant l'organisme de formation ${ORG.name}, atteste que :`, 20, y, { maxWidth: 170 })
-  y += 12
-  
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
-  doc.text(`${trainee?.first_name || ''} ${trainee?.last_name?.toUpperCase() || ''}`, pw / 2, y, { align: 'center' })
-  y += 8
-  
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.text(`Entreprise : ${client.name || ''}`, 20, y); y += 8
-  doc.text(`A participé à la formation intitulée : ${course.title || ''}`, 20, y); y += 8
-  doc.text(`Dates : du ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`, 20, y); y += 8
-  doc.text(`Durée totale : ${course.duration_hours || course.duration || '7'} heures`, 20, y); y += 8
-  doc.text(`Lieu : ${lieu}`, 20, y); y += 8
-  doc.text(`Cette formation a été animée par : ${trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant}`, 20, y); y += 8
-  doc.text(`Horaires suivis : ${session?.start_time || ''} - ${session?.end_time || ''}`, 20, y); y += 8
-  doc.text(`Nombre total d'heures de présence : ${course.duration_hours || course.duration || '7'}`, 20, y); y += 12
-  
-  doc.text('Fait pour servir et valoir ce que de droit.', 20, y); y += 10
-  doc.text(`Fait à ${ORG.city}, le ${formatDate(session?.end_date || new Date())}`, 20, y); y += 10
-  
-  doc.text(`Pour ${ORG.name}`, 20, y); y += 5
-  try { doc.addImage(ORG.stamp_base64, 'PNG', 155, y - 5, 30, 30) } catch {}
-  doc.text(ORG.dirigeant, 20, y + 10)
-  
-  addFooter(doc, DOC_CODES.attestation)
+  const CODE = DOC_CODES.attestation
+  const docLabel = 'Attestation de présence'
+  const M = PAGE_MARGIN
+  const W = doc.internal.pageSize.getWidth() - M * 2
+
+  let y = drawHeaderBand(doc, ORG, { ref, docLabel })
+  y = drawDocTitle(doc, ORG, 'Attestation de présence', null, y)
+  const f = pageFlow(doc, { ref, docLabel, code: CODE, startY: y + 2 })
+  const t = f.t
+
+  f.para(`Je soussigné, ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}, représentant l'organisme de formation ${ORG.nameFull || ORG.name}${ORG.ndaFull ? (/^\d/.test(ORG.ndaFull) ? ` (déclaration d'activité n° ${ORG.ndaFull})` : ` (numéro de déclaration d'activité ${ORG.ndaFull})`) : ''}, atteste que :`, { size: 10, after: 5 })
+
+  const fullName = `${trainee?.first_name || ''} ${(trainee?.last_name || '').toUpperCase()}`.trim()
+  const lines = [fullName, client.name ? `Entreprise : ${client.name}` : ''].filter(Boolean)
+  f.y = drawPartyCard(doc, ORG, M, f.y, W, 'Stagiaire', lines) + 8
+
+  f.para("a participé à l'action de formation suivante :", { size: 10, after: 3 })
+  const horaires = session?.start_time ? `De ${formatHour(session.start_time)} à ${formatHour(session?.end_time)}` : ''
+  // Présence : du début à la fin, sauf arrivée tardive ou départ anticipé notés sur la session
+  const st = { ...((session?.session_trainees || []).find(x => x.trainee_id === trainee?.id) || {}), ...pickPresence(trainee) }
+  const calc = computePresenceHours(session, course, st)
+  const hours = st.presence_hours != null && (st.early_departure || st.arrival_time) ? Number(st.presence_hours) : calc.hours
+  const notes = []
+  if (st.arrival_time && st.arrival_date) notes.push(`arrivée le ${formatDate(st.arrival_date)} à ${formatHour(st.arrival_time)}`)
+  if (st.early_departure && st.departure_date) notes.push(`départ le ${formatDate(st.departure_date)}${st.departure_time ? ` à ${formatHour(st.departure_time)}` : ''}`)
+  f.kv([
+    ['Intitulé', course.title || ''],
+    ['Dates', sessionDatesText(session)],
+    ['Horaires', horaires],
+    ['Durée totale', courseHoursText(course)],
+    ['Lieu', lieu],
+    ['Formateur', trainerName(trainer)],
+    ['Présence', `${formatHours(hours)}${notes.length ? ` (${notes.join(', ')})` : ''}`],
+  ])
+  f.y += 6
+  f.para('Fait pour servir et valoir ce que de droit.', { size: 10, after: 6 })
+
+  // ── Signature ──
+  const colW = (W - 6) / 2
+  const boxH = 38
+  f.ensure(boxH + 10)
+  f.body(9)
+  doc.text(`Fait à ${ORG.lieu_signature || ORG.city}, le ${formatDate(session?.end_date || new Date())}.`, M, f.y)
+  f.y += 6
+  const by = f.y
+  doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.rect(M, by, colW, boxH)
+  doc.setFillColor(...t.surface); doc.rect(M, by, colW, 11, 'F')
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)
+  doc.text("POUR L'ORGANISME DE FORMATION", M + 4, by + 4.5, { charSpace: 0.4 })
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...t.text)
+  doc.text(`${ORG.dirigeant || ''}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}`, M + 4, by + 8.8)
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(...t.muted)
+  doc.text('Signature et cachet', M + 4, by + boxH - 3)
+  if (ORG.stamp_base64) drawImageFitted(doc, ORG.stamp_base64, M + 6, by + 13, 44, 19, 'JPEG')
+  if (ORG.dirigeant_signature_base64) drawImageFitted(doc, ORG.dirigeant_signature_base64, M + 52, by + 14, 30, 17)
+  doc.setTextColor(...t.text)
+
+  drawFooter(doc, ORG, CODE)
 }
 
 function generateEvaluationContent(doc, session, trainee, evalData = null) {
