@@ -334,7 +334,7 @@ export default function Indicateurs() {
         description: `Alerte qualité détectée automatiquement.\n\nSession: ${sessionRef} - ${courseName}\nDate: ${sessionDate}\nFormateur: ${trainerName}\nStagiaire: ${traineeName}\n\nCritère: ${alert.criterion_label}\nNote: ${alert.score}/5`,
         source: 'evaluation',
         session_id: alert.session_id || null,
-        critere_qualiopi: 'Indicateur 32',
+        critere_qualiopi: '32',
         severity: alert.score === 1 ? 'major' : 'minor',
         status: 'open',
         cause_analysis: '',
@@ -1875,7 +1875,7 @@ export default function Indicateurs() {
             <h4 className="font-semibold text-blue-800 mb-2">Taux de recommandation</h4>
             <p className="mb-2">Pourcentage de stagiaires recommandant la formation :</p>
             <p className="text-xs">= Réponses "Oui" / Total réponses × 100</p>
-            <p className="mt-2 text-xs italic">Indicateur clé Qualiopi (Indicateur 32)</p>
+            <p className="mt-2 text-xs italic">Recueil des appréciations : indicateur 30. Publication avec la méthode de calcul : indicateur 2.</p>
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-blue-200">

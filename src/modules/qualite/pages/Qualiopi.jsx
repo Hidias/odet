@@ -986,11 +986,11 @@ export default function Qualiopi() {
       <div className="card p-6 bg-purple-50 border border-purple-200 mt-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Info className="w-5 h-5 text-purple-500" />
-          Indicateurs Qualiopi - certification Qualiopi
+          Indicateurs de résultats et rattachement au référentiel Qualiopi
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-700">
           <div>
-            <h4 className="font-semibold text-purple-800 mb-2">Taux de Satisfaction (Indicateur 32)</h4>
+            <h4 className="font-semibold text-purple-800 mb-2">Taux de satisfaction (indicateur 30, publié au titre de l'indicateur 2)</h4>
             <p className="mb-2">Moyenne des évaluations à chaud sur 14 critères :</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li><strong>Organisation</strong> : documents, accueil, locaux, matériel</li>
@@ -998,32 +998,32 @@ export default function Qualiopi() {
               <li><strong>Formateur</strong> : pédagogie, expertise, progression, moyens</li>
               <li><strong>Perception</strong> : adéquation métier, amélioration compétences</li>
             </ul>
-            <p className="mt-2 text-xs italic">Objectif Qualiopi : ≥ 4/5 (80%)</p>
+            <p className="mt-2 text-xs italic">Objectif interne : 4/5 au moins (le référentiel ne fixe aucun seuil)</p>
           </div>
           <div>
-            <h4 className="font-semibold text-purple-800 mb-2">Taux de Réussite (Indicateur 3)</h4>
+            <h4 className="font-semibold text-purple-800 mb-2">Taux de réussite (indicateur 11, publié au titre de l'indicateur 2)</h4>
             <p className="mb-2">Pourcentage de stagiaires ayant atteint les objectifs :</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>Tous les objectifs pédagogiques validés</li>
               <li>Présence complète (100% des demi-journées)</li>
             </ul>
-            <p className="mt-2 text-xs italic">Objectif Qualiopi : ≥ 80%</p>
+            <p className="mt-2 text-xs italic">Objectif interne : 80 % au moins</p>
           </div>
           <div>
-            <h4 className="font-semibold text-purple-800 mb-2">Taux de Présence (Indicateur 11)</h4>
+            <h4 className="font-semibold text-purple-800 mb-2">Taux de présence (indicateur 12, publié au titre de l'indicateur 2)</h4>
             <p className="mb-2">Suivi de l'assiduité des stagiaires :</p>
             <p className="text-xs">= Stagiaires avec 100% présence / Total stagiaires</p>
-            <p className="mt-2 text-xs italic">Objectif Qualiopi : ≥ 90%</p>
+            <p className="mt-2 text-xs italic">Objectif interne : 90 % au moins</p>
           </div>
           <div>
-            <h4 className="font-semibold text-purple-800 mb-2">Taux de Recommandation (Indicateur 32)</h4>
+            <h4 className="font-semibold text-purple-800 mb-2">Taux de recommandation (indicateur 30, publié au titre de l'indicateur 2)</h4>
             <p className="mb-2">Mesure de la satisfaction client :</p>
             <p className="text-xs">Question : "Recommanderiez-vous cette formation ?"</p>
-            <p className="mt-2 text-xs italic">Objectif Qualiopi : ≥ 90%</p>
+            <p className="mt-2 text-xs italic">Objectif interne : 90 % au moins</p>
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-purple-200 text-xs text-purple-700">
-          <p><strong>Note :</strong> Ces indicateurs sont calculés uniquement sur les sessions terminées (statut "Completed"). Les notes de 1 à 3/5 génèrent des alertes qualité à traiter pour démontrer l'amélioration continue.</p>
+          <p><strong>Note :</strong> L'indicateur 2 impose de publier ces résultats avec leur méthode de calcul. Ces indicateurs sont calculés uniquement sur les sessions terminées (statut "Completed"). Les notes de 1 à 3/5 génèrent des alertes qualité à traiter pour démontrer l'amélioration continue.</p>
         </div>
       </div>
       
