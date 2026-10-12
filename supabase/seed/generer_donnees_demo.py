@@ -332,7 +332,7 @@ for n, se in enumerate(sessions):
         st = {'id': stid, 'session_id': s['id'], 'trainee_id': t['id'], 'registration_date': s['created_at'] + timedelta(days=1),
               'trainee_status': 'registered', 'convocation_sent_at': s['created_at'] + timedelta(days=random.randint(3, 10))}
         if past:
-            st.update({'result': None if absent else ('non_acquis' if failed else 'acquis'), 'presence_complete': not absent,
+            st.update({'result': None if absent else ('not_acquired' if failed else 'acquired'), 'presence_complete': not absent,
                        'absent': absent, 'absent_reason': 'Arrêt maladie' if absent else None,
                        'info_sheet_completed': True, 'evaluation_completed': not absent,
                        'evaluation_completed_at': datetime.combine(se['days'][-1], datetime.min.time()) + timedelta(hours=16, minutes=random.randint(30, 55)) if not absent else None})
@@ -390,7 +390,7 @@ for n, se in enumerate(sessions):
                             'concrete_examples': random.choice(['J\'ai pu intervenir lors d\'un malaise d\'un collègue.', 'Nous avons revu l\'organisation du poste.', 'Les consignes sont mieux appliquées dans l\'équipe.', None])})
             emit(f, ins('evaluations_cold', row))
         # Certificat SST
-        if se['code'] in ('SST-FI', 'SST-MAC') and st['result'] == 'acquis':
+        if se['code'] in ('SST-FI', 'SST-MAC') and st['result'] == 'acquired':
             cert = {'session_id': s['id'], 'trainee_id': t['id'], 'formation_type': 'FI' if se['code'] == 'SST-FI' else 'MAC',
                     'date_certification': se['days'][-1], 'formateur_id': TRAINERS[se['trainer']]['id'],
                     'formateur_nom': 'Saidi', 'formateur_prenom': 'Hicham', 'candidat_certifie': True}

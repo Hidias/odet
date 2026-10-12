@@ -1967,7 +1967,7 @@ function generateFicheRenseignements(session, trainee = null, isBlank = false, i
   doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'normal')
   
-  addFooter(doc, 'AF-FICHE')
+  addFooter(doc, 'FICHE')
   return doc
 }
 

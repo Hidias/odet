@@ -520,7 +520,7 @@ export const downloadNeedsAnalysisPDF = async (session, analysisData = null, bla
   doc.text(`${safe(ORG.name)} - ${safe(ORG.addressFull)}`, pageWidth / 2, footerStartY, { align: 'center' })
   doc.text(safe(ORG.ndaFull), pageWidth / 2, footerStartY + 3, { align: 'center' })
   doc.text(`SIRET: ${safe(ORG.siret)} - NAF: ${safe(ORG.naf)} - TVA: ${safe(ORG.tva)}`, pageWidth / 2, footerStartY + 6, { align: 'center' })
-  doc.text('AF-BESOIN-V2.5.16', pageWidth - margin, footerStartY + 9, { align: 'right' })
+  doc.text(`${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}BESOIN`, pageWidth - margin, footerStartY + 9, { align: 'right' })
 
   // Télécharger
   const filename = blank 
@@ -870,7 +870,7 @@ export const getNeedsAnalysisPDFBytes = async (session, analysisData = null, bla
   doc.text(`${safe(ORG.name)} - ${safe(ORG.addressFull)}`, pageWidth / 2, footerStartY, { align: 'center' })
   doc.text(safe(ORG.ndaFull), pageWidth / 2, footerStartY + 3, { align: 'center' })
   doc.text(`SIRET: ${safe(ORG.siret)} - NAF: ${safe(ORG.naf)} - TVA: ${safe(ORG.tva)}`, pageWidth / 2, footerStartY + 6, { align: 'center' })
-  doc.text('AF-BESOIN-V2.5.16', pageWidth - margin, footerStartY + 9, { align: 'right' })
+  doc.text(`${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}BESOIN`, pageWidth - margin, footerStartY + 9, { align: 'right' })
 
   // Retourner les bytes au lieu de télécharger
   return doc.output('arraybuffer')

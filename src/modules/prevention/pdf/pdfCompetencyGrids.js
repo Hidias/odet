@@ -13,7 +13,7 @@ let ORG = { name: '', address: '', phone: '', email: '', nda: '', siret: '', the
 
 function applyOrgSettings(orgSettings) {
   const base = buildORG(orgSettings || {})
-  ORG = { name: base.name, address: base.address, phone: base.phone, email: base.email, nda: base.nda, siret: base.siret, theme: base.theme }
+  ORG = { name: base.name, address: base.address, phone: base.phone, email: base.email, nda: base.nda, siret: base.siret, theme: base.theme, doc_prefix: base.doc_prefix }
 }
 
 // ─── Templates de compétences par formation ──────────────
@@ -22,7 +22,7 @@ const GRIDS = {
   incendie: {
     title: 'Sécurité Incendie / EPI',
     subtitle: 'Équipier de Première Intervention',
-    reference: 'AF-GRID-INC',
+    reference: 'GRID-INC',
     duration: '4h à 7h',
     categories: [
       {
@@ -61,7 +61,7 @@ const GRIDS = {
   gestes_postures: {
     title: 'Gestes et Postures / PRAP',
     subtitle: 'Prévention des Risques liés à l\'Activité Physique',
-    reference: 'AF-GRID-GP',
+    reference: 'GRID-GP',
     duration: '7h (1 jour)',
     categories: [
       {
@@ -100,7 +100,7 @@ const GRIDS = {
   r489: {
     title: 'Conduite de chariots élévateurs (R489)',
     subtitle: 'Conduite en sécurité des chariots automoteurs de manutention à conducteur porté',
-    reference: 'AF-GRID-R489',
+    reference: 'GRID-R489',
     duration: '14h à 21h (2 à 3 jours)',
     categories: [
       {
@@ -150,7 +150,7 @@ const GRIDS = {
   r485: {
     title: 'Conduite de gerbeurs accompagnants (R485)',
     subtitle: 'Conduite en sécurité des gerbeurs à conducteur accompagnant',
-    reference: 'AF-GRID-R485',
+    reference: 'GRID-R485',
     duration: '7h à 14h (1 à 2 jours)',
     categories: [
       {
@@ -210,7 +210,7 @@ function addGridHeader(doc, grid) {
   doc.text(grid.title, pw / 2, 18, { align: 'center' })
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
-  doc.text(`${grid.reference} | ${ORG.name} | ${ORG.nda}`, pw / 2, 24, { align: 'center' })
+  doc.text(`${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}${grid.reference} | ${ORG.name} | ${ORG.nda}`, pw / 2, 24, { align: 'center' })
   doc.setTextColor(0, 0, 0)
 
   let y = 34
@@ -402,7 +402,7 @@ function generateGrid(gridKey) {
     doc.setFontSize(6.5)
     doc.setTextColor(120, 120, 120)
     doc.text(
-      `${ORG.name} - ${grid.reference} - ${grid.title} - Page ${p}/${totalPages}`,
+      `${ORG.name} - ${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}${grid.reference} - ${grid.title} - Page ${p}/${totalPages}`,
       pw / 2, ph - 6, { align: 'center' }
     )
     doc.setTextColor(0, 0, 0)
