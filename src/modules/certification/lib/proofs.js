@@ -17,18 +17,19 @@ async function count(table, build) {
 /** Lit dans la base tout ce que les règles utilisent */
 export async function loadEvidence() {
   const [
-    courses, org, qdocs, qualDocs, roles, settings, veille, trainers, sessionsTotal, sessionsDone,
+    courses, org, qdocs, qualDocs, roles, settings, veille, trainers, sessionsTotal, sessionsDone, demoNames,
   ] = await Promise.all([
     supabase.from('courses').select('id, title, objectives, prerequisites, duration_hours, price_ht, price_per_day, target_audience, teaching_methods, pedagogical_methods, methods, evaluation_methods, content, program, program_url, positioning_questions'),
     supabase.from('organization_settings').select('reglement_interieur, livret_accueil, referent_handicap_nom').limit(1).maybeSingle(),
     supabase.from('qualiopi_documents').select('type, content, updated_at'),
     supabase.from('quality_documents').select('doc_id, content, updated_at'),
-    supabase.from('quality_roles').select('code, profile_id'),
+    supabase.from('quality_roles').select('code, profile_id, demo_name'),
     supabase.from('cert_settings').select('*').eq('id', 1).maybeSingle(),
     supabase.from('veille_qualiopi').select('type, action_menee, statut'),
     supabase.from('trainers').select('id, qualifications_list, certifications, is_internal'),
     count('sessions'),
     count('sessions', (q) => q.eq('status', 'completed')),
+    supabase.rpc('quality_demo_names_active').then(({ data }) => !!data, () => false),
   ])
   const [
     needs, positioning, positioningTests, objectivesValidated, results, convocations, infoSheets, psh, disability,
@@ -71,7 +72,8 @@ export async function loadEvidence() {
   const v = veille.data || []
   const qd = new Map((qdocs.data || []).map((d) => [d.type, d]))
   const qual = new Map((qualDocs.data || []).map((d) => [d.doc_id, d]))
-  const role = new Map((roles.data || []).map((r) => [r.code, r.profile_id]))
+  // Noms fictifs de démonstration comptés tant qu'ils sont en service (effacés avec les données de démonstration)
+  const role = new Map((roles.data || []).map((r) => [r.code, r.profile_id || (demoNames && r.demo_name) || null]))
   const t = trainers.data || []
   return {
     settings: settings.data || {},

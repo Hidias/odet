@@ -293,6 +293,7 @@ export default function Console() {
 const DEMO_LABELS = {
   clients: 'clients', trainees: 'stagiaires', sessions: 'sessions', invoices: 'factures', quotes: 'devis',
   prospect_rdv: 'rendez-vous', trainers: 'formateurs', veille_qualiopi: 'veille',
+  quality_role_names: 'noms fictifs des responsables et référents qualité',
 }
 const CONFIRM_WORD = 'EFFACER'
 

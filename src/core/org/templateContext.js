@@ -59,12 +59,17 @@ function formatNda(nda) {
 }
 
 /** Construit le contexte à partir des lignes lues en base (fonction pure, testable) */
-export function buildTemplateContext({ org = {}, roles = [], courses = [], deputies = [] } = {}) {
+export function buildTemplateContext({ org = {}, roles = [], courses = [], deputies = [], demoNames = false } = {}) {
   const nom = org.name || org.legal_name || ''
   const role = {}
   const byId = new Map((deputies || []).map((d) => [d.id, d]))
   for (const r of roles) {
     const p = r.profile || null
+    // Démonstration : noms fictifs (sans compte), joignables par les coordonnées générales de l'organisme
+    if (demoNames && r.demo_name) {
+      role[r.code] = { nom: r.demo_name, email: org.email || '', telephone: org.phone || '', label: r.label || '', suppleant: r.demo_deputy_name || '', demo: true }
+      continue
+    }
     role[r.code] = {
       nom: personName(p), email: p?.sender_email || p?.email || '', telephone: p?.phone || '',
       label: r.label || '', suppleant: personName(byId.get(r.deputy_profile_id)),
@@ -136,14 +141,15 @@ export async function loadTemplateContext(force = false) {
   if (cache && !force) return cache
   if (pending && !force) return pending
   pending = (async () => {
-    const [orgR, rolesR, coursesR] = await Promise.all([
+    const [orgR, rolesR, coursesR, demoR] = await Promise.all([
       supabase.from('organization_settings').select('*').limit(1).maybeSingle(),
-      supabase.from('quality_roles').select('code, label, profile_id, deputy_profile_id, profile:profiles(first_name, last_name, display_name, email, sender_email, phone)').order('sort_order'),
+      supabase.from('quality_roles').select('code, label, profile_id, deputy_profile_id, demo_name, demo_deputy_name, profile:profiles(first_name, last_name, display_name, email, sender_email, phone)').order('sort_order'),
       supabase.from('courses').select('title').order('title'),
+      supabase.rpc('quality_demo_names_active').then((r) => r, () => ({ data: false })),
     ])
     const deputyIds = [...new Set((rolesR.data || []).map((r) => r.deputy_profile_id).filter(Boolean))]
     const depR = deputyIds.length ? await supabase.from('profiles').select('id, first_name, last_name, display_name, email').in('id', deputyIds) : { data: [] }
-    cache = buildTemplateContext({ org: orgR.data || {}, roles: rolesR.data || [], courses: coursesR.data || [], deputies: depR.data || [] })
+    cache = buildTemplateContext({ org: orgR.data || {}, roles: rolesR.data || [], courses: coursesR.data || [], deputies: depR.data || [], demoNames: !!demoR?.data })
     pending = null
     return cache
   })()

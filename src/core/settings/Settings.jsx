@@ -334,6 +334,7 @@ function QualiteSection({ onReferentHandicap }) {
   const [roles, setRoles] = useState([])
   const [profiles, setProfiles] = useState([])
   const [busy, setBusy] = useState(null)
+  const [demoNames, setDemoNames] = useState(false)
 
   const personName = (p) => (p ? [p.first_name, p.last_name ? String(p.last_name).toUpperCase() : ''].filter(Boolean).join(' ').trim() || p.display_name || p.email : '')
 
@@ -344,6 +345,7 @@ function QualiteSection({ onReferentHandicap }) {
     ])
     if (r.error) toast.error(r.error.message)
     setRoles(r.data || [])
+    supabase.rpc('quality_demo_names_active').then(({ data }) => setDemoNames(!!data), () => setDemoNames(false))
     setProfiles((p.data || []).filter((x) => x.is_active !== false && !['entreprise', 'formateur_externe'].includes(x.role)))
   }
   useEffect(() => { load() }, [])
@@ -379,10 +381,14 @@ function QualiteSection({ onReferentHandicap }) {
     <>
       <h2 className="section-title">Responsables et référents qualité</h2>
       <p className="text-ui-sm text-gray-500">Chaque rôle est tenu par un utilisateur, avec un suppléant qui le remplace en cas d'absence ou de conflit d'intérêts (obligatoire pour le référent handicap et le référent violences, harcèlement et discriminations). Les documents qualité affichent automatiquement les personnes choisies ici. Le changement est enregistré immédiatement.</p>
+      {demoNames && <p className="text-ui-sm rounded-lg bg-amber-50 border border-amber-300 p-2">Démonstration : les documents affichent les noms fictifs indiqués sous chaque rôle. Ils disparaissent avec l'effacement des données de démonstration (Console) ; les comptes choisis ici prennent alors leur place.</p>}
       <div className="divide-y border rounded-ui">
         {roles.map((r) => (
           <div key={r.code} className="flex items-center justify-between gap-3 px-3 py-2 flex-wrap">
-            <div className="text-ui font-medium text-gray-800">{r.label}</div>
+            <div>
+              <div className="text-ui font-medium text-gray-800">{r.label}</div>
+              {demoNames && r.demo_name && <div className="text-ui-sm text-amber-800">Démonstration : {r.demo_name}{r.demo_deputy_name ? `, suppléant ${r.demo_deputy_name}` : ''}</div>}
+            </div>
             <div className="flex items-center gap-2">
               {busy === r.code && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
               <select className="select min-w-[200px]" aria-label={`Titulaire : ${r.label}`} value={r.profile_id || ''} disabled={busy === r.code} onChange={(e) => choose(r, e.target.value)}>
