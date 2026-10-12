@@ -9,18 +9,15 @@ import { PDFDocument, rgb } from 'pdf-lib'
 import JSZip from 'jszip'
 import { generatePDF, setOrganization } from '../../formation/pdf/pdfGenerator'
 import { generateCompetencyGridPDF } from './pdfCompetencyGrids'
-import { buildORG } from '../../../core/org/orgUtils'
+import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
+
+import { startDocument } from '../../../core/pdf/layout'
 
 // Identité de l'organisme : uniquement depuis organization_settings (aucun repli)
-let ORG_KIT = { nameFull: '', addressLine: '', ndaLine: '' }
+let ORG = buildORG({})
 
 function applyOrgSettings(orgSettings) {
-  const base = buildORG(orgSettings || {})
-  ORG_KIT = {
-    nameFull: (base.name || '').toUpperCase(),
-    addressLine: [base.address, base.phone].filter(Boolean).join(' - '),
-    ndaLine: [base.nda ? `NDA ${base.nda}` : '', base.qualiopi_certified ? 'Organisme certifié Qualiopi' : ''].filter(Boolean).join(' - '),
-  }
+  ORG = { ...(orgSettings || {}), ...buildORG(orgSettings || {}) }
 }
 
 // ─── Configuration des kits par formation ─────────────────
@@ -136,14 +133,6 @@ export const KIT_CONFIG = {
 
 // ─── Helpers ──────────────────────────────────────────────
 
-// Convertir hex en RGB
-function hexToRgb(hex) {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return [r, g, b]
-}
-
 // Convertir jsPDF en ArrayBuffer
 function jspdfToArrayBuffer(doc) {
   return doc.output('arraybuffer')
@@ -187,164 +176,42 @@ async function duplicatePages(sourceBuffer, copies, label) {
   return resultPdf.save()
 }
 
-// ─── Générer la page de garde ─────────────────────────────
+// ─── Générer la page de garde (mise en page commune) ──────
 function generatePageDeGarde(config, documentsList) {
-  const doc = new jsPDF()
-  const pw = doc.internal.pageSize.getWidth()
-  const ph = doc.internal.pageSize.getHeight()
-
-  const [r, g, b] = hexToRgb(config.color)
-
-  // Bandeau couleur en haut
-  doc.setFillColor(r, g, b)
-  doc.rect(0, 0, pw, 55, 'F')
-
-  // Logo/Titre
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(28)
-  doc.setFont('helvetica', 'bold')
-  doc.text(ORG_KIT.nameFull, pw / 2, 22, { align: 'center' })
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
-  doc.text(ORG_KIT.addressLine, pw / 2, 32, { align: 'center' })
-  doc.text(ORG_KIT.ndaLine, pw / 2, 39, { align: 'center' })
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`${config.emoji}  KIT SECOURS FORMATION`, pw / 2, 50, { align: 'center' })
-
-  doc.setTextColor(0, 0, 0)
-
-  // Formation
-  let y = 70
-  doc.setFillColor(245, 245, 245)
-  doc.roundedRect(15, y, pw - 30, 12, 2, 2, 'F')
-  doc.setFontSize(16)
-  doc.setFont('helvetica', 'bold')
-  doc.text(config.label, pw / 2, y + 8.5, { align: 'center' })
-  y += 20
-
-  // Champs à remplir
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  const fields = [
-    'Client / Entreprise : _________________________________________________________________',
-    'Dates : du ___/___/______ au ___/___/______',
-    'Lieu : ________________________________________________________________________________',
-    'Formateur : ___________________________________________________________________________',
-    'Nombre de stagiaires : ______',
-  ]
-  fields.forEach(f => {
-    doc.text(f, 20, y)
-    y += 9
-  })
-
-  y += 8
-
-  // Checklist documents inclus
-  doc.setFillColor(r, g, b)
-  doc.rect(15, y, pw - 30, 8, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  doc.text('DOCUMENTS INCLUS DANS CE KIT', pw / 2, y + 5.5, { align: 'center' })
-  doc.setTextColor(0, 0, 0)
-  y += 14
-
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-
-  documentsList.forEach(item => {
-    // Checkbox
-    doc.rect(22, y - 3, 4, 4)
-    doc.text(`${item.label}${item.copies > 1 ? ` (×${item.copies})` : ''}`, 30, y)
-    // Nombre de pages
-    if (item.pages) {
-      doc.setTextColor(150, 150, 150)
-      doc.text(`${item.pages} pages`, pw - 50, y)
-      doc.setTextColor(0, 0, 0)
-    }
-    y += 7
-  })
-
-  y += 10
-
-  // Encadré important
-  doc.setFillColor(255, 250, 230)
-  doc.setDrawColor(234, 179, 8)
-  doc.setLineWidth(0.5)
-  doc.roundedRect(15, y, pw - 30, 30, 2, 2, 'FD')
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text('  MODE DÉGRADÉ - INSTRUCTIONS', 20, y + 7)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.text('Ce kit est prévu en cas d\'indisponibilité de la plateforme en ligne.', 20, y + 13)
-  doc.text('1. Distribuer les fiches de renseignements dès l\'arrivée des stagiaires', 20, y + 18)
-  doc.text('2. Faire émarger matin et après-midi sur la feuille d\'émargement', 20, y + 23)
-  doc.text('3. À la fin de la session, récupérer toutes les évaluations remplies', 20, y + 28)
-  doc.setDrawColor(0, 0, 0)
-  doc.setLineWidth(0.2)
-
-  // Footer
-  doc.setFontSize(7)
-  doc.setTextColor(150, 150, 150)
-  doc.text(`Kit généré le ${new Date().toLocaleDateString('fr-FR')} - ${ORG_KIT.nameFull}`, pw / 2, ph - 10, { align: 'center' })
-  doc.setTextColor(0, 0, 0)
-
-  // Page blanche verso (recto-verso)
-  doc.addPage()
-
+  const doc = new jsPDF({ compress: true })
+  const f = startDocument(doc, ORG, { docLabel: 'Kit de secours formation', code: 'KIT', title: 'Kit de secours formation', subtitle: config.label })
+  f.fields([{ label: 'Client / entreprise', value: '', w: 2 }, { label: 'Nombre de stagiaires', value: '', w: 0.8 }])
+  f.fields([{ label: 'Dates', value: '', w: 1 }, { label: 'Formateur', value: '', w: 1.4 }])
+  f.fields([{ label: 'Lieu', value: '', w: 1 }])
+  f.section('Documents inclus dans ce kit')
+  f.checks(documentsList.map(item => ({ label: `${item.label}${item.copies > 1 ? ` (${item.copies} exemplaires)` : ''}${item.pages ? `, ${item.pages} pages` : ''}` })))
+  f.callout('Mode dégradé', "Ce kit sert en cas d'indisponibilité de la plateforme en ligne. 1. Distribuer les fiches de renseignements dès l'arrivée des stagiaires. 2. Faire émarger matin et après-midi sur la feuille d'émargement. 3. En fin de session, récupérer toutes les évaluations remplies et les saisir dans la plateforme.")
+  f.note(`Kit généré le ${new Date().toLocaleDateString('fr-FR')}.`)
+  f.finish()
+  doc.addPage() // verso blanc (recto verso)
   return jspdfToArrayBuffer(doc)
 }
 
 // ─── Générer un intercalaire ──────────────────────────────
 function generateIntercalaire(label, copies, color, index, total) {
-  const doc = new jsPDF()
+  const doc = new jsPDF({ compress: true })
   const pw = doc.internal.pageSize.getWidth()
   const ph = doc.internal.pageSize.getHeight()
-
-  const [r, g, b] = hexToRgb(color)
-
-  // Fond coloré pleine page (léger)
-  doc.setFillColor(
-    Math.min(255, r + Math.round((255 - r) * 0.85)),
-    Math.min(255, g + Math.round((255 - g) * 0.85)),
-    Math.min(255, b + Math.round((255 - b) * 0.85))
-  )
-  doc.rect(0, 0, pw, ph, 'F')
-
-  // Bandeau central coloré
-  doc.setFillColor(r, g, b)
-  doc.rect(0, ph / 2 - 25, pw, 50, 'F')
-
-  // Texte
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(24)
-  doc.setFont('helvetica', 'bold')
-  doc.text(label.toUpperCase(), pw / 2, ph / 2 - 5, { align: 'center' })
-
-  if (copies > 1) {
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`${copies} exemplaires`, pw / 2, ph / 2 + 10, { align: 'center' })
-  }
-
-  doc.setTextColor(0, 0, 0)
-
-  // Numéro de section
-  doc.setFontSize(60)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(r, g, b)
-  doc.text(String(index), pw / 2, 60, { align: 'center' })
-  doc.setFontSize(10)
-  doc.setTextColor(150, 150, 150)
-  doc.text(`Section ${index} sur ${total}`, pw / 2, 70, { align: 'center' })
-
-  doc.setTextColor(0, 0, 0)
-
-  // Page blanche verso (recto-verso)
-  doc.addPage()
-
+  const t = ORG.theme
+  doc.setFillColor(...t.surface); doc.rect(0, 0, pw, ph, 'F')
+  doc.setFillColor(...t.primary); doc.rect(0, ph / 2 - 24, pw, 48, 'F')
+  doc.setFillColor(...t.highlight); doc.rect(0, ph / 2 + 24, pw, 1.2, 'F')
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(56); doc.setTextColor(...t.accent)
+  doc.text(String(index), pw / 2, ph / 2 - 40, { align: 'center' })
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.muted)
+  doc.text(`Section ${index} sur ${total}`.toUpperCase(), pw / 2, ph / 2 - 32, { align: 'center', charSpace: 0.5 })
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255)
+  doc.text(label, pw / 2, ph / 2 + (copies > 1 ? -2 : 3), { align: 'center' })
+  if (copies > 1) { doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.text(`${copies} exemplaires`, pw / 2, ph / 2 + 10, { align: 'center' }) }
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...t.muted)
+  doc.text(ORG.name || '', pw / 2, ph - 14, { align: 'center' })
+  doc.setTextColor(...t.text)
+  doc.addPage() // verso blanc (recto verso)
   return jspdfToArrayBuffer(doc)
 }
 
@@ -381,11 +248,12 @@ async function generateBlankDocument(docType, questions = null) {
 // ═══════════════════════════════════════════════════════════
 
 export async function downloadKitSecours(kitKey, options = {}) {
-  const { questions = null, onProgress = () => {}, orgSettings = null } = options
+  const { questions = null, onProgress = () => {} } = options
   const config = KIT_CONFIG[kitKey]
   if (!config) throw new Error(`Kit inconnu: ${kitKey}`)
 
-  // Appliquer l'organisation pour tous les sous-générateurs
+  // Appliquer l'organisation (logo et signature préchargés) pour tous les sous-générateurs
+  const orgSettings = (await prepareOrgForPDF(options.orgSettings || null)) || options.orgSettings || null
   applyOrgSettings(orgSettings)
   setOrganization(orgSettings)  // propagation à pdfGenerator (utilisé via generatePDF)
 

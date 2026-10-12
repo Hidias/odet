@@ -8,6 +8,8 @@ import { generatePDF, generateAllPDF, setOrganization } from '../pdf/pdfGenerato
 import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionEntreprisePDF } from '../pdf/satisfactionEntreprisePDF'
 import { useDataStore } from '../../../core/store'
+import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPasseportPrevention'
+import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 
 // ════════════════════════════════════════════════════════════
 // MiniSignaturePad - Mini canvas signature inline pour formateur
@@ -546,9 +548,18 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
 
         // ── DOCUMENTS PASSEPORT PRÉVENTION (3 PDF depuis Storage) ──
         addLog('Documents Passeport Prévention...')
+        // Notices générées aux couleurs de l'organisme ; la décharge reste un fichier du Storage
+        try {
+          const orgForPP = (await prepareOrgForPDF(organization)) || organization
+          ;[['notice_stagiaire_pp', 'stagiaire', 'Notice_Stagiaire_Passeport_Prevention.pdf'], ['notice_employeur_pp', 'entreprise', 'Notice_Employeur_Passeport_Prevention.pdf']].forEach(([id, version, name]) => {
+            const base64 = generatePasseportPreventionPDF(version, orgForPP).output('datauristring').split(',')[1]
+            files.push({ id, name, base64, size: base64.length })
+          })
+        } catch (e) {
+          console.error('Erreur notices Passeport Prévention:', e)
+          addLog('Notices Passeport Prévention non générées')
+        }
         const passeportDocs = [
-          { id: 'notice_stagiaire_pp', path: 'templates/passeport-prevention/Notice_Passeport_Prevention_Stagiaire.pdf', name: 'Notice_Stagiaire_Passeport_Prevention.pdf' },
-          { id: 'notice_employeur_pp', path: 'templates/passeport-prevention/Notice_Passeport_Prevention_Employeur.pdf', name: 'Notice_Employeur_Passeport_Prevention.pdf' },
           { id: 'decharge_nir_pp', path: 'templates/passeport-prevention/Decharge_Refus_NIR_Passeport_Prevention.pdf', name: 'Decharge_Refus_NIR_Passeport_Prevention.pdf' },
         ]
         for (const doc of passeportDocs) {

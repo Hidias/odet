@@ -6,14 +6,14 @@
 
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
-import { buildORG } from '../../../core/org/orgUtils'
+import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
+import { startDocument, drawCheckbox } from '../../../core/pdf/layout'
 
 // Identité de l'organisme : uniquement depuis organization_settings (aucun repli)
-let ORG = { name: '', address: '', phone: '', email: '', nda: '', siret: '', theme: null }
+let ORG = buildORG({})
 
 function applyOrgSettings(orgSettings) {
-  const base = buildORG(orgSettings || {})
-  ORG = { name: base.name, address: base.address, phone: base.phone, email: base.email, nda: base.nda, siret: base.siret, theme: base.theme, doc_prefix: base.doc_prefix }
+  ORG = { ...(orgSettings || {}), ...buildORG(orgSettings || {}) }
 }
 
 // ─── Templates de compétences par formation ──────────────
@@ -194,220 +194,65 @@ const GRIDS = {
   },
 }
 
-// ─── Génération PDF ───────────────────────────────────────
-
-function addGridHeader(doc, grid) {
-  const pw = doc.internal.pageSize.getWidth()
-
-  // Bandeau bleu
-  doc.setFillColor(0, 102, 204)
-  doc.rect(0, 0, pw, 28, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
-  doc.text(`GRILLE D'ÉVALUATION DES COMPÉTENCES`, pw / 2, 11, { align: 'center' })
-  doc.setFontSize(10)
-  doc.text(grid.title, pw / 2, 18, { align: 'center' })
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}${grid.reference} | ${ORG.name} | ${ORG.nda}`, pw / 2, 24, { align: 'center' })
-  doc.setTextColor(0, 0, 0)
-
-  let y = 34
-
-  // Infos session (vierge)
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Formation :', 15, y)
-  doc.text('Date(s) :', 110, y)
-  doc.setFont('helvetica', 'normal')
-  doc.text(grid.subtitle, 38, y)
-  doc.line(130, y + 0.5, 195, y + 0.5)
-  y += 6
-
-  doc.setFont('helvetica', 'bold')
-  doc.text('Stagiaire :', 15, y)
-  doc.text('Entreprise :', 110, y)
-  doc.setFont('helvetica', 'normal')
-  doc.line(38, y + 0.5, 105, y + 0.5)
-  doc.line(135, y + 0.5, 195, y + 0.5)
-  y += 6
-
-  doc.setFont('helvetica', 'bold')
-  doc.text('Formateur :', 15, y)
-  doc.text('Durée :', 110, y)
-  doc.setFont('helvetica', 'normal')
-  doc.line(38, y + 0.5, 105, y + 0.5)
-  doc.text(grid.duration, 128, y)
-  y += 8
-
-  return y
-}
-
-function drawCheckboxCell(doc, x, y, size = 3.5) {
-  doc.setDrawColor(150, 150, 150)
-  doc.setLineWidth(0.3)
-  doc.rect(x, y, size, size, 'S')
-}
+// ─── Génération PDF (mise en page commune : core/pdf/layout.js) ───
 
 function generateGrid(gridKey) {
   const grid = GRIDS[gridKey]
   if (!grid) throw new Error(`Grille inconnue: ${gridKey}`)
 
-  const doc = new jsPDF()
-  const pw = doc.internal.pageSize.getWidth()
-  let y = addGridHeader(doc, grid)
+  const doc = new jsPDF({ compress: true })
+  const f = startDocument(doc, ORG, { docLabel: 'Grille d\'évaluation', code: grid.reference, title: 'Grille d\'évaluation des compétences', subtitle: grid.title })
+  const t = ORG.theme
+  const { M, W } = f
 
-  // Instructions
-  doc.setFillColor(255, 250, 230)
-  doc.roundedRect(15, y, pw - 30, 10, 1, 1, 'F')
-  doc.setFontSize(7.5)
-  doc.setFont('helvetica', 'italic')
-  doc.text('Instructions : Cocher Acquis (A) si la compétence est maîtrisée, ou Non Acquis (NA) si elle doit être travaillée.', 19, y + 4)
-  doc.text('En cas de NA, préciser dans Observations les points à améliorer ou la proposition de remédiation.', 19, y + 8)
-  y += 14
+  f.fields([{ label: 'Formation', value: grid.subtitle, w: 2 }, { label: 'Durée', value: grid.duration, w: 0.8 }, { label: 'Date(s)', value: '', w: 0.8 }])
+  f.fields([{ label: 'Stagiaire', value: '', w: 1 }, { label: 'Entreprise', value: '', w: 1 }, { label: 'Formateur', value: '', w: 1 }])
+  f.note("Cochez A (acquis) si la compétence est maîtrisée, NA (non acquis) si elle doit être travaillée. En cas de NA, précisez dans la colonne Observations les points à améliorer ou la remédiation proposée.", { after: 3 })
 
-  // Pour chaque catégorie
+  const codeW = 17, boxW = 9, obsW = 34
+  const labelW = W - codeW - boxW * 2 - obsW
+  const head = (name) => {
+    doc.setFillColor(...t.primary); doc.rect(M, f.y, W, 6.5, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255)
+    doc.text(String(name).toUpperCase(), M + 2.5, f.y + 4.4, { charSpace: 0.3 })
+    const x0 = M + codeW + labelW
+    doc.text('A', x0 + boxW / 2, f.y + 4.4, { align: 'center' })
+    doc.text('NA', x0 + boxW * 1.5, f.y + 4.4, { align: 'center' })
+    doc.text('OBSERVATIONS', x0 + boxW * 2 + 2, f.y + 4.4)
+    f.y += 6.5
+  }
+
   grid.categories.forEach((cat) => {
-    // Vérifier si on a assez de place
-    const needed = 10 + cat.competences.length * 8
-    if (y + needed > 270) {
-      doc.addPage()
-      y = 15
-    }
-
-    // Titre catégorie
-    doc.setFillColor(0, 102, 204)
-    doc.rect(15, y, pw - 30, 7, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.text(cat.name.toUpperCase(), 19, y + 5)
-    doc.setTextColor(0, 0, 0)
-    y += 9
-
-    // En-tête du tableau
-    doc.setFillColor(230, 240, 250)
-    doc.rect(15, y, pw - 30, 6, 'F')
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Code', 17, y + 4)
-    doc.text('Compétence évaluée', 35, y + 4)
-    doc.text('A', 152, y + 4)
-    doc.text('NA', 162, y + 4)
-    doc.text('Observations', 172, y + 4)
-    y += 7
-
-    // Lignes de compétences
+    f.ensure(6.5 + 8 * Math.min(cat.competences.length, 3) + 3)
+    head(cat.name)
     cat.competences.forEach((comp, idx) => {
-      if (y + 8 > 275) {
-        doc.addPage()
-        y = 15
-      }
-
-      const bgColor = idx % 2 === 0 ? [255, 255, 255] : [248, 250, 252]
-      doc.setFillColor(...bgColor)
-      doc.rect(15, y, pw - 30, 7.5, 'F')
-
-      // Bordure
-      doc.setDrawColor(220, 220, 220)
-      doc.setLineWidth(0.2)
-      doc.rect(15, y, pw - 30, 7.5, 'S')
-
-      doc.setFontSize(6.5)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(100, 100, 100)
-      doc.text(comp.code, 17, y + 5)
-
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(0, 0, 0)
-      doc.setFontSize(7)
-      const lines = doc.splitTextToSize(comp.label, 112)
-      doc.text(lines, 35, y + 4)
-
-      // Checkboxes A et NA
-      drawCheckboxCell(doc, 150.5, y + 1.5, 4)
-      drawCheckboxCell(doc, 160.5, y + 1.5, 4)
-
-      // Zone observations (ligne)
-      doc.setDrawColor(200, 200, 200)
-      doc.line(172, y + 6, 193, y + 6)
-
-      y += 7.5
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8)
+      const lines = doc.splitTextToSize(comp.label, labelW - 3)
+      const h = Math.max(6, lines.length * 3.4 + 2.8)
+      if (f.y + h > doc.internal.pageSize.getHeight() - 19) { f.newPage(); head(cat.name) }
+      if (idx % 2 === 1) { doc.setFillColor(...t.surface); doc.rect(M, f.y, W, h, 'F') }
+      doc.setDrawColor(...t.line); doc.setLineWidth(0.2); doc.line(M, f.y + h, M + W, f.y + h)
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
+      doc.text(comp.code, M + 2.5, f.y + h / 2 + 1.1)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8); doc.setTextColor(...t.text)
+      lines.forEach((l, i) => doc.text(l, M + codeW, f.y + h / 2 - (lines.length - 1) * 1.75 + 1.2 + i * 3.5))
+      const x0 = M + codeW + labelW
+      drawCheckbox(doc, ORG, x0 + boxW / 2 - 1.7, f.y + h / 2 - 1.7, 3.4, false)
+      drawCheckbox(doc, ORG, x0 + boxW * 1.5 - 1.7, f.y + h / 2 - 1.7, 3.4, false)
+      doc.setDrawColor(...t.line); doc.line(x0 + boxW * 2 + 2, f.y + h - 2, M + W - 2, f.y + h - 2)
+      f.y += h
     })
-
-    y += 4
+    f.y += 2.5
   })
 
-  // Section résultat global
-  if (y + 50 > 270) {
-    doc.addPage()
-    y = 15
-  }
-
-  y += 4
-  doc.setFillColor(0, 70, 130)
-  doc.rect(15, y, pw - 30, 7, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.text('RÉSULTAT GLOBAL', pw / 2, y + 5, { align: 'center' })
-  doc.setTextColor(0, 0, 0)
-  y += 11
-
-  // Checkboxes résultat
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'bold')
-
-  drawCheckboxCell(doc, 30, y, 5)
-  doc.text('ACQUIS - Le stagiaire maîtrise l\'ensemble des compétences évaluées', 38, y + 4)
-  y += 10
-
-  drawCheckboxCell(doc, 30, y, 5)
-  doc.text('NON ACQUIS - Des compétences restent à acquérir (voir observations)', 38, y + 4)
-  y += 14
-
-  // Observations
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.text('Observations / Points à travailler :', 15, y)
-  y += 3
-  for (let i = 0; i < 4; i++) {
-    doc.setDrawColor(200, 200, 200)
-    doc.line(15, y + 5, pw - 15, y + 5)
-    y += 7
-  }
-  y += 4
-
-  // Signatures
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Signature du formateur :', 15, y)
-  doc.text('Signature du stagiaire :', pw / 2 + 10, y)
-  y += 3
-  doc.setDrawColor(200, 200, 200)
-  doc.rect(15, y, 75, 20, 'S')
-  doc.rect(pw / 2 + 10, y, 75, 20, 'S')
-
-  doc.setFontSize(7)
-  doc.setFont('helvetica', 'italic')
-  doc.text('Date :', 17, y + 17)
-  doc.text('Date :', pw / 2 + 12, y + 17)
-
-  // Footer
-  const ph = doc.internal.pageSize.getHeight()
-  const totalPages = doc.internal.getNumberOfPages()
-  for (let p = 1; p <= totalPages; p++) {
-    doc.setPage(p)
-    doc.setFontSize(6.5)
-    doc.setTextColor(120, 120, 120)
-    doc.text(
-      `${ORG.name} - ${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}${grid.reference} - ${grid.title} - Page ${p}/${totalPages}`,
-      pw / 2, ph - 6, { align: 'center' }
-    )
-    doc.setTextColor(0, 0, 0)
-  }
-
+  f.y += 2
+  f.choiceLine('Résultat global :', [{ label: 'Acquis' }, { label: 'Non acquis (voir observations)' }], { colW: 26 })
+  f.box('Observations et points à travailler', { height: 16, lined: true })
+  f.signatures([
+    { label: 'Le formateur', hint: 'Date et signature' },
+    { label: 'Le stagiaire', hint: 'Date et signature' },
+  ], { height: 20 })
+  f.finish()
   return doc
 }
 
@@ -420,10 +265,10 @@ export const GRID_INFO = Object.fromEntries(
   Object.entries(GRIDS).map(([key, grid]) => [key, { title: grid.title, subtitle: grid.subtitle, reference: grid.reference }])
 )
 
-export function downloadCompetencyGrid(gridKey, orgSettings = null) {
+export async function downloadCompetencyGrid(gridKey, orgSettings = null) {
   const grid = GRIDS[gridKey]
   if (!grid) { console.error('Grille inconnue:', gridKey); return }
-  applyOrgSettings(orgSettings)
+  applyOrgSettings((await prepareOrgForPDF(orgSettings)) || orgSettings)
   const doc = generateGrid(gridKey)
   doc.save(`Grille_Competences_${gridKey.toUpperCase()}_Vierge.pdf`)
 }

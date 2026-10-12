@@ -81,10 +81,10 @@ export default function DocumentsVierges() {
     setLoadingTheme(null)
   }
 
-  const handleDownloadGrid = (gridKey) => {
+  const handleDownloadGrid = async (gridKey) => {
     setLoadingGrid(gridKey)
     try {
-      downloadCompetencyGrid(gridKey, organization)
+      await downloadCompetencyGrid(gridKey, organization)
       toast.success('Grille téléchargée')
     } catch (error) {
       console.error(error)
@@ -93,9 +93,9 @@ export default function DocumentsVierges() {
     setLoadingGrid(null)
   }
 
-  const handleDownloadPasseport = (version) => {
+  const handleDownloadPasseport = async (version) => {
     try {
-      downloadPasseportPrevention(version, organization)
+      await downloadPasseportPrevention(version, organization)
       toast.success(`Notice Passeport Prévention (${version}) téléchargée`)
     } catch (error) {
       console.error(error)
