@@ -137,10 +137,15 @@ export function numberPages(doc, ORG) {
 export function drawDocTitle(doc, ORG, title, subtitle, y, { size = 17 } = {}) {
   const t = ORG.theme
   const M = PAGE_MARGIN
+  // Titre trop long pour une ligne : retour à la ligne, le trait d'accent suit la hauteur
+  setF(doc, 'bold'); doc.setFontSize(size)
+  const lines = doc.splitTextToSize(String(title ?? ''), doc.internal.pageSize.getWidth() - M * 2 - 5)
+  const lh = size * 0.42
   doc.setFillColor(...t.accent)
-  doc.rect(M, y - 6.5, 1.6, 9, 'F')
-  setF(doc, 'bold'); doc.setFontSize(size); doc.setTextColor(...t.primary)
-  doc.text(title, M + 5, y)
+  doc.rect(M, y - 6.5, 1.6, 9 + (lines.length - 1) * lh, 'F')
+  doc.setTextColor(...t.primary)
+  lines.forEach((l, i) => doc.text(l, M + 5, y + i * lh))
+  y += (lines.length - 1) * lh
   if (subtitle) {
     setF(doc, 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.muted)
     doc.text(subtitle, M + 5, y + 5.5)

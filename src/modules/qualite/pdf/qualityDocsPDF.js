@@ -152,7 +152,7 @@ export function buildQualityDocPDF(ORG, { docId, docInfo, code, version, data = 
     if (rows.length) f.table(['Action', 'Responsable', 'Échéance', 'Priorité', 'Statut'], rows.map(a => [a.action, a.responsable || '', a.echeance ? fmtDate(a.echeance) : '', PRIO[a.priorite] || a.priorite || '', ST[a.statut] || a.statut || '']), { columnStyles: { 1: { cellWidth: 34 }, 2: { cellWidth: 22 }, 3: { cellWidth: 20 }, 4: { cellWidth: 22 } } })
     else f.para('Aucune action enregistrée.', { color: t.muted })
   } else if (docId === 'carto-risques') {
-    f.kv([['Revue', data.revue || 'Annuelle'], ['Échelle', 'Gravité et probabilité de 1 (faible) à 4 (forte) ; criticité = gravité x probabilité']], { labelW: 30 })
+    f.kv([['Revue', data.revue || 'Annuelle'], ['Échelle', 'Gravité et probabilité de 1 (faible) à 4 (forte) ; criticité = gravité x probabilité ; 1 à 4 surveillé, 5 à 8 à réduire, 9 à 16 prioritaire']], { labelW: 30 })
     const rows = (data.risques || []).filter(r => r.risque)
       .map(r => ({ ...r, crit: (Number(r.gravite) || 0) * (Number(r.probabilite) || 0) }))
       .sort((a, b) => b.crit - a.crit)
@@ -165,7 +165,7 @@ export function buildQualityDocPDF(ORG, { docId, docInfo, code, version, data = 
         didParseCell: (d) => {
           if (d.section === 'body' && d.column.index === 3) {
             const c = rows[d.row.index]?.crit || 0
-            d.cell.styles.textColor = c >= 8 ? [180, 20, 40] : c >= 4 ? [160, 100, 10] : [30, 100, 60]
+            d.cell.styles.textColor = c >= 9 ? [180, 20, 40] : c >= 5 ? [160, 100, 10] : [30, 100, 60]
           }
         },
       })

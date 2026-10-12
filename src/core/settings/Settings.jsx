@@ -366,19 +366,32 @@ function QualiteSection({ onReferentHandicap }) {
     load()
   }
 
+  const chooseDeputy = async (role, profileId) => {
+    setBusy(role.code)
+    const { error } = await supabase.from('quality_roles').update({ deputy_profile_id: profileId || null, updated_at: new Date().toISOString() }).eq('code', role.code)
+    setBusy(null)
+    if (error) return toast.error(error.message)
+    toast.success('Suppléant mis à jour')
+    load()
+  }
+
   return (
     <>
       <h2 className="section-title">Responsables et référents qualité</h2>
-      <p className="text-ui-sm text-gray-500">Chaque rôle est tenu par un utilisateur. Les documents qualité (désignations, livret d'accueil, règlement, procédures) affichent automatiquement la personne choisie ici. Le changement est enregistré immédiatement.</p>
+      <p className="text-ui-sm text-gray-500">Chaque rôle est tenu par un utilisateur, avec un suppléant qui le remplace en cas d'absence ou de conflit d'intérêts (obligatoire pour le référent handicap et le référent violences, harcèlement et discriminations). Les documents qualité affichent automatiquement les personnes choisies ici. Le changement est enregistré immédiatement.</p>
       <div className="divide-y border rounded-ui">
         {roles.map((r) => (
           <div key={r.code} className="flex items-center justify-between gap-3 px-3 py-2 flex-wrap">
             <div className="text-ui font-medium text-gray-800">{r.label}</div>
             <div className="flex items-center gap-2">
               {busy === r.code && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
-              <select className="select min-w-[220px]" value={r.profile_id || ''} disabled={busy === r.code} onChange={(e) => choose(r, e.target.value)}>
+              <select className="select min-w-[200px]" aria-label={`Titulaire : ${r.label}`} value={r.profile_id || ''} disabled={busy === r.code} onChange={(e) => choose(r, e.target.value)}>
                 <option value="">Non désigné</option>
                 {profiles.map((p) => <option key={p.id} value={p.id}>{personName(p)}</option>)}
+              </select>
+              <select className="select min-w-[200px]" aria-label={`Suppléant : ${r.label}`} value={r.deputy_profile_id || ''} disabled={busy === r.code} onChange={(e) => chooseDeputy(r, e.target.value)}>
+                <option value="">Sans suppléant</option>
+                {profiles.filter((p) => p.id !== r.profile_id).map((p) => <option key={p.id} value={p.id}>Suppléant : {personName(p)}</option>)}
               </select>
             </div>
           </div>

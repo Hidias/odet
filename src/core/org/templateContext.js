@@ -5,7 +5,7 @@
 //   {{org.ville}}, {{org.telephone}}, {{org.email}}, {{org.site}}, {{org.siret}}, {{org.nda}},
 //   {{org.region}}, {{org.region_nda}}, {{org.dirigeant}}, {{org.dirigeant_qualite}},
 //   {{org.lieu_signature}}, {{org.tribunal}}, {{app.nom}}, {{catalogue}},
-//   {{role.<code>}}, {{role.<code>.email}}, {{role.<code>.telephone}}
+//   {{role.<code>}}, {{role.<code>.email}}, {{role.<code>.telephone}}, {{role.<code>.suppleant}}
 //
 // Les valeurs viennent de organization_settings, quality_roles (+ profiles) et courses.
 // Aucune valeur d'un organisme particulier n'est écrite ici.
@@ -31,11 +31,13 @@ export const TEMPLATE_FIELDS = [
   ['{{role.responsable_qualite}}', 'Responsable qualité (Paramètres > Qualité)'],
   ['{{role.referent_handicap}}', 'Référent handicap'],
   ['{{role.referent_reclamations}}', 'Référent réclamations'],
-  ['{{role.referent_rgpd}}', 'Délégué RGPD'],
+  ['{{role.referent_signalements}}', 'Référent violences, harcèlement et discriminations'],
+  ['{{role.referent_rgpd}}', 'Référent données personnelles'],
   ['{{role.referent_deontologie}}', 'Référent déontologie'],
   ['{{role.referent_amelioration}}', 'Référent amélioration continue'],
   ['{{role.referent_veille}}', 'Référent veille'],
-  ['{{role.validation_programmes}}', 'Validation des programmes'],
+  ['{{role.validation_programmes}}', 'Référent pédagogique'],
+  ['{{role.<code>.suppleant}}', "Suppléant d'un rôle"],
 ]
 
 let cache = null
@@ -57,12 +59,16 @@ function formatNda(nda) {
 }
 
 /** Construit le contexte à partir des lignes lues en base (fonction pure, testable) */
-export function buildTemplateContext({ org = {}, roles = [], courses = [] } = {}) {
+export function buildTemplateContext({ org = {}, roles = [], courses = [], deputies = [] } = {}) {
   const nom = org.name || org.legal_name || ''
   const role = {}
+  const byId = new Map((deputies || []).map((d) => [d.id, d]))
   for (const r of roles) {
     const p = r.profile || null
-    role[r.code] = { nom: personName(p), email: p?.sender_email || p?.email || '', telephone: p?.phone || '' }
+    role[r.code] = {
+      nom: personName(p), email: p?.sender_email || p?.email || '', telephone: p?.phone || '',
+      label: r.label || '', suppleant: personName(byId.get(r.deputy_profile_id)),
+    }
   }
   return {
     org: {
@@ -132,10 +138,12 @@ export async function loadTemplateContext(force = false) {
   pending = (async () => {
     const [orgR, rolesR, coursesR] = await Promise.all([
       supabase.from('organization_settings').select('*').limit(1).maybeSingle(),
-      supabase.from('quality_roles').select('code, label, profile_id, profile:profiles(first_name, last_name, display_name, email, sender_email, phone)').order('sort_order'),
+      supabase.from('quality_roles').select('code, label, profile_id, deputy_profile_id, profile:profiles(first_name, last_name, display_name, email, sender_email, phone)').order('sort_order'),
       supabase.from('courses').select('title').order('title'),
     ])
-    cache = buildTemplateContext({ org: orgR.data || {}, roles: rolesR.data || [], courses: coursesR.data || [] })
+    const deputyIds = [...new Set((rolesR.data || []).map((r) => r.deputy_profile_id).filter(Boolean))]
+    const depR = deputyIds.length ? await supabase.from('profiles').select('id, first_name, last_name, display_name, email').in('id', deputyIds) : { data: [] }
+    cache = buildTemplateContext({ org: orgR.data || {}, roles: rolesR.data || [], courses: coursesR.data || [], deputies: depR.data || [] })
     pending = null
     return cache
   })()

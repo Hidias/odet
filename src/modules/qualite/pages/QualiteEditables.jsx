@@ -8,6 +8,9 @@ import {
   Loader2, RefreshCw, Plus, Trash2, CheckCircle
 } from 'lucide-react'
 import { buildQualityDocPDF } from '../pdf/qualityDocsPDF'
+import { loadTemplates, isRich, fromTemplate, docStatus } from '../richdocs/model'
+import RichDocEditor, { StatusChip } from '../richdocs/RichDocEditor'
+import { buildRichDocPDF } from '../richdocs/richDocPDF'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { APP_VERSION } from '../../../core/version'
 import { format } from 'date-fns'
@@ -41,21 +44,10 @@ const QUALITY_DOCS = {
     { id: 'des-recl', name: 'Désignation Référent Réclamations', code: 'QUAL-DESRECL', editable: true },
     { id: 'des-veil', name: 'Désignation Référent Veille', code: 'QUAL-DESVEIL', editable: true },
     { id: 'des-amel', name: 'Désignation Référent Amélioration', code: 'QUAL-DESAMEL', editable: true },
-    { id: 'des-rgpd', name: 'Désignation DPO/RGPD', code: 'QUAL-DESRGPD', editable: true },
+    { id: 'des-sign', name: 'Désignation Référent violences, harcèlement et discriminations', code: 'QUAL-DESSIGN', editable: true },
+    { id: 'des-rgpd', name: 'Désignation Référent données personnelles', code: 'QUAL-DESRGPD', editable: true },
   ]},
-  procedures: { name: 'Procédures', icon: ClipboardList, color: 'green', docs: [
-    { id: 'proc-recl', name: 'Traitement des réclamations', code: 'QUAL-RECL', indicateur: '31', editable: true },
-    { id: 'proc-nc', name: 'Non-conformités et amélioration', code: 'QUAL-NC', indicateur: '32', editable: true },
-    { id: 'proc-sat', name: 'Évaluation satisfaction', code: 'QUAL-SAT', indicateur: '30-31', editable: true },
-    { id: 'proc-veille', name: 'Veille réglementaire', code: 'QUAL-VEILLE', indicateur: '23-25', editable: true },
-    { id: 'proc-besoin', name: 'Analyse des besoins', code: 'QUAL-BESOIN', indicateur: '4', editable: true },
-    { id: 'proc-concep', name: 'Conception des formations', code: 'QUAL-CONCEP', indicateur: '5', editable: true },
-    { id: 'proc-real', name: 'Réalisation des formations', code: 'QUAL-REAL', indicateur: '9-11', editable: true },
-    { id: 'proc-eval', name: 'Évaluation des acquis', code: 'QUAL-EVAL', indicateur: '11', editable: true },
-    { id: 'proc-hand', name: 'Accessibilité handicap', code: 'QUAL-HAND', indicateur: '26', editable: true },
-    { id: 'proc-rgpd', name: 'Protection des données', code: 'QUAL-RGPD', indicateur: '1', editable: true },
-    { id: 'proc-vss', name: 'Violences, harcèlement et discriminations', code: 'QUAL-VSS', indicateur: '12', editable: true },
-  ]},
+  // Procédures, documents stagiaires et clients, fiches : nouveau modèle (richdocs/templates.js)
   registres: { name: 'Registres', icon: Table, color: 'purple', docs: [
     { id: 'reg-recl', name: 'Registre réclamations', code: 'QUAL-REGREC', table: 'reclamations' },
     { id: 'reg-nc', name: 'Registre non-conformités', code: 'QUAL-REGNC', table: 'non_conformites' },
@@ -66,10 +58,7 @@ const QUALITY_DOCS = {
     { id: 'reg-programmes', name: 'Programmes de formation', code: 'QUAL-REGPROG', table: 'programme_versions' },
     { id: 'reg-psh', name: 'Registre PSH (Ind. 26)', code: 'QUAL-REGPSH', table: 'psh_requests' },
   ]},
-  checklists: { name: 'Checklists', icon: CheckSquare, color: 'orange', docs: [
-    { id: 'ck-audit', name: 'Checklist audit interne', code: 'QUAL-CKAUD', editable: true },
-    { id: 'ck-accueil', name: 'Checklist accueil stagiaire', code: 'QUAL-CKACC', editable: true },
-    { id: 'ck-cloture', name: 'Checklist clôture session', code: 'QUAL-CKCLO', editable: true },
+  checklists: { name: 'Check-lists', icon: CheckSquare, color: 'orange', docs: [
     { id: 'ck-materiel', name: 'Checklist matériel formation', code: 'QUAL-CKMAT', editable: true },
   ]},
   pilotage: { name: 'Pilotage', icon: BarChart3, color: 'teal', docs: [
@@ -103,7 +92,8 @@ const DEFAULT_DATA = {
   'des-recl': { personne: '{{role.referent_reclamations}}', role: 'Référent Réclamations', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Réceptionner les réclamations', 'Analyser les causes', 'Clôturer sous 5 jours ouvrés', 'Communiquer les résultats', 'Proposer des actions préventives'] },
   'des-veil': { personne: '{{role.referent_veille}}', role: 'Référent Veille', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veille réglementaire mensuelle', 'Suivre les référentiels INRS', 'Informer l\'équipe sous 30 jours', 'Mettre à jour les documents'] },
   'des-amel': { personne: '{{role.referent_amelioration}}', role: 'Référent Amélioration Continue', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Analyser les NC', 'Suivre les actions correctives', 'Animer l\'amélioration continue', 'Mesurer l\'efficacité', 'Préparer la RDD'] },
-  'des-rgpd': { personne: '{{role.referent_rgpd}}', role: 'DPO', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Conformité RGPD', 'Registre des traitements', 'Répondre aux demandes de droits', 'Sensibiliser le personnel', 'Gérer les violations'] },
+  'des-sign': { personne: '{{role.referent_signalements}}', role: 'Référent violences, harcèlement et discriminations', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Recevoir les signalements de violences, harcèlement, agissements sexistes et discriminations', 'Écouter, orienter et protéger la victime', 'Conduire l\'examen des faits avec un second membre de la direction', 'Proposer les mesures et suivre la victime un mois après', 'Établir le bilan annuel anonymisé'] },
+  'des-rgpd': { personne: '{{role.referent_rgpd}}', role: 'Référent données personnelles', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Conformité RGPD', 'Registre des traitements', 'Répondre aux demandes de droits', 'Sensibiliser le personnel', 'Gérer les violations'] },
   'proc-recl': { 
     objectif: 'Définir les modalités de traitement des réclamations pour garantir la satisfaction des parties prenantes.',
     responsable: P(0), delaiAccuse: '48h', delaiCloture: '5 jours ouvrés',
@@ -277,18 +267,28 @@ const DEFAULT_DATA = {
   'carto-risques': {
     revue: 'Annuelle, et après chaque réclamation ou non-conformité',
     risques: [
-      { processus: 'Information du public', risque: 'Information erronée ou incomplète sur l\'offre', gravite: 3, probabilite: 2, maitrise: 'Revue des programmes et registre des versions', action: 'Relire chaque fiche avant publication', responsable: P(0), echeance: '' },
-      { processus: 'Conception', risque: 'Formation inadaptée au besoin du client', gravite: 3, probabilite: 2, maitrise: 'Analyse du besoin avant chaque session', action: '', responsable: P(0), echeance: '' },
-      { processus: 'Réalisation', risque: 'Formateur absent ou indisponible', gravite: 4, probabilite: 2, maitrise: 'Planning partagé', action: 'Identifier un formateur de remplacement par thème', responsable: P(0), echeance: '' },
-      { processus: 'Réalisation', risque: 'Matériel pédagogique défaillant ou manquant', gravite: 3, probabilite: 2, maitrise: 'Inventaire et vérification avant session', action: '', responsable: P(0), echeance: '' },
-      { processus: 'Réalisation', risque: 'Accident pendant un exercice pratique', gravite: 4, probabilite: 1, maitrise: 'Consignes de sécurité, trousse de secours', action: '', responsable: P(0), echeance: '' },
-      { processus: 'Accueil', risque: 'Besoin d\'adaptation (handicap) non détecté', gravite: 3, probabilite: 2, maitrise: 'Fiche de renseignement, référent handicap', action: '', responsable: P(0), echeance: '' },
-      { processus: 'Suivi', risque: 'Absences ou abandons non suivis', gravite: 2, probabilite: 2, maitrise: 'Émargement par demi-journée', action: '', responsable: P(0), echeance: '' },
-      { processus: 'Évaluation', risque: 'Acquis non évalués ou non tracés', gravite: 3, probabilite: 1, maitrise: 'Objectifs validés et résultats saisis pour chaque stagiaire', action: '', responsable: P(0), echeance: '' },
-      { processus: 'Comportements', risque: 'Violence, harcèlement ou discrimination pendant une formation', gravite: 4, probabilite: 1, maitrise: 'Procédure de signalement, référent désigné', action: '', responsable: P(0), echeance: '' },
-      { processus: 'Sous-traitance', risque: 'Intervenant externe non qualifié ou non conforme au référentiel', gravite: 4, probabilite: 2, maitrise: 'Justificatifs et clause de conformité dans le contrat', action: '', responsable: P(0), echeance: '' },
-      { processus: 'Réglementation', risque: 'Évolution réglementaire non prise en compte', gravite: 3, probabilite: 2, maitrise: 'Veille légale et réglementaire', action: '', responsable: P(0), echeance: '' },
-      { processus: 'Données', risque: 'Divulgation de données personnelles des stagiaires', gravite: 3, probabilite: 1, maitrise: 'Accès par rôle, données sensibles chiffrées', action: '', responsable: P(0), echeance: '' },
+      { processus: "Réalisation (P07, D05)", risque: "Accident d'un stagiaire en séquence pratique (atteinte à la personne, responsabilité)", gravite: 4, probabilite: 2, maitrise: "Consignes, EPI obligatoires, matériel vérifié, formateur qualifié", action: '', responsable: P(0), echeance: '' },
+      { processus: "Compétences (P14)", risque: "Formateur dont la qualification a expiré (formation et certificats non valables)", gravite: 4, probabilite: 2, maitrise: "Matrice, alerte 3 mois avant", action: '', responsable: P(0), echeance: '' },
+      { processus: "Réclamations (P01, P13)", risque: "Formateur indisponible au dernier moment (session annulée, client mécontent)", gravite: 3, probabilite: 2, maitrise: "Remplaçants référencés, procédure aléas", action: '', responsable: P(0), echeance: '' },
+      { processus: "Réalisation (P07)", risque: "Session démarrée sans convention signée (litige, non-paiement, écart d'audit)", gravite: 3, probabilite: 2, maitrise: "Alerte dans l'outil, check-list B", action: '', responsable: P(0), echeance: '' },
+      { processus: "Réalisation (P07, P15)", risque: "Émargement incomplet ou absent (financement refusé, écart d'audit)", gravite: 3, probabilite: 2, maitrise: "Émargement numérique, contrôle le soir", action: '', responsable: P(0), echeance: '' },
+      { processus: "Analyse du besoin (P05, P09)", risque: "Besoin d'adaptation non repéré (exclusion de fait d'une personne, discrimination)", gravite: 4, probabilite: 2, maitrise: "Question systématique, référent handicap", action: '', responsable: P(0), echeance: '' },
+      { processus: "Accessibilité (P10)", risque: "Lieu inaccessible découvert le jour même (personne ne pouvant suivre la formation)", gravite: 3, probabilite: 2, maitrise: "Fiches lieux, information dans la convocation", action: '', responsable: P(0), echeance: '' },
+      { processus: "Violences et discriminations (P11)", risque: "Violence, harcèlement ou discrimination non traité (atteinte à la personne, responsabilité, image)", gravite: 4, probabilite: 1, maitrise: "Référent et suppléant, cadre annoncé, délais", action: '', responsable: P(0), echeance: '' },
+      { processus: "Réclamations (P01)", risque: "Réclamation non traitée dans les délais (perte du client, écart d'audit)", gravite: 2, probabilite: 2, maitrise: "Accusé automatique, alertes", action: '', responsable: P(0), echeance: '' },
+      { processus: "Appréciations (P03)", risque: "Avis négatifs non exploités (mêmes défauts répétés)", gravite: 2, probabilite: 2, maitrise: "Alerte par avis négatif, synthèse trimestrielle", action: '', responsable: P(0), echeance: '' },
+      { processus: "Veille (P04, P06)", risque: "Programme non conforme au référentiel technique à jour (certificat contestable)", gravite: 4, probabilite: 2, maitrise: "Veille, revue annuelle des programmes", action: '', responsable: P(0), echeance: '' },
+      { processus: "Appréciations (P03)", risque: "Information publiée inexacte (résultats, certification) (pratique commerciale trompeuse, écart d'audit)", gravite: 3, probabilite: 1, maitrise: "Calcul automatique, méthode publiée", action: '', responsable: P(0), echeance: '' },
+      { processus: "Sous-traitance (P13)", risque: "Sous-traitant non conforme ou non qualifié (prestation défaillante, responsabilité)", gravite: 3, probabilite: 2, maitrise: "Dossier complet, évaluation annuelle", action: '', responsable: P(0), echeance: '' },
+      { processus: "Sous-traitance (P13)", risque: "Absence d'attestation de vigilance d'un sous-traitant (solidarité financière en cas de travail dissimulé)", gravite: 3, probabilite: 2, maitrise: "Relance tous les 6 mois", action: '', responsable: P(0), echeance: '' },
+      { processus: "Données personnelles (P12)", risque: "Fuite ou perte de données personnelles (atteinte aux personnes, sanction CNIL)", gravite: 3, probabilite: 2, maitrise: "Droits limités, sauvegardes, procédure incident", action: '', responsable: P(0), echeance: '' },
+      { processus: "Accessibilité (P10, P12)", risque: "Indisponibilité de l'outil de gestion (sessions et documents bloqués)", gravite: 3, probabilite: 1, maitrise: "Sauvegardes, versions papier de repli", action: '', responsable: P(0), echeance: '' },
+      { processus: "Organisation (D01)", risque: "Dépendance à une seule personne clé (activité arrêtée en cas d'absence)", gravite: 4, probabilite: 2, maitrise: "Suppléants, procédures écrites", action: '', responsable: P(0), echeance: '' },
+      { processus: "Pilotage (D11)", risque: "Échéance réglementaire manquée (audit, bilan, déclaration) (perte de la certification ou de l'enregistrement)", gravite: 4, probabilite: 1, maitrise: "Échéances suivies dans le module Certification", action: '', responsable: P(0), echeance: '' },
+      { processus: "Pilotage (D11)", risque: "Dépendance à un client ou à un donneur d'ordre principal (fragilité financière)", gravite: 3, probabilite: 2, maitrise: "Suivi de la répartition du chiffre d'affaires en revue", action: '', responsable: P(0), echeance: '' },
+      { processus: "Conditions de vente (D06)", risque: "Impayé ou refus de prise en charge d'un financeur (trésorerie)", gravite: 2, probabilite: 3, maitrise: "Accord de prise en charge avant début, CGV", action: '', responsable: P(0), echeance: '' },
+      { processus: "Réalisation (P07)", risque: "Matériel de formation défectueux ou insuffisant (séquence pratique impossible, risque)", gravite: 3, probabilite: 2, maitrise: "Vérification la veille, liste par session", action: '', responsable: P(0), echeance: '' },
+      { processus: "Analyse du besoin (P05, P08)", risque: "Stagiaire sans les prérequis (échec, risque en pratique)", gravite: 3, probabilite: 2, maitrise: "Vérification avant la session", action: '', responsable: P(0), echeance: '' },
     ],
   },
   // Pilotage
@@ -311,6 +311,12 @@ export default function QualiteEditables() {
   const [registreData, setRegistreData] = useState({})
   const [loadingData, setLoadingData] = useState(false)
   const [rddData, setRddData] = useState(null)
+  // Nouveau modèle (procédures, documents stagiaires et clients, gouvernance, pilotage, fiches)
+  const [templates, setTemplates] = useState(null)
+  const [richOpen, setRichOpen] = useState(null)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('tous')
+  useEffect(() => { loadTemplates().then(setTemplates).catch((e) => toast.error(e.message)) }, [])
   
   // Champs {{org.*}}, {{role.*}} : remplis à l'affichage depuis Paramètres (identité et rôles qualité)
   const [tplCtx, setTplCtx] = useState(null)
@@ -329,6 +335,21 @@ export default function QualiteEditables() {
     }
   }
   
+  const richPDF = async (tpl) => {
+    setGenerating(true)
+    try {
+      const content = isRich(savedDocs[tpl.id]) ? savedDocs[tpl.id] : fromTemplate(tpl)
+      const [{ data: history }, ORG, ctx] = await Promise.all([
+        supabase.from('quality_doc_versions').select('*').eq('doc_id', tpl.id).order('version', { ascending: false }),
+        loadPdfOrg(true),
+        tplCtx ? Promise.resolve(tplCtx) : loadTemplateContext(),
+      ])
+      const r = buildRichDocPDF(ORG, { tpl, code: docCode(tpl.code), content, ctx, history: history || [] })
+      r.doc.save(r.filename)
+    } catch (e) { console.error(e); toast.error('Erreur PDF') }
+    setGenerating(false)
+  }
+
   const toggleCat = (id) => setExpandedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
   const getColor = (c) => ({ blue: 'bg-blue-500', green: 'bg-green-500', purple: 'bg-purple-500', orange: 'bg-orange-500', teal: 'bg-teal-500', gray: 'bg-gray-500' }[c] || 'bg-gray-500')
   
@@ -741,7 +762,7 @@ export default function QualiteEditables() {
                   <label className="block text-sm font-medium mb-1">Fréquence de revue</label>
                   <input type="text" value={editData.revue || ''} onChange={e => setEditData({...editData, revue: e.target.value})} className="input w-full" />
                 </div>
-                <div className="text-xs text-gray-500">Gravité et probabilité de 1 (faible) à 4 (forte). Criticité = gravité x probabilité ; à partir de 8, une action est attendue.</div>
+                <div className="text-xs text-gray-500">Gravité et probabilité de 1 (faible) à 4 (forte). Criticité = gravité x probabilité : de 1 à 4 acceptable et surveillé, de 5 à 8 à réduire (action planifiée), de 9 à 16 prioritaire (action immédiate).</div>
                 {(editData.risques || []).map((r, i) => {
                   const upd = (k, v) => { const n = [...(editData.risques || [])]; n[i] = {...n[i], [k]: v}; setEditData({...editData, risques: n}) }
                   const crit = (Number(r.gravite) || 0) * (Number(r.probabilite) || 0)
@@ -754,7 +775,7 @@ export default function QualiteEditables() {
                       <div className="grid grid-cols-3 gap-2 items-center">
                         <label className="text-xs">Gravité<select value={r.gravite || 1} onChange={e => upd('gravite', Number(e.target.value))} className="input">{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
                         <label className="text-xs">Probabilité<select value={r.probabilite || 1} onChange={e => upd('probabilite', Number(e.target.value))} className="input">{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
-                        <span className={`badge ${crit >= 8 ? 'badge-danger' : crit >= 4 ? 'badge-warning' : 'badge-success'} justify-self-start`}>Criticité {crit}</span>
+                        <span className={`badge ${crit >= 9 ? 'badge-danger' : crit >= 5 ? 'badge-warning' : 'badge-success'} justify-self-start`}>Criticité {crit}</span>
                       </div>
                       <input type="text" value={r.maitrise || ''} onChange={e => upd('maitrise', e.target.value)} className="input w-full" placeholder="Mesures de maîtrise en place" />
                       <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_1fr] gap-2">
@@ -789,7 +810,7 @@ export default function QualiteEditables() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Documents Qualité</h1>
-        <p className="text-gray-500">Pack Qualiopi V2.8.0 - Documents éditables</p>
+        <p className="text-gray-500">Procédures, documents remis aux stagiaires et aux clients, gouvernance et pilotage : modèles à adapter, versions validées</p>
       </div>
       
       <div className="flex gap-2 border-b">
@@ -809,48 +830,97 @@ export default function QualiteEditables() {
         ))}
       </div>
       
-      {activeTab === 'documents' && (
-        <div className="space-y-3">
-          {Object.entries(QUALITY_DOCS).filter(([k]) => k !== 'registres').map(([catId, cat]) => {
-            const Icon = cat.icon; const isExp = expandedCats.includes(catId)
-            return (
-              <div key={catId} className="card p-0 overflow-hidden">
-                <button onClick={() => toggleCat(catId)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${getColor(cat.color)} text-white`}><Icon className="w-5 h-5" /></div>
-                    <div className="text-left"><h3 className="font-semibold">{cat.name}</h3><p className="text-sm text-gray-500">{cat.docs.length} docs</p></div>
-                  </div>
-                  {isExp ? <ChevronDown className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
-                </button>
-                {isExp && (
-                  <div className="border-t divide-y">
-                    {cat.docs.map(docItem => (
-                      <div key={docItem.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-5 h-5 text-gray-400" />
-                          <div>
-                            <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded mr-2">{docCode(docItem.code)}</span>
-                            <span>{docItem.name}</span>
-                            {docItem.indicateur && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Q{docItem.indicateur}</span>}
-                            {savedDocs[docItem.id] && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Édité</span>}
+      {activeTab === 'documents' && (() => {
+        const CATS = [
+          { id: 'gouvernance', name: 'Gouvernance', icon: Building2, color: 'blue', legacy: QUALITY_DOCS.gouvernance.docs },
+          { id: 'procedures', name: 'Procédures', icon: ClipboardList, color: 'green', legacy: [] },
+          { id: 'stagiaires', name: 'Stagiaires et clients', icon: Users2, color: 'purple', legacy: [] },
+          { id: 'checklists', name: 'Check-lists', icon: CheckSquare, color: 'orange', legacy: QUALITY_DOCS.checklists.docs },
+          { id: 'pilotage', name: 'Pilotage', icon: BarChart3, color: 'teal', legacy: QUALITY_DOCS.pilotage.docs },
+          { id: 'soustraitance', name: 'Sous-traitance', icon: Users2, color: 'gray', legacy: QUALITY_DOCS.soustraitance.docs },
+          { id: 'fiches', name: 'Fiches modèles', icon: FileText, color: 'gray', legacy: [] },
+        ]
+        const q = search.trim().toLowerCase()
+        const richList = Object.values(templates || {}).sort((x, y) => x.num.localeCompare(y.num))
+        const stOf = (t) => docStatus(savedDocs[t.id])
+        const needsWork = (t) => ['modele', 'brouillon', 'a_revoir'].includes(stOf(t).code)
+        const matchRich = (t) => (!q || `${t.name} ${t.code} ${(t.indicators || []).join(' ')}`.toLowerCase().includes(q))
+          && (filter === 'tous' || (filter === 'revoir' && needsWork(t)) || (filter === 'publics' && (t.family === 'stagiaires' || savedDocs[t.id]?.diffusion?.portail)))
+        const matchLegacy = (d) => filter === 'tous' && (!q || `${d.name} ${d.code} ${d.indicateur || ''}`.toLowerCase().includes(q))
+        const toReview = richList.filter((t) => stOf(t).code === 'a_revoir').length
+        return (
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <input type="search" className="input flex-1" placeholder="Rechercher un document, un code ou un indicateur" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Rechercher un document" />
+              <div className="inline-flex rounded-lg bg-gray-100 p-0.5 self-start" role="group" aria-label="Filtre">
+                {[['tous', 'Tous'], ['revoir', 'À traiter'], ['publics', 'Publics']].map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setFilter(k)} className={`h-9 px-3 rounded-md text-sm font-semibold ${filter === k ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'}`}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {toReview > 0 && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">{toReview} document{toReview > 1 ? 's' : ''} validé{toReview > 1 ? 's' : ''} il y a plus d'un an : revue annuelle à faire.</p>}
+            {!templates && <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}
+            {CATS.map((cat) => {
+              const Icon = cat.icon
+              const rich = richList.filter((t) => t.family === cat.id && matchRich(t))
+              const legacy = cat.legacy.filter(matchLegacy)
+              if (!rich.length && !legacy.length) return null
+              const isExp = expandedCats.includes(cat.id) || !!q || filter !== 'tous'
+              return (
+                <div key={cat.id} className="card p-0 overflow-hidden">
+                  <button onClick={() => toggleCat(cat.id)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${getColor(cat.color)} text-white`}><Icon className="w-5 h-5" /></div>
+                      <div className="text-left"><h3 className="font-semibold">{cat.name}</h3><p className="text-sm text-gray-500">{rich.length + legacy.length} document{rich.length + legacy.length > 1 ? 's' : ''}</p></div>
+                    </div>
+                    {isExp ? <ChevronDown className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
+                  </button>
+                  {isExp && (
+                    <div className="border-t divide-y">
+                      {rich.map((t) => (
+                        <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 hover:bg-gray-50">
+                          <button type="button" onClick={() => setRichOpen(t.id)} className="flex items-start gap-3 text-left flex-1 min-w-[220px]">
+                            <FileText className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                            <span className="flex flex-col gap-0.5">
+                              <span className="font-medium text-gray-900">{t.name}</span>
+                              <span className="text-xs text-gray-500">{docCode(t.code)}{(t.indicators || []).length ? ` · Ind. ${t.indicators.join(', ')}` : ''}{savedDocs[t.id]?.next_review ? ` · revue le ${savedDocs[t.id].next_review.split('-').reverse().join('/')}` : ''}</span>
+                            </span>
+                          </button>
+                          <div className="flex items-center gap-2">
+                            <StatusChip status={stOf(t)} />
+                            <button onClick={() => setRichOpen(t.id)} className="btn btn-sm btn-secondary flex items-center gap-1"><Edit className="w-4 h-4" /> Ouvrir</button>
+                            <button onClick={() => richPDF(t)} disabled={generating} className="btn btn-sm btn-primary flex items-center gap-1">{generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} PDF</button>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          {docItem.editable && <button onClick={() => openEditor(docItem.id)} className="btn btn-sm btn-secondary flex items-center gap-1"><Edit className="w-4 h-4" /> Éditer</button>}
-                          <button onClick={() => generatePDF(docItem.id, docItem)} disabled={generating} className="btn btn-sm btn-primary flex items-center gap-1">
-                            {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} PDF
-                          </button>
+                      ))}
+                      {legacy.map(docItem => (
+                        <div key={docItem.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 hover:bg-gray-50">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-5 h-5 text-gray-400" />
+                            <div>
+                              <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded mr-2">{docCode(docItem.code)}</span>
+                              <span>{docItem.name}</span>
+                              {docItem.indicateur && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Q{docItem.indicateur}</span>}
+                              {savedDocs[docItem.id] && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Édité</span>}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            {docItem.editable && <button onClick={() => openEditor(docItem.id)} className="btn btn-sm btn-secondary flex items-center gap-1"><Edit className="w-4 h-4" /> Éditer</button>}
+                            <button onClick={() => generatePDF(docItem.id, docItem)} disabled={generating} className="btn btn-sm btn-primary flex items-center gap-1">
+                              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} PDF
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-      
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
+
       {activeTab === 'registres' && (
         <div className="space-y-4">
           <p className="text-sm text-blue-700 bg-blue-50 p-3 rounded-lg">Les registres sont liés aux données de l'application. Cliquez "Charger" pour voir les données.</p>
@@ -1015,6 +1085,16 @@ export default function QualiteEditables() {
       )}
       
       {renderEditor()}
+      {richOpen && templates?.[richOpen] && (
+        <RichDocEditor
+          key={richOpen}
+          tpl={templates[richOpen]}
+          saved={isRich(savedDocs[richOpen]) ? savedDocs[richOpen] : fromTemplate(templates[richOpen])}
+          ctx={tplCtx}
+          onClose={() => setRichOpen(null)}
+          onSaved={(id, content) => setSavedDocs((prev) => ({ ...prev, [id]: content }))}
+        />
+      )}
     </div>
   )
 }
