@@ -7,6 +7,17 @@ import { APP_VERSION } from '../version'
 
 export const PAGE_MARGIN = 15
 
+// Police du document : Helvetica par défaut ; un document peut en imposer une autre
+// (doc.__odetFont, ex. Liberation Sans intégrée pour la facture PDF/A). Les polices
+// intégrées n'ont pas d'italique : l'italique retombe sur le style droit.
+export function fontOf(doc) { return (doc && doc.__odetFont) || 'helvetica' }
+export function setF(doc, style = 'normal') {
+  const font = fontOf(doc)
+  let st = style
+  if (font !== 'helvetica') st = style === 'bolditalic' ? 'bold' : (style === 'italic' ? 'normal' : style)
+  doc.setFont(font, st)
+}
+
 // Dessine le logo dans une boîte en conservant ses proportions
 export function drawLogoFitted(doc, logoBase64, x, y, maxW, maxH) {
   const fmt = logoBase64.includes('image/png') ? 'PNG' : 'JPEG'
@@ -54,21 +65,21 @@ export function drawHeaderBand(doc, ORG, { ref = null, docLabel = '' } = {}) {
   if (ORG.logo_base64) {
     try { drawLogoFitted(doc, ORG.logo_base64, M, 10, 42, 16) } catch { /* logo illisible : on continue sans */ }
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...t.primary)
+    setF(doc, 'bold'); doc.setFontSize(13); doc.setTextColor(...t.primary)
     doc.text(ORG.name || '', M, 20)
   }
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...t.primary)
+  setF(doc, 'bold'); doc.setFontSize(8.5); doc.setTextColor(...t.primary)
   doc.text((ORG.nameFull || ORG.name || '').toUpperCase(), pw - M, 12, { align: 'right' })
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
+  setF(doc, 'normal'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
   doc.text(ORG.address || '', pw - M, 16.5, { align: 'right' })
   doc.text([ORG.phone, ORG.email].filter(Boolean).join('   '), pw - M, 20.5, { align: 'right' })
   doc.text([ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.nda ? `NDA ${ORG.nda}` : ''].filter(Boolean).join('   '), pw - M, 24.5, { align: 'right' })
   doc.setDrawColor(...t.highlight); doc.setLineWidth(0.6)
   doc.line(M, 30, pw - M, 30)
   if (docLabel || ref) {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...t.muted)
+    setF(doc, 'normal'); doc.setFontSize(7); doc.setTextColor(...t.muted)
     if (docLabel) doc.text(docLabel.toUpperCase(), M, 34.5, { charSpace: 0.4 })
-    if (ref) { doc.setFont('helvetica', 'bold'); doc.setTextColor(...t.accent); doc.text(ref, pw - M, 34.5, { align: 'right' }) }
+    if (ref) { setF(doc, 'bold'); doc.setTextColor(...t.accent); doc.text(ref, pw - M, 34.5, { align: 'right' }) }
   }
   doc.setTextColor(...t.text)
   return 42
@@ -79,9 +90,9 @@ export function drawRunningHeader(doc, ORG, { ref = null, docLabel = '' } = {}) 
   const pw = doc.internal.pageSize.getWidth()
   const M = PAGE_MARGIN
   const t = ORG.theme
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...t.muted)
+  setF(doc, 'normal'); doc.setFontSize(7); doc.setTextColor(...t.muted)
   doc.text(`${ORG.name || ''}   ${docLabel}`.toUpperCase(), M, 12, { charSpace: 0.3 })
-  if (ref) { doc.setFont('helvetica', 'bold'); doc.setTextColor(...t.accent); doc.text(ref, pw - M, 12, { align: 'right' }) }
+  if (ref) { setF(doc, 'bold'); doc.setTextColor(...t.accent); doc.text(ref, pw - M, 12, { align: 'right' }) }
   doc.setDrawColor(...t.line); doc.setLineWidth(0.3)
   doc.line(M, 15, pw - M, 15)
   doc.setTextColor(...t.text)
@@ -99,7 +110,7 @@ export function drawFooter(doc, ORG, docCode, pageNum = null, totalPages = null)
   const t = ORG.theme
   doc.setDrawColor(...t.line); doc.setLineWidth(0.3)
   doc.line(M, ph - 16, pw - M, ph - 16)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
+  setF(doc, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
   const l1 = [ORG.nameFull || ORG.name, ORG.addressFull].filter(Boolean).join('  ·  ')
   const l2 = [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.naf ? `NAF ${ORG.naf}` : '', ORG.tva ? `TVA ${ORG.tva}` : '', ORG.ndaFull ? `NDA ${ORG.ndaFull}` : ''].filter(Boolean).join('  ·  ')
   doc.text(l1, M, ph - 11.5)
@@ -116,7 +127,7 @@ export function numberPages(doc, ORG) {
   const total = doc.getNumberOfPages()
   for (let p = 1; p <= total; p++) {
     doc.setPage(p)
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...ORG.theme.muted)
+    setF(doc, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...ORG.theme.muted)
     doc.text(`Page ${p} / ${total}`, pw - PAGE_MARGIN, ph - 11.5, { align: 'right' })
   }
   doc.setTextColor(...ORG.theme.text)
@@ -128,10 +139,10 @@ export function drawDocTitle(doc, ORG, title, subtitle, y, { size = 17 } = {}) {
   const M = PAGE_MARGIN
   doc.setFillColor(...t.accent)
   doc.rect(M, y - 6.5, 1.6, 9, 'F')
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(size); doc.setTextColor(...t.primary)
+  setF(doc, 'bold'); doc.setFontSize(size); doc.setTextColor(...t.primary)
   doc.text(title, M + 5, y)
   if (subtitle) {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.muted)
+    setF(doc, 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.muted)
     doc.text(subtitle, M + 5, y + 5.5)
     y += 5.5
   }
@@ -143,7 +154,7 @@ export function drawDocTitle(doc, ORG, title, subtitle, y, { size = 17 } = {}) {
 export function drawSectionTitle(doc, ORG, label, y) {
   const t = ORG.theme
   const M = PAGE_MARGIN
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...t.primary)
+  setF(doc, 'bold'); doc.setFontSize(10); doc.setTextColor(...t.primary)
   doc.text(label, M, y)
   doc.setDrawColor(...t.highlight); doc.setLineWidth(0.5)
   doc.line(M, y + 2, M + 14, y + 2)
@@ -164,17 +175,17 @@ export function drawPartyCard(doc, ORG, x, y, w, label, lines, footnote) {
   doc.rect(x, y, w, h, 'F')
   doc.setFillColor(...t.accent)
   doc.rect(x, y, 1.2, h, 'F')
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)
+  setF(doc, 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)
   doc.text(label.toUpperCase(), x + padX, y + padTop, { charSpace: 0.4 })
   let yy = y + padTop + 5
   lines.forEach((ln, i) => {
-    doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setFontSize(i === 0 ? 9.5 : 8.5); doc.setTextColor(...t.text)
+    setF(doc, i === 0 ? 'bold' : 'normal'); doc.setFontSize(i === 0 ? 9.5 : 8.5); doc.setTextColor(...t.text)
     const parts = doc.splitTextToSize(String(ln || ''), w - padX * 2)
     doc.text(parts[0] || '', x + padX, yy)
     yy += lineH
   })
   if (footnote) {
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
+    setF(doc, 'italic'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
     doc.text(footnote, x + padX, yy + 1)
   }
   doc.setTextColor(...t.text)
@@ -189,9 +200,9 @@ export function drawKeyValues(doc, ORG, x, y, w, rows, { labelW = 34, fontSize =
     const h = Math.max(1, lines.length) * 4 + 2.6
     doc.setDrawColor(...t.line); doc.setLineWidth(0.25)
     doc.line(x, y + h, x + w, y + h)
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(fontSize - 1); doc.setTextColor(...t.muted)
+    setF(doc, 'bold'); doc.setFontSize(fontSize - 1); doc.setTextColor(...t.muted)
     doc.text(String(k).toUpperCase(), x, y + 4.2, { charSpace: 0.2 })
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(fontSize); doc.setTextColor(...t.text)
+    setF(doc, 'normal'); doc.setFontSize(fontSize); doc.setTextColor(...t.text)
     lines.forEach((l, i) => doc.text(l, x + labelW, y + 4.2 + i * 4))
     y += h
   })
@@ -238,12 +249,13 @@ export function drawCheckbox(doc, ORG, x, y, size = 3.4, checked = false, color 
 }
 
 /** Styles jspdf-autotable communs : en-tête couleur principale, lignes alternées, filets fins */
-export function tableTheme(ORG, extra = {}) {
+export function tableTheme(ORG, extraIn = {}) {
+  const { font, ...extra } = extraIn
   const t = ORG.theme
   return {
     theme: 'grid',
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN, top: 24, bottom: 22 },
-    styles: { font: 'helvetica', fontSize: 8.5, textColor: t.text, lineColor: t.line, lineWidth: 0.2, cellPadding: 2.2, overflow: 'linebreak', valign: 'middle' },
+    styles: { font: font || 'helvetica', fontSize: 8.5, textColor: t.text, lineColor: t.line, lineWidth: 0.2, cellPadding: 2.2, overflow: 'linebreak', valign: 'middle' },
     headStyles: { fillColor: t.primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: 2.4 },
     alternateRowStyles: { fillColor: t.surface },
     ...extra,
@@ -268,7 +280,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   const BOTTOM = bottom || (doc.internal.pageSize.getHeight() - 19)
   const LINE = 4.1
   const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1 }
-  f.body = (size = 9) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(size); doc.setTextColor(...t.text) }
+  f.body = (size = 9) => { setF(doc, 'normal'); doc.setFontSize(size); doc.setTextColor(...t.text) }
   f.newPage = () => {
     drawFooter(doc, ORG, code)
     doc.addPage()
@@ -281,13 +293,13 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
 
   f.para = (text, { x = M, w = W, size = 9, after = 2.5, style = 'normal', color = null, align = 'left' } = {}) => {
     f.body(size)
-    doc.setFont('helvetica', style)
+    setF(doc, style)
     const lines = doc.splitTextToSize(String(text ?? ''), w)
     const lh = size * 0.455
     f.ensure(Math.min(lines.length, 3) * lh)
     lines.forEach(l => {
       f.ensure(lh)
-      f.body(size); doc.setFont('helvetica', style); if (color) doc.setTextColor(...color)
+      f.body(size); setF(doc, style); if (color) doc.setTextColor(...color)
       if (align === 'center') doc.text(l, x + w / 2, f.y, { align: 'center' })
       else doc.text(l, x, f.y)
       f.y += lh
@@ -314,7 +326,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   // Petit intertitre en capitales discrètes (comme « OBJECTIFS » sur la convocation)
   f.label = (label) => {
     f.ensure(5 + LINE * 2)
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
+    setF(doc, 'bold'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
     doc.text(String(label).toUpperCase(), M, f.y, { charSpace: 0.2 })
     doc.setTextColor(...t.text)
     f.y += 4.5
@@ -346,7 +358,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   // Encadré : fond de surface, liseré d'accent, étiquette et texte
   f.callout = (label, text, { tone = 'accent' } = {}) => {
     const color = tone === 'muted' ? t.muted : (tone === 'highlight' ? t.highlight : t.accent)
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+    setF(doc, 'normal'); doc.setFontSize(9)
     const lines = doc.splitTextToSize(String(text ?? ''), W - 10)
     const h = (label ? 10 : 5) + lines.length * 4.2 + 3
     f.ensure(h + 2)
@@ -355,11 +367,11 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
     doc.setFillColor(...color); doc.rect(M, by, 1.2, h, 'F')
     let yy = by + 5.5
     if (label) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...color)
+      setF(doc, 'bold'); doc.setFontSize(7); doc.setTextColor(...color)
       doc.text(String(label).toUpperCase(), M + 4, yy, { charSpace: 0.4 })
       yy += 5.5
     }
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
+    setF(doc, 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
     lines.forEach((l, i) => doc.text(l, M + 4, yy + i * 4.2))
     f.y = by + h + 5
   }
@@ -372,12 +384,12 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
     let x = M
     fields.forEach(fl => {
       const w = usable * (fl.w || 1) / total
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8); doc.setTextColor(...t.muted)
+      setF(doc, 'bold'); doc.setFontSize(6.8); doc.setTextColor(...t.muted)
       doc.text(String(fl.label || '').toUpperCase(), x, f.y, { charSpace: 0.2 })
       const ly = f.y + height - 3
       doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.line(x, ly + 1.2, x + w, ly + 1.2)
       if (fl.value !== undefined && fl.value !== null && String(fl.value) !== '') {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
+        setF(doc, 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
         doc.text(doc.splitTextToSize(String(fl.value), w)[0] || '', x, ly)
       }
       x += w + gap
@@ -396,7 +408,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
         items.slice(i, i + columns).forEach((it, j) => {
           const x = M + j * cw
           drawCheckbox(doc, ORG, x + 1, f.y - box + 0.6, box, !!it.checked, it.color || null)
-          f.body(size); if (it.checked) doc.setFont('helvetica', 'bold')
+          f.body(size); if (it.checked) setF(doc, 'bold')
           doc.text(doc.splitTextToSize(String(it.label), cw - box - 6)[0] || '', x + box + 4, f.y)
         })
         f.y += 5.6
@@ -410,7 +422,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       items.forEach(it => {
         drawCheckbox(doc, ORG, x, f.y - box + 0.6, box, !!it.checked)
         f.body(size); if (it.muted && !it.checked) doc.setTextColor(...t.muted)
-        if (it.checked) doc.setFont('helvetica', 'bold')
+        if (it.checked) setF(doc, 'bold')
         doc.text(String(it.label), x + box + 2, f.y)
         x += colW || (doc.getTextWidth(String(it.label)) + box + 9)
       })
@@ -424,7 +436,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       f.ensure(lines.length * LINE + 1.5)
       drawCheckbox(doc, ORG, M + 1, f.y - box + 0.6, box, !!it.checked, it.color || null)
       f.body(size); if (it.muted && !it.checked) doc.setTextColor(...t.muted)
-      if (it.checked) doc.setFont('helvetica', 'bold')
+      if (it.checked) setF(doc, 'bold')
       if (it.color) doc.setTextColor(...it.color)
       lines.forEach(l => { doc.text(l, M + box + 4, f.y); f.y += LINE })
       f.y += 1.5
@@ -435,12 +447,12 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
 
   // Zone d'écriture encadrée, avec étiquette et texte éventuel (réponse saisie)
   f.box = (label, { height = 22, text = null, lined = false } = {}) => {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+    setF(doc, 'normal'); doc.setFontSize(8.5)
     const lines = text ? doc.splitTextToSize(String(text), W - 6) : []
     const h = Math.max(height, lines.length * 4 + 6)
     f.ensure((label ? 5 : 0) + h + 3)
     if (label) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
+      setF(doc, 'bold'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
       doc.text(String(label).toUpperCase(), M, f.y, { charSpace: 0.2 })
       f.y += 2.5
     }
@@ -450,7 +462,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       for (let ly = f.y + 7; ly < f.y + h - 2; ly += 7) doc.line(M + 3, ly, M + W - 3, ly)
     }
     if (lines.length) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.text)
+      setF(doc, 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.text)
       lines.forEach((l, i) => doc.text(l, M + 3, f.y + 5 + i * 4))
     }
     f.y += h + 5
@@ -468,7 +480,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
     const headH = 6
     const drawHead = (title) => {
       doc.setFillColor(...t.primary); doc.rect(M, f.y, W, headH, 'F')
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255)
+      setF(doc, 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255)
       doc.text(String(title).toUpperCase(), M + 3, f.y + 4.1, { charSpace: 0.3 })
       cols.forEach((c, i) => doc.text(c, M + labelW + i * colW + colW / 2, f.y + 4.1, { align: 'center' }))
       f.y += headH
@@ -498,13 +510,13 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   // Question et cases sur une même ligne : « Recommanderiez-vous… ?  [ ] Oui  [ ] Non »
   f.choiceLine = (label, items, { size = 9, colW = 20 } = {}) => {
     f.ensure(7)
-    f.body(size); doc.setFont('helvetica', 'bold')
+    f.body(size); setF(doc, 'bold')
     doc.text(String(label), M, f.y)
     let x = M + doc.getTextWidth(String(label)) + 6
     const box = 3.4
     items.forEach(it => {
       drawCheckbox(doc, ORG, x, f.y - box + 0.6, box, !!it.checked)
-      f.body(size); if (it.checked) doc.setFont('helvetica', 'bold')
+      f.body(size); if (it.checked) setF(doc, 'bold')
       doc.text(String(it.label), x + box + 2, f.y)
       x += colW
     })
@@ -522,13 +534,13 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       const x = M + i * (colW + gap)
       doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.rect(x, by, colW, height)
       doc.setFillColor(...t.surface); doc.rect(x, by, colW, b.name ? 11 : 7, 'F')
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)
+      setF(doc, 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)
       doc.text(String(b.label || '').toUpperCase(), x + 4, by + 4.5, { charSpace: 0.4 })
       if (b.name) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...t.text)
+        setF(doc, 'normal'); doc.setFontSize(8); doc.setTextColor(...t.text)
         doc.text(doc.splitTextToSize(String(b.name), colW - 8)[0] || '', x + 4, by + 8.8)
       }
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(...t.muted)
+      setF(doc, 'italic'); doc.setFontSize(7); doc.setTextColor(...t.muted)
       doc.text(b.hint || 'Signature', x + 4, by + height - 3)
       if (b.stamp) drawImageFitted(doc, b.stamp, x + 4, by + 13, Math.min(44, colW / 2), height - 18, 'JPEG')
       if (b.image) drawImageFitted(doc, b.image, x + colW / 2, by + 13, colW / 2 - 4, height - 18)
@@ -544,7 +556,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       startY: f.y,
       head: head ? [head] : undefined,
       body,
-      ...tableTheme(ORG, opts),
+      ...tableTheme(ORG, { font: fontOf(doc), ...opts }),
       didDrawPage: (data) => {
         if (data.pageNumber > 1) drawRunningHeader(doc, ORG, { ref, docLabel })
         if (opts.didDrawPage) opts.didDrawPage(data)
@@ -569,8 +581,8 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
     doc.text(`Fait à ${place || ORG.lieu_signature || ORG.city || ''}, le ${ds}.`, M, f.y)
     const rx = M + W
     if (ORG.dirigeant_signature_base64) drawImageFitted(doc, ORG.dirigeant_signature_base64, rx - 75, f.y - 6, 28, 12)
-    doc.setFont('helvetica', 'bold'); doc.text(ORG.dirigeant || '', rx, f.y, { align: 'right' })
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(...t.muted)
+    setF(doc, 'bold'); doc.text(ORG.dirigeant || '', rx, f.y, { align: 'right' })
+    setF(doc, 'normal'); doc.setTextColor(...t.muted)
     doc.text([ORG.dirigeant_title, ORG.name].filter(Boolean).join(', '), rx, f.y + 4.5, { align: 'right' })
     doc.setTextColor(...t.text)
     f.y += 12

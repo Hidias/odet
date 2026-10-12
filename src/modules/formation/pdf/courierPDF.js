@@ -2,7 +2,7 @@
 // que les documents de session (core/pdf/layout.js). Identité lue dans ORG (buildORG).
 
 import jsPDF from 'jspdf'
-import { startDocument, drawImageFitted, PAGE_MARGIN } from '../../../core/pdf/layout'
+import { startDocument, drawImageFitted, PAGE_MARGIN, setF } from '../../../core/pdf/layout'
 
 const LABELS = { courrier: 'Courrier', attestation: 'Attestation', note_interne: 'Note interne' }
 const CODES = { courrier: 'COUR', attestation: 'ATTL', note_interne: 'NOTE' }
@@ -35,7 +35,7 @@ export function buildCourierPDF(ORG, { docType = 'courrier', destinataire = '', 
     const x = M + W * 0.55
     f.y = Math.max(f.y, 50)
     lines.forEach((l, i) => {
-      doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setFontSize(10); doc.setTextColor(...t.text)
+      setF(doc, i === 0 ? 'bold' : 'normal'); doc.setFontSize(10); doc.setTextColor(...t.text)
       doc.text(doc.splitTextToSize(l, W * 0.45)[0] || '', x, f.y)
       f.y += 4.8
     })
@@ -49,7 +49,7 @@ export function buildCourierPDF(ORG, { docType = 'courrier', destinataire = '', 
   const dateTxt = d && !isNaN(d) ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
   if (lieu || dateTxt) {
     f.ensure(8)
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...t.muted)
+    setF(doc, 'normal'); doc.setFontSize(9.5); doc.setTextColor(...t.muted)
     doc.text(`${lieu ? lieu + ', le ' : 'Le '}${dateTxt}`, M + W, f.y, { align: 'right' })
     doc.setTextColor(...t.text)
     f.y += 9
@@ -58,7 +58,7 @@ export function buildCourierPDF(ORG, { docType = 'courrier', destinataire = '', 
   // Objet
   if (objet && !isNote) {
     f.ensure(10)
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...t.primary)
+    setF(doc, 'bold'); doc.setFontSize(10); doc.setTextColor(...t.primary)
     const lines = doc.splitTextToSize(`Objet : ${objet}`, W)
     lines.forEach(l => { doc.text(l, M, f.y); f.y += 4.8 })
     doc.setDrawColor(...t.highlight); doc.setLineWidth(0.5); doc.line(M, f.y - 2, M + 14, f.y - 2)
@@ -85,7 +85,7 @@ export function buildCourierPDF(ORG, { docType = 'courrier', destinataire = '', 
       f.y += 24
     }
     sigLines.forEach((l, i) => {
-      doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setFontSize(9.5)
+      setF(doc, i === 0 ? 'bold' : 'normal'); doc.setFontSize(9.5)
       doc.setTextColor(...(i === 0 ? t.text : t.muted))
       doc.text(l, x, f.y)
       f.y += 4.8
@@ -100,7 +100,7 @@ export function buildCourierPDF(ORG, { docType = 'courrier', destinataire = '', 
     const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight()
     for (let i = 1; i <= total; i++) {
       doc.setPage(i)
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
+      setF(doc, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
       doc.text(`Page ${i} / ${total}`, pw - M, ph - 11.5, { align: 'right' })
     }
   }

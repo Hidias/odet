@@ -5,87 +5,39 @@ import { format } from 'date-fns'
 import { LiberationSans_Regular } from '../../../core/pdf/fonts/LiberationSans-Regular.js'
 import { LiberationSans_Bold } from '../../../core/pdf/fonts/LiberationSans-Bold.js'
 import { buildORG } from '../../../core/org/orgUtils'
+import { renderCommercialDoc, itemRow, fmtMoney, fmtEuro, fmtRate, issuerLines, recipientLines, companyLegalLine, bankRows } from './commercialLayout'
 
-// ============================================================
-// IDENTITÉ DE L'ORGANISME : uniquement depuis organization_settings (options.orgSettings)
-// ============================================================
-function emptyOrg() {
-  return { name: '', legal: '', forme: '', address1: '', address2: '', country: 'France', phone: '', email: '', siret: '', naf: '',
-    tva: '', tva_applicable: true, rcs: '', nda: '', ndaFull: '', capital: '', bank: '', bic: '', iban: '', logo_base64: null, logo_url: null, theme: null }
-}
-let ORG = emptyOrg()
+// Facture et avoir sur la mise en page commune des documents.
+// Polices Liberation Sans intégrées et logo aplati sur fond blanc : le PDF reste valide PDF/A-3b
+// pour l'enveloppe Factur-X (/api/generate-facturx).
+// Identité de l'organisme : uniquement depuis organization_settings (options.orgSettings).
 
 function applyOrgSettings(orgSettings) {
-  const base = buildORG(orgSettings || {})
-  ORG = {
-    name: base.legal_name || base.name,
-    legal: base.legal_name,
-    forme: base.forme_juridique,
-    address1: base.street,
-    address2: [base.postal_code, base.city].filter(Boolean).join(' '),
-    country: 'France',
-    phone: base.phone,
-    email: base.email,
-    siret: base.siret,
-    naf: base.naf,
-    tva: base.tva,
-    tva_applicable: base.tva_applicable,
-    rcs: base.rcs,
-    nda: base.nda,
-    ndaFull: base.ndaFull,
-    capital: base.capital_social,
-    bank: base.bank_name,
-    bic: base.bic,
-    iban: base.iban,
-    logo_base64: base.logo_base64,
-    logo_url: base.logo_url,
-    theme: base.theme,
-  }
+  return buildORG(orgSettings || {})
 }
 
 // Contact affiché sur le document : la personne connectée (options.contactPerson), sinon l'organisme
-function contactFor(options) {
+function contactFor(L, options) {
   const p = options && options.contactPerson
-  if (p && p.name) return { name: p.name, phone: p.phone || ORG.phone, email: p.email || ORG.email }
-  return { name: ORG.name, phone: ORG.phone, email: ORG.email }
+  if (p && p.name) return { name: p.name, phone: p.phone || L.phone, email: p.email || L.email }
+  return { name: '', phone: L.phone, email: L.email }
 }
 
-// ============================================================
-// LAYOUT
-// ============================================================
-var ML = 18
-var MR = 192
-var FOOTER_Y = 271
-
-// ============================================================
-// FORMAT HELPERS
-// ============================================================
 function fd(d) {
   if (!d) return ''
   return format(new Date(d), 'dd/MM/yyyy')
 }
 
-function fm(v) {
-  var n = Math.abs(parseFloat(v) || 0).toFixed(2).split('.')
-  n[0] = n[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  return n.join(',')
-}
-
-function fe(v) {
-  return (parseFloat(v) < 0 ? '-' : '') + fm(v) + ' EUR'
-}
-
 // ============================================================
-// LOGO
+// LOGO (aplati sur fond blanc : pas de canal alpha, exigence PDF/A)
 // ============================================================
 var logoCache = null
 var logoCacheKey = null
 
-async function loadLogo() {
-  var src = ORG.logo_base64 || ORG.logo_url
+async function loadLogo(L) {
+  var src = L.logo_base64 || L.logo_url
   if (!src) return null
   if (logoCache && logoCacheKey === src) return logoCache
-  logoCacheKey = src
   try {
     var r = await fetch(src)
     var b = await r.blob()
@@ -94,8 +46,7 @@ async function loadLogo() {
       rd.onload = function () { res(rd.result) }
       rd.readAsDataURL(b)
     })
-    // Aplatir le PNG sur fond blanc (supprime canal alpha → PDF/A compatible)
-    logoCache = await new Promise(function (res) {
+    var flat = await new Promise(function (res) {
       var img = new Image()
       img.onload = function () {
         var canvas = document.createElement('canvas')
@@ -107,34 +58,14 @@ async function loadLogo() {
         ctx.drawImage(img, 0, 0)
         res(canvas.toDataURL('image/png'))
       }
+      img.onerror = function () { res(null) }
       img.src = dataUrl
     })
-    return logoCache
+    if (flat) { logoCache = flat; logoCacheKey = src }
+    return flat
   } catch (e) {
     return null
   }
-}
-
-// ============================================================
-// FOOTER
-// ============================================================
-function addFooter(doc, f, p, t) {
-  var cx = 105
-  doc.setDrawColor(200, 200, 200)
-  doc.setLineWidth(0.3)
-  doc.line(ML, FOOTER_Y, MR, FOOTER_Y)
-  doc.setFont(f, 'normal')
-  doc.setFontSize(7)
-  doc.setTextColor(120, 120, 120)
-  doc.text(`${ORG.name} - ${ORG.address1} - ${ORG.address2} - ${ORG.country}`, cx, 275, { align: 'center' })
-  if (ORG.ndaFull) doc.text(`Déclaration d'activité enregistrée sous le numéro ${ORG.ndaFull}`, cx, 279, { align: 'center' })
-  doc.text([ORG.forme ? `${ORG.forme}${ORG.capital ? ' au capital de ' + ORG.capital + ' EUR' : ''}` : '', ORG.siret ? `Siret : ${ORG.siret}` : '', ORG.naf ? `Naf : ${ORG.naf}` : '', ORG.tva ? `TVA : ${ORG.tva}` : '', ORG.rcs ? `RCS ${ORG.rcs}` : ''].filter(Boolean).join(' - '), cx, 283, { align: 'center' })
-  doc.text(`Tel : ${ORG.phone} - Email : ${ORG.email}`, cx, 287, { align: 'center' })
-  doc.setFont(f, 'bold')
-  doc.setFontSize(7)
-  doc.setTextColor(100, 100, 100)
-  doc.text('Page ' + p + ' / ' + t, MR, 291, { align: 'right' })
-  doc.setTextColor(0, 0, 0)
 }
 
 // ============================================================
@@ -185,421 +116,98 @@ export function calcInvoiceTotals(items, discountPercent, tvaApplicable) {
 // GENERATION PDF FACTURE / AVOIR
 // ============================================================
 export async function generateInvoicePDF(invoice, items, client, contact, options) {
-  applyOrgSettings(options?.orgSettings)
-  contact = contact || null
   options = options || {}
+  contact = contact || null
+  var L = applyOrgSettings(options.orgSettings)
   var isCredit = invoice.type === 'credit_note'
-  var doc = new jsPDF()
+  var doc = new jsPDF({ unit: 'mm', format: 'a4' })
   doc.addFileToVFS('LiberationSans-Regular.ttf', LiberationSans_Regular)
   doc.addFont('LiberationSans-Regular.ttf', 'LiberationSans', 'normal')
   doc.addFileToVFS('LiberationSans-Bold.ttf', LiberationSans_Bold)
   doc.addFont('LiberationSans-Bold.ttf', 'LiberationSans', 'bold')
-  var F = 'LiberationSans' 
-  var cb = contactFor(options)
-  var logo = await loadLogo()
-  var y = 12
+  doc.__odetFont = 'LiberationSans'
+  doc.setFont('LiberationSans', 'normal')
 
-  // --- LOGO ---
-  if (logo) {
-    try {
-      doc.addImage(logo, 'PNG', ML, y, 52, 13)
-    } catch (e) {
-      doc.setFontSize(14)
-      doc.setFont(F, 'bold')
-      doc.setTextColor(233, 180, 76)
-      doc.text((ORG.name || '').toUpperCase(), ML, y + 14)
-      doc.setTextColor(0, 0, 0)
-    }
-  }
+  var logo = options.logoOverride !== undefined ? options.logoOverride : await loadLogo(L)
+  L = Object.assign({}, L, { logo_base64: logo || null })
 
-  // --- REFERENCE ---
-  doc.setTextColor(0, 0, 0)
-  doc.setFontSize(11)
-  doc.setFont(F, 'bold')
-  doc.text((isCredit ? 'Avoir ' : 'Facture ') + invoice.reference, MR, y + 5, { align: 'right' })
-
-  doc.setFont(F, 'normal')
-  doc.setFontSize(8)
-  var ry = y + 10
-
-  if (invoice.parent_reference) {
-    doc.text((isCredit ? 'Avoir sur facture ' : 'Document parent ') + invoice.parent_reference, MR, ry, { align: 'right' })
-    ry += 4
-  }
-
-  doc.setFontSize(9)
-  doc.text('En date du : ' + fd(invoice.invoice_date), MR, ry, { align: 'right' })
-  ry += 5
-
-  if (invoice.client_reference) {
-    var crLines = doc.splitTextToSize('Ref. client : ' + invoice.client_reference, 80)
-    for (var cri = 0; cri < crLines.length; cri++) {
-      doc.text(crLines[cri], MR, ry, { align: 'right' })
-      ry += 4
-    }
-  }
-
-  if (invoice.session_reference) {
-    doc.text('Session : ' + invoice.session_reference, MR, ry, { align: 'right' })
-  }
-
-  // --- EMETTEUR ---
-  y = 40
-  doc.setFontSize(9)
-  doc.setFont(F, 'normal')
-  doc.setTextColor(80, 80, 80)
-  doc.text(ORG.address1, ML, y)
-  doc.text(ORG.address2, ML, y + 5)
-  doc.text(ORG.country, ML, y + 10)
-  doc.setTextColor(80, 80, 80)
-  doc.text('TVA : ' + ORG.tva, ML, y + 15)
-  doc.setTextColor(0, 0, 0)
-  doc.setFont(F, 'bold')
-  doc.text('Votre contact : ' + cb.name, ML, y + 22)
-  doc.setFont(F, 'normal')
-  doc.setTextColor(80, 80, 80)
-  doc.text('Tel : ' + cb.phone, ML, y + 27)
-
-  // --- CLIENT ---
+  var cb = contactFor(L, options)
   var billingClient = options.billingClient || null
-  var displayClient = billingClient || client  // OPCO si subrogation, sinon client normal
-  var cX = 118
-  var cMaxW = MR - cX  // largeur max dispo pour le bloc client
-  var cy = y
-  doc.setFontSize(10)
-  doc.setFont(F, 'bold')
-  doc.setTextColor(0, 0, 0)
-  var nameLines = doc.splitTextToSize(displayClient?.name || '', cMaxW)
-  doc.text(nameLines, cX, cy)
-  cy += nameLines.length * 5
+  var displayClient = billingClient || client
 
-  doc.setFont(F, 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(60, 60, 60)
-
-  if (!billingClient && contact) {
-    var cn = contact.name || ((contact.first_name || '') + ' ' + (contact.last_name || '')).trim()
-    if (cn) {
-      var attnLines = doc.splitTextToSize("A l'attention de " + (contact.civilite ? contact.civilite + ' ' : '') + cn, cMaxW)
-      doc.text(attnLines, cX, cy)
-      cy += attnLines.length * 4
-    }
-  }
-
-  if (displayClient?.address) {
-    var addrLines = doc.splitTextToSize(displayClient.address, cMaxW)
-    doc.text(addrLines, cX, cy)
-    cy += addrLines.length * 4
-  }
-
-  var cl = [displayClient?.postal_code, (displayClient?.city || '').toUpperCase()].filter(Boolean).join(' ')
-  if (cl) {
-    doc.text(cl, cX, cy)
-    cy += 5
-  }
-  doc.text('France', cX, cy)
-  cy += 5
-
-  if (displayClient?.siret) {
-    doc.setFontSize(8)
-    doc.text('SIRET : ' + displayClient.siret, cX, cy)
-    cy += 4
-  } else if (displayClient?.siren) {
-    doc.setFontSize(8)
-    doc.text('SIREN : ' + displayClient.siren, cX, cy)
-    cy += 4
-  }
-
-  if (displayClient?.tva) {
-    doc.setFontSize(8)
-    doc.text('N° TVA : ' + displayClient.tva, cX, cy)
-    cy += 4
-  }
-
-  // Mention subrogation si OPCO
-  if (billingClient && client) {
-    cy += 3
-    doc.setFontSize(8)
-    doc.setFont(F, 'bold')
-    doc.setTextColor(180, 120, 0)
-    doc.text('Formation réalisée pour le compte de :', cX, cy)
-    cy += 4
-    doc.setFont(F, 'normal')
-    doc.setTextColor(80, 80, 80)
-    var subLines = doc.splitTextToSize(client.name || '', cMaxW)
-    doc.text(subLines, cX, cy)
-    cy += subLines.length * 4
-    if (client.siret) {
-      doc.text('SIRET : ' + client.siret, cX, cy)
-      cy += 4
-    } else if (client.siren) {
-      doc.text('SIREN : ' + client.siren, cX, cy)
-      cy += 4
-    }
-    doc.setTextColor(0, 0, 0)
-  }
-
-  // --- OBJET ---
-  y = Math.max(86, cy + 4)
-  if (invoice.object) {
-    doc.setFontSize(9)
-    doc.setFont(F, 'normal')
-    doc.setTextColor(0, 0, 0)
-    var ol = doc.splitTextToSize('Objet : ' + invoice.object, MR - ML)
-    doc.text(ol, ML, y)
-    y += ol.length * 4 + 2
-  }
-
-  // --- NATURE DE L'OPERATION (mention obligatoire réforme 2026) ---
-  doc.setFontSize(8)
-  doc.setFont(F, 'normal')
-  doc.setTextColor(80, 80, 80)
-  doc.text('Nature de l\'operation : Prestation de services', ML, y)
-  y += 6
-
-  // --- TABLE DES LIGNES ---
-  var tb = items.map(function (it) {
-    var q = parseFloat(it.quantity) || 0
-    var pu = parseFloat(it.unit_price_ht) || 0
-    var tv = parseFloat(it.tva_rate) || 20
-    var lt = q * pu
-    var ta = lt * tv / 100
-    var desc = it.description_title || ''
-    if (it.description_detail) desc += ' :\n' + it.description_detail
-    return [
-      it.code || '',
-      desc,
-      fm(q),
-      fm(pu) + '\n' + (it.unit || 'unite'),
-      fm(tv) + ' %\n(' + fm(ta) + ')',
-      fm(lt)
-    ]
-  })
-
-  doc.autoTable({
-    startY: y,
-    margin: { left: ML, right: 18 },
-    head: [['Nom / Code', 'Description', 'Qte', 'PU HT', 'TVA', 'Total HT']],
-    body: tb,
-    theme: 'grid',
-    headStyles: {
-      fillColor: [240, 240, 240],
-      textColor: [50, 50, 50],
-      fontStyle: 'bold',
-      fontSize: 8,
-      font: F,
-      lineWidth: 0.3,
-      lineColor: [180, 180, 180],
-      cellPadding: 3
-    },
-    bodyStyles: {
-      fontSize: 8,
-      font: F,
-      cellPadding: 3,
-      lineWidth: 0.2,
-      lineColor: [200, 200, 200],
-      textColor: [40, 40, 40],
-      valign: 'top'
-    },
-    columnStyles: {
-      0: { cellWidth: 22 },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 16, halign: 'center' },
-      3: { cellWidth: 22, halign: 'right' },
-      4: { cellWidth: 22, halign: 'right', fontSize: 7 },
-      5: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }
-    }
-  })
-  y = doc.lastAutoTable.finalY + 4
-
-  // --- RECAPITULATIF TVA ---
   var totals = calcInvoiceTotals(items, invoice.discount_percent, invoice.tva_applicable)
-  var tvaRates = Object.keys(totals.tvaByRate)
+  var tvaOn = invoice.tva_applicable !== false
+  var rates = Object.keys(totals.tvaByRate)
 
-  if (tvaRates.length > 0 && invoice.tva_applicable !== false) {
-    doc.setFontSize(7.5)
-    doc.setFont(F, 'normal')
-    doc.setTextColor(60, 60, 60)
-    doc.text("Recapitulatif de l'assiette de TVA :", ML, y)
-    y += 3
-
-    var tvb = tvaRates.map(function (r) {
-      var e = totals.tvaByRate[r]
-      return [fm(r) + ' %', fm(e.base) + ' EUR', fm(e.tva) + ' EUR']
-    })
-
-    doc.autoTable({
-      startY: y,
-      margin: { left: ML, right: 100 },
-      head: [['TVA', 'Base', 'Montant TVA']],
-      body: tvb,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [245, 245, 245],
-        textColor: [50, 50, 50],
-        fontStyle: 'bold',
-        fontSize: 7,
-        font: F,
-        cellPadding: 2,
-        lineWidth: 0.2,
-        lineColor: [200, 200, 200]
-      },
-      bodyStyles: {
-        fontSize: 7,
-        font: F,
-        cellPadding: 2,
-        lineWidth: 0.2,
-        lineColor: [200, 200, 200]
-      },
-      columnStyles: {
-        0: { cellWidth: 20 },
-        1: { halign: 'right', cellWidth: 30 },
-        2: { halign: 'right', cellWidth: 30 }
-      }
-    })
-    y = doc.lastAutoTable.finalY + 4
+  var totalRows = []
+  totalRows.push({ label: 'Total HT', value: fe(totals.subtotalHt) })
+  if (totals.discountAmt > 0) {
+    totalRows.push({ label: (invoice.discount_label || 'Remise') + ' (' + fmtRate(invoice.discount_percent) + ')', value: '-' + fe(totals.discountAmt), muted: true })
+    totalRows.push({ label: 'Total net HT', value: fe(totals.netHt), bold: true })
   }
-
-  // --- TOTAUX ---
-  var hd = totals.discountAmt > 0
-  var tr = []
-  tr.push(['Montant total HT', fe(totals.subtotalHt)])
-
-  if (hd) {
-    tr.push(['Reduction HT (' + fm(invoice.discount_percent) + '%)', '-' + fe(totals.discountAmt)])
-    tr.push(['Total net apres reduction', fe(totals.netHt)])
-  }
-
-  tr.push([
-    { content: 'Total net HT', styles: { fontStyle: 'bold' } },
-    { content: fe(totals.netHt), styles: { fontStyle: 'bold' } }
-  ])
-
-  if (invoice.tva_applicable !== false) {
-    tvaRates.forEach(function (r) {
-      tr.push(['TVA ' + fm(r) + '%', fe(totals.tvaByRate[r].tva)])
-    })
-  }
-
-  tr.push([
-    { content: isCredit ? "Montant de l'avoir TTC" : 'Montant total TTC', styles: { fontStyle: 'bold', fontSize: 10 } },
-    { content: fe(totals.totalTtc), styles: { fontStyle: 'bold', fontSize: 10 } }
-  ])
-
+  if (tvaOn) rates.forEach(function (r) { totalRows.push({ label: 'TVA ' + fmtRate(r), value: fe(totals.tvaByRate[r].tva) }) })
+  else totalRows.push({ label: 'TVA', value: 'non applicable', muted: true })
+  totalRows.push({ label: isCredit ? "Montant de l'avoir TTC" : 'Total TTC', value: fe(totals.totalTtc), grand: true })
   if (!isCredit) {
-    var ad = totals.totalTtc - (parseFloat(invoice.amount_paid) || 0) - (parseFloat(invoice.amount_credited) || 0)
-    tr.push([
-      { content: 'Total a regler', styles: { fontStyle: 'bold', fontSize: 10 } },
-      { content: fe(ad), styles: { fontStyle: 'bold', fontSize: 10 } }
-    ])
+    var paid = (parseFloat(invoice.amount_paid) || 0) + (parseFloat(invoice.amount_credited) || 0)
+    if (paid > 0.004) totalRows.push({ label: 'Déjà réglé', value: '-' + fe(paid), muted: true })
+    totalRows.push({ label: 'Reste à régler', value: fe(totals.totalTtc - paid), due: true })
   }
 
-  doc.autoTable({
-    startY: y,
-    margin: { left: 108, right: 18 },
-    body: tr,
-    theme: 'plain',
-    styles: {
-      fontSize: 9,
-      font: F,
-      cellPadding: 1.5,
-      textColor: [30, 30, 30]
-    },
-    columnStyles: {
-      0: { halign: 'right' },
-      1: { halign: 'right', cellWidth: 34 }
-    }
-  })
-  y = doc.lastAutoTable.finalY + 5
+  var vatRecap = tvaOn && rates.length > 1 ? rates.map(function (r) {
+    return [fmtRate(r), fe(totals.tvaByRate[r].base), fe(totals.tvaByRate[r].tva)]
+  }) : []
 
-  // --- Saut de page si besoin ---
-  if (y > 215) {
-    doc.addPage()
-    y = 20
-  }
-
-  // --- CONDITIONS DE REGLEMENT ---
-  doc.setFontSize(8)
-  doc.setFont(F, 'normal')
-  doc.setTextColor(60, 60, 60)
-
-  if (invoice.service_start_date) {
-    var sd = 'Dates de service : ' + fd(invoice.service_start_date)
-    if (invoice.service_end_date) sd += ' - ' + fd(invoice.service_end_date)
-    doc.text(sd, ML, y)
-    y += 4
-  }
-
-  var lw = MR - ML
-
+  var payment = []
+  var legal = []
   if (isCredit) {
-    // --- AVOIR : mentions de regularisation (pas de conditions de reglement ni de penalites) ---
-    var cr1 = 'Avoir emis en regularisation de la facture ' + (invoice.parent_reference || '')
-    if (invoice.parent_invoice_date) cr1 += ' du ' + fd(invoice.parent_invoice_date)
-    cr1 += '.'
-    var crl = doc.splitTextToSize(cr1, lw)
-    doc.text(crl, ML, y)
-    y += crl.length * 4
-    doc.text('Le montant de cet avoir vient en deduction des sommes dues au titre de cette facture.', ML, y)
-    y += 4
     var refundDue = parseFloat(invoice.amount_due) || 0
     if (invoice.status !== 'draft' && refundDue > 0.01) {
-      doc.text('Montant a rembourser :', ML, y)
-      doc.text(fe(refundDue), ML + 45, y)
-      y += 4
-      doc.text('Mode de remboursement :', ML, y)
-      doc.text(invoice.payment_method || 'virement bancaire', ML + 45, y)
-      y += 4
+      payment.push(['Montant', fe(refundDue)])
+      payment.push(['Mode', invoice.payment_method || 'virement bancaire'])
     }
-    y += 2
-    doc.setFontSize(7)
-    doc.setTextColor(100, 100, 100)
+    legal.push('Avoir émis en régularisation de la facture ' + (invoice.parent_reference || '') + (invoice.parent_invoice_date ? ' du ' + fd(invoice.parent_invoice_date) : '') + '. Son montant vient en déduction des sommes dues au titre de cette facture.')
   } else {
-    var cds = [
-      ['Moyen de reglement :', invoice.payment_method || 'virement bancaire'],
-      ['Delai de reglement :', invoice.payment_terms || 'a 30 jours'],
-      ['Date limite de reglement :', fd(invoice.due_date)]
-    ]
-
-    for (var i = 0; i < cds.length; i++) {
-      doc.text(cds[i][0], ML, y)
-      doc.text(cds[i][1], ML + 45, y)
-      y += 4
-    }
-
-    // Coordonnees bancaires
-    y += 1
-    doc.text('Banque :', ML, y)
-    doc.text(ORG.bank, ML + 45, y)
-    y += 3.5
-    doc.text('BIC : ' + ORG.bic, ML + 45, y)
-    y += 3
-    doc.text('IBAN : ' + ORG.iban, ML + 45, y)
-    y += 5
-
-    // --- MENTIONS LEGALES ---
-    doc.setFontSize(7)
-    doc.setTextColor(100, 100, 100)
-
-    var l1 = "En cas de retard de paiement, des penalites seront exigibles au taux legal majore de 10 points, ainsi qu'une indemnite forfaitaire de 40 EUR pour frais de recouvrement (art. L441-10 du Code de commerce)."
-    var ll = doc.splitTextToSize(l1, lw)
-    doc.text(ll, ML, y)
-    y += ll.length * 2.5 + 2
+    payment.push(['Mode', invoice.payment_method || 'virement bancaire'])
+    payment.push(['Délai', invoice.payment_terms || 'à 30 jours'])
+    if (invoice.due_date) payment.push(['Échéance', fd(invoice.due_date)])
+    bankRows(L).forEach(function (r) { payment.push(r) })
+    legal.push("En cas de retard de paiement, des pénalités sont exigibles au taux légal majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce). Pas d'escompte pour paiement anticipé.")
   }
+  legal.push(tvaOn ? "TVA exigible d'après les encaissements (article 269, 2-c du CGI)." : "TVA non applicable, article 261-4-4° du CGI.")
+  legal.push(companyLegalLine(L))
 
-  if (invoice.tva_applicable !== false) {
-    doc.text("TVA exigible d'apres les encaissements (article 269, 2-c du CGI).", ML, y)
-  } else {
-    doc.setFont(F, 'bold')
-    doc.text("TVA non applicable conformement a l'article 261 du CGI.", ML, y)
-  }
+  var subtitle = null
+  if (invoice.parent_reference) subtitle = (isCredit ? 'Avoir sur la facture ' : 'Document parent : ') + invoice.parent_reference
 
-  // --- FOOTER SUR TOUTES LES PAGES ---
-  var tp = doc.internal.getNumberOfPages()
-  for (var p = 1; p <= tp; p++) {
-    doc.setPage(p)
-    addFooter(doc, F, p, tp)
-  }
+  renderCommercialDoc(doc, L, {
+    ref: invoice.reference,
+    docLabel: isCredit ? 'Avoir' : 'Facture',
+    code: isCredit ? 'AVR' : 'FACT',
+    title: isCredit ? 'Avoir' : 'Facture',
+    subtitle: subtitle,
+    issuerLabel: 'Émetteur',
+    issuerLines: issuerLines(L, cb),
+    recipientLabel: billingClient ? 'Facturé à (subrogation)' : (isCredit ? 'Destinataire' : 'Facturé à'),
+    recipientLines: recipientLines(displayClient, contact, !billingClient),
+    forAccountOf: billingClient && client ? [client.name, client.siret ? 'SIRET ' + client.siret : (client.siren ? 'SIREN ' + client.siren : null)] : null,
+    meta: [
+      ['N° ' + (isCredit ? "d'avoir" : 'de facture'), invoice.reference],
+      ['Date', fd(invoice.invoice_date)],
+      [isCredit ? null : 'Échéance', isCredit ? null : fd(invoice.due_date)],
+      ['Période de service', invoice.service_start_date ? fd(invoice.service_start_date) + (invoice.service_end_date && invoice.service_end_date !== invoice.service_start_date ? ' au ' + fd(invoice.service_end_date) : '') : null],
+      ['Réf. client', invoice.client_reference || null],
+      ['Session', invoice.session_reference || null],
+    ],
+    object: invoice.object || null,
+    nature: "Nature de l'opération : prestation de services",
+    rows: items.map(itemRow),
+    totals: totalRows,
+    vatRecap: vatRecap,
+    payment: payment,
+    paymentTitle: isCredit ? 'Remboursement' : 'Règlement',
+    legal: legal,
+  })
 
   if (!options.skipSave) {
     doc.save(invoice.reference + '.pdf')
@@ -607,6 +215,8 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
 
   return doc
 }
+
+function fe(v) { return fmtEuro(v) }
 
 // ============================================================
 // GENERATION FACTUR-X (PDF/A-3 + XML CII EN16931)
