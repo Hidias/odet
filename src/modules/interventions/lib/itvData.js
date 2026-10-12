@@ -305,7 +305,7 @@ export async function createInvoiceDraft(visit, parts, settings) {
   const inv = must(await supabase.from('invoices').insert({
     reference: await nextRef('invoices', 'FACT'), type: 'invoice', client_id: visit.client_id, contact_id: contact?.id || null,
     invoice_date: todayIso(), service_start_date: (visit.started_at || visit.planned_on || '').slice(0, 10) || null, service_end_date: (visit.started_at || visit.planned_on || '').slice(0, 10) || null,
-    object: `${settings?.report_title || 'Intervention'} ${visit.reference || ''}`.trim(), status: 'draft', is_formation_pro: false, tva_applicable: true,
+    object: `Vérification du matériel de sécurité, visite ${visit.reference || ''}`.trim(), status: 'draft', is_formation_pro: false, tva_applicable: true,
     total_ht: t.ht, total_discount: 0, total_net_ht: t.ht, total_tva: t.tva, total_ttc: t.ttc, amount_paid: 0, amount_due: t.ttc,
     created_by: await currentUserName(),
   }).select().single())

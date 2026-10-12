@@ -37,6 +37,9 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
   const fileRef = useRef(null)
   const itemFileRef = useRef(null)
   const [photoTarget, setPhotoTarget] = useState(null)
+  const [freePart, setFreePart] = useState(null)
+  const [confirmRest, setConfirmRest] = useState(false)
+  const [noSignOk, setNoSignOk] = useState(false)
 
   const typesById = useMemo(() => Object.fromEntries((types || []).map((t) => [t.id, t])), [types])
   const equipmentById = useMemo(() => Object.fromEntries(equipment.map((e) => [e.id, e])), [equipment])
@@ -73,7 +76,8 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
       const withOps = equipment.map((e) => ({ ...e, suggested: suggestedOperation(typesById[e.type_id], e, year, done[e.id] || []) }))
       const its = await startVisit(visit, withOps)
       setItems(its)
-      setVisit(await loadVisit(id))
+      const nv = await loadVisit(id)
+      setVisit((x) => ({ ...nv, signer_name: nv.signer_name || x?.signer_name || null }))
       toast.success('Visite démarrée, heure d\'arrivée notée')
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
@@ -86,7 +90,8 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
   const restConforme = async () => {
     const rest = items.filter((i) => !i.result)
     if (!rest.length) return
-    if (!window.confirm(`Marquer conformes les ${rest.length} appareils restants ?`)) return
+    if (!confirmRest) { setConfirmRest(true); return }
+    setConfirmRest(false)
     setItems((list) => list.map((i) => (i.result ? i : { ...i, result: 'conforme' })))
     try {
       const now = new Date().toISOString()
@@ -174,7 +179,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
     }
     const finish = async () => {
       if (s.todo) { toast.error(`${s.todo} appareils ne sont pas encore contrôlés`); setStep('controle'); setFilter('todo'); return }
-      if (!visit.client_signature && !window.confirm('Le client n\'a pas signé. Terminer quand même ?')) return
+      if (!visit.client_signature && !noSignOk) { setNoSignOk(true); toast('Le client n\'a pas signé : appuyez encore une fois pour terminer sans signature'); return }
       setBusy(true)
       try {
         await updateVisit(visit.id, { signer_name: visit.signer_name || null, observations: visit.observations || null, finished_at: new Date().toISOString() })
@@ -185,7 +190,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
       } catch (e) { toast.error(e.message) } finally { setBusy(false) }
     }
     return (
-      <div className="space-y-3 max-w-xl pb-28">
+      <div className="space-y-3 max-w-xl">
         {header}
         <div className="grid grid-cols-3 gap-2">
           <Kpi value={s.conforme} label="conformes" tone="success" />
@@ -214,11 +219,8 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
             const v = e.target.value
             if (!v) return
             let row
-            if (v === '__libre') {
-              const label = window.prompt('Pièce fournie')
-              if (!label) return
-              row = { visit_id: visit.id, label, quantity: 1, unit_price_ht: 0 }
-            } else {
+            if (v === '__libre') { setFreePart(''); return }
+            {
               const p = catalog.find((x) => x.id === v)
               const ex = parts.find((x) => x.part_id === v)
               if (ex) { const q = Number(ex.quantity) + 1; await updateVisitPart(ex.id, { quantity: q }); setParts((l) => l.map((x) => (x.id === ex.id ? { ...x, quantity: q } : x))); return }
@@ -230,6 +232,17 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
             {catalog.filter((p) => p.is_active).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             <option value="__libre">Autre pièce (saisie libre)</option>
           </select>
+          {freePart !== null && (
+            <form className="flex gap-2" onSubmit={async (e) => {
+              e.preventDefault()
+              if (!freePart.trim()) return
+              try { const saved = await addVisitPart({ visit_id: visit.id, label: freePart.trim(), quantity: 1, unit_price_ht: 0 }); setParts((l) => [...l, saved]); setFreePart(null) } catch (err) { toast.error(err.message) }
+            }}>
+              <label className="sr-only" htmlFor="itv-free-part">Pièce fournie</label>
+              <input id="itv-free-part" className="input flex-1" placeholder="Pièce fournie" value={freePart} onChange={(e) => setFreePart(e.target.value)} autoFocus />
+              <button type="submit" className="btn btn-secondary">Ajouter</button>
+            </form>
+          )}
         </section>
 
         <section className="card space-y-2">
@@ -271,8 +284,8 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
             : <button type="button" className="btn btn-secondary w-full" style={{ height: 52 }} onClick={() => setSigning(true)}><PenLine className="w-5 h-5" />Faire signer le client</button>}
         </section>
 
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 z-30" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
-          <div className="max-w-xl mx-auto">
+        <div className="sticky bottom-0 -mx-3 bg-white border-t border-gray-200 p-3 z-30" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <div>
             <button type="button" className="btn btn-primary w-full" style={{ height: 52 }} onClick={finish} disabled={busy}>{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}Terminer et produire le rapport</button>
           </div>
         </div>
@@ -288,7 +301,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
 
   // ─── Contrôle des appareils ───
   return (
-    <div className="space-y-3 max-w-xl pb-32">
+    <div className="space-y-3 max-w-xl">
       {header}
       <div className="text-ui-sm text-gray-500">{s.done} contrôlés sur {s.total}{visit.started_at ? `, arrivée ${new Date(visit.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}</div>
       <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrer les appareils">
@@ -358,9 +371,11 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
       )}
 
       {!readOnly && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 z-30 space-y-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
-          <div className="max-w-xl mx-auto space-y-2">
-            {s.todo > 0 && <button type="button" className="btn btn-secondary w-full" onClick={restConforme}><ListChecks className="w-4 h-4" />Tout le reste conforme ({s.todo})</button>}
+        <div className="sticky bottom-0 -mx-3 bg-white border-t border-gray-200 p-3 z-30 space-y-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <div className="space-y-2">
+            {s.todo > 0 && (confirmRest
+              ? <div className="flex gap-2"><button type="button" className="btn btn-success flex-1" onClick={restConforme}><Check className="w-4 h-4" />Confirmer : {s.todo} conformes</button><button type="button" className="btn btn-ghost" onClick={() => setConfirmRest(false)}>Annuler</button></div>
+              : <button type="button" className="btn btn-secondary w-full" onClick={restConforme}><ListChecks className="w-4 h-4" />Tout le reste conforme ({s.todo})</button>)}
             <button type="button" className="btn btn-primary w-full" style={{ height: 50 }} onClick={() => { setStep('cloture'); window.scrollTo(0, 0) }}>Continuer vers la clôture</button>
           </div>
         </div>
@@ -465,7 +480,7 @@ function VisitDone({ visit, items, parts, equipmentById, settings, technician, i
         </div>
       )}
       <div className="card card-flush">
-        {items.map((i) => {
+        {[...items].sort((a, b) => String(equipmentById[a.equipment_id]?.location || '').localeCompare(String(equipmentById[b.equipment_id]?.location || ''), 'fr', { numeric: true })).map((i) => {
           const e = equipmentById[i.equipment_id]
           if (!e) return null
           return (
