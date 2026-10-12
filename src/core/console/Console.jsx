@@ -267,6 +267,8 @@ export default function Console() {
         <p className="muted text-ui">Export complet des tables principales ({EXPORT_TABLES.length}) au format JSON, pour sauvegarde ou reprise. Les fichiers (PDF, signatures, logos) restent dans le stockage Supabase.</p>
       </Section>
 
+      <DemoDataSection onPurged={load} />
+
       <Section icon={Sparkles} title="Assistant de configuration" actions={<button type="button" onClick={relaunchSetup} className="btn btn-secondary btn-sm">Relancer l'assistant</button>}>
         <p className="muted text-ui">Reparcourt les étapes (identité, contact, marque, modules, équipe) avec les valeurs actuelles. Utile après un changement de raison sociale, de locaux ou de marque.</p>
       </Section>
@@ -284,6 +286,77 @@ export default function Console() {
         </div>
       </Section>
     </div>
+  )
+}
+
+// Données fictives créées pour la démonstration : inventaire et effacement en un geste.
+const DEMO_LABELS = {
+  clients: 'clients', trainees: 'stagiaires', sessions: 'sessions', invoices: 'factures', quotes: 'devis',
+  prospect_rdv: 'rendez-vous', trainers: 'formateurs', veille_qualiopi: 'veille',
+}
+const CONFIRM_WORD = 'EFFACER'
+
+function DemoDataSection({ onPurged }) {
+  const [summary, setSummary] = useState(null)
+  const [confirmText, setConfirmText] = useState('')
+  const [purging, setPurging] = useState(false)
+
+  async function loadSummary() {
+    const { data, error } = await supabase.rpc('demo_data_summary')
+    setSummary(error ? {} : (data || {}))
+  }
+  useEffect(() => { loadSummary() }, [])
+
+  async function purge() {
+    if (confirmText.trim().toUpperCase() !== CONFIRM_WORD) return
+    setPurging(true)
+    try {
+      const { data, error } = await supabase.rpc('purge_demo_data')
+      if (error) throw error
+      if (!data?.ok) throw new Error('Effacement non confirmé par la base')
+      toast.success('Données de démonstration effacées')
+      setConfirmText('')
+      await loadSummary()
+      onPurged?.()
+    } catch (err) {
+      toast.error('Effacement impossible : ' + (err.message || 'erreur inconnue'))
+    } finally {
+      setPurging(false)
+    }
+  }
+
+  const entries = Object.entries(summary || {}).filter(([, n]) => n > 0)
+  const total = entries.reduce((s, [, n]) => s + n, 0)
+
+  return (
+    <Section icon={Database} title="Données de démonstration">
+      {summary === null ? (
+        <p className="muted text-ui">Chargement</p>
+      ) : total === 0 ? (
+        <p className="muted text-ui">Aucune donnée de démonstration : l'instance ne contient que des données réelles.</p>
+      ) : (
+        <>
+          <p className="muted text-ui">
+            Ces enregistrements sont fictifs (entreprises, personnes et montants inventés). Les effacer supprime aussi tout ce qui en dépend
+            (émargements, évaluations, certificats, lignes de facture, paiements). Le catalogue, les questions, les modèles, les paramètres et les
+            données réelles ne sont pas touchés.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {entries.map(([k, n]) => <span key={k} className="badge badge-neutral">{n} {DEMO_LABELS[k] || k}</span>)}
+          </div>
+          <div className="rounded-ui border border-gray-200 p-3 space-y-2">
+            <label className="label" htmlFor="demo-confirm">Pour effacer, tapez {CONFIRM_WORD}</label>
+            <div className="flex flex-wrap gap-2">
+              <input id="demo-confirm" className="input max-w-xs" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder={CONFIRM_WORD} autoComplete="off" />
+              <button type="button" onClick={purge} disabled={purging || confirmText.trim().toUpperCase() !== CONFIRM_WORD} className="btn btn-danger">
+                {purging ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Effacer les données de démonstration
+              </button>
+            </div>
+            <p className="text-ui-sm text-gray-400">Définitif. Une sauvegarde est faite chaque nuit ; pour être prudent, lancez-en une juste avant.</p>
+          </div>
+        </>
+      )}
+    </Section>
   )
 }
 

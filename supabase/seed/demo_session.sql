@@ -25,11 +25,12 @@ begin
 
   insert into sessions (reference, course_id, client_id, trainer_id, start_date, end_date, start_time, end_time,
                         location_name, location_address, location_postal_code, location_city, session_type, is_intra,
-                        status, day_type, signature_mode, notes, min_participants, max_participants, signatory_name, signatory_role)
+                        status, day_type, signature_mode, notes, min_participants, max_participants, signatory_name, signatory_role, attendance_token)
   values ('SES-DEMO1016', v_course, v_client, v_trainer, '2026-10-16', '2026-10-16', '09:00', '17:00',
           'Salle de formation', (select address from organization_settings limit 1),
           (select postal_code from organization_settings limit 1), (select city from organization_settings limit 1),
-          'intra', true, 'planned', 'full', 'ouvert', 'DEMO-PORTAIL', 2, 10, 'Nolwenn Le Bihan', 'Responsable QSE')
+          'intra', true, 'planned', 'full', 'ouvert', 'DEMO-PORTAIL', 2, 10, 'Nolwenn Le Bihan', 'Responsable QSE',
+          '7ee0c894115be79d96bc787d99468f40c4b73ee883396bc1912d0d8dda77436d')
   returning id into v_session;
 
   for r in select * from (values
@@ -67,3 +68,8 @@ where trainee_id in (select id from trainees where notes = 'DEMO-PORTAIL');
 insert into client_portal_access (client_id, token, access_code)
 select id, 'demo2a7f1c9e4b5d6083', '246810' from clients where name = 'Atelier Démo Kerlan (fictif)'
 on conflict (client_id) do update set token = excluded.token, access_code = excluded.access_code, is_active = true, attempts = 0, locked_until = null;
+
+-- Inscription dans les données de démonstration (effacées par purge_demo_data())
+insert into demo_records (tbl, id) select 'clients', id from clients where name = 'Atelier Démo Kerlan (fictif)' on conflict do nothing;
+insert into demo_records (tbl, id) select 'sessions', id from sessions where notes = 'DEMO-PORTAIL' on conflict do nothing;
+insert into demo_records (tbl, id) select 'trainees', id from trainees where notes = 'DEMO-PORTAIL' on conflict do nothing;
