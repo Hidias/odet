@@ -218,3 +218,362 @@ export function formatMoney(n) {
 export function formatHour(t) {
   return (t || '').slice(0, 5).replace(':', 'h')
 }
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Composition des documents : un « flux » qui gère le saut de page (en-tête réduit + pied)
+// et des blocs prêts à l'emploi. Tous les documents générés passent par ces blocs pour garder
+// la même apparence que la convention, la convocation et l'attestation.
+// ───────────────────────────────────────────────────────────────────────────────
+
+/** Case à cocher carrée : vide (filet) ou cochée (pleine, couleur d'accent, coche blanche) */
+export function drawCheckbox(doc, ORG, x, y, size = 3.4, checked = false, color = null) {
+  const t = ORG.theme
+  if (checked) {
+    drawCheckmark(doc, ORG, x, y, size, color || t.accent)
+  } else {
+    doc.setDrawColor(...t.muted); doc.setLineWidth(0.3)
+    doc.roundedRect(x, y, size, size, 0.6, 0.6, 'S')
+  }
+  doc.setDrawColor(...t.line)
+}
+
+/** Styles jspdf-autotable communs : en-tête couleur principale, lignes alternées, filets fins */
+export function tableTheme(ORG, extra = {}) {
+  const t = ORG.theme
+  return {
+    theme: 'grid',
+    margin: { left: PAGE_MARGIN, right: PAGE_MARGIN, top: 24, bottom: 22 },
+    styles: { font: 'helvetica', fontSize: 8.5, textColor: t.text, lineColor: t.line, lineWidth: 0.2, cellPadding: 2.2, overflow: 'linebreak', valign: 'middle' },
+    headStyles: { fillColor: t.primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: 2.4 },
+    alternateRowStyles: { fillColor: t.surface },
+    ...extra,
+  }
+}
+
+/** Début de document : bandeau, titre, et flux prêt à écrire */
+export function startDocument(doc, ORG, { ref = null, docLabel = '', code = 'DOC', title = '', subtitle = null, bottom } = {}) {
+  let y = drawHeaderBand(doc, ORG, { ref, docLabel })
+  if (title) y = drawDocTitle(doc, ORG, title, subtitle, y)
+  return createFlow(doc, ORG, { ref, docLabel, code, startY: y, bottom })
+}
+
+/**
+ * Flux de mise en page avec saut de page automatique.
+ * f.y : position courante ; f.ensure(h) : saute de page si h ne tient pas.
+ */
+export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', startY = 42, bottom } = {}) {
+  const t = ORG.theme
+  const M = PAGE_MARGIN
+  const W = doc.internal.pageSize.getWidth() - M * 2
+  const BOTTOM = bottom || (doc.internal.pageSize.getHeight() - 19)
+  const LINE = 4.1
+  const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1 }
+  f.body = (size = 9) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(size); doc.setTextColor(...t.text) }
+  f.newPage = () => {
+    drawFooter(doc, ORG, code)
+    doc.addPage()
+    f.pages += 1
+    f.y = drawRunningHeader(doc, ORG, { ref, docLabel })
+  }
+  f.ensure = (h) => { if (f.y + h > BOTTOM) f.newPage() }
+  f.finish = () => { drawFooter(doc, ORG, code) }
+  f.space = (h = 3) => { f.y += h }
+
+  f.para = (text, { x = M, w = W, size = 9, after = 2.5, style = 'normal', color = null, align = 'left' } = {}) => {
+    f.body(size)
+    doc.setFont('helvetica', style)
+    const lines = doc.splitTextToSize(String(text ?? ''), w)
+    const lh = size * 0.455
+    f.ensure(Math.min(lines.length, 3) * lh)
+    lines.forEach(l => {
+      f.ensure(lh)
+      f.body(size); doc.setFont('helvetica', style); if (color) doc.setTextColor(...color)
+      if (align === 'center') doc.text(l, x + w / 2, f.y, { align: 'center' })
+      else doc.text(l, x, f.y)
+      f.y += lh
+    })
+    f.y += after
+    doc.setTextColor(...t.text)
+  }
+  f.note = (text, opts = {}) => f.para(text, { size: 7.5, color: t.muted, ...opts })
+
+  f.bullets = (items, { x = M, w = W, size = 9 } = {}) => {
+    items.filter(Boolean).forEach(it => {
+      f.body(size)
+      const lines = doc.splitTextToSize(String(it), w - 5)
+      f.ensure(lines.length * LINE)
+      f.body(size)
+      doc.setFillColor(...t.highlight); doc.circle(x + 1.5, f.y - 1.1, 0.7, 'F')
+      lines.forEach(l => { doc.text(l, x + 5, f.y); f.y += LINE })
+    })
+    f.y += 2
+  }
+
+  f.section = (label) => { f.ensure(11 + LINE * 3); f.y += 3; f.y = drawSectionTitle(doc, ORG, label, f.y) }
+
+  // Petit intertitre en capitales discrètes (comme « OBJECTIFS » sur la convocation)
+  f.label = (label) => {
+    f.ensure(5 + LINE * 2)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
+    doc.text(String(label).toUpperCase(), M, f.y, { charSpace: 0.2 })
+    doc.setTextColor(...t.text)
+    f.y += 4.5
+  }
+
+  f.kv = (rows, { labelW = 34 } = {}) => {
+    rows.filter(r => r && r[1] !== undefined && r[1] !== null).forEach(r => {
+      const h = Math.max(1, doc.splitTextToSize(String(r[1] ?? ''), W - labelW).length) * 4 + 2.6
+      f.ensure(h)
+      f.y = drawKeyValues(doc, ORG, M, f.y, W, [r], { labelW }) - 1
+    })
+    f.y += 1
+  }
+
+  // Cartes côte à côte : [{ label, lines, footnote }]
+  f.cards = (cards, { gap = 6 } = {}) => {
+    const n = cards.length
+    const colW = (W - gap * (n - 1)) / n
+    const maxLines = Math.max(...cards.map(c => c.lines.length))
+    cards.forEach(c => { while (c.lines.length < maxLines) c.lines.push('') })
+    f.ensure(14 + maxLines * 4.2)
+    let bottomY = f.y
+    cards.forEach((c, i) => {
+      bottomY = Math.max(bottomY, drawPartyCard(doc, ORG, M + i * (colW + gap), f.y, colW, c.label, c.lines, c.footnote))
+    })
+    f.y = bottomY + 6
+  }
+
+  // Encadré : fond de surface, liseré d'accent, étiquette et texte
+  f.callout = (label, text, { tone = 'accent' } = {}) => {
+    const color = tone === 'muted' ? t.muted : (tone === 'highlight' ? t.highlight : t.accent)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+    const lines = doc.splitTextToSize(String(text ?? ''), W - 10)
+    const h = (label ? 10 : 5) + lines.length * 4.2 + 3
+    f.ensure(h + 2)
+    const by = f.y
+    doc.setFillColor(...t.surface); doc.rect(M, by, W, h, 'F')
+    doc.setFillColor(...color); doc.rect(M, by, 1.2, h, 'F')
+    let yy = by + 5.5
+    if (label) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...color)
+      doc.text(String(label).toUpperCase(), M + 4, yy, { charSpace: 0.4 })
+      yy += 5.5
+    }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
+    lines.forEach((l, i) => doc.text(l, M + 4, yy + i * 4.2))
+    f.y = by + h + 5
+  }
+
+  // Champs à remplir (ou remplis) sur une ligne : [{ label, value, w }] ; w en fraction de la largeur
+  f.fields = (fields, { gap = 6, height = 9 } = {}) => {
+    f.ensure(height + 2)
+    const total = fields.reduce((s, fl) => s + (fl.w || 1), 0)
+    const usable = W - gap * (fields.length - 1)
+    let x = M
+    fields.forEach(fl => {
+      const w = usable * (fl.w || 1) / total
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8); doc.setTextColor(...t.muted)
+      doc.text(String(fl.label || '').toUpperCase(), x, f.y, { charSpace: 0.2 })
+      const ly = f.y + height - 3
+      doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.line(x, ly + 1.2, x + w, ly + 1.2)
+      if (fl.value !== undefined && fl.value !== null && String(fl.value) !== '') {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
+        doc.text(doc.splitTextToSize(String(fl.value), w)[0] || '', x, ly)
+      }
+      x += w + gap
+    })
+    doc.setTextColor(...t.text)
+    f.y += height + 3
+  }
+
+  // Liste de cases : [{ label, checked, muted }] ; inline: true pour une seule ligne
+  f.checks = (items, { inline = false, size = 9, colW = null } = {}) => {
+    const box = 3.4
+    if (inline) {
+      f.ensure(6)
+      let x = M
+      items.forEach(it => {
+        drawCheckbox(doc, ORG, x, f.y - box + 0.6, box, !!it.checked)
+        f.body(size); if (it.muted && !it.checked) doc.setTextColor(...t.muted)
+        if (it.checked) doc.setFont('helvetica', 'bold')
+        doc.text(String(it.label), x + box + 2, f.y)
+        x += colW || (doc.getTextWidth(String(it.label)) + box + 9)
+      })
+      doc.setTextColor(...t.text)
+      f.y += 6.5
+      return
+    }
+    items.forEach(it => {
+      f.body(size)
+      const lines = doc.splitTextToSize(String(it.label), W - 8)
+      f.ensure(lines.length * LINE + 1.5)
+      drawCheckbox(doc, ORG, M + 1, f.y - box + 0.6, box, !!it.checked, it.color || null)
+      f.body(size); if (it.muted && !it.checked) doc.setTextColor(...t.muted)
+      if (it.checked) doc.setFont('helvetica', 'bold')
+      if (it.color) doc.setTextColor(...it.color)
+      lines.forEach(l => { doc.text(l, M + box + 4, f.y); f.y += LINE })
+      f.y += 1.5
+      doc.setTextColor(...t.text)
+    })
+    f.y += 1
+  }
+
+  // Zone d'écriture encadrée, avec étiquette et texte éventuel (réponse saisie)
+  f.box = (label, { height = 22, text = null, lined = false } = {}) => {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+    const lines = text ? doc.splitTextToSize(String(text), W - 6) : []
+    const h = Math.max(height, lines.length * 4 + 6)
+    f.ensure((label ? 5 : 0) + h + 3)
+    if (label) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
+      doc.text(String(label).toUpperCase(), M, f.y, { charSpace: 0.2 })
+      f.y += 2.5
+    }
+    doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.setFillColor(255, 255, 255)
+    doc.roundedRect(M, f.y, W, h, 1, 1, 'S')
+    if (lined && !lines.length) {
+      for (let ly = f.y + 7; ly < f.y + h - 2; ly += 7) doc.line(M + 3, ly, M + W - 3, ly)
+    }
+    if (lines.length) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.text)
+      lines.forEach((l, i) => doc.text(l, M + 3, f.y + 5 + i * 4))
+    }
+    f.y += h + 5
+    doc.setTextColor(...t.text)
+  }
+
+  /**
+   * Grille de notation : sections [{ title, rows: [{ label, value }] }], échelle (ex. [1..5]),
+   * colonne « N/C » facultative. value = note cochée (ou 'nc').
+   */
+  f.ratingGrid = (sections, { scale = [1, 2, 3, 4, 5], nc = true, colW = 10, rowH = 6.4, gap = 4 } = {}) => {
+    const cols = [...scale.map(String), ...(nc ? ['N/C'] : [])]
+    const gridW = cols.length * colW
+    const labelW = W - gridW
+    const headH = 6
+    const drawHead = (title) => {
+      doc.setFillColor(...t.primary); doc.rect(M, f.y, W, headH, 'F')
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255)
+      doc.text(String(title).toUpperCase(), M + 3, f.y + 4.1, { charSpace: 0.3 })
+      cols.forEach((c, i) => doc.text(c, M + labelW + i * colW + colW / 2, f.y + 4.1, { align: 'center' }))
+      f.y += headH
+    }
+    sections.forEach(sec => {
+      f.ensure(headH + rowH * Math.min(sec.rows.length, 3) + 2)
+      drawHead(sec.title)
+      sec.rows.forEach((r, ri) => {
+        f.body(8)
+        const lines = doc.splitTextToSize(String(r.label), labelW - 5)
+        const h = Math.max(rowH, lines.length * 3.6 + 2.8)
+        if (f.y + h > BOTTOM) { f.newPage(); drawHead(sec.title) }
+        if (ri % 2 === 1) { doc.setFillColor(...t.surface); doc.rect(M, f.y, W, h, 'F') }
+        doc.setDrawColor(...t.line); doc.setLineWidth(0.2); doc.line(M, f.y + h, M + W, f.y + h)
+        f.body(8)
+        lines.forEach((l, i) => doc.text(l, M + 3, f.y + h / 2 - (lines.length - 1) * 1.8 + 1.2 + i * 3.6))
+        cols.forEach((c, i) => {
+          const val = c === 'N/C' ? (r.value === 'nc' || r.value === 0) : Number(r.value) === Number(c)
+          drawCheckbox(doc, ORG, M + labelW + i * colW + colW / 2 - 1.7, f.y + h / 2 - 1.7, 3.4, val)
+        })
+        f.y += h
+      })
+      f.y += gap
+    })
+  }
+
+  // Question et cases sur une même ligne : « Recommanderiez-vous… ?  [ ] Oui  [ ] Non »
+  f.choiceLine = (label, items, { size = 9, colW = 20 } = {}) => {
+    f.ensure(7)
+    f.body(size); doc.setFont('helvetica', 'bold')
+    doc.text(String(label), M, f.y)
+    let x = M + doc.getTextWidth(String(label)) + 6
+    const box = 3.4
+    items.forEach(it => {
+      drawCheckbox(doc, ORG, x, f.y - box + 0.6, box, !!it.checked)
+      f.body(size); if (it.checked) doc.setFont('helvetica', 'bold')
+      doc.text(String(it.label), x + box + 2, f.y)
+      x += colW
+    })
+    doc.setTextColor(...t.text)
+    f.y += 7
+  }
+
+  // Cadres de signature côte à côte : [{ label, name, hint, image, stamp }]
+  f.signatures = (blocks, { height = 32, gap = 6 } = {}) => {
+    const n = blocks.length
+    const colW = (W - gap * (n - 1)) / n
+    f.ensure(height + 4)
+    const by = f.y
+    blocks.forEach((b, i) => {
+      const x = M + i * (colW + gap)
+      doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.rect(x, by, colW, height)
+      doc.setFillColor(...t.surface); doc.rect(x, by, colW, b.name ? 11 : 7, 'F')
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)
+      doc.text(String(b.label || '').toUpperCase(), x + 4, by + 4.5, { charSpace: 0.4 })
+      if (b.name) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...t.text)
+        doc.text(doc.splitTextToSize(String(b.name), colW - 8)[0] || '', x + 4, by + 8.8)
+      }
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(...t.muted)
+      doc.text(b.hint || 'Signature', x + 4, by + height - 3)
+      if (b.stamp) drawImageFitted(doc, b.stamp, x + 4, by + 13, Math.min(44, colW / 2), height - 18, 'JPEG')
+      if (b.image) drawImageFitted(doc, b.image, x + colW / 2, by + 13, colW / 2 - 4, height - 18)
+    })
+    doc.setTextColor(...t.text)
+    f.y = by + height + 5
+  }
+
+  // Tableau jspdf-autotable aux couleurs de l'instance ; continue le flux après le tableau
+  f.table = (head, body, opts = {}) => {
+    f.ensure(16)
+    doc.autoTable({
+      startY: f.y,
+      head: head ? [head] : undefined,
+      body,
+      ...tableTheme(ORG, opts),
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) drawRunningHeader(doc, ORG, { ref, docLabel })
+        if (opts.didDrawPage) opts.didDrawPage(data)
+      },
+    })
+    const pagesNow = doc.getNumberOfPages()
+    if (pagesNow > f.pages) {
+      // Pied de page des pages créées par le tableau (la dernière reçoit le sien à la fin)
+      for (let p = f.pages; p < pagesNow; p++) { doc.setPage(p); drawFooter(doc, ORG, code) }
+      doc.setPage(pagesNow)
+      f.pages = pagesNow
+    }
+    f.y = doc.lastAutoTable.finalY + 5
+  }
+
+  // Lieu, date et signataire (dirigeant) alignés à droite, comme la convocation
+  f.signOff = ({ date = new Date(), place = null } = {}) => {
+    f.ensure(14)
+    f.body(9)
+    const d = date instanceof Date ? date : new Date(date)
+    const ds = isNaN(d) ? '' : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+    doc.text(`Fait à ${place || ORG.lieu_signature || ORG.city || ''}, le ${ds}.`, M, f.y)
+    const rx = M + W
+    if (ORG.dirigeant_signature_base64) drawImageFitted(doc, ORG.dirigeant_signature_base64, rx - 75, f.y - 6, 28, 12)
+    doc.setFont('helvetica', 'bold'); doc.text(ORG.dirigeant || '', rx, f.y, { align: 'right' })
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...t.muted)
+    doc.text([ORG.dirigeant_title, ORG.name].filter(Boolean).join(', '), rx, f.y + 4.5, { align: 'right' })
+    doc.setTextColor(...t.text)
+    f.y += 12
+  }
+
+  return f
+}
+
+// Texte libre des paramètres (règlement, livret) : paragraphes séparés par une ligne vide,
+// lignes courtes sans ponctuation finale = intertitres, lignes « - » = puces.
+export function writeRichText(f, text) {
+  String(text || '').trim().split(/\n{2,}/).forEach((block) => {
+    const b = block.trim()
+    if (!b) return
+    const isTitle = b.length < 90 && !b.includes('\n') && !/[.:;,!?]$/.test(b)
+    if (isTitle) { f.section(b.replace(/^#+\s*/, '')); return }
+    const lines = b.split('\n')
+    if (lines.every(l => /^\s*[-•*]\s+/.test(l))) { f.bullets(lines.map(l => l.replace(/^\s*[-•*]\s+/, ''))); return }
+    f.para(b.replace(/\n/g, ' '), { after: 3 })
+  })
+}
