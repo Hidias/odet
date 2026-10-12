@@ -27,7 +27,7 @@ const SECTIONS = [
 
 const ORG_FIELDS = [
   'name', 'legal_name', 'forme_juridique', 'capital_social', 'siret', 'siren', 'naf', 'tva_intra', 'tva_applicable', 'rcs', 'tribunal_competent',
-  'nda', 'nda_region', 'qualiopi_certified', 'qualiopi_since', 'qualiopi_organisme', 'activity_kind', 'date_creation',
+  'nda', 'nda_region', 'qualiopi_certified', 'qualiopi_since', 'qualiopi_organisme', 'activity_kind', 'caces_activity', 'date_creation',
   'address', 'postal_code', 'city', 'phone', 'email', 'website', 'lieu_signature', 'region', 'zone_departements',
   'dirigeant_name', 'dirigeant_title', 'dirigeant_signature_url', 'referent_handicap_nom', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
   'app_name', 'app_short_name', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'logo_base64', 'stamp_base64',
@@ -72,6 +72,7 @@ export default function Settings() {
       payload.nda = (form.nda || '').replace(/\s/g, '')
       payload.iban = (form.iban || '').replace(/\s/g, '').toUpperCase()
       payload.exercice_start_month = Number(form.exercice_start_month) || 1
+      payload.caces_activity = !!form.caces_activity
       for (const k of ['qualiopi_since', 'date_creation']) if (!payload[k]) payload[k] = null
       const { error } = await updateOrganization(payload)
       if (error) throw error
@@ -167,6 +168,7 @@ export default function Settings() {
                 </Field>
                 <div className="space-y-3 pt-6">
                   <Toggle checked={!!form.qualiopi_certified} onChange={(v) => set('qualiopi_certified', v)} label="Certifié Qualiopi" hint="Ajoute la mention sur les documents" />
+                  <Toggle checked={!!form.caces_activity} onChange={(v) => set('caces_activity', v)} label="Activité CACES" hint="Décoché : l'Aide à la rédaction parle de formation à la conduite en vue de l'autorisation de conduite, jamais de CACES" />
                   <Toggle checked={form.tva_applicable !== false} onChange={(v) => set('tva_applicable', v)} label="TVA applicable" hint="Décoché : mention d'exonération (art. 261-4-4° a du CGI)" />
                 </div>
                 {form.qualiopi_certified && (

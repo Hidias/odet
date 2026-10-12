@@ -1,4 +1,5 @@
 import { requireUser } from './_lib/auth.js'
+import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
 // api/generate-client-email.js
 // Génère un email pro à un client via Claude Sonnet
 // Contexte enrichi : sessions, devis, RDV, historique complet
@@ -9,6 +10,7 @@ export default async function handler(req, res) {
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
     req.user = ctx.user
     req.profile = ctx.profile
+    req.admin = ctx.admin
   }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -38,32 +40,12 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'ANTHROPIC_API_KEY non configurée' })
     }
 
-    // ── System prompt : connaissance métier Access Formation ──
-    const systemPrompt = `Tu es ${senderName || 'Hicham'}, co-dirigeant d'Access Formation.
+    // ── System prompt : identité et catalogue lus dans les paramètres de l'organisme ──
+    const org = await loadOrgProfile(req.admin)
+    const sender = senderFromProfile(req.profile, senderName)
+    const systemPrompt = `Tu rédiges un email au nom de ${sender || "l'équipe"}, pour ${org.name || "l'organisme de formation"}.
 
-IDENTITÉ :
-- Organisme de formation professionnelle santé/sécurité au travail
-- 24 rue Kerbleiz, 29900 Concarneau (Bretagne)
-- Certifié Qualiopi | NDA : 53 29 10261 29
-- Contact : 02 98 90 30 24 | contact@accessformation.pro
-- Co-dirigeants : Hicham SAIDI et Maxime LANGLAIS (formateurs)
-
-FORMATIONS PROPOSÉES :
-- SST (Sauveteur Secouriste du Travail) — initiale 2j, MAC 1j
-- CACES R489 (chariots élévateurs) — 3 à 5j selon catégories
-- CACES R485 (gerbeurs) — 2 à 3j
-- Habilitation électrique (BS, BE, B1, B2, BR, BC, H0) — 1 à 3j selon niveaux
-- Sécurité incendie / Manipulation extincteurs — 0.5 à 1j
-- Gestes et postures / PRAP — 2j
-- DUERP (Document Unique d'Évaluation des Risques) — prestation conseil
-
-ARGUMENTS CLÉS :
-- Toutes nos formations sont éligibles aux financements OPCO
-- Nous nous déplaçons sur site (intra) dans toute la Bretagne et Pays de la Loire
-- Sessions inter-entreprises possibles à Concarneau
-- Formateurs certifiés et expérimentés
-- Taux de satisfaction exceptionnel (4.96/5)
-- Disponibilités flexibles, sessions planifiables rapidement
+${orgIdentityBlock(org)}
 
 TON & STYLE :
 - Professionnel mais humain, direct, pas pompeux
@@ -195,7 +177,7 @@ Réponds UNIQUEMENT en JSON valide, sans backticks, sans markdown :
       const subjectMatch = textContent.match(/"subject"\s*:\s*"([^"]*)"/)
       const bodyMatch = textContent.match(/"body"\s*:\s*"([\s\S]*?)"\s*}/)
       return res.status(200).json({
-        subject: subjectMatch?.[1] || `Access Formation — ${clientName || ''}`,
+        subject: subjectMatch?.[1] || [org.name, clientName].filter(Boolean).join(' : '),
         body: (bodyMatch?.[1] || textContent).replace(/\\n/g, '\n').replace(/["`}]+$/g, '').trim(),
       })
     }

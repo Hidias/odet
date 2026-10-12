@@ -1,4 +1,5 @@
 import { requireUser } from './_lib/auth.js'
+import { loadOrgProfile, orgIdentityBlock } from './_lib/orgProfile.js'
 // api/generate-relance-email.js
 // Génère un email de relance de devis personnalisé via Claude
 // Prend en compte : contexte client, âge du devis, historique de relances, formations concernées
@@ -9,6 +10,7 @@ export default async function handler(req, res) {
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
     req.user = ctx.user
     req.profile = ctx.profile
+    req.admin = ctx.admin
   }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -19,7 +21,7 @@ export default async function handler(req, res) {
       quote,           // { reference, quote_date, total_ht, total_ttc, object, relance_count, notes }
       client,          // { name, contact_name, contact_email }
       items,           // [{ description_title, quantity, unit_price_ht }]
-      senderName,      // 'Hicham Saidi' ou 'Maxime Langlais'
+      senderName,      // nom de l'expéditeur affiché par l'écran
       daysSinceQuote,  // nombre de jours depuis l'envoi
       interactions,    // [{ type, title, content, interaction_date }] historique récent
       rdvContext,      // { rdv_date, notes } si un RDV a eu lieu avant
@@ -67,7 +69,10 @@ export default async function handler(req, res) {
       : relanceNum === 2 ? 'deuxième relance, ton un peu plus direct mais toujours poli'
       : 'troisième et dernière relance, ton ferme mais professionnel, proposer un échange téléphonique'
 
-    const prompt = `Tu es l'assistant commercial d'Access Formation, organisme de formation professionnelle certifié Qualiopi basé à Concarneau (Bretagne). Spécialités : SST, CACES, incendie, habilitation électrique, gestes et postures, DUERP.
+    const org = await loadOrgProfile(req.admin)
+    const prompt = `Tu es l'assistant commercial de ${org.name || "l'organisme de formation"}.
+
+${orgIdentityBlock(org)}
 
 MISSION : Rédiger un email de RELANCE pour un devis resté sans réponse.
 
@@ -149,7 +154,7 @@ FORMAT DE RÉPONSE — JSON strict, sans backticks ni markdown :
       // Fallback
       console.error('Parse error, raw:', textContent)
       return res.status(200).json({
-        subject: `${relanceNum > 1 ? 'Relance — ' : ''}Devis ${quote.reference || ''} — Access Formation`,
+        subject: `${relanceNum > 1 ? 'Relance : ' : ''}Devis ${quote.reference || ''}${org.name ? ' ' + org.name : ''}`,
         body: textContent.replace(/[{}"]/g, '').trim(),
         tone: 'courtois',
         relanceNum,

@@ -1,4 +1,5 @@
 import { requireUser } from './_lib/auth.js'
+import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
 // api/generate-quote-email.js
 // Génère le texte email d'envoi de devis via l'API Anthropic (Claude)
 
@@ -8,6 +9,7 @@ export default async function handler(req, res) {
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
     req.user = ctx.user
     req.profile = ctx.profile
+    req.admin = ctx.admin
   }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -35,12 +37,16 @@ export default async function handler(req, res) {
       ? [(contact.civilite || ''), (contact.first_name || ''), (contact.last_name || '')].filter(Boolean).join(' ')
       : ''
 
-    const prompt = `Tu es l'assistant commercial d'Access Formation, un organisme de formation professionnelle base a Concarneau (Bretagne).
+    const org = await loadOrgProfile(req.admin)
+    const sender = senderFromProfile(req.profile, senderName)
+    const prompt = `Tu es l'assistant commercial de ${org.name || "l'organisme de formation"}.
+
+${orgIdentityBlock(org)}
 
 Genere un email professionnel pour accompagner l'envoi d'un devis en piece jointe.
 
 CONTEXTE :
-- Expediteur : ${senderName || 'Hicham Saidi'}, Access Formation
+- Expediteur : ${sender || "l'equipe"}${org.name ? ', ' + org.name : ''}
 - Destinataire : ${contactName || 'le responsable formation'}
 - Entreprise cliente : ${client.name || ''}
 - Reference devis : ${quote.reference || ''}
@@ -97,7 +103,7 @@ Reponds UNIQUEMENT au format JSON suivant, sans backticks ni markdown :
     } catch (parseErr) {
       // Fallback si parsing échoue
       return res.status(200).json({
-        subject: `Devis ${quote.reference || ''} - Access Formation`,
+        subject: `Devis ${quote.reference || ''}${org.name ? ' ' + org.name : ''}`,
         body: textContent,
       })
     }
