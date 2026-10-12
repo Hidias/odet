@@ -7,7 +7,8 @@ import {
   Building2, ClipboardList, Table, Users2, BarChart3, CheckSquare,
   Loader2, RefreshCw, Plus, Trash2, CheckCircle
 } from 'lucide-react'
-import { jsPDF } from 'jspdf'
+import { buildQualityDocPDF } from '../pdf/qualityDocsPDF'
+import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { APP_VERSION } from '../../../core/version'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -98,7 +99,7 @@ const DEFAULT_DATA = {
   'des-hand': { personne: '{{role.referent_handicap}}', role: 'Référent Handicap', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Accueillir les PSH', 'Identifier les besoins d\'adaptation', 'Lien avec Agefiph/MDPH', 'Sensibiliser l\'équipe', 'Suivre les aménagements'] },
   'des-deon': { personne: '{{role.referent_deontologie}}', role: 'Référent Déontologie', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veiller au respect des règles éthiques', 'Traiter les signalements', 'Conseiller la direction', 'Sensibiliser l\'équipe'] },
   'des-recl': { personne: '{{role.referent_reclamations}}', role: 'Référent Réclamations', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Réceptionner les réclamations', 'Analyser les causes', 'Clôturer sous 5 jours ouvrés', 'Communiquer les résultats', 'Proposer des actions préventives'] },
-  'des-veil': { personne: '{{role.referent_veille}}', role: 'Référent Veille', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veille réglementaire mensuelle', 'Suivre les référentiels INRS/CACES', 'Informer l\'équipe sous 30 jours', 'Mettre à jour les documents'] },
+  'des-veil': { personne: '{{role.referent_veille}}', role: 'Référent Veille', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Veille réglementaire mensuelle', 'Suivre les référentiels INRS', 'Informer l\'équipe sous 30 jours', 'Mettre à jour les documents'] },
   'des-amel': { personne: '{{role.referent_amelioration}}', role: 'Référent Amélioration Continue', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Analyser les NC', 'Suivre les actions correctives', 'Animer l\'amélioration continue', 'Mesurer l\'efficacité', 'Préparer la RDD'] },
   'des-rgpd': { personne: '{{role.referent_rgpd}}', role: 'DPO', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Conformité RGPD', 'Registre des traitements', 'Répondre aux demandes de droits', 'Sensibiliser le personnel', 'Gérer les violations'] },
   'proc-recl': { 
@@ -425,224 +426,16 @@ export default function QualiteEditables() {
   const generatePDF = async (docId, docInfo) => {
     setGenerating(true)
     try {
-      const doc = new jsPDF()
-      const w = doc.internal.pageSize.getWidth()
-      const h = doc.internal.pageSize.getHeight()
       const v = APP_VERSION
-      const d = format(new Date(), 'dd/MM/yyyy')
       const ctx = tplCtx || await loadTemplateContext()
       const data = fillDeep(savedDocs[docId] || DEFAULT_DATA[docId] || {}, ctx)
-      
-      const header = () => { doc.setFontSize(9); doc.setTextColor(100); doc.text(`${ORG.nom} ${ORG.forme} - ${ORG.siret}`, 20, 15); doc.text(`${ORG.adresse}, ${ORG.cp} ${ORG.ville}`, 20, 20) }
-      const footer = (p = 1) => { doc.setFontSize(8); doc.setTextColor(128); doc.text(`${docCode(docInfo.code)}-V${v}`, 20, h - 10); doc.text(d, w/2, h - 10, { align: 'center' }); doc.text(`Page ${p}`, w - 20, h - 10, { align: 'right' }) }
-      const title = (t, y = 35) => { doc.setFontSize(14); doc.setTextColor(0); doc.setFont(undefined, 'bold'); doc.text(t.toUpperCase(), w/2, y, { align: 'center' }); doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.setTextColor(100); doc.text(`${docCode(docInfo.code)}-V${v}`, w/2, y + 6, { align: 'center' }); return y + 15 }
-      
-      header()
-      let y = title(docInfo.name)
-      
-      // ORGANIGRAMME
-      if (docId === 'organigramme') {
-        const orgData = data.direction || DEFAULT_DATA.organigramme.direction
-        const formData = data.formateurs || DEFAULT_DATA.organigramme.formateurs
-        
-        // Gouvernance
-        doc.setFillColor(37, 99, 235); doc.rect(20, y, w - 40, 10, 'F')
-        doc.setTextColor(255); doc.setFontSize(10); doc.setFont(undefined, 'bold')
-        doc.text('GOUVERNANCE (co-direction 50/50)', w/2, y + 7, { align: 'center' })
-        y += 15
-        
-        const colW = (w - 50) / 2
-        doc.setTextColor(0); doc.setFillColor(245, 245, 245)
-        
-        orgData.forEach((dir, idx) => {
-          const xPos = idx === 0 ? 20 : 30 + colW
-          doc.rect(xPos, y, colW, 40, 'F')
-          doc.setFont(undefined, 'bold'); doc.setFontSize(10)
-          doc.text(dir.nom, xPos + colW/2, y + 8, { align: 'center' })
-          doc.setFont(undefined, 'normal'); doc.setFontSize(8)
-          let yr = y + 14
-          ;(dir.roles || []).forEach(r => { doc.text(`• ${r}`, xPos + 4, yr); yr += 4.5 })
-        })
-        y += 50
-        
-        // Équipe pédagogique
-        doc.setFillColor(34, 197, 94); doc.rect(20, y, w - 40, 10, 'F')
-        doc.setTextColor(255); doc.setFontSize(10); doc.setFont(undefined, 'bold')
-        doc.text('ÉQUIPE PÉDAGOGIQUE', w/2, y + 7, { align: 'center' })
-        y += 15; doc.setTextColor(0); doc.setFontSize(9); doc.setFont(undefined, 'normal')
-        formData.forEach(f => { doc.text(`${f.nom} : ${(f.specialites || []).join(', ')}`, 25, y); y += 6 })
-        
-      // DÉSIGNATIONS
-      } else if (docId.startsWith('des-')) {
-        const dateStr = data.date ? format(new Date(data.date), 'd MMMM yyyy', { locale: fr }) : format(new Date(), 'd MMMM yyyy', { locale: fr })
-        doc.setFontSize(11); doc.setTextColor(0)
-        doc.text(`La société ${raisonSociale()}, représentée par ${ORG.dirigeant || 'son représentant légal'}${ORG.dirigeantTitre ? `, ${ORG.dirigeantTitre}` : ''},`, 20, y); y += 12
-        doc.text('Désigne par la présente :', 20, y); y += 10
-        doc.setFont(undefined, 'bold'); doc.setFontSize(14)
-        doc.text(data.personne || 'Non défini', 40, y); y += 10
-        doc.setFont(undefined, 'normal'); doc.setFontSize(11)
-        doc.text(`en qualité de ${data.role || 'Non défini'}.`, 20, y); y += 8
-        doc.text(`Désignation effective au ${dateStr}.`, 20, y); y += 15
-        
-        doc.setFont(undefined, 'bold'); doc.text('Missions :', 20, y); y += 7
-        doc.setFont(undefined, 'normal'); doc.setFontSize(10)
-        ;(data.missions || []).forEach(m => { doc.text(`• ${m}`, 25, y); y += 6 })
-        
-        y = 210
-        doc.setFontSize(11)
-        doc.text(`Fait à ${ORG.ville}, le ${dateStr}`, 20, y); y += 12
-        doc.text(ORG.dirigeantTitre ? `${ORG.dirigeantTitre},` : 'Le représentant légal,', 20, y); y += 15
-        doc.text(ORG.dirigeant || '', 35, y)
-        
-      // PROCÉDURES AVEC SWIMLANES
-      } else if (docId.startsWith('proc-')) {
-        // Cartouche
-        doc.setFillColor(245, 245, 245); doc.rect(20, y, w - 40, 18, 'F')
-        doc.setFontSize(9); doc.setTextColor(0)
-        doc.text(`Indicateur Qualiopi : ${docInfo.indicateur || '-'}`, 25, y + 6)
-        doc.text(`Responsable : ${data.responsable || '-'}`, 25, y + 12)
-        doc.text(`Révision : Annuelle | ${d}`, 120, y + 6)
-        if (data.delaiAccuse) doc.text(`Délai AR : ${data.delaiAccuse}`, 120, y + 12)
-        if (data.delaiCloture) doc.text(`Délai clôture : ${data.delaiCloture}`, 155, y + 12)
-        if (data.delaiTraitement) doc.text(`Délai trait. : ${data.delaiTraitement}`, 120, y + 12)
-        y += 25
-        
-        // Objectif
-        doc.setFont(undefined, 'bold'); doc.setFontSize(11); doc.text('1. OBJECTIF', 20, y); y += 7
-        doc.setFont(undefined, 'normal'); doc.setFontSize(10)
-        const objLines = doc.splitTextToSize(data.objectif || '', w - 45)
-        doc.text(objLines, 25, y); y += objLines.length * 5 + 8
-        
-        // Indicateurs
-        if (data.indicateurs?.length) {
-          doc.setFont(undefined, 'bold'); doc.setFontSize(11); doc.text('2. INDICATEURS', 20, y); y += 7
-          doc.setFont(undefined, 'normal'); doc.setFontSize(10)
-          data.indicateurs.forEach(ind => { doc.text(`• ${ind}`, 25, y); y += 5 }); y += 5
-        }
-        
-        // Sources (veille)
-        if (data.sources?.length) {
-          doc.setFont(undefined, 'bold'); doc.setFontSize(11); doc.text('3. SOURCES DE VEILLE', 20, y); y += 7
-          doc.setFont(undefined, 'normal'); doc.setFontSize(10)
-          data.sources.forEach(src => { doc.text(`• ${src}`, 25, y); y += 5 }); y += 5
-        }
-        
-        // LOGIGRAMME SWIMLANE (format tableau)
-        if (data.swimlanes?.length) {
-          doc.addPage(); header(); y = 35
-          doc.setFont(undefined, 'bold'); doc.setFontSize(11)
-          doc.text(`${data.sources ? '4' : '3'}. LOGIGRAMME (QUI FAIT QUOI)`, 20, y); y += 10
-          
-          // En-têtes du tableau
-          const colWidths = [40, 65, 25, 45]
-          doc.setFillColor(59, 130, 246); doc.rect(20, y, w - 40, 8, 'F')
-          doc.setTextColor(255); doc.setFontSize(8); doc.setFont(undefined, 'bold')
-          doc.text('ACTEUR', 22, y + 5.5)
-          doc.text('ÉTAPE', 62, y + 5.5)
-          doc.text('DÉLAI', 127, y + 5.5)
-          doc.text('OUTPUT', 152, y + 5.5)
-          y += 10
-          
-          // Lignes du tableau
-          doc.setTextColor(0); doc.setFont(undefined, 'normal')
-          data.swimlanes.forEach((row, idx) => {
-            if (y > h - 30) { footer(doc.internal.getNumberOfPages()); doc.addPage(); header(); y = 35 }
-            
-            const bgColor = idx % 2 === 0 ? [250, 250, 250] : [240, 240, 245]
-            doc.setFillColor(...bgColor)
-            doc.rect(20, y, w - 40, 10, 'F')
-            doc.setDrawColor(200); doc.rect(20, y, w - 40, 10)
-            
-            doc.setFontSize(7)
-            doc.text((row.acteur || '').substring(0, 20), 22, y + 6)
-            doc.text((row.etape || '').substring(0, 35), 62, y + 6)
-            doc.text(row.delai || '-', 127, y + 6)
-            doc.text((row.output || '').substring(0, 25), 152, y + 6)
-            y += 10
-          })
-          
-          y += 5
-          doc.setFontSize(8); doc.setTextColor(100)
-          doc.text('Ce logigramme présente le processus étape par étape avec les acteurs responsables.', 25, y)
-          footer(doc.internal.getNumberOfPages())
-        }
-        
-      // CHECKLISTS
-      } else if (docId.startsWith('ck-')) {
-        doc.setFontSize(10); doc.setTextColor(0)
-        const items = data.items || []
-        items.forEach((item, idx) => {
-          doc.rect(25, y - 3, 4, 4) // Checkbox
-          doc.text(`${idx + 1}. ${item}`, 32, y)
-          y += 8
-        })
-        
-      // RDD
-      } else if (docId === 'rdd' && rddData) {
-        const periodeStr = `${format(rddData.periode.start, 'MMMM yyyy', { locale: fr })} - ${format(rddData.periode.end, 'MMMM yyyy', { locale: fr })}`
-        doc.setFillColor(245, 245, 245); doc.rect(20, y, w - 40, 12, 'F')
-        doc.setFontSize(10); doc.setTextColor(0)
-        doc.text(`Période : ${periodeStr}`, 25, y + 5)
-        doc.text(`Participants : Direction`, 25, y + 10)
-        y += 20
-        
-        const section = (titre, items, color) => {
-          doc.setFillColor(...color); doc.rect(20, y, w - 40, 8, 'F')
-          doc.setTextColor(255); doc.setFont(undefined, 'bold'); doc.setFontSize(10)
-          doc.text(titre, 25, y + 6); y += 12
-          doc.setTextColor(0); doc.setFont(undefined, 'normal'); doc.setFontSize(10)
-          items.forEach(item => { doc.text(`• ${item}`, 25, y); y += 6 }); y += 5
-        }
-        
-        section('1. FORMATIONS', [`Sessions : ${rddData.sessions.terminees}/${rddData.sessions.total}`, `Stagiaires : ${rddData.stagiaires}`], [59, 130, 246])
-        section('2. SATISFACTION', [`Score moyen : ${rddData.satisfaction.score}/5`, `Recommandation : ${rddData.satisfaction.tauxReco}%`], [34, 197, 94])
-        section('3. RÉCLAMATIONS', [`Total : ${rddData.reclamations.total}`, `Clôturées : ${rddData.reclamations.cloturees}`], [239, 68, 68])
-        section('4. NON-CONFORMITÉS', [`Total : ${rddData.nc.total}`, `Clôturées : ${rddData.nc.cloturees}`], [251, 191, 36])
-        
-      // REGISTRES
-      } else if (docId.startsWith('reg-') && docInfo.table) {
-        const tableData = registreData[docInfo.table] || []
-        doc.setFontSize(9); doc.text(`Export ${d} - ${tableData.length} enregistrement(s)`, 20, y); y += 8
-        
-        if (tableData.length > 0) {
-          if (docInfo.table === 'psh_requests') {
-            // Rendu spécifique PSH
-            doc.setFillColor(240, 240, 240); doc.rect(20, y, w - 40, 7, 'F')
-            doc.setFont(undefined, 'bold'); doc.setFontSize(8)
-            doc.text('Réf.', 22, y + 5); doc.text('Besoin fonctionnel', 50, y + 5); doc.text('Décision', 130, y + 5); doc.text('Statut', 155, y + 5)
-            y += 9; doc.setFont(undefined, 'normal')
-            
-            const pshDL = { a_analyser: 'À analyser', adapte: 'Adaptée', partiel: 'Partielle', oriente: 'Orientée', refuse: 'Refusée' }
-            const pshSL = { open: 'Ouverte', in_review: 'En analyse', awaiting_info: 'Info manq.', decided: 'Décidée', implemented: 'Mise en œuvre', closed: 'Clôturé' }
-            tableData.slice(0, 25).forEach(item => {
-              doc.text(item.reference || '-', 22, y)
-              doc.text((item.besoin_fonctionnel || '-').substring(0, 50), 50, y)
-              doc.text(pshDL[item.decision] || '-', 130, y)
-              doc.text(pshSL[item.status] || '-', 155, y)
-              y += 5
-            })
-          } else {
-          doc.setFillColor(240, 240, 240); doc.rect(20, y, w - 40, 7, 'F')
-          doc.setFont(undefined, 'bold'); doc.setFontSize(8)
-          doc.text('Date', 22, y + 5); doc.text('Description', 50, y + 5); doc.text('Statut', 150, y + 5)
-          y += 9; doc.setFont(undefined, 'normal')
-          
-          tableData.slice(0, 25).forEach(item => {
-            doc.text(format(new Date(item.created_at), 'dd/MM/yy'), 22, y)
-            doc.text((item.subject || item.description || item.titre || item.name || '-').substring(0, 55), 50, y)
-            doc.text(item.status || '-', 150, y)
-            y += 5
-          })
-          }
-        } else { doc.text('Aucun enregistrement.', 20, y) }
-        
-      } else {
-        doc.setFontSize(10); doc.text('Document en cours de rédaction.', 20, y)
-      }
-      
-      footer()
+      const pdfOrg = await loadPdfOrg(true)
+      const doc = buildQualityDocPDF(pdfOrg, {
+        docId, docInfo, code: docCode(docInfo.code), version: v, data, rddData,
+        registre: docInfo.table ? (registreData[docInfo.table] || []) : [],
+      })
       doc.save(`${docCode(docInfo.code)}-V${v}.pdf`)
-      toast.success('PDF généré !')
+      toast.success('PDF généré')
     } catch (e) { console.error(e); toast.error('Erreur PDF') }
     setGenerating(false)
   }

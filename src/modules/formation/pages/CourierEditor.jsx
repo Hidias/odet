@@ -1,4 +1,3 @@
-import { orgName } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useDataStore } from '../../../core/store'
@@ -7,10 +6,9 @@ import {
   Minus, Plus, Eye, Save, Loader2, Wand2, ArrowRight, Mic, MicOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import jsPDF from 'jspdf'
+import { buildCourierPDF } from '../pdf/courierPDF'
 import { supabase } from '../../../core/supabase'
 import { buildORG } from '../../../core/org/orgUtils'
-const STAMP_BASE64 = null // tampon uniquement depuis les paramètres de l'organisme
 
 const DOC_TYPES = [
   { id: 'attestation', label: 'Attestation libre', description: "Attestation officielle de l'organisme" },
@@ -119,171 +117,7 @@ export default function CourierEditor() {
   }, [docType, destinataire, objet, lieu, docDate, body, signataire])
 
   function buildPDF() {
-    const doc = new jsPDF('p', 'mm', 'a4')
-    const pw = doc.internal.pageSize.getWidth()
-    const ph = doc.internal.pageSize.getHeight()
-    let y = 15
-
-      // === EN-TÊTE ===
-      const logoBase64 = org.logo_base64
-      if (logoBase64 && typeof logoBase64 === 'string' && logoBase64.startsWith('data:image')) {
-        try {
-          const fmt = logoBase64.includes('image/png') ? 'PNG' : 'JPEG'
-          doc.addImage(logoBase64, fmt, 15, 10, 50, 12.5)
-        } catch {
-          doc.setFillColor(...(org.theme?.primary || [28, 32, 36]))
-          doc.rect(15, 10, 50, 12, 'F')
-          doc.setFontSize(10)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(255, 255, 255)
-          doc.text(orgName().toUpperCase(), 20, 18)
-        }
-      } else {
-        doc.setFillColor(...(org.theme?.primary || [28, 32, 36]))
-        doc.rect(15, 10, 50, 12, 'F')
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(255, 255, 255)
-        doc.text((org.name || '').toUpperCase().slice(0, 22), 20, 18)
-      }
-
-      // Infos société à droite du logo
-      doc.setTextColor(80, 80, 80)
-      doc.setFontSize(7.5)
-      doc.setFont('helvetica', 'normal')
-      doc.text((org.nameFull || org.name).toUpperCase(), 70, 12)
-      doc.text(org.address || '', 70, 17)
-      doc.text('Tél : ' + (org.phone || '') + ' - ' + (org.email || ''), 70, 22)
-      doc.text('SIRET : ' + (org.siret || '') + (org.nda ? ' - NDA : ' + org.nda : ''), 70, 27)
-
-      // Ligne de séparation
-      doc.setDrawColor(...(org.theme?.primary || [28, 32, 36]))
-      doc.setLineWidth(0.5)
-      doc.line(15, 32, pw - 15, 32)
-      y = 38
-
-      // === DESTINATAIRE (droite) ===
-      if (destinataire) {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(0, 0, 0)
-        const destLines = destinataire.split('\n')
-        destLines.forEach((line, i) => {
-          doc.text(line, pw - 15, y + (i * 5), { align: 'right' })
-        })
-        y += destLines.length * 5 + 5
-      }
-
-      // === LIEU ET DATE ===
-      const dateFormatted = docDate ? new Date(docDate + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
-      if (lieu || dateFormatted) {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'italic')
-        doc.setTextColor(80, 80, 80)
-        doc.text((lieu ? lieu + ', le ' : 'Le ') + dateFormatted, pw - 15, y, { align: 'right' })
-        y += 10
-      }
-
-      // === OBJET ===
-      if (objet) {
-        doc.setFontSize(11)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(...(org.theme?.primary || [28, 32, 36]))
-        doc.text('Objet : ' + objet, 15, y)
-        y += 10
-      }
-
-      // === TYPE ATTESTATION : titre centré ===
-      if (docType === 'attestation') {
-        doc.setFontSize(14)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(...(org.theme?.primary || [28, 32, 36]))
-        doc.text('ATTESTATION', pw / 2, y, { align: 'center' })
-        y += 12
-      }
-
-      // === CORPS DU DOCUMENT ===
-      if (body) {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(30, 30, 30)
-        
-        const paragraphs = body.split('\n')
-        paragraphs.forEach(paragraph => {
-          if (paragraph.trim() === '') {
-            y += 4
-          } else {
-            const lines = doc.splitTextToSize(paragraph, pw - 35)
-            lines.forEach(line => {
-              if (y > ph - 40) {
-                doc.addPage()
-                y = 20
-              }
-              doc.text(line, 15, y)
-              y += 5
-            })
-            y += 2
-          }
-        })
-      }
-
-      // === FORMULE DE POLITESSE implicite pour courrier ===
-      // (l'utilisateur la met dans le body)
-
-      // === SIGNATURE + TAMPON ===
-      if (signataire) {
-        y = Math.max(y + 15, y)
-        if (y > ph - 65) {
-          doc.addPage()
-          y = 20
-        }
-
-        const sigX = pw - 75 // position X pour signature et tampon
-
-        // Tampon au-dessus du signataire
-        const stampImg = org.stamp_base64 || STAMP_BASE64
-        if (stampImg && typeof stampImg === 'string' && (stampImg.startsWith('data:image') || stampImg.startsWith('/9j/'))) {
-          try {
-            // Détecter format
-            let fmt = 'JPEG'
-            if (stampImg.includes('image/png')) fmt = 'PNG'
-            // Nettoyer le base64 si nécessaire
-            const imgData = stampImg.startsWith('data:') ? stampImg : 'data:image/jpeg;base64,' + stampImg
-            doc.addImage(imgData, fmt, sigX, y, 50, 18)
-            y += 20
-          } catch (e) {
-            console.error('Erreur tampon PDF:', e)
-            y += 5
-          }
-        }
-
-        // Texte signataire
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(0, 0, 0)
-        const sigLines = signataire.split('\n')
-        sigLines.forEach((line, i) => {
-          doc.text(line, sigX, y + (i * 5))
-        })
-      }
-
-      // === PIED DE PAGE ===
-      const totalPages = doc.internal.getNumberOfPages()
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i)
-        doc.setFontSize(7)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(150, 150, 150)
-        doc.text(
-          (org.nameFull || org.name) + ' - ' + (org.address || '') + ' - SIRET ' + (org.siret || ''),
-          pw / 2, ph - 8, { align: 'center' }
-        )
-        if (totalPages > 1) {
-          doc.text('Page ' + i + '/' + totalPages, pw - 15, ph - 8, { align: 'right' })
-        }
-      }
-
-      return doc
+    return buildCourierPDF(org, { docType, destinataire, objet, lieu, docDate, body, signataire })
   }
 
   function generatePreview() {
