@@ -69,7 +69,7 @@ export default function Completude() {
             priority: 'important',
             element: `${t.first_name} ${t.last_name}`,
             detail: 'Date de naissance manquante',
-            link: `/trainees/${t.id}`,
+            link: '/stagiaires',
             entityId: t.id,
             since: null
           })
@@ -80,7 +80,7 @@ export default function Completude() {
             priority: 'important',
             element: `${t.first_name} ${t.last_name}`,
             detail: 'CSP manquante',
-            link: `/trainees/${t.id}`,
+            link: '/stagiaires',
             entityId: t.id,
             since: null
           })
@@ -91,7 +91,7 @@ export default function Completude() {
             priority: 'important',
             element: `${t.first_name} ${t.last_name}`,
             detail: 'Poste/fonction manquant',
-            link: `/trainees/${t.id}`,
+            link: '/stagiaires',
             entityId: t.id,
             since: null
           })
@@ -102,7 +102,7 @@ export default function Completude() {
             priority: 'important',
             element: `${t.first_name} ${t.last_name}`,
             detail: 'Genre manquant',
-            link: `/trainees/${t.id}`,
+            link: '/stagiaires',
             entityId: t.id,
             since: null
           })
@@ -113,7 +113,7 @@ export default function Completude() {
             priority: 'bloquant',
             element: `${t.first_name} ${t.last_name}`,
             detail: 'Numéro SS manquant',
-            link: `/trainees/${t.id}`,
+            link: '/stagiaires',
             entityId: t.id,
             since: null
           })
@@ -215,118 +215,88 @@ export default function Completude() {
         }
       })
 
-      // 3. ÉMARGEMENTS
-      const { data: attendance } = await supabase
-        .from('session_trainees')
-        .select(`
-          id,
-          trainees(first_name, last_name),
-          sessions(id, reference, start_date, courses(title)),
-          attendance_halfdays(morning, afternoon)
-        `)
-        .in('sessions.status', ['ongoing', 'completed'])
-      
-      attendance?.forEach(st => {
-        const hasAttendance = st.attendance_halfdays && st.attendance_halfdays.length > 0
-        if (!hasAttendance) {
-          const traineeName = `${st.trainees?.first_name} ${st.trainees?.last_name}`
-          const sessionRef = st.sessions?.reference || 'Session'
-          const courseName = st.sessions?.courses?.title || ''
-          
-          allIssues.push({
-            category: 'emargements',
-            priority: 'bloquant',
-            element: `${traineeName} - ${sessionRef}`,
-            detail: 'Aucun émargement',
-            link: `/sessions/${st.sessions?.id}`,
-            entityId: st.id,
-            since: st.sessions?.start_date
-          })
+      // 3 à 5 et 7 : participants des sessions en cours ou terminées, rapprochés par session et stagiaire
+      // (émargements, évaluations et objectifs sont rattachés à session_id + trainee_id)
+      const { data: doneSessions } = await supabase
+        .from('sessions')
+        .select('id, reference, start_date, end_date, start_time, end_time, status, courses(title)')
+        .in('status', ['in_progress', 'completed'])
+      const sessionById = new Map((doneSessions || []).map((s) => [s.id, s]))
+      const doneIds = [...sessionById.keys()]
+      const inDone = async (table, cols) => {
+        if (!doneIds.length) return []
+        const { data, error } = await supabase.from(table).select(cols).in('session_id', doneIds)
+        if (error) console.error(`Complétude ${table} :`, error.message)
+        return data || []
+      }
+      const [participants, halfdays, hotEvals, coldEvals, objectivesRows] = await Promise.all([
+        inDone('session_trainees', 'id, session_id, trainee_id, absent, trainees(first_name, last_name)'),
+        inDone('attendance_halfdays', 'session_id, trainee_id, morning, afternoon'),
+        inDone('trainee_evaluations', 'session_id, trainee_id, questionnaire_submitted, submitted_at'),
+        inDone('evaluations_cold', 'session_id, trainee_id, completed_at'),
+        inDone('trainee_objectives', 'session_id, trainee_id, validated, remediation_comment'),
+      ])
+      const keyOf = (r) => `${r.session_id}|${r.trainee_id}`
+      const groupBy = (rows) => {
+        const m = new Map()
+        rows.forEach((r) => { const k = keyOf(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r) })
+        return m
+      }
+      const halfdaysBy = groupBy(halfdays)
+      const objectivesBy = groupBy(objectivesRows)
+      const hotDone = new Set(hotEvals.filter((e) => e.questionnaire_submitted || e.submitted_at).map(keyOf))
+      const coldDone = new Set(coldEvals.filter((e) => e.completed_at).map(keyOf))
+      const threeMonthsAgo = new Date()
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+
+      participants.forEach((st) => {
+        const sess = sessionById.get(st.session_id)
+        if (!sess) return
+        const traineeName = `${st.trainees?.first_name || ''} ${st.trainees?.last_name || ''}`.trim()
+        const sessionRef = sess.reference || 'Session'
+        const k = keyOf(st)
+        const base = { element: `${traineeName} - ${sessionRef}`, link: `/sessions/${sess.id}`, entityId: st.id }
+
+        // 3. ÉMARGEMENTS (participant absent : rien à émarger)
+        if (!st.absent) {
+          const rows = halfdaysBy.get(k) || []
+          if (!rows.length) {
+            allIssues.push({ ...base, category: 'emargements', priority: 'bloquant', detail: 'Aucun émargement', since: sess.start_date })
+          } else {
+            // Demi-journées attendues selon les horaires (une session de matinée n'a pas d'après-midi à émarger)
+            const hhmm = (t, d) => String(t || d).slice(0, 5)
+            const expectMorning = hhmm(sess.start_time, '09:00') < '12:30'
+            const expectAfternoon = hhmm(sess.end_time, '17:00') > '13:30'
+            const missingHalfDays = rows.filter((r) => (expectMorning && !r.morning) || (expectAfternoon && !r.afternoon))
+            if (missingHalfDays.length > 0) {
+              allIssues.push({ ...base, category: 'emargements', priority: 'important', detail: `${missingHalfDays.length} demi-journée(s) non émargée(s)`, since: sess.start_date })
+            }
+          }
+        }
+
+        if (sess.status !== 'completed' || st.absent) return
+
+        // 4. ÉVALUATIONS À CHAUD
+        if (!hotDone.has(k)) {
+          allIssues.push({ ...base, category: 'evaluations', priority: 'important', detail: 'Évaluation à chaud manquante', since: sess.end_date })
+        }
+
+        // 5. ÉVALUATIONS À FROID (sessions terminées depuis plus de 3 mois)
+        if (sess.end_date && new Date(sess.end_date) < threeMonthsAgo && !coldDone.has(k)) {
+          allIssues.push({ ...base, category: 'evaluations', priority: 'important', detail: 'Évaluation à froid manquante (>3 mois)', since: sess.end_date })
+        }
+
+        // 7. OBJECTIFS
+        const objs = objectivesBy.get(k) || []
+        if (!objs.length) {
+          allIssues.push({ ...base, category: 'objectifs', priority: 'important', detail: 'Objectifs non évalués', since: null })
         } else {
-          // Vérifier demi-journées manquantes
-          const missingHalfDays = st.attendance_halfdays.filter(a => !a.morning || !a.afternoon)
-          if (missingHalfDays.length > 0) {
-            const traineeName = `${st.trainees?.first_name} ${st.trainees?.last_name}`
-            const sessionRef = st.sessions?.reference || 'Session'
-            
-            allIssues.push({
-              category: 'emargements',
-              priority: 'important',
-              element: `${traineeName} - ${sessionRef}`,
-              detail: `${missingHalfDays.length} demi-journée(s) non émargée(s)`,
-              link: `/sessions/${st.sessions?.id}`,
-              entityId: st.id,
-              since: st.sessions?.start_date
-            })
+          const needsRemediation = objs.filter((o) => !o.validated && !(o.remediation_comment || '').trim())
+          if (needsRemediation.length > 0) {
+            allIssues.push({ ...base, category: 'objectifs', priority: 'important', detail: `${needsRemediation.length} objectif(s) non acquis sans remédiation`, since: null })
           }
         }
       })
-
-      // 4. ÉVALUATIONS À CHAUD
-      const { data: evalHot } = await supabase
-        .from('session_trainees')
-        .select(`
-          id,
-          questionnaire_submitted,
-          trainees(first_name, last_name),
-          sessions(id, reference, end_date, courses(title))
-        `)
-        .eq('sessions.status', 'completed')
-        .is('questionnaire_submitted', false)
-      
-      evalHot?.forEach(st => {
-        const traineeName = `${st.trainees?.first_name} ${st.trainees?.last_name}`
-        const sessionRef = st.sessions?.reference || 'Session'
-        
-        allIssues.push({
-          category: 'evaluations',
-          priority: 'important',
-          element: `${traineeName} - ${sessionRef}`,
-          detail: 'Évaluation à chaud manquante',
-          link: `/sessions/${st.sessions?.id}`,
-          entityId: st.id,
-          since: st.sessions?.end_date
-        })
-      })
-
-      // 5. ÉVALUATIONS À FROID
-      const threeMonthsAgo = new Date()
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
-      
-      const { data: evalCold } = await supabase
-        .from('session_trainees')
-        .select(`
-          id,
-          trainees(first_name, last_name),
-          sessions(id, reference, end_date, courses(title))
-        `)
-        .eq('sessions.status', 'completed')
-        .lt('sessions.end_date', threeMonthsAgo.toISOString())
-      
-      if (evalCold) {
-        const { data: coldEvals } = await supabase
-          .from('evaluations_cold')
-          .select('session_trainee_id')
-        
-        const coldEvalIds = new Set(coldEvals?.map(e => e.session_trainee_id) || [])
-        
-        evalCold.forEach(st => {
-          if (!coldEvalIds.has(st.id)) {
-            const traineeName = `${st.trainees?.first_name} ${st.trainees?.last_name}`
-            const sessionRef = st.sessions?.reference || 'Session'
-            
-            allIssues.push({
-              category: 'evaluations',
-              priority: 'important',
-              element: `${traineeName} - ${sessionRef}`,
-              detail: 'Évaluation à froid manquante (>3 mois)',
-              link: `/sessions/${st.sessions?.id}`,
-              entityId: st.id,
-              since: st.sessions?.end_date
-            })
-          }
-        })
-      }
 
       // 6. ÉVALUATIONS FORMATEURS
       const { data: trainerEvals } = await supabase
@@ -372,77 +342,19 @@ export default function Completude() {
         })
       }
 
-      // 7. OBJECTIFS
-      const { data: objectives } = await supabase
-        .from('session_trainees')
-        .select(`
-          id,
-          trainees(first_name, last_name),
-          sessions(id, reference, courses(title)),
-          trainee_objectives(result, remediation_comment)
-        `)
-        .eq('sessions.status', 'completed')
-      
-      objectives?.forEach(st => {
-        const traineeName = `${st.trainees?.first_name} ${st.trainees?.last_name}`
-        const sessionRef = st.sessions?.reference || 'Session'
-        
-        if (!st.trainee_objectives || st.trainee_objectives.length === 0) {
-          allIssues.push({
-            category: 'objectifs',
-            priority: 'important',
-            element: `${traineeName} - ${sessionRef}`,
-            detail: 'Objectifs non définis',
-            link: `/sessions/${st.sessions?.id}`,
-            entityId: st.id,
-            since: null
-          })
-        } else {
-          // Vérifier résultats non validés
-          const unvalidated = st.trainee_objectives.filter(o => !o.result || o.result === 'pending')
-          if (unvalidated.length > 0) {
-            allIssues.push({
-              category: 'objectifs',
-              priority: 'important',
-              element: `${traineeName} - ${sessionRef}`,
-              detail: `${unvalidated.length} objectif(s) non validé(s)`,
-              link: `/sessions/${st.sessions?.id}`,
-              entityId: st.id,
-              since: null
-            })
-          }
-          
-          // Vérifier remédiation manquante
-          const needsRemediation = st.trainee_objectives.filter(o => 
-            o.result === 'not_acquired' && (!o.remediation_comment || !o.remediation_comment.trim())
-          )
-          if (needsRemediation.length > 0) {
-            allIssues.push({
-              category: 'objectifs',
-              priority: 'important',
-              element: `${traineeName} - ${sessionRef}`,
-              detail: `${needsRemediation.length} remédiation(s) manquante(s)`,
-              link: `/sessions/${st.sessions?.id}`,
-              entityId: st.id,
-              since: null
-            })
-          }
-        }
-      })
-
       // 8. FORMATIONS
       const { data: courses } = await supabase
         .from('courses')
-        .select('id, name, program, prerequisites, objectives, course_documents(id)')
+        .select('id, title, program, prerequisites, objectives, course_documents(id)')
       
       courses?.forEach(c => {
         if (!c.program || !c.program.trim()) {
           allIssues.push({
             category: 'formations',
             priority: 'important',
-            element: c.name,
+            element: c.title,
             detail: 'Programme manquant',
-            link: `/courses/${c.id}`,
+            link: '/formations',
             entityId: c.id,
             since: null
           })
@@ -451,9 +363,9 @@ export default function Completude() {
           allIssues.push({
             category: 'formations',
             priority: 'important',
-            element: c.name,
+            element: c.title,
             detail: 'Documents pédagogiques manquants',
-            link: `/courses/${c.id}`,
+            link: '/formations',
             entityId: c.id,
             since: null
           })
@@ -462,9 +374,9 @@ export default function Completude() {
           allIssues.push({
             category: 'formations',
             priority: 'mineur',
-            element: c.name,
+            element: c.title,
             detail: 'Prérequis non définis',
-            link: `/courses/${c.id}`,
+            link: '/formations',
             entityId: c.id,
             since: null
           })
@@ -473,9 +385,9 @@ export default function Completude() {
           allIssues.push({
             category: 'formations',
             priority: 'important',
-            element: c.name,
+            element: c.title,
             detail: 'Objectifs pédagogiques manquants',
-            link: `/courses/${c.id}`,
+            link: '/formations',
             entityId: c.id,
             since: null
           })
@@ -483,17 +395,10 @@ export default function Completude() {
       })
 
       // 9. FORMATEURS
-      const { data: trainers } = await supabase
+      const { data: trainers, error: trainersError } = await supabase
         .from('trainers')
-        .select(`
-          id, 
-          first_name, 
-          last_name,
-          cv_url,
-          trainer_qualifications(id),
-          trainer_interviews(date),
-          trainer_trainings(date)
-        `)
+        .select('id, first_name, last_name, trainer_certificates(id), trainer_interviews(interview_date), trainer_trainings(training_date)')
+      if (trainersError) console.error('Complétude formateurs :', trainersError.message)
       
       const oneYearAgo = new Date()
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
@@ -501,25 +406,13 @@ export default function Completude() {
       trainers?.forEach(t => {
         const trainerName = `${t.first_name} ${t.last_name}`
         
-        if (!t.cv_url) {
-          allIssues.push({
-            category: 'formateurs',
-            priority: 'important',
-            element: trainerName,
-            detail: 'CV manquant',
-            link: `/trainers/${t.id}`,
-            entityId: t.id,
-            since: null
-          })
-        }
-        
-        if (!t.trainer_qualifications || t.trainer_qualifications.length === 0) {
+        if (!t.trainer_certificates || t.trainer_certificates.length === 0) {
           allIssues.push({
             category: 'formateurs',
             priority: 'important',
             element: trainerName,
             detail: 'Certificats/qualifications manquants',
-            link: `/trainers/${t.id}`,
+            link: '/formateurs',
             entityId: t.id,
             since: null
           })
@@ -527,7 +420,7 @@ export default function Completude() {
         
         // Entretien annuel
         const lastYearInterviews = t.trainer_interviews?.filter(i => 
-          new Date(i.date) >= oneYearAgo
+          new Date(i.interview_date) >= oneYearAgo
         )
         if (!lastYearInterviews || lastYearInterviews.length === 0) {
           allIssues.push({
@@ -535,7 +428,7 @@ export default function Completude() {
             priority: 'important',
             element: trainerName,
             detail: 'Entretien annuel manquant (12 derniers mois)',
-            link: `/trainers/${t.id}`,
+            link: '/formateurs',
             entityId: t.id,
             since: null
           })
@@ -543,7 +436,7 @@ export default function Completude() {
         
         // Formations continues
         const recentTrainings = t.trainer_trainings?.filter(tr => 
-          new Date(tr.date) >= oneYearAgo
+          new Date(tr.training_date) >= oneYearAgo
         )
         if (!recentTrainings || recentTrainings.length === 0) {
           allIssues.push({
@@ -551,7 +444,7 @@ export default function Completude() {
             priority: 'mineur',
             element: trainerName,
             detail: 'Aucune formation continue (12 derniers mois)',
-            link: `/trainers/${t.id}`,
+            link: '/formateurs',
             entityId: t.id,
             since: null
           })
@@ -575,7 +468,7 @@ export default function Completude() {
           priority: 'important',
           element: 'Veille Qualiopi',
           detail: 'Aucune veille ce mois-ci',
-          link: '/qualite/veille',
+          link: '/veille-qualiopi',
           entityId: null,
           since: startOfMonth.toISOString()
         })
@@ -588,7 +481,7 @@ export default function Completude() {
       const { data: oldReclamations } = await supabase
         .from('reclamations')
         .select('id, reference, created_at')
-        .neq('status', 'closed')
+        .not('status', 'in', '(closed,resolved)')
         .lt('created_at', fiveDaysAgo.toISOString())
       
       oldReclamations?.forEach(r => {
@@ -597,7 +490,7 @@ export default function Completude() {
           priority: 'bloquant',
           element: r.reference,
           detail: 'Réclamation non clôturée (>5 jours)',
-          link: '/qualite/reclamations',
+          link: '/qualite',
           entityId: r.id,
           since: r.created_at
         })
@@ -923,7 +816,7 @@ export default function Completude() {
                           </td>
                           <td className="px-6 py-4">
                             <a
-                              href={issue.link}
+                              href={`#${issue.link}`}
                               className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
                               title="Corriger"
                             >
