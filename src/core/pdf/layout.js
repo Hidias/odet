@@ -387,8 +387,23 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   }
 
   // Liste de cases : [{ label, checked, muted }] ; inline: true pour une seule ligne
-  f.checks = (items, { inline = false, size = 9, colW = null } = {}) => {
+  f.checks = (items, { inline = false, size = 9, colW = null, columns = 1 } = {}) => {
     const box = 3.4
+    if (columns > 1) {
+      const cw = W / columns
+      for (let i = 0; i < items.length; i += columns) {
+        f.ensure(6)
+        items.slice(i, i + columns).forEach((it, j) => {
+          const x = M + j * cw
+          drawCheckbox(doc, ORG, x + 1, f.y - box + 0.6, box, !!it.checked, it.color || null)
+          f.body(size); if (it.checked) doc.setFont('helvetica', 'bold')
+          doc.text(doc.splitTextToSize(String(it.label), cw - box - 6)[0] || '', x + box + 4, f.y)
+        })
+        f.y += 5.6
+      }
+      f.y += 1
+      return
+    }
     if (inline) {
       f.ensure(6)
       let x = M
