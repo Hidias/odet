@@ -2209,7 +2209,11 @@ export const useDataStore = create((set, get) => ({
       .from('organization_settings')
       .select('*')
       .single()
-    if (!error && data) set({ organization: data })
+    if (!error && data) {
+      // Référent handicap lu dans le rôle qualité (une seule source), pas dans une copie
+      const ref = await supabase.rpc('referent_handicap_info').then((r) => r.data || null, () => null)
+      set({ organization: { ...data, referent_handicap_info: ref } })
+    }
     return { data, error }
   },
   
@@ -2224,7 +2228,7 @@ export const useDataStore = create((set, get) => ({
     } else {
       result = await supabase.from('organization_settings').insert([payload]).select().single()
     }
-    if (!result.error && result.data) set({ organization: result.data })
+    if (!result.error && result.data) set({ organization: { ...result.data, referent_handicap_info: get().organization?.referent_handicap_info || null } })
     return result
   },
 

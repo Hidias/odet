@@ -30,7 +30,7 @@ const ORG_FIELDS = [
   'name', 'legal_name', 'forme_juridique', 'capital_social', 'siret', 'siren', 'naf', 'tva_intra', 'tva_applicable', 'rcs', 'tribunal_competent',
   'nda', 'nda_region', 'qualiopi_certified', 'qualiopi_since', 'qualiopi_organisme', 'activity_kind', 'caces_activity', 'date_creation',
   'address', 'postal_code', 'city', 'phone', 'email', 'website', 'lieu_signature', 'region', 'zone_departements',
-  'dirigeant_name', 'dirigeant_title', 'dirigeant_signature_url', 'referent_handicap_nom', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
+  'dirigeant_name', 'dirigeant_title', 'dirigeant_signature_url', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
   'app_name', 'app_short_name', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'logo_base64', 'stamp_base64',
   'reglement_interieur', 'reglement_version', 'livret_accueil', 'livret_version', 'conditions_annulation', 'cgv_url', 'doc_prefix',
   'bank_name', 'iban', 'bic', 'email_bcc', 'email_default_sender', 'exercice_start_month', 'demo_mode',
@@ -45,6 +45,10 @@ export default function Settings() {
   const setSection = (id) => setParams({ section: id })
 
   const [form, setForm] = useState({})
+  // Référent handicap : lu dans le rôle qualité (Paramètres > Qualité et référents), jamais recopié ici
+  const [refHandicap, setRefHandicap] = useState(null)
+  const loadRefHandicap = () => supabase.rpc('referent_handicap_info').then(({ data }) => setRefHandicap(data || null), () => setRefHandicap(null))
+  useEffect(() => { loadRefHandicap() }, [])
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const isSuperadmin = userRole === 'superadmin'
@@ -213,10 +217,10 @@ export default function Settings() {
               <h2 className="section-title">Référent handicap</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Field label="Nom" hint="Se choisit dans Qualité et référents">
-                  <div className="input bg-gray-50 text-gray-700">{form.referent_handicap_nom || 'Non désigné'}</div>
+                  <div className="input bg-gray-50 text-gray-700">{refHandicap?.nom || 'Non désigné'}</div>
                 </Field>
-                <Field label="Email"><input className="input" value={form.referent_handicap_email || ''} onChange={(e) => set('referent_handicap_email', e.target.value)} /></Field>
-                <Field label="Téléphone"><input className="input" value={form.referent_handicap_phone || ''} onChange={(e) => set('referent_handicap_phone', e.target.value)} /></Field>
+                <Field label="Email de contact" hint="Facultatif : vide, c'est celui du référent"><input className="input" placeholder={refHandicap?.email || ''} value={form.referent_handicap_email || ''} onChange={(e) => set('referent_handicap_email', e.target.value)} /></Field>
+                <Field label="Téléphone de contact" hint="Facultatif : vide, c'est celui du référent"><input className="input" placeholder={refHandicap?.phone || ''} value={form.referent_handicap_phone || ''} onChange={(e) => set('referent_handicap_phone', e.target.value)} /></Field>
               </div>
             </>
           )}
@@ -318,7 +322,7 @@ export default function Settings() {
           )}
 
           {section === 'modules' && <ModulesSection onChanged={refreshModules} />}
-          {section === 'qualite' && <QualiteSection onReferentHandicap={(r) => { set('referent_handicap_nom', r.nom); if (r.email) set('referent_handicap_email', r.email); if (r.telephone) set('referent_handicap_phone', r.telephone) }} />}
+          {section === 'qualite' && <QualiteSection onReferentHandicap={loadRefHandicap} />}
           {section === 'emails' && <EmailSettings embedded />}
           {section === 'utilisateurs' && <UsersSection isSuperadmin={isSuperadmin} />}
           {section === 'comptable' && <ComptableSection />}
@@ -354,15 +358,7 @@ function QualiteSection({ onReferentHandicap }) {
     setBusy(role.code)
     const { error } = await supabase.from('quality_roles').update({ profile_id: profileId || null, updated_at: new Date().toISOString() }).eq('code', role.code)
     if (error) { setBusy(null); return toast.error(error.message) }
-    if (role.code === 'referent_handicap') {
-      const p = profiles.find((x) => x.id === profileId)
-      const r = { nom: personName(p), email: p?.sender_email || p?.email || '', telephone: p?.phone || '' }
-      const patch = { referent_handicap_nom: r.nom || null }
-      if (r.email) patch.referent_handicap_email = r.email
-      if (r.telephone) patch.referent_handicap_phone = r.telephone
-      await supabase.from('organization_settings').update(patch).not('id', 'is', null)
-      onReferentHandicap?.(r)
-    }
+    if (role.code === 'referent_handicap') onReferentHandicap?.()
     setBusy(null)
     toast.success('Référent mis à jour')
     load()

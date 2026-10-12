@@ -4,6 +4,7 @@
 // avec missingOrgFields() avant de produire un document.
 
 import { hexToRgb } from '../branding/colors'
+import { supabase } from '../supabase'
 
 export function formatSiret(siret) {
   if (!siret) return ''
@@ -129,9 +130,10 @@ export function buildORG(o) {
     dirigeant_signature_url: s.dirigeant_signature_url || null,
     dirigeant_signature_base64: s.dirigeant_signature_base64 || null,
     // Référent handicap
-    referent_handicap_nom: s.referent_handicap_nom || '',
-    referent_handicap_email: s.referent_handicap_email || '',
-    referent_handicap_phone: s.referent_handicap_phone || '',
+    // Référent handicap : rôle qualité (referent_handicap_info, joint par prepareOrgForPDF et fetchOrganization)
+    referent_handicap_nom: s.referent_handicap_info?.nom || s.referent_handicap_nom || '',
+    referent_handicap_email: s.referent_handicap_info?.email || s.referent_handicap_email || '',
+    referent_handicap_phone: s.referent_handicap_info?.phone || s.referent_handicap_phone || '',
     // Textes
     reglement_interieur: s.reglement_interieur || '',
     livret_accueil: s.livret_accueil || '',
@@ -200,6 +202,12 @@ async function urlToDataUrl(url) {
 export async function prepareOrgForPDF(organization) {
   if (!organization) return null
   let out = organization
+  if (!out.referent_handicap_info) {
+    try {
+      const { data } = await supabase.rpc('referent_handicap_info')
+      if (data) out = { ...out, referent_handicap_info: data }
+    } catch (err) { console.warn('Référent handicap introuvable :', err.message) }
+  }
   if (!out.logo_base64 && out.logo_url) {
     try { out = { ...out, logo_base64: await urlToDataUrl(out.logo_url) } } catch (err) { console.warn('Logo introuvable :', err.message) }
   }
