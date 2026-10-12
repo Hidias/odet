@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Calendar, GraduationCap, Users, UserCheck, FileText, FileQuestion, ClipboardCheck,
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
-  MapPin, Briefcase, Settings, Sliders,
+  MapPin, Briefcase, Settings, Sliders, ShieldCheck,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -82,6 +82,7 @@ export const NAV_SECTIONS = [
       { to: '/indicateurs', icon: BarChart3, label: 'Indicateurs', roles: STAFF },
       { to: '/non-conformites', icon: AlertTriangle, label: 'Non-conformités', roles: MANAGERS },
       { to: '/qualiopi', icon: Award, label: 'Qualiopi', roles: MANAGERS },
+      { to: '/certification', icon: ShieldCheck, label: 'Certification', roles: MANAGERS, module: 'certification' },
       { to: '/bpf', icon: FileText, label: 'BPF', roles: MANAGERS },
       { to: '/veille-qualiopi', icon: Eye, label: 'Veille', roles: MANAGERS },
       { to: '/registre-psh', icon: Shield, label: 'Registre PSH', roles: MANAGERS },

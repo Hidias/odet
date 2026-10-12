@@ -39,6 +39,7 @@ const Invoices = lazy(() => import('../modules/commercial/pages/Invoices'))
 const QualiteEditables = lazy(() => import('../modules/qualite/pages/QualiteEditables'))
 const Completude = lazy(() => import('../modules/qualite/pages/Completude'))
 const BPF = lazy(() => import('../modules/qualite/pages/BPF'))
+const Certification = lazy(() => import('../modules/certification/pages/Certification'))
 // Prospection
 const ProspectionTabs = lazy(() => import('../modules/prospection/pages/ProspectionTabs'))
 const ProspectRDVDetail = lazy(() => import('../modules/prospection/pages/ProspectRDVDetail'))
@@ -235,6 +236,7 @@ export default function App() {
             <Route path="profil-stagiaires" element={<ProfilStagiaires />} />
             <Route path="qualiopi" element={<Qualiopi />} />
             <Route path="bpf" element={<BPF />} />
+            <Route path="certification/*" element={<Certification />} />
             <Route path="veille-qualiopi" element={<VeilleQualiopi />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="parametres" element={<Settings />} />

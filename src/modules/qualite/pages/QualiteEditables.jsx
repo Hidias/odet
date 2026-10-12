@@ -54,6 +54,7 @@ const QUALITY_DOCS = {
     { id: 'proc-eval', name: 'Évaluation des acquis', code: 'QUAL-EVAL', indicateur: '11', editable: true },
     { id: 'proc-hand', name: 'Accessibilité handicap', code: 'QUAL-HAND', indicateur: '26', editable: true },
     { id: 'proc-rgpd', name: 'Protection des données', code: 'QUAL-RGPD', indicateur: '1', editable: true },
+    { id: 'proc-vss', name: 'Violences, harcèlement et discriminations', code: 'QUAL-VSS', indicateur: '12', editable: true },
   ]},
   registres: { name: 'Registres', icon: Table, color: 'purple', docs: [
     { id: 'reg-recl', name: 'Registre réclamations', code: 'QUAL-REGREC', table: 'reclamations' },
@@ -74,6 +75,7 @@ const QUALITY_DOCS = {
   pilotage: { name: 'Pilotage', icon: BarChart3, color: 'teal', docs: [
     { id: 'rdd', name: 'Revue de direction', code: 'QUAL-RDD', computed: true },
     { id: 'plan-action', name: 'Plan d\'actions', code: 'QUAL-PLAN', editable: true },
+    { id: 'carto-risques', name: 'Cartographie des risques qualité', code: 'QUAL-RISQ', indicateur: '32', editable: true },
     { id: 'indicateurs', name: 'Tableau des indicateurs', code: 'QUAL-INDIC', computed: true },
   ]},
   soustraitance: { name: 'Sous-traitance', icon: Users2, color: 'gray', docs: [
@@ -245,7 +247,7 @@ const DEFAULT_DATA = {
   // Sous-traitance
   'contrat-st': {
     prestataire: '', objet: '', duree: '', montant: '',
-    obligations: ['Respecter le cahier des charges', 'Garantir la qualité des prestations', 'Fournir les justificatifs demandés', 'Respecter la confidentialité'],
+    obligations: ['Respecter le cahier des charges', 'Garantir la qualité des prestations', 'Respecter le référentiel national qualité (articles L6316-1 et R6316-1 du code du travail) pour les prestations confiées et en fournir les preuves sur demande', 'Fournir les justificatifs demandés (certificat Qualiopi le cas échéant, CV, attestations, assurance)', 'Respecter la confidentialité'],
     conditions: ['Paiement à 30 jours', 'Résiliation sous préavis de 30 jours'],
   },
   'charte-st': {
@@ -255,6 +257,39 @@ const DEFAULT_DATA = {
     parties: [raisonSociale(), ''],
     duree: '5 ans après fin du contrat',
     informations: ['Données clients', 'Données stagiaires', 'Supports pédagogiques', 'Méthodes et process'],
+  },
+  // Indicateur 12 (référentiel au 1er novembre 2026)
+  'proc-vss': {
+    objectif: 'Prévenir toute situation de violence, dont les violences sexistes et sexuelles, de harcèlement ou de discrimination pendant les formations, permettre à toute personne de la signaler et garantir son traitement sans délai.',
+    responsable: P(0), delaiAccuse: '24h', delaiTraitement: '5 jours ouvrés',
+    indicateurs: ['Nombre de signalements', 'Délai de prise en charge', 'Mesures de protection mises en place', 'Actions de prévention menées'],
+    swimlanes: [
+      { acteur: 'Stagiaire, témoin ou formateur', etape: 'Signale la situation (oral, écrit, formulaire de réclamation, email au référent signalements)', delai: 'Dès que possible', output: 'Signalement reçu' },
+      { acteur: 'Formateur', etape: 'Fait cesser la situation et met la personne en sécurité', delai: 'Immédiat', output: 'Mesures conservatoires' },
+      { acteur: 'Référent signalements', etape: 'Accuse réception et reçoit la personne en toute confidentialité', delai: '24h', output: 'Entretien, écoute' },
+      { acteur: 'Référent signalements', etape: 'Informe la personne de ses droits et des recours possibles (employeur, inspection du travail, Défenseur des droits, dépôt de plainte)', delai: '24h', output: 'Information remise' },
+      { acteur: 'Direction', etape: 'Analyse les faits et décide des mesures (exclusion de la session, information de l\'employeur, sanction prévue au règlement intérieur)', delai: '5 jours ouvrés', output: 'Décision écrite' },
+      { acteur: 'Référent signalements', etape: 'Enregistre le signalement et ses suites, sans détail inutile sur les personnes', delai: '5 jours ouvrés', output: 'Trace confidentielle' },
+      { acteur: 'Responsable qualité', etape: 'Analyse les causes et prévient la récidive (sensibilisation des formateurs, règlement intérieur, livret d\'accueil)', delai: '30 jours', output: 'Action d\'amélioration' },
+    ],
+  },
+  // Indicateur 32 (référentiel au 1er novembre 2026) : gravité et probabilité de 1 à 4
+  'carto-risques': {
+    revue: 'Annuelle, et après chaque réclamation ou non-conformité',
+    risques: [
+      { processus: 'Information du public', risque: 'Information erronée ou incomplète sur l\'offre', gravite: 3, probabilite: 2, maitrise: 'Revue des programmes et registre des versions', action: 'Relire chaque fiche avant publication', responsable: P(0), echeance: '' },
+      { processus: 'Conception', risque: 'Formation inadaptée au besoin du client', gravite: 3, probabilite: 2, maitrise: 'Analyse du besoin avant chaque session', action: '', responsable: P(0), echeance: '' },
+      { processus: 'Réalisation', risque: 'Formateur absent ou indisponible', gravite: 4, probabilite: 2, maitrise: 'Planning partagé', action: 'Identifier un formateur de remplacement par thème', responsable: P(0), echeance: '' },
+      { processus: 'Réalisation', risque: 'Matériel pédagogique défaillant ou manquant', gravite: 3, probabilite: 2, maitrise: 'Inventaire et vérification avant session', action: '', responsable: P(0), echeance: '' },
+      { processus: 'Réalisation', risque: 'Accident pendant un exercice pratique', gravite: 4, probabilite: 1, maitrise: 'Consignes de sécurité, trousse de secours', action: '', responsable: P(0), echeance: '' },
+      { processus: 'Accueil', risque: 'Besoin d\'adaptation (handicap) non détecté', gravite: 3, probabilite: 2, maitrise: 'Fiche de renseignement, référent handicap', action: '', responsable: P(0), echeance: '' },
+      { processus: 'Suivi', risque: 'Absences ou abandons non suivis', gravite: 2, probabilite: 2, maitrise: 'Émargement par demi-journée', action: '', responsable: P(0), echeance: '' },
+      { processus: 'Évaluation', risque: 'Acquis non évalués ou non tracés', gravite: 3, probabilite: 1, maitrise: 'Objectifs validés et résultats saisis pour chaque stagiaire', action: '', responsable: P(0), echeance: '' },
+      { processus: 'Comportements', risque: 'Violence, harcèlement ou discrimination pendant une formation', gravite: 4, probabilite: 1, maitrise: 'Procédure de signalement, référent désigné', action: '', responsable: P(0), echeance: '' },
+      { processus: 'Sous-traitance', risque: 'Intervenant externe non qualifié ou non conforme au référentiel', gravite: 4, probabilite: 2, maitrise: 'Justificatifs et clause de conformité dans le contrat', action: '', responsable: P(0), echeance: '' },
+      { processus: 'Réglementation', risque: 'Évolution réglementaire non prise en compte', gravite: 3, probabilite: 2, maitrise: 'Veille légale et réglementaire', action: '', responsable: P(0), echeance: '' },
+      { processus: 'Données', risque: 'Divulgation de données personnelles des stagiaires', gravite: 3, probabilite: 1, maitrise: 'Accès par rôle, données sensibles chiffrées', action: '', responsable: P(0), echeance: '' },
+    ],
   },
   // Pilotage
   'plan-action': {
@@ -696,6 +731,44 @@ export default function QualiteEditables() {
                   </div>
                 ))}
                 <button onClick={() => setEditData({...editData, actions: [...(editData.actions || []), { action: '', responsable: P(0), echeance: '', statut: 'en_cours', priorite: 'normale' }]})} className="btn btn-sm btn-secondary"><Plus className="w-4 h-4 mr-1" /> Ajouter action</button>
+              </div>
+            )}
+
+            {/* CARTOGRAPHIE DES RISQUES QUALITÉ (indicateur 32) */}
+            {editingDoc === 'carto-risques' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Fréquence de revue</label>
+                  <input type="text" value={editData.revue || ''} onChange={e => setEditData({...editData, revue: e.target.value})} className="input w-full" />
+                </div>
+                <div className="text-xs text-gray-500">Gravité et probabilité de 1 (faible) à 4 (forte). Criticité = gravité x probabilité ; à partir de 8, une action est attendue.</div>
+                {(editData.risques || []).map((r, i) => {
+                  const upd = (k, v) => { const n = [...(editData.risques || [])]; n[i] = {...n[i], [k]: v}; setEditData({...editData, risques: n}) }
+                  const crit = (Number(r.gravite) || 0) * (Number(r.probabilite) || 0)
+                  return (
+                    <div key={i} className="p-3 bg-gray-50 rounded-lg space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-2">
+                        <input type="text" value={r.processus || ''} onChange={e => upd('processus', e.target.value)} className="input" placeholder="Processus" />
+                        <input type="text" value={r.risque || ''} onChange={e => upd('risque', e.target.value)} className="input" placeholder="Risque sur la qualité des formations" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 items-center">
+                        <label className="text-xs">Gravité<select value={r.gravite || 1} onChange={e => upd('gravite', Number(e.target.value))} className="input">{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
+                        <label className="text-xs">Probabilité<select value={r.probabilite || 1} onChange={e => upd('probabilite', Number(e.target.value))} className="input">{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
+                        <span className={`badge ${crit >= 8 ? 'badge-danger' : crit >= 4 ? 'badge-warning' : 'badge-success'} justify-self-start`}>Criticité {crit}</span>
+                      </div>
+                      <input type="text" value={r.maitrise || ''} onChange={e => upd('maitrise', e.target.value)} className="input w-full" placeholder="Mesures de maîtrise en place" />
+                      <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_1fr] gap-2">
+                        <input type="text" value={r.action || ''} onChange={e => upd('action', e.target.value)} className="input" placeholder="Action à mener" />
+                        <select value={r.responsable || ''} onChange={e => upd('responsable', e.target.value)} className="input">
+                          {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                        <input type="date" value={r.echeance || ''} onChange={e => upd('echeance', e.target.value)} className="input" />
+                      </div>
+                      <button onClick={() => setEditData({...editData, risques: (editData.risques || []).filter((_, idx) => idx !== i)})} className="text-red-500 text-xs">Retirer ce risque</button>
+                    </div>
+                  )
+                })}
+                <button onClick={() => setEditData({...editData, risques: [...(editData.risques || []), { processus: '', risque: '', gravite: 2, probabilite: 2, maitrise: '', action: '', responsable: P(0), echeance: '' }]})} className="btn btn-sm btn-secondary"><Plus className="w-4 h-4 mr-1" /> Ajouter un risque</button>
               </div>
             )}
           </div>

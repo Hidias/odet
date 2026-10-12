@@ -186,6 +186,8 @@ export default function Dashboard() {
         .eq('type', n.type).gte('created_at', dayStart.toISOString())
       if (!count) await supabase.from('notifications').insert(n)
     }
+    // Échéances de certification (NDA, audits Qualiopi, BPF) : notifiées 90, 30 et 7 jours avant
+    await supabase.rpc('cert_daily_notifications').then(() => {}, () => {})
     localStorage.setItem(key, 'done')
   }
   
