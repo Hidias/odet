@@ -20,8 +20,8 @@ export async function loadEvidence() {
     courses, org, qdocs, qualDocs, roles, settings, veille, trainers, sessionsTotal, sessionsDone, demoNames,
   ] = await Promise.all([
     supabase.from('courses').select('id, title, objectives, prerequisites, duration_hours, price_ht, price_per_day, target_audience, teaching_methods, pedagogical_methods, methods, evaluation_methods, content, program, program_url, positioning_questions'),
-    supabase.from('organization_settings').select('reglement_interieur, livret_accueil, referent_handicap_nom').limit(1).maybeSingle(),
-    supabase.from('qualiopi_documents').select('type, content, updated_at'),
+    Promise.resolve({ data: null }),
+    Promise.resolve({ data: [] }),
     supabase.from('quality_documents').select('doc_id, content, updated_at'),
     supabase.from('quality_roles').select('code, profile_id, demo_name'),
     supabase.from('cert_settings').select('*').eq('id', 1).maybeSingle(),
@@ -70,7 +70,6 @@ export async function loadEvidence() {
 
   const c = courses.data || []
   const v = veille.data || []
-  const qd = new Map((qdocs.data || []).map((d) => [d.type, d]))
   const qual = new Map((qualDocs.data || []).map((d) => [d.doc_id, d]))
   // Noms fictifs de démonstration comptés tant qu'ils sont en service (effacés avec les données de démonstration)
   const role = new Map((roles.data || []).map((r) => [r.code, r.profile_id || (demoNames && r.demo_name) || null]))
@@ -86,15 +85,16 @@ export async function loadEvidence() {
       withContent: c.filter((x) => filled(x.content) || filled(x.program) || filled(x.program_url)).length,
       withPositioning: c.filter((x) => Array.isArray(x.positioning_questions) ? x.positioning_questions.length > 0 : filled(x.positioning_questions)).length,
     },
+    // Documents : une seule source, Documents qualité (document enregistré, brouillon ou validé)
     org: {
-      reglement: filled(org.data?.reglement_interieur) || qd.has('reglement'),
-      livret: filled(org.data?.livret_accueil) || qd.has('livret'),
-      referentHandicap: filled(org.data?.referent_handicap_nom) || !!role.get('referent_handicap'),
+      reglement: qual.has('reglement'),
+      livret: qual.has('livret-court') || qual.has('livret-complet'),
+      referentHandicap: !!role.get('referent_handicap'),
     },
     docs: {
-      reclamationProc: qd.has('procedure_reclamation') || qual.has('proc-recl'),
-      handicapProc: qd.has('procedure_handicap') || qual.has('proc-hand'),
-      veilleProc: qd.has('procedure_veille') || qual.has('proc-veille'),
+      reclamationProc: qual.has('proc-recl'),
+      handicapProc: qual.has('proc-hand'),
+      veilleProc: qual.has('proc-veille'),
       ncProc: qual.has('proc-nc'),
       vssProc: qual.has('proc-vss'),
       riskMap: qual.has('carto-risques') && ((qual.get('carto-risques')?.content?.risques || []).length > 0),

@@ -1,6 +1,7 @@
 import { teamNames, docCode } from '../../../core/org/currentOrg'
 import { loadTemplateContext, fillDeep, fillTemplate } from '../../../core/org/templateContext'
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
 import { 
   FileText, Download, ChevronDown, ChevronRight, Save, X, Edit,
@@ -317,6 +318,12 @@ export default function QualiteEditables() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('tous')
   useEffect(() => { loadTemplates().then(setTemplates).catch((e) => toast.error(e.message)) }, [])
+  // Lien direct vers un document (?doc=reglement), depuis la page Qualiopi ou Paramètres
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    const id = params.get('doc')
+    if (id && templates?.[id]) setRichOpen(id)
+  }, [templates, params])
   
   // Champs {{org.*}}, {{role.*}} : remplis à l'affichage depuis Paramètres (identité et rôles qualité)
   const [tplCtx, setTplCtx] = useState(null)
@@ -1091,7 +1098,7 @@ export default function QualiteEditables() {
           tpl={templates[richOpen]}
           saved={isRich(savedDocs[richOpen]) ? savedDocs[richOpen] : fromTemplate(templates[richOpen])}
           ctx={tplCtx}
-          onClose={() => setRichOpen(null)}
+          onClose={() => { setRichOpen(null); if (params.get('doc')) setParams({}) }}
           onSaved={(id, content) => setSavedDocs((prev) => ({ ...prev, [id]: content }))}
         />
       )}

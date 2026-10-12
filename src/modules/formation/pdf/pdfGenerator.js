@@ -7,10 +7,13 @@ import { buildORG, publicBaseUrl, prepareOrgForPDF, formatSiret } from '../../..
 import {
   PAGE_MARGIN, drawHeaderBand, drawRunningHeader, drawFooter, numberPages, drawDocTitle, drawSectionTitle,
   drawPartyCard, drawKeyValues, drawCheckmark, drawImageFitted, formatMoney, formatHour,
-  startDocument, writeRichText,
+  startDocument,
 } from '../../../core/pdf/layout'
 
 import { APP_VERSION } from '../../../core/version'
+import { loadPublishedDoc, versionLabel, cgvCancellationText } from '../../qualite/richdocs/published'
+import { writeRichDoc } from '../../qualite/richdocs/richDocPDF'
+import { loadTemplateContext, buildTemplateContext, fillTemplate } from '../../../core/org/templateContext'
 import { computePresenceHours, formatHours } from '../lib/presence'
 // Codes documentaires : préfixe propre à l'organisme (ORG.doc_prefix) + code du type de document
 const DOC_CODES = {
@@ -48,6 +51,25 @@ export function setOrganization(orgSettings) {
   if (!ORG.logo_base64 && ORG.logo_url) {
     prepareOrgForPDF(orgSettings).then((o) => { if (o) ORG = buildORG(o) }).catch(() => {})
   }
+}
+
+// Textes remis aux stagiaires et aux clients (règlement intérieur, livret d'accueil, annulation des CGV) :
+// une seule source, Documents qualité (version validée, sinon brouillon, sinon modèle). Chargés avant
+// chaque génération par ensureQualityTexts().
+let QT = null
+async function ensureQualityTexts() {
+  try {
+    const [reglement, livret, cgv, ctxLoaded] = await Promise.all([
+      loadPublishedDoc('reglement'), loadPublishedDoc('livret-court'), loadPublishedDoc('cgv'),
+      loadTemplateContext().catch(() => null),
+    ])
+    // Portail (sans accès aux paramètres) : identité prise dans ORG
+    let ctx = ctxLoaded
+    if (!ctx?.org?.nom) {
+      ctx = buildTemplateContext({ org: { name: ORG.name, legal_name: ORG.legal_name || ORG.name, address: ORG.street || ORG.address, postal_code: ORG.postal_code, city: ORG.city, phone: ORG.phone, email: ORG.email, siret: ORG.siret, nda: ORG.nda, nda_region: ORG.nda_region, dirigeant_name: ORG.dirigeant, dirigeant_title: ORG.dirigeant_title, lieu_signature: ORG.lieu_signature, tribunal_competent: ORG.tribunal_competent } })
+    }
+    QT = { reglement, livret, cgv, ctx }
+  } catch (err) { console.warn('Documents qualité indisponibles :', err.message) }
 }
 
 // ============================================================
@@ -286,7 +308,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
       { p: "Un certificat de réalisation mentionnant le niveau d'atteinte des objectifs est remis à l'issue de la formation." },
     ] },
     { title: 'Documents délivrés', blocks: [{ p: "À l'issue de la formation, l'Organisme de formation délivre une attestation de présence, un certificat de réalisation (acquis / non acquis) et, le cas échéant, l'attestation ou le certificat propre au module suivi." }] },
-    { title: 'Annulation et report', blocks: [{ p: ORG.conditions_annulation || "En cas de désistement du Bénéficiaire moins de 14 jours avant le début de la formation, une indemnité forfaitaire de 50 % du coût total est facturée ; moins de 7 jours avant, cette indemnité est portée à 75 %. En cas d'annulation par l'Organisme de formation moins de 7 jours avant, une nouvelle date est proposée sans frais." }] },
+    { title: 'Annulation et report', blocks: [{ p: (QT?.cgv && cgvCancellationText(QT.cgv.content) ? `Conformément aux articles 8 et 9 des conditions générales de vente. ${fillTemplate(cgvCancellationText(QT.cgv.content), QT.ctx)}` : "En cas d'annulation ou de report, les conditions générales de vente de l'Organisme de formation s'appliquent.") }] },
     { title: 'Accessibilité', blocks: [{ p: `${ORG.name} s'engage à favoriser l'accès à ses formations aux personnes en situation de handicap. Toute demande d'adaptation est à signaler en amont${ORG.referent_handicap_email ? ` au référent handicap (${ORG.referent_handicap_email})` : ` à ${ORG.email}`} afin de mettre en place les mesures nécessaires.` }] },
     { title: 'Protection des données', blocks: [{ p: "Les données personnelles collectées sont utilisées exclusivement pour la gestion administrative et pédagogique des formations. Elles sont conservées 5 ans et accessibles sur demande, conformément au RGPD." }] },
     { title: 'Litiges', blocks: [{ p: `En cas de différend, les parties recherchent une solution amiable. À défaut, le litige est porté devant ${ORG.tribunal_competent ? `le ${ORG.tribunal_competent}` : 'le tribunal compétent'}.` }] },
@@ -1144,9 +1166,9 @@ function generateProgramme(session, trainer = null) {
 // ── Règlement intérieur et livret d'accueil (textes des Paramètres) ──
 function generateReglement() {
   const doc = new jsPDF({ compress: true })
-  const f = startDocument(doc, ORG, { docLabel: 'Règlement intérieur', code: DOC_CODES.reglement, title: 'Règlement intérieur', subtitle: `Applicable aux stagiaires${ORG.reglement_version ? ' · ' + ORG.reglement_version : ''}` })
-  if (ORG.reglement_interieur && ORG.reglement_interieur.trim()) {
-    writeRichText(f, ORG.reglement_interieur)
+  const f = startDocument(doc, ORG, { docLabel: 'Règlement intérieur', code: DOC_CODES.reglement, title: 'Règlement intérieur', subtitle: ['Applicable aux stagiaires', versionLabel(QT?.reglement)].filter(Boolean).join(' · ') })
+  if (QT?.reglement?.content) {
+    writeRichDoc(f, QT.reglement.content, QT.ctx)
   } else {
     const nom = ORG.name || "l'organisme"
     ;[
@@ -1164,9 +1186,9 @@ function generateReglement() {
 
 function generateLivret(session = null) {
   const doc = new jsPDF({ compress: true })
-  const f = startDocument(doc, ORG, { ref: session?.reference || null, docLabel: "Livret d'accueil", code: DOC_CODES.livret, title: "Livret d'accueil du stagiaire", subtitle: `Bienvenue chez ${ORG.name || ''}` })
-  if (ORG.livret_accueil && ORG.livret_accueil.trim()) {
-    writeRichText(f, ORG.livret_accueil)
+  const f = startDocument(doc, ORG, { ref: session?.reference || null, docLabel: "Livret d'accueil", code: DOC_CODES.livret, title: "Livret d'accueil du stagiaire", subtitle: [`Bienvenue chez ${ORG.name || ''}`, versionLabel(QT?.livret)].filter(Boolean).join(' · ') })
+  if (QT?.livret?.content) {
+    writeRichDoc(f, QT.livret.content, QT.ctx)
   } else {
     f.section('Qui sommes-nous ?')
     f.para(`${ORG.nameFull || ORG.name}, ${ORG.addressFull || ''}.`)
@@ -1269,6 +1291,7 @@ function generateFicheRenseignements(session, trainee = null, isBlank = false, i
 // EXPORT
 // ============================================================
 export async function downloadDocument(docType, session, options = {}) {
+  if (['convention', 'reglement', 'livret'].includes(docType)) await ensureQualityTexts()
   const { trainees = [], trainee = null, trainer = null, isBlank = false, questions = [], costs = [], attendanceData = null } = options
   const ref = session?.reference || 'VIERGE'
   let doc, filename
@@ -1393,6 +1416,7 @@ export async function downloadAllDocuments(docType, session, trainees, options =
 
 // Même chose que downloadDocument mais retourne { base64, filename } au lieu de télécharger
 export async function generatePDF(docType, session, options = {}) {
+  if (['convention', 'reglement', 'livret'].includes(docType)) await ensureQualityTexts()
   const { trainees = [], trainee = null, trainer = null, isBlank = false, questions = [], costs = [], attendanceData = null } = options
   const ref = session?.reference || 'VIERGE'
   let doc, filename

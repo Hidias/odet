@@ -15,6 +15,7 @@ import {
 import { format, isAfter, isBefore, startOfToday, addDays, addMonths, differenceInDays, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import { qualiopiCycle } from '../certification/lib/certData'
 
 // ═══════════════════════════════════════════════════════════
 // WIDGET REGISTRY
@@ -101,7 +102,7 @@ function ProgressBar({ value, max = 100, color = 'bg-blue-500', label, showValue
 // ═══════════════════════════════════════════════════════════
 export default function Dashboard() {
   const { clients, fetchClients, courses, fetchCourses, trainees, fetchTrainees, sessions, fetchSessions, getPurgeStats, organization, fetchOrganization } = useDataStore()
-  const { user } = useAuthStore()
+  const { user, modules } = useAuthStore()
   const navigate = useNavigate()
   
   
@@ -556,23 +557,41 @@ export default function Dashboard() {
     return r
   }, [sessionsWithoutTrainer, sessionsJ90, dashData.purgeStats, documentsMissing])
   
-  // Audit Qualiopi : depuis organization_settings (qualiopi_certified, qualiopi_since, qualiopi_organisme).
-  // Cycle : audit initial à la date de certification, audit de surveillance 18 mois après, renouvellement à 3 ans.
+  // Audit Qualiopi : mêmes règles que le module Certification (qualiopiCycle) : surveillance entre le 14e
+  // et le 22e mois après l'obtention, renouvellement avant la fin de validité. Module actif : échéances
+  // calculées par la base (cert_deadlines, tiennent compte d'une surveillance déjà passée).
+  const certOn = (modules || []).includes('certification')
+  const [certSteps, setCertSteps] = useState(null)
+  useEffect(() => {
+    if (!certOn) { setCertSteps(null); return }
+    supabase.rpc('cert_deadlines').then(({ data }) => setCertSteps(data || []), () => setCertSteps(null))
+  }, [certOn, organization?.qualiopi_since])
   const qualiopiAudit = useMemo(() => {
     if (!organization?.qualiopi_certified || !organization?.qualiopi_since) return null
     const initialDate = new Date(organization.qualiopi_since)
     if (Number.isNaN(initialDate.getTime())) return null
-    const surveillanceDate = addMonths(initialDate, 18)
-    const renewalDate = addMonths(initialDate, 36)
-    const targetDate = isAfter(surveillanceDate, today) ? surveillanceDate : renewalDate
+    let target = null
+    let label = ''
+    const step = (certSteps || []).filter((d) => ['surveillance_ouverture', 'surveillance_limite', 'renouvellement'].includes(d.key) && d.due_date)
+      .sort((x, y) => x.due_date.localeCompare(y.due_date))[0]
+    if (step) {
+      target = new Date(`${step.due_date}T12:00:00`)
+      label = step.label
+    } else {
+      const c = qualiopiCycle({ certified_at: String(organization.qualiopi_since).slice(0, 10) })
+      const todayIso = format(today, 'yyyy-MM-dd')
+      if (todayIso < c.surveillanceFrom) { target = new Date(`${c.surveillanceFrom}T12:00:00`); label = 'Ouverture de la fenêtre de surveillance' }
+      else if (todayIso <= c.surveillanceTo) { target = new Date(`${c.surveillanceTo}T12:00:00`); label = 'Audit de surveillance, date limite' }
+      else { target = new Date(`${c.renewalAlert}T12:00:00`); label = 'Audit de renouvellement' }
+    }
     return {
-      daysLeft: differenceInDays(targetDate, today),
-      date: targetDate,
+      daysLeft: differenceInDays(target, today),
+      date: target,
       initialDate,
-      label: isAfter(surveillanceDate, today) ? 'Audit de surveillance' : 'Audit de renouvellement',
+      label,
       certifier: organization.qualiopi_organisme || '',
     }
-  }, [organization, today])
+  }, [organization, today, certSteps])
 
   // ─── Config management ─────────────────────────────────
   const configsRef = useRef(widgetConfigs)
@@ -899,7 +918,7 @@ export default function Dashboard() {
         return !qualiopiAudit ? (
           <div className="text-center py-3 space-y-2">
             <p className="text-sm font-medium text-gray-700">Certification Qualiopi non renseignée</p>
-            <p className="text-xs text-gray-400">Renseignez la date de certification et l'organisme certificateur dans Paramètres.</p>
+            <p className="text-xs text-gray-400">Renseignez la date du certificat et l'organisme certificateur dans {(modules || []).includes('certification') ? 'Certification' : 'Paramètres'}.</p>
             <Link to="/qualiopi" className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline">Checklist <ArrowRight className="w-3 h-3" /></Link>
           </div>
         ) : (

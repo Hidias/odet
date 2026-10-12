@@ -16,20 +16,24 @@ import ProcessEditor from './ProcessEditor'
 import { loadTemplateContext, fillTemplate, TEMPLATE_FIELDS } from '../../../core/org/templateContext'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { brandQualityHtml } from '../lib/qualityHtml'
+import { docStatus } from '../richdocs/model'
+import { StatusChip } from '../richdocs/RichDocEditor'
 
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
 
+// Documents obligatoires : rédigés et validés dans Documents qualité (une seule source).
+// Les anciens textes de cette page (table qualiopi_documents) ne sont plus lus.
 const DOCUMENT_TYPES = {
-  cgv: { label: 'Conditions Générales de Vente', icon: FileText, required: true },
-  reglement: { label: 'Règlement Intérieur', icon: Scale, required: true },
-  livret: { label: 'Livret d\'accueil', icon: BookOpen, required: true },
-  procedure_reclamation: { label: 'Procédure de réclamation', icon: AlertTriangle, required: true },
-  procedure_veille: { label: 'Procédure de veille', icon: Eye, required: true },
-  procedure_handicap: { label: 'Procédure handicap', icon: Users, required: true },
-  politique_qualite: { label: 'Politique qualité', icon: Award, required: false },
-  charte_deontologie: { label: 'Charte de déontologie', icon: CheckCircle, required: false }
+  cgv: { label: 'Conditions Générales de Vente', icon: FileText, required: true, rich: 'cgv' },
+  reglement: { label: 'Règlement Intérieur', icon: Scale, required: true, rich: 'reglement' },
+  livret: { label: 'Livret d\'accueil', icon: BookOpen, required: true, rich: 'livret-court' },
+  procedure_reclamation: { label: 'Procédure de réclamation', icon: AlertTriangle, required: true, rich: 'proc-recl' },
+  procedure_veille: { label: 'Procédure de veille', icon: Eye, required: true, rich: 'proc-veille' },
+  procedure_handicap: { label: 'Procédure handicap', icon: Users, required: true, rich: 'proc-hand' },
+  politique_qualite: { label: 'Politique qualité', icon: Award, required: false, rich: 'politique' },
+  charte_deontologie: { label: 'Charte formateur (déontologie)', icon: CheckCircle, required: false, rich: 'charte-formateur' }
 }
 
 const VEILLE_TYPES = {
@@ -155,12 +159,14 @@ export default function Qualiopi() {
   // ═══════════════════════════════════════════════════════════════════
 
   const loadDocuments = async () => {
-    const { data, error } = await supabase
-      .from('qualiopi_documents')
-      .select('*')
-      .order('type')
-    
-    if (!error) setDocuments(data || [])
+    const ids = Object.values(DOCUMENT_TYPES).map((d) => d.rich)
+    const { data, error } = await supabase.from('quality_documents').select('doc_id, content, updated_at').in('doc_id', ids)
+    if (!error) {
+      setDocuments(Object.entries(DOCUMENT_TYPES).map(([type, d]) => {
+        const row = (data || []).find((r) => r.doc_id === d.rich)
+        return { type, rich: d.rich, status: docStatus(row?.content), updated_at: row?.updated_at || null }
+      }))
+    }
   }
 
   const loadVeilles = async () => {
@@ -595,21 +601,13 @@ export default function Qualiopi() {
                 {Object.entries(DOCUMENT_TYPES).filter(([_, v]) => v.required).map(([key, config]) => {
                   const doc = documents.find(d => d.type === key)
                   return (
-                    <div key={key} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+                    <a key={key} href={`#/qualite?doc=${config.rich}`} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
                       <div className="flex items-center gap-2">
                         <config.icon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm">{config.label}</span>
                       </div>
-                      {doc ? (
-                        <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" /> v{doc.version}
-                        </span>
-                      ) : (
-                        <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> Manquant
-                        </span>
-                      )}
-                    </div>
+                      {doc && <StatusChip status={doc.status} />}
+                    </a>
                   )
                 })}
               </div>
@@ -694,66 +692,30 @@ export default function Qualiopi() {
       {/* ONGLET: Documents */}
       {activeTab === 'documents' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h2 className="text-lg font-semibold">Documents Qualiopi</h2>
-            <button onClick={() => openDocModal()} className="btn btn-primary flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Nouveau document
-            </button>
+            <a href="#/qualite" className="btn btn-primary flex items-center gap-2"><ExternalLink className="w-4 h-4" />Tous les documents qualité</a>
           </div>
-
+          <p className="text-sm text-gray-600">Ces documents se rédigent, se valident et se téléchargent dans Documents qualité. Les convocations, conventions et le portail reprennent automatiquement la version validée.</p>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(DOCUMENT_TYPES).map(([key, config]) => {
               const doc = documents.find(d => d.type === key)
+              const st = doc?.status
+              const ok = st && (st.code === 'valide')
               return (
-                <div key={key} className={`card border-2 ${doc ? 'border-green-200' : config.required ? 'border-red-200' : 'border-gray-200'}`}>
-                  <div className="flex items-start justify-between mb-3">
+                <a key={key} href={`#/qualite?doc=${config.rich}`} className={`card border-2 block hover:shadow-md ${ok ? 'border-green-200' : config.required ? 'border-amber-200' : 'border-gray-200'}`}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <div className={`p-2 rounded-lg ${doc ? 'bg-green-100' : config.required ? 'bg-red-100' : 'bg-gray-100'}`}>
-                        <config.icon className={`w-5 h-5 ${doc ? 'text-green-600' : config.required ? 'text-red-600' : 'text-gray-600'}`} />
-                      </div>
+                      <div className={`p-2 rounded-lg ${ok ? 'bg-green-100' : 'bg-gray-100'}`}><config.icon className={`w-5 h-5 ${ok ? 'text-green-600' : 'text-gray-600'}`} /></div>
                       <div>
                         <h3 className="font-medium text-gray-900">{config.label}</h3>
-                        {config.required && <span className="text-xs text-red-500">Obligatoire</span>}
+                        {config.required && <span className="text-xs text-gray-500">Obligatoire</span>}
                       </div>
                     </div>
-                    {doc && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                        v{doc.version}
-                      </span>
-                    )}
+                    {st && <StatusChip status={st} />}
                   </div>
-                  
-                  {doc ? (
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-500 line-clamp-2">{fillTemplate(doc.content || '', tplCtx).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').substring(0, 100)}...</p>
-                      <p className="text-xs text-gray-400">
-                        Mis à jour le {format(new Date(doc.updated_at), 'd MMM yyyy', { locale: fr })}
-                      </p>
-                      <div className="flex gap-1 pt-2">
-                        <button onClick={() => previewDocument(doc)} className="btn btn-sm btn-secondary flex-1 flex items-center justify-center gap-1" title="Afficher">
-                          <Eye className="w-3 h-3" /> Afficher
-                        </button>
-                        <button onClick={() => downloadDocumentAsPDF(doc)} className="btn btn-sm btn-primary flex-1 flex items-center justify-center gap-1" title="Télécharger en PDF">
-                          <Download className="w-3 h-3" /> PDF
-                        </button>
-                      </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => openDocModal(doc)} className="btn btn-sm btn-outline flex-1 flex items-center justify-center gap-1">
-                          <Edit className="w-3 h-3" /> Modifier
-                        </button>
-                        <button onClick={() => deleteDocument(doc.id)} className="btn btn-sm text-red-600 hover:bg-red-50 px-3">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={() => openDocModal(null, key)} className="w-full btn btn-secondary flex items-center justify-center gap-2">
-                      <Plus className="w-4 h-4" />
-                      Créer ce document
-                    </button>
-                  )}
-                </div>
+                  <p className="text-xs text-gray-500">{doc?.updated_at ? `Mis à jour le ${format(new Date(doc.updated_at), 'd MMM yyyy', { locale: fr })}` : 'Modèle de l\'outil, à relire et valider'}</p>
+                </a>
               )
             })}
           </div>

@@ -5324,7 +5324,7 @@ const TEMPLATES = {
   "sections": [
    {
     "id": "page-1",
-    "title": "Page 1",
+    "title": "",
     "blocks": [
      {
       "t": "p",
@@ -5374,7 +5374,7 @@ const TEMPLATES = {
    },
    {
     "id": "page-2",
-    "title": "Page 2",
+    "title": "",
     "blocks": [
      {
       "t": "p",
@@ -5403,10 +5403,14 @@ const TEMPLATES = {
      {
       "t": "table",
       "head": [
-       "Urgence",
-       "17 ou 112"
+       "Situation",
+       "Numéro"
       ],
       "rows": [
+       [
+        "Urgence",
+        "17 ou 112"
+       ],
        [
         "SMS urgence (sourds, malentendants)",
         "114"

@@ -3,6 +3,7 @@
 
 import { supabase } from '../../../core/supabase'
 import { sanitizeStorageKey } from '../../../core/storageUtils'
+import { useDataStore } from '../../../core/store'
 
 export const BUCKET = 'certification'
 
@@ -37,23 +38,16 @@ export async function loadSettings() {
   return data || {}
 }
 
-/** Enregistre le suivi ; recopie dans organization_settings ce que le reste de l'application lit déjà */
-export async function saveSettings(patch, { organization, updateOrganization } = {}) {
+/** Enregistre le suivi. La certification (date, certificateur) est reportée dans organization_settings
+ *  par la base (déclencheur cert_settings_sync_org) : on relit seulement l'organisation pour l'affichage. */
+export async function saveSettings(patch, { updateOrganization } = {}) {
   const { data: u } = await supabase.auth.getUser()
   const { data, error } = await supabase.from('cert_settings')
     .update({ ...patch, updated_at: new Date().toISOString(), updated_by: u?.user?.id || null })
     .eq('id', 1).select().single()
   if (error) throw error
-  if (updateOrganization) {
-    const org = {}
-    if ('certified_at' in patch || 'certifier_name' in patch) {
-      if (data.certified_at) {
-        org.qualiopi_certified = true
-        org.qualiopi_since = data.certified_at
-      }
-      if (data.certifier_name && (data.certified_at || organization?.qualiopi_certified)) org.qualiopi_organisme = data.certifier_name
-    }
-    if (Object.keys(org).length) await updateOrganization(org)
+  if (updateOrganization && ('certified_at' in patch || 'certifier_name' in patch)) {
+    await useDataStore.getState().fetchOrganization()
   }
   return data
 }

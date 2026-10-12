@@ -86,6 +86,14 @@ function drawBlock(f, b, ctx) {
   }
 }
 
+/** Écrit les sections d'un document (contenu au nouveau modèle) dans un flux de layout.js déjà ouvert */
+export function writeRichDoc(f, content, ctx, { titles = true } = {}) {
+  visibleSections(content).forEach((s) => {
+    if (s.title && titles) f.section(s.title)
+    s.blocks.forEach((b) => drawBlock(f, b, ctx))
+  })
+}
+
 /**
  * @param {object} ORG identité (loadPdfOrg)
  * @param {object} p { tpl (code, name, indicators, pilote), code (avec initiales), content, ctx, history: versions validées }
@@ -114,10 +122,7 @@ export function buildRichDocPDF(ORG, { tpl, code, content, ctx, history = [] }) 
     [cell('Modification'), { content: validated && last ? (last.motif || '-') : (content.motif || 'Projet en cours'), colSpan: 3 }],
   ], { styles: { fontSize: 8, valign: 'top' }, columnStyles: { 0: { cellWidth: 32 }, 2: { cellWidth: 30 } }, alternateRowStyles: {} })
 
-  visibleSections(content).forEach((s) => {
-    if (s.title) f.section(s.title)
-    s.blocks.forEach((b) => drawBlock(f, b, ctx))
-  })
+  writeRichDoc(f, content, ctx)
 
   if (history.length) {
     f.section('Historique des versions')

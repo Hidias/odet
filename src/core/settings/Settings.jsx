@@ -32,13 +32,15 @@ const ORG_FIELDS = [
   'address', 'postal_code', 'city', 'phone', 'email', 'website', 'lieu_signature', 'region', 'zone_departements',
   'dirigeant_name', 'dirigeant_title', 'dirigeant_signature_url', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
   'app_name', 'app_short_name', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'logo_base64', 'stamp_base64',
-  'reglement_interieur', 'reglement_version', 'livret_accueil', 'livret_version', 'conditions_annulation', 'cgv_url', 'doc_prefix',
+  'doc_prefix',
   'bank_name', 'iban', 'bic', 'email_bcc', 'email_default_sender', 'exercice_start_month', 'demo_mode',
 ]
 
 export default function Settings() {
   const { organization, fetchOrganization, updateOrganization } = useDataStore()
-  const { userRole, refreshModules } = useAuthStore()
+  const { userRole, refreshModules, modules } = useAuthStore()
+  // Module Certification actif : la certification Qualiopi se renseigne là-bas (une seule saisie)
+  const certModule = (modules || []).includes('certification')
   const { refresh: refreshBranding } = useBranding()
   const [params, setParams] = useSearchParams()
   const section = params.get('section') || 'identite'
@@ -173,11 +175,13 @@ export default function Settings() {
                   </select>
                 </Field>
                 <div className="space-y-3 pt-6">
-                  <Toggle checked={!!form.qualiopi_certified} onChange={(v) => set('qualiopi_certified', v)} label="Certifié Qualiopi" hint="Ajoute la mention sur les documents" />
+                  {certModule
+                    ? <div className="text-ui-sm"><span className="font-medium text-gray-800">{form.qualiopi_certified ? `Certifié Qualiopi${form.qualiopi_since ? ` depuis le ${String(form.qualiopi_since).slice(0, 10).split('-').reverse().join('/')}` : ''}${form.qualiopi_organisme ? `, ${form.qualiopi_organisme}` : ''}` : 'Non certifié Qualiopi'}</span><span className="block text-gray-500">Se renseigne dans <Link to="/certification/qualiopi" className="text-primary-600 underline">Certification, Qualiopi</Link> (date du certificat et certificateur).</span></div>
+                    : <Toggle checked={!!form.qualiopi_certified} onChange={(v) => set('qualiopi_certified', v)} label="Certifié Qualiopi" hint="Ajoute la mention sur les documents" />}
                   <Toggle checked={!!form.caces_activity} onChange={(v) => set('caces_activity', v)} label="Activité CACES" hint="Décoché : l'Aide à la rédaction parle de formation à la conduite en vue de l'autorisation de conduite, jamais de CACES" />
                   <Toggle checked={form.tva_applicable !== false} onChange={(v) => set('tva_applicable', v)} label="TVA applicable" hint="Décoché : mention d'exonération (art. 261-4-4° a du CGI)" />
                 </div>
-                {form.qualiopi_certified && (
+                {form.qualiopi_certified && !certModule && (
                   <>
                     <Field label="Certifié depuis le"><input type="date" className="input" value={form.qualiopi_since || ''} onChange={(e) => set('qualiopi_since', e.target.value)} /></Field>
                     <Field label="Organisme certificateur"><input className="input" value={form.qualiopi_organisme || ''} onChange={(e) => set('qualiopi_organisme', e.target.value)} /></Field>
@@ -271,29 +275,13 @@ export default function Settings() {
 
           {section === 'documents' && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Conditions générales de vente (PDF)" hint="Jointes aux devis">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {form.cgv_url && <a href={form.cgv_url} target="_blank" rel="noreferrer" className="text-ui text-accent-700 underline">Voir le fichier</a>}
-                    <label className="btn btn-secondary btn-sm cursor-pointer"><Upload className="w-4 h-4" />Choisir<input type="file" accept="application/pdf" className="hidden" onChange={onFile('cgv_url', 'storage')} /></label>
-                  </div>
-                </Field>
-              </div>
-              <Field label="Conditions d'annulation (article 7 des conventions)" hint="Vide : texte standard (14 jours : 50 %, 7 jours : 75 %)">
-                <textarea className="textarea" rows={4} value={form.conditions_annulation || ''} onChange={(e) => set('conditions_annulation', e.target.value)} />
-              </Field>
-              <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_120px] gap-4">
-                <Field label="Règlement intérieur" hint="Titres sur une ligne, paragraphes séparés par une ligne vide. Vide : texte standard">
-                  <textarea className="textarea" rows={12} value={form.reglement_interieur || ''} onChange={(e) => set('reglement_interieur', e.target.value)} />
-                </Field>
-                <Field label="Version"><input className="input" value={form.reglement_version || ''} onChange={(e) => set('reglement_version', e.target.value)} placeholder="V1.0" /></Field>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_120px] gap-4">
-                <Field label="Livret d'accueil" hint="Même format. Vide : texte standard">
-                  <textarea className="textarea" rows={12} value={form.livret_accueil || ''} onChange={(e) => set('livret_accueil', e.target.value)} />
-                </Field>
-                <Field label="Version"><input className="input" value={form.livret_version || ''} onChange={(e) => set('livret_version', e.target.value)} placeholder="V1.0" /></Field>
-              </div>
+              <h2 className="section-title">Documents remis aux stagiaires et aux clients</h2>
+              <p className="text-ui text-gray-700">Le règlement intérieur, le livret d'accueil, les conditions générales de vente (dont les conditions d'annulation reprises dans les conventions) et les chartes se rédigent et se valident à un seul endroit : <Link to="/qualite" className="text-primary-600 underline">Documents qualité</Link>.</p>
+              <ul className="text-ui-sm text-gray-600 list-disc pl-5 space-y-1">
+                <li>Convocations et documents de session : règlement intérieur et livret d'accueil (version courte), dernière version validée.</li>
+                <li>Conventions, article « Annulation et report » : articles 8 et 9 des conditions générales de vente.</li>
+                <li>Tant qu'aucune version n'est validée, le brouillon enregistré ou le modèle de l'outil est utilisé.</li>
+              </ul>
             </>
           )}
 
