@@ -151,6 +151,16 @@ begin
          row_number() over (partition by p ->> 'tech' order by (p ->> 'n')::int), 'planifiee'
   from jsonb_array_elements(plan16) p;
 
+  -- Pour la démonstration : sur le site de la première visite de Ronan, deux extincteurs à eau de 2016 (révision
+  -- à 10 ans proposée) et un de 2006 (fin de vie à 20 ans proposée)
+  update public.itv_equipment e set manufactured_year = case when x.n = 3 then 2006 else 2016 end,
+         installed_on = case when x.n = 3 then null else '2016-05-01'::date end
+  from (select eq.id, row_number() over (order by eq.label_code) as n from public.itv_equipment eq
+        join public.itv_equipment_types t on t.id = eq.type_id
+        where t.name = 'Extincteur à eau pulvérisée'
+          and eq.site_id = (select site_id from public.itv_visits where planned_on = '2026-10-16' and technician_id = t_ronan and route_order = 1)) x
+  where e.id = x.id and x.n <= 3;
+
   -- Compteur d'étiquettes, prix d'exemple des pièces et forfait de visite (à régler dans Réglages), module actif
   update public.itv_settings set label_next = v_n where id = 1;
   update public.itv_parts set price_ht = v.p from (values ('Goupille et scellé', 4.5), ('Joint de tête', 6), ('Étiquette de maintenance', 1.5), ('Batterie de BAES', 24), ('Lampe ou module LED de BAES', 18), ('Cartouche de CO2 pour désenfumage', 32)) as v(n, p)
