@@ -1,4 +1,4 @@
-import { teamNames } from '../../../core/org/currentOrg'
+import { teamNames, docCode } from '../../../core/org/currentOrg'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -22,6 +22,8 @@ function syncOrg(o) {
     dirigeant: o.dirigeant_name || '', dirigeantTitre: o.dirigeant_title || '',
   })
 }
+// Référence d'un programme sans les initiales qu'elle porterait déjà (« XYZ-PROG-SST » donne « PROG-SST »)
+const progCode = (ref) => String(ref || '').replace(/^[A-Z0-9]{1,5}-(?=PROG-)/, '')
 const raisonSociale = () => [ORG.nom, ORG.forme && !ORG.nom.toLowerCase().includes(ORG.forme.toLowerCase()) ? ORG.forme : ''].filter(Boolean).join(' ')
 // Personnes proposées par défaut : membres de l'équipe (profils)
 const P = (i) => teamNames()[i] || teamNames()[0] || ''
@@ -426,8 +428,8 @@ export default function QualiteEditables() {
       const data = savedDocs[docId] || DEFAULT_DATA[docId] || {}
       
       const header = () => { doc.setFontSize(9); doc.setTextColor(100); doc.text(`${ORG.nom} ${ORG.forme} - ${ORG.siret}`, 20, 15); doc.text(`${ORG.adresse}, ${ORG.cp} ${ORG.ville}`, 20, 20) }
-      const footer = (p = 1) => { doc.setFontSize(8); doc.setTextColor(128); doc.text(`${docInfo.code}-V${v}`, 20, h - 10); doc.text(d, w/2, h - 10, { align: 'center' }); doc.text(`Page ${p}`, w - 20, h - 10, { align: 'right' }) }
-      const title = (t, y = 35) => { doc.setFontSize(14); doc.setTextColor(0); doc.setFont(undefined, 'bold'); doc.text(t.toUpperCase(), w/2, y, { align: 'center' }); doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.setTextColor(100); doc.text(`${docInfo.code}-V${v}`, w/2, y + 6, { align: 'center' }); return y + 15 }
+      const footer = (p = 1) => { doc.setFontSize(8); doc.setTextColor(128); doc.text(`${docCode(docInfo.code)}-V${v}`, 20, h - 10); doc.text(d, w/2, h - 10, { align: 'center' }); doc.text(`Page ${p}`, w - 20, h - 10, { align: 'right' }) }
+      const title = (t, y = 35) => { doc.setFontSize(14); doc.setTextColor(0); doc.setFont(undefined, 'bold'); doc.text(t.toUpperCase(), w/2, y, { align: 'center' }); doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.setTextColor(100); doc.text(`${docCode(docInfo.code)}-V${v}`, w/2, y + 6, { align: 'center' }); return y + 15 }
       
       header()
       let y = title(docInfo.name)
@@ -633,7 +635,7 @@ export default function QualiteEditables() {
       }
       
       footer()
-      doc.save(`${docInfo.code}-V${v}.pdf`)
+      doc.save(`${docCode(docInfo.code)}-V${v}.pdf`)
       toast.success('PDF généré !')
     } catch (e) { console.error(e); toast.error('Erreur PDF') }
     setGenerating(false)
@@ -648,7 +650,7 @@ export default function QualiteEditables() {
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <div className="p-4 border-b flex items-center justify-between bg-gray-50">
-            <div><h2 className="font-bold text-lg">{docInfo?.name}</h2><p className="text-sm text-gray-500">{docInfo?.code}</p></div>
+            <div><h2 className="font-bold text-lg">{docInfo?.name}</h2><p className="text-sm text-gray-500">{docCode(docInfo?.code)}</p></div>
             <button onClick={() => setEditingDoc(null)} className="p-2 hover:bg-gray-200 rounded-lg"><X className="w-5 h-5" /></button>
           </div>
           
@@ -948,7 +950,7 @@ export default function QualiteEditables() {
                         <div className="flex items-center gap-3">
                           <FileText className="w-5 h-5 text-gray-400" />
                           <div>
-                            <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded mr-2">{docItem.code}</span>
+                            <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded mr-2">{docCode(docItem.code)}</span>
                             <span>{docItem.name}</span>
                             {docItem.indicateur && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Q{docItem.indicateur}</span>}
                             {savedDocs[docItem.id] && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Édité</span>}
@@ -976,7 +978,7 @@ export default function QualiteEditables() {
           {QUALITY_DOCS.registres.docs.map(reg => (
             <div key={reg.id} className="card">
               <div className="flex items-center justify-between mb-3">
-                <div><h3 className="font-semibold">{reg.name}</h3><p className="text-sm text-gray-500">{reg.code}</p></div>
+                <div><h3 className="font-semibold">{reg.name}</h3><p className="text-sm text-gray-500">{docCode(reg.code)}</p></div>
                 <div className="flex gap-2">
                   <button onClick={() => loadRegistre(reg.table)} disabled={loadingData} className="btn btn-sm btn-secondary flex items-center gap-1">
                     {loadingData ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Charger
@@ -1004,8 +1006,9 @@ export default function QualiteEditables() {
                             {(() => {
                               const grouped = {}
                               registreData[reg.table].forEach(item => {
-                                if (!grouped[item.ref_doc]) grouped[item.ref_doc] = []
-                                grouped[item.ref_doc].push(item)
+                                const key = progCode(item.ref_doc)
+                                if (!grouped[key]) grouped[key] = []
+                                grouped[key].push(item)
                               })
                               Object.keys(grouped).forEach(key => {
                                 grouped[key].sort((a, b) => {
@@ -1014,17 +1017,14 @@ export default function QualiteEditables() {
                                   return (vb[0] - va[0]) || (vb[1] - va[1])
                                 })
                               })
-                              const order = ['AF-PROG-SST', 'AF-PROG-INC', 'AF-PROG-ELEC', 'AF-PROG-R489', 'AF-PROG-R485']
-                              const sorted = order.filter(k => grouped[k]).flatMap(k => grouped[k])
-                              Object.keys(grouped).filter(k => !order.includes(k)).forEach(k => sorted.push(...grouped[k]))
-                              return sorted
+                              return Object.keys(grouped).sort((a, b) => a.localeCompare(b)).flatMap(k => grouped[k])
                             })().map((item, i, arr) => {
-                              const isNewGroup = i === 0 || arr[i - 1].ref_doc !== item.ref_doc
+                              const isNewGroup = i === 0 || progCode(arr[i - 1].ref_doc) !== progCode(item.ref_doc)
                               const isLatest = isNewGroup
                               return (
                                 <tr key={i} className={`${isNewGroup && i > 0 ? 'border-t-2 border-gray-300' : ''} ${isLatest ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'}`}>
                                   <td className="px-3 py-2.5">
-                                    <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{item.ref_doc}</span>
+                                    <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{docCode(progCode(item.ref_doc))}</span>
                                   </td>
                                   <td className="px-3 py-2.5 text-gray-800">{item.nom_programme}</td>
                                   <td className="px-3 py-2.5 text-center">

@@ -547,9 +547,9 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         // ── DOCUMENTS PASSEPORT PRÉVENTION (3 PDF depuis Storage) ──
         addLog('Documents Passeport Prévention...')
         const passeportDocs = [
-          { id: 'notice_stagiaire_pp', path: 'templates/passeport-prevention/Notice_Passeport_Prevention_Stagiaire_AccessFormation.pdf', name: 'Notice_Stagiaire_Passeport_Prevention.pdf' },
-          { id: 'notice_employeur_pp', path: 'templates/passeport-prevention/Notice_Passeport_Prevention_Employeur_AccessFormation.pdf', name: 'Notice_Employeur_Passeport_Prevention.pdf' },
-          { id: 'decharge_nir_pp', path: 'templates/passeport-prevention/Decharge_Refus_NIR_Passeport_Prevention_AccessFormation.pdf', name: 'Decharge_Refus_NIR_Passeport_Prevention.pdf' },
+          { id: 'notice_stagiaire_pp', path: 'templates/passeport-prevention/Notice_Passeport_Prevention_Stagiaire.pdf', name: 'Notice_Stagiaire_Passeport_Prevention.pdf' },
+          { id: 'notice_employeur_pp', path: 'templates/passeport-prevention/Notice_Passeport_Prevention_Employeur.pdf', name: 'Notice_Employeur_Passeport_Prevention.pdf' },
+          { id: 'decharge_nir_pp', path: 'templates/passeport-prevention/Decharge_Refus_NIR_Passeport_Prevention.pdf', name: 'Decharge_Refus_NIR_Passeport_Prevention.pdf' },
         ]
         for (const doc of passeportDocs) {
           try {

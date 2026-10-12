@@ -76,7 +76,7 @@ const TVA_RATES = [0,2.1,5.5,8.5,10,20]
 const emptyItem = () => ({code:'',description_title:'',description_detail:'',quantity:1,unit:'unité',unit_price_ht:0,tva_rate:20,course_id:null})
 
 // ─── Templates email selon rang de relance ───
-function getEmailTemplate(inv, relanceNumber) {
+function getEmailTemplate(inv, relanceNumber, org = {}) {
   const ref = inv.reference || ''
   const ttc = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2 }).format(parseFloat(inv.total_ttc) || 0) + ' €'
 
@@ -107,7 +107,11 @@ Restant à votre disposition pour tout renseignement complémentaire,`
   const paymentTerms = inv.payment_terms || 'à 30 jours'
   const paymentMethod = inv.payment_method || 'virement bancaire'
   const objet = inv.object || 'prestation de formation'
-  const rib = 'RIB : FR76 1558 9297 0600 0890 6894 048 - BIC : CMBRFR2BXXX (Crédit Mutuel de Bretagne)'
+  // Coordonnées bancaires lues dans Paramètres > Banque et facturation ; ligne absente si l'IBAN n'est pas saisi
+  const iban = String(org?.iban || '').replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim()
+  const rib = iban
+    ? `RIB : ${iban}${org?.bic ? ` - BIC : ${org.bic}` : ''}${org?.bank_name ? ` (${org.bank_name})` : ''}`
+    : ''
 
   if (relanceNumber === 1) {
     return {
@@ -116,9 +120,7 @@ Restant à votre disposition pour tout renseignement complémentaire,`
 
 Veuillez trouver ci-joint notre facture N° ${ref} d'un montant de ${ttc} TTC au titre de : ${objet}.
 
-Conformément à nos conditions de règlement (${paymentTerms}), nous vous remercions de bien vouloir procéder au règlement par ${paymentMethod} avant le ${dueDate}.
-
-${rib}
+Conformément à nos conditions de règlement (${paymentTerms}), nous vous remercions de bien vouloir procéder au règlement par ${paymentMethod} avant le ${dueDate}.${rib ? `\n\n${rib}` : ''}
 
 Restant à votre disposition pour tout renseignement complémentaire,`
     }
@@ -129,9 +131,7 @@ Restant à votre disposition pour tout renseignement complémentaire,`
 
 Sauf erreur de notre part, la facture N° ${ref} d'un montant de ${ttc} TTC, dont l'échéance était fixée au ${dueDate}, n'a pas encore été réglée.
 
-Nous vous remercions de bien vouloir procéder au règlement dans les meilleurs délais par ${paymentMethod}.
-
-${rib}
+Nous vous remercions de bien vouloir procéder au règlement dans les meilleurs délais par ${paymentMethod}.${rib ? `\n\n${rib}` : ''}
 
 Restant à votre disposition,`
     }
@@ -142,9 +142,7 @@ Restant à votre disposition,`
 
 Nous revenons vers vous concernant la facture N° ${ref} d'un montant de ${ttc} TTC, échue le ${dueDate}, qui demeure à ce jour impayée malgré notre première relance.
 
-Nous vous demandons de bien vouloir régulariser cette situation dans un délai de 8 jours.
-
-${rib}
+Nous vous demandons de bien vouloir régulariser cette situation dans un délai de 8 jours.${rib ? `\n\n${rib}` : ''}
 
 Dans l'attente de votre règlement,`
     }
@@ -316,7 +314,7 @@ export default function Invoices() {
 
     const relancesList = relances || []
     const nextRelanceNumber = relancesList.length + 1
-    const template = getEmailTemplate(inv, nextRelanceNumber)
+    const template = getEmailTemplate(inv, nextRelanceNumber, organization || {})
 
     // Destinataire : billing contact > contact facture > contact principal > email client
     const contact = contactR.data

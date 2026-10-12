@@ -30,6 +30,12 @@ export const orgAddressLine = () => [b().address, [b().postal_code, b().city].fi
 export const orgQualiopi = () => !!b().qualiopi_certified
 export const appName = () => b().app_name || b().org_name || ''
 
+/** Initiales de l'entreprise (Paramètres > Documents), en majuscules ; déduites du nom court à défaut */
+export const orgDocPrefix = () => String(b().doc_prefix || b().app_short_name || b().org_name || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 5).toUpperCase()
+
+/** Code documentaire précédé des initiales de l'entreprise : docCode('PROG-SST') donne « GLD-PROG-SST » */
+export const docCode = (code) => [orgDocPrefix(), code].filter(Boolean).join('-')
+
 /** Ligne de contact pour les textes générés : « email | téléphone | site » (champs absents omis) */
 export const orgContactLine = () => [orgEmail(), orgPhone(), orgWebsite().replace(/^https?:\/\//, '')].filter(Boolean).join(' | ')
 

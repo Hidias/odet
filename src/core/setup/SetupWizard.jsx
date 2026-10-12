@@ -321,8 +321,8 @@ export default function SetupWizard() {
                   </button>
                 ))}
               </div>
-              <Field label="Préfixe des codes documentaires" hint="Pied de page des PDF, 5 caractères maximum. Vide : déduit du nom court">
-                <input className="input max-w-[160px]" maxLength={5} value={form.doc_prefix} onChange={(e) => set('doc_prefix', e.target.value.toUpperCase())} placeholder={(form.app_short_name || form.name || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 5).toUpperCase()} />
+              <Field label="Initiales de l'entreprise" hint="2 à 5 lettres ou chiffres : références des sessions et codes des documents. Vide : déduites du nom court">
+                <input className="input max-w-[160px]" maxLength={5} value={form.doc_prefix} onChange={(e) => set('doc_prefix', e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase())} placeholder={(form.app_short_name || form.name || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 5).toUpperCase()} />
               </Field>
             </>
           )}

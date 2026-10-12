@@ -1106,7 +1106,7 @@ export default function Clients() {
                 </div>
                 <div>
                   <label className="label">N° TVA intracommunautaire</label>
-                  <input className="input font-mono" value={form.tva} onChange={(e) => setForm({...form, tva: e.target.value.toUpperCase()})} placeholder="FR71943563866" />
+                  <input className="input font-mono" value={form.tva} onChange={(e) => setForm({...form, tva: e.target.value.toUpperCase()})} placeholder="FR00000000000" />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">

@@ -144,6 +144,7 @@ export default function Settings() {
                 <Field label="Raison sociale" hint="Telle qu'au Kbis, pour les factures et conventions">
                   <input className="input" value={form.legal_name || ''} onChange={(e) => set('legal_name', e.target.value)} />
                 </Field>
+                <Field label="Initiales de l'entreprise" hint={`2 à 5 lettres ou chiffres. Servent aux références des sessions et aux codes des documents (pied de page des PDF, par exemple ${form.doc_prefix || 'ABC'}-CONV). Les références déjà créées ne changent pas.`}><input className="input" maxLength={5} value={form.doc_prefix || ''} onChange={(e) => set('doc_prefix', e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase())} /></Field>
                 <Field label="Forme juridique">
                   <select className="select" value={form.forme_juridique || ''} onChange={(e) => set('forme_juridique', e.target.value)}>
                     <option value="">Choisir</option>{FORMES.map((f) => <option key={f}>{f}</option>)}
@@ -153,8 +154,8 @@ export default function Settings() {
                 <Field label="SIRET" hint="14 chiffres"><input className="input" value={form.siret || ''} onChange={(e) => set('siret', e.target.value)} /></Field>
                 <Field label="Code NAF"><input className="input" value={form.naf || ''} onChange={(e) => set('naf', e.target.value)} placeholder="8559A" /></Field>
                 <Field label="TVA intracommunautaire"><input className="input" value={form.tva_intra || ''} onChange={(e) => set('tva_intra', e.target.value)} placeholder="FR00000000000" /></Field>
-                <Field label="RCS"><input className="input" value={form.rcs || ''} onChange={(e) => set('rcs', e.target.value)} placeholder="000 000 000 R.C.S. Quimper" /></Field>
-                <Field label="Tribunal compétent" hint="Article Litiges des conventions"><input className="input" value={form.tribunal_competent || ''} onChange={(e) => set('tribunal_competent', e.target.value)} placeholder="tribunal de commerce de Quimper" /></Field>
+                <Field label="RCS"><input className="input" value={form.rcs || ''} onChange={(e) => set('rcs', e.target.value)} placeholder="000 000 000 R.C.S. Ville" /></Field>
+                <Field label="Tribunal compétent" hint="Article Litiges des conventions"><input className="input" value={form.tribunal_competent || ''} onChange={(e) => set('tribunal_competent', e.target.value)} placeholder="tribunal de commerce de (ville du siège)" /></Field>
                 <Field label="Date de création"><input type="date" className="input" value={form.date_creation || ''} onChange={(e) => set('date_creation', e.target.value)} /></Field>
               </div>
               <h2 className="section-title">Formation professionnelle</h2>
@@ -264,7 +265,6 @@ export default function Settings() {
           {section === 'documents' && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Préfixe des codes documentaires" hint="Pied de page des PDF, par exemple GLD-CONV"><input className="input" maxLength={5} value={form.doc_prefix || ''} onChange={(e) => set('doc_prefix', e.target.value.toUpperCase())} /></Field>
                 <Field label="Conditions générales de vente (PDF)" hint="Jointes aux devis">
                   <div className="flex items-center gap-3 flex-wrap">
                     {form.cgv_url && <a href={form.cgv_url} target="_blank" rel="noreferrer" className="text-ui text-accent-700 underline">Voir le fichier</a>}

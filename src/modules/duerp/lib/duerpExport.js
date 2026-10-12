@@ -11,7 +11,7 @@
 // - Fix "Gnull" quand gravite est null
 // - Normalisation accents dans isFormationRelevant et matchFormation
 
-import { orgName, orgCity, orgContactLine, currentUserName } from '../../../core/org/currentOrg'
+import { orgName, orgCity, orgContactLine, currentUserName, docCode, orgDocPrefix } from '../../../core/org/currentOrg'
 const ORGN = () => orgName() || "l'organisme"
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
@@ -73,7 +73,7 @@ const DISCLAIMER_FULL = () => [
 ]
 
 // ── CATALOGUE DES FORMATIONS DE L'ORGANISME ──
-const ACCESS_FORMATIONS = [
+const CATALOGUE_FORMATIONS = [
   { code: 'SST-FI', label: 'Sauveteur Secouriste du Travail (SST Initial)', ref: 'PROG-FI SST', duree: '14h (2 jours)', validite: '2 ans', reglementation: 'Art. R4224-15', matchKeys: ['*'], description: 'Obligation : au moins 1 SST par atelier' },
   { code: 'MAC-SST', label: 'MAC SST (Maintien & Actualisation)', ref: 'PROG-MAC SST', duree: '7h (1 jour)', validite: '2 ans', reglementation: 'Art. R4224-15', matchKeys: ['*'], description: 'Recyclage obligatoire tous les 2 ans' },
   { code: 'IGPS', label: 'Initiation Gestes de Premiers Secours', ref: 'PROG-IGPS', duree: '4h', validite: '1 an', reglementation: 'Art. R4224-15', matchKeys: ['*'], description: 'Sensibilisation premiers secours' },
@@ -382,7 +382,7 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
   y = para(y, "En lien avec les risques identifies dans votre entreprise, " + ORGN() + " vous propose les formations suivantes. Les formations cochees correspondent directement aux risques detectes dans ce document.")
   y += 2
 
-  const formBody = ACCESS_FORMATIONS.map(f => {
+  const formBody = CATALOGUE_FORMATIONS.map(f => {
     const relevant = isFormationRelevant(f, risks, categories)
     return [relevant ? 'V' : '', f.label, f.duree, f.validite, f.reglementation, f.description]
   })
@@ -511,20 +511,20 @@ export function generateDuerpPDF({ project, units, risks, actions, categories, u
       if (action.type_action !== 'formation') return ''
       const txt = norm(action.action || '')
       // Explicit matching rules - order matters (most specific first)
-      if (txt.includes('gestes et postures') || txt.includes('geste et posture') || txt.includes('transfert')) return 'PROG-G&P'
-      if (txt.includes('extincteur') || txt.includes('incendie') || txt.includes('evacuation')) return 'PROG-EXT'
-      if (txt.includes('epi') && txt.includes('quipier')) return 'PROG-EPI'
-      if (txt.includes('habilitation') && txt.includes('lectr')) return 'PROG-FI B0H0V'
-      if (txt.includes('chariot') || txt.includes('cariste') || txt.includes('r489')) return 'PROG-R489'
-      if (txt.includes('gerbeur') || txt.includes('r485')) return 'PROG-R485'
-      if (txt.includes('sst') || txt.includes('secouris')) return 'PROG-FI SST'
-      if (txt.includes('premiers secours')) return 'PROG-IGPS'
-      if (txt.includes('ergonomie') || txt.includes('posture') || txt.includes('poste de travail')) return 'PROG-G&P'
-      if (txt.includes('electrique') || txt.includes('risque electrique')) return 'PROG-FI B0H0V'
+      if (txt.includes('gestes et postures') || txt.includes('geste et posture') || txt.includes('transfert')) return docCode('PROG-G&P')
+      if (txt.includes('extincteur') || txt.includes('incendie') || txt.includes('evacuation')) return docCode('PROG-EXT')
+      if (txt.includes('epi') && txt.includes('quipier')) return docCode('PROG-EPI')
+      if (txt.includes('habilitation') && txt.includes('lectr')) return docCode('PROG-FI B0H0V')
+      if (txt.includes('chariot') || txt.includes('cariste') || txt.includes('r489')) return docCode('PROG-R489')
+      if (txt.includes('gerbeur') || txt.includes('r485')) return docCode('PROG-R485')
+      if (txt.includes('sst') || txt.includes('secouris')) return docCode('PROG-FI SST')
+      if (txt.includes('premiers secours')) return docCode('PROG-IGPS')
+      if (txt.includes('ergonomie') || txt.includes('posture') || txt.includes('poste de travail')) return docCode('PROG-G&P')
+      if (txt.includes('electrique') || txt.includes('risque electrique')) return docCode('PROG-FI B0H0V')
       return ''
     }
     const ab = sortedAct.map(a => { const r = risks.find(r => r.id === a.risk_id); return [PRIO[a.priorite] || '--', a.action || '--', TYPE_A[a.type_action] || a.type_action || '--', a.responsable || '--', fmtDate(a.echeance), STAT[a.statut] || '--', matchFormation(a), r?.danger || '--'] })
-    doc.autoTable({ startY: y, head: [['Priorite', 'Action', 'Type', 'Resp.', 'Ech.', 'Statut', 'Formation AF', 'Risque lie']], body: ab, theme: 'grid', styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak', lineWidth: 0.1 }, headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold', fontSize: 8 }, columnStyles: { 0: { cellWidth: 18, halign: 'center' }, 1: { cellWidth: 34 }, 2: { cellWidth: 24 }, 3: { cellWidth: 16 }, 4: { cellWidth: 12, halign: 'center' }, 5: { cellWidth: 12, halign: 'center' }, 6: { cellWidth: 20, halign: 'center' }, 7: { cellWidth: 46 } }, margin: { left: ml, right: mr, bottom: 30 }, didParseCell: (d) => { if (d.section === 'body' && d.column.index === 0) { if (d.cell.raw === 'CRITIQUE') { d.cell.styles.fillColor = LVL.critique.bg; d.cell.styles.textColor = LVL.critique.text; d.cell.styles.fontStyle = 'bold' } else if (d.cell.raw === 'Haute') { d.cell.styles.fillColor = LVL.eleve.bg; d.cell.styles.textColor = LVL.eleve.text } } if (d.section === 'body' && d.column.index === 5 && d.cell.raw === 'Fait') { d.cell.styles.fillColor = LVL.faible.bg; d.cell.styles.textColor = LVL.faible.text } if (d.section === 'body' && d.column.index === 6 && d.cell.raw) { d.cell.styles.textColor = C.teal; d.cell.styles.fontStyle = 'bold' } }, didDrawPage: autoTablePageHook })
+    doc.autoTable({ startY: y, head: [['Priorite', 'Action', 'Type', 'Resp.', 'Ech.', 'Statut', (orgDocPrefix() ? 'Formation ' + orgDocPrefix() : 'Formation'), 'Risque lie']], body: ab, theme: 'grid', styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak', lineWidth: 0.1 }, headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold', fontSize: 8 }, columnStyles: { 0: { cellWidth: 18, halign: 'center' }, 1: { cellWidth: 34 }, 2: { cellWidth: 24 }, 3: { cellWidth: 16 }, 4: { cellWidth: 12, halign: 'center' }, 5: { cellWidth: 12, halign: 'center' }, 6: { cellWidth: 20, halign: 'center' }, 7: { cellWidth: 46 } }, margin: { left: ml, right: mr, bottom: 30 }, didParseCell: (d) => { if (d.section === 'body' && d.column.index === 0) { if (d.cell.raw === 'CRITIQUE') { d.cell.styles.fillColor = LVL.critique.bg; d.cell.styles.textColor = LVL.critique.text; d.cell.styles.fontStyle = 'bold' } else if (d.cell.raw === 'Haute') { d.cell.styles.fillColor = LVL.eleve.bg; d.cell.styles.textColor = LVL.eleve.text } } if (d.section === 'body' && d.column.index === 5 && d.cell.raw === 'Fait') { d.cell.styles.fillColor = LVL.faible.bg; d.cell.styles.textColor = LVL.faible.text } if (d.section === 'body' && d.column.index === 6 && d.cell.raw) { d.cell.styles.textColor = C.teal; d.cell.styles.fontStyle = 'bold' } }, didDrawPage: autoTablePageHook })
   }
 
   // ── SECTION 5 : MENTIONS LEGALES ──

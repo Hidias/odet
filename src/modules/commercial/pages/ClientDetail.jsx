@@ -1147,7 +1147,7 @@ export default function ClientDetail() {
                 </div>
               </div>
               <div><label className="text-xs font-medium text-gray-500 mb-1 block">N° TVA intracommunautaire</label>
-                <input value={editForm.tva || ''} onChange={e => setEditForm({ ...editForm, tva: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border rounded-lg text-sm font-mono" placeholder="FR71943563866" /></div>
+                <input value={editForm.tva || ''} onChange={e => setEditForm({ ...editForm, tva: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border rounded-lg text-sm font-mono" placeholder="FR00000000000" /></div>
               <div><label className="text-xs font-medium text-gray-500 mb-1 block">Site web</label>
                 <input value={editForm.website || ''} onChange={e => setEditForm({ ...editForm, website: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="www.example.fr" /></div>
               <div className="col-span-2"><label className="text-xs font-medium text-gray-500 mb-1 block">Adresse</label>
