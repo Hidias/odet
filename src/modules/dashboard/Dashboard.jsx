@@ -179,7 +179,13 @@ export default function Dashboard() {
     if (dow === 6) notifs.push({ type: 'materiel', title: 'Vérification matériel', message: 'Rappel hebdomadaire', link: '/parametres' })
     if (dom === 1 && mo === 7) notifs.push({ type: 'audit', title: 'Audit interne annuel', message: 'Planifiez votre audit', link: '/qualiopi' })
     if (dom === 1 && mo === 8) notifs.push({ type: 'revue_direction', title: 'Revue de direction', message: 'Revue annuelle à réaliser', link: '/qualiopi' })
-    for (const n of notifs) await supabase.from('notifications').insert(n)
+    // Une seule notification par type et par jour, quel que soit le navigateur (le repère local ne suffit pas)
+    const dayStart = new Date(t); dayStart.setHours(0, 0, 0, 0)
+    for (const n of notifs) {
+      const { count } = await supabase.from('notifications').select('id', { count: 'exact', head: true })
+        .eq('type', n.type).gte('created_at', dayStart.toISOString())
+      if (!count) await supabase.from('notifications').insert(n)
+    }
     localStorage.setItem(key, 'done')
   }
   
