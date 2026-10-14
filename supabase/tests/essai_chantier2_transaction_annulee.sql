@@ -1954,7 +1954,8 @@ begin
   returning id into v_v1;
   insert into public.itv_visits (client_id, site_id, status) values (v_client, (select id from public.sites where client_id is not null and id <> v_site limit 1), 'planifiee')
   returning id into v_v2;
-  insert into public.itv_equipment (client_id, site_id, label_code) values (v_client_tech, v_site, 'ESSAI-' || left(gen_random_uuid()::text, 8))
+  insert into public.itv_equipment_types (name) values ('Essai type') returning id into v_eq;
+  insert into public.itv_equipment (client_id, site_id, type_id, label_code) values (v_client_tech, v_site, v_eq, 'ESSAI-' || left(gen_random_uuid()::text, 8))
   returning id into v_eq;
 
   insert into public.audit_logs (action, entity_type) values ('essai', 'essai');
