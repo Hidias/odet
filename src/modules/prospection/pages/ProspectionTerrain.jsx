@@ -218,14 +218,14 @@ export default function ProspectionTerrain() {
         if (existing?.length) clientId = existing[0].id
       }
       if (!clientId) {
-        const { data: nc } = await supabase
+        const { data: nc, error: ncError } = await supabase
           .from('clients')
           .insert({
             name: selectedProspect.name,
             city: selectedProspect.city,
-            phone: selectedProspect.phone,
+            contact_phone: selectedProspect.phone,
             email: selectedProspect.email,
-            siret: selectedProspect.id,
+            siret: selectedProspect.siret || null,
             siren: selectedProspect.siren,
             type: 'prospect',
             status: 'actif',
@@ -233,6 +233,7 @@ export default function ProspectionTerrain() {
           })
           .select('id')
           .single()
+        if (ncError) console.error('Création de la fiche client :', ncError.message)
         if (nc) clientId = nc.id
       }
 

@@ -82,8 +82,7 @@ export default function StageEmailModal({ session, onClose }) {
     supabase
       .from('trainee_evaluations')
       .select('*')
-      .eq('session_id', session.id)
-      .eq('eval_type', 'chaud')
+      .eq('session_id', session.id)  // trainee_evaluations = évaluations à chaud (les évaluations à froid sont dans evaluations_cold)
       .then(({ data }) => { setEvals(data || []); setEvalsLoaded(true) })
   }, [session?.id])
 
@@ -427,14 +426,16 @@ export default function StageEmailModal({ session, onClose }) {
     const commentsText = evalData.comments.length ? evalData.comments.map((c, i) => `${i + 1}. « ${c} »`).join('\n') : 'Aucun commentaire libre.'
     const prompt = `Tu es l'assistant de l'organisme de formation ${orgName()}${orgCity() ? ` (${orgCity()})` : ''}.\nFormation : ${courseTitle} - Référence : ${ref}\nDates : du ${startDate} au ${endDate} - Formateur : ${formateur}\nStagiaires ayant répondu : ${evalData.total} sur ${evalData.totalTrainees}\nScore moyen global : ${evalData.globalScore}/5 - Taux de recommandation : ${evalData.tauxReco !== null ? evalData.tauxReco + '%' : 'non calculé'}\n\nScores :\n${scoresText}\n\nCommentaires :\n${commentsText}\n\nÉcris un compte rendu professionnel de 80-150 mots. Réponds uniquement avec le texte, sans titre ni introduction.`
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      // Passe par le serveur (la clé IA ne quitte jamais le serveur ; l'appel direct depuis le navigateur échouait toujours)
+      const response = await apiFetch('/api/ai-proxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
       })
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error?.message || data.error || `Erreur ${response.status}`)
       setCompteRendu(data.content?.[0]?.text || '')
-    } catch (e) { setCrError('Erreur lors de la génération. Réessaie.') }
+    } catch (e) { setCrError(`Génération impossible : ${e.message}`) }
     setCrGenerating(false)
   }
 

@@ -271,8 +271,8 @@ export default function EspaceComptable() {
       supabase
         .from('accounting_periods')
         .select('*')
-        .order('period_year', { ascending: false })
-        .order('period_month', { ascending: false }),
+        .order('year', { ascending: false })
+        .order('month', { ascending: false }),
     ])
     setInvoices(invAll)
     setPayments(payAll)
@@ -303,7 +303,7 @@ export default function EspaceComptable() {
     if (!dateStr) return false
     const d = new Date(dateStr)
     const y = d.getFullYear(); const m = d.getMonth() + 1
-    return periods.some(p => p.locked_at && p.period_year === y && p.period_month === m)
+    return periods.some(p => p.locked_at && p.year === y && p.month === m)
   }, [periods])
 
   if (loading) {
@@ -1453,7 +1453,7 @@ function CloturesTab({ periods, loadAll, user }) {
     const result = []; const now = new Date(); let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
     while (cursor >= companyStart) {
       const y = cursor.getFullYear(); const m = cursor.getMonth() + 1
-      const period = periods.find(p => p.period_year === y && p.period_month === m)
+      const period = periods.find(p => p.year === y && p.month === m)
       result.push({ year: y, month: m, label: `${String(m).padStart(2,'0')}/${y}`, period })
       cursor = new Date(y, m - 2, 1)
     }
@@ -1465,26 +1465,28 @@ function CloturesTab({ periods, loadAll, user }) {
     try {
       if (item.period?.locked_at) {
         // Déverrouiller
-        await supabase
+        const { error } = await supabase
           .from('accounting_periods')
-          .update({ locked_at: null, locked_by: null })
+          .update({ locked: false, locked_at: null, locked_by: null })
           .eq('id', item.period.id)
+        if (error) throw error
         toast.success(`${MONTH_NAMES[item.month]} ${item.year} déverrouillé`)
       } else {
         // Verrouiller
+        // Colonnes réelles de accounting_periods : label, year, month, locked
         const payload = {
-          period_label: item.label,
-          period_year: item.year,
-          period_month: item.month,
+          label: item.label,
+          year: item.year,
+          month: item.month,
+          locked: true,
           locked_at: new Date().toISOString(),
           locked_by: user?.email || 'Comptable',
           notes: note || null,
         }
-        if (item.period) {
-          await supabase.from('accounting_periods').update(payload).eq('id', item.period.id)
-        } else {
-          await supabase.from('accounting_periods').insert([payload])
-        }
+        const { error } = item.period
+          ? await supabase.from('accounting_periods').update(payload).eq('id', item.period.id)
+          : await supabase.from('accounting_periods').insert([payload])
+        if (error) throw error
         toast.success(`${MONTH_NAMES[item.month]} ${item.year} clôturé`)
         setNote('')
       }

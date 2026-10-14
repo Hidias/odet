@@ -1274,7 +1274,6 @@ export const useDataStore = create((set, get) => ({
     // le CHEMIN, mais on garde le nom d'origine pour l'affichage et le ZIP.
     const ts = Date.now()
     const safeFileName = buildStorageFileName(file.name, ts)
-    const displayFileName = `${ts}_${file.name}`
     const filePath = `sessions/${sessionId}/${safeFileName}`
     
     console.log('Uploading to:', filePath)
@@ -1345,12 +1344,13 @@ export const useDataStore = create((set, get) => ({
   traineeDocuments: [],
   
   fetchTraineeDocuments: async (traineeId) => {
+    // Colonnes réelles : document_url (chemin dans Storage) et uploaded_at ; l'écran lit file_path et created_at
     const { data, error } = await supabase
       .from('trainee_documents')
       .select('*')
       .eq('trainee_id', traineeId)
-      .order('created_at', { ascending: false })
-    return { data: data || [], error }
+      .order('uploaded_at', { ascending: false })
+    return { data: (data || []).map(d => ({ ...d, file_path: d.document_url, created_at: d.uploaded_at })), error }
   },
   
   uploadTraineeDocument: async (traineeId, file, category = 'autre', notes = '') => {
@@ -1372,15 +1372,13 @@ export const useDataStore = create((set, get) => ({
         trainee_id: traineeId,
         name: file.name.replace(/\.[^/.]+$/, ''),
         category,
-        file_path: filePath,
-        file_name: displayFileName,
-        file_size: file.size,
-        notes
+        document_url: filePath,
       }])
       .select()
       .single()
     
-    return { data, error }
+    if (error) await supabase.storage.from('documents').remove([filePath])
+    return { data: data ? { ...data, file_path: data.document_url, created_at: data.uploaded_at } : data, error }
   },
   
   deleteTraineeDocument: async (id, filePath) => {
@@ -2250,11 +2248,9 @@ export const useDataStore = create((set, get) => ({
   },
   
   createNonConformity: async (nc) => {
-    const ref = `NC-${Date.now().toString(36).toUpperCase()}`
-    console.log('Creating NC:', { ...nc, reference: ref })
     const { data, error } = await supabase
       .from('non_conformites')
-      .insert([{ ...nc, reference: ref }])
+      .insert([{ ...nc }])
       .select()
       .single()
     if (error) console.error('NC creation error:', error)
@@ -2482,7 +2478,7 @@ export const useDataStore = create((set, get) => ({
       
       const { data: sessionTrainees } = await supabase
         .from('session_trainees')
-        .select('*, sessions(*, courses(name))')
+        .select('*, sessions(*, courses(title))')
         .eq('trainee_id', traineeId)
       
       const { data: attendances } = await supabase
@@ -2497,7 +2493,7 @@ export const useDataStore = create((set, get) => ({
       
       const { data: documents } = await supabase
         .from('trainee_documents')
-        .select('id, name, type, created_at')
+        .select('id, name, category, uploaded_at')
         .eq('trainee_id', traineeId)
       
       return {
@@ -2508,7 +2504,7 @@ export const useDataStore = create((set, get) => ({
           sessions: sessionTrainees?.map(st => ({
             session_id: st.session_id,
             reference: st.sessions?.reference,
-            course: st.sessions?.courses?.name,
+            course: st.sessions?.courses?.title,
             start_date: st.sessions?.start_date,
             end_date: st.sessions?.end_date,
             result: st.result

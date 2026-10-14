@@ -396,10 +396,18 @@ export default function Completude() {
       })
 
       // 9. FORMATEURS
-      const { data: trainers, error: trainersError } = await supabase
-        .from('trainers')
-        .select('id, first_name, last_name, trainer_certificates(id), trainer_interviews(interview_date), trainer_trainings(training_date)')
-      if (trainersError) console.error('Complétude formateurs :', trainersError.message)
+      // Lectures séparées : ces tables n'ont pas de clé étrangère déclarée vers trainers,
+      // une jointure imbriquée échouait et la rubrique Formateurs restait vide
+      const [trR, certR, itvR, trnR] = await Promise.all([
+        supabase.from('trainers').select('id, first_name, last_name'),
+        supabase.from('trainer_certificates').select('id, trainer_id'),
+        supabase.from('trainer_interviews').select('trainer_id, interview_date'),
+        supabase.from('trainer_trainings').select('trainer_id, training_date'),
+      ])
+      ;[trR, certR, itvR, trnR].forEach(r => { if (r.error) console.error('Complétude formateurs :', r.error.message) })
+      const byTrainer = (rows) => (rows || []).reduce((m, x) => { (m[x.trainer_id] ||= []).push(x); return m }, {})
+      const certs = byTrainer(certR.data), itvs = byTrainer(itvR.data), trns = byTrainer(trnR.data)
+      const trainers = (trR.data || []).map(t => ({ ...t, trainer_certificates: certs[t.id] || [], trainer_interviews: itvs[t.id] || [], trainer_trainings: trns[t.id] || [] }))
       
       const oneYearAgo = new Date()
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)

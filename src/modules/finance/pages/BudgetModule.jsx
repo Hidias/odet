@@ -264,7 +264,7 @@ export default function BudgetModule() {
       supabase.from('budget_categories').select('*').order('sort_order'),
       supabase.from('budget_rules').select('*, budget_categories(name, icon)').order('keyword'),
       fetchAll(() => supabase.from('budget_receipts').select('*')),
-      fetchAll(() => supabase.from('invoices').select('*, clients(name)').order('invoice_date', { ascending: false })),
+      fetchAll(() => supabase.from('invoices').select('*, clients!invoices_client_id_fkey(name)').order('invoice_date', { ascending: false })),
       fetchAll(() => supabase.from('clients').select('*').order('name')),
       supabase.from('bank_statements').select('*').order('period_end', { ascending: false }),
     ])
@@ -4702,10 +4702,9 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
     if (!newAction.title) { toast.error('Titre requis'); return }
     const { error } = await supabase.from('budget_actions').insert({
       title: newAction.title, detail: newAction.detail, type: 'manual',
-      category: newAction.category,
       impact_monthly: newAction.impact_monthly ? parseFloat(newAction.impact_monthly) : null,
       due_date: newAction.due_date || null,
-      status: 'todo', created_by: currentUserName() || ''
+      status: 'todo'
     })
     if (error) { toast.error(error.message); return }
     toast.success('Action ajoutée')
@@ -6416,7 +6415,7 @@ function ProspectCreateModal({ initial, onClose, onCreated }) {
         address: formData.address || null,
         postal_code: formData.postal_code || null,
         city: formData.city || null,
-        phone: formData.phone || null,
+        contact_phone: formData.phone || null,
         contact_email: formData.contact_email || null,
         contact_name: formData.contact_name || null,
         notes: formData.notes || null,
