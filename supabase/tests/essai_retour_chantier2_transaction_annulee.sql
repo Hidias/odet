@@ -11,11 +11,12 @@ create temp view etat_essai as
   union all
   select 'fonction', p.oid::regprocedure::text,
          md5(concat_ws('|', pg_get_functiondef(p.oid), p.prosecdef::text, p.proconfig::text,
-             (select string_agg(a.grantee::regrole::text || ':' || a.privilege_type, ',' order by 1) from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a)))
+             (select string_agg(a.grantee::regrole::text || ':' || a.privilege_type, ',' order by a.grantee::regrole::text, a.privilege_type) from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a)))
   from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind in ('f', 'p')
   union all
   select 'droits table', c.oid::regclass::text,
-         md5(coalesce((select string_agg(a.grantee::regrole::text || ':' || a.privilege_type || ':' || a.is_grantable::text, ',' order by 1)
+         md5(coalesce((select string_agg(a.grantee::regrole::text || ':' || a.privilege_type || ':' || a.is_grantable::text, ','
+                               order by a.grantee::regrole::text, a.privilege_type)
                        from aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a), '') || c.relrowsecurity::text)
   from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'v', 'm', 'p')
   union all
@@ -2025,7 +2026,7 @@ declare
 begin
   select count(*), (array_agg(coalesce(a.kind, b.kind) || ' ' || coalesce(a.name, b.name) || case
            when a.name is null then ' (en trop après retour)' when b.name is null then ' (manquant après retour)'
-           else ' (différent)' end order by coalesce(a.kind, b.kind), coalesce(a.name, b.name)))[1:40]
+           else ' (différent)' end order by coalesce(a.kind, b.kind) desc, coalesce(a.name, b.name)))[1:40]
     into v_n, v_diff
   from etat_essai_avant a full join etat_essai b on a.kind = b.kind and a.name = b.name
   where a.v is distinct from b.v;
