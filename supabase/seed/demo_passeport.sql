@@ -4,8 +4,9 @@
 -- 1. Active le module « passeport ».
 -- 2. Règle chaque formation du catalogue à partir des valeurs proposées (pp_presets), par code de formation.
 --    Réglages de l'instance : ils restent après la purge des données de démonstration.
--- 3. Démonstration seulement (clients inscrits dans demo_records) : SIRET fictifs rendus valides (clé de Luhn),
---    sauf un, gardé faux pour montrer le blocage ; deux stagiaires fictifs refusent de donner leur numéro.
+-- 3. Démonstration seulement (lignes inscrites dans demo_records) : SIRET fictifs rendus valides (clé de Luhn),
+--    sauf un, gardé faux pour montrer le blocage ; refus levé pour les stagiaires fictifs des formations
+--    déclarables (le jeu fictif les marquait presque tous en refus), puis deux refus fictifs.
 -- Les numéros fictifs sont créés ensuite par l'action « demo-seed » de api/passeport.js (chiffrement côté serveur),
 -- lancée par le super administrateur depuis la page (voir la procédure du chantier 16).
 
@@ -67,6 +68,19 @@ begin
       end if;
     end loop;
   end loop;
+
+  -- Le jeu fictif marquait presque tous les stagiaires « refuse de communiquer son numéro » : on lève ce refus
+  -- pour les stagiaires fictifs des sessions terminées de formations déclarables (ils recevront un numéro fictif)
+  update public.trainees set refused_ssn = false
+  where refused_ssn
+    and id in (select id from public.demo_records where tbl = 'trainees')
+    and id in (
+      select st.trainee_id
+      from public.session_trainees st
+      join public.sessions s on s.id = st.session_id
+      join public.pp_course_settings cs on cs.course_id = s.course_id and cs.declarable
+      where s.end_date < current_date
+    );
 
   -- Deux stagiaires fictifs refusent de communiquer leur numéro (sessions terminées, formations déclarables)
   update public.trainees set refused_ssn = true
