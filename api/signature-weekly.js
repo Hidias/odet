@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import nodemailer from 'nodemailer'
-import { getSupabaseAdmin, decrypt } from './_lib/mailer.js'
+import { getSupabaseAdmin, decrypt, guardTransport } from './_lib/mailer.js'
 import { requireCronOrUser } from './_lib/auth.js'
 
 export const config = { maxDuration: 60 }
@@ -99,7 +99,7 @@ export default async function handler(req, res) {
       configs.find(c => c.email === 'contact@accessformation.pro') ||
       configs[0]
 
-    const transporter = nodemailer.createTransport({
+    const transporter = guardTransport(nodemailer.createTransport({
       host: cfg.smtp_host,
       port: cfg.smtp_port,
       secure: cfg.smtp_secure,
@@ -108,7 +108,7 @@ export default async function handler(req, res) {
       connectionTimeout: 15000,
       greetingTimeout: 15000,
       socketTimeout: 30000,
-    })
+    }))
 
     await transporter.sendMail({
       from: `"Access Campus" <${cfg.email}>`,

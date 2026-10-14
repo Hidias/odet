@@ -15,7 +15,7 @@
 
 import nodemailer from 'nodemailer'
 import { createClient } from '@supabase/supabase-js'
-import { SIGNATURES, decrypt } from './_lib/mailer.js'
+import { SIGNATURES, decrypt, guardTransport } from './_lib/mailer.js'
 
 export const config = { maxDuration: 15 }
 
@@ -106,7 +106,7 @@ async function sendNotificationToSender(senderEmail, companyName, recipientEmail
     if (!emailConfig) return
 
     const smtpPassword = decrypt(emailConfig.smtp_password_encrypted)
-    const transporter = nodemailer.createTransport({
+    const transporter = guardTransport(nodemailer.createTransport({
       host: emailConfig.smtp_host,
       port: emailConfig.smtp_port,
       secure: emailConfig.smtp_secure,
@@ -116,7 +116,7 @@ async function sendNotificationToSender(senderEmail, companyName, recipientEmail
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 20000,
-    })
+    }))
 
     const dateStr = new Date().toLocaleDateString('fr-FR', {
       day: '2-digit', month: '2-digit', year: 'numeric',

@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import nodemailer from 'nodemailer'
-import { getSupabaseAdmin, decrypt } from './_lib/mailer.js'
+import { getSupabaseAdmin, decrypt, guardTransport } from './_lib/mailer.js'
 import { requireCronOrUser } from './_lib/auth.js'
 
 export const config = { maxDuration: 60 }
@@ -78,7 +78,7 @@ async function getTransporter(supabase, preferEmail) {
     configs.find(c => c.email === FALLBACK_RECIPIENT) ||
     configs[0]
 
-  const transporter = nodemailer.createTransport({
+  const transporter = guardTransport(nodemailer.createTransport({
     host: cfg.smtp_host,
     port: cfg.smtp_port,
     secure: cfg.smtp_secure,
@@ -87,7 +87,7 @@ async function getTransporter(supabase, preferEmail) {
     connectionTimeout: 15000,
     greetingTimeout: 15000,
     socketTimeout: 30000,
-  })
+  }))
   return { transporter, from: cfg.email }
 }
 

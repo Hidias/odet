@@ -14,6 +14,8 @@ export default defineConfig({
     env: {
       VITE_SUPABASE_URL: 'http://localhost:54321',
       VITE_SUPABASE_ANON_KEY: 'cle-de-test',
+      SUPABASE_URL: 'http://localhost:54321',
+      SUPABASE_SERVICE_ROLE_KEY: 'cle-de-test',
     },
   },
 })
