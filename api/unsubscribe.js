@@ -15,7 +15,7 @@
 
 import nodemailer from 'nodemailer'
 import { createClient } from '@supabase/supabase-js'
-import { SIGNATURES, decrypt, guardTransport } from './_lib/mailer.js'
+import { decrypt, guardTransport } from './_lib/mailer.js'
 
 export const config = { maxDuration: 15 }
 
