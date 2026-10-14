@@ -41,6 +41,7 @@ const Completude = lazy(() => import('../modules/qualite/pages/Completude'))
 const BPF = lazy(() => import('../modules/qualite/pages/BPF'))
 const Certification = lazy(() => import('../modules/certification/pages/Certification'))
 const Interventions = lazy(() => import('../modules/interventions/pages/Interventions'))
+const Passeport = lazy(() => import('../modules/passeport/pages/Passeport'))
 // Prospection
 const ProspectionTabs = lazy(() => import('../modules/prospection/pages/ProspectionTabs'))
 const ProspectRDVDetail = lazy(() => import('../modules/prospection/pages/ProspectRDVDetail'))
@@ -239,6 +240,7 @@ export default function App() {
             <Route path="bpf" element={<BPF />} />
             <Route path="certification/*" element={<Certification />} />
             <Route path="interventions/*" element={<Interventions />} />
+            <Route path="passeport/*" element={<Passeport />} />
             <Route path="veille-qualiopi" element={<VeilleQualiopi />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="parametres" element={<Settings />} />

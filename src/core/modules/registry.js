@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Calendar, GraduationCap, Users, UserCheck, FileText, FileQuestion, ClipboardCheck,
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
-  MapPin, Briefcase, Settings, Sliders, ShieldCheck,
+  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -26,6 +26,7 @@ export const NAV_SECTIONS = [
       { to: '/sessions', icon: Calendar, label: 'Sessions', roles: STAFF },
       { to: '/formations', icon: GraduationCap, label: 'Catalogue', roles: STAFF },
       { to: '/stagiaires', icon: Users, label: 'Stagiaires', roles: STAFF },
+      { to: '/passeport', icon: BookUser, label: 'Passeport de prévention', roles: MANAGERS, module: 'passeport' },
       { to: '/formateurs', icon: UserCheck, label: 'Formateurs', roles: MANAGERS },
       { to: '/documents', icon: FileText, label: 'Documents', roles: STAFF },
       { to: '/documents-vierges', icon: FileQuestion, label: 'Documents vierges', roles: STAFF },

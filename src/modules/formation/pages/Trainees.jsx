@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { useDataStore } from '../../../core/store'
+import { useDataStore, useAuthStore } from '../../../core/store'
+import PasseportTraineeBlock from '../../passeport/components/PasseportTraineeBlock'
+import { PP_ROLES } from '../../passeport/lib/ppData'
 import { supabase } from '../../../core/supabase'
 import { Plus, Search, Edit, Trash2, X, Save, FileText, Upload, Eye, Building2, Download, CheckSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -51,6 +53,10 @@ const ConfirmModal = ({ show, onConfirm, onCancel, message }) => {
 }
 
 export default function Trainees() {
+  // Module Passeport de prévention actif : nom de naissance et numéro gérés par le bloc Passeport (numéro chiffré, jamais affiché)
+  const { modules: ppModules, userRole: ppRole } = useAuthStore()
+  const passeportOn = (ppModules || []).includes('passeport')
+  const passeportEdit = passeportOn && PP_ROLES.includes(ppRole)
   const { 
     trainees, fetchTrainees, createTrainee, updateTrainee, deleteTrainee, getTraineeWithSSN,
     clients, fetchClients,
@@ -167,7 +173,7 @@ export default function Trainees() {
     logAudit('view', 'trainee', trainee.id, `${trainee.first_name} ${trainee.last_name}`)
     
     // Charger le N° sécu déchiffré si le stagiaire en a un
-    if (trainee.social_security_number || trainee.ssn_encrypted) {
+    if (!passeportOn && (trainee.social_security_number || trainee.ssn_encrypted)) {
       setLoadingSSN(true)
       const { data } = await getTraineeWithSSN(trainee.id)
       if (data?.social_security_number) {
@@ -242,6 +248,11 @@ export default function Trainees() {
       gender: form.gender || null,
     }
     
+    if (passeportOn) {
+      // Le numéro et le refus passent par le module Passeport : jamais en clair dans la fiche
+      delete dataToSave.social_security_number
+      delete dataToSave.refused_ssn
+    }
     console.log('Sauvegarde stagiaire avec:', dataToSave)
     
     const traineeName = `${form.first_name} ${form.last_name}`
@@ -416,7 +427,7 @@ export default function Trainees() {
         last_name: trainee.last_name,
         email: trainee.email || null,
         phone: trainee.phone || null,
-        social_security_number: trainee.social_security_number || null,
+        social_security_number: passeportOn ? null : (trainee.social_security_number || null),
         client_id: bulkClientId || null,
       })
       if (error) {
@@ -733,6 +744,7 @@ export default function Trainees() {
                     </p>
                   </div>
                 </div>
+                {passeportOn ? (passeportEdit ? <PasseportTraineeBlock trainee={selectedTrainee} onChange={fetchTrainees} /> : null) : (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-amber-600 font-medium mb-1">N° Sécurité Sociale (Passeport Prévention)</p>
@@ -746,6 +758,7 @@ export default function Trainees() {
                     <p className="font-mono text-lg font-bold text-amber-800">{decryptedSSN || selectedTrainee.social_security_number || 'Non renseigné'}</p>
                   )}
                 </div>
+                )}
                 {selectedTrainee.notes && (
                   <div>
                     <p className="text-gray-500 text-sm">Notes</p>
@@ -836,6 +849,9 @@ export default function Trainees() {
                     <input type="email" className="input" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
                   </div>
                 </div>
+                {passeportOn ? (
+                  <p className="text-sm text-gray-600">Nom de naissance et numéro de sécurité sociale : bloc « Passeport de prévention » de la fiche (aperçu du stagiaire).</p>
+                ) : (
                 <div>
                   <label className="label">N° Sécurité Sociale</label>
                   <input 
@@ -855,6 +871,7 @@ export default function Trainees() {
                     A refusé de communiquer son numéro
                   </label>
                 </div>
+                )}
                 <div>
                   <label className="label">Entreprise</label>
                   <SearchSelect value={form.client_id} onChange={(v) => setForm({...form, client_id: v})}
@@ -1092,8 +1109,9 @@ export default function Trainees() {
                       <input 
                         type="text" 
                         className="input col-span-2 font-mono text-xs" 
-                        placeholder="N° Sécu"
-                        value={trainee.social_security_number || ''}
+                        placeholder={passeportOn ? 'N° Sécu : fiche' : 'N° Sécu'}
+                        disabled={passeportOn}
+                        value={passeportOn ? '' : (trainee.social_security_number || '')}
                         onChange={(e) => updateBulkRow(index, 'social_security_number', e.target.value)}
                       />
                       <button 

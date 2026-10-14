@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
+import { useAuthStore } from '../../../core/store'
+import { loadNirEtat } from '../../passeport/lib/ppData'
 import { 
   AlertCircle, CheckCircle, User, Calendar, FileText, Star, 
   Target, BookOpen, Users, Shield, Filter, Download, 
@@ -30,6 +32,8 @@ const CATEGORIES = {
 }
 
 export default function Completude() {
+  const { modules: ppModules } = useAuthStore()
+  const passeportOn = (ppModules || []).includes('passeport')
   const [loading, setLoading] = useState(true)
   const [issues, setIssues] = useState([])
   const [expandedCategories, setExpandedCategories] = useState(Object.keys(CATEGORIES))
@@ -63,6 +67,12 @@ export default function Completude() {
         .from('trainees')
         .select('id, first_name, last_name, birth_date, csp, job_title, gender, social_security_number, refused_ssn')
       
+      // Module Passeport de prévention actif : le numéro est chiffré à part (présence seulement, jamais le numéro)
+      let nirPresents = null
+      if (passeportOn && trainees?.length) {
+        try { nirPresents = await loadNirEtat(trainees.map((t) => t.id)) } catch { nirPresents = null }
+      }
+
       trainees?.forEach(t => {
         if (!t.birth_date) {
           allIssues.push({
@@ -108,7 +118,7 @@ export default function Completude() {
             since: null
           })
         }
-        if (!t.refused_ssn && !t.social_security_number) {
+        if (!t.refused_ssn && !(nirPresents ? nirPresents[t.id] : t.social_security_number)) {
           allIssues.push({
             category: 'stagiaires',
             priority: 'bloquant',
