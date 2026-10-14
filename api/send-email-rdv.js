@@ -3,7 +3,7 @@
 // Les PJ sont récupérées depuis Supabase Storage (pas en JSON body → évite la limite 4.5MB Vercel)
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML } from './_lib/mailer.js'
-import { requireUser } from './_lib/auth.js'
+import { requireRole, SALES, isSafeStoragePath } from './_lib/auth.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -12,12 +12,10 @@ const supabase = getSupabaseAdmin()
 
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, SALES)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -32,8 +30,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Paramètres manquants' })
     }
 
+    // Pièces jointes : uniquement les fichiers temporaires déposés par l'appelant
+    // (bucket email-attachments, « temp-email/<id utilisateur>/... ») ; ils sont supprimés après l'envoi
+    if (!Array.isArray(attachmentRefs) || attachmentRefs.some((ref) => !isSafeStoragePath(ref?.storagePath, `temp-email/${req.user.id}/`))) {
+      return res.status(400).json({ error: 'Pièce jointe non autorisée' })
+    }
+
     // 1. Configuration SMTP de l'utilisateur connecté et transporteur (redirection démo incluse)
-    const mailer = await getMailer(supabase, req.user?.id || userId)
+    // Toujours la boîte de l'utilisateur connecté (userId du corps ignoré)
+    const mailer = await getMailer(supabase, req.user.id)
     if (mailer.error) {
       return res.status(400).json({ error: 'Configuration email non trouvée. Configurez votre email dans Paramètres.' })
     }
@@ -98,7 +103,7 @@ export default async function handler(req, res) {
         resend_email_id: info.messageId,
         attachments: attachmentRefs.map(a => ({ name: a.filename, size: a.size || 0 })),
         status: 'sent',
-        created_by: userId
+        created_by: req.user.id
       }])
 
     if (historyError) {

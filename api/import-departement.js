@@ -12,7 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { requireCronOrUser } from './_lib/auth.js'
+import { requireCronOrRole, SALES } from './_lib/auth.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Clé serveur : la table prospection_massive est protégée (RLS, accès connecté uniquement)
@@ -221,17 +221,13 @@ async function insertProspects(supabase, prospects) {
 
 export default async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
-    // Utilisateur connecté (import manuel) ou tâche planifiée (secret CRON_SECRET, appel de import-auto-cron)
-    const ctx = await requireCronOrUser(req, res)
+    // Prospection (import manuel) ou tâche planifiée (secret CRON_SECRET, appel de import-auto-cron)
+    const ctx = await requireCronOrRole(req, res, SALES)
     if (!ctx) return
     req.user = ctx.user || null
     req.profile = ctx.profile || null
   }
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  
+  // Application servie sur la même origine : aucun en-tête CORS ouvert
   if (req.method === 'OPTIONS') {
     return res.status(200).end()
   }

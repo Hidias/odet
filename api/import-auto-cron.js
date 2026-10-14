@@ -1,4 +1,4 @@
-import { requireCronOrUser } from './_lib/auth.js'
+import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { getOrg, getSupabaseAdmin } from './_lib/mailer.js'
 import { appUrl } from './_lib/internal.js'
 /**
@@ -7,8 +7,8 @@ import { appUrl } from './_lib/internal.js'
  */
 
 export default async function handler(req, res) {
-  if (!(await requireCronOrUser(req, res))) return
-  // Vérifier que c'est bien le cron Vercel qui appelle
+  // Tâche planifiée (CRON_SECRET) ou lancement manuel par un administrateur
+  if (!(await requireCronOrRole(req, res, ADMINS))) return
   
   console.log('🤖 CRON JOB - Import automatique lancé')
   

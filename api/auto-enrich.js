@@ -1,4 +1,4 @@
-import { requireUser } from './_lib/auth.js'
+import { requireRole, SALES } from './_lib/auth.js'
 /**
  * ============================================================================
  * API - AUTO-ENRICHISSEMENT PROSPECT v3 (Anthropic + Web Search)
@@ -19,17 +19,11 @@ export const config = {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  const ctx = await requireRole(req, res, SALES)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
+  // Application servie sur la même origine : aucun en-tête CORS ouvert
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   
   const { name, city, postal_code, siren, siret, site_web: existingSiteWeb } = req.body

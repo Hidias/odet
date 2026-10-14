@@ -64,14 +64,41 @@ const SATISFACTION_KEYS = [
   'q_global_adequation', 'q_global_competences',
 ]
 
+// Lecture complète paginée (PostgREST plafonne chaque réponse à 1000 lignes) : pages de 1000, triées par id
+const PAGE = 1000
+async function fetchAll(build) {
+  const rows = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await build().order('id', { ascending: true }).range(from, from + PAGE - 1)
+    if (error) throw error
+    rows.push(...(data || []))
+    if (!data || data.length < PAGE) return rows
+  }
+}
+
+// Lignes liées à une liste de sessions : identifiants par paquets (adresse de requête bornée), chaque paquet paginé
+async function fetchBySessions(admin, table, columns, sessionIds) {
+  const rows = []
+  for (let i = 0; i < sessionIds.length; i += 150) {
+    const chunk = sessionIds.slice(i, i + 150)
+    rows.push(...(await fetchAll(() => admin.from(table).select(columns).in('session_id', chunk))))
+  }
+  return rows
+}
+
 async function loadRealStats(admin, since) {
   try {
-    const [{ data: sts }, { data: sessions }, { data: evals }] = await Promise.all([
-      admin.from('session_trainees').select('session_id, trainee_id, result, presence_complete, early_departure'),
-      admin.from('sessions').select('id, status, start_date'),
-      admin.from('trainee_evaluations').select(`session_id, trainee_id, ${SATISFACTION_KEYS.join(', ')}`),
+    // Filtre de date appliqué en base sur les sessions, puis lignes liées à ces seules sessions
+    const sessions = await fetchAll(() => {
+      const q = admin.from('sessions').select('id, status, start_date')
+      return since ? q.gte('start_date', since) : q
+    })
+    const sessionIds = sessions.map((x) => x.id)
+    const [sts, evals] = await Promise.all([
+      fetchBySessions(admin, 'session_trainees', 'id, session_id, trainee_id, result, presence_complete, early_departure', sessionIds),
+      fetchBySessions(admin, 'trainee_evaluations', `id, session_id, trainee_id, ${SATISFACTION_KEYS.join(', ')}`, sessionIds),
     ])
-    const own = (sessions || []).filter((x) => !since || String(x.start_date || '') >= since)
+    const own = sessions
     const ownIds = new Set(own.map((x) => x.id))
     const completed = new Set(own.filter((x) => x.status === 'completed').map((x) => x.id))
     const formed = new Set((sts || []).filter((x) => ownIds.has(x.session_id) && (x.presence_complete === true || x.early_departure === true)).map((x) => `${x.session_id}:${x.trainee_id}`))

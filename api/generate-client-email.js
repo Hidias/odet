@@ -1,17 +1,15 @@
-import { requireUser } from './_lib/auth.js'
+import { requireRole, SALES } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
 // api/generate-client-email.js
 // Génère un email pro à un client via Claude Sonnet
 // Contexte enrichi : sessions, devis, RDV, historique complet
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-    req.admin = ctx.admin
-  }
+  const ctx = await requireRole(req, res, SALES)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
+  req.admin = ctx.admin
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { getSupabaseAdmin, getMailerByEmail, getOrg } from './_lib/mailer.js'
-import { requireCronOrUser } from './_lib/auth.js'
+import { requireCronOrRole, SALES } from './_lib/auth.js'
 
 export const config = { maxDuration: 20 }
 
@@ -165,7 +165,8 @@ function buildReportHTML(campaign, sends, org) {
 
 // ─── Handler principal ────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  if (!(await requireCronOrUser(req, res))) return
+  // Fin de campagne : appel de mailing-cron (CRON_SECRET) ou de l'écran Mailing (envoi depuis le navigateur)
+  if (!(await requireCronOrRole(req, res, SALES))) return
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

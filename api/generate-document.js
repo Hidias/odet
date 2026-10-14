@@ -1,15 +1,13 @@
-import { requireUser, getAdminClient } from './_lib/auth.js'
+import { requireRole, getAdminClient, MANAGERS } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock } from './_lib/orgProfile.js'
 // api/generate-document.js
 // Génère ou reformule du texte pour les courriers officiels via Claude
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, [...MANAGERS, 'formateur', 'commercial'])
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

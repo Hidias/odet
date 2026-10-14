@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import crypto from 'crypto'
 
 // Client serveur (clé service role : contourne la RLS, à n'utiliser qu'après vérification de l'appelant)
 export function getAdminClient() {
@@ -8,13 +9,58 @@ export function getAdminClient() {
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
+// ─── Groupes de rôles ────────────────────────────────────────────────────────
+// Rôles du personnel : superadmin, admin, direction, gestionnaire, formateur, commercial, comptable, lecture.
+// Les rôles externes (entreprise, formateur_externe, stagiaire) ne figurent dans AUCUN groupe.
+// « lecture » est en lecture seule ; un technicien de terrain a aussi le rôle « lecture » :
+// toute route qui écrit ou envoie ne doit donc jamais autoriser « lecture ».
+export const SA = ['superadmin']
+export const ADMINS = ['superadmin', 'admin']
+export const MANAGERS = [...ADMINS, 'direction', 'gestionnaire']
+export const SALES = [...MANAGERS, 'commercial']
+export const FINANCE = [...ADMINS, 'direction', 'comptable']
+export const BILLING = [...SALES, 'comptable']
+export const STAFF = [...MANAGERS, 'formateur', 'commercial', 'lecture']
+/** Personnel de bureau (inclut « lecture » : à réserver aux routes de pure consultation) */
+export const OFFICE = [...STAFF, 'comptable']
+/** Personnel de bureau sans « lecture » : routes qui écrivent, envoient ou consomment un service payant */
+export const OFFICE_WRITE = OFFICE.filter((r) => r !== 'lecture')
+
+/** Compatibilité : ancien nom */
+export const ADMIN_ROLES = ADMINS
+
+// ─── Jeton porteur ───────────────────────────────────────────────────────────
+function bearerToken(req) {
+  const header = req.headers?.authorization || req.headers?.Authorization || ''
+  return header.startsWith('Bearer ') ? header.slice(7).trim() : ''
+}
+
+/** Comparaison à temps constant de deux chaînes (false si l'une est vide) */
+export function safeEqual(a, b) {
+  const x = Buffer.from(String(a || ''), 'utf8')
+  const y = Buffer.from(String(b || ''), 'utf8')
+  if (x.length === 0 || y.length === 0) return false
+  if (x.length !== y.length) {
+    // Comparaison factice pour ne pas révéler la longueur par le temps de réponse
+    crypto.timingSafeEqual(x, x)
+    return false
+  }
+  return crypto.timingSafeEqual(x, y)
+}
+
+/** true si la requête porte le secret des tâches planifiées (en-tête Authorization uniquement) */
+export function hasCronSecret(req) {
+  const expected = process.env.CRON_SECRET
+  if (!expected) return false
+  return safeEqual(bearerToken(req), expected)
+}
+
 /**
  * Vérifie le jeton de l'utilisateur connecté (en-tête Authorization: Bearer <jwt>)
- * et retourne { user, profile } ou null.
+ * et retourne { user, profile, admin } ou null.
  */
 export async function requireUser(req) {
-  const header = req.headers?.authorization || req.headers?.Authorization || ''
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null
+  const token = bearerToken(req)
   if (!token) return null
   const admin = getAdminClient()
   const { data, error } = await admin.auth.getUser(token)
@@ -41,14 +87,12 @@ export async function requireRole(req, res, roles) {
   return ctx
 }
 
-export const ADMIN_ROLES = ['superadmin', 'admin']
-
-/** Vérifie le secret des tâches planifiées (en-tête Authorization: Bearer <CRON_SECRET> ou ?secret=) */
+/**
+ * Vérifie le secret des tâches planifiées : en-tête Authorization: Bearer <CRON_SECRET> uniquement
+ * (plus de ?secret= dans l'adresse, qui finit dans les journaux). Refuse si CRON_SECRET n'est pas définie.
+ */
 export function requireCronSecret(req, res) {
-  const expected = process.env.CRON_SECRET
-  const header = req.headers?.authorization || ''
-  const given = header.startsWith('Bearer ') ? header.slice(7) : (req.query?.secret || '')
-  if (!expected || given !== expected) {
+  if (!hasCronSecret(req)) {
     res.status(401).json({ error: 'Secret invalide' })
     return false
   }
@@ -56,17 +100,35 @@ export function requireCronSecret(req, res) {
 }
 
 /**
- * Pour les tâches planifiées : accepte le secret CRON_SECRET (appel par Vercel ou Supabase)
- * ou un utilisateur connecté (lancement manuel depuis l'application).
- * Répond 401 et retourne false si aucun des deux n'est valide.
+ * Tâches planifiées lançables aussi à la main : accepte le CRON_SECRET (Vercel, Supabase, appel interne)
+ * OU un utilisateur actif dont le rôle figure dans `roles`.
+ * Retourne { cron: true } ou le contexte utilisateur ; null après avoir répondu 401/403 en cas de refus.
+ */
+export async function requireCronOrRole(req, res, roles) {
+  if (hasCronSecret(req)) return { cron: true }
+  return requireRole(req, res, roles)
+}
+
+/**
+ * Conservé pour compatibilité, n'est plus utilisé par les routes : accepte le CRON_SECRET
+ * ou n'importe quel utilisateur actif. Préférer requireCronOrRole.
  */
 export async function requireCronOrUser(req, res) {
-  const expected = process.env.CRON_SECRET
-  const header = req.headers?.authorization || ''
-  const given = header.startsWith('Bearer ') ? header.slice(7) : (req.query?.secret || '')
-  if (expected && given === expected) return { cron: true }
+  if (hasCronSecret(req)) return { cron: true }
   const ctx = await requireUser(req)
   if (ctx) return ctx
   res.status(401).json({ error: 'Connexion requise' })
   return false
+}
+
+/**
+ * Chemin de stockage sûr : relatif, sans « .. », sans barre oblique initiale ni caractère de contrôle,
+ * et commençant par le préfixe attendu (ex. `${sessionId}/`).
+ */
+export function isSafeStoragePath(path, prefix) {
+  const p = String(path || '')
+  if (!p || p.length > 512) return false
+  if (p.startsWith('/') || p.includes('\\') || /[\u0000-\u001f]/.test(p)) return false
+  if (p.split('/').some((seg) => seg === '..' || seg === '.')) return false
+  return prefix ? p.startsWith(prefix) : true
 }

@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
-import { requireUser } from '../_lib/auth.js'
+import { requireRole, SALES } from '../_lib/auth.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -12,12 +12,8 @@ const supabase = createClient(
 )
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, SALES)
+  if (!ctx) return
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -25,10 +21,20 @@ export default async function handler(req, res) {
   try {
     const { data: tokens } = await supabase
       .from('social_tokens')
-      .select('platform, page_id, account_id, token_expires_at, metadata, updated_at')
+      .select('platform, token_expires_at, metadata, updated_at')
 
     const status = {}
     const platforms = ['facebook', 'instagram', 'gmb', 'linkedin']
+
+    // Seul le nom affiché est extrait des métadonnées : aucun jeton ni identifiant technique
+    // n'est renvoyé au navigateur (metadata contient notamment le jeton utilisateur Meta)
+    const displayName = (platform, m = {}) => {
+      if (platform === 'facebook') return m.page_name || null
+      if (platform === 'instagram') return m.username || null
+      if (platform === 'gmb') return m.location_name || null
+      if (platform === 'linkedin') return m.org_name || null
+      return null
+    }
 
     for (const platform of platforms) {
       const token = (tokens || []).find(t => t.platform === platform)
@@ -39,8 +45,7 @@ export default async function handler(req, res) {
           connected: !isExpired,
           expired: isExpired,
           expires_at: token.token_expires_at,
-          page_id: token.page_id,
-          metadata: token.metadata,
+          name: displayName(platform, token.metadata || {}),
           updated_at: token.updated_at,
         }
       } else {

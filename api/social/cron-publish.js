@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
-import { requireCronOrUser } from '../_lib/auth.js'
+import { requireCronOrRole, ADMINS } from '../_lib/auth.js'
 import { appUrl } from '../_lib/internal.js'
 
 const supabase = createClient(
@@ -18,7 +18,8 @@ const ENV_APP_URL = String(process.env.APP_URL || '').replace(/\/$/, '')
 
 export default async function handler(req, res) {
   const APP_URL = ENV_APP_URL || appUrl(req)
-  if (!(await requireCronOrUser(req, res))) return
+  // Tâche planifiée (CRON_SECRET) ou lancement manuel par un administrateur
+  if (!(await requireCronOrRole(req, res, ADMINS))) return
 
   try {
     const now = new Date().toISOString()
@@ -58,7 +59,8 @@ export default async function handler(req, res) {
         // Appeler l'API de publication
         const pubRes = await fetch(`${APP_URL}/api/social/publish`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          // Appel serveur à serveur : authentifié par le secret des tâches planifiées
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.CRON_SECRET || ''}` },
           body: JSON.stringify({ post_id: post.id }),
         })
         const pubData = await pubRes.json()

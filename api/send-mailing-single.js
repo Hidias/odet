@@ -1,10 +1,14 @@
 // api/send-mailing-single.js
 // Envoi d'un email de campagne à un destinataire (une ligne mailing_sends), avec signature
 // de l'expéditeur et pied de page de désabonnement aux mentions de l'organisme.
-// Expéditeur : le compte email de l'utilisateur connecté, sinon l'expéditeur par défaut de l'organisme.
+// Expéditeur :
+//  - appel interne (mailing-cron) ou administrateur : la boîte demandée (sender_email), sinon celle de
+//    l'utilisateur, sinon l'expéditeur par défaut de l'organisme, sinon le premier compte actif ;
+//  - autres rôles : uniquement une boîte appartenant à l'utilisateur appelant (user_email_configs.user_id).
+// La ligne mailing_sends visée doit correspondre au destinataire (et au jeton de désabonnement pour une campagne).
 
 import { getSupabaseAdmin, getMailer, getMailerByEmail, sendWithRetry, getOrg, getSender, wrapEmailHTML } from './_lib/mailer.js'
-import { requireUser } from './_lib/auth.js'
+import { requireRole, SALES, ADMINS } from './_lib/auth.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -13,12 +17,22 @@ export const config = {
   maxDuration: 30,
 }
 
-async function pickMailer(userId, org, preferEmail) {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const norm = (e) => String(e || '').trim().toLowerCase()
+
+async function pickMailer(userId, org, preferEmail, trusted) {
+  if (!trusted) {
+    // Utilisateur non administrateur : seulement ses propres boîtes
+    if (!userId) return { error: 'Utilisateur inconnu' }
+    const m = await getMailer(supabase, userId, { preferEmail })
+    if (m.error) return { error: 'Configurez votre compte email dans Paramètres > Comptes email' }
+    return m
+  }
   if (preferEmail) {
     const m = await getMailerByEmail(supabase, preferEmail)
     if (!m.error) return m
   }
-  let m = await getMailer(supabase, userId)
+  let m = userId ? await getMailer(supabase, userId) : { error: 'Utilisateur inconnu' }
   if (!m.error) return m
   if (org.email_default_sender) {
     m = await getMailerByEmail(supabase, org.email_default_sender)
@@ -27,6 +41,33 @@ async function pickMailer(userId, org, preferEmail) {
   const { data: configs } = await supabase.from('user_email_configs').select('email').eq('is_active', true).limit(1)
   if (configs?.[0]) return getMailerByEmail(supabase, configs[0].email)
   return { error: 'Aucune configuration email active' }
+}
+
+/**
+ * Vérifie que send_id désigne bien l'envoi demandé : même destinataire, même campagne si elle est
+ * précisée, même jeton de désabonnement pour un envoi de campagne. Retourne un message d'erreur ou null.
+ */
+async function checkSend({ send_id, to, campaign_id, unsubscribe_token }, callerEmail) {
+  if (!UUID_RE.test(String(send_id))) {
+    // Test sans ligne en base (repli de l'écran de composition) : uniquement vers soi-même
+    return callerEmail && norm(to) === norm(callerEmail) ? null : 'Envoi inconnu'
+  }
+  const { data: row } = await supabase.from('mailing_sends')
+    .select('id, campaign_id, email, unsubscribe_token, status')
+    .eq('id', send_id).maybeSingle()
+  if (!row) return 'Envoi introuvable'
+  if (norm(row.email) !== norm(to)) return 'Destinataire différent de celui de l\'envoi'
+  if (campaign_id !== undefined && campaign_id !== null && String(row.campaign_id || '') !== String(campaign_id)) {
+    return 'Cet envoi n\'appartient pas à la campagne indiquée'
+  }
+  if (row.campaign_id) {
+    if (!row.unsubscribe_token || String(row.unsubscribe_token) !== String(unsubscribe_token)) return 'Jeton de désabonnement incohérent'
+    if (row.status === 'sent') return 'Envoi déjà effectué'
+  } else if (!callerEmail || norm(to) !== norm(callerEmail)) {
+    // Ligne de test (sans campagne) : envoi vers soi-même uniquement
+    return 'Un envoi de test ne peut partir que vers votre propre adresse'
+  }
+  return null
 }
 
 function formatSiret(siret) {
@@ -75,23 +116,30 @@ async function markSendError(sendId, message) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS' && req.internal !== true) {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+  const internal = req.internal === true
+  if (!internal) {
+    const ctx = await requireRole(req, res, SALES)
+    if (!ctx) return
     req.user = ctx.user
     req.profile = ctx.profile
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
 
-  const { send_id, to, subject, body_html, sender_email, unsubscribe_token, attachments } = req.body || {}
+  const { send_id, to, subject, body_html, sender_email, unsubscribe_token, attachments, campaign_id } = req.body || {}
   if (!send_id || !to || !subject || !body_html || !unsubscribe_token) {
     return res.status(400).json({ error: 'Paramètres manquants : send_id, to, subject, body_html, unsubscribe_token requis' })
   }
 
+  // Cohérence de l'envoi (l'appel interne de mailing-cron vient d'une réservation en base : contrôle aussi, sans test)
+  const callerEmail = internal ? null : (req.user?.email || req.profile?.email || null)
+  const sendError = await checkSend({ send_id, to, campaign_id, unsubscribe_token }, callerEmail)
+  if (sendError) return res.status(400).json({ error: sendError })
+  const trusted = internal || ADMINS.includes(req.profile?.role)
+
   let transporter = null
   try {
     const org = await getOrg(supabase)
-    const mailer = await pickMailer(req.user?.id, org, sender_email)
+    const mailer = await pickMailer(req.user?.id, org, sender_email, trusted)
     if (mailer.error) {
       await markSendError(send_id, mailer.error)
       return res.status(400).json({ error: mailer.error })
@@ -111,8 +159,17 @@ export default async function handler(req, res) {
     const domain = senderEmail.split('@')[1] || 'localhost'
     const messageId = isRealSend ? `<mailing-${String(send_id).toLowerCase()}@${domain}>` : undefined
 
+    // Désabonnement en un clic par la messagerie (RFC 8058) : uniquement pour les vrais envois
+    const unsubHeaders = isRealSend && org.app_url
+      ? {
+          'List-Unsubscribe': `<${org.app_url}/api/unsubscribe?token=${encodeURIComponent(unsubscribe_token)}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        }
+      : null
+
     const mailOptions = {
       ...(messageId ? { messageId } : {}),
+      ...(unsubHeaders ? { headers: unsubHeaders } : {}),
       from: `"${org.name}" <${senderEmail}>`,
       replyTo: `"${sender.name}" <${senderEmail}>`,
       to,

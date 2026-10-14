@@ -3,7 +3,9 @@
 // Endpoint PUBLIC (aucune auth requise) — géré par clic sur le lien de désabonnement
 // dans les emails de campagne
 //
-// GET /api/unsubscribe?token=<uuid>
+// GET  /api/unsubscribe?token=<uuid>   → lien cliqué dans l'email (page HTML de confirmation)
+// POST /api/unsubscribe?token=<uuid>   → désabonnement « en un clic » des messageries (RFC 8058,
+//                                         en-têtes List-Unsubscribe / List-Unsubscribe-Post), réponse texte
 //
 // Actions :
 //   1. Retrouve la ligne mailing_sends via unsubscribe_token
@@ -128,16 +130,79 @@ async function sendNotificationToSender(org, senderEmail, companyName, recipient
   }
 }
 
+// ─── Désabonnement (commun au GET et au POST en un clic) ─────────────────────
+// Retourne { status: 'ok' | 'already' | 'notfound', send }
+async function unsubscribeByToken(org, token) {
+  // ── 1. Trouver le send correspondant au token ──
+  const { data: send, error: sendError } = await supabase
+    .from('mailing_sends')
+    .select('id, campaign_id, source, source_id, email, company_name, unsubscribed_at')
+    .eq('unsubscribe_token', token)
+    .maybeSingle()
+  if (sendError || !send) return { status: 'notfound' }
+
+  // ── 2. Déjà désabonné ? ──
+  if (send.unsubscribed_at) return { status: 'already', send }
+
+  const now = new Date().toISOString()
+
+  // ── 3. Marquer dans mailing_sends ──
+  await supabase
+    .from('mailing_sends')
+    .update({ unsubscribed_at: now })
+    .eq('id', send.id)
+
+  // ── 4. Marquer la source comme do_not_contact ──
+  if (send.source === 'prospection_massive' && send.source_id) {
+    await supabase
+      .from('prospection_massive')
+      .update({ do_not_call: true, do_not_call_reason: 'Désabonnement mailing', do_not_call_at: now })
+      .eq('id', send.source_id)
+  } else if (send.source === 'clients' && send.source_id) {
+    await supabase
+      .from('clients')
+      .update({ do_not_mail: true })
+      .eq('id', send.source_id)
+  }
+
+  // ── 5. Récupérer le nom de la campagne + sender pour la notification ──
+  const { data: campaign } = await supabase
+    .from('mailing_campaigns')
+    .select('name, sender_email')
+    .eq('id', send.campaign_id)
+    .maybeSingle()
+
+  // ── 6. Notifier l'expéditeur (non bloquant) ──
+  if (campaign?.sender_email) {
+    await sendNotificationToSender(org, campaign.sender_email, send.company_name, send.email, campaign.name)
+  }
+  return { status: 'ok', send }
+}
+
 // ─── Handler principal ────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  // Accepte GET uniquement (lien cliqué depuis un client email)
   const org = await orgForPage()
+  const token = String(req.query?.token || '')
+
+  // POST « en un clic » (RFC 8058) : envoyé par la messagerie, sans navigateur ni page à afficher
+  if (req.method === 'POST') {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    if (token.length < 30) return res.status(400).send('Lien de désabonnement invalide')
+    try {
+      const r = await unsubscribeByToken(org, token)
+      if (r.status === 'notfound') return res.status(404).send('Lien de désabonnement introuvable')
+      return res.status(200).send('Désabonnement enregistré')
+    } catch (error) {
+      console.error('Erreur unsubscribe (POST):', error)
+      return res.status(500).send('Erreur')
+    }
+  }
+
+  // Lien cliqué depuis un client email
   if (req.method !== 'GET') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     return res.status(405).send(errorPage(org, 'Méthode non autorisée.'))
   }
-
-  const { token } = req.query
 
   if (!token || token.length < 30) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
@@ -145,67 +210,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ── 1. Trouver le send correspondant au token ──
-    const { data: send, error: sendError } = await supabase
-      .from('mailing_sends')
-      .select('id, campaign_id, source, source_id, email, company_name, unsubscribed_at')
-      .eq('unsubscribe_token', token)
-      .maybeSingle()
-
-    if (sendError || !send) {
-      res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    const r = await unsubscribeByToken(org, token)
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    if (r.status === 'notfound') {
       return res.status(404).send(errorPage(org, 'Ce lien de désabonnement est introuvable ou a déjà été supprimé.'))
     }
-
-    // ── 2. Déjà désabonné ? ──
-    if (send.unsubscribed_at) {
-      res.setHeader('Content-Type', 'text/html; charset=utf-8')
-      return res.status(200).send(confirmationPage(org, send.company_name, true))
-    }
-
-    const now = new Date().toISOString()
-
-    // ── 3. Marquer dans mailing_sends ──
-    await supabase
-      .from('mailing_sends')
-      .update({ unsubscribed_at: now })
-      .eq('id', send.id)
-
-    // ── 4. Marquer la source comme do_not_contact ──
-    if (send.source === 'prospection_massive' && send.source_id) {
-      await supabase
-        .from('prospection_massive')
-        .update({ do_not_call: true, do_not_call_reason: 'Désabonnement mailing', do_not_call_at: now })
-        .eq('id', send.source_id)
-    } else if (send.source === 'clients' && send.source_id) {
-      await supabase
-        .from('clients')
-        .update({ do_not_mail: true })
-        .eq('id', send.source_id)
-    }
-
-    // ── 5. Récupérer le nom de la campagne + sender pour la notification ──
-    const { data: campaign } = await supabase
-      .from('mailing_campaigns')
-      .select('name, sender_email')
-      .eq('id', send.campaign_id)
-      .maybeSingle()
-
-    // ── 6. Notifier l'expéditeur (non bloquant) ──
-    if (campaign?.sender_email) {
-      await sendNotificationToSender(
-        org,
-        campaign.sender_email,
-        send.company_name,
-        send.email,
-        campaign.name
-      )
-    }
-
-    // ── 7. Page de confirmation ──
-    res.setHeader('Content-Type', 'text/html; charset=utf-8')
-    return res.status(200).send(confirmationPage(org, send.company_name, false))
-
+    return res.status(200).send(confirmationPage(org, r.send.company_name, r.status === 'already'))
   } catch (error) {
     console.error('Erreur unsubscribe:', error)
     res.setHeader('Content-Type', 'text/html; charset=utf-8')

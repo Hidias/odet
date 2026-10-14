@@ -21,7 +21,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 import * as cheerio from 'cheerio'
-import { requireCronOrUser } from './_lib/auth.js'
+import { requireCronOrRole, SALES } from './_lib/auth.js'
+import { safeFetch } from './_lib/safeFetch.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Clé serveur : la table prospection_massive est protégée (RLS, accès connecté uniquement)
@@ -292,14 +293,14 @@ async function scrapeWebsite(siteUrl) {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 8000)
 
-    const response = await fetch(siteUrl, {
+    // Site trouvé sur une page externe : adresse publique uniquement (redirections revérifiées)
+    const response = await safeFetch(siteUrl, {
       signal: controller.signal,
       headers: {
         'User-Agent': getRandomUserAgent(),
         'Accept': 'text/html,application/xhtml+xml',
         'Accept-Language': 'fr-FR,fr;q=0.9',
       },
-      redirect: 'follow',
     })
 
     clearTimeout(timeoutId)
@@ -344,12 +345,9 @@ async function scrapeWebsite(siteUrl) {
 // ============================================================================
 
 export default async function handler(req, res) {
-  if (!(await requireCronOrUser(req, res))) return
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (req.method === 'OPTIONS') return res.status(204).end()
+  // Tâche planifiée (CRON_SECRET) ou enrichissement manuel depuis l'écran d'import (prospection)
+  if (!(await requireCronOrRole(req, res, SALES))) return
 
   const batchSize = Math.min(req.body?.batch_size || DEFAULT_BATCH_SIZE, 15) // Max 15 sécurité
 

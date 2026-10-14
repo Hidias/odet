@@ -1,16 +1,16 @@
-import { requireUser } from './_lib/auth.js'
+import { requireRole, SALES } from './_lib/auth.js'
+import { safeFetch } from './_lib/safeFetch.js'
 // api/scrape-phone.js
 // Scrape un site web pour extraire le numéro de téléphone français
+// Adresses publiques http/https uniquement (IP privées/locales refusées, 3 redirections au plus)
 
 export const config = { maxDuration: 10 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, SALES)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -21,13 +21,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    let fullUrl = url.trim()
-    if (!fullUrl.startsWith('http')) fullUrl = 'https://' + fullUrl
+    let fullUrl = String(url).trim()
+    if (!/^https?:\/\//i.test(fullUrl)) {
+      if (/^[a-z][a-z0-9+.-]*:/i.test(fullUrl) && !/^[^:/]+:\d+(\/|$)/.test(fullUrl)) {
+        return res.status(400).json({ error: 'Seules les adresses http et https sont acceptées' })
+      }
+      fullUrl = 'https://' + fullUrl
+    }
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 7000)
 
-    const response = await fetch(fullUrl, {
+    const response = await safeFetch(fullUrl, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',

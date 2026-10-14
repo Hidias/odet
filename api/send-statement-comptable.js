@@ -7,7 +7,7 @@
 import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML, getOrg, getSender } from './_lib/mailer.js'
 import { loadTeam, payerLabel } from './_lib/team.js'
 import { getComptableConfig } from './_lib/comptable.js'
-import { requireUser } from './_lib/auth.js'
+import { requireRole, FINANCE } from './_lib/auth.js'
 
 export const config = {
   maxDuration: 60,
@@ -23,12 +23,10 @@ const fmtDateFR = (d) => {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, FINANCE)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -63,7 +61,7 @@ export default async function handler(req, res) {
 
     // 3. Compte d'envoi de l'utilisateur (adresse d'envoi par défaut de Paramètres si elle lui appartient)
     const orgForMail = await getOrg(supabase)
-    const mailerResult = await getMailer(supabase, req.user?.id || userId, { preferEmail: orgForMail.email_default_sender })
+    const mailerResult = await getMailer(supabase, req.user.id, { preferEmail: orgForMail.email_default_sender })
     if (mailerResult.error) {
       return res.status(400).json({ error: mailerResult.error })
     }

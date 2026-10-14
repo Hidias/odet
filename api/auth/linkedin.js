@@ -1,13 +1,15 @@
 // ═══════════════════════════════════════════════════════════
 // VERCEL API ROUTE — OAuth LinkedIn
-// GET /api/auth/linkedin?action=connect (initie le flow OAuth)
-// GET /api/auth/linkedin?code=... (callback après auth)
+// GET /api/auth/linkedin?action=start (administrateur connecté, jeton Bearer) → { url } d'autorisation avec state signé
+// GET /api/auth/linkedin?code=...&state=... (retour du fournisseur, state vérifié)
 // Scope : r_organization_social w_organization_social
 // L'org URN est défini via LINKEDIN_ORG_ID (variable Vercel)
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
 import { appUrl } from '../_lib/internal.js'
+import { requireRole, ADMINS } from '../_lib/auth.js'
+import { createOAuthState, verifyOAuthState, socialRedirect } from '../_lib/oauthState.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -24,39 +26,42 @@ export default async function handler(req, res) {
   const APP_URL = ENV_APP_URL || appUrl(req)
   const REDIRECT_URI = `${APP_URL}/api/auth/linkedin`
   try {
-    const { code, action, error: oauthError, error_description } = req.query
+    const { code, action, state, error: oauthError, error_description } = req.query
 
-    // ── Erreur OAuth ────────────────────────────────────
-    if (oauthError) {
-      console.error('LinkedIn OAuth error:', oauthError, error_description)
-      return res.redirect(`${APP_URL}/#/social?linkedin=error&reason=${encodeURIComponent(oauthError)}`)
-    }
-
-    // ── Étape 1 : Initier la connexion ──────────────────
-    if (action === 'connect') {
+    // ── Étape 1 : Initier la connexion (administrateur connecté) ──
+    // Appelée par l'interface avec le jeton de l'utilisateur ; renvoie l'adresse d'autorisation
+    if (action === 'start' || action === 'connect') {
+      const ctx = await requireRole(req, res, ADMINS)
+      if (!ctx) return
       if (!LINKEDIN_CLIENT_ID) {
         return res.status(500).json({ error: 'LINKEDIN_CLIENT_ID non configuré' })
       }
       if (!LINKEDIN_ORG_ID) {
         return res.status(500).json({ error: 'LINKEDIN_ORG_ID non configuré' })
       }
-
       const scope = 'r_organization_social w_organization_social'
-      const state = Math.random().toString(36).substring(2, 15)
-
-      const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`
-
-      return res.redirect(authUrl)
+      const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${encodeURIComponent(LINKEDIN_CLIENT_ID)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(createOAuthState(ctx.user.id, 'linkedin'))}`
+      return res.status(200).json({ url: authUrl })
     }
 
-    // ── Étape 2 : Échanger le code contre un token ──────
+    // ── Erreur OAuth ────────────────────────────────────
+    if (oauthError) {
+      console.error('LinkedIn OAuth error:', oauthError, error_description)
+      return res.redirect(socialRedirect(APP_URL, { linkedin: 'error', reason: oauthError }))
+    }
+
+    // ── Étape 2 : Vérifier le state puis échanger le code contre un token ──
     if (!code) {
-      return res.status(400).json({ error: 'Missing code parameter' })
+      return res.status(400).json({ error: 'Paramètre code manquant' })
+    }
+    const checked = await verifyOAuthState(state, 'linkedin')
+    if (checked.error) {
+      return res.redirect(socialRedirect(APP_URL, { linkedin: 'error', reason: checked.error }))
     }
 
     if (!LINKEDIN_ORG_ID) {
       console.error('[linkedin] LINKEDIN_ORG_ID non configuré')
-      return res.redirect(`${APP_URL}/#/social?linkedin=error&reason=org_id_missing`)
+      return res.redirect(socialRedirect(APP_URL, { linkedin: 'error', reason: 'org_id_missing' }))
     }
 
     console.log('[linkedin] Exchanging code for token...')
@@ -77,7 +82,7 @@ export default async function handler(req, res) {
 
     if (tokenData.error) {
       console.error('LinkedIn token error:', tokenData)
-      return res.redirect(`${APP_URL}/#/social?linkedin=error&reason=token_exchange`)
+      return res.redirect(socialRedirect(APP_URL, { linkedin: 'error', reason: 'token_exchange' }))
     }
 
     const accessToken = tokenData.access_token
@@ -110,12 +115,10 @@ export default async function handler(req, res) {
     }, { onConflict: 'platform' })
 
     // ── Succès ! ────────────────────────────────────────
-    return res.redirect(
-      `${APP_URL}/#/social?linkedin=success&page=${encodeURIComponent(orgName)}`
-    )
+    return res.redirect(socialRedirect(APP_URL, { linkedin: 'success', page: orgName }))
 
   } catch (err) {
     console.error('LinkedIn OAuth handler error:', err)
-    return res.redirect(`${APP_URL}/#/social?linkedin=error&reason=server_error`)
+    return res.redirect(socialRedirect(APP_URL, { linkedin: 'error', reason: 'server_error' }))
   }
 }

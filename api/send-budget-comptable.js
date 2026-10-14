@@ -4,15 +4,13 @@
 import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML, getOrg, getSender } from './_lib/mailer.js'
 import { loadTeam, payerLabel } from './_lib/team.js'
 import { getComptableConfig } from './_lib/comptable.js'
-import { requireUser } from './_lib/auth.js'
+import { requireRole, FINANCE } from './_lib/auth.js'
 
 export default async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, FINANCE)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -36,7 +34,7 @@ export default async function handler(req, res) {
 
     // 1. Récupérer le mailer de l'utilisateur
     const orgForMail = await getOrg(supabase)
-    const mailerResult = await getMailer(supabase, req.user?.id || userId)
+    const mailerResult = await getMailer(supabase, req.user.id)
     if (mailerResult.error) {
       return res.status(400).json({ error: mailerResult.error })
     }
@@ -44,21 +42,27 @@ export default async function handler(req, res) {
     const fromEmail = mailerResult.fromEmail
 
     // 2. Récupérer les transactions sélectionnées
-    const { data: transactions, error: txError } = await supabase
+    const { data: fetched, error: txError } = await supabase
       .from('budget_transactions')
       .select('*')
       .in('id', transactionIds)
       .order('date', { ascending: true })
 
-    if (txError || !transactions?.length) {
+    // La clé serveur contourne la RLS : on réapplique la règle des opérations privées
+    // (une opération privée n'est visible et transmissible que par son propriétaire)
+    const callerEmail = String(req.user.email || req.profile?.email || '').toLowerCase()
+    const transactions = (fetched || []).filter((tx) => !tx.is_private || String(tx.private_owner || '').toLowerCase() === callerEmail)
+    if (txError || !transactions.length) {
       return res.status(400).json({ error: 'Transactions non trouvées' })
     }
+    // Seules les opérations autorisées sont jointes, envoyées et marquées
+    const allowedIds = transactions.map((tx) => tx.id)
 
     // 3. Récupérer toutes les pièces jointes
     const { data: allReceipts } = await supabase
       .from('budget_receipts')
       .select('*')
-      .in('transaction_id', transactionIds)
+      .in('transaction_id', allowedIds)
 
     const receiptsByTx = {}
     ;(allReceipts || []).forEach(r => {
@@ -186,7 +190,7 @@ export default async function handler(req, res) {
     await supabase
       .from('budget_transactions')
       .update({ sent_to_comptable: true, sent_to_comptable_at: now })
-      .in('id', transactionIds)
+      .in('id', allowedIds)
 
     // 8. Sauvegarder dans l'historique
     await supabase.from('budget_emails_sent').insert({
@@ -196,7 +200,7 @@ export default async function handler(req, res) {
       subject,
       nb_transactions: transactions.length,
       nb_receipts: mailAttachments.length,
-      transaction_ids: transactionIds,
+      transaction_ids: allowedIds,
       notes: notes || null,
       message_id: info.messageId,
       status: 'sent'
