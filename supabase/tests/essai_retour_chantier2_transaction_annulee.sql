@@ -10,10 +10,13 @@ create temp view etat_essai as
   from pg_policies where schemaname in ('public', 'storage')
   union all
   select 'fonction', p.oid::regprocedure::text,
-         md5(concat_ws('|', pg_get_functiondef(p.oid), p.proacl::text, p.prosecdef::text, p.proconfig::text))
+         md5(concat_ws('|', pg_get_functiondef(p.oid), p.prosecdef::text, p.proconfig::text,
+             (select string_agg(a.grantee::regrole::text || ':' || a.privilege_type, ',' order by 1) from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a)))
   from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind in ('f', 'p')
   union all
-  select 'droits table', c.oid::regclass::text, md5(coalesce(c.relacl::text, '') || c.relrowsecurity::text)
+  select 'droits table', c.oid::regclass::text,
+         md5(coalesce((select string_agg(a.grantee::regrole::text || ':' || a.privilege_type || ':' || a.is_grantable::text, ',' order by 1)
+                       from aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a), '') || c.relrowsecurity::text)
   from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'v', 'm', 'p')
   union all
   select 'vue', c.oid::regclass::text, md5(pg_get_viewdef(c.oid) || coalesce(c.reloptions::text, ''))
@@ -2018,6 +2021,7 @@ do $verif$
 declare
   v_diff text[];
   v_n int;
+  v_par text;
 begin
   select count(*), (array_agg(coalesce(a.kind, b.kind) || ' ' || coalesce(a.name, b.name) || case
            when a.name is null then ' (en trop après retour)' when b.name is null then ' (manquant après retour)'
@@ -2025,7 +2029,11 @@ begin
     into v_n, v_diff
   from etat_essai_avant a full join etat_essai b on a.kind = b.kind and a.name = b.name
   where a.v is distinct from b.v;
-  raise exception E'RÉSULTAT DE L''ESSAI DU RETOUR ARRIÈRE (tout est annulé)\n% écart(s) avec l''état d''avant\n%',
-    v_n, coalesce(array_to_string(v_diff, E'\n'), '');
+  select string_agg(k || ' ' || n, ', ') into v_par from (
+    select coalesce(a.kind, b.kind) k, count(*) n
+    from etat_essai_avant a full join etat_essai b on a.kind = b.kind and a.name = b.name
+    where a.v is distinct from b.v group by 1) z;
+  raise exception E'RÉSULTAT DE L''ESSAI DU RETOUR ARRIÈRE (tout est annulé)\n% écart(s) avec l''état d''avant (%)\n%',
+    v_n, coalesce(v_par, 'aucun'), coalesce(array_to_string(v_diff, E'\n'), '');
 end
 $verif$;
