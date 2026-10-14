@@ -301,7 +301,17 @@ export function identifiants(base, reference, tentative, contrat) {
 
 export function nomFichier(prefix, type, when, correction, contrat) {
   const d = when instanceof Date ? when : new Date()
-  const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`
+  // Heure légale française (le serveur tourne en UTC) ; repli sur l'heure locale si le fuseau est inconnu
+  let stamp
+  try {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('fr-FR', {
+      timeZone: contrat?.fuseau || 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(d).map((x) => [x.type, x.value]))
+    stamp = `${parts.year}${parts.month}${parts.day}_${parts.hour}${parts.minute}`
+  } catch {
+    stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`
+  }
   const interdits = contrat?.nom_fichier_interdits || '@<>:"/\\|?*%'
   const p = String(prefix || 'OF').split('').filter((c) => !interdits.includes(c) && c !== ' ').join('') || 'OF'
   return `${p}_passeport_${type}${correction ? '_correction' : ''}_${stamp}.csv`.slice(0, contrat?.nom_fichier_max || 200)
