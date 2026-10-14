@@ -130,6 +130,7 @@ do $$
 declare
   v_auth_check text := E'IF auth.uid() IS NULL THEN\n    RETURN json_build_object(''ok'', false, ''error'', ''Connexion Campus requise'');\n  END IF;';
   v_mgr text := 'perform app.require_roles(array[''superadmin'', ''admin'', ''direction'', ''gestionnaire'']);';
+  v_def text;
 begin
   -- Présence et signatures : formateur de la session ou gestion
   perform app.replace_in_function('public.set_trainee_absent(uuid, uuid, boolean, text, text)'::regprocedure, v_auth_check,
@@ -155,6 +156,12 @@ begin
     'perform app.require_roles(array[''superadmin'', ''admin'']);');
   perform app.inject_guard('public.admin_logout_user(text)'::regprocedure,
     'perform app.require_roles(array[''superadmin'', ''admin'']);');
+  -- get_audit_logs ne répondait plus (colonnes action et entity_type en varchar, résultat déclaré en text) :
+  -- l'écran du journal d'audit restait vide. Conversion explicite.
+  v_def := pg_get_functiondef('public.get_audit_logs(text, uuid, text, text, timestamptz, timestamptz, integer)'::regprocedure);
+  if position('al.action::text' in v_def) = 0 then
+    execute replace(replace(v_def, 'al.action,', 'al.action::text,'), 'al.entity_type,', 'al.entity_type::text,');
+  end if;
 
   -- Clients : personnel commercial
   perform app.inject_guard('public.detect_client_links(uuid)'::regprocedure,

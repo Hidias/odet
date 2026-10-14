@@ -237,10 +237,10 @@ begin
   begin
     perform set_config('request.jwt.claims', '{"role":"anon"}', true);
     execute 'set local role anon';
-    select r->>'ticket' into v_ticket from (select public.verify_trainee_access_code(v_st1, v_code) r) x;
-    select count(*) into v_n from (select public.load_trainee_data(v_token, v_tr1, v_ticket) d) x
-      where d->'info_sheet'->>'ssn' is null and (d->'info_sheet'->>'ssn_on_file')::boolean
-        and d->'info_sheet'->>'ssn_last3' = '436';
+    select x.vr->>'ticket' into v_ticket from (select public.verify_trainee_access_code(v_st1, v_code) as vr) x;
+    select count(*) into v_n from (select public.load_trainee_data(v_token, v_tr1, v_ticket) as vd) x
+      where x.vd->'info_sheet'->>'ssn' is null and (x.vd->'info_sheet'->>'ssn_on_file')::boolean
+        and x.vd->'info_sheet'->>'ssn_last3' = '436';
     v_got := v_n::text;
     execute 'reset role';
   exception when others then

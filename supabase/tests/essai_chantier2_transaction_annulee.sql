@@ -1438,14 +1438,13 @@ begin
   if length(v_ref) < 4 or length(v_ref) > 50 then
     return null;
   end if;
-  if v_ref not like 'SES-%' then
-    v_ref := 'SES-' || v_ref;
-  end if;
+  -- Référence exacte (tous formats), sinon avec le préfixe SES- ajouté
   select json_build_object('id', s.id, 'reference', s.reference, 'title', coalesce(c.title, 'Formation'),
                            'start_date', s.start_date, 'end_date', s.end_date)
   into v
   from sessions s left join courses c on c.id = s.course_id
-  where upper(s.reference) = v_ref
+  where upper(s.reference) in (v_ref, 'SES-' || v_ref)
+  order by upper(s.reference) = v_ref desc
   limit 1;
   return v;
 end;
@@ -1650,6 +1649,7 @@ do $$
 declare
   v_auth_check text := E'IF auth.uid() IS NULL THEN\n    RETURN json_build_object(''ok'', false, ''error'', ''Connexion Campus requise'');\n  END IF;';
   v_mgr text := 'perform app.require_roles(array[''superadmin'', ''admin'', ''direction'', ''gestionnaire'']);';
+  v_def text;
 begin
   -- Présence et signatures : formateur de la session ou gestion
   perform app.replace_in_function('public.set_trainee_absent(uuid, uuid, boolean, text, text)'::regprocedure, v_auth_check,
@@ -1675,6 +1675,12 @@ begin
     'perform app.require_roles(array[''superadmin'', ''admin'']);');
   perform app.inject_guard('public.admin_logout_user(text)'::regprocedure,
     'perform app.require_roles(array[''superadmin'', ''admin'']);');
+  -- get_audit_logs ne répondait plus (colonnes action et entity_type en varchar, résultat déclaré en text) :
+  -- l'écran du journal d'audit restait vide. Conversion explicite.
+  v_def := pg_get_functiondef('public.get_audit_logs(text, uuid, text, text, timestamptz, timestamptz, integer)'::regprocedure);
+  if position('al.action::text' in v_def) = 0 then
+    execute replace(replace(v_def, 'al.action,', 'al.action::text,'), 'al.entity_type,', 'al.entity_type::text,');
+  end if;
 
   -- Clients : personnel commercial
   perform app.inject_guard('public.detect_client_links(uuid)'::regprocedure,
@@ -2112,10 +2118,10 @@ begin
   begin
     perform set_config('request.jwt.claims', '{"role":"anon"}', true);
     execute 'set local role anon';
-    select r->>'ticket' into v_ticket from (select public.verify_trainee_access_code(v_st1, v_code) r) x;
-    select count(*) into v_n from (select public.load_trainee_data(v_token, v_tr1, v_ticket) d) x
-      where d->'info_sheet'->>'ssn' is null and (d->'info_sheet'->>'ssn_on_file')::boolean
-        and d->'info_sheet'->>'ssn_last3' = '436';
+    select x.vr->>'ticket' into v_ticket from (select public.verify_trainee_access_code(v_st1, v_code) as vr) x;
+    select count(*) into v_n from (select public.load_trainee_data(v_token, v_tr1, v_ticket) as vd) x
+      where x.vd->'info_sheet'->>'ssn' is null and (x.vd->'info_sheet'->>'ssn_on_file')::boolean
+        and x.vd->'info_sheet'->>'ssn_last3' = '436';
     v_got := v_n::text;
     execute 'reset role';
   exception when others then

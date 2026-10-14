@@ -310,14 +310,13 @@ begin
   if length(v_ref) < 4 or length(v_ref) > 50 then
     return null;
   end if;
-  if v_ref not like 'SES-%' then
-    v_ref := 'SES-' || v_ref;
-  end if;
+  -- Référence exacte (tous formats), sinon avec le préfixe SES- ajouté
   select json_build_object('id', s.id, 'reference', s.reference, 'title', coalesce(c.title, 'Formation'),
                            'start_date', s.start_date, 'end_date', s.end_date)
   into v
   from sessions s left join courses c on c.id = s.course_id
-  where upper(s.reference) = v_ref
+  where upper(s.reference) in (v_ref, 'SES-' || v_ref)
+  order by upper(s.reference) = v_ref desc
   limit 1;
   return v;
 end;
