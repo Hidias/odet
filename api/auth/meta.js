@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
+import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -16,7 +17,7 @@ const META_APP_SECRET = process.env.META_APP_SECRET
 const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
 const REDIRECT_URI = `${APP_URL}/api/auth/meta`
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   try {
     const { code, action, error: oauthError } = req.query
 
@@ -162,3 +163,5 @@ export default async function handler(req, res) {
     return res.redirect(`${APP_URL}/#/social?meta=error&reason=server_error`)
   }
 }
+
+export default withErrorLog(handler, 'auth/meta')

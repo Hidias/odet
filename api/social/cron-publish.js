@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireCronOrUser } from '../_lib/auth.js'
 import { isTestEnvironment } from '../_lib/mailer.js'
+import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -15,7 +16,7 @@ const supabase = createClient(
 
 const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await requireCronOrUser(req, res))) return
 
   // Environnement de test : aucune publication programmée n'est envoyée
@@ -105,3 +106,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message })
   }
 }
+
+export default withErrorLog(handler, 'social/cron-publish')

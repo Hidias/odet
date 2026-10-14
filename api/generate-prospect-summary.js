@@ -1,8 +1,9 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-prospect-summary.js
 // Génère un résumé IA du prospect : scrape le site web si dispo + analyse NAF/nom
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -151,3 +152,5 @@ IMPORTANT :
     })
   }
 }
+
+export default withErrorLog(handler, 'generate-prospect-summary')

@@ -9,6 +9,7 @@
 // Ne modifie RIEN dans l'agenda existant (calendrier séparé en lecture seule)
 
 import { createClient } from '@supabase/supabase-js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -60,7 +61,7 @@ function addOneHour(time) {
   return `${String(newH).padStart(2, '0')}${String(m || 0).padStart(2, '0')}${String(s || 0).padStart(2, '0')}`
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -364,3 +365,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erreur serveur' })
   }
 }
+
+export default withErrorLog(handler, 'calendar')

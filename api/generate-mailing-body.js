@@ -1,4 +1,5 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-mailing-body.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Génère le corps HTML d'un email de prospection via Claude (Haiku)
@@ -12,7 +13,7 @@ import { requireUser } from './_lib/auth.js'
 
 export const config = { maxDuration: 20 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -77,3 +78,5 @@ RÈGLES ABSOLUES :
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'generate-mailing-body')

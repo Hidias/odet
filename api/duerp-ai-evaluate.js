@@ -1,9 +1,10 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/duerp-ai-evaluate.js
 // Route Vercel serverless pour l'évaluation IA des risques DUERP
 // Deux modes : 'risk' (évaluation d'un risque) et 'unit' (analyse complète d'une unité)
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -410,3 +411,5 @@ Réponds UNIQUEMENT avec ce JSON :
     return res.status(500).json({ error: 'Erreur serveur : ' + (err.message || '') })
   }
 }
+
+export default withErrorLog(handler, 'duerp-ai-evaluate')

@@ -6,6 +6,7 @@ import {
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '../core/store'
+import { RouteErrorBoundary } from '../core/errors/ErrorBoundary'
 import { supabase } from '../core/supabase'
 import { useBranding, brandLogo } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
@@ -444,7 +445,7 @@ export default function Layout() {
               <span>Les emails ne partent pas vers leurs destinataires : ils sont redirigés vers l'adresse de test.</span>
             </div>
           )}
-          {fieldAllowed ? <Outlet /> : <Navigate to="/interventions" replace />}
+          {fieldAllowed ? <RouteErrorBoundary><Outlet /></RouteErrorBoundary> : <Navigate to="/interventions" replace />}
         </main>
       </div>
     </div>

@@ -2,8 +2,9 @@
 // (nom de l'application, nom court, couleurs, icônes). Public : aucune donnée sensible.
 
 import { getSupabaseAdmin } from './_lib/mailer.js'
+import { withErrorLog } from './_lib/errors.js'
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   let b = {}
   try {
     const { data } = await getSupabaseAdmin().rpc('get_public_branding')
@@ -36,3 +37,5 @@ export default async function handler(req, res) {
     icons,
   }))
 }
+
+export default withErrorLog(handler, 'manifest')

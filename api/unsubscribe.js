@@ -16,6 +16,7 @@
 import nodemailer from 'nodemailer'
 import { createClient } from '@supabase/supabase-js'
 import { decrypt, guardTransport } from './_lib/mailer.js'
+import { withErrorLog } from './_lib/errors.js'
 
 export const config = { maxDuration: 15 }
 
@@ -163,7 +164,7 @@ async function sendNotificationToSender(senderEmail, companyName, recipientEmail
 }
 
 // ─── Handler principal ────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Accepte GET uniquement (lien cliqué depuis un client email)
   if (req.method !== 'GET') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
@@ -244,3 +245,5 @@ export default async function handler(req, res) {
     return res.status(500).send(errorPage('Une erreur est survenue. Contactez-nous directement.'))
   }
 }
+
+export default withErrorLog(handler, 'unsubscribe')

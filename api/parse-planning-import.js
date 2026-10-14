@@ -1,8 +1,9 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/parse-planning-import.js
 // Parse un planning copié-collé (ex: Pilocap) via Claude et retourne des sessions structurées
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -96,3 +97,5 @@ FORMAT DE SORTIE (JSON strict) :
     return res.status(500).json({ error: err.message || 'Erreur interne' })
   }
 }
+
+export default withErrorLog(handler, 'parse-planning-import')

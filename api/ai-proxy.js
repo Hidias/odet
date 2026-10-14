@@ -1,4 +1,5 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/ai-proxy.js
 // Proxy serveur vers l'API Anthropic.
 // Les modules front (budget, réseaux sociaux) passent par ici au lieu d'appeler
@@ -37,7 +38,7 @@ function originAllowed(req) {
   )
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -89,3 +90,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'ai-proxy')

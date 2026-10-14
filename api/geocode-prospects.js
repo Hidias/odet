@@ -3,6 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -11,7 +12,7 @@ const supabase = createClient(
 
 export const config = { maxDuration: 300 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -112,3 +113,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'geocode-prospects')

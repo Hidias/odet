@@ -1,4 +1,5 @@
 import { requireCronOrUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 /**
  * ============================================================================
  * API ENDPOINT - IMPORT AUTO CRON
@@ -13,7 +14,7 @@ import { requireCronOrUser } from './_lib/auth.js'
 
 const DEPARTEMENTS = ['22', '29', '35', '56', '44', '49', '53', '72', '85']
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await requireCronOrUser(req, res))) return
   // Vérifier que c'est bien le cron Vercel qui appelle
   
@@ -68,3 +69,5 @@ export default async function handler(req, res) {
     stats
   })
 }
+
+export default withErrorLog(handler, 'import-auto-cron')

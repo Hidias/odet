@@ -1,8 +1,9 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-document.js
 // Génère ou reformule du texte pour les courriers officiels via Claude
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -95,3 +96,5 @@ Renvoie uniquement le texte enrichi.`
     })
   }
 }
+
+export default withErrorLog(handler, 'generate-document')

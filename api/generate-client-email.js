@@ -1,10 +1,11 @@
 import { requireUser } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-client-email.js
 // Génère un email pro à un client via Claude Sonnet
 // Contexte enrichi : sessions, devis, RDV, historique complet
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -186,3 +187,5 @@ Réponds UNIQUEMENT en JSON valide, sans backticks, sans markdown :
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'generate-client-email')
