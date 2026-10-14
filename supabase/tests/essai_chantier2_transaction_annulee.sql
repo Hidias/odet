@@ -1913,6 +1913,9 @@ begin
 
   insert into public.trainers (first_name, last_name) values ('Essai', 'FORMATEUR') returning id into v_trainer;
 
+  -- Le garde des rôles (profiles_protect_role) exige un administrateur connecté : suspendu le temps
+  -- de créer les comptes d'essai (dans cette transaction annulée seulement).
+  alter table public.profiles disable trigger profiles_protect_role;
   insert into public.profiles (id, email, role, is_active, trainer_id)
   select x.id, x.email, x.role, x.active, x.trainer from (values
     (u_sa, 'essai.sa@test.invalid', 'superadmin', true, null::uuid), (u_ad, 'essai.ad@test.invalid', 'admin', true, null),
@@ -1923,6 +1926,7 @@ begin
     (u_ext, 'essai.ext@test.invalid', 'formateur_externe', true, null), (u_stg, 'essai.stg@test.invalid', 'stagiaire', true, null),
     (u_off, 'essai.off@test.invalid', 'direction', false, null)) x(id, email, role, active, trainer)
   on conflict (id) do update set role = excluded.role, is_active = excluded.is_active, trainer_id = excluded.trainer_id;
+  alter table public.profiles enable trigger profiles_protect_role;
 
   insert into public.itv_technicians (profile_id, is_active) values (u_tech, true)
   on conflict (profile_id) do update set is_active = true;
