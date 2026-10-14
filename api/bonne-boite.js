@@ -20,7 +20,7 @@ import { requireUser } from './_lib/auth.js'
 
 export const config = { maxDuration: 25 }
 
-// Codes ROME pertinents pour Access Formation
+// Codes ROME des métiers les plus concernés par les formations santé et sécurité
 // BTP, Industrie, Logistique, Maintenance → besoins SST/CACES/Incendie/Elec
 const ROME_CODES_BY_SECTOR = {
   btp: ['F1701', 'F1702', 'F1703', 'F1704', 'F1301', 'F1302', 'F1601', 'F1602', 'F1603', 'F1606', 'F1607', 'F1608', 'F1609', 'F1610', 'F1611'],

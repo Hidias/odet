@@ -53,3 +53,34 @@ export function cgvCancellationText(content) {
   })
   return parts.join(' ')
 }
+
+/**
+ * PDF d'un document qualité dans sa version publiée (validée, sinon brouillon, sinon modèle),
+ * par exemple les conditions générales de vente jointes aux devis.
+ * Renvoie { base64, filename, version } ou null si la génération échoue.
+ */
+export async function publishedDocPDF(docId) {
+  try {
+    const [{ buildRichDocPDF }, { loadPdfOrg }, { loadTemplateContext }, { docCode }] = await Promise.all([
+      import('./richDocPDF'),
+      import('../../../core/pdf/pdfOrg'),
+      import('../../../core/org/templateContext'),
+      import('../../../core/org/currentOrg'),
+    ])
+    const [pub, tpls, ORG, ctx, hist] = await Promise.all([
+      loadPublishedDoc(docId),
+      loadTemplates(),
+      loadPdfOrg(),
+      loadTemplateContext(),
+      supabase.from('quality_doc_versions').select('*').eq('doc_id', docId).order('version', { ascending: false }).then((r) => r.data || [], () => []),
+    ])
+    const tpl = tpls[docId]
+    if (!pub || !tpl) return null
+    const r = buildRichDocPDF(ORG, { tpl, code: docCode(tpl.code), content: pub.content, ctx, history: hist })
+    const dataUri = r.doc.output('datauristring')
+    return { base64: dataUri.split(',')[1], filename: r.filename, version: pub.version, source: pub.source }
+  } catch (e) {
+    console.error('publishedDocPDF', docId, e)
+    return null
+  }
+}

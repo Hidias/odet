@@ -1225,7 +1225,7 @@ export default function Sessions() {
                       value={formData.funding_details}
                       onChange={(e) => setFormData({ ...formData, funding_details: e.target.value })}
                       className="input"
-                      placeholder="Ex: OPCO Atlas, Région Bretagne..."
+                      placeholder="Ex : OPCO, Région, France Travail..."
                     />
                   </div>
                 </div>
@@ -1507,7 +1507,7 @@ export default function Sessions() {
                       <label className="text-xs text-gray-500 block mb-1">Intitulé de base</label>
                       <input type="text" value={formData.subcontract_course_title}
                         onChange={(e) => setFormData({ ...formData, subcontract_course_title: e.target.value })}
-                        className="w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="CACES R.489" />
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="Intitulé de la formation" />
                     </div>
                   </div>
 

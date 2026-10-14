@@ -2,9 +2,12 @@ import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import toast from 'react-hot-toast'
+import { useDataStore } from '../../../core/store'
+import { orgName, orgCity } from '../../../core/org/currentOrg'
+import { buildSocialSystemPrompt, brandHashtag } from '../lib/socialPrompt'
 
 // ═══════════════════════════════════════════════════════════
-// MODULE SOCIAL MEDIA - Access Campus
+// MODULE RÉSEAUX SOCIAUX
 // Phase 1 : Générateur IA + Calendrier + Médiathèque
 // ═══════════════════════════════════════════════════════════
 
@@ -22,9 +25,9 @@ const POST_TYPES = [
   { id: 'promo', label: 'Promotion', desc: 'Nouvelle formation, offre, événement' },
   { id: 'educatif', label: 'Éducatif', desc: 'Conseil prévention, réglementation, bonnes pratiques' },
   { id: 'qualiopi', label: 'Qualiopi / Qualité', desc: 'Démarche qualité, certification, processus' },
-  { id: 'campus', label: 'Access Campus', desc: 'Fonctionnalités de la plateforme, innovation' },
+  { id: 'campus', label: 'Outils et innovation', desc: 'Nos outils numériques, nos méthodes, nos nouveautés' },
   { id: 'offre_promo', label: 'Offre promotionnelle', desc: 'Offre avec date de fin, CTA fort, urgence positive' },
-  { id: 'veille_reglementaire', label: 'Veille réglementaire', desc: 'Nouvelle norme, obligation légale, mise à jour INRS/CACES' },
+  { id: 'veille_reglementaire', label: 'Veille réglementaire', desc: 'Nouvelle norme, obligation légale, mise à jour INRS' },
 ]
 
 // Hashtags gérés dynamiquement par l'IA dans le prompt
@@ -73,7 +76,7 @@ export default function SocialMedia() {
     } else if (params.get('linkedin') === 'error') {
       const reason = params.get('reason')
       const msg = reason === 'no_org_page'
-        ? 'Aucune page entreprise trouvée - connectez-vous avec le compte admin de la page Access Formation'
+        ? `Aucune page entreprise trouvée : connectez-vous avec le compte administrateur de la page ${orgName() || 'de l\'organisme'}`
         : `Erreur LinkedIn : ${reason}`
       toast.error(msg)
     }
@@ -147,7 +150,8 @@ export default function SocialMedia() {
         'q_global_adequation', 'q_global_competences'
       ]
       const validEvals = (evals || []).filter(e => e.q_org_accueil != null)
-      let avgRating = '4.96'
+      // Aucun chiffre par défaut : sans évaluation, rien n'est affiché ni transmis à l'Aide à la rédaction
+      let avgRating = null
       if (validEvals.length > 0) {
         const allScores = []
         validEvals.forEach(e => {
@@ -173,7 +177,7 @@ export default function SocialMedia() {
           }
         })
       })
-      const successRate = successTotal > 0 ? Math.round(successOk / successTotal * 100).toString() : '100'
+      const successRate = successTotal > 0 ? Math.round(successOk / successTotal * 100).toString() : null
 
       const s = {
         recentSessions: (sessions || []).slice(0, 5),
@@ -186,7 +190,7 @@ export default function SocialMedia() {
       return s
     } catch (err) {
       console.warn('Erreur stats (non bloquant):', err)
-      const fallback = { recentSessions: [], completedCount: 0, avgRating: '4.96', totalTrainees: 0, successRate: '100' }
+      const fallback = { recentSessions: [], completedCount: 0, avgRating: null, totalTrainees: 0, successRate: null }
       setStats(fallback)
       return fallback
     }
@@ -367,7 +371,7 @@ function ConnectionPanel({ connections, onRefresh }) {
 
           {connectedCount < 3 && (
             <p className="text-[10px] text-gray-400 mt-3 text-center">
-               Connectez vos comptes pour publier directement depuis Campus. Facebook connecte aussi Instagram automatiquement.
+               Connectez vos comptes pour publier directement depuis l'application. Facebook connecte aussi Instagram automatiquement.
             </p>
           )}
         </div>
@@ -381,6 +385,12 @@ function ConnectionPanel({ connections, onRefresh }) {
 // ONGLET GÉNÉRATEUR IA
 // ═══════════════════════════════════════════════════════════
 function GeneratorTab({ stats, onSave, media, editingDraft, onClearDraft, connections }) {
+  // Identité et catalogue de l'organisme : Paramètres et Formations, rien en dur
+  const { organization, fetchOrganization, courses, fetchCourses } = useDataStore()
+  useEffect(() => {
+    if (!organization) fetchOrganization()
+    if (!courses?.length && fetchCourses) fetchCourses()
+  }, [])
   const [postType, setPostType] = useState('expertise')
   const [selectedPlatforms, setSelectedPlatforms] = useState(['linkedin', 'facebook', 'instagram', 'gmb'])
   const [freeInput, setFreeInput] = useState('')
@@ -402,7 +412,6 @@ function GeneratorTab({ stats, onSave, media, editingDraft, onClearDraft, connec
       const posts = {}
       const platforms = editingDraft.platforms || []
       if (editingDraft.content_linkedin) posts.linkedin = editingDraft.content_linkedin
-      if (editingDraft.content_linkedin_hicham) posts.linkedin_hicham = editingDraft.content_linkedin_hicham
       if (editingDraft.content_facebook) posts.facebook = editingDraft.content_facebook
       if (editingDraft.content_instagram) posts.instagram = editingDraft.content_instagram
       if (editingDraft.content_gmb) posts.gmb = editingDraft.content_gmb
@@ -451,128 +460,29 @@ function GeneratorTab({ stats, onSave, media, editingDraft, onClearDraft, connec
     try {
       const typeInfo = POST_TYPES.find(t => t.id === postType)
 
-      // Contexte enrichi depuis les données Campus
+      // Contexte enrichi depuis les données de l'application
       const contextParts = []
       if (stats) {
-        contextParts.push(`Statistiques Access Formation :`)
-        contextParts.push(`- Note satisfaction moyenne : ${stats.avgRating}/5`)
-        contextParts.push(`- Taux de réussite : ${stats.successRate}%`)
-        contextParts.push(`- Sessions terminées récemment : ${stats.completedCount}`)
+        contextParts.push(`Chiffres réels de l'organisme (les seuls à citer) :`)
+        if (stats.avgRating) contextParts.push(`- Note de satisfaction moyenne : ${stats.avgRating}/5`)
+        if (stats.successRate) contextParts.push(`- Taux de réussite : ${stats.successRate} %`)
+        if (stats.completedCount) contextParts.push(`- Sessions terminées récemment : ${stats.completedCount}`)
         if (stats.recentSessions?.length > 0) {
           const recent = stats.recentSessions.slice(0, 3)
           recent.forEach(s => {
             const courseName = s.course?.title || 'Formation'
-            const location = s.location_city || s.location_name || 'Bretagne'
-            contextParts.push(`- Session "${courseName}" à ${location} (client confidentiel)`)
+            const location = s.location_city || s.location_name || ''
+            contextParts.push(`- Session "${courseName}"${location ? ` à ${location}` : ''} (client confidentiel)`)
           })
         }
       }
-      contextParts.push(`Certification Qualiopi obtenue en février 2026`)
-      contextParts.push(`Habilitation INRS : H37007/2025/SST-1/O/13`)
-      contextParts.push(`Zone : Bretagne et Pays de la Loire`)
-      contextParts.push(`Spécialités : SST, incendie, habilitation électrique, PRAP, gestes & postures, DUERP`)
-      contextParts.push(`Approche : ludopédagogie, formations en entreprise, matériel fourni`)
+      const catalogue = (courses || []).map(c => c.title).filter(Boolean)
+      if (catalogue.length) contextParts.push(`Catalogue (intitulés exacts) : ${catalogue.join(' ; ')}`)
 
-      const systemPrompt = `Tu es un community manager expert pour Access Formation, organisme de formation à la prévention des risques basé à Concarneau en Bretagne. Tu rédiges des posts qui performent sur chaque algorithme.
+      const systemPrompt = buildSocialSystemPrompt(organization || {}, contextParts)
 
-═══ VOIX DE MARQUE ═══
-- TOUJOURS parler en "nous" / "notre" / "nos" - JAMAIS "je" / "mon" / "on"
-- Access Formation parle en tant qu'équipe : "Nous intervenons", "Notre approche", "Nos formateurs"
-- JAMAIS de signature (nom d'équipe ou prénom)
-- JAMAIS de guillemets fictifs ou de citations inventées
-- Coordonnées à inclure naturellement :  contact@accessformation.pro |  02 98 90 30 24
-- Pas de "N'hésitez pas", "Ne ratez pas", "Ne manquez pas" - formuler positivement
-
-═══ TONALITÉ ═══
-- Sémantiquement POSITIF : tourner les phrases de façon affirmative
-   "Ne laissez pas un accident arriver" →  "Chaque geste compte pour protéger vos équipes"
-   "Vos salariés ne savent pas réagir" →  "Vos salariés méritent d'avoir les bons réflexes"
-- EXCEPTION : quand on parle d'accident/urgence, être IMPACTANT et direct
-   "Un arrêt cardiaque. 4 minutes pour agir. Vos équipes sont-elles prêtes ?"
-- Professionnel mais humain, ancré dans le terrain
-- Emojis avec parcimonie (2-3 max par post, jamais en rafale)
-
-═══ LINKEDIN PAGE ENTREPRISE - ALGO 2026 ═══
-Objectif : dwell time (temps de lecture) + commentaires de qualité
-- HOOK en 1ère ligne (visible avant "voir plus") : affirmation forte OU constat terrain OU question professionnelle
-- 1 phrase = 1 ligne (sauts de ligne fréquents pour aérer)
-- Texte : 800-1500 caractères
-- JAMAIS de lien dans le corps du post (reach pénalisé)
-- Terminer par " Lien en commentaire" si besoin
-- Finir par une QUESTION PROFESSIONNELLE ancrée dans le vécu terrain (pas d'engagement bait générique type "vous êtes d'accord ?" - l'algo 2026 pénalise ça)
-- Exemple de bonne question : "Dans votre secteur, quelle situation d'urgence revient le plus souvent ?"
-- Hashtags : 3-5 MAX en PREMIER COMMENTAIRE, JAMAIS dans le corps
-- Ton : expert terrain qui partage du vécu concret, pas du corporate
--  Mentionner "Bretagne" ET/OU "Pays de la Loire" - ne jamais se limiter à la Bretagne seule
-- Ne PAS mentionner de personnes nommément (post de page entreprise)
-
-═══ FACEBOOK - ALGO 2026 ═══
-Objectif : Saves + Shares (signaux #1 en 2026, bien plus que les likes)
-- Texte court : 300-600 caractères
-- Ton accessible et local, tutoiement OK
-- JAMAIS de lien externe dans le corps (reach pénalisé - mettre en commentaire si besoin)
-- Photo native > lien avec preview
-- Emoji en début de paragraphe pour structurer
-- CTA orienté partage : "Partage à un dirigeant / RH que ça concerne" - le partage booste le reach x3
-- Finir par une question qui donne envie de commenter ET de partager
-- 3-4 hashtags en fin de post dont #AccessFormation obligatoire
--  Ancrage local : alterner entre "en Bretagne", "en Pays de la Loire", "dans le Grand Ouest" - ne pas se limiter au Finistère ou à Concarneau
-- Inclure les coordonnées naturellement :  contact@accessformation.pro |  02 98 90 30 24
-
-═══ INSTAGRAM - ALGO 2026 ═══
-Objectif : DM shares (signal #1, pondéré 3-5x plus que les likes) + saves
-- 1ère phrase = hook visible dans le feed (avant le "...plus")
-- Texte : 200-500 caractères (hors hashtags)
-- CTA PRIORITAIRE : "Envoie ce post à ton DRH / dirigeant / responsable sécu" - les DM shares sont le signal le plus fort en 2026
-- CTA SECONDAIRE : "Enregistre ce post" pour les contenus éducatifs / check-lists
-- Ligne de séparation avec des points avant les hashtags :
-  .
-  .
-  .
-- Hashtags : 5-10 pertinents et spécifiques (pas 30 génériques)
-  Mix : 3 gros volume (#formation #sécurité) + 3 niche (#SSTFormation #PréventionRisques ou #PaysdelaLoire selon le post) + 2 marque (#AccessFormation)
-- Pas de lien (non cliquable) - dire "Lien en bio"
-- Inclure  02 98 90 30 24 naturellement dans le texte ou sous le texte
-- Ton inspirant et visuel, ancré terrain
-
-═══ GOOGLE MY BUSINESS - SEO LOCAL ═══
-Objectif : référencement local + conversions
-- Très court : 100-250 caractères
-- Mots-clés locaux obligatoires : "formation sécurité Bretagne", "formation sécurité Pays de la Loire", "SST Bretagne", "prévention risques Grand Ouest"
-- CTA direct avec email : " contact@accessformation.pro"
-- Pas de hashtags
-- Mentionner la certification Qualiopi (facteur de confiance)
-- Catégorie : Nouveauté ou Événement
-
-═══ RÈGLES ABSOLUES ═══
-- JAMAIS mentionner de noms de clients ou d'entreprises clientes
-- JAMAIS inventer de citations entre guillemets
-- JAMAIS utiliser "ne pas" / "ne plus" / "ne jamais" sauf contexte accident/urgence
-- TOUJOURS "nous" jamais "je" jamais "on" (sauf Facebook où "on" est toléré)
-- Contact :  contact@accessformation.pro |  02 98 90 30 24 |  www.accessformation.pro
-- Zone d'intervention : Bretagne et Pays de la Loire (TOUJOURS mentionner l'une ou l'autre)
-- Qualiopi : toujours "Access Formation est certifié Qualiopi" - JAMAIS "formation certifiée Qualiopi"
-- Hashtag #AccessFormation OBLIGATOIRE dans tous les posts (LinkedIn en commentaire, autres dans le corps)
-
-═══ TYPES DE POST SPÉCIAUX ═══
-- offre_promo : Mettre en avant une offre avec une date de fin (ex: "Jusqu'au JJ/MM"). CTA fort et positif : "Contactez-nous avant le JJ/MM". Urgence sans pression négative. Mentionner la certification Qualiopi comme gage de qualité. Toujours inclure  contact@accessformation.pro |  02 98 90 30 24.
-- veille_reglementaire : Citer OBLIGATOIREMENT la source officielle (INRS, Code du travail, arrêté ministériel, etc.). Expliquer l'obligation de façon simple et accessible. Terminer par comment Access Formation aide à y répondre. Ton pédagogique, jamais alarmiste.
-
-═══ STATISTIQUES ET CHIFFRES - RÈGLE STRICTE ═══
-- JAMAIS inventer ou approximer des statistiques, pourcentages ou chiffres chocs
-- Si le sujet appelle des données chiffrées : SOIT tu cites une source officielle réelle et vérifiable (INRS, Santé publique France, OMS, Dares, CNAM, etc.) en l'indiquant explicitement dans le post, SOIT tu reformules sans chiffre
-- En cas de doute sur la fiabilité d'une statistique : NE PAS l'utiliser - reformuler sur l'angle "prévention / réflexes / formation" sans données chiffrées invérifiables
-- Exemple de reformulation correcte sans stats : "Un arrêt cardiaque peut survenir n'importe quel jour. Vos équipes ont-elles les bons réflexes ?" plutôt que "23% d'arrêts cardiaques en plus le vendredi 13"
-- Les posts sans chiffres mais ancrés dans le terrain et le vécu performent autant ou mieux que les posts avec stats douteuses
-
-${contextParts.join('\n')}
-
-Localisation :  Concarneau, Bretagne - Interventions en Bretagne et Pays de la Loire
-Contact :  contact@accessformation.pro |  02 98 90 30 24 |  www.accessformation.pro`
-
-      const hasLinkedInPage = selectedPlatforms.includes('linkedin')
-      const hasLinkedInHicham = selectedPlatforms.includes('linkedin_hicham')
-      const hasLinkedIn = hasLinkedInPage || hasLinkedInHicham
+      const hasLinkedIn = selectedPlatforms.includes('linkedin')
+      const tag = brandHashtag(organization || {})
 
       const userPrompt = `Génère un post de type "${typeInfo.label}" pour les plateformes : ${selectedPlatforms.join(', ')}.
 
@@ -588,7 +498,7 @@ RAPPEL IMPORTANT :
 Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cette structure :
 {
   "title": "titre interne court (3-5 mots)",
-  ${selectedPlatforms.map(p => `"${p}": "texte du post pour ${p}"`).join(',\n  ')}${hasLinkedIn ? `,\n  "linkedin_hashtags": "3-5 hashtags pour le commentaire LinkedIn - #AccessFormation OBLIGATOIRE"` : ''}${withStory ? `,\n  "story": "texte story 5-7 mots percutants pour Instagram/Facebook Stories"` : ''}
+  ${selectedPlatforms.map(p => `"${p}": "texte du post pour ${p}"`).join(',\n  ')}${hasLinkedIn ? `,\n  "linkedin_hashtags": "3-5 hashtags pour le commentaire LinkedIn${tag ? ` dont ${tag}` : ''}"` : ''}${withStory ? `,\n  "story": "texte story 5-7 mots percutants pour Instagram/Facebook Stories"` : ''}
 }`
 
       const response = await apiFetch('/api/ai-proxy', {
@@ -661,7 +571,6 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
       const postData = {
         title: title || 'Sans titre',
         content_linkedin: editedPosts.linkedin || null,
-        content_linkedin_hicham: editedPosts.linkedin_hicham || null,
         content_facebook: editedPosts.facebook || null,
         content_instagram: editedPosts.instagram || null,
         content_gmb: editedPosts.gmb || null,
@@ -784,18 +693,19 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
           <textarea
             value={freeInput}
             onChange={e => setFreeInput(e.target.value)}
-            placeholder="Ex: Session SST très dynamique hier à Lorient, les stagiaires ont adoré la mise en situation accident..."
+            placeholder="Ex : session de secourisme très dynamique hier, les stagiaires ont apprécié la mise en situation..."
             className="w-full mt-1 border rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-[#E9B44C] focus:border-transparent"
             rows={3}
           />
         </div>
 
-        {/* Stats Campus détectées */}
+        {/* Chiffres réels transmis à l'Aide à la rédaction */}
         {stats && (
           <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
-            <span className="font-medium text-gray-700"> Données Campus disponibles :</span>
+            <span className="font-medium text-gray-700">Chiffres disponibles :</span>
             <span className="ml-2">
-              {stats.avgRating}/5 satisfaction • {stats.successRate}% réussite • {stats.completedCount} sessions récentes
+              {[stats.avgRating ? `${stats.avgRating}/5 satisfaction` : null, stats.successRate ? `${stats.successRate} % réussite` : null, `${stats.completedCount} session${stats.completedCount > 1 ? 's' : ''} terminée${stats.completedCount > 1 ? 's' : ''}`].filter(Boolean).join(' • ')}
+              {!stats.avgRating && !stats.successRate && ' (aucune évaluation encore : aucun chiffre ne sera cité)'}
             </span>
           </div>
         )}
@@ -905,7 +815,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               )}
 
               {/* Hashtags LinkedIn à poster en commentaire */}
-              {(previewPlatform === 'linkedin' || previewPlatform === 'linkedin_hicham') && editedPosts.linkedin_hashtags && (
+              {previewPlatform === 'linkedin' && editedPosts.linkedin_hashtags && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 flex items-center justify-between">
                   <div className="text-xs text-blue-700">
                     <span className="font-medium"> Commentaire LinkedIn :</span> {editedPosts.linkedin_hashtags}
@@ -1045,8 +955,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                     const postData = {
                       title: title || 'Sans titre',
                       content_linkedin: editedPosts.linkedin || null,
-                      content_linkedin_hicham: editedPosts.linkedin_hicham || null,
-                      content_facebook: editedPosts.facebook || null,
+                                    content_facebook: editedPosts.facebook || null,
                       content_instagram: editedPosts.instagram || null,
                       content_gmb: editedPosts.gmb || null,
                       content_story: editedPosts.story || null,
@@ -1111,7 +1020,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                   const allTexts = selectedPlatforms
                     .map(pId => {
                       let text = `=== ${PLATFORMS.find(p => p.id === pId)?.label?.toUpperCase()} ===\n${editedPosts[pId] || ''}`
-                      if ((pId === 'linkedin' || pId === 'linkedin_hicham') && editedPosts.linkedin_hashtags) {
+                      if (pId === 'linkedin' && editedPosts.linkedin_hashtags) {
                         text += `\n\n--- COMMENTAIRE LINKEDIN ---\n${editedPosts.linkedin_hashtags}`
                       }
                       return text
@@ -1141,10 +1050,10 @@ function PostPreview({ platform, content, media }) {
   if (!content) return <div className="text-sm text-gray-400 italic p-4">Aucun contenu</div>
 
   const platformStyles = {
-    linkedin: { bg: 'bg-white', border: 'border-gray-200', accent: '#0a66c2', name: 'Access Formation', subtitle: 'Organisme de formation • Concarneau' },
-    facebook: { bg: 'bg-white', border: 'border-gray-200', accent: '#1877f2', name: 'Access Formation', subtitle: 'Organisme de formation' },
-    instagram: { bg: 'bg-white', border: 'border-gray-200', accent: '#e4405f', name: 'accessformation', subtitle: '' },
-    gmb: { bg: 'bg-white', border: 'border-gray-200', accent: '#4285f4', name: 'Access Formation', subtitle: 'Concarneau, Bretagne' },
+    linkedin: { bg: 'bg-white', border: 'border-gray-200', accent: '#0a66c2', name: orgName(), subtitle: ['Organisme de formation', orgCity()].filter(Boolean).join(' • ') },
+    facebook: { bg: 'bg-white', border: 'border-gray-200', accent: '#1877f2', name: orgName(), subtitle: 'Organisme de formation' },
+    instagram: { bg: 'bg-white', border: 'border-gray-200', accent: '#e4405f', name: orgName().toLowerCase().replace(/[^a-z0-9]/g, ''), subtitle: '' },
+    gmb: { bg: 'bg-white', border: 'border-gray-200', accent: '#4285f4', name: orgName(), subtitle: orgCity() },
   }
 
   const style = platformStyles[platform] || platformStyles.linkedin
@@ -1178,7 +1087,7 @@ function PostPreview({ platform, content, media }) {
 
       {/* Footer mock */}
       <div className="px-3 pb-3 flex items-center gap-4 text-[10px] text-gray-400">
-        {(platform === 'linkedin' || platform === 'linkedin_hicham') && <><span> J'aime</span><span> Commenter</span><span> Partager</span></>}
+        {platform === 'linkedin' && <><span> J'aime</span><span> Commenter</span><span> Partager</span></>}
         {platform === 'facebook' && <><span> J'aime</span><span> Commenter</span><span>↗ Partager</span></>}
         {platform === 'instagram' && <><span></span><span></span><span></span><span></span></>}
         {platform === 'gmb' && <><span> Appeler</span><span> Itinéraire</span><span> Site web</span></>}
@@ -1458,9 +1367,9 @@ function CalendarTab({ posts, onUpdate }) {
               ))}
             </span>
           </div>
-          {(p.content_facebook || p.content_linkedin || p.content_linkedin_hicham) && (
+          {(p.content_facebook || p.content_linkedin) && (
             <p className="text-[10px] opacity-60 mt-1 line-clamp-2">
-              {(p.content_facebook || p.content_linkedin || p.content_linkedin_hicham).slice(0, 120)}...
+              {(p.content_facebook || p.content_linkedin).slice(0, 120)}...
             </p>
           )}
         </div>
@@ -1765,7 +1674,7 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
 
           {/* Preview du contenu */}
           <div className="text-xs text-gray-600 line-clamp-3">
-            {post.content_linkedin || post.content_linkedin_hicham || post.content_facebook || post.content_instagram || post.content_gmb || 'Aucun contenu'}
+            {post.content_linkedin || post.content_facebook || post.content_instagram || post.content_gmb || 'Aucun contenu'}
           </div>
 
           {/* Actions */}

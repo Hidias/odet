@@ -18,6 +18,7 @@ import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useRelanceIA } from '../lib/useRelanceIA'
+import { publishedDocPDF } from '../../qualite/richdocs/published'
 
 const STATUS_CONFIG = {
   draft: { label: 'Brouillon', class: 'bg-gray-100 text-gray-700', icon: '' },
@@ -535,6 +536,18 @@ export default function Quotes() {
             })
           }
         }
+      }
+      // Conditions générales de vente : document qualité « CGV » dans sa version publiée (Qualité > Documents)
+      const cgv = await publishedDocPDF('cgv')
+      if (cgv) {
+        programAttachments.push({
+          filename: cgv.filename,
+          base64: cgv.base64,
+          type: 'manual',
+          kind: 'cgv',
+          courseTitle: cgv.source === 'valide' ? 'Conditions générales de vente' : 'Conditions générales de vente (version non validée)',
+          enabled: cgv.source === 'valide',
+        })
       }
       setSendAttachments(programAttachments)
     } catch (err) {
@@ -1886,7 +1899,7 @@ export default function Quotes() {
                         {att.courseTitle && <p className="text-xs text-gray-400 truncate">{att.courseTitle}</p>}
                       </div>
                       <span className="text-xs text-gray-400 flex-shrink-0">
-                        {att.type === 'program' ? 'Programme' : 'Manuel'}
+                        {att.kind === 'cgv' ? 'CGV' : att.type === 'program' ? 'Programme' : 'Manuel'}
                       </span>
                       <button
                         onClick={() => setSendAttachments(prev => prev.map((a, i) => i === idx ? { ...a, enabled: !a.enabled } : a))}

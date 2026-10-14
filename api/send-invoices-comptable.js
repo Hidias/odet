@@ -1,7 +1,8 @@
 // api/send-invoices-comptable.js
 // Envoi mensuel des factures clients (PDF) + récap au comptable
 
-import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML, getOrg, getSender } from './_lib/mailer.js'
+import { loadTeam, payerLabel } from './_lib/team.js'
 import { getComptableConfig } from './_lib/comptable.js'
 import { requireUser } from './_lib/auth.js'
 
@@ -40,8 +41,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: comptable.error })
     }
 
-    // 1. Mailer Hicham (forcer hicham.saidi@)
-    const mailerResult = await getMailer(supabase, userId, { preferEmail: 'hicham.saidi@accessformation.pro' })
+    // 1. Compte d'envoi de l'utilisateur (adresse d'envoi par défaut de Paramètres si elle lui appartient)
+    const orgForMail = await getOrg(supabase)
+    const mailerResult = await getMailer(supabase, req.user?.id || userId, { preferEmail: orgForMail.email_default_sender })
     if (mailerResult.error) {
       return res.status(400).json({ error: mailerResult.error })
     }
@@ -274,10 +276,10 @@ export default async function handler(req, res) {
         ${overdueSection}
 
         <p style="color:#9ca3af;font-size:11px;margin-top:20px;">
-          Généré automatiquement par Access Campus — Module Facturation
+          Généré automatiquement par ${orgForMail.app_name || orgForMail.name} (module Facturation)
         </p>
       </div>
-      ${buildSignatureHTML('Hicham')}
+      ${buildSignatureHTML(await getSender(supabase, fromEmail), orgForMail)}
     `
 
     // 4. Préparer les PJ (PDF base64 → Buffer)
@@ -288,10 +290,10 @@ export default async function handler(req, res) {
     }))
 
     // 5. Envoyer l'email
-    const subject = `[Access Formation] Factures clients — ${monthLabel || 'Récap'} (${facturesOnly.length} facture(s)${overdue.length > 0 ? `, ${overdue.length} en retard` : ''})`
+    const subject = `[${orgForMail.name}] Factures clients — ${monthLabel || 'Récap'} (${facturesOnly.length} facture(s)${overdue.length > 0 ? `, ${overdue.length} en retard` : ''})`
 
     const mailOptions = {
-      from: `"Access Formation" <${fromEmail}>`,
+      from: `"${(orgForMail.name || '').replace(/"/g, '')}" <${fromEmail}>`,
       to: comptable.to,
       ...(comptable.cc ? { cc: comptable.cc } : {}),
       ...(comptable.bcc ? { bcc: comptable.bcc } : {}),

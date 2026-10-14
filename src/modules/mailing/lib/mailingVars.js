@@ -17,7 +17,7 @@
 export const MAILING_VARIABLES = [
   { key: 'bonjour',    label: 'Formule d’appel', example: 'Bonjour Madame Dupont,' },
   { key: 'entreprise', label: 'Entreprise',      example: 'CAMPING DES DUNES' },
-  { key: 'ville',      label: 'Ville',           example: 'Quimper' },
+  { key: 'ville',      label: 'Ville',           example: 'Ville' },
   { key: 'prenom',     label: 'Prénom',          example: 'Claire' },
   { key: 'nom',        label: 'Nom',             example: 'Dupont' },
 ]

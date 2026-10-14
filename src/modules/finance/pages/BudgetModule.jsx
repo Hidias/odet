@@ -4,12 +4,13 @@ import { supabase } from '../../../core/supabase'
 import toast from 'react-hot-toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts'
 import { generateInvoicePDF, generateFacturXPDF, calcInvoiceTotals } from '../../commercial/pdf/invoiceGenerator'
-import { useDataStore } from '../../../core/store'
+import { useDataStore, useAuthStore } from '../../../core/store'
+import { team, currentUserName, currentUserEmail, orgLegalName, orgName } from '../../../core/org/currentOrg'
 import SirenConflictModal from '../../commercial/components/SirenConflictModal'
 import { useSirenCheck } from '../../commercial/lib/useSirenCheck'
 
 // ════════════════════════════════════════════════════════════
-//  BUDGET MODULE v4 - Access Campus
+//  BUDGET MODULE v4
 //  + Catégorisation IA intelligente + Prévisionnel 50k€
 // ════════════════════════════════════════════════════════════
 
@@ -26,12 +27,12 @@ const TABS = [
   { key: 'releves', label: 'Relevés' },
 ]
 
-// Seul ce compte peut voir les transactions privées.
-// Elles restent comptées dans les KPI, mais n'apparaissent dans aucune liste.
-const PRIVATE_OWNER = 'hicham.saidi@accessformation.pro'
+// Transactions privées : réservées au dirigeant (rôle superadmin).
+// Elles restent comptées dans les KPI, mais n'apparaissent dans aucune liste
+// des autres comptes. Le propriétaire enregistré (private_owner) est l'email
+// de connexion du dirigeant qui masque la ligne (contrôlé par la policy RLS).
+const PRIVATE_ROLE = 'superadmin'
 
-// Autorisation de découvert CMB (compte pro)
-const DECOUVERT_AUTORISE = 5000
 
 const ML = {
   '01/2025':'Jan 25','02/2025':'Fév 25','03/2025':'Mar 25','04/2025':'Avr 25',
@@ -71,8 +72,142 @@ const fmtDateFR = (d) => {
   return (y && m && day) ? `${day}/${m}/${y}` : '-'
 }
 
+// ════════════════════════════════════════════════════════════
+//  ASSOCIÉS (dirigeants) - dérivés de l'équipe, rien en dur
+// ════════════════════════════════════════════════════════════
+// Associé = membre de l'équipe de rôle superadmin ou admin.
+// Payeur d'une dépense personnelle : 'perso_<id du profil>'.
+// Anciennes valeurs en base : '<prénom>_perso' (lues, jamais réécrites).
+// Clés budget_settings / KPI : '<préfixe>_<slug du prénom>'.
+const ASSOCIATE_ROLES = ['superadmin', 'admin']
+const PAYER_COMPANY = 'entreprise'
+const LEGACY_PERSO_SUFFIX = '_perso'
+const PERSO_PREFIX = 'perso_'
+
+const slugify = (s) => String(s || '')
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+
+const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
+
+/** Associés : [{ id, slug, firstName, name, email, role, payer, legacyPayer }] */
+function getAssociates() {
+  const used = new Set()
+  return team()
+    .filter(m => ASSOCIATE_ROLES.includes(m.role))
+    .map(m => {
+      const first = m.firstName || String(m.name || '').split(' ')[0] || ''
+      let slug = slugify(first) || slugify(String(m.email || '').split('@')[0]) || String(m.id || '').slice(0, 8)
+      if (used.has(slug)) slug = `${slug}_${String(m.id || '').slice(0, 4)}`
+      used.add(slug)
+      return {
+        id: m.id, slug,
+        firstName: first || m.name || m.email || '',
+        name: m.name || first, email: m.email, role: m.role,
+        payer: `${PERSO_PREFIX}${m.id}`,
+        legacyPayer: `${slug}${LEGACY_PERSO_SUFFIX}`,
+      }
+    })
+}
+
+const isLegacyPersoPayer = (p) => typeof p === 'string' && p.endsWith(LEGACY_PERSO_SUFFIX) && p !== LEGACY_PERSO_SUFFIX
+
+/** Associé correspondant à une valeur de payeur (nouvelle ou ancienne), sinon null */
+function associateForPayer(payer, associates) {
+  if (!payer || payer === PAYER_COMPANY) return null
+  return associates.find(a => a.payer === payer || a.legacyPayer === payer) || null
+}
+
+/** Libellé d'un payeur : prénom de l'associé, ou déduit d'une ancienne valeur ('x_perso' donne 'X') */
+function payerLabel(payer, associates) {
+  if (!payer || payer === PAYER_COMPANY) return 'Entreprise'
+  const a = associateForPayer(payer, associates)
+  if (a) return a.firstName
+  if (isLegacyPersoPayer(payer)) return capitalize(payer.slice(0, -LEGACY_PERSO_SUFFIX.length))
+  return 'Associé'
+}
+
+/** Options de payeur : entreprise puis un bouton par associé */
+function payerOptions(associates) {
+  return [{ v: PAYER_COMPANY, l: 'Entreprise' }, ...associates.map(a => ({ v: a.payer, l: a.firstName }))]
+}
+
+/** Deux valeurs de payeur désignent-elles la même personne (nouvelle ou ancienne valeur) ? */
+function samePayer(a, b, associates) {
+  if (a === b) return true
+  const x = associateForPayer(a, associates), y = associateForPayer(b, associates)
+  return !!x && x === y
+}
+
+/**
+ * Titulaires de comptes courants d'associés : les associés, plus toute ancienne
+ * valeur de payeur trouvée en base qui ne correspond à aucun associé actuel.
+ * Retour : [{ key, slug, label, payers: [...], legacyPayer }]
+ */
+function ccaHolders(associates, transactions, serverPayers = []) {
+  const holders = associates.map(a => ({ key: a.id, slug: a.slug, label: a.firstName, payers: [a.payer, a.legacyPayer], legacyPayer: a.legacyPayer }))
+  const known = new Set(holders.flatMap(h => h.payers))
+  const seen = [...(transactions || []).filter(t => t.is_personal).map(t => t.payer), ...serverPayers]
+  seen.forEach(p => {
+    if (!p || p === PAYER_COMPANY || known.has(p)) return
+    known.add(p)
+    if (isLegacyPersoPayer(p)) {
+      const slug = p.slice(0, -LEGACY_PERSO_SUFFIX.length)
+      holders.push({ key: p, slug, label: capitalize(slug), payers: [p], legacyPayer: p })
+    } else {
+      holders.push({ key: p, slug: slugify(p), label: 'Associé', payers: [p], legacyPayer: null })
+    }
+  })
+  return holders
+}
+
+/** Membre de repas par défaut : l'utilisateur connecté s'il est associé, sinon le premier associé */
+function defaultAssociateSlug(associates) {
+  const me = currentUserEmail().toLowerCase()
+  const mine = associates.find(a => a.email && a.email.toLowerCase() === me)
+  return (mine || associates[0])?.slug || ''
+}
+
+function defaultAssociateFirstName(associates) {
+  const me = currentUserEmail().toLowerCase()
+  const mine = associates.find(a => a.email && a.email.toLowerCase() === me)
+  return (mine || associates[0])?.firstName || ''
+}
+
+/** Clé budget_settings du salaire d'un associé ('charge_salaire_<slug>') */
+const SALARY_KEY_PREFIX = 'charge_salaire_'
+const salaryKeyFor = (slug) => `${SALARY_KEY_PREFIX}${slug}`
+/** Nom de catégorie du salaire d'un associé */
+const salaryNameFor = (firstName) => `Salaire ${firstName}`
+
+/** Nom de l'organisme pour les prompts IA : raison sociale + forme juridique */
+function orgLabelForAI(organization) {
+  const name = organization?.legal_name || organization?.name || orgLegalName() || orgName() || "l'organisme"
+  const forme = organization?.forme_juridique ? ` (${organization.forme_juridique})` : ''
+  return `${name}${forme}`
+}
+
+/** Activité de l'organisme pour les prompts IA */
+function orgActivityForAI(organization) {
+  const kind = organization?.activity_kind || 'of'
+  const base = kind === 'entreprise' ? 'entreprise' : kind === 'mixte' ? 'organisme de formation professionnelle et entreprise de services' : 'organisme de formation professionnelle'
+  return organization?.naf ? `${base}, code NAF ${organization.naf}` : base
+}
+
+/** Nom de la banque de l'organisme (repli : « banque ») */
+const bankName = (organization) => (organization?.bank_name || '').trim() || 'banque'
+
+/** Libellé de compte par défaut : banque + 4 derniers chiffres de l'IBAN, sinon vide */
+function defaultAccountLabel(organization) {
+  const iban = String(organization?.iban || '').replace(/\s+/g, '')
+  if (!iban) return ''
+  return [(organization?.bank_name || '').trim(), iban.slice(-4)].filter(Boolean).join(' - ')
+}
+
 export default function BudgetModule() {
   const { organization, fetchOrganization } = useDataStore()
+  // Découvert autorisé : Paramètres > Banque (0 = aucun découvert autorisé)
+  const DECOUVERT_AUTORISE = Number(organization?.bank_overdraft) || 0
   useEffect(() => { if (!organization) fetchOrganization() }, [])
 
   const [tab, setTab] = useState('transactions')
@@ -95,9 +230,13 @@ export default function BudgetModule() {
   // Modal invités repas (rétroactif)
   const [mealGuestTxId, setMealGuestTxId] = useState(null)
 
-  // ── Transactions privées : seul PRIVATE_OWNER les voit dans les listes ──
+  // ── Transactions privées : réservées au dirigeant (rôle PRIVATE_ROLE) ──
   const [userEmail, setUserEmail] = useState(null) // null = session pas encore lue
-  const canSeePrivate = userEmail === PRIVATE_OWNER
+  const userRole = useAuthStore(s => s.userRole)
+  const canSeePrivate = !!userEmail && userRole === PRIVATE_ROLE
+
+  // ── Associés (dirigeants) : comptes courants et dépenses personnelles ──
+  const associates = useMemo(() => getAssociates(), [userRole])
 
   // ── Relevés bancaires ──
   const [statements, setStatements] = useState([])
@@ -156,7 +295,7 @@ export default function BudgetModule() {
 
   const filtered = useMemo(() => transactions.filter(tx => {
     if (tx.linked_transaction_id) return false // Ligne bancaire absorbée par une saisie manuelle - masquée
-    if (tx.is_private && !canSeePrivate) return false // Transaction privée : invisible hors propriétaire
+    if (tx.is_private && !(canSeePrivate && String(tx.private_owner || '').toLowerCase() === userEmail)) return false // Transaction privée : invisible hors propriétaire
     if (filterMonth !== 'all' && tx.month !== filterMonth) return false
     if (filterCat !== 'all' && tx.category_name !== filterCat) return false
     if (filterDir === 'debit' && !(tx.debit > 0)) return false
@@ -164,7 +303,7 @@ export default function BudgetModule() {
     if (!showPerso && tx.is_personal) return false
     if (filterSearch) { const s = filterSearch.toLowerCase(); if (!tx.description?.toLowerCase().includes(s) && !tx.category_name?.toLowerCase().includes(s)) return false }
     return true
-  }), [transactions, filterMonth, filterCat, filterDir, filterSearch, showPerso, canSeePrivate])
+  }), [transactions, filterMonth, filterCat, filterDir, filterSearch, showPerso, canSeePrivate, userEmail])
 
   const stats = useMemo(() => {
     // Entrées / Sorties : une seule ligne par mouvement.
@@ -195,13 +334,22 @@ export default function BudgetModule() {
     const localDebit = co.reduce((s, t) => s + (t.debit || 0), 0)
     const localCredit = co.reduce((s, t) => s + (t.credit || 0), 0)
     const localSolde = Math.round(imports.reduce((s, t) => s + (t.credit || 0) - (t.debit || 0), 0) * 100) / 100
-    const localHicham = perso.filter(t => t.payer === 'hicham_perso').reduce((s, t) => s + (t.debit || 0) - (t.credit || 0), 0)
-    const localMaxime = perso.filter(t => t.payer === 'maxime_perso').reduce((s, t) => s + (t.debit || 0) - (t.credit || 0), 0)
+    const sumPerso = (payers) => perso.filter(t => payers.includes(t.payer)).reduce((s, t) => s + (t.debit || 0) - (t.credit || 0), 0)
 
     // Les agrégats serveur incluent les lignes privées que ce compte ne reçoit
     // pas (RLS) : ils font autorité dès qu'ils sont disponibles.
     const K = serverKpis
     const num = (v, fallback) => (v === null || v === undefined || Number.isNaN(Number(v))) ? fallback : Number(v)
+
+    // Comptes courants d'associés. La RPC renvoie un total par valeur de payeur
+    // (K.cca : { '<payeur>': montant }), lignes privées comprises ; repli : calcul local.
+    const serverCca = K && K.cca && typeof K.cca === 'object' ? K.cca : null
+    const cca = ccaHolders(associates, transactions, serverCca ? Object.keys(serverCca) : []).map(h => {
+      const value = serverCca
+        ? h.payers.reduce((s, p) => s + num(serverCca[p], 0), 0)
+        : sumPerso(h.payers)
+      return { key: h.key, label: h.label, value }
+    })
 
     return {
       totalDebit: num(K?.total_debit, localDebit),
@@ -212,12 +360,11 @@ export default function BudgetModule() {
       kpiSource: K ? 'serveur' : 'local',
       byMonth, byCat,
       unclassified: co.filter(t => t.category_name === 'Autre / Non classé').length,
-      compteHicham: num(K?.cca_hicham, localHicham),
-      compteMaxime: num(K?.cca_maxime, localMaxime),
+      cca,
       notSent: transactions.filter(t => !t.sent_to_comptable && (Object.keys(receipts).includes(t.id) || t.is_manual)).length,
       toInvoice: co.filter(t => t.credit > 0 && !t.linked_invoice_id && !t.is_personal).length,
     }
-  }, [transactions, receipts, serverKpis])
+  }, [transactions, receipts, serverKpis, associates])
 
   async function changeCategory(txId, name) {
     const cat = categories.find(c => c.name === name)
@@ -234,11 +381,11 @@ export default function BudgetModule() {
     const next = !tx.is_private
     const { error } = await supabase
       .from('budget_transactions')
-      .update({ is_private: next, private_owner: next ? PRIVATE_OWNER : null })
+      .update({ is_private: next, private_owner: next ? userEmail : null })
       .eq('id', tx.id)
     if (error) { toast.error('Erreur : ' + error.message); return }
     setTransactions(p => p.map(t => t.id === tx.id
-      ? { ...t, is_private: next, private_owner: next ? PRIVATE_OWNER : null }
+      ? { ...t, is_private: next, private_owner: next ? userEmail : null }
       : t))
     toast.success(next ? ' Masquée pour les autres comptes' : ' Visible par tous')
   }
@@ -277,16 +424,17 @@ export default function BudgetModule() {
           <KPI
             label="Découvert"
             value={stats.soldeCompte < 0 ? fmt(Math.abs(stats.soldeCompte)) : '-'}
-            color={stats.soldeCompte >= 0 ? 'green' : (Math.abs(stats.soldeCompte) >= DECOUVERT_AUTORISE * 0.8 ? 'red' : 'amber')}
-            sub={`autorisé ${fmtS(DECOUVERT_AUTORISE)}`}
+            color={stats.soldeCompte >= 0 ? 'green' : (!DECOUVERT_AUTORISE || Math.abs(stats.soldeCompte) >= DECOUVERT_AUTORISE * 0.8 ? 'red' : 'amber')}
+            sub={DECOUVERT_AUTORISE ? `autorisé ${fmtS(DECOUVERT_AUTORISE)}` : 'aucun découvert autorisé'}
           />
           <KPI label="Non classés" value={stats.unclassified} color="amber" />
-          <KPI label="CCA Hicham" value={fmt(stats.compteHicham)} color="purple" sub="dette gérant" />
-          <KPI label="CCA Maxime" value={fmt(stats.compteMaxime)} color="purple" sub="dette gérant" />
+          {stats.cca.map(c => (
+            <KPI key={c.key} label={`CCA ${c.label}`} value={fmt(c.value)} color="purple" sub="dette gérant" />
+          ))}
           <KPI label="À envoyer" value={stats.notSent} color="blue" sub="comptable" />
         </div>
 
-        {stats.soldeCompte < 0 && Math.abs(stats.soldeCompte) >= DECOUVERT_AUTORISE * 0.8 && (
+        {stats.soldeCompte < 0 && DECOUVERT_AUTORISE > 0 && Math.abs(stats.soldeCompte) >= DECOUVERT_AUTORISE * 0.8 && (
           <div className="mt-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2">
              Découvert à {Math.round(Math.abs(stats.soldeCompte) / DECOUVERT_AUTORISE * 100)}% de l'autorisation
             ({fmt(Math.abs(stats.soldeCompte))} / {fmt(DECOUVERT_AUTORISE)})
@@ -318,15 +466,15 @@ export default function BudgetModule() {
         ))}</nav>
 
       {tab === 'transactions' && <TransactionsTab {...{ filtered, categories, months, filterMonth, setFilterMonth, filterCat, setFilterCat, filterDir, setFilterDir, filterSearch, setFilterSearch, showPerso, setShowPerso, editingTx, setEditingTx, changeCategory, deleteTx, receipts, onMealGuest: setMealGuestTxId, canSeePrivate, togglePrivate }} />}
-      {tab === 'saisie' && <SaisieTab categories={categories} rules={rules} loadAll={loadAll} clients={clientsList} />}
+      {tab === 'saisie' && <SaisieTab categories={categories} rules={rules} loadAll={loadAll} clients={clientsList} associates={associates} organization={organization} />}
       {tab === 'dashboard' && <DashboardTab stats={stats} months={months} categories={categories} transactions={transactions} invoices={invoicesList} clients={clientsList} />}
-      {tab === 'categorisation' && <CategorisationIATab transactions={transactions} categories={categories} rules={rules} loadAll={loadAll} />}
-      {tab === 'previsionnel' && <PrevisionnelTab transactions={transactions} categories={categories} invoices={invoicesList} clients={clientsList} />}
+      {tab === 'categorisation' && <CategorisationIATab transactions={transactions} categories={categories} rules={rules} loadAll={loadAll} associates={associates} organization={organization} />}
+      {tab === 'previsionnel' && <PrevisionnelTab transactions={transactions} categories={categories} invoices={invoicesList} clients={clientsList} associates={associates} />}
       {tab === 'comptable' && <ComptableTab transactions={transactions} receipts={receipts} loadAll={loadAll} />}
       {tab === 'categories' && <CategoriesTab categories={categories} loadAll={loadAll} />}
       {tab === 'rules' && <RulesTab rules={rules} categories={categories} loadAll={loadAll} />}
-      {tab === 'import' && <ImportTab loadAll={loadAll} categories={categories} rules={rules} invoices={invoicesList} clients={clientsList} transactions={transactions} />}
-      {tab === 'releves' && <RelevesTab statements={statements} transactions={transactions} loadAll={loadAll} />}
+      {tab === 'import' && <ImportTab loadAll={loadAll} categories={categories} rules={rules} invoices={invoicesList} clients={clientsList} transactions={transactions} organization={organization} />}
+      {tab === 'releves' && <RelevesTab statements={statements} transactions={transactions} loadAll={loadAll} organization={organization} />}
 
       {/* Modal invités repas (rétroactif) */}
       {mealGuestTxId && (
@@ -334,6 +482,7 @@ export default function BudgetModule() {
           transactionId={mealGuestTxId}
           transaction={transactions.find(t => t.id === mealGuestTxId)}
           clients={clientsList}
+          associates={associates}
           onClose={() => setMealGuestTxId(null)}
           onSaved={() => { setMealGuestTxId(null); loadAll() }}
         />
@@ -495,7 +644,7 @@ function sanitizeFileName(name) {
 // ════════════════════════════════════════
 // SAISIE - avec registre invités repas
 // ════════════════════════════════════════
-function SaisieTab({ categories, rules, loadAll, clients }) {
+function SaisieTab({ categories, rules, loadAll, clients, associates = [], organization }) {
   const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], description: '', amount: '', type: 'debit', category_id: '', payer: 'entreprise', notes: '', note_comptable: '' })
   const [files, setFiles] = useState([])
   const [previews, setPreviews] = useState([])
@@ -511,7 +660,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
   const [recent, setRecent] = useState([])
 
   // Repas / Invités
-  const [mealFor, setMealFor] = useState('hicham')
+  const [mealFor, setMealFor] = useState(() => defaultAssociateSlug(associates))
   const [guests, setGuests] = useState([])
   const [nbConvives, setNbConvives] = useState(2)
   const [showProspectModal, setShowProspectModal] = useState(false)
@@ -628,6 +777,12 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
         const file = filesToProcess[i]
         const { base64, mediaType } = await prepareFileForAI(file)
         const catList = categories.map(c => `${c.icon} ${c.name} (${c.direction})`).join(', ')
+        const persoTypes = associates.map(a => `"perso_${a.slug}"`)
+        const typeChoices = ['"entreprise"', ...persoTypes].join(' ou ')
+        const persoRule = associates.length > 0
+          ? `\n- Si c'est un achat personnel d'un associé (courses alimentaires, vêtements perso, loisirs) → ${persoTypes.join(' ou ')} (associés : ${associates.map(a => `${a.name || a.firstName} = "perso_${a.slug}"`).join(', ')} ; par défaut ${persoTypes[0]})`
+          : ''
+        const invoicePrompt = `Analyse cette facture/ticket pour ${orgLabelForAI(organization)}, ${orgActivityForAI(organization)}.\n\nExtrais en JSON strict (pas de markdown) :\n{\n  "fournisseur": "nom du fournisseur",\n  "montant": 123.45,\n  "date": "2026-02-19",\n  "description": "description courte",\n  "categorie_suggestion": "nom de la catégorie la plus proche",\n  "type_depense": ${typeChoices},\n  "explication": "pourquoi cette classification",\n  "note_comptable": "explication courte pour la comptable"\n}\n\nCatégories disponibles : ${catList}\n\nRègles :\n- Si c'est un achat clairement professionnel (matériel, logiciel, assurance, carburant, restaurant business) → "entreprise"${persoRule}\n- En cas de doute → "entreprise"`
 
         // Retry jusqu'à 3 fois en cas de 429
         let data = null
@@ -640,7 +795,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
               max_tokens: 500,
               messages: [{ role: 'user', content: [
                 { type: mediaType.startsWith('image/') ? 'image' : 'document', source: { type: 'base64', media_type: mediaType, data: base64 } },
-                { type: 'text', text: `Analyse cette facture/ticket pour Access Formation SARL (formation professionnelle SST/conduite de chariots et gerbeurs (R485/R489)/sécurité).\n\nExtrais en JSON strict (pas de markdown) :\n{\n  "fournisseur": "nom du fournisseur",\n  "montant": 123.45,\n  "date": "2026-02-19",\n  "description": "description courte",\n  "categorie_suggestion": "nom de la catégorie la plus proche",\n  "type_depense": "entreprise" ou "perso_hicham" ou "perso_maxime",\n  "explication": "pourquoi cette classification",\n  "note_comptable": "explication courte pour la comptable"\n}\n\nCatégories disponibles : ${catList}\n\nRègles :\n- Si c'est un achat clairement professionnel (matériel formation, logiciel, assurance, carburant, restaurant business) → "entreprise"\n- Si c'est un achat personnel (courses alimentaires, vêtements perso, loisirs) → "perso_hicham" ou "perso_maxime" (par défaut "perso_hicham")\n- En cas de doute → "entreprise"` }
+                { type: 'text', text: invoicePrompt }
               ]}]
             })
           })
@@ -685,9 +840,11 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     if (json.montant) setForm(f => ({ ...f, amount: json.montant.toString().replace('.', ',') }))
     if (json.date) setForm(f => ({ ...f, date: json.date }))
     if (json.note_comptable) setForm(f => ({ ...f, note_comptable: json.note_comptable }))
-    if (json.type_depense === 'perso_hicham') setForm(f => ({ ...f, payer: 'hicham_perso' }))
-    else if (json.type_depense === 'perso_maxime') setForm(f => ({ ...f, payer: 'maxime_perso' }))
-    else setForm(f => ({ ...f, payer: 'entreprise' }))
+    const persoMatch = typeof json.type_depense === 'string' && json.type_depense.startsWith(PERSO_PREFIX)
+      ? associates.find(a => `${PERSO_PREFIX}${a.slug}` === json.type_depense)
+      : null
+    if (persoMatch) setForm(f => ({ ...f, payer: persoMatch.payer }))
+    else setForm(f => ({ ...f, payer: PAYER_COMPANY }))
     if (json.categorie_suggestion) {
       const match = categories.find(c => c.name.toLowerCase().includes(json.categorie_suggestion.toLowerCase()) || json.categorie_suggestion.toLowerCase().includes(c.name.toLowerCase()))
       if (match) setForm(f => ({ ...f, category_id: match.id }))
@@ -874,7 +1031,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
     if (isRestaurant && txData) {
       const guestRows = guests.filter(g => g.name.trim()).map(g => ({
         transaction_id: txData.id,
-        meal_for: mealFor,
+        ...(mealFor ? { meal_for: mealFor } : {}),
         guest_name: g.name.trim(),
         guest_company: g.company.trim() || null,
         guest_first_name: null,
@@ -885,7 +1042,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
       // Si pas d'invités nommés, juste sauvegarder le meal_for
       if (guestRows.length === 0) {
         await supabase.from('budget_meal_guests').insert({
-          transaction_id: txData.id, meal_for: mealFor, nb_convives: nbConvives, motif: form.notes || null,
+          transaction_id: txData.id, ...(mealFor ? { meal_for: mealFor } : {}), nb_convives: nbConvives, motif: form.notes || null,
         })
       } else {
         await supabase.from('budget_meal_guests').insert(guestRows)
@@ -894,7 +1051,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
 
     setForm({ date: new Date().toISOString().split('T')[0], description: '', amount: '', type: 'debit', category_id: '', payer: 'entreprise', notes: '', note_comptable: '' })
     setFiles([]); setPreviews([]); setAiResult(null); setAiResults([]); setAiCurrentIdx(0); setEditingTxId(null)
-    setGuests([]); setNbConvives(2); setMealFor('hicham')
+    setGuests([]); setNbConvives(2); setMealFor(defaultAssociateSlug(associates))
     setSaving(false)
     loadAll()
   }
@@ -974,9 +1131,9 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
             <div>
               <label className="text-[10px] text-gray-500 font-medium">Payé par :</label>
               <div className="flex gap-1 mt-1">
-                {[{ v:'entreprise', l:' Entreprise', color: 'blue' },{ v:'hicham_perso', l:' Hicham', color: 'purple' },{ v:'maxime_perso', l:' Maxime', color: 'purple' }].map(p => (
+                {payerOptions(associates).map(p => (
                   <button key={p.v} onClick={() => setForm(f => ({ ...f, payer: p.v }))}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${form.payer === p.v ? (p.v === 'entreprise' ? 'bg-blue-500 text-white border-blue-600 ring-2 ring-blue-300' : 'bg-purple-500 text-white border-purple-600 ring-2 ring-purple-300') : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{p.l}</button>
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${samePayer(form.payer, p.v, associates) ? (p.v === 'entreprise' ? 'bg-blue-500 text-white border-blue-600 ring-2 ring-blue-300' : 'bg-purple-500 text-white border-purple-600 ring-2 ring-purple-300') : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{p.l}</button>
                 ))}
               </div>
               {form.payer !== 'entreprise' && <p className="text-[10px] text-purple-600 mt-0.5"> Sera comptabilisé en dette gérant</p>}
@@ -1023,9 +1180,9 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
         <div>
           <label className="text-xs text-gray-500">Payé par</label>
           <div className="flex gap-2 mt-1">
-            {[{ v:'entreprise', l:' Entreprise' },{ v:'hicham_perso', l:' Hicham' },{ v:'maxime_perso', l:' Maxime' }].map(p => (
+            {payerOptions(associates).map(p => (
               <button key={p.v} onClick={() => setForm(f => ({ ...f, payer: p.v }))}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${form.payer === p.v ? (p.v === 'entreprise' ? 'bg-blue-500 text-white border-blue-600' : 'bg-purple-500 text-white border-purple-600') : 'bg-white text-gray-600'}`}>{p.l}</button>
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${samePayer(form.payer, p.v, associates) ? (p.v === 'entreprise' ? 'bg-blue-500 text-white border-blue-600' : 'bg-purple-500 text-white border-purple-600') : 'bg-white text-gray-600'}`}>{p.l}</button>
             ))}
           </div>
           {form.payer !== 'entreprise' && <p className="text-xs text-purple-600 mt-1"> Hors budget entreprise → dette gérant</p>}
@@ -1039,13 +1196,16 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
             </div>
 
             {/* Repas pour qui */}
-            <div>
-              <label className="text-xs text-gray-600">Repas pour</label>
-              <div className="flex gap-2 mt-1">
-                <button onClick={() => setMealFor('hicham')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${mealFor === 'hicham' ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}>Hicham</button>
-                <button onClick={() => setMealFor('maxime')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${mealFor === 'maxime' ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}>Maxime</button>
+            {associates.length > 0 && (
+              <div>
+                <label className="text-xs text-gray-600">Repas pour</label>
+                <div className="flex gap-2 mt-1">
+                  {associates.map(a => (
+                    <button key={a.slug} onClick={() => setMealFor(a.slug)} className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${mealFor === a.slug ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}>{a.firstName}</button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Nombre de convives */}
             <div>
@@ -1109,7 +1269,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
                   <div className="text-sm font-medium truncate">{tx.description}</div>
                   <div className="text-xs text-gray-500">
                     {new Date(tx.date).toLocaleDateString('fr-FR')} • {tx.category_name}
-                    {tx.is_personal && <span className="ml-1 text-purple-600">• {tx.payer === 'hicham_perso' ? 'Hicham' : 'Maxime'}</span>}
+                    {tx.is_personal && <span className="ml-1 text-purple-600">• {payerLabel(tx.payer, associates)}</span>}
                     {!tx.is_personal && <span className="ml-1 text-blue-600">• Ent.</span>}
                   </div>
                 </div>
@@ -1118,9 +1278,9 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
               {/* Actions rapides */}
               <div className="flex items-center gap-1 mt-1.5 pt-1.5 border-t border-gray-200">
                 <div className="flex gap-0.5 flex-1">
-                  {[{ v:'entreprise', l:'Ent.', icon:'' },{ v:'hicham_perso', l:'Hicham', icon:'' },{ v:'maxime_perso', l:'Maxime', icon:'' }].map(p => (
+                  {payerOptions(associates).map(p => ({ ...p, l: p.v === PAYER_COMPANY ? 'Ent.' : p.l, icon: '' })).map(p => (
                     <button key={p.v} onClick={() => changePayer(tx.id, p.v)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${tx.payer === p.v ? (p.v === 'entreprise' ? 'bg-blue-500 text-white' : 'bg-purple-500 text-white') : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${samePayer(tx.payer, p.v, associates) ? (p.v === 'entreprise' ? 'bg-blue-500 text-white' : 'bg-purple-500 text-white') : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                       {p.icon} {p.l}
                     </button>
                   ))}
@@ -1210,7 +1370,7 @@ function prepareFileForAI(file) {
 // ════════════════════════════════════════
 // RELEVÉS BANCAIRES - dépôt PDF + contrôle de cohérence
 // ════════════════════════════════════════
-function RelevesTab({ statements, transactions, loadAll }) {
+function RelevesTab({ statements, transactions, loadAll, organization }) {
   const [uploading, setUploading] = useState(false)
   const [draft, setDraft] = useState(null)        // résultat d'extraction en attente de validation
   const [draftFile, setDraftFile] = useState(null)
@@ -1219,7 +1379,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
   const [sendingId, setSendingId] = useState(null)
   const fileRef = useRef(null)
 
-  // Solde Campus à la date de fin d'un relevé = cumul des lignes bancaires
+  // Solde calculé à la date de fin d'un relevé = cumul des lignes bancaires
   // jusqu'à cette date incluse. Valide car le compte est importé depuis
   // son ouverture (solde initial 0).
   function campusBalanceAt(dateStr) {
@@ -1255,7 +1415,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
         setManual(true)
         setDraft({
           statement_number: '', statement_year: new Date().getFullYear(),
-          period_start: '', period_end: '', account_label: 'CMB - 00890689 40',
+          period_start: '', period_end: '', account_label: defaultAccountLabel(organization),
           opening_balance: '', closing_balance: '', total_debits: '', total_credits: '',
         })
         return
@@ -1305,7 +1465,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
         statement_year: draft.statement_year ? parseInt(draft.statement_year, 10) : null,
         period_start: draft.period_start || null,
         period_end: draft.period_end,
-        account_label: draft.account_label || 'CMB - 00890689 40',
+        account_label: draft.account_label || defaultAccountLabel(organization) || null,
         opening_balance: opening,
         closing_balance: closing,
         total_debits: debits,
@@ -1382,8 +1542,8 @@ function RelevesTab({ statements, transactions, loadAll }) {
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <h3 className="font-bold text-gray-700 mb-1"> Relevés bancaires</h3>
         <p className="text-xs text-gray-500 mb-3">
-          Déposez le PDF du relevé CMB à chaque début de mois. Les soldes sont lus automatiquement
-          puis comparés au solde calculé par Campus : tout écart signale une ligne manquante ou un doublon.
+          Déposez le PDF du relevé {bankName(organization)} à chaque début de mois. Les soldes sont lus automatiquement
+          puis comparés au solde calculé par l'application : tout écart signale une ligne manquante ou un doublon.
         </p>
         <input ref={fileRef} type="file" accept="application/pdf" onChange={handleFile} disabled={uploading || saving}
           className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
@@ -1438,7 +1598,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
 
           {draft.period_end && (
             <div className="mt-3 text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-              Solde Campus au {fmtDateFR(draft.period_end)} : <strong>{fmt(campusBalanceAt(draft.period_end))}</strong>
+              Solde calculé au {fmtDateFR(draft.period_end)} : <strong>{fmt(campusBalanceAt(draft.period_end))}</strong>
               {Number.isFinite(parseFloat(draft.closing_balance)) && (
                 <> - écart avec le relevé : <strong>{fmt(Math.round((campusBalanceAt(draft.period_end) - parseFloat(draft.closing_balance)) * 100) / 100)}</strong></>
               )}
@@ -1468,7 +1628,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
                   <th className="text-left px-3 py-2 text-xs text-gray-500">N°</th>
                   <th className="text-right px-3 py-2 text-xs text-gray-500">Ancien solde</th>
                   <th className="text-right px-3 py-2 text-xs text-gray-500">Nouveau solde</th>
-                  <th className="text-right px-3 py-2 text-xs text-gray-500">Solde Campus</th>
+                  <th className="text-right px-3 py-2 text-xs text-gray-500">Solde calculé</th>
                   <th className="text-center px-3 py-2 text-xs text-gray-500">Écart</th>
                   <th className="text-center px-3 py-2 text-xs text-gray-500">Comptable</th>
                   <th className="px-2 py-2"></th>
@@ -1488,8 +1648,8 @@ function RelevesTab({ statements, transactions, loadAll }) {
                       <td className="px-3 py-2 text-right font-mono text-xs text-gray-600">{fmt(campusNow)}</td>
                       <td className="px-3 py-2 text-center text-xs">
                         {aligned
-                          ? <span className="text-green-600" title="Campus est aligné sur le relevé"> 0,00 €</span>
-                          : <span className="text-red-600 font-bold" title="Ligne manquante ou doublon dans Campus">{fmt(delta)}</span>}
+                          ? <span className="text-green-600" title="Le solde calculé correspond au relevé"> 0,00 €</span>
+                          : <span className="text-red-600 font-bold" title="Ligne manquante ou doublon dans les opérations importées">{fmt(delta)}</span>}
                         {!st.arithmetic_ok && <span className="ml-1 text-amber-500" title="Le relevé lui-même ne se vérifie pas"></span>}
                         {st.parse_source === 'manual' && <span className="ml-1 text-gray-400" title="Saisi manuellement"></span>}
                       </td>
@@ -1522,7 +1682,7 @@ function RelevesTab({ statements, transactions, loadAll }) {
           </div>
         )}
         <div className="px-4 py-2 text-xs text-gray-400 border-t">
-          « Solde Campus » = cumul des lignes bancaires importées jusqu'à la date d'arrêté.
+          « Solde calculé » = cumul des lignes bancaires importées jusqu'à la date d'arrêté.
           Un écart non nul signale une opération manquante ou importée en double.
         </div>
       </div>
@@ -2602,12 +2762,13 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
       </div>
 
       {/* ── CCA gérants ── */}
-      {(stats.compteHicham > 0 || stats.compteMaxime > 0) && (
+      {(stats.cca || []).some(c => c.value > 0) && (
         <div className="bg-purple-50 rounded-xl border border-purple-200 p-4">
           <h3 className="font-bold text-purple-800 mb-2"> Comptes courants associés</h3>
           <div className="grid md:grid-cols-2 gap-3">
-            <div className="bg-white rounded-lg p-3 border border-purple-100"><div className="text-sm text-gray-600">Hicham</div><div className="text-xl font-bold text-purple-700">{fmt(stats.compteHicham)}</div></div>
-            <div className="bg-white rounded-lg p-3 border border-purple-100"><div className="text-sm text-gray-600">Maxime</div><div className="text-xl font-bold text-purple-700">{fmt(stats.compteMaxime)}</div></div>
+            {stats.cca.map(c => (
+              <div key={c.key} className="bg-white rounded-lg p-3 border border-purple-100"><div className="text-sm text-gray-600">{c.label}</div><div className="text-xl font-bold text-purple-700">{fmt(c.value)}</div></div>
+            ))}
           </div>
         </div>
       )}
@@ -2917,9 +3078,9 @@ function RulesTab({ rules, categories, loadAll }) {
 }
 
 // ════════════════════════════════════════════════════════════
-// IMPORT - Texte brut CMB + Matching factures
+// IMPORT - Texte brut du relevé bancaire + Matching factures
 // ════════════════════════════════════════════════════════════
-function ImportTab({ loadAll, categories, rules, invoices, clients, transactions }) {
+function ImportTab({ loadAll, categories, rules, invoices, clients, transactions, organization }) {
   const [imp, setImp] = useState(false)
   const [csv, setCsv] = useState('')
   const [pre, setPre] = useState([])
@@ -3317,7 +3478,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         const txRow = {
           date: tx.date, description: tx.description, debit: tx.debit, credit: tx.credit,
           category_id: cat?.id || null, category_name: tx.category_name,
-          month: tx.month, year: tx.year, source_file: 'import_csv_cmb',
+          month: tx.month, year: tx.year, source_file: 'import_csv_banque',
           payer: 'entreprise', is_manual: false, is_personal: false,
           linked_invoice_id: hasMatch ? tx.matchedInvoices[0].id : null,
           linked_transaction_id: isAbsorb ? tx.manualMatch.id : null,
@@ -3353,7 +3514,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
               payment_method: 'virement bancaire',
               payment_reference: tx.description.substring(0, 100),
               notes: `Import CSV - ${tx.description.substring(0, 80)} [tx:${insertedTx.id}]`,
-              created_by: 'Import CSV CMB',
+              created_by: `Import CSV ${bankName(organization)}`,
             })
             if (payErr) { errors.push(`Paiement ${inv.reference}: ${payErr.message}`); continue }
 
@@ -3376,7 +3537,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
     setImp(false)
   }
 
-  // ══ Parser texte brut CMB ══
+  // ══ Parser texte brut du relevé bancaire ══
   // Format: "20/02\n20/02\nVIR SOFIS 684,42  VIR SOFIS FACT-20251120-00047..."
   function parseRawText(text) {
     if (!text.trim()) return null
@@ -3483,7 +3644,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
   function handleParseRaw() {
     const result = parseRawText(rawText)
-    if (!result) { toast.error('Format non reconnu. Collez date + libellé CMB'); return }
+    if (!result) { toast.error(`Format non reconnu. Collez date + libellé du relevé ${bankName(organization)}`); return }
     setRawParsed(result)
 
     // Si c'est un crédit → lancer le matching
@@ -3629,7 +3790,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         category_name: rawParsed.category_name,
         month: `${dp[1]}/${dp[0]}`,
         year: parseInt(dp[0]),
-        source_file: 'import_rapide_cmb',
+        source_file: 'import_rapide_banque',
         is_manual: false,
         is_personal: false,
         payer: 'entreprise',
@@ -3645,7 +3806,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         transaction_id: txData.id,
         invoice_id: invId,
         amount_applied: matchAllocations[invId] || 0,
-        reconciled_by: 'Hicham',
+        reconciled_by: currentUserName() || '',
       }))
       const { error: linkErr } = await supabase.from('budget_transaction_invoices').insert(links)
       if (linkErr) throw linkErr
@@ -3664,7 +3825,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
           payment_method: 'virement bancaire',
           payment_reference: rawParsed.description.substring(0, 100),
           notes: `Rapprochement bancaire du ${new Date().toLocaleDateString('fr-FR')} [tx:${txData.id}]`,
-          created_by: 'Hicham Saidi',
+          created_by: currentUserName() || '',
         })
         if (payErr) throw payErr
         await recomputeInvoiceFromPayments(invId)
@@ -3698,7 +3859,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         category_name: rawParsed.category_name,
         month: `${dp[1]}/${dp[0]}`,
         year: parseInt(dp[0]),
-        source_file: 'import_rapide_cmb',
+        source_file: 'import_rapide_banque',
         is_manual: false,
         is_personal: false,
         payer: 'entreprise',
@@ -3714,10 +3875,10 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
   return (
     <div className="space-y-4">
-      {/* ══ IMPORT RAPIDE - Texte brut CMB ══ */}
+      {/* ══ IMPORT RAPIDE - Texte brut du relevé bancaire ══ */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <h3 className="font-bold text-gray-700 mb-2"> Import rapide - Copier/coller CMB</h3>
-        <p className="text-xs text-gray-500 mb-3">Collez le texte brut copié depuis votre relevé CMB (date + libellé). Ex: "20/02\n20/02\nVIR SOFIS 684,42..."</p>
+        <h3 className="font-bold text-gray-700 mb-2"> Import rapide - Copier/coller {bankName(organization)}</h3>
+        <p className="text-xs text-gray-500 mb-3">Collez le texte brut copié depuis votre relevé {bankName(organization)} (date + libellé). Ex: "20/02\n20/02\nVIR SOFIS 684,42..."</p>
 
         <div className="flex gap-2 mb-2">
           <button onClick={() => setRawDirection('credit')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${rawDirection === 'credit' ? 'bg-green-500 text-white' : 'bg-gray-100'}`}> Entrée (encaissement)</button>
@@ -3913,7 +4074,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
             onChange={e => { if (e.target.files[0]) handleCsvFile(e.target.files[0]); e.target.value = '' }} />
           <div className="text-3xl mb-2"></div>
           <p className="text-sm font-medium text-gray-700">Glisser-déposer votre fichier CSV ici</p>
-          <p className="text-xs text-gray-400 mt-1">ou cliquer pour sélectionner - format CMB (Date operation;Date valeur;Libelle;Debit;Credit)</p>
+          <p className="text-xs text-gray-400 mt-1">ou cliquer pour sélectionner - export CSV de votre banque (Date opération;Date valeur;Libellé;Débit;Crédit)</p>
         </div>
 
         {/* Ou coller manuellement */}
@@ -4186,7 +4347,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 // ════════════════════════════════════════════════════════════
 // CATÉGORISATION IA
 // ════════════════════════════════════════════════════════════
-function CategorisationIATab({ transactions, categories, rules, loadAll }) {
+function CategorisationIATab({ transactions, categories, rules, loadAll, associates = [], organization }) {
   const [analyzing, setAnalyzing] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [progress, setProgress] = useState({ done: 0, total: 0 })
@@ -4207,6 +4368,14 @@ function CategorisationIATab({ transactions, categories, rules, loadAll }) {
     // Préparer les données pour l'IA - par lots de 40
     const catList = categories.map(c => c.name).join(', ')
     const rulesList = rules.map(r => `${r.keyword} → ${r.budget_categories?.name || '?'}`).join(', ')
+    // Virements au nom des associés : NOM Prénom tel qu'il apparaît sur un libellé bancaire
+    const associateLines = associates.map(a => {
+      const parts = String(a.name || a.firstName || '').trim().split(/\s+/).filter(Boolean)
+      const first = parts.length > 1 ? parts[0] : a.firstName
+      const last = parts.length > 1 ? parts.slice(1).join(' ') : ''
+      const holder = [last.toUpperCase(), first].filter(Boolean).join(' ')
+      return `- Un virement au nom de ${holder} = rémunération ou remboursement d'un associé`
+    }).join('\n')
     const allSuggestions = []
     const batchSize = 50
     const batches = []
@@ -4230,7 +4399,7 @@ function CategorisationIATab({ transactions, categories, rules, loadAll }) {
           body: JSON.stringify({
             model: 'claude-sonnet-4-6',
             max_tokens: 4000,
-            messages: [{ role: 'user', content: `Tu es un expert-comptable. Analyse ces transactions bancaires d'Access Formation SARL (formation professionnelle SST/conduite de chariots et gerbeurs (R485/R489)/sécurité en Bretagne).
+            messages: [{ role: 'user', content: `Tu es un expert-comptable. Analyse ces transactions bancaires de ${orgLabelForAI(organization)}, ${orgActivityForAI(organization)}.
 
 Pour chaque transaction, vérifie si la catégorie actuelle est correcte. Réponds UNIQUEMENT avec un JSON array des transactions MAL CLASSÉES (pas celles qui sont correctes).
 
@@ -4239,18 +4408,9 @@ Catégories disponibles : ${catList}
 Règles existantes : ${rulesList}
 
 Contexte métier important :
-- "VIR INST SAIDI Hicham" avec ~960€ = loyer siège (pas salaire)
-- "VIR INST SAIDI Hicham" avec ~500-2500€ = salaire dirigeant
-- "VIR INST LANGLAIS Maxime" = salaire dirigeant
-- DKV = carte carburant entreprise
-- DIAC = leasing véhicule
-- CEGEFI = ancien cabinet comptable (prélèvements jusqu'à 07/2026)\n- FICAMEX = cabinet comptable actuel
-- CEGEMA = mutuelle/prévoyance
-- ECH PRET = remboursement prêt BPI
-- TRESOVIV = mouvement interne entre comptes
+${associateLines ? associateLines + '\n' : ''}- ECH PRET = remboursement d'emprunt
 - Restaurants = souvent déplacements professionnels
-- GOCARDLESS = probablement paiement Qualiopi
-- Tout VIR de client (OPCO, AFPI, SOCOTEC, EIFFAGE, etc.) = CA Formations ou CA Sous-traitance
+- Tout VIR d'un client ou d'un financeur (OPCO, etc.) = chiffre d'affaires (CA Formations ou CA Sous-traitance)
 
 Format JSON strict (pas de markdown, pas d'icônes dans les noms de catégorie) :
 [{"id":"uuid","description":"...","current":"catégorie actuelle","suggested":"catégorie suggérée","confidence":0.95,"reason":"explication courte","keyword":"MOT_CLE pour future règle"}]
@@ -4430,7 +4590,7 @@ ${txList}` }]
 // PRÉVISIONNEL & OBJECTIF 50K€
 // ════════════════════════════════════════════════════════════
 
-function PrevisionnelTab({ transactions, categories, invoices, clients }) {
+function PrevisionnelTab({ transactions, categories, invoices, clients, associates = [] }) {
   // ══ CHART COLORS ══
   const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1']
   const ML = { '01':'Jan','02':'Fév','03':'Mar','04':'Avr','05':'Mai','06':'Jun','07':'Jul','08':'Aoû','09':'Sep','10':'Oct','11':'Nov','12':'Déc' }
@@ -4450,13 +4610,19 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
   const [sessions, setSessions] = useState([])
   const [courses, setCourses] = useState([])
   const [showPipeForm, setShowPipeForm] = useState(false)
-  const [newPipe, setNewPipe] = useState({ client: '', amount_ttc: '', expected_month: '', type: 'previsionnel', trainer: 'Hicham', description: '' })
+  const [newPipe, setNewPipe] = useState(() => ({ client: '', amount_ttc: '', expected_month: '', type: 'previsionnel', trainer: defaultAssociateFirstName(associates), description: '' }))
   const [showActionForm, setShowActionForm] = useState(false)
   const [newAction, setNewAction] = useState({ title: '', detail: '', category: 'general', impact_monthly: '', due_date: '' })
   const [actionFilter, setActionFilter] = useState('active') // all, active, done
   const [chartPeriod, setChartPeriod] = useState('6') // 6 or 12 months
   const [localInvoices, setLocalInvoices] = useState(null) // null = pas encore chargé
   const [localClients, setLocalClients] = useState(null)
+
+  // Catégories « Salaire <prénom> » : associés actuels + anciennes clés en base
+  const salaryNames = useMemo(() => [...new Set([
+    ...associates.map(a => salaryNameFor(a.firstName)),
+    ...Object.entries(chargesFixes).filter(([, v]) => v.salary).map(([name]) => name),
+  ])], [associates, chargesFixes])
 
   // ══ LOAD SETTINGS ══
   useEffect(() => {
@@ -4486,20 +4652,31 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         marge_securite: parseFloat(map.marge_securite || '2000'),
         solde_override: map.solde_override || '',
       })
-      // Charges fixes réelles validées
+      // Charges fixes réelles validées.
+      // Salaires : une ligne par associé (clé 'charge_salaire_<slug>'), plus toute
+      // clé 'charge_salaire_*' déjà en base sans associé correspondant.
+      const salaries = {}
+      associates.forEach(a => {
+        const key = salaryKeyFor(a.slug)
+        salaries[salaryNameFor(a.firstName)] = { icon: '', montant: parseFloat(map[key] || '0'), key, salary: true }
+      })
+      Object.keys(map).filter(k => k.startsWith(SALARY_KEY_PREFIX)).forEach(key => {
+        if (associates.some(a => salaryKeyFor(a.slug) === key)) return
+        const name = salaryNameFor(capitalize(key.slice(SALARY_KEY_PREFIX.length)))
+        if (!salaries[name]) salaries[name] = { icon: '', montant: parseFloat(map[key] || '0'), key, salary: true }
+      })
       setChargesFixes({
-        'Salaire Maxime': { icon: '', montant: parseFloat(map.charge_salaire_maxime || '0') },
-        'Salaire Hicham': { icon: '', montant: parseFloat(map.charge_salaire_hicham || '0') },
-        'Loyer siège': { icon: '', montant: parseFloat(map.charge_loyer || '0') },
-        'URSSAF': { icon: '', montant: parseFloat(map.charge_urssaf || '0') },
-        'Prêts': { icon: '', montant: parseFloat(map.charge_prets || '0') },
-        'Comptable': { icon: '', montant: parseFloat(map.charge_comptable || '0') },
-        'Crédit auto': { icon: '', montant: parseFloat(map.charge_credit_auto || '0') },
-        'Télécoms': { icon: '', montant: parseFloat(map.charge_telecoms || '0') },
-        'Assurances véhicule': { icon: '', montant: parseFloat(map.charge_assurance_vehicule || '0') },
-        'Assurances santé': { icon: '', montant: parseFloat(map.charge_assurance_sante || '0') },
-        'Logiciels & SaaS': { icon: '', montant: parseFloat(map.charge_logiciels || '0') },
-        'Frais bancaires': { icon: '', montant: parseFloat(map.charge_frais_bancaires || '0') },
+        ...salaries,
+        'Loyer siège': { icon: '', montant: parseFloat(map.charge_loyer || '0'), key: 'charge_loyer' },
+        'URSSAF': { icon: '', montant: parseFloat(map.charge_urssaf || '0'), key: 'charge_urssaf' },
+        'Prêts': { icon: '', montant: parseFloat(map.charge_prets || '0'), key: 'charge_prets' },
+        'Comptable': { icon: '', montant: parseFloat(map.charge_comptable || '0'), key: 'charge_comptable' },
+        'Crédit auto': { icon: '', montant: parseFloat(map.charge_credit_auto || '0'), key: 'charge_credit_auto' },
+        'Télécoms': { icon: '', montant: parseFloat(map.charge_telecoms || '0'), key: 'charge_telecoms' },
+        'Assurances véhicule': { icon: '', montant: parseFloat(map.charge_assurance_vehicule || '0'), key: 'charge_assurance_vehicule' },
+        'Assurances santé': { icon: '', montant: parseFloat(map.charge_assurance_sante || '0'), key: 'charge_assurance_sante' },
+        'Logiciels & SaaS': { icon: '', montant: parseFloat(map.charge_logiciels || '0'), key: 'charge_logiciels' },
+        'Frais bancaires': { icon: '', montant: parseFloat(map.charge_frais_bancaires || '0'), key: 'charge_frais_bancaires' },
       })
     }
     setConfigLoaded(true)
@@ -4528,7 +4705,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       category: newAction.category,
       impact_monthly: newAction.impact_monthly ? parseFloat(newAction.impact_monthly) : null,
       due_date: newAction.due_date || null,
-      status: 'todo', created_by: 'Hicham'
+      status: 'todo', created_by: currentUserName() || ''
     })
     if (error) { toast.error(error.message); return }
     toast.success('Action ajoutée')
@@ -4620,7 +4797,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
     })
     if (error) { toast.error(error.message); return }
     toast.success('Ajouté au pipeline')
-    setNewPipe({ client: '', amount_ttc: '', expected_month: '', type: 'previsionnel', trainer: 'Hicham', description: '' })
+    setNewPipe({ client: '', amount_ttc: '', expected_month: '', type: 'previsionnel', trainer: defaultAssociateFirstName(associates), description: '' })
     setShowPipeForm(false)
     loadPipeline()
   }
@@ -4703,7 +4880,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
 
       // Sorties à venir : charges fixes validées - ce qui est déjà débité
       const catToChargeKey = {
-        'Salaire Maxime': 'Salaire Maxime', 'Salaire Hicham': 'Salaire Hicham',
+        ...Object.fromEntries(salaryNames.map(n => [n, n])),
         'Loyer siège': 'Loyer siège', 'Charges sociales (URSSAF)': 'URSSAF',
         'Prêts (remboursement)': 'Prêts', 'Comptable': 'Comptable',
         'Véhicules (crédit auto)': 'Crédit auto', 'Télécoms': 'Télécoms',
@@ -4787,7 +4964,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
 
       // ── Budget par catégorie pour le mois en cours (variable uniquement) ──
       const fixedCatNames = new Set([
-        'Salaire Maxime', 'Salaire Hicham', 'Loyer siège', 'Charges sociales (URSSAF)',
+        ...salaryNames, 'Loyer siège', 'Charges sociales (URSSAF)',
         'Prêts (remboursement)', 'Comptable', 'Véhicules (crédit auto)', 'Télécoms',
         'Assurances véhicule', 'Assurances santé/prévoyance', 'Logiciels & SaaS',
         'Frais bancaires', 'Impôts / TVA',
@@ -4927,8 +5104,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
 
       // Charges fixes validées - vérifier lesquelles sont déjà débitées ce mois
       const chargesFixesMap = {
-        'Salaire Maxime': { date: endStr, cats: ['Salaire Maxime'] },
-        'Salaire Hicham': { date: endStr, cats: ['Salaire Hicham'] },
+        ...Object.fromEntries(salaryNames.map(n => [n, { date: endStr, cats: [n] }])),
         'Loyer siège': { date: `${currentYearMonth}-05`, cats: ['Loyer siège'] },
         'URSSAF': { date: `${currentYearMonth}-20`, cats: ['Charges sociales (URSSAF)'] },
         'Prêts': { date: `${currentYearMonth}-09`, cats: ['Prêts (remboursement)'] },
@@ -4954,12 +5130,6 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
           cashFlowItems.push({ date: mapping.date >= today ? mapping.date : endStr, label: `${icon} ${name}`, montant: -reste, type: 'sortie' })
         }
       })
-
-      // GOUYA si ce mois (fév-mai 2026) et pas encore débité
-      const gouya = curSorties.filter(tx => tx.description?.includes('GOUYA'))
-      if (gouya.length === 0 && now.getFullYear() === 2026 && now.getMonth() >= 1 && now.getMonth() <= 4) {
-        cashFlowItems.push({ date: `${currentYearMonth}-25`, label: 'GOUYA Frais juridiques', montant: -673.56, type: 'sortie' })
-      }
 
       // Factures attendues (entrées)
       entreesAVenir.forEach(inv => {
@@ -5028,7 +5198,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         sessionsByMonth: {}, sessionsTotal: 0, formationsRank: [], cashFlowItems: []
       }
     }
-  }, [transactions, categories, unpaidInvoices, config, currentMonthKey, pipeline, chartPeriod, chargesFixes, sessions, courses, effectiveClients, effectiveInvoices])
+  }, [transactions, categories, unpaidInvoices, config, currentMonthKey, pipeline, chartPeriod, chargesFixes, salaryNames, sessions, courses, effectiveClients, effectiveInvoices])
 
   function detectRecurringCharges(txs, months, curMonth) {
     const descMap = {}
@@ -5093,7 +5263,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
         const nbFutur = (futureSessions || []).length
         recos.push({ type: 'levier', icon: '', priority: 85,
           title: 'Formations directes les plus rentables',
-          detail: `${detail}. Actuellement ${nbFutur} session(s) planifiée(s) = ${fmt(sessionsTotal || 0)} HT. 1 SST-FI directe (1 175€) = quasi 100% de marge.` })
+          detail: `${detail}. Actuellement ${nbFutur} session(s) planifiée(s) = ${fmt(sessionsTotal || 0)} HT. Une formation vendue en direct dégage nettement plus de marge qu'une session sous-traitée.` })
       }
     }
 
@@ -5101,7 +5271,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
     if ((futureSessions || []).length < 5) {
       recos.push({ type: 'levier', icon: '', priority: 82,
         title: `Seulement ${(futureSessions || []).length} session(s) planifiée(s)`,
-        detail: `CA sessions prévu : ${fmt(sessionsTotal || 0)} HT. Planning trop vide → remplir via prospection directe (Marine).` })
+        detail: `CA sessions prévu : ${fmt(sessionsTotal || 0)} HT. Planning trop vide → remplir via la prospection directe.` })
     }
 
     // ══ RATIO SOUS-TRAITANCE ══
@@ -5110,12 +5280,12 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       const ratio = ((totalCASousTrait / totalCA) * 100).toFixed(0)
       recos.push({ type: 'levier', icon: '', priority: 78,
         title: `Sous-traitance = ${ratio}% du CA`,
-        detail: `Marge réduite. 1 SST directe (1 175€) rapporte autant net que 2-3 sessions sous-traitées. Marine doit cibler entreprises, pas OF.` })
+        detail: `Marge réduite. Une session vendue en direct rapporte autant net que plusieurs sessions sous-traitées. La prospection doit cibler les entreprises clientes finales plutôt que d'autres organismes de formation.` })
     }
 
     // ══ CHARGES VARIABLES EN HAUSSE (ignorer les fixes et one-shots) ══
     const ignoreCats = new Set([
-      'Salaire Maxime', 'Salaire Hicham', 'Loyer siège', 'Charges sociales (URSSAF)',
+      ...salaryNames, 'Loyer siège', 'Charges sociales (URSSAF)',
       'Prêts (remboursement)', 'Comptable', 'Véhicules (crédit auto)', 'Télécoms',
       'Assurances véhicule', 'Assurances santé/prévoyance', 'Logiciels & SaaS',
       'Frais bancaires', 'Impôts / TVA', 'Véhicules (achat)', 'Trésorerie interne',
@@ -5582,10 +5752,15 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
                 className="border rounded px-2 py-1.5 text-xs" />
               <input type="month" value={newPipe.expected_month} onChange={e => setNewPipe(p => ({ ...p, expected_month: e.target.value }))}
                 className="border rounded px-2 py-1.5 text-xs" />
-              <select value={newPipe.trainer} onChange={e => setNewPipe(p => ({ ...p, trainer: e.target.value }))}
-                className="border rounded px-2 py-1.5 text-xs">
-                <option>Hicham</option><option>Maxime</option>
-              </select>
+              {associates.length > 0 ? (
+                <select value={newPipe.trainer} onChange={e => setNewPipe(p => ({ ...p, trainer: e.target.value }))}
+                  className="border rounded px-2 py-1.5 text-xs">
+                  {associates.map(a => <option key={a.slug} value={a.firstName}>{a.firstName}</option>)}
+                </select>
+              ) : (
+                <input type="text" placeholder="Responsable" value={newPipe.trainer} onChange={e => setNewPipe(p => ({ ...p, trainer: e.target.value }))}
+                  className="border rounded px-2 py-1.5 text-xs" />
+              )}
               <button onClick={addPipeEntry} className="bg-blue-600 text-white rounded px-3 py-1.5 text-xs hover:bg-blue-700">Ajouter</button>
             </div>
             <input type="text" placeholder="Description (optionnel)" value={newPipe.description} onChange={e => setNewPipe(p => ({ ...p, description: e.target.value }))}
@@ -5708,8 +5883,8 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
             })}
           </div>
           <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 text-xs text-blue-800">
-             <b>Stratégie :</b> Prioriser SST-FI (1 175€), R489/R485 (785€) et B0H0V (775€) en vente directe. 
-            Les formations à 345-350€ (extincteurs, IGPS) sont idéales en pack combiné pour augmenter le panier moyen.
+             <b>Stratégie :</b> Prioriser en vente directe les formations au tarif catalogue le plus élevé (classement ci-dessus).
+            Les formations courtes à petit tarif sont idéales en pack combiné pour augmenter le panier moyen.
           </div>
         </div>
       )}
@@ -5859,14 +6034,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
           <p className="text-xs text-gray-400 mt-2 mb-3">Montants réels validés. Cliquer sur un montant pour modifier.</p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {analysis.fixedDetail.map((c) => {
-              const settingsKey = Object.entries(chargesFixes).find(([name]) => name === c.name)?.[0]
-              const dbKey = settingsKey ? 'charge_' + {
-                'Salaire Maxime': 'salaire_maxime', 'Salaire Hicham': 'salaire_hicham',
-                'Loyer siège': 'loyer', 'URSSAF': 'urssaf', 'Prêts': 'prets',
-                'Comptable': 'comptable', 'Crédit auto': 'credit_auto', 'Télécoms': 'telecoms',
-                'Assurances véhicule': 'assurance_vehicule', 'Assurances santé': 'assurance_sante',
-                'Logiciels & SaaS': 'logiciels', 'Frais bancaires': 'frais_bancaires',
-              }[c.name] : null
+              const dbKey = chargesFixes[c.name]?.key || null
               return (
                 <div key={c.name} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
                   <span>{c.icon}</span>
@@ -6033,10 +6201,10 @@ function ClientSearchForMatch({ clients: clientsProp, invoices: invoicesProp, un
   )
 }
 
-function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved }) {
+function MealGuestModal({ transactionId, transaction, clients, associates = [], onClose, onSaved }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [mealFor, setMealFor] = useState('hicham')
+  const [mealFor, setMealFor] = useState(() => defaultAssociateSlug(associates))
   const [nbConvives, setNbConvives] = useState(2)
   const [motif, setMotif] = useState('')
   const [guests, setGuests] = useState([])
@@ -6053,7 +6221,7 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
     const { data } = await supabase.from('budget_meal_guests').select('*').eq('transaction_id', transactionId)
     if (data && data.length > 0) {
       setExisting(data)
-      setMealFor(data[0].meal_for || 'hicham')
+      setMealFor(data[0].meal_for || defaultAssociateSlug(associates))
       setNbConvives(data[0].nb_convives || 2)
       setMotif(data[0].motif || '')
       setGuests(data.filter(g => g.guest_name).map(g => ({
@@ -6079,7 +6247,7 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
       // Insérer les nouveaux
       const guestRows = guests.filter(g => g.name.trim()).map(g => ({
         transaction_id: transactionId,
-        meal_for: mealFor,
+        ...(mealFor ? { meal_for: mealFor } : {}),
         guest_name: g.name.trim(),
         guest_company: g.company.trim() || null,
         guest_first_name: null,
@@ -6092,7 +6260,7 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
         // Sauvegarder au moins le meal_for + nb_convives
         await supabase.from('budget_meal_guests').insert({
           transaction_id: transactionId,
-          meal_for: mealFor,
+          ...(mealFor ? { meal_for: mealFor } : {}),
           nb_convives: nbConvives,
           motif: motif || null,
         })
@@ -6127,14 +6295,19 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
           <div className="p-8 text-center text-gray-400"> Chargement...</div>
         ) : (
           <div className="p-4 space-y-3">
-            {/* Repas pour qui */}
-            <div>
-              <label className="text-xs text-gray-600 font-medium">Repas pour</label>
-              <div className="flex gap-2 mt-1">
-                <button onClick={() => setMealFor('hicham')} className={`flex-1 py-2 rounded-lg text-sm font-medium border ${mealFor === 'hicham' ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}>Hicham</button>
-                <button onClick={() => setMealFor('maxime')} className={`flex-1 py-2 rounded-lg text-sm font-medium border ${mealFor === 'maxime' ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}>Maxime</button>
+            {/* Repas pour qui (associés ; une ancienne valeur en base reste affichée) */}
+            {(associates.length > 0 || mealFor) && (
+              <div>
+                <label className="text-xs text-gray-600 font-medium">Repas pour</label>
+                <div className="flex gap-2 mt-1">
+                  {[...associates.map(a => ({ v: a.slug, l: a.firstName })),
+                    ...(mealFor && !associates.some(a => a.slug === mealFor) ? [{ v: mealFor, l: capitalize(mealFor) }] : [])
+                  ].map(o => (
+                    <button key={o.v} onClick={() => setMealFor(o.v)} className={`flex-1 py-2 rounded-lg text-sm font-medium border ${mealFor === o.v ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}>{o.l}</button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Nb convives */}
             <div>

@@ -193,7 +193,7 @@ export default function Prospection() {
       <div className="bg-gray-100 rounded-xl p-3 overflow-x-auto">
         <div className="grid gap-3 min-w-0" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
 
-          {/* ── COL 0 : TRANSFERTS MARINE ── */}
+          {/* ── COL 0 : TRANSFERTS DE LA PROSPECTION TÉLÉPHONIQUE ── */}
           <KanbanCol
             title=" Transferts"
             count={transferts.length}
@@ -353,7 +353,7 @@ function KanbanCol({ title, count, accentColor, badgeBg, badgeText, children, on
 }
 
 /* ─────────────────────────────────────────
-   CARTE TRANSFERT MARINE
+   CARTE TRANSFERT DE LA PROSPECTION TÉLÉPHONIQUE
 ───────────────────────────────────────── */
 function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
   const [showClose, setShowClose] = useState(false)

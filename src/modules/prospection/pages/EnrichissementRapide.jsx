@@ -1234,7 +1234,7 @@ export default function EnrichissementRapide() {
                   </label>
                   <input ref={phoneRef} type="tel" value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="02 98 12 34 56"
+                    placeholder="01 23 45 67 89"
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
                 </div>
                 <div>
@@ -1508,7 +1508,7 @@ export default function EnrichissementRapide() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
                   <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                    placeholder="02 98 XX XX XX"
+                    placeholder="01 23 45 67 89"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>

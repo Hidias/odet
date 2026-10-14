@@ -960,7 +960,7 @@ export default function ProcessEditor() {
                     
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Outil</label>
-                      <input type="text" placeholder="Campus, Sellsy..." value={editingStep.tool || ''} onChange={(e) => { setEditingStep({ ...editingStep, tool: e.target.value }); handleUpdateStep(editingStep.id, { tool: e.target.value }) }} className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500" />
+                      <input type="text" placeholder="Logiciel, tableur..." value={editingStep.tool || ''} onChange={(e) => { setEditingStep({ ...editingStep, tool: e.target.value }); handleUpdateStep(editingStep.id, { tool: e.target.value }) }} className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500" />
                     </div>
                     
                     {editingStep.type === 'subprocess' && (

@@ -573,7 +573,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                   
                   <div>
                     <label className="label">Lieu</label>
-                    <input type="text" className="input" value={common.location} onChange={e => setCommon({...common, location: e.target.value})} placeholder="Ex : Intersport Quimper" />
+                    <input type="text" className="input" value={common.location} onChange={e => setCommon({...common, location: e.target.value})} placeholder="Ex : magasin principal du client" />
                   </div>
                   <div>
                     <label className="label">Formateur</label>
@@ -757,7 +757,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                             className={`input ${group.matched_client ? 'bg-green-50' : ''}`}
                             value={group.city}
                             onChange={e => { const u = [...groups]; u[gi].city = e.target.value; setGroups(u) }}
-                            placeholder="CONCARNEAU"
+                            placeholder="VILLE"
                           />
                         </div>
                         <div className="md:col-span-2">

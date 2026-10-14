@@ -13,7 +13,7 @@ import toast from 'react-hot-toast'
 // ═══════════════════════════════════════════════════════════════
 // SignatureFormateur - page mobile ouverte par le QR code formateur
 //
-// Le formateur est connecté à Campus. Il tend son téléphone au
+// Le formateur est connecté à l'application. Il tend son téléphone au
 // stagiaire, qui signe en plein écran. Rien d'autre.
 //
 //   • demi-journée du jour choisie automatiquement (13h = bascule)

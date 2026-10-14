@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
-import { useAuthStore } from '../../../core/store'
+import { useAuthStore, useDataStore } from '../../../core/store'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx-js-style'
@@ -11,29 +11,115 @@ import {
 import SearchSelect from '../../../ui/SearchSelect'
 
 // ════════════════════════════════════════════════════════════
-//  ESPACE COMPTABLE - Access Campus
+//  ESPACE COMPTABLE
 //  Balance âgée | Encaissements | Rapprochement | Clôtures | Export | FEC
 // ════
 
-// Constante fondation
-const COMPANY_START = new Date(2025, 3, 18) // 18 avril 2025 (date Kbis)
+// ════════════════════════════════════════════════════════════
+// EXERCICES COMPTABLES - calculés depuis organization_settings
+//   exercice_start_month : mois de début d'exercice (1 à 12, défaut 1)
+//   date_creation        : début du premier exercice
+// ════════════════════════════════════════════════════════════
 
-// Exercices comptables (1er exercice = 18/04/2025 → 30/06/2026 selon Kbis)
-function getExercices() {
-  const exos = []
-  // Premier exercice long
-  exos.push({ label: 'Ex. 1 - 18/04/2025 → 30/06/2026', start: new Date(2025, 3, 18), end: new Date(2026, 5, 30), filename: 'FEC94356386620260630.txt' })
-  // Exercices annuels suivants
-  let y = 2026
-  while (y < new Date().getFullYear() + 2) {
-    const start = new Date(y, 6, 1)  // 01 juillet
-    const end = new Date(y + 1, 5, 30) // 30 juin
-    exos.push({ label: `Ex. ${exos.length + 1} - 01/07/${y} → 30/06/${y + 1}`, start, end, filename: `FEC943563866${y + 1}0630.txt` })
-    y++
-  }
-  return exos
+const pad2 = (x) => String(x).padStart(2, '0')
+const fmtDMY = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`
+const fmtYMD = (d) => `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`
+
+/** Date SQL 'YYYY-MM-DD' en date locale (sans décalage UTC), sinon null */
+function parseLocalDate(v) {
+  const m = String(v || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return Number.isNaN(d.getTime()) ? null : d
 }
-const EXERCICES = getExercices()
+
+/** Mois de début d'exercice (1 à 12), défaut janvier */
+function exerciceStartMonth(org) {
+  const m = parseInt(org?.exercice_start_month, 10)
+  return m >= 1 && m <= 12 ? m : 1
+}
+
+/** Veille du 1er du mois de début d'exercice (1 à 12) de l'année donnée : dernier jour du mois précédent */
+const closingBefore = (year, startMonth) => new Date(year, startMonth - 1, 0)
+
+/** Libellé de la date de clôture standard : « 30 juin », « 31 décembre »... */
+function closingDayLabel(org) {
+  return closingBefore(2001, exerciceStartMonth(org)).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+}
+
+/** SIREN de l'organisme (repli : 9 premiers chiffres du SIRET), chaîne vide si inconnu */
+function orgSiren(org) {
+  const siren = String(org?.siren || '').replace(/\D/g, '')
+  if (siren.length === 9) return siren
+  const siret = String(org?.siret || '').replace(/\D/g, '')
+  return siret.length >= 9 ? siret.slice(0, 9) : ''
+}
+
+const monthsBetween = (a, b) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+const endOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999)
+
+/**
+ * Exercices comptables.
+ * - Premier exercice : de date_creation à la veille du début d'exercice de l'année suivante
+ *   (fin du mois précédant exercice_start_month) si cela fait moins de 24 mois, sinon à la
+ *   fin de la même année ; puis des exercices de 12 mois.
+ * - Sans date_creation : premier exercice = exercice standard qui contient la première
+ *   opération connue (ou la date du jour).
+ * Nom du fichier FEC (format légal) : SIREN + 'FEC' + AAAAMMJJ de clôture, null sans SIREN.
+ */
+function getExercices(org, firstActivityDate) {
+  const sm = exerciceStartMonth(org)
+  const siren = orgSiren(org)
+  const fileName = (end) => siren ? `${siren}FEC${fmtYMD(end)}.txt` : null
+  const exos = []
+
+  let start = parseLocalDate(org?.date_creation)
+  let end
+  if (start) {
+    end = closingBefore(start.getFullYear() + 1, sm)
+    if (monthsBetween(start, end) >= 24) {
+      const sameYear = closingBefore(start.getFullYear(), sm)
+      if (sameYear >= start) end = sameYear
+    }
+  } else {
+    const ref = firstActivityDate || new Date()
+    const y = (ref.getMonth() + 1) >= sm ? ref.getFullYear() : ref.getFullYear() - 1
+    start = new Date(y, sm - 1, 1)
+    end = closingBefore(y + 1, sm)
+  }
+  exos.push({ start, end: endOfDay(end) })
+
+  // Exercices de 12 mois jusqu'à celui qui commence l'an prochain inclus
+  const lastYear = new Date().getFullYear() + 2
+  for (let guard = 0; guard < 100; guard++) {
+    const prev = exos[exos.length - 1].end
+    const s2 = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 1)
+    if (s2.getFullYear() >= lastYear) break
+    exos.push({ start: s2, end: endOfDay(closingBefore(s2.getFullYear() + 1, sm)) })
+  }
+
+  return exos.map((e, idx) => ({
+    ...e,
+    label: `Ex. ${idx + 1} - ${fmtDMY(e.start)} → ${fmtDMY(e.end)}`,
+    filename: fileName(e.end),
+  }))
+}
+
+/** Libellé de la banque de l'organisme pour le journal et le compte 512000 */
+function bankLabel(org) {
+  const name = String(org?.bank_name || '').trim()
+  return name ? `Banque ${name}` : 'Banque'
+}
+
+/** IBAN formaté par groupes de 4, ou mention à renseigner */
+function formatIban(org) {
+  const iban = String(org?.iban || '').replace(/\s+/g, '').toUpperCase()
+  return iban ? iban.replace(/(.{4})/g, '$1 ').trim() : 'Non renseigné (Paramètres)'
+}
+
+/** Contexte comptable partagé par les onglets : organisme, exercices, début d'activité */
+const FiscalContext = React.createContext({ org: null, exercices: [], companyStart: new Date(new Date().getFullYear(), 0, 1), closingLabel: '' })
+const useFiscal = () => React.useContext(FiscalContext)
 
 // ════════════════════════════════════════════════════════════
 
@@ -146,6 +232,9 @@ async function fetchAll(buildQuery, pageSize = 1000) {
 export default function EspaceComptable() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const organization = useDataStore(s => s.organization)
+  const fetchOrganization = useDataStore(s => s.fetchOrganization)
+  useEffect(() => { if (!organization) fetchOrganization() }, [organization, fetchOrganization])
 
   async function handleLogout() {
     await logout()
@@ -192,6 +281,23 @@ export default function EspaceComptable() {
     setLoading(false)
   }
 
+  // ─── Exercices et début d'activité, depuis les paramètres de l'organisme ──
+  const fiscal = useMemo(() => {
+    // Première opération connue (utile seulement si date_creation est vide)
+    let first = null
+    const consider = (v) => { const d = parseLocalDate(v); if (d && (!first || d < first)) first = d }
+    transactions.forEach(t => consider(t.date))
+    invoices.forEach(i => consider(i.invoice_date))
+    const exercices = getExercices(organization, first)
+    const s0 = exercices[0]?.start || new Date(new Date().getFullYear(), 0, 1)
+    return {
+      org: organization,
+      exercices,
+      companyStart: new Date(s0.getFullYear(), s0.getMonth(), 1), // 1er du mois de début d'activité
+      closingLabel: closingDayLabel(organization),
+    }
+  }, [organization, transactions, invoices])
+
   // ─── Vérifier si une date est dans une période clôturée ──
   const isDateLocked = useCallback((dateStr) => {
     if (!dateStr) return false
@@ -211,7 +317,10 @@ export default function EspaceComptable() {
     )
   }
 
+  const orgDisplayName = organization?.name || organization?.legal_name || ''
+
   return (
+    <FiscalContext.Provider value={fiscal}>
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -220,7 +329,7 @@ export default function EspaceComptable() {
             <Calculator className="w-7 h-7 text-violet-600" />
             Espace Comptable
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Access Formation - {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-sm text-gray-500 mt-1">{orgDisplayName ? `${orgDisplayName} - ` : ''}{new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-400 hidden sm:block">{user?.email}</span>
@@ -262,6 +371,7 @@ export default function EspaceComptable() {
       {tab === 'export' && <ExportTab invoices={invoices} payments={payments} transactions={transactions} />}
       {tab === 'fec' && <FecTab invoices={invoices} payments={payments} transactions={transactions} />}
     </div>
+    </FiscalContext.Provider>
   )
 }
 
@@ -269,6 +379,7 @@ export default function EspaceComptable() {
 // KPI SUMMARY
 // ════════════════════════════════════════════════════════════
 function KPISummary({ invoices }) {
+  const { closingLabel } = useFiscal()
   const stats = useMemo(() => {
     const unpaid = invoices.filter(i => i.status !== 'paid' && i.status !== 'cancelled' && i.status !== 'credited' && i.status !== 'draft' && i.type !== 'credit_note')
     const totalDue = unpaid.reduce((s, i) => s + (parseFloat(i.amount_due) || 0), 0)
@@ -303,7 +414,7 @@ function KPISummary({ invoices }) {
       <div className="bg-white rounded-xl border p-4">
         <p className="text-xs text-gray-500 font-medium">Exercice</p>
         <p className="text-xl font-bold text-gray-900 mt-1">{new Date().getFullYear()}</p>
-        <p className="text-xs text-gray-400 mt-1">Clôture 30 juin</p>
+        <p className="text-xs text-gray-400 mt-1">Clôture {closingLabel}</p>
       </div>
     </div>
   )
@@ -464,6 +575,7 @@ function BalanceAgeeTab({ invoices }) {
 // ENCAISSEMENTS
 // ════════════════════════════════════════════════════════════
 function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
+  const { companyStart } = useFiscal()
   const [showForm, setShowForm] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [form, setForm] = useState({
@@ -484,9 +596,9 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
     const opts = [{ value: 'all', label: 'Tous les encaissements' }]
     const now = new Date(); let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
     const MN = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
-    while (cursor >= COMPANY_START) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
+    while (cursor >= companyStart) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
     return opts
-  }, [])
+  }, [companyStart])
   const recentPayments = useMemo(() => {
     if (historyMonth === 'all') return payments
     const [y, m] = historyMonth.split('-').map(Number)
@@ -759,6 +871,7 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
 // RAPPROCHEMENT BANCAIRE
 // ════════════════════════════════════════════════════════════
 function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
+  const { companyStart } = useFiscal()
   const [selectedTx, setSelectedTx] = useState(null)
   const [linking, setLinking] = useState(false)
   const [unlinking, setUnlinking] = useState(null) // id en cours de déliage
@@ -771,9 +884,9 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
   const rapprochMonthOptions = useMemo(() => {
     const opts = [{ value: 'all', label: 'Tous les mois' }]; const now = new Date(); let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
     const MN = ['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
-    while (cursor >= COMPANY_START) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
+    while (cursor >= companyStart) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
     return opts
-  }, [])
+  }, [companyStart])
   const unmatched = useMemo(() => {
     let base = transactions.filter(tx => !tx.linked_invoice_id && !tx.is_personal && tx.credit > 0)
     if (unmatchedMonth !== 'all') { const [y, m] = unmatchedMonth.split('-').map(Number); base = base.filter(tx => { const d = new Date(tx.date); return d.getFullYear() === y && d.getMonth() + 1 === m }) }
@@ -1201,6 +1314,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
 // ANNOTATIONS
 // ════════════════════════════════════════════════════════════
 function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
+  const { companyStart } = useFiscal()
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -1210,9 +1324,9 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
   const annoMonthOptions = useMemo(() => {
     const opts = [{ value: 'all', label: 'Tous les mois' }]; const now = new Date(); let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
     const MN = ['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
-    while (cursor >= COMPANY_START) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
+    while (cursor >= companyStart) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
     return opts
-  }, [])
+  }, [companyStart])
   const filtered = useMemo(() => {
     let base = transactions.filter(tx => !tx.is_personal)
     if (annoMonth !== 'all') { const [y, m] = annoMonth.split('-').map(Number); base = base.filter(tx => { const d = new Date(tx.date); return d.getFullYear() === y && d.getMonth() + 1 === m }) }
@@ -1327,6 +1441,7 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
 // CLÔTURES COMPTABLES
 // ════════════════════════════════════════════════════════════
 function CloturesTab({ periods, loadAll, user }) {
+  const { companyStart, closingLabel, org } = useFiscal()
   const [locking, setLocking] = useState(false)
   const [note, setNote] = useState('')
 
@@ -1336,14 +1451,14 @@ function CloturesTab({ periods, loadAll, user }) {
   // Générer les 24 derniers mois
   const months = useMemo(() => {
     const result = []; const now = new Date(); let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
-    while (cursor >= COMPANY_START) {
+    while (cursor >= companyStart) {
       const y = cursor.getFullYear(); const m = cursor.getMonth() + 1
       const period = periods.find(p => p.period_year === y && p.period_month === m)
       result.push({ year: y, month: m, label: `${String(m).padStart(2,'0')}/${y}`, period })
       cursor = new Date(y, m - 2, 1)
     }
     return result
-  }, [periods])
+  }, [periods, companyStart])
 
   async function toggleLock(item) {
     setLocking(true)
@@ -1383,7 +1498,7 @@ function CloturesTab({ periods, loadAll, user }) {
   return (
     <div className="space-y-4">
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-        <strong>Clôture annuelle :</strong> Access Formation clôture son exercice comptable au <strong>30 juin</strong>.
+        <strong>Clôture annuelle :</strong> {org?.name || org?.legal_name || "L'organisme"} clôture son exercice comptable au <strong>{closingLabel}</strong>.
         Une période clôturée bloque la saisie d'encaissements et d'annotations sur cette période.
         Les admins restent maîtres des données - seule la saisie depuis l'espace comptable est bloquée.
       </div>
@@ -1446,15 +1561,16 @@ function CloturesTab({ periods, loadAll, user }) {
 // EXPORT EXCEL
 // ════════════════════════════════════════════════════════════
 function ExportTab({ invoices, payments, transactions }) {
+  const { companyStart, org } = useFiscal()
   const [exporting, setExporting] = useState(false)
   const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()))
 
   const years = useMemo(() => {
     const s = new Set()
-    invoices.forEach(i => { const y = new Date(i.invoice_date).getFullYear(); if (y >= COMPANY_START.getFullYear()) s.add(y) })
-    transactions.forEach(t => { const y = new Date(t.date).getFullYear(); if (y >= COMPANY_START.getFullYear()) s.add(y) })
+    invoices.forEach(i => { const y = new Date(i.invoice_date).getFullYear(); if (y >= companyStart.getFullYear()) s.add(y) })
+    transactions.forEach(t => { const y = new Date(t.date).getFullYear(); if (y >= companyStart.getFullYear()) s.add(y) })
     return [...s].sort((a, b) => b - a).map(String)
-  }, [invoices, transactions])
+  }, [invoices, transactions, companyStart])
 
   async function handleExport(type) {
     setExporting(true)
@@ -1519,7 +1635,8 @@ function ExportTab({ invoices, payments, transactions }) {
         XLSX.utils.book_append_sheet(wb, ws, 'Transactions')
       }
 
-      const filename = `Access_Formation_Compta_${filterYear}_${type}_${new Date().toISOString().split('T')[0]}.xlsx`
+      const orgSlug = String(org?.name || org?.legal_name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+      const filename = `${orgSlug ? orgSlug + '_' : ''}Compta_${filterYear}_${type}_${new Date().toISOString().split('T')[0]}.xlsx`
       XLSX.writeFile(wb, filename)
       toast.success(`Export ${filename} téléchargé`)
     } catch (e) {
@@ -1590,7 +1707,7 @@ function ExportTab({ invoices, payments, transactions }) {
 // ════════════════════════════════════════════════════════════
 // FEC DGFIP - Fichier des Écritures Comptables
 // Format normalisé DGFiP - Art. L47 A LPF
-// Access Formation SARL - SIREN 943563866
+// Identité de l'organisme (SIREN, banque) : organization_settings
 // ════════════════════════════════════════════════════════════
 
 // Mapping catégories → comptes PCG
@@ -1642,10 +1759,9 @@ function sanitize(s) {
   return String(s).replace(/[|\n\r]/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 100)
 }
 
-function generateFEC(invoices, payments, transactions, exercice) {
+function generateFEC(invoices, payments, transactions, exercice, org) {
   const { start, end } = exercice
-  const SIREN = '943563866'
-  const RAISON_SOCIALE = 'ACCESS FORMATION'
+  const BANK_LIB = sanitize(bankLabel(org)) // JournalLib du journal BQ et CompteLib du 512000
   const lines = []
   let ecritureNum = 1
 
@@ -1738,10 +1854,10 @@ function generateFEC(invoices, payments, transactions, exercice) {
 
     // Débit banque
     lines.push([
-      'BQ', 'Banque CMB',
+      'BQ', BANK_LIB,
       `BQ${String(ecritureNum).padStart(6,'0')}`,
       dateStr,
-      '512000', 'Banque CMB CCM Concarneau',
+      '512000', BANK_LIB,
       '', '',
       payRef, dateStr,
       lib,
@@ -1751,7 +1867,7 @@ function generateFEC(invoices, payments, transactions, exercice) {
 
     // Crédit client
     lines.push([
-      'BQ', 'Banque CMB',
+      'BQ', BANK_LIB,
       `BQ${String(ecritureNum).padStart(6,'0')}`,
       dateStr,
       '411000', 'Clients',
@@ -1784,7 +1900,7 @@ function generateFEC(invoices, payments, transactions, exercice) {
     if (isDebit) {
       // Charge : Débit compte charge, Crédit banque
       lines.push([
-        'BQ', 'Banque CMB',
+        'BQ', BANK_LIB,
         `BQ${String(ecritureNum).padStart(6,'0')}`,
         dateStr,
         account.num, sanitize(account.lib),
@@ -1794,10 +1910,10 @@ function generateFEC(invoices, payments, transactions, exercice) {
         '', '', dateStr, '', ''
       ].join('|'))
       lines.push([
-        'BQ', 'Banque CMB',
+        'BQ', BANK_LIB,
         `BQ${String(ecritureNum).padStart(6,'0')}`,
         dateStr,
-        '512000', 'Banque CMB CCM Concarneau',
+        '512000', BANK_LIB,
         '', '',
         pieceRef, dateStr, lib,
         '0.00', fecAmt(amt),
@@ -1806,17 +1922,17 @@ function generateFEC(invoices, payments, transactions, exercice) {
     } else if (isCredit && !tx.linked_invoice_id) {
       // Encaissement non lié à une facture : Débit banque, Crédit compte
       lines.push([
-        'BQ', 'Banque CMB',
+        'BQ', BANK_LIB,
         `BQ${String(ecritureNum).padStart(6,'0')}`,
         dateStr,
-        '512000', 'Banque CMB CCM Concarneau',
+        '512000', BANK_LIB,
         '', '',
         pieceRef, dateStr, lib,
         fecAmt(amt), '0.00',
         '', '', dateStr, '', ''
       ].join('|'))
       lines.push([
-        'BQ', 'Banque CMB',
+        'BQ', BANK_LIB,
         `BQ${String(ecritureNum).padStart(6,'0')}`,
         dateStr,
         account.num, sanitize(account.lib),
@@ -1835,11 +1951,15 @@ function generateFEC(invoices, payments, transactions, exercice) {
 }
 
 function FecTab({ invoices, payments, transactions }) {
+  const { org, exercices, closingLabel } = useFiscal()
   const [selectedExo, setSelectedExo] = useState(0)
   const [generating, setGenerating] = useState(false)
   const [preview, setPreview] = useState(null)
 
-  const exercice = EXERCICES[selectedExo]
+  const exercice = exercices[selectedExo]
+  const siren = orgSiren(org)
+  const siret = String(org?.siret || '').replace(/\D/g, '')
+  const fecDisabled = !siren
 
   // Stats de l'exercice sélectionné
   const stats = useMemo(() => {
@@ -1852,12 +1972,13 @@ function FecTab({ invoices, payments, transactions }) {
     const totalVentes = invs.reduce((s, i) => s + (i.type === 'credit_note' ? -1 : 1) * (parseFloat(i.total_ttc) || 0), 0)
     const totalEncaisse = pays.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
     return { nbInvoices: invs.length, nbPayments: pays.length, nbTx: txs.length, totalVentes, totalEncaisse }
-  }, [invoices, payments, transactions, selectedExo])
+  }, [invoices, payments, transactions, exercice])
 
   async function handleGenerate() {
+    if (!exercice || !exercice.filename) { toast.error('Renseignez le SIREN dans Paramètres'); return }
     setGenerating(true)
     try {
-      const fecContent = generateFEC(invoices, payments, transactions, exercice)
+      const fecContent = generateFEC(invoices, payments, transactions, exercice, org)
       // Aperçu des 5 premières lignes (hors header)
       const lines = fecContent.split('\n')
       setPreview(lines.slice(1, 6))
@@ -1895,22 +2016,32 @@ function FecTab({ invoices, payments, transactions }) {
 
       {/* Identité société */}
       <div className="bg-white rounded-xl border p-4">
-        <h3 className="font-semibold text-gray-700 mb-3">Identification - ACCESS FORMATION</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-          <div><p className="text-xs text-gray-400">SIREN</p><p className="font-mono font-bold">943 563 866</p></div>
-          <div><p className="text-xs text-gray-400">SIRET</p><p className="font-mono font-bold">943 563 866 00012</p></div>
-          <div><p className="text-xs text-gray-400">Forme</p><p className="font-bold">SARL</p></div>
-          <div><p className="text-xs text-gray-400">Clôture</p><p className="font-bold">30 juin</p></div>
-          <div><p className="text-xs text-gray-400">Banque</p><p className="font-bold">CMB - CCM Concarneau</p></div>
-          <div className="col-span-3"><p className="text-xs text-gray-400">IBAN</p><p className="font-mono">FR76 1558 9297 0600 0890 6894 048</p></div>
-        </div>
+        <h3 className="font-semibold text-gray-700 mb-3">Identification{(org?.legal_name || org?.name) ? ` - ${String(org.legal_name || org.name).toUpperCase()}` : ''}</h3>
+        {!org ? (
+          <p className="text-sm text-gray-400">Chargement des paramètres de l'organisme...</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div><p className="text-xs text-gray-400">SIREN</p><p className="font-mono font-bold">{siren ? siren.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') : 'Non renseigné'}</p></div>
+            <div><p className="text-xs text-gray-400">SIRET</p><p className="font-mono font-bold">{siret.length === 14 ? siret.replace(/(\d{3})(\d{3})(\d{3})(\d{5})/, '$1 $2 $3 $4') : (siret || 'Non renseigné')}</p></div>
+            <div><p className="text-xs text-gray-400">Forme</p><p className="font-bold">{org.forme_juridique || '-'}</p></div>
+            <div><p className="text-xs text-gray-400">Clôture</p><p className="font-bold">{closingLabel}</p></div>
+            <div><p className="text-xs text-gray-400">Banque</p><p className="font-bold">{org.bank_name || 'Non renseignée (Paramètres)'}</p></div>
+            <div className="col-span-3"><p className="text-xs text-gray-400">IBAN</p><p className="font-mono">{formatIban(org)}</p></div>
+          </div>
+        )}
+        {org && fecDisabled && (
+          <div className="mt-3 flex items-center gap-2 text-sm bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            Renseignez le SIREN dans Paramètres : le nom légal du fichier FEC en dépend, l'export est désactivé.
+          </div>
+        )}
       </div>
 
       {/* Sélection exercice + stats */}
       <div className="bg-white rounded-xl border p-4">
         <h3 className="font-semibold text-gray-700 mb-3">Exercice comptable</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          {EXERCICES.map((exo, idx) => {
+          {exercices.map((exo, idx) => {
             const isCurrent = new Date() >= exo.start && new Date() <= exo.end
             return (
               <button
@@ -1924,7 +2055,7 @@ function FecTab({ invoices, payments, transactions }) {
                   <span className="text-sm font-semibold text-gray-900">{exo.label}</span>
                   {isCurrent && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">En cours</span>}
                 </div>
-                <p className="text-xs text-gray-400 font-mono">{exo.filename}</p>
+                <p className="text-xs text-gray-400 font-mono">{exo.filename || 'SIREN manquant'}</p>
               </button>
             )
           })}
@@ -1951,11 +2082,11 @@ function FecTab({ invoices, payments, transactions }) {
 
         <button
           onClick={handleGenerate}
-          disabled={generating}
+          disabled={generating || fecDisabled || !exercice}
           className="w-full flex items-center justify-center gap-3 py-3 bg-violet-600 text-white rounded-xl font-semibold hover:bg-violet-700 disabled:opacity-50 transition"
         >
           <Download className="w-5 h-5" />
-          {generating ? 'Génération en cours...' : `Générer et télécharger ${exercice?.filename || ''}`}
+          {generating ? 'Génération en cours...' : fecDisabled ? 'Export FEC indisponible : SIREN manquant' : `Générer et télécharger ${exercice?.filename || ''}`}
         </button>
       </div>
 
@@ -1981,7 +2112,7 @@ function FecTab({ invoices, payments, transactions }) {
             ['411000', 'Clients'],
             ['706000', 'Prestations de services'],
             ['445711', 'TVA collectée 20%'],
-            ['512000', 'Banque CMB CCM Concarneau'],
+            ['512000', bankLabel(org)],
             ['604000', 'Achats prestations (sous-traitance)'],
             ['616000', 'Primes assurance'],
             ['618500', 'Logiciels & abonnements'],

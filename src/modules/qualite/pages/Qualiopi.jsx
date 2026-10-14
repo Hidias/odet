@@ -47,7 +47,7 @@ const VEILLE_SOURCES = [
   { id: 'legifrance', name: 'Légifrance', url: 'https://www.legifrance.gouv.fr', type: 'legale', description: 'Service public de diffusion du droit' },
   { id: 'france_competences', name: 'France Compétences', url: 'https://www.francecompetences.fr', type: 'legale', description: 'Autorité nationale de financement et régulation' },
   { id: 'oppbtp', name: 'OPPBTP', url: 'https://www.preventionbtp.fr', type: 'legale', description: 'Organisme Professionnel de Prévention du BTP' },
-  { id: 'carif_oref', name: 'CARIF-OREF Bretagne', url: 'https://www.gref-bretagne.com', type: 'metiers', description: 'Centre Animation Ressources Information Formation' },
+  { id: 'carif_oref', name: 'Réseau des Carif-Oref', url: 'https://www.intercariforef.org', type: 'metiers', description: 'Accès au Carif-Oref de votre région (offre de formation, métiers, emploi)' },
   { id: 'centre_inffo', name: 'Centre Inffo', url: 'https://www.centre-inffo.fr', type: 'pedagogique', description: 'Centre pour le développement de l\'information sur la formation' }
 ]
 

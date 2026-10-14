@@ -1,17 +1,10 @@
 import { requireCronOrUser } from './_lib/auth.js'
+import { getOrg, getSupabaseAdmin } from './_lib/mailer.js'
+import { appUrl } from './_lib/internal.js'
 /**
- * ============================================================================
- * API ENDPOINT - IMPORT AUTO CRON
- * ============================================================================
- * 
- * À METTRE : afm-app-main/api/import-auto-cron.js
- * 
- * Cet endpoint est appelé automatiquement tous les soirs à 2h du matin
- * par le cron job Vercel (configuré dans vercel.json)
- * ============================================================================
+ * Import automatique des entreprises de la zone de prospection, chaque nuit à 2 h (vercel.json).
+ * Départements : Paramètres > Identité, « Zone d'intervention ». Zone vide : rien n'est importé.
  */
-
-const DEPARTEMENTS = ['22', '29', '35', '56', '44', '49', '53', '72', '85']
 
 export default async function handler(req, res) {
   if (!(await requireCronOrUser(req, res))) return
@@ -27,14 +20,29 @@ export default async function handler(req, res) {
     errors: []
   }
   
+  // Import de nuit seulement si le module Prospection est actif et l'import automatique activé (org_modules.settings.auto_import)
+  const supa = getSupabaseAdmin()
+  const { data: mod } = await supa.from('org_modules').select('enabled, settings').eq('key', 'prospection').maybeSingle()
+  if (!mod?.enabled || mod?.settings?.auto_import !== true) {
+    return res.status(200).json({ success: true, skipped: true, reason: 'Import automatique désactivé (Paramètres > Modules, Prospection)' })
+  }
+  const org = await getOrg()
+  const DEPARTEMENTS = (Array.isArray(org.zone_departements) ? org.zone_departements : []).map(d => String(d).trim()).filter(Boolean)
+  if (!DEPARTEMENTS.length) return res.status(200).json({ success: true, skipped: true, reason: 'Aucune zone de prospection dans Paramètres' })
+  const base = appUrl(req)
+
   // Importer chaque département
   for (const dept of DEPARTEMENTS) {
     try {
       console.log(`📍 Import département ${dept}...`)
       
-      const response = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/api/import-departement`, {
+      const response = await fetch(`${base}/api/import-departement`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          // Même autorisation que l'appel reçu : secret des tâches planifiées, sinon jeton de l'utilisateur
+          ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : (req.headers.authorization ? { Authorization: req.headers.authorization } : {})),
+        },
         body: JSON.stringify({ departement: dept })
       })
       

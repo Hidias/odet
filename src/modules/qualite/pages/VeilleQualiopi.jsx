@@ -91,7 +91,7 @@ export default function VeilleQualiopi() {
 
   const handleSave = async () => {
     if (!form.sujet.trim()) {
-      toast.error('Campus a besoin d\'un sujet')
+      toast.error('Sujet obligatoire')
       return
     }
 
@@ -118,7 +118,7 @@ export default function VeilleQualiopi() {
         console.error('Erreur modification:', error)
         toast.error('Erreur lors de la modification')
       } else {
-        toast.success('Campus a enregistré les modifications')
+        toast.success('Modifications enregistrées')
         fetchVeilles()
         closeModal()
       }
@@ -131,7 +131,7 @@ export default function VeilleQualiopi() {
         console.error('Erreur création:', error)
         toast.error('Erreur lors de la création')
       } else {
-        toast.success('Campus a créé l\'entrée de veille')
+        toast.success('Entrée de veille créée')
         fetchVeilles()
         closeModal()
       }
@@ -139,7 +139,7 @@ export default function VeilleQualiopi() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Campus vous demande confirmation : supprimer cette entrée ?')) return
+    if (!confirm('Supprimer cette entrée ?')) return
     
     const { error } = await supabase
       .from('veille_qualiopi')

@@ -1758,7 +1758,7 @@ export default function ClientDetail() {
                         const IconComp = typeInfo.icon
                         const sourceBadge = {
                           phoning: { label: 'Prospection', cls: 'bg-orange-100 text-orange-600' },
-                          email: { label: 'Campus', cls: 'bg-blue-100 text-blue-600' },
+                          email: { label: 'Application', cls: 'bg-blue-100 text-blue-600' },
                           session_email: { label: 'Email session', cls: 'bg-sky-100 text-sky-700' },
                           session: { label: 'Formation', cls: 'bg-green-100 text-green-700' },
                           rdv: { label: 'RDV', cls: 'bg-purple-100 text-purple-700' },

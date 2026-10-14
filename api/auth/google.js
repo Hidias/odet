@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
+import { appUrl } from '../_lib/internal.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -13,10 +14,12 @@ const supabase = createClient(
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
-const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
-const REDIRECT_URI = `${APP_URL}/api/auth/google`
+// Adresse de l'application : variable APP_URL, sinon l'hôte de la requête (calculée dans le handler)
+const ENV_APP_URL = String(process.env.APP_URL || '').replace(/\/$/, '')
 
 export default async function handler(req, res) {
+  const APP_URL = ENV_APP_URL || appUrl(req)
+  const REDIRECT_URI = `${APP_URL}/api/auth/google`
   try {
     const { code, action, error: oauthError } = req.query
 

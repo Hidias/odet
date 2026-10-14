@@ -33,7 +33,8 @@ const ORG_FIELDS = [
   'dirigeant_name', 'dirigeant_title', 'dirigeant_signature_url', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
   'app_name', 'app_short_name', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'logo_base64', 'stamp_base64',
   'doc_prefix',
-  'bank_name', 'iban', 'bic', 'email_bcc', 'email_default_sender', 'exercice_start_month', 'demo_mode',
+  'bank_name', 'iban', 'bic', 'bank_overdraft', 'email_bcc', 'email_default_sender', 'email_sync_ignored', 'exercice_start_month', 'demo_mode',
+  'ai_profile',
 ]
 
 export default function Settings() {
@@ -59,7 +60,7 @@ export default function Settings() {
   useEffect(() => {
     if (organization) {
       const f = {}
-      ORG_FIELDS.forEach((k) => { f[k] = organization[k] ?? (k === 'zone_departements' ? [] : '') })
+      ORG_FIELDS.forEach((k) => { f[k] = organization[k] ?? (k === 'zone_departements' ? [] : k === 'ai_profile' ? {} : '') })
       f.zone_departements_text = (organization.zone_departements || []).join(', ')
       setForm(f)
     }
@@ -80,6 +81,8 @@ export default function Settings() {
       payload.iban = (form.iban || '').replace(/\s/g, '').toUpperCase()
       payload.exercice_start_month = Number(form.exercice_start_month) || 1
       payload.caces_activity = !!form.caces_activity
+      payload.bank_overdraft = Math.max(0, Number(String(form.bank_overdraft ?? '').replace(',', '.')) || 0)
+      payload.ai_profile = form.ai_profile && typeof form.ai_profile === 'object' ? form.ai_profile : {}
       for (const k of ['qualiopi_since', 'date_creation']) if (!payload[k]) payload[k] = null
       const { error } = await updateOrganization(payload)
       if (error) throw error
@@ -168,7 +171,7 @@ export default function Settings() {
               <h2 className="section-title">Formation professionnelle</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Numéro de déclaration d'activité (NDA)" hint="11 chiffres. Laisser vide tant qu'il n'est pas obtenu"><input className="input" value={form.nda || ''} onChange={(e) => set('nda', e.target.value)} /></Field>
-                <Field label="Région du préfet (NDA)"><input className="input" value={form.nda_region || ''} onChange={(e) => set('nda_region', e.target.value)} placeholder="Bretagne" /></Field>
+                <Field label="Région du préfet (NDA)"><input className="input" value={form.nda_region || ''} onChange={(e) => set('nda_region', e.target.value)} placeholder="Région du siège" /></Field>
                 <Field label="Activité">
                   <select className="select" value={form.activity_kind || 'of'} onChange={(e) => set('activity_kind', e.target.value)}>
                     <option value="of">Organisme de formation</option><option value="entreprise">Entreprise</option><option value="mixte">Formation et entreprise</option>
@@ -179,8 +182,12 @@ export default function Settings() {
                     ? <div className="text-ui-sm"><span className="font-medium text-gray-800">{form.qualiopi_certified ? `Certifié Qualiopi${form.qualiopi_since ? ` depuis le ${String(form.qualiopi_since).slice(0, 10).split('-').reverse().join('/')}` : ''}${form.qualiopi_organisme ? `, ${form.qualiopi_organisme}` : ''}` : 'Non certifié Qualiopi'}</span><span className="block text-gray-500">Se renseigne dans <Link to="/certification/qualiopi" className="text-primary-600 underline">Certification, Qualiopi</Link> (date du certificat et certificateur).</span></div>
                     : <Toggle checked={!!form.qualiopi_certified} onChange={(v) => set('qualiopi_certified', v)} label="Certifié Qualiopi" hint="Ajoute la mention sur les documents" />}
                   <Toggle checked={!!form.caces_activity} onChange={(v) => set('caces_activity', v)} label="Activité CACES" hint="Décoché : l'Aide à la rédaction parle de formation à la conduite en vue de l'autorisation de conduite, jamais de CACES" />
+                  <Toggle checked={!!form.ai_profile?.tutoiement} onChange={(v) => set('ai_profile', { ...(form.ai_profile || {}), tutoiement: v })} label="Tutoyer les contacts" hint="Emails commerciaux rédigés par l'Aide à la rédaction (comptes rendus, relances). Décoché : vouvoiement" />
                   <Toggle checked={form.tva_applicable !== false} onChange={(v) => set('tva_applicable', v)} label="TVA applicable" hint="Décoché : mention d'exonération (art. 261-4-4° a du CGI)" />
                 </div>
+                <Field label="Présentation pour l'Aide à la rédaction" className="md:col-span-2" hint="Spécialités, approche, points forts : seules informations sur l'organisme que l'Aide à la rédaction reprend dans les publications et les emails (aucun chiffre ici, ils sont calculés)">
+                  <textarea className="input" rows={3} value={form.ai_profile?.presentation || ''} onChange={(e) => set('ai_profile', { ...(form.ai_profile || {}), presentation: e.target.value })} placeholder="Ex : formations en entreprise, matériel fourni, mises en situation au plus près du terrain" />
+                </Field>
                 {form.qualiopi_certified && !certModule && (
                   <>
                     <Field label="Certifié depuis le"><input type="date" className="input" value={form.qualiopi_since || ''} onChange={(e) => set('qualiopi_since', e.target.value)} /></Field>
@@ -292,11 +299,13 @@ export default function Settings() {
                 <Field label="Banque"><input className="input" value={form.bank_name || ''} onChange={(e) => set('bank_name', e.target.value)} /></Field>
                 <Field label="BIC"><input className="input" value={form.bic || ''} onChange={(e) => set('bic', e.target.value.toUpperCase())} /></Field>
                 <Field label="IBAN" className="md:col-span-2"><input className="input" value={form.iban || ''} onChange={(e) => set('iban', e.target.value)} /></Field>
+                <Field label="Découvert autorisé (euros)" hint="Module Budget : alerte quand le découvert approche de cette limite. 0 si aucun"><input className="input" inputMode="decimal" value={form.bank_overdraft ?? ''} onChange={(e) => set('bank_overdraft', e.target.value)} /></Field>
               </div>
               <h2 className="section-title">Emails et exercice</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Copie cachée systématique" hint="Adresse d'archivage recevant tous les envois"><input className="input" value={form.email_bcc || ''} onChange={(e) => set('email_bcc', e.target.value)} /></Field>
                 <Field label="Expéditeur par défaut" hint="Compte email utilisé quand aucun n'est précisé"><input className="input" value={form.email_default_sender || ''} onChange={(e) => set('email_default_sender', e.target.value)} /></Field>
+                <Field label="Adresses à ignorer dans le suivi des emails envoyés" className="md:col-span-2" hint="Adresses personnelles, partenaires, @domaine... séparées par des virgules. Les adresses de l'équipe et le domaine de l'organisme sont déjà ignorés"><input className="input" value={form.email_sync_ignored || ''} onChange={(e) => set('email_sync_ignored', e.target.value)} placeholder="prenom.nom@exemple.fr, @partenaire.fr" /></Field>
                 <Field label="Premier mois de l'exercice comptable">
                   <select className="select" value={form.exercice_start_month || 1} onChange={(e) => set('exercice_start_month', e.target.value)}>
                     {['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'].map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
@@ -392,6 +401,23 @@ function QualiteSection({ onReferentHandicap }) {
   )
 }
 
+// Agenda Google de l'utilisateur : ses sessions, RDV, rappels et événements y sont copiés chaque heure
+// (le compte de service Google doit avoir accès à cet agenda)
+function GcalCell({ profile, onSave }) {
+  const [value, setValue] = useState(profile.gcal_id || '')
+  useEffect(() => { setValue(profile.gcal_id || '') }, [profile.gcal_id])
+  return (
+    <div className="flex items-center gap-2" style={{ minWidth: 230 }}>
+      <Toggle checked={!!profile.gcal_enabled} onChange={(v) => onSave({ gcal_enabled: v, gcal_id: value.trim() || profile.gcal_id || profile.email })} label="" />
+      {profile.gcal_enabled && (
+        <input className="input" style={{ minHeight: 32 }} aria-label={`Agenda Google de ${profile.display_name || profile.email}`}
+          placeholder={profile.email} value={value} onChange={(e) => setValue(e.target.value)}
+          onBlur={() => { const v = value.trim(); if (v !== (profile.gcal_id || '')) onSave({ gcal_id: v || null }) }} />
+      )}
+    </div>
+  )
+}
+
 function UsersSection({ isSuperadmin }) {
   const [profiles, setProfiles] = useState([])
   // Compte relié à sa fiche formateur : nom et téléphone identiques des deux côtés (migration 0038)
@@ -441,7 +467,7 @@ function UsersSection({ isSuperadmin }) {
       <h2 className="section-title">Utilisateurs et rôles</h2>
       <div className="overflow-x-auto">
         <table>
-          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Fiche formateur</th><th>Actif</th><th></th></tr></thead>
+          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Fiche formateur</th><th>Agenda Google</th><th>Actif</th><th></th></tr></thead>
           <tbody>
             {profiles.map((p) => (
               <tr key={p.id}>
@@ -459,6 +485,7 @@ function UsersSection({ isSuperadmin }) {
                     {trainers.filter((t) => t.id === p.trainer_id || !profiles.some((x) => x.trainer_id === t.id)).map((t) => <option key={t.id} value={t.id}>{[t.first_name, t.last_name].filter(Boolean).join(' ')}</option>)}
                   </select>
                 </td>
+                <td><GcalCell profile={p} onSave={(patch) => update(p.id, patch)} /></td>
                 <td><Toggle checked={p.is_active} onChange={(v) => update(p.id, { is_active: v })} label="" /></td>
                 <td className="text-right whitespace-nowrap">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => reset(p.email)} disabled={busy}><KeyRound className="w-4 h-4" />Mot de passe</button>

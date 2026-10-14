@@ -2,23 +2,59 @@
 // Endpoint iCal pour synchronisation Google Agenda
 //
 // Usage :
-//   GET /api/calendar?trainer=UUID        → sessions + RDV + events d'un formateur
-//   GET /api/calendar?trainer=all         → tout (pour contact@)
+//   GET /api/calendar?link=UUID|all              → (utilisateur connecté) renvoie le lien d'abonnement signé
+//   GET /api/calendar?trainer=UUID&key=SIGNATURE → sessions + RDV + événements d'un formateur
+//   GET /api/calendar?trainer=all&key=SIGNATURE  → tout le planning
 //
 // Google Agenda → Autres agendas → À partir de l'URL → coller le lien
 // Ne modifie RIEN dans l'agenda existant (calendrier séparé en lecture seule)
+// Le lien est signé : sans la bonne clé, rien n'est renvoyé (le planning contient des noms de clients et des notes).
 
+import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import { requireUser, ADMIN_ROLES } from './_lib/auth.js'
+import { getOrg } from './_lib/mailer.js'
+import { loadTeam, profileFirstName } from './_lib/team.js'
+import { appUrl } from './_lib/internal.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-// Mapping trainer_id → { conductedBy, authUserId }
-const TRAINER_MAP = {
-  'ddf1ec18-c1c1-4fc5-8095-af85ffbf4ee1': { conductedBy: 'Hicham', authUserId: 'a5482cd6-3961-4c55-adcd-2bff9f5736b3' },
-  '06048463-24cb-4989-998f-2b84d8a3a196': { conductedBy: 'Maxime', authUserId: 'e028a949-d0d8-4702-b2db-e281fd4bfdb1' },
+// Signature du lien d'abonnement (clé serveur, jamais exposée)
+function signTrainer(trainer) {
+  const secret = process.env.CALENDAR_SECRET || process.env.ENCRYPTION_KEY || process.env.CRON_SECRET || ''
+  if (!secret) return null
+  return crypto.createHmac('sha256', secret).update(`calendar:${trainer}`).digest('hex').slice(0, 32)
+}
+
+function sameKey(a, b) {
+  const x = Buffer.from(String(a || ''))
+  const y = Buffer.from(String(b || ''))
+  return x.length === y.length && x.length > 0 && crypto.timingSafeEqual(x, y)
+}
+
+// Formateur → utilisateur relié (profiles.trainer_id) : prénom porté par les RDV, id des événements personnels
+async function trainerMap() {
+  const team = await loadTeam(supabase)
+  const map = {}
+  team.filter(p => p.trainer_id).forEach(p => { map[p.trainer_id] = { conductedBy: profileFirstName(p), authUserId: p.id } })
+  return map
+}
+
+// Lien d'abonnement signé, demandé depuis l'écran Planning par un utilisateur connecté
+async function linkHandler(req, res) {
+  const ctx = await requireUser(req)
+  if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+  const target = String(req.query.link)
+  const isAdmin = ADMIN_ROLES.includes(ctx.profile.role)
+  if (target === 'all' ? !isAdmin : !(isAdmin || ctx.profile.trainer_id === target)) {
+    return res.status(403).json({ error: 'Ce lien est réservé à la direction ou au formateur concerné' })
+  }
+  const key = signTrainer(target)
+  if (!key) return res.status(500).json({ error: 'Clé de signature absente du serveur' })
+  return res.status(200).json({ url: `${appUrl(req)}/api/calendar?trainer=${encodeURIComponent(target)}&key=${key}` })
 }
 
 const EVENT_TYPE_LABELS = {
@@ -65,7 +101,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { trainer } = req.query
+  if (req.query.link) return linkHandler(req, res)
+
+  const { trainer, key } = req.query
+
+  if (trainer && !sameKey(key, signTrainer(trainer))) {
+    return res.status(403).json({ error: 'Lien d\'agenda invalide : copiez-le à nouveau depuis le Planning' })
+  }
 
   if (!trainer) {
     return res.status(400).json({
@@ -79,7 +121,10 @@ export default async function handler(req, res) {
 
   try {
     const isAll = trainer === 'all'
-    let calName = 'Access Formation - Planning'
+    const [org, TRAINER_MAP] = await Promise.all([getOrg(supabase), trainerMap()])
+    const orgLabel = org.app_name || org.name || 'Planning'
+    const uidDomain = (appUrl(req).replace(/^https?:\/\//, '') || 'agenda.local').replace(/[^A-Za-z0-9.-]/g, '')
+    let calName = `${orgLabel} - Planning`
     let trainerName = 'Tous'
     let trainerInfo = null
 
@@ -96,7 +141,7 @@ export default async function handler(req, res) {
       }
 
       trainerName = `${trainerData.first_name} ${trainerData.last_name}`
-      calName = `Access Formation - ${trainerName}`
+      calName = `${orgLabel} - ${trainerName}`
       trainerInfo = TRAINER_MAP[trainer] || null
     }
 
@@ -192,7 +237,7 @@ export default async function handler(req, res) {
     const ical = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Access Formation//Access Campus//FR',
+      `PRODID:-//${escapeIcal(orgLabel)}//Planning//FR`,
       `X-WR-CALNAME:${escapeIcal(calName)}`,
       'X-WR-TIMEZONE:Europe/Paris',
       'CALSCALE:GREGORIAN',
@@ -252,7 +297,7 @@ export default async function handler(req, res) {
 
       ical.push(...[
         'BEGIN:VEVENT',
-        `UID:session-${session.id}@access-formation.fr`,
+        `UID:session-${session.id}@${uidDomain}`,
         `DTSTAMP:${now}`,
         `DTSTART;TZID=Europe/Paris:${dtstart}`,
         `DTEND;TZID=Europe/Paris:${dtend}`,
@@ -300,7 +345,7 @@ export default async function handler(req, res) {
 
       ical.push(...[
         'BEGIN:VEVENT',
-        `UID:rdv-${rdv.id}@access-formation.fr`,
+        `UID:rdv-${rdv.id}@${uidDomain}`,
         `DTSTAMP:${now}`,
         `DTSTART;TZID=Europe/Paris:${dtstart}`,
         `DTEND;TZID=Europe/Paris:${dtend}`,
@@ -338,7 +383,7 @@ export default async function handler(req, res) {
 
       ical.push(...[
         'BEGIN:VEVENT',
-        `UID:event-${evt.id}@access-formation.fr`,
+        `UID:event-${evt.id}@${uidDomain}`,
         `DTSTAMP:${now}`,
         `DTSTART;TZID=Europe/Paris:${dtstart}`,
         `DTEND;TZID=Europe/Paris:${dtend}`,
@@ -354,7 +399,7 @@ export default async function handler(req, res) {
     const icalContent = ical.join('\r\n')
 
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
-    res.setHeader('Content-Disposition', `inline; filename="access_formation_${trainerName.replace(/\s+/g, '_')}.ics"`)
+    res.setHeader('Content-Disposition', `inline; filename="planning_${trainerName.replace(/[^A-Za-z0-9]+/g, '_')}.ics"`)
     res.setHeader('Cache-Control', 'public, max-age=900, s-maxage=900')
 
     return res.status(200).send(icalContent)

@@ -11,7 +11,7 @@
  */
 
 import { apiFetch } from '../../../core/api'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Play, Check, X, Loader, RefreshCw, Square,
   ChevronDown, ChevronUp, Upload, FileSpreadsheet,
@@ -20,15 +20,11 @@ import {
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx-js-style'
 import { supabase } from '../../../core/supabase'
-import { useAuthStore } from '../../../core/store'
+import { useAuthStore, useDataStore } from '../../../core/store'
+import { useZoneDepartements, zoneCodes } from '../../../core/org/departements'
 
 // ─── Constantes INSEE ─────────────────────────────────────────────────────────
 
-const DEPARTEMENTS = {
-  '22': "Côtes-d'Armor", '29': 'Finistère',       '35': 'Ille-et-Vilaine',
-  '56': 'Morbihan',      '44': 'Loire-Atlantique', '49': 'Maine-et-Loire',
-  '53': 'Mayenne',       '72': 'Sarthe',            '85': 'Vendée',
-}
 
 const TRANCHES = [
   { code: '53', label: '10000+ sal.' }, { code: '52', label: '5000-9999' },
@@ -187,6 +183,9 @@ function buildRow(rawRow, mapping, target, globalNaf) {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function AdminImport() {
+  // Départements de la zone d'intervention (Paramètres), ou tous si aucune zone n'est renseignée
+  const DEPARTEMENTS = useZoneDepartements()
+  const organization = useDataStore(s => s.organization)
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState('import-api')
 
@@ -197,7 +196,10 @@ export default function AdminImport() {
   const [deptProgress, setDeptProgress]     = useState({})
   const [totalStats, setTotalStats]         = useState({ recupere: 0, filtre: 0, insere: 0, doublons: 0 })
   const [expandedDepts, setExpandedDepts]   = useState({})
-  const [selectedDepts, setSelectedDepts]   = useState(Object.keys(DEPARTEMENTS))
+  // Présélection : la zone d'intervention seulement (jamais toute la France par défaut)
+  const [selectedDepts, setSelectedDepts]   = useState(() => zoneCodes(organization))
+  const deptsTouched = useRef(false)
+  useEffect(() => { if (!deptsTouched.current) setSelectedDepts(zoneCodes(organization)) }, [organization])
   const stopRef = useRef(false)
 
   // ── Enrichissement ──
@@ -227,6 +229,7 @@ export default function AdminImport() {
   // ════════════════════════ IMPORT INSEE ════════════════════════
 
   function toggleDept(code) {
+    deptsTouched.current = true
     setSelectedDepts(prev => prev.includes(code) ? prev.filter(d => d !== code) : [...prev, code])
   }
   function toggleExpand(code) { setExpandedDepts(prev => ({ ...prev, [code]: !prev[code] })) }
@@ -756,7 +759,7 @@ export default function AdminImport() {
                       </label>
                       <input
                         className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
-                        placeholder="Ex : Campings, Hôtels Bretagne, Transport 2026..."
+                        placeholder="Ex : hôtellerie, transport 2026..."
                         value={groupeTag}
                         onChange={e => setGroupeTag(e.target.value)}
                       />
@@ -773,7 +776,7 @@ export default function AdminImport() {
                         <tr>
                           <th className="text-left px-4 py-2.5 text-gray-500 font-medium w-1/3">Colonne fichier</th>
                           <th className="text-left px-4 py-2.5 text-gray-500 font-medium w-1/4">Exemple</th>
-                          <th className="text-left px-4 py-2.5 text-gray-500 font-medium">Champ Campus</th>
+                          <th className="text-left px-4 py-2.5 text-gray-500 font-medium">Champ de l'application</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">

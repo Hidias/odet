@@ -1125,7 +1125,7 @@ export default function Clients() {
                   </div>
                   <div>
                     <label className="label">Ville</label>
-                    <input className="input" value={form.city} onChange={(e) => setForm({...form, city: e.target.value.toUpperCase()})} placeholder="QUIMPER" />
+                    <input className="input" value={form.city} onChange={(e) => setForm({...form, city: e.target.value.toUpperCase()})} placeholder="VILLE" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

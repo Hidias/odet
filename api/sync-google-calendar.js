@@ -1,5 +1,5 @@
 // api/sync-google-calendar.js
-// Cron de synchronisation Access Campus → Google Calendar
+// Cron de synchronisation du planning → Google Agenda
 // Pousse sessions, RDV commerciaux, rappels et planning events dans les agendas des formateurs
 //
 // Cron: toutes les heures (vercel.json)
@@ -23,6 +23,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHash, createSign } from 'crypto'
 import { requireCronOrUser } from './_lib/auth.js'
+import { getOrg } from './_lib/mailer.js'
+import { loadTeam, leaders, profileFirstName } from './_lib/team.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -38,22 +40,27 @@ const TIME_BUDGET_MS = 50000       // maxDuration Vercel = 60 s
 const SUPABASE_ROW_LIMIT = 1000    // limite par défaut de l'API Supabase
 const WRITES_ENABLED = true        // false = simulation forcée (interrupteur d'urgence)
 
-// ─── Config formateurs → calendriers ─────────────────────
-const CALENDAR_MAP = {
-  hicham: {
-    calendarId: process.env.GCAL_HICHAM || 'hicham.saidi@accessformation.pro',
-    trainerMatch: 'hicham',
-    conductedBy: 'Hicham',
-    userId: 'a5482cd6-3961-4c55-adcd-2bff9f5736b3',
-    enabled: true,
-  },
-  maxime: {
-    calendarId: process.env.GCAL_MAXIME || 'maxime.langlais@accessformation.pro',
-    trainerMatch: 'maxime',
-    conductedBy: 'Maxime',
-    userId: 'e028a949-d0d8-4702-b2db-e281fd4bfdb1',
-    enabled: false, // Calendrier non partagé avec le service account — à activer quand Maxime partage
-  },
+// ─── Agendas : un par utilisateur (Paramètres > Utilisateurs : agenda Google et case « synchroniser ») ───
+// conductedBy = prénom porté par les RDV et les appels ; trainerId = fiche formateur reliée au compte.
+async function loadCalendarMap() {
+  const team = await loadTeam(supabase)
+  const heads = new Set(leaders(team).map(p => p.id))
+  const firstNames = new Set(team.map(profileFirstName).filter(Boolean))
+  const map = {}
+  team.forEach(p => {
+    const key = profileFirstName(p).toLowerCase() || p.id
+    map[key] = {
+      calendarId: p.gcal_id || p.sender_email || p.email,
+      trainerId: p.trainer_id || null,
+      conductedBy: profileFirstName(p),
+      userId: p.id,
+      // Rappels sans auteur de l'équipe (opérateur externe, ancien utilisateur) : à la direction
+      takesOrphanCallbacks: heads.has(p.id),
+      teamFirstNames: firstNames,
+      enabled: !!p.gcal_enabled && !!(p.gcal_id || p.sender_email || p.email),
+    }
+  })
+  return map
 }
 
 // ─── Google Auth (Service Account JWT) ────────────────────
@@ -277,24 +284,15 @@ async function buildExpectedEvents(trainerConfig, pastDate, futureDate) {
   const flagTruncation = (rows) => { if (rows.length >= SUPABASE_ROW_LIMIT) truncated = true }
 
   // ═══ SESSIONS ═══
-  const trainerRes = await supabase
-    .from('trainers')
-    .select('id, first_name, last_name')
-    .ilike('first_name', `%${trainerConfig.trainerMatch}%`)
-    .maybeSingle()
-  const trainerData = checkSupabase('trainers', trainerRes)
-  if (!trainerData || !trainerData.id) {
-    throw new Error(`Formateur "${trainerConfig.trainerMatch}" introuvable — sync annulée`)
-  }
-
-  const sessions = checkSupabase('sessions', await supabase
+  // Sessions du formateur relié au compte (aucune si le compte n'a pas de fiche formateur)
+  const sessions = trainerConfig.trainerId ? checkSupabase('sessions', await supabase
     .from('sessions')
     .select('id, reference, start_date, end_date, start_time, end_time, location_city, location_name, location_address, status, course_id, client_id, notes')
-    .eq('trainer_id', trainerData.id)
+    .eq('trainer_id', trainerConfig.trainerId)
     .neq('status', 'cancelled')
     .gte('end_date', pastDate)
     .lte('start_date', futureDate)
-    .order('start_date'))
+    .order('start_date')) : []
   flagTruncation(sessions)
 
   const courseIds = [...new Set(sessions.map(s => s.course_id).filter(Boolean))]
@@ -375,7 +373,7 @@ async function buildExpectedEvents(trainerConfig, pastDate, futureDate) {
     } else if (rdv.rdv_location === 'client') {
       location = `Chez ${clientName}`
     } else if (rdv.rdv_location === 'bureau') {
-      location = 'Access Formation, 24 rue Kerbleiz, 29900 Concarneau'
+      location = [trainerConfig.orgName, trainerConfig.orgAddress].filter(Boolean).join(', ')
     }
 
     events.push({
@@ -398,15 +396,17 @@ async function buildExpectedEvents(trainerConfig, pastDate, futureDate) {
     })
   }
 
-  // ═══ RAPPELS (callbacks) — uniquement pour Hicham ═══
-  if (trainerConfig.conductedBy === 'Hicham') {
-    const callbacks = checkSupabase('prospect_calls', await supabase
+  // ═══ RAPPELS (callbacks) : ceux de l'utilisateur, plus les rappels sans auteur de l'équipe pour la direction ═══
+  {
+    const allCallbacks = checkSupabase('prospect_calls', await supabase
       .from('prospect_calls')
-      .select('id, callback_date, callback_time, contact_name, notes, client_id')
+      .select('id, callback_date, callback_time, contact_name, notes, client_id, called_by')
       .eq('needs_callback', true)
       .gte('callback_date', pastDate)
       .lte('callback_date', futureDate))
-    flagTruncation(callbacks)
+    const callbacks = allCallbacks.filter(c => c.called_by === trainerConfig.conductedBy
+      || (trainerConfig.takesOrphanCallbacks && !trainerConfig.teamFirstNames.has(c.called_by)))
+    flagTruncation(allCallbacks)
 
     const cbClientIds = [...new Set(callbacks.map(c => c.client_id).filter(Boolean))]
     let cbClientsMap = new Map()
@@ -770,6 +770,15 @@ export default async function handler(req, res) {
   const dryRun = req.query?.dry === 'true' || !writesEnabled
 
   try {
+    const CALENDAR_MAP = await loadCalendarMap()
+    if (!Object.values(CALENDAR_MAP).some(c => c.enabled)) {
+      return res.status(200).json({ success: true, skipped: true, reason: 'Aucun utilisateur avec la synchronisation Google Agenda activée' })
+    }
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+      return res.status(200).json({ success: true, skipped: true, reason: 'Compte de service Google absent (GOOGLE_SERVICE_ACCOUNT_KEY)' })
+    }
+    const org = await getOrg(supabase)
+    Object.values(CALENDAR_MAP).forEach(c => { c.orgName = org.name; c.orgAddress = org.addressLine })
     const accessToken = await getAccessToken()
     const results = {}
 

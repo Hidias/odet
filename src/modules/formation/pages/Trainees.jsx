@@ -204,8 +204,8 @@ export default function Trainees() {
   }
   
   const handleSave = async (forceCreate = false) => {
-    if (!form.first_name || !form.last_name) return toast.error('Campus a besoin du nom et prénom')
-    if (!form.gender) return toast.error('Campus a besoin du genre (Homme / Femme / Non genré)')
+    if (!form.first_name || !form.last_name) return toast.error('Nom et prénom obligatoires')
+    if (!form.gender) return toast.error('Genre obligatoire (Homme / Femme / Non genré)')
     
     // Vérification des doublons (seulement à la création)
     if (!selectedTrainee && !forceCreate) {
@@ -256,7 +256,7 @@ export default function Trainees() {
       }
       // Log d'audit : modification
       logAudit('update', 'trainee', selectedTrainee.id, traineeName)
-      toast.success('Campus a enregistré les modifications')
+      toast.success('Modifications enregistrées')
     } else {
       const { data, error } = await createTrainee(dataToSave)
       console.log('Résultat createTrainee:', { data, error })
@@ -267,7 +267,7 @@ export default function Trainees() {
       }
       // Log d'audit : création
       logAudit('create', 'trainee', data?.id, traineeName)
-      toast.success('Campus a créé le stagiaire')
+      toast.success('Stagiaire créé')
     }
     
     // Rafraîchir la liste pour récupérer les données à jour

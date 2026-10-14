@@ -1,5 +1,5 @@
 // api/sync-sent-emails.js
-// CRON: Lit les dossiers "Envoyés" IMAP des 3 comptes IONOS
+// CRON : lit le dossier « Envoyés » IMAP de chaque compte d'envoi configuré
 // → Match destinataire avec contacts clients → insert dans timeline
 // → Pas de match → notification pour association manuelle
 
@@ -7,6 +7,8 @@ import { ImapFlow } from 'imapflow'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { requireCronOrUser } from './_lib/auth.js'
+import { getImapHost } from './_lib/save-to-sent.js'
+import { loadTeam, findProfileByEmail, profileFirstName, loadInternalMatcher } from './_lib/team.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -24,22 +26,9 @@ function decrypt(encryptedText) {
   return decrypted
 }
 
-// Convertir SMTP host → IMAP host
-function getImapHost(smtpHost) {
-  // Exchange IONOS : exchange.ionos.eu (IMAP port 993 SSL)
-  if (smtpHost?.includes('exchange')) return 'exchange.ionos.eu'
-  // Mail Basic IONOS : imap.ionos.fr
-  return 'imap.ionos.fr'
-}
-
-// Nom expéditeur à partir de l'adresse
-function getSenderName(email) {
-  const map = {
-    'hicham.saidi@accessformation.pro': 'Hicham',
-    'maxime.langlais@accessformation.pro': 'Maxime',
-    'entreprise@accessformation.pro': 'Marine',
-  }
-  return map[email] || email.split('@')[0]
+// Nom de l'expéditeur : prénom du profil qui possède l'adresse, sinon la partie avant @
+function getSenderName(team, email) {
+  return profileFirstName(findProfileByEmail(team, email)) || String(email || '').split('@')[0]
 }
 
 // Extraire les adresses email d'un champ To/Cc
@@ -136,10 +125,10 @@ async function isDuplicate(messageId, fromEmail, toEmail, subject, sentDate) {
 }
 
 // Traiter un compte email
-async function syncAccount(emailConfig, cursor) {
+async function syncAccount(emailConfig, cursor, ctx) {
   const password = decrypt(emailConfig.smtp_password_encrypted)
-  const imapHost = getImapHost(emailConfig.smtp_host)
-  const senderName = getSenderName(emailConfig.email)
+  const imapHost = getImapHost(emailConfig)
+  const senderName = getSenderName(ctx.team, emailConfig.email)
 
   const client = new ImapFlow({
     host: imapHost,
@@ -192,10 +181,14 @@ async function syncAccount(emailConfig, cursor) {
     //    emails étaient retraités, avec une notification à chaque passage).
     const lock = await client.getMailboxLock(sentFolder)
     const collected = []
+    let startUid = null
     try {
-      const newUids = cursor.last_uid > 0
-        ? await client.search({ uid: `${cursor.last_uid + 1}:*` }, { uid: true })
-        : await client.search({ all: true }, { uid: true })
+      // Compte nouvellement suivi : on part du dernier message existant. Sans cela, tout l'historique
+      // du dossier Envoyés serait importé et produirait une notification par ancien destinataire.
+      if (!cursor.last_uid) {
+        startUid = Math.max(0, Number(client.mailbox?.uidNext || 1) - 1)
+      }
+      const newUids = startUid === null ? await client.search({ uid: `${cursor.last_uid + 1}:*` }, { uid: true }) : []
       const batch = (newUids || []).filter(u => u > cursor.last_uid).sort((a, b) => a - b).slice(0, 50)
       if (batch.length > 0) {
         for await (const msg of client.fetch(batch.join(','), { uid: true, envelope: true }, { uid: true })) {
@@ -206,6 +199,13 @@ async function syncAccount(emailConfig, cursor) {
       lock.release()
     }
     await client.logout()
+
+    if (startUid !== null) {
+      await supabase.from('email_sync_cursors')
+        .update({ last_uid: startUid, last_synced_at: new Date().toISOString() })
+        .eq('email', emailConfig.email)
+      return { synced: 0, initialised: true, startUid }
+    }
 
     // 2. Traitement en base, message par message, le curseur avançant au fur et à mesure
     let maxUid = cursor.last_uid
@@ -229,19 +229,8 @@ async function syncAccount(emailConfig, cursor) {
         const sentDate = envelope.date
         const messageId = envelope.messageId
 
-        // Ignorer les emails internes et les adresses personnelles connues
-        const IGNORED_RECIPIENTS = [
-          '@accessformation.pro',
-          'hichamsaidi@msn.com',
-          'hichamsaidi@hotmail.com',
-          'hichamsaidi@gmail.com',
-          'maxime.langlais@gmail.com',
-        ]
-        const externalRecipients = allRecipients.filter(e => 
-          !IGNORED_RECIPIENTS.some(ignored => 
-            ignored.startsWith('@') ? e.endsWith(ignored) : e === ignored
-          )
-        )
+        // Ignorer les adresses internes (équipe, domaine de l'organisme, adresses à ignorer de Paramètres)
+        const externalRecipients = allRecipients.filter(e => !ctx.isInternal(e))
         if (externalRecipients.length === 0) {
           skipped++
           continue
@@ -342,6 +331,7 @@ export default async function handler(req, res) {
       .select('*')
 
     const results = {}
+    const ctx = { team: await loadTeam(supabase), isInternal: await loadInternalMatcher(supabase) }
 
     for (const config of configs) {
       // Trouver le curseur correspondant
@@ -357,7 +347,7 @@ export default async function handler(req, res) {
       }
 
       console.log(`Sync ${config.email}...`)
-      results[config.email] = await syncAccount(config, cursor)
+      results[config.email] = await syncAccount(config, cursor, ctx)
       console.log(`  →`, JSON.stringify(results[config.email]))
     }
 

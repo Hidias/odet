@@ -5,24 +5,6 @@ import { X, FileText, Send, Loader, CheckCircle, AlertCircle, Upload, Trash2 } f
 import toast from 'react-hot-toast'
 import { downloadNeedsAnalysisPDF, getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 
-const PROMPT_SYSTEM = `Tu es "AF Compte-rendu", assistant de rédaction de mails post-RDV pour l'organisme de formation.
-
-RÈGLES :
-- Ton : pro, humain, chaleureux
-- Phrase imposée : "Voici le récapitulatif des éléments abordés :"
-- Pas de "Merci pour nos échanges", pas de "Si je reformule"
-- Ne jamais écrire le nom de l'organisme dans le corps
-- Liens URL en clair (pas de markdown)
-- Ne pas inventer d'info absente
-
-STRUCTURE MAIL :
-1) Intro complète avec remerciement
-2) "Voici le récapitulatif..." (5-9 puces)
-3) "Prochaines étapes :" (De mon côté / De ton côté)
-4) Clôture : "Encore merci pour le temps accordé et pour ta confiance. À très bientôt,"
-
-GÉNÈRE 3 OBJETS puis 1 MAIL COMPLET (sans signature)
-`
 
 // Sanitise un nom de fichier pour en faire une clé Supabase Storage valide
 // Supprime les accents, remplace espaces et caractères spéciaux par _

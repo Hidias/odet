@@ -1,12 +1,12 @@
 /**
  * ============================================================================
- * PROSPECTION MASSIVE - INTERFACE MARINE
+ * PROSPECTION MASSIVE
  * ============================================================================
  * 
  * À METTRE : afm-app-main/src/pages/ProspectionMassive.jsx
  * 
  * Interface pour consulter et exporter les prospects de la base
- * de prospection massive Bretagne + Pays de la Loire
+ * de prospection massive sur la zone d'intervention (Paramètres)
  * ============================================================================
  */
 
@@ -14,18 +14,9 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { Search, Download, Phone, Mail, Globe, Filter, TrendingUp } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useDataStore } from '../../../core/store'
+import { useZoneDepartements, zoneLabel } from '../../../core/org/departements'
 
-const DEPARTEMENTS = {
-  '22': 'Côtes-d\'Armor',
-  '29': 'Finistère',
-  '35': 'Ille-et-Vilaine',
-  '56': 'Morbihan',
-  '44': 'Loire-Atlantique',
-  '49': 'Maine-et-Loire',
-  '53': 'Mayenne',
-  '72': 'Sarthe',
-  '85': 'Vendée'
-}
 
 const TRANCHES_EFFECTIF = [
   { code: '03', label: '6-9 salariés' },
@@ -38,6 +29,9 @@ const TRANCHES_EFFECTIF = [
 ]
 
 export default function ProspectionMassive() {
+  // Départements de la zone d'intervention (Paramètres), ou tous si aucune zone n'est renseignée
+  const DEPARTEMENTS = useZoneDepartements()
+  const organization = useDataStore(s => s.organization)
   const [prospects, setProspects] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -257,7 +251,7 @@ export default function ProspectionMassive() {
              Prospection Massive
           </h1>
           <p className="text-gray-600">
-            Bretagne + Pays de la Loire • 6-499 salariés
+            {zoneLabel(organization) || 'Toutes zones'} • 6-499 salariés
           </p>
         </div>
 

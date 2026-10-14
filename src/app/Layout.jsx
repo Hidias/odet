@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast'
 import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
@@ -94,6 +95,21 @@ export default function Layout() {
   const unreadCount = notifications.filter((n) => !n.read_at).length
   const markAsRead = async (id) => {
     await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id)
+    loadNotifications()
+  }
+  // « Email non associé » : ne plus jamais signaler cette adresse (Paramètres > Banque et emails, adresses à ignorer)
+  const ignoreAddress = async (n) => {
+    const addr = String(n.metadata?.to_email || '').trim().toLowerCase()
+    if (!addr) return
+    const { data: org } = await supabase.from('organization_settings').select('id, email_sync_ignored').limit(1).maybeSingle()
+    if (!org?.id) return toast.error('Paramètres de l\'organisme introuvables')
+    const list = String(org.email_sync_ignored || '').split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)
+    if (!list.includes(addr)) list.push(addr)
+    const { error } = await supabase.from('organization_settings').update({ email_sync_ignored: list.join(', ') }).eq('id', org.id)
+    if (error) return toast.error(error.message)
+    const same = notifications.filter((x) => x.type === 'email_sync' && !x.read_at && String(x.metadata?.to_email || '').toLowerCase() === addr).map((x) => x.id)
+    if (same.length) await supabase.from('notifications').update({ read_at: new Date().toISOString() }).in('id', same)
+    toast.success(`${addr} ne sera plus signalée`)
     loadNotifications()
   }
   const markAllAsRead = async () => {
@@ -315,9 +331,10 @@ export default function Layout() {
         ) : notifications.map((n) => {
           const Icon = NOTIF_ICONS[n.type] || Info
           return (
-            <button key={n.id} type="button"
+            <div key={n.id} className={`border-b border-gray-100 ${!n.read_at ? 'bg-accent-500/5' : ''}`}>
+            <button type="button"
               onClick={() => { markAsRead(n.id); if (n.link) navigate(n.link); setShowNotifications(false) }}
-              className={`w-full text-left px-3 py-2.5 border-b border-gray-100 hover:bg-gray-50 flex items-start gap-3 ${!n.read_at ? 'bg-accent-500/5' : ''}`}>
+              className="w-full text-left px-3 py-2.5 hover:bg-gray-50 flex items-start gap-3">
               <span className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-none ${!n.read_at ? 'bg-accent-500/10 text-accent-700' : 'bg-gray-100 text-gray-500'}`}>
                 <Icon className="w-4 h-4" />
               </span>
@@ -327,6 +344,12 @@ export default function Layout() {
                 <span className="block text-[11px] text-gray-400 mt-0.5">{format(new Date(n.created_at), 'd MMM à HH:mm', { locale: fr })}</span>
               </span>
             </button>
+            {n.type === 'email_sync' && n.metadata?.to_email && (
+              <div className="px-3 pb-2 pl-[52px]">
+                <button type="button" onClick={() => ignoreAddress(n)} className="text-ui-sm text-gray-500 hover:text-gray-800 underline">Ne plus signaler cette adresse</button>
+              </div>
+            )}
+            </div>
           )
         })}
       </div>

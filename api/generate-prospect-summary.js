@@ -1,4 +1,5 @@
-import { requireUser } from './_lib/auth.js'
+import { requireUser, getAdminClient } from './_lib/auth.js'
+import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
 // api/generate-prospect-summary.js
 // Génère un résumé IA du prospect : scrape le site web si dispo + analyse NAF/nom
 
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
         
         const siteRes = await fetch(url, {
           signal: controller.signal,
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AccessFormation/1.0)' }
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FicheProspect/1.0)' }
         })
         clearTimeout(timeout)
         
@@ -64,60 +65,41 @@ export default async function handler(req, res) {
       }
     }
 
-    const prompt = `Tu génères une FICHE PROSPECT pour un opérateur téléphonique d'Access Formation (organisme de formation sécurité, Concarneau).
+    const org = await loadOrgProfile(getAdminClient())
+    const prompt = `Tu génères une FICHE PROSPECT pour la personne qui va appeler cette entreprise au nom de ${org.name || "l'organisme de formation"}.
 
-CE N'EST PAS UN PITCH. C'est une fiche d'intelligence rapide que l'opérateur lit en 10 secondes avant d'appeler.
+CE N'EST PAS UN PITCH. C'est une fiche d'intelligence rapide que l'on lit en 10 secondes avant d'appeler.
 
 INFORMATIONS PROSPECT :
 - Nom entreprise : ${name}
 - Ville : ${city || 'Inconnue'}
 - Code NAF : ${naf || 'Inconnu'}
-- Effectif : ${effectif || 'Inconnu'}${effectif ? (() => {
-      const s = (effectif + '').toLowerCase()
-      const match = s.match(/(\d+)/)
-      const firstNum = match ? parseInt(match[1]) : 0
-      const isSmall = firstNum > 0 && firstNum < 10
-      return isSmall ? ' → PETITE STRUCTURE < 10 sal. = privilégier Initiation 4h' : ' → ≥ 10 sal. = SST initial 14h adapté (groupe 4-10 pers.)'
-    })() : ''}
+- Effectif : ${effectif || 'Inconnu'}
 - SIRET : ${siret || ''}
 ${siteContent ? `\nSITE WEB :\n${siteContent}` : ''}
 
-NOTRE OFFRE (utilise UNIQUEMENT ces termes) :
-- SST initial (14h, groupes 4-10 pers.) / MAC SST recyclage (7h)
-- Initiation gestes de premiers secours (4h) — alternative SST pour petites structures
-- Incendie : EPI, manipulation extincteurs, évacuation
-- Habilitation électrique B0/H0V uniquement (non-électriciens)
-- Conduite chariots R489 / gerbeurs R485 (formation INTERNE, jamais dire "CACES")
-- Gestes & Postures / Prévention TMS
-- DUERP (Document Unique) — obligatoire toute entreprise
-- Conseil sur mesure : analyse de postes de travail, formations adaptées (notre spécialité)
+${orgIdentityBlock(org)}
 
-RÈGLES MÉTIER — QUAND PROPOSER QUOI :
-- < 10 salariés → Initiation 4h (moins contraignant que SST 14h qui impose 4-10 pers.)
-- ≥ 10 salariés → SST initial 14h pertinent (groupe possible), MAC SST si déjà formés
-- Si l'entreprise veut du SST même en petit effectif → c'est possible
-- Incendie → OBLIGATOIRE toute entreprise : manipulation extincteurs + exercice évacuation 2x/an → d'où l'intérêt de former des EPI (manip extincteurs + guide-file/serre-file)
-- Entrepôt / logistique / stockage / magasin avec réserve → Conduite chariots R489 et/ou gerbeurs R485
-- Manutention / port de charges / posture debout / travail répétitif → Gestes & Postures + analyse de poste sur mesure
-- Travail à proximité d'installations électriques (bureaux, ateliers, maintenance) → Habilitation B0/H0V
-- DUERP → obligatoire TOUTE entreprise dès 1 salarié, toujours le mentionner
-- Conseil sur mesure / analyse de poste → notre spécialité, à proposer dès qu'il y a des risques spécifiques
-- ⚠️ JAMAIS mentionner "CACES" — on fait de la formation interne conduite
-- ⚠️ JAMAIS d'habilitation autre que B0/H0V
+RÈGLES MÉTIER (obligations générales, à relier UNIQUEMENT aux formations du catalogue ci-dessus) :
+- Premiers secours : présence de secouristes formés selon l'activité et l'effectif (Code du travail, R4224-15).
+- Incendie : consignes, personnes désignées pour la mise en oeuvre des extincteurs et l'évacuation, exercices réguliers (R4227-28 et R4227-39).
+- Document unique d'évaluation des risques : obligatoire dès le premier salarié (R4121-1).
+- Entrepôt, logistique, stockage : conduite d'engins de manutention ; manutention et postures pour le port de charges.
+- Travail à proximité d'installations électriques : habilitation électrique adaptée.
+- Si aucune formation du catalogue ne correspond à un besoin, ne propose rien pour ce besoin.
 
-FORMAT OBLIGATOIRE (bullet points, texte brut, pas de markdown) :
-
-🏢 [Nom commercial + enseigne/groupe si identifiable, activité en 5 mots max]
-⚠️ Risques : [risques métier principaux, séparés par virgules]
-📋 Obligations : [ce qui s'applique selon effectif — SST ou initiation, DUERP]
-🎯 À proposer : [2-3 formations prioritaires avec raison courte]
-💡 Accroche : [1 angle d'approche personnalisé basé sur l'activité réelle]
+FORMAT OBLIGATOIRE (texte brut, une ligne par rubrique, pas de markdown) :
+Entreprise : [nom commercial + enseigne ou groupe si identifiable, activité en 5 mots max]
+Risques : [risques métier principaux, séparés par des virgules]
+Obligations : [ce qui s'applique selon l'effectif]
+À proposer : [2 ou 3 formations du catalogue avec une raison courte]
+Accroche : [un angle d'approche personnalisé basé sur l'activité réelle]
 
 IMPORTANT :
-- Pas de formule de politesse, pas de "n'hésitez pas"
-- Pas de texte à réciter — juste des faits
-- Si le site web ou le nom révèle un groupe/enseigne (ex: Intersport, Leclerc...), le mentionner
-- Chaque ligne doit être ultra-concise`
+- Pas de formule de politesse
+- Pas de texte à réciter, seulement des faits
+- Si le site web ou le nom révèle un groupe ou une enseigne, le mentionner
+- Chaque ligne doit être très concise`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

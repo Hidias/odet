@@ -1,7 +1,8 @@
 // api/send-budget-comptable.js
 // Envoi hebdomadaire des factures + récap au comptable
 
-import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML, getOrg, getSender } from './_lib/mailer.js'
+import { loadTeam, payerLabel } from './_lib/team.js'
 import { getComptableConfig } from './_lib/comptable.js'
 import { requireUser } from './_lib/auth.js'
 
@@ -34,7 +35,8 @@ export default async function handler(req, res) {
     }
 
     // 1. Récupérer le mailer de l'utilisateur
-    const mailerResult = await getMailer(supabase, userId)
+    const orgForMail = await getOrg(supabase)
+    const mailerResult = await getMailer(supabase, req.user?.id || userId)
     if (mailerResult.error) {
       return res.status(400).json({ error: mailerResult.error })
     }
@@ -100,12 +102,13 @@ export default async function handler(req, res) {
     const formatMoney = (n) => n ? n.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €' : '-'
     const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-'
 
+    const team = await loadTeam(supabase)
     let tableRows = ''
     for (const tx of transactions) {
       const receipts = receiptsByTx[tx.id] || []
       const pjLabel = receipts.length > 0 ? `📎 ${receipts.length} PJ` : ''
       const persoLabel = tx.is_personal
-        ? `<span style="color:#7c3aed;font-weight:bold;">PERSO ${tx.payer === 'hicham_perso' ? 'Hicham' : 'Maxime'}</span>`
+        ? `<span style="color:#7c3aed;font-weight:bold;">PERSO ${payerLabel(team, tx.payer)}</span>`
         : '<span style="color:#059669;">Entreprise</span>'
       const noteLabel = tx.note_comptable ? `<br><em style="color:#6b7280;font-size:11px;">${tx.note_comptable}</em>` : ''
 
@@ -126,7 +129,7 @@ export default async function handler(req, res) {
 
     const htmlBody = `
       <div style="font-family:Arial,sans-serif;max-width:800px;">
-        <h2 style="color:#1a3a4a;margin-bottom:4px;">📊 Récapitulatif comptable — Access Formation</h2>
+        <h2 style="color:#1a3a4a;margin-bottom:4px;">Récapitulatif comptable : ${orgForMail.name}</h2>
         <p style="color:#6b7280;font-size:13px;margin-top:0;">Envoyé le ${today} • ${transactions.length} opération(s) • ${mailAttachments.length} pièce(s) jointe(s)</p>
 
         ${notesHtml}
@@ -157,17 +160,17 @@ export default async function handler(req, res) {
         </table>
 
         <p style="color:#9ca3af;font-size:11px;margin-top:16px;">
-          Généré automatiquement par Access Campus — Module Budget
+          Généré automatiquement par ${orgForMail.app_name || orgForMail.name} (module Budget)
         </p>
       </div>
-      ${buildSignatureHTML(fromEmail.includes('hicham') ? 'Hicham' : 'Maxime')}
+      ${buildSignatureHTML(await getSender(supabase, fromEmail), orgForMail)}
     `
 
     // 6. Préparer et envoyer l'email
-    const subject = `[Access Formation] Pièces comptables — ${today} (${transactions.length} opérations)`
+    const subject = `[${orgForMail.name}] Pièces comptables — ${today} (${transactions.length} opérations)`
 
     const mailOptions = {
-      from: `"Access Formation" <${fromEmail}>`,
+      from: `"${(orgForMail.name || '').replace(/"/g, '')}" <${fromEmail}>`,
       to: comptable.to,
       ...(comptable.cc ? { cc: comptable.cc } : {}),
       ...(comptable.bcc ? { bcc: comptable.bcc } : {}),

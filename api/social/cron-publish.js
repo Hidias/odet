@@ -6,15 +6,18 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { requireCronOrUser } from '../_lib/auth.js'
+import { appUrl } from '../_lib/internal.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
+// Adresse de l'application : variable APP_URL, sinon l'hôte de la requête (calculée dans le handler)
+const ENV_APP_URL = String(process.env.APP_URL || '').replace(/\/$/, '')
 
 export default async function handler(req, res) {
+  const APP_URL = ENV_APP_URL || appUrl(req)
   if (!(await requireCronOrUser(req, res))) return
 
   try {

@@ -220,10 +220,10 @@ export default function SetupWizard() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Nom de votre organisme" hint="Nom usuel, tel qu'il apparaît pour vos clients" className="md:col-span-2">
-                  <input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} autoFocus placeholder="GLD Formation" />
+                  <input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} autoFocus placeholder="Nom commercial de l'organisme" />
                 </Field>
                 <Field label="Nom de l'application" hint="Titre de l'onglet et de l'icône sur les téléphones. Vide : nom de l'organisme">
-                  <input className="input" value={form.app_name} onChange={(e) => set('app_name', e.target.value)} placeholder={form.name || 'Campus'} />
+                  <input className="input" value={form.app_name} onChange={(e) => set('app_name', e.target.value)} placeholder={form.name || 'Nom de votre outil'} />
                 </Field>
                 <Field label="Nom court" hint="12 caractères maximum, sous l'icône">
                   <input className="input" maxLength={12} value={form.app_short_name} onChange={(e) => set('app_short_name', e.target.value)} placeholder={(form.app_name || form.name || '').slice(0, 12)} />
@@ -261,7 +261,7 @@ export default function SetupWizard() {
                 <Field label="TVA intracommunautaire"><input className="input" value={form.tva_intra} onChange={(e) => set('tva_intra', e.target.value)} placeholder="FR12345678901" /></Field>
                 <div className="pt-6"><Toggle checked={form.tva_applicable !== false} onChange={(v) => set('tva_applicable', v)} label="TVA applicable" hint="Décoché : mention d'exonération sur les factures" /></div>
                 <Field label="Numéro de déclaration d'activité (NDA)" hint="11 chiffres. Laissez vide tant qu'il n'est pas obtenu : les conventions seront bloquées jusque-là"><input className="input" value={form.nda} onChange={(e) => set('nda', e.target.value)} /></Field>
-                <Field label="Région du préfet (NDA)"><input className="input" value={form.nda_region} onChange={(e) => set('nda_region', e.target.value)} placeholder="Bretagne" /></Field>
+                <Field label="Région du préfet (NDA)"><input className="input" value={form.nda_region} onChange={(e) => set('nda_region', e.target.value)} placeholder="Région du siège" /></Field>
                 <div className="md:col-span-2"><Toggle checked={!!form.qualiopi_certified} onChange={(v) => set('qualiopi_certified', v)} label="Certifié Qualiopi" hint="Ajoute la mention sur les documents et le portail" /></div>
               </div>
             </>
@@ -276,7 +276,7 @@ export default function SetupWizard() {
               <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                 <Field label="Adresse" className="md:col-span-6"><input className="input" value={form.address} onChange={(e) => set('address', e.target.value)} placeholder="33 ZA de Penhoad Braz" /></Field>
                 <Field label="Code postal" className="md:col-span-2"><input className="input" value={form.postal_code} onChange={(e) => set('postal_code', e.target.value)} placeholder="29700" /></Field>
-                <Field label="Ville" className="md:col-span-4"><input className="input" value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="Plomelin" /></Field>
+                <Field label="Ville" className="md:col-span-4"><input className="input" value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="Ville" /></Field>
                 <Field label="Téléphone" className="md:col-span-2"><input className="input" value={form.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
                 <Field label="Email de contact" className="md:col-span-2"><input className="input" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} /></Field>
                 <Field label="Site web" className="md:col-span-2"><input className="input" value={form.website} onChange={(e) => set('website', e.target.value)} placeholder="https://" /></Field>

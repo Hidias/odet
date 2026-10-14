@@ -11,18 +11,16 @@
 //   POST /api/signature-alert?dry=1 → simulation, n'envoie aucun mail
 // ─────────────────────────────────────────────────────────────────────────────
 
-import nodemailer from 'nodemailer'
-import { getSupabaseAdmin, decrypt } from './_lib/mailer.js'
+import { getSupabaseAdmin } from './_lib/mailer.js'
 import { requireCronOrUser } from './_lib/auth.js'
+import { internalRecipients, internalMailer, appUrl } from './_lib/internal.js'
 
 export const config = { maxDuration: 60 }
 
-const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
-const FALLBACK_RECIPIENT = 'hicham.saidi@accessformation.pro'
 
 const esc = (s) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
 
-function buildHTML(session) {
+function buildHTML(session, { APP_URL, color, signature }) {
   const lignes = (session.manquants || []).map(m => `
     <tr>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:14px;">${esc(m.stagiaire)}</td>
@@ -50,7 +48,7 @@ function buildHTML(session) {
 
     <p style="margin:20px 0;">
       <a href="${APP_URL}/#/signature/${session.session_id}"
-         style="background:#0F2D35;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">
+         style="background:${color};color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">
         Faire signer maintenant
       </a>
     </p>
@@ -60,35 +58,8 @@ function buildHTML(session) {
       Une signature peut encore être recueillie après coup, mais il est plus simple de le faire pendant que tout le monde est là.
     </p>
 
-    <p style="font-size:12px;color:#9ca3af;margin-top:24px;">Access Campus</p>
+    <p style="font-size:12px;color:#9ca3af;margin-top:24px;">${esc(signature)}</p>
   </div>`
-}
-
-async function getTransporter(supabase, preferEmail) {
-  const { data: configs } = await supabase
-    .from('user_email_configs')
-    .select('*')
-    .eq('is_active', true)
-
-  if (!configs || configs.length === 0) throw new Error('Aucune configuration email active')
-
-  const cfg =
-    configs.find(c => c.email === preferEmail) ||
-    configs.find(c => c.email === 'contact@accessformation.pro') ||
-    configs.find(c => c.email === FALLBACK_RECIPIENT) ||
-    configs[0]
-
-  const transporter = nodemailer.createTransport({
-    host: cfg.smtp_host,
-    port: cfg.smtp_port,
-    secure: cfg.smtp_secure,
-    auth: { user: cfg.email, pass: decrypt(cfg.smtp_password_encrypted) },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 30000,
-  })
-  return { transporter, from: cfg.email }
 }
 
 export default async function handler(req, res) {
@@ -104,29 +75,30 @@ export default async function handler(req, res) {
     const liste = Array.isArray(sessions) ? sessions : []
     if (liste.length === 0) return res.status(200).json({ ok: true, envoyes: 0 })
 
-    let transporter = null
-    let from = null
+    let mailer = null
     const resultats = []
+    // Sans formateur joignable, l'alerte part aux dirigeants (Paramètres > Utilisateurs)
+    const fallback = (await internalRecipients(supabase)).map(r => r.email).join(', ')
 
     for (const s of liste) {
-      const destinataire = s.trainer_email || FALLBACK_RECIPIENT
+      const destinataire = s.trainer_email || fallback
       try {
         if (dry) {
           resultats.push({ session: s.reference, destinataire, manquants: s.manquants?.length || 0, simulation: true })
           continue
         }
 
-        if (!transporter) {
-          const mailer = await getTransporter(supabase, destinataire)
-          transporter = mailer.transporter
-          from = mailer.from
+        if (!destinataire) throw new Error('Aucun destinataire (formateur sans email et aucun dirigeant)')
+        if (!mailer) {
+          mailer = await internalMailer(supabase)
+          if (mailer.error) throw new Error(mailer.error)
         }
 
-        await transporter.sendMail({
-          from: `"Access Campus" <${from}>`,
+        await mailer.transporter.sendMail({
+          from: mailer.from,
           to: destinataire,
           subject: `Émargement à compléter — ${s.course || 'formation'}${s.client ? ' (' + s.client + ')' : ''}`,
-          html: buildHTML(s),
+          html: buildHTML(s, { APP_URL: appUrl(req), color: mailer.org.brand_nav, signature: mailer.org.app_name || mailer.org.name || '' }),
         })
 
         await supabase.rpc('signature_alert_mark_sent', { p_session_id: s.session_id })
@@ -137,7 +109,7 @@ export default async function handler(req, res) {
       }
     }
 
-    try { transporter?.close() } catch { /* rien */ }
+    try { mailer?.transporter?.close() } catch { /* rien */ }
 
     return res.status(200).json({ ok: true, envoyes: resultats.filter(r => r.envoye).length, resultats })
   } catch (e) {

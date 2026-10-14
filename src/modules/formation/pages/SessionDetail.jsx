@@ -516,7 +516,7 @@ export default function SessionDetail() {
           .catch(err => console.error('Erreur génération QR:', err))
       }
 
-      // QR Code formateur - signature sur son téléphone (accès Campus obligatoire)
+      // QR Code formateur - signature sur son téléphone (compte utilisateur obligatoire)
       QRCode.toDataURL(`${window.location.origin}/#/signature/${found.id}`, { width: 256, margin: 2 })
         .then(setQrSignatureUrl)
         .catch(err => console.error('Erreur génération QR formateur:', err))
@@ -5127,7 +5127,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <div>
                 <h4 className="font-medium mb-2">Comment ça marche</h4>
                 <ul className="text-sm text-gray-600 space-y-1.5 mb-4 list-disc list-inside">
-                  <li>Le formateur scanne et se connecte à Campus (une seule fois sur son téléphone).</li>
+                  <li>Le formateur scanne et se connecte à l'application (une seule fois sur son téléphone).</li>
                   <li>La demi-journée en cours est choisie automatiquement.</li>
                   <li>Il tend le téléphone au stagiaire, qui signe en plein écran.</li>
                   <li>Sans réseau, tout est gardé sur le téléphone et part au retour du réseau.</li>

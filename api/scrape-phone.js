@@ -62,7 +62,7 @@ export default async function handler(req, res) {
         if (clean.startsWith('0033')) clean = '0' + clean.slice(4)
         // Valider longueur
         if (clean.length === 10 && /^0[1-9]\d{8}$/.test(clean)) {
-          // Formater : 02 98 12 34 56
+          // Formater : 01 23 45 67 89
           const formatted = clean.replace(/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5')
           phones.add(formatted)
         }

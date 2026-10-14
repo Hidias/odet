@@ -26,11 +26,9 @@ import {
   AlertTriangle, RefreshCw, SlidersHorizontal,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useDataStore } from '../../../core/store'
+import { DEPARTEMENTS_FR as DEPARTEMENTS, zoneCodes } from '../../../core/org/departements'
 
-const DEPARTEMENTS = {
-  '22': "Côtes-d'Armor", '29': 'Finistère', '35': 'Ille-et-Vilaine', '56': 'Morbihan',
-  '44': 'Loire-Atlantique', '49': 'Maine-et-Loire', '53': 'Mayenne', '72': 'Sarthe', '85': 'Vendée',
-}
 
 const EFFECTIFS = [
   { code: '01', label: '1-2' }, { code: '02', label: '3-5' }, { code: '03', label: '6-9' },
@@ -106,6 +104,7 @@ function Chip({ active, onClick, children, color = 'blue' }) {
 const toggleIn = (arr, v) => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
 
 export default function MailingAudience({ value, onChange, campaigns = [], filters, onFiltersChange, user, preselectEmails = null }) {
+  const organization = useDataStore(s => s.organization)
   const [rows, setRows] = useState([])
   const [excl, setExcl] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -179,8 +178,9 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
     const s = new Set(['__none']); withReason.forEach(r => (r.statuts_prospection || []).forEach(e => s.add(e))); return [...s]
   }, [withReason])
   const depOptions = useMemo(() => {
-    const s = new Set(Object.keys(DEPARTEMENTS)); withReason.forEach(r => (r.departements || []).forEach(d => s.add(d))); return [...s].sort()
-  }, [withReason])
+    // Zone d'intervention (Paramètres) + départements présents dans les données
+    const s = new Set(zoneCodes(organization)); withReason.forEach(r => (r.departements || []).forEach(d => s.add(d))); return [...s].sort()
+  }, [withReason, organization])
 
   // ── Filtrage ──
   const matched = useMemo(() => {
@@ -296,7 +296,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
     }
     setSelection(next)
     setShowImport(false); setImportText('')
-    toast.success(`${added} ajoutée${added > 1 ? 's' : ''} · ${excluded} exclue${excluded > 1 ? 's' : ''} · ${unknown} inconnue${unknown > 1 ? 's' : ''} de Campus`, { duration: 6000 })
+    toast.success(`${added} ajoutée${added > 1 ? 's' : ''} · ${excluded} exclue${excluded > 1 ? 's' : ''} · ${unknown} inconnue${unknown > 1 ? 's' : ''} de l'application`, { duration: 6000 })
   }
 
   // ── Segments ──
@@ -620,7 +620,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
               <h3 className="font-semibold">Coller une liste d'adresses</h3>
               <button onClick={() => setShowImport(false)}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
-            <p className="text-xs text-gray-500">Collez des adresses (une par ligne, ou un copier-coller Excel). Seules celles présentes dans Campus et non exclues sont ajoutées.</p>
+            <p className="text-xs text-gray-500">Collez des adresses (une par ligne, ou un copier-coller Excel). Seules celles présentes dans l'application et non exclues sont ajoutées.</p>
             <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={10}
               className="w-full border rounded-lg px-3 py-2 text-sm font-mono" placeholder="contact@exemple.fr&#10;rh@entreprise.bzh" />
             <div className="flex justify-end gap-2">

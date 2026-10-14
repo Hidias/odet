@@ -39,16 +39,16 @@ FORMAT DE SORTIE (JSON strict) :
       "date": "2026-02-02",
       "session_refs": ["2026-02-046", "2026-02-048"],
       "nb_trainees": 4,
-      "trainee_names": ["Edouard GUERIN", "Quentin LEFORESTIER"],
-      "location": "PILOCAP Rennes, 4 Rue des Champs Géons, 35170 Bruz",
+      "trainee_names": ["Prénom NOM", "Prénom NOM"],
+      "location": "Centre de formation, 12 rue de l'Exemple, 00000 Ville",
       "start_time": "08:00",
       "end_time": "17:00"
     }
   ],
   "total_unique_trainees": 8,
-  "all_trainee_names": ["Edouard GUERIN", "Quentin LEFORESTIER", "..."],
+  "all_trainee_names": ["Prénom NOM", "..."],
   "detected_training_type": "CACES R.489",
-  "detected_client": "PILOCAP RENNES Formation",
+  "detected_client": "Nom du donneur d'ordre",
   "notes": "Remarques éventuelles sur le parsing"
 }`
 

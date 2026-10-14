@@ -116,20 +116,7 @@ export default async function handler(req, res) {
         }
       }
     }
-    // 6d. CGV automatiques — toujours jointes aux devis
-    try {
-      const protocol = req.headers['x-forwarded-proto'] || 'https'
-      const host = req.headers['x-forwarded-host'] || req.headers.host
-      const cgvUrl = `${protocol}://${host}/assets/CGV_Access_Formation.pdf`
-      console.log('CGV attachment URL:', cgvUrl)
-      mailOptions.attachments.push({
-        filename: 'CGV_Access_Formation.pdf',
-        path: cgvUrl,
-        contentType: 'application/pdf'
-      })
-    } catch (cgvErr) {
-      console.warn('CGV attachment failed (non-blocking):', cgvErr.message)
-    }
+    // 6d. Les conditions générales de vente sont jointes par l'écran (document qualité publié), parmi les pièces jointes
 
     console.log('Total attachments:', mailOptions.attachments.length)
 

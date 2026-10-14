@@ -1,13 +1,13 @@
 import { requireUser } from './_lib/auth.js'
 // api/parse-bank-statement.js
-// Extraction des soldes d'un relevé bancaire CMB (PDF) + contrôle arithmétique.
+// Extraction des soldes d'un relevé bancaire (PDF) + contrôle arithmétique.
 //
 // PRINCIPE DE SÉCURITÉ : on n'enregistre JAMAIS un solde qui ne se vérifie pas.
 // L'équation ancien solde − débits + crédits = nouveau solde doit tomber juste
 // au centime. Sinon on renvoie arithmetic_ok = false et le front bascule sur la
 // saisie manuelle. Un solde faux est pire que pas de solde du tout.
 //
-// PIÈGE CRITIQUE : sur les relevés CMB, le solde est libellé « CRÉDITEUR » ou
+// PIÈGE CRITIQUE : sur la plupart des relevés français, le solde est libellé « CRÉDITEUR » ou
 // « DÉBITEUR ». DÉBITEUR = compte à découvert = valeur NÉGATIVE. Une lecture
 // naïve du nombre inverse le signe et fausse le solde du double du montant.
 //
@@ -20,7 +20,7 @@ export const config = {
 
 const MODEL = 'claude-sonnet-4-6'
 
-const EXTRACTION_PROMPT = `Tu analyses un relevé de compte bancaire Crédit Mutuel de Bretagne (CMB).
+const EXTRACTION_PROMPT = `Tu analyses un relevé de compte bancaire français.
 
 Extrais UNIQUEMENT les informations d'en-tête et de pied de relevé. N'extrais AUCUNE opération individuelle.
 
@@ -36,10 +36,11 @@ Réponds en JSON strict, sans markdown, sans texte autour :
   "closing_balance_sense": "DEBITEUR",
   "total_debits": 9889.05,
   "total_credits": 4726.80,
-  "account_label": "CMB — 00890689 40"
+  "account_label": "Banque - 01234567 89"
 }
 
 Règles de lecture :
+- Les libellés varient selon la banque : « ancien solde », « solde précédent », « solde au » ; « nouveau solde », « solde final » ; un solde négatif ou suivi de « D » / « DB » est DEBITEUR.
 - "N° 7 - 2026" → statement_number = 7, statement_year = 2026
 - "Arrêté au 31 juillet 2026" → period_end = "2026-07-31" (format ISO)
 - "ANCIEN SOLDE CRÉDITEUR AU 30 JUIN 2026   2 126,95 €" →
@@ -49,7 +50,7 @@ Règles de lecture :
     closing_balance_raw = 3035.30, closing_balance_sense = "DEBITEUR"
 - "TOTAL DES OPÉRATIONS DU RELEVÉ   9 889,05   4 726,80" →
     total_debits = 9889.05 (colonne Débit), total_credits = 4726.80 (colonne Crédit)
-- account_label : "CMB — " suivi du numéro affiché après "Compte"
+- account_label : nom court de la banque, " - ", puis le numéro de compte affiché sur le relevé
 
 IMPÉRATIF :
 - opening_balance_raw et closing_balance_raw sont TOUJOURS des nombres POSITIFS
@@ -209,7 +210,7 @@ export default async function handler(req, res) {
         statement_year: parsed.statement_year ?? null,
         period_start: parsed.opening_balance_date || null,
         period_end: parsed.period_end || null,
-        account_label: parsed.account_label || 'CMB — 00890689 40',
+        account_label: parsed.account_label || null,
         opening_balance: opening,
         closing_balance: closing,
         total_debits: debits,

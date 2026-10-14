@@ -13,6 +13,8 @@ import {
   differenceInDays, parseISO, differenceInCalendarMonths
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import toast from 'react-hot-toast'
+import { apiFetch } from '../../../core/api'
 
 // Couleurs fixes par formateur, attribuées dans l'ordre alphabétique
 const TRAINER_COLORS = [
@@ -183,23 +185,23 @@ export default function SessionPlanning({ sessions, trainers }) {
   }
 
   // ─── Copier URL iCal ──────────────────────────────────────────────
-  const copyCalendarUrl = (trainerId) => {
-    const baseUrl = window.location.origin
-    const url = `${baseUrl}/api/calendar?trainer=${trainerId}`
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedUrl(trainerId)
+  // Le lien d'abonnement est signé par le serveur : sans la clé, l'agenda n'est pas lisible
+  const copySignedUrl = async (target) => {
+    try {
+      const res = await apiFetch(`/api/calendar?link=${encodeURIComponent(target)}`)
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.url) throw new Error(json.error || `Erreur ${res.status}`)
+      await navigator.clipboard.writeText(json.url)
+      setCopiedUrl(target)
       setTimeout(() => setCopiedUrl(null), 2500)
-    })
+    } catch (e) {
+      toast.error(`Lien d'agenda : ${e.message}`)
+    }
   }
 
-  const copyAllCalendarUrl = () => {
-    const baseUrl = window.location.origin
-    const url = `${baseUrl}/api/calendar?trainer=all`
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedUrl('all')
-      setTimeout(() => setCopiedUrl(null), 2500)
-    })
-  }
+  const copyCalendarUrl = (trainerId) => copySignedUrl(trainerId)
+
+  const copyAllCalendarUrl = () => copySignedUrl('all')
 
   // ─── Toggle statut ────────────────────────────────────────────────
   const toggleStatus = (status) => {

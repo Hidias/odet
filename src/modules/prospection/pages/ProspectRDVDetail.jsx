@@ -891,7 +891,7 @@ export default function ProspectRDVDetail() {
                 { label: "Nom *", field: 'name', placeholder: 'ENTREPRISE ABC' },
                 { label: "SIRET", field: 'siret', placeholder: '12345678901234' },
                 { label: "Email", field: 'email', placeholder: 'contact@entreprise.fr' },
-                { label: "Téléphone", field: 'contact_phone', placeholder: '02 98 90 30 24' },
+                { label: "Téléphone", field: 'contact_phone', placeholder: '01 23 45 67 89' },
                 { label: "Adresse", field: 'address', placeholder: '12 rue Example' },
               ].map(({ label, field, placeholder }) => (
                 <div key={field}>
