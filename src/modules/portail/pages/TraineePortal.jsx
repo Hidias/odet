@@ -12,6 +12,9 @@ import { fr } from 'date-fns/locale'
 import TraineeDocuments from '../../formation/components/TraineeDocuments'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
 import QuizEngine from '../../formation/quiz/QuizEngine'
+import PasseportPortalBlock from '../../passeport/components/PasseportPortalBlock'
+import { portailPasseport } from '../../passeport/lib/ppData'
+import { normaliserNir } from '../../passeport/lib/rules'
 
 // Portail stagiaire : identification, fiche de renseignement, positionnement (quiz),
 // émargement par signature, entraînement, évaluation des acquis, satisfaction.
@@ -240,6 +243,8 @@ export default function TraineePortal() {
     last_training_year: '', highest_diploma: '', csp: '', job_title: '', training_expectations: '', gender: '', rgpd_consent: false,
   })
   const [formErrors, setFormErrors] = useState({})
+  // Passeport de prévention (module actif) : le numéro part chiffré par le serveur, jamais par les fonctions du portail
+  const [pp, setPp] = useState({ enabled: false })
 
   const [evalForm, setEvalForm] = useState(() => ({
     ...Object.fromEntries(EVAL_KEYS.map((k) => [k, 5])),
@@ -375,6 +380,10 @@ export default function TraineePortal() {
       const testCompleted = traineeData?.positioning_test_completed || false
 
       setInfoSheet(infoData)
+      setPp({ enabled: false })
+      portailPasseport('portal-state', { token, trainee_id: trainee.id, code: accessCode || undefined })
+        .then((st) => setPp(st.enabled ? { ...st, nom: st.nom_naissance, nir: '', refuse: st.refuse } : { enabled: false }))
+        .catch(() => setPp({ enabled: false }))
       setPositioningQuestions(questions)
       setPositioningTestCompleted(testCompleted)
 
@@ -451,7 +460,13 @@ export default function TraineePortal() {
     }
     if (!infoForm.birth_date_display) errors.birth_date = 'Date de naissance requise'
     else if (!isValidBirthDate(infoForm.birth_date_display)) errors.birth_date = 'Date invalide (format JJ/MM/AAAA)'
-    if (!infoForm.ssn_refused) {
+    if (pp.enabled) {
+      if (!pp.refuse) {
+        if (!String(pp.nom || '').trim()) errors.pp = 'Nom de naissance requis, ou cochez la case'
+        else if (!pp.nir && !pp.nir_present) errors.pp = 'Numéro requis, ou cochez la case'
+        else if (pp.nir && !normaliserNir(pp.nir).ok) errors.pp = normaliserNir(pp.nir).error
+      }
+    } else if (!infoForm.ssn_refused) {
       const ssnNumbers = infoForm.ssn.replace(/\s/g, '')
       if (!ssnNumbers) errors.ssn = 'Numéro requis, ou cochez "Je refuse"'
       else if (ssnNumbers.length !== 15) errors.ssn = 'Le numéro doit contenir 15 chiffres (13 + clé)'
@@ -470,6 +485,20 @@ export default function TraineePortal() {
     setSubmitting(true)
     try {
       const birthDateISO = parseBirthDateToISO(infoForm.birth_date_display)
+      let ppWarning = null
+      if (pp.enabled) {
+        try {
+          const st = await portailPasseport('portal-save', {
+            token, trainee_id: selectedTrainee.id, code: accessCode || undefined,
+            nom_naissance: pp.nom, nir: pp.refuse ? '' : (pp.nir || ''), refuse: !!pp.refuse,
+            gender: infoForm.gender || undefined, birth_date: birthDateISO || undefined,
+          })
+          setPp({ ...st, nom: st.nom_naissance, nir: '', refuse: st.refuse })
+        } catch (ppErr) {
+          if (ppErr.status === 400) { setFormErrors({ pp: ppErr.message }); setSubmitting(false); return }
+          ppWarning = "Votre fiche est enregistrée, mais pas votre numéro : le formateur pourra le saisir."
+        }
+      }
       const traineeUpdate = {
         first_name: infoForm.first_name,
         last_name: infoForm.last_name,
@@ -481,6 +510,10 @@ export default function TraineePortal() {
         job_title: infoForm.job_title || null,
         gender: infoForm.gender || null,
       }
+      if (pp.enabled) {
+        delete traineeUpdate.social_security_number
+        traineeUpdate.refused_ssn = !!pp.refuse
+      }
       const { error: updateError } = await supabase.rpc('update_trainee_data', { p_token: token, p_trainee_id: selectedTrainee.id, p_data: traineeUpdate })
       if (updateError) throw updateError
       setSelectedTrainee({ ...selectedTrainee, ...traineeUpdate })
@@ -490,8 +523,8 @@ export default function TraineePortal() {
         p_trainee_id: selectedTrainee.id,
         p_data: {
           email: infoForm.email_refused ? null : infoForm.email,
-          ssn: infoForm.ssn_refused ? null : infoForm.ssn.replace(/\s/g, ''),
-          ssn_refused: infoForm.ssn_refused,
+          ssn: pp.enabled || infoForm.ssn_refused ? null : infoForm.ssn.replace(/\s/g, ''),
+          ssn_refused: pp.enabled ? !!pp.refuse : infoForm.ssn_refused,
           last_training_year: infoForm.last_training_year ? parseInt(infoForm.last_training_year) : null,
           highest_diploma: infoForm.highest_diploma,
           csp: infoForm.csp || null,
@@ -508,6 +541,7 @@ export default function TraineePortal() {
       await supabase.rpc('portal_set_email_refused', { p_token: token, p_trainee_id: selectedTrainee.id, p_refused: !!infoForm.email_refused })
 
       setInfoSheet({ ...infoForm, filled_at: new Date().toISOString() })
+      if (ppWarning) setPp((p) => ({ ...p, warning: ppWarning }))
 
       if (positioningQuestions.length > 0 && !positioningTestCompleted) {
         setCurrentStep('hub')
@@ -925,6 +959,9 @@ export default function TraineePortal() {
                   </label>
                 </div>
 
+                {pp.enabled ? (
+                  <PasseportPortalBlock value={pp} onChange={setPp} error={formErrors.pp} />
+                ) : (
                 <div>
                   <label className={labelClass}>Numéro de Sécurité sociale {!infoForm.ssn_refused && '*'}</label>
                   <input type="text" value={infoForm.ssn} onChange={(e) => setInfoForm({ ...infoForm, ssn: formatSSN(e.target.value) })}
@@ -942,6 +979,7 @@ export default function TraineePortal() {
                     <span className="text-ui-sm text-gray-600">Je refuse de communiquer mon numéro de Sécurité sociale</span>
                   </label>
                 </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
