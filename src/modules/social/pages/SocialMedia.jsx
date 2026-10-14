@@ -10,7 +10,6 @@ import toast from 'react-hot-toast'
 
 const PLATFORMS = [
   { id: 'linkedin', label: 'LinkedIn Page', icon: '', color: 'blue', maxChars: 3000 },
-  { id: 'linkedin_hicham', label: 'LinkedIn Hicham', icon: '', color: 'blue', maxChars: 3000 },
   { id: 'facebook', label: 'Facebook', icon: '', color: 'indigo', maxChars: 5000 },
   { id: 'instagram', label: 'Instagram', icon: '', color: 'pink', maxChars: 2200 },
   { id: 'gmb', label: 'Google', icon: '', color: 'green', maxChars: 1500 },
@@ -285,15 +284,6 @@ function ConnectionPanel({ connections, onRefresh }) {
       color: 'blue',
       details: connections?.linkedin?.metadata?.org_name || null,
     },
-    {
-      id: 'linkedin_hicham',
-      label: 'LinkedIn Hicham',
-      icon: '',
-      connectUrl: null,
-      color: 'blue',
-      details: connections?.linkedin?.connected ? 'Utilise le token LinkedIn page' : null,
-      linkedTo: 'linkedin',
-    },
   ]
 
   const connectedCount = platformConfigs.filter(p => connections?.[p.id]?.connected).length
@@ -488,7 +478,7 @@ function GeneratorTab({ stats, onSave, media, editingDraft, onClearDraft, connec
 ═══ VOIX DE MARQUE ═══
 - TOUJOURS parler en "nous" / "notre" / "nos" - JAMAIS "je" / "mon" / "on"
 - Access Formation parle en tant qu'équipe : "Nous intervenons", "Notre approche", "Nos formateurs"
-- JAMAIS de signature ("L'équipe AF", "Hicham"...)
+- JAMAIS de signature (nom d'équipe ou prénom)
 - JAMAIS de guillemets fictifs ou de citations inventées
 - Coordonnées à inclure naturellement :  contact@accessformation.pro |  02 98 90 30 24
 - Pas de "N'hésitez pas", "Ne ratez pas", "Ne manquez pas" - formuler positivement
@@ -514,17 +504,7 @@ Objectif : dwell time (temps de lecture) + commentaires de qualité
 - Hashtags : 3-5 MAX en PREMIER COMMENTAIRE, JAMAIS dans le corps
 - Ton : expert terrain qui partage du vécu concret, pas du corporate
 -  Mentionner "Bretagne" ET/OU "Pays de la Loire" - ne jamais se limiter à la Bretagne seule
-- Ne PAS mentionner Hicham ou Maxime nommément (post de page entreprise)
-
-═══ LINKEDIN PROFIL HICHAM - ALGO 2026 ═══
-Objectif : reach maximal (profil perso = 40x plus de reach qu'une page entreprise)
-- Ton : "je" autorisé - Hicham parle en son nom, formateur et co-dirigeant
-- HOOK fort en 1ère ligne : retour d'expérience terrain, anecdote formation, observation professionnelle
-- Mentionner @Maxime Langlais quand c'est pertinent (co-formateur, co-directeur)
-- Mentionner Access Formation pour renvoyer vers la page entreprise
-- Même règles que LinkedIn page : pas de lien dans le corps, hashtags en commentaire, question finale professionnelle
-- Texte : 600-1200 caractères (plus court que la page, plus personnel)
-- Finir par inviter à contacter Access Formation :  contact@accessformation.pro |  02 98 90 30 24
+- Ne PAS mentionner de personnes nommément (post de page entreprise)
 
 ═══ FACEBOOK - ALGO 2026 ═══
 Objectif : Saves + Shares (signaux #1 en 2026, bien plus que les likes)
@@ -568,7 +548,7 @@ Objectif : référencement local + conversions
 - JAMAIS mentionner de noms de clients ou d'entreprises clientes
 - JAMAIS inventer de citations entre guillemets
 - JAMAIS utiliser "ne pas" / "ne plus" / "ne jamais" sauf contexte accident/urgence
-- TOUJOURS "nous" jamais "je" jamais "on" (sauf Facebook où "on" est toléré, sauf linkedin_hicham où "je" est OBLIGATOIRE)
+- TOUJOURS "nous" jamais "je" jamais "on" (sauf Facebook où "on" est toléré)
 - Contact :  contact@accessformation.pro |  02 98 90 30 24 |  www.accessformation.pro
 - Zone d'intervention : Bretagne et Pays de la Loire (TOUJOURS mentionner l'une ou l'autre)
 - Qualiopi : toujours "Access Formation est certifié Qualiopi" - JAMAIS "formation certifiée Qualiopi"
@@ -600,7 +580,6 @@ ${freeInput ? `Idée/contexte spécifique : ${freeInput}` : `Choisis un angle pe
 
 RAPPEL IMPORTANT :
 - linkedin (page entreprise) : parler en "nous", PAS de hashtags dans le corps (commentaire séparé), question professionnelle ancrée terrain en fin de post
-- linkedin_hicham (profil perso) : parler en "je", Hicham Saidi co-dirigeant formateur, mentionner @Maxime Langlais et Access Formation quand pertinent, PAS de hashtags dans le corps
 - Facebook : orienté Shares/partages, CTA "Partage à un dirigeant / RH"
 - Instagram : DM shares prioritaires, CTA "Envoie ce post à ton responsable sécu / DRH"
 - Formulations positives, sauf contexte accident où il faut être impactant
@@ -1163,7 +1142,6 @@ function PostPreview({ platform, content, media }) {
 
   const platformStyles = {
     linkedin: { bg: 'bg-white', border: 'border-gray-200', accent: '#0a66c2', name: 'Access Formation', subtitle: 'Organisme de formation • Concarneau' },
-    linkedin_hicham: { bg: 'bg-white', border: 'border-gray-200', accent: '#0a66c2', name: 'Hicham Saidi', subtitle: 'Co-dirigeant Access Formation • Formateur' },
     facebook: { bg: 'bg-white', border: 'border-gray-200', accent: '#1877f2', name: 'Access Formation', subtitle: 'Organisme de formation' },
     instagram: { bg: 'bg-white', border: 'border-gray-200', accent: '#e4405f', name: 'accessformation', subtitle: '' },
     gmb: { bg: 'bg-white', border: 'border-gray-200', accent: '#4285f4', name: 'Access Formation', subtitle: 'Concarneau, Bretagne' },
