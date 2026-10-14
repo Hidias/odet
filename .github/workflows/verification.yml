@@ -1,0 +1,43 @@
+# Vérification automatique : à chaque envoi sur une branche et à chaque pull request,
+# l'application est construite et les tests sont lancés. Une croix rouge = ne pas fusionner.
+# La règle « la vérification doit être verte pour fusionner dans main » se règle dans
+# Settings > Branches (voir docs/environnement-test.md).
+
+name: Vérification
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installation
+        run: npm ci
+
+      - name: Construction de l'application
+        run: npx vite build
+        env:
+          # Valeurs factices : la construction a seulement besoin qu'elles existent
+          VITE_SUPABASE_URL: https://exemple.supabase.co
+          VITE_SUPABASE_ANON_KEY: cle-de-construction
+
+      - name: Tests
+        run: npm test

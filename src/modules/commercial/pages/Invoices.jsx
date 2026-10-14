@@ -13,6 +13,8 @@ import {
   CreditCard, AlertTriangle, CheckCircle, Clock, Ban, Copy, Receipt, Mail
 } from 'lucide-react'
 import { money, fmtDate as fmtDateShort, calcLineTotal as calcItemTotal } from '../../../core/utils'
+import { calcDueDate, dueDateFromInvoiceDate } from '../lib/echeances'
+import { invoicePrefix, nextInvoiceReference } from '../lib/references'
 
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
@@ -42,13 +44,6 @@ const getStatusInfo = (inv) => {
 const CREDITABLE_STATUSES = ['sent', 'due', 'overdue', 'partial', 'paid']
 const PAYMENT_METHODS = ['virement bancaire','chèque','prélèvement','carte bancaire','espèces']
 const PAYMENT_TERMS = ['À réception de facture','à 30 jours','à 30 jours fin de mois','à 45 jours','à 45 jours fin de mois','à 60 jours','à 60 jours fin de mois']
-const calcDueDate = (terms) => {
-  const daysMap = { 'À réception de facture': 0, 'à 30 jours': 30, 'à 30 jours fin de mois': 30, 'à 45 jours': 45, 'à 45 jours fin de mois': 45, 'à 60 jours': 60, 'à 60 jours fin de mois': 60 }
-  const days = daysMap[terms] ?? 30
-  let d = addDays(new Date(), days)
-  if (terms?.includes('fin de mois')) { d = new Date(d.getFullYear(), d.getMonth() + 1, 0) }
-  return format(d, 'yyyy-MM-dd')
-}
 //  BUG UTC : new Date('2026-08-17') est interprété comme MINUIT UTC.
 // Comparé à new Date() (heure locale Paris, UTC+1/+2), une facture due
 // AUJOURD'HUI ressort systématiquement "en retard" dès 2h du matin.
@@ -410,11 +405,9 @@ export default function Invoices() {
 
   // ─── Generate reference ───
   const generateReference = async (type = 'invoice') => {
-    const pfx = type === 'credit_note' ? 'AVR' : 'FACT', ds = format(new Date(), 'yyyyMMdd')
+    const pfx = invoicePrefix(type), now = new Date()
     const { data } = await supabase.from('invoices').select('reference').like('reference', pfx + '-%').order('reference', {ascending: false}).limit(1)
-    let seq = 1
-    if (data && data.length > 0) { const m = data[0].reference.match(/-(\d+)$/); if (m) seq = parseInt(m[1]) + 1 }
-    return pfx + '-' + ds + '-' + String(seq).padStart(5, '0')
+    return nextInvoiceReference(data && data.length > 0 ? data[0].reference : null, type, now)
   }
 
   // ─── New invoice ───
@@ -1543,11 +1536,8 @@ export default function Invoices() {
             <div className="space-y-3">
               <div><label className="text-xs text-gray-500">Moyen de règlement</label><select value={current?.payment_method || ''} onChange={e => setCurrent({...current, payment_method: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" disabled={ro}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
               <div><label className="text-xs text-gray-500">Délai de règlement</label><select value={current?.payment_terms || ''} onChange={e => {
-                const t = e.target.value; let d = 30
-                if (t.includes('réception')) d = 0; else if (t.includes('45')) d = 45; else if (t.includes('60')) d = 60
-                let dueD = addDays(new Date(current.invoice_date || new Date()), d)
-                if (t.includes('fin de mois')) { dueD = new Date(dueD.getFullYear(), dueD.getMonth() + 1, 0) }
-                setCurrent({...current, payment_terms: t, due_date: format(dueD, 'yyyy-MM-dd')})
+                const t = e.target.value
+                setCurrent({...current, payment_terms: t, due_date: dueDateFromInvoiceDate(t, current.invoice_date)})
               }} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" disabled={ro}>{PAYMENT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
               <div><label className="text-xs text-gray-500">Date d'échéance</label><input type="date" value={current?.due_date || ''} onChange={e => setCurrent({...current, due_date: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" readOnly={ro} /></div>
               <div><label className="text-xs text-gray-500">Remise globale (%)</label><input type="number" value={current?.discount_percent || 0} onChange={e => setCurrent({...current, discount_percent: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" readOnly={ro} step="0.01" min="0" max="100" /></div>

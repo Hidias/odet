@@ -14,6 +14,8 @@ import {
   GraduationCap, Calendar, MapPin, Users
 } from 'lucide-react'
 import { money } from '../../../core/utils'
+import { calcItemTotal, calcTotals } from '../lib/quoteTotals'
+import { quoteDay, nextQuoteReference } from '../lib/references'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useRelanceIA } from '../lib/useRelanceIA'
 
@@ -274,27 +276,10 @@ export default function Quotes() {
   }
 
   async function generateReference() {
-    const today = format(new Date(), 'yyyyMMdd')
+    const now = new Date(), today = quoteDay(now)
     const { data } = await supabase.from('quotes').select('reference')
       .like('reference', `DEV-${today}%`).order('reference', { ascending: false }).limit(1)
-    let nextNum = 1
-    if (data && data.length > 0) {
-      const parts = data[0].reference.split('-')
-      nextNum = parseInt(parts[2] || '0') + 1
-    }
-    return `DEV-${today}-${String(nextNum).padStart(5, '0')}`
-  }
-
-  function calcItemTotal(item) {
-    return parseFloat(item.quantity || 0) * parseFloat(item.unit_price_ht || 0)
-  }
-
-  function calcTotals(itemsList, discountPercent, tvaRate, tvaApplicable) {
-    const subtotalHt = itemsList.reduce((sum, item) => sum + calcItemTotal(item), 0)
-    const discountAmount = subtotalHt * (parseFloat(discountPercent || 0) / 100)
-    const totalHt = subtotalHt - discountAmount
-    const totalTva = tvaApplicable ? totalHt * (parseFloat(tvaRate || 20) / 100) : 0
-    return { subtotalHt, discountAmount, totalHt, totalTva, totalTtc: totalHt + totalTva }
+    return nextQuoteReference(data && data.length > 0 ? data[0].reference : null, now)
   }
 
   function calcValidityDate(quoteDate) {
