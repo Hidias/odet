@@ -18,7 +18,7 @@ declare
   u_ent uuid := gen_random_uuid(); u_ext uuid := gen_random_uuid(); u_stg uuid := gen_random_uuid();
   u_off uuid := gen_random_uuid();
   -- Données d'essai
-  v_trainer uuid; v_client uuid; v_client_tech uuid; v_site uuid; v_s1 uuid; v_s2 uuid; v_tr1 uuid; v_tr2 uuid;
+  v_trainer uuid; v_client uuid; v_client_tech uuid; v_site uuid; v_site2 uuid; v_s1 uuid; v_s2 uuid; v_tr1 uuid; v_tr2 uuid;
   v_st1 uuid; v_v1 uuid; v_v2 uuid; v_eq uuid; v_token text; v_ref text; v_code text := '482915'; v_ticket text;
   v_inv uuid; n_budget int; n_pm int;
   -- Exécution
@@ -60,6 +60,7 @@ begin
   insert into public.clients (name) values ('Essai client formation') returning id into v_client;
   insert into public.clients (name) values ('Essai client technicien') returning id into v_client_tech;
   insert into public.sites (name, client_id) values ('Essai site', v_client_tech) returning id into v_site;
+  insert into public.sites (name, client_id) values ('Essai site formation', v_client) returning id into v_site2;
 
   insert into public.sessions (start_date, end_date, trainer_id, client_id, attendance_token)
   values (current_date, current_date, v_trainer, v_client, 'essai-' || replace(gen_random_uuid()::text, '-', ''))
@@ -77,13 +78,13 @@ begin
 
   insert into public.itv_visits (client_id, site_id, technician_id, status) values (v_client_tech, v_site, u_tech, 'planifiee')
   returning id into v_v1;
-  insert into public.itv_visits (client_id, site_id, status) values (v_client, (select id from public.sites where client_id is not null and id <> v_site limit 1), 'planifiee')
+  insert into public.itv_visits (client_id, site_id, status) values (v_client, v_site2, 'planifiee')
   returning id into v_v2;
   insert into public.itv_equipment_types (name) values ('Essai type') returning id into v_eq;
   insert into public.itv_equipment (client_id, site_id, type_id, label_code) values (v_client_tech, v_site, v_eq, 'ESSAI-' || left(gen_random_uuid()::text, 8))
   returning id into v_eq;
 
-  insert into public.audit_logs (action, entity_type) values ('essai', 'essai');
+  insert into public.audit_logs (action, entity_type) values ('view', 'system');
   select id into v_inv from public.invoices where status <> 'draft' limit 1;
   select count(*) into n_budget from public.budget_categories;
   select count(*) into n_pm from public.prospection_massive;
