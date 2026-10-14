@@ -17,15 +17,15 @@ const PLATFORMS = [
 ]
 
 const POST_TYPES = [
-  { id: 'expertise', label: ' Expertise terrain', desc: 'Partager un savoir-faire, une anecdote formation' },
-  { id: 'stat', label: ' Statistique / Résultat', desc: 'Taux de réussite, satisfaction, certifications' },
-  { id: 'storytelling', label: ' Storytelling', desc: 'Histoire vécue en formation, retour terrain' },
-  { id: 'promo', label: ' Promotion', desc: 'Nouvelle formation, offre, événement' },
-  { id: 'educatif', label: ' Éducatif', desc: 'Conseil prévention, réglementation, bonnes pratiques' },
-  { id: 'qualiopi', label: ' Qualiopi / Qualité', desc: 'Démarche qualité, certification, processus' },
-  { id: 'campus', label: ' Access Campus', desc: 'Fonctionnalités de la plateforme, innovation' },
-  { id: 'offre_promo', label: ' Offre promotionnelle', desc: 'Offre avec date de fin, CTA fort, urgence positive' },
-  { id: 'veille_reglementaire', label: ' Veille réglementaire', desc: 'Nouvelle norme, obligation légale, mise à jour INRS/CACES' },
+  { id: 'expertise', label: 'Expertise terrain', desc: 'Partager un savoir-faire, une anecdote formation' },
+  { id: 'stat', label: 'Statistique / Résultat', desc: 'Taux de réussite, satisfaction, certifications' },
+  { id: 'storytelling', label: 'Storytelling', desc: 'Histoire vécue en formation, retour terrain' },
+  { id: 'promo', label: 'Promotion', desc: 'Nouvelle formation, offre, événement' },
+  { id: 'educatif', label: 'Éducatif', desc: 'Conseil prévention, réglementation, bonnes pratiques' },
+  { id: 'qualiopi', label: 'Qualiopi / Qualité', desc: 'Démarche qualité, certification, processus' },
+  { id: 'campus', label: 'Access Campus', desc: 'Fonctionnalités de la plateforme, innovation' },
+  { id: 'offre_promo', label: 'Offre promotionnelle', desc: 'Offre avec date de fin, CTA fort, urgence positive' },
+  { id: 'veille_reglementaire', label: 'Veille réglementaire', desc: 'Nouvelle norme, obligation légale, mise à jour INRS/CACES' },
 ]
 
 // Hashtags gérés dynamiquement par l'IA dans le prompt
@@ -194,10 +194,10 @@ export default function SocialMedia() {
   }
 
   const tabs = [
-    { id: 'generator', label: ' Générateur', count: null },
-    { id: 'calendar', label: ' Calendrier', count: posts.filter(p => p.status === 'scheduled').length },
-    { id: 'library', label: ' Médiathèque', count: media.length },
-    { id: 'drafts', label: ' Brouillons', count: posts.filter(p => p.status === 'draft').length },
+    { id: 'generator', label: 'Générateur', count: null },
+    { id: 'calendar', label: 'Calendrier', count: posts.filter(p => p.status === 'scheduled').length },
+    { id: 'library', label: 'Médiathèque', count: media.length },
+    { id: 'drafts', label: 'Brouillons', count: posts.filter(p => p.status === 'draft').length },
   ]
 
   return (
@@ -896,9 +896,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                     onClick={() => regeneratePlatform(previewPlatform)}
                     className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition-colors"
                     title="Régénérer"
-                  >
-                    
-                  </button>
+                  >Régénérer</button>
                 </div>
               </div>
               <textarea
@@ -964,9 +962,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                   <button
                     onClick={() => setSelectedMedia(prev => prev.filter((_, idx) => idx !== i))}
                     className="absolute top-0 right-0 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-bl-md"
-                  >
-                    
-                  </button>
+                  >×</button>
                 </div>
               ))}
               <MediaPicker
@@ -1300,7 +1296,7 @@ function MediaPicker({ media, selected, onSelect }) {
           <div className="p-3 border-b bg-gray-50">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-semibold text-[#0F2D35]"> Choisir une photo</h4>
-              <button onClick={() => setShowPicker(false)} className="text-gray-400 hover:text-gray-600 text-lg"></button>
+              <button onClick={() => setShowPicker(false)} className="text-gray-400 hover:text-gray-600 text-lg">Fermer</button>
             </div>
             {/* Upload rapide */}
             <label className="flex items-center gap-2 px-3 py-2 bg-[#E9B44C] text-[#0F2D35] rounded-lg cursor-pointer hover:bg-[#d4a43e] transition-colors text-xs font-medium w-full justify-center">
@@ -1343,7 +1339,7 @@ function MediaPicker({ media, selected, onSelect }) {
                     >
                       <img src={m.file_url} alt={m.file_name} className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 text-white text-lg transition-opacity"></span>
+                        <span className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 text-white text-lg transition-opacity"></span>
                       </div>
                     </button>
                   ))}
@@ -1421,10 +1417,10 @@ function CalendarTab({ posts, onUpdate }) {
   const selectedPosts = selectedDay ? getPostsForDay(selectedDay) : []
 
   const statusConfig = {
-    scheduled: { label: ' Planifié', bg: 'bg-amber-100 text-amber-800', dot: 'bg-amber-400' },
-    published: { label: ' Publié', bg: 'bg-green-100 text-green-800', dot: 'bg-green-400' },
-    publishing: { label: ' En cours', bg: 'bg-blue-100 text-blue-800', dot: 'bg-blue-400' },
-    failed: { label: ' Échec', bg: 'bg-red-100 text-red-800', dot: 'bg-red-400' },
+    scheduled: { label: 'Planifié', bg: 'bg-amber-100 text-amber-800', dot: 'bg-amber-400' },
+    published: { label: 'Publié', bg: 'bg-green-100 text-green-800', dot: 'bg-green-400' },
+    publishing: { label: 'En cours', bg: 'bg-blue-100 text-blue-800', dot: 'bg-blue-400' },
+    failed: { label: 'Échec', bg: 'bg-red-100 text-red-800', dot: 'bg-red-400' },
   }
 
   // Actions sur les posts
@@ -1496,15 +1492,15 @@ function CalendarTab({ posts, onUpdate }) {
           )}
           {p.status === 'scheduled' && (
             <div className="flex gap-1 mt-1">
-              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-green-600 text-white px-1.5 py-0.5 rounded hover:bg-green-700" title="Publier maintenant"></button>
-              <button onClick={() => cancelPost(p.id)} className="text-[9px] bg-gray-500 text-white px-1.5 py-0.5 rounded hover:bg-gray-600" title="Remettre en brouillon"></button>
-              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer"></button>
+              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-green-600 text-white px-1.5 py-0.5 rounded hover:bg-green-700" title="Publier maintenant">Publier</button>
+              <button onClick={() => cancelPost(p.id)} className="text-[9px] bg-gray-500 text-white px-1.5 py-0.5 rounded hover:bg-gray-600" title="Remettre en brouillon">Brouillon</button>
+              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer">Supprimer</button>
             </div>
           )}
           {p.status === 'failed' && (
             <div className="flex gap-1 mt-1">
-              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded hover:bg-amber-600" title="Réessayer"></button>
-              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer"></button>
+              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded hover:bg-amber-600" title="Réessayer">Réessayer</button>
+              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer">Supprimer</button>
             </div>
           )}
         </div>
@@ -1728,12 +1724,10 @@ function LibraryTab({ media, onUpdate }) {
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
                 <button
                   onClick={() => deleteMedia(m.id, m.file_url)}
-                  className="opacity-0 group-hover:opacity-100 bg-red-500 text-white text-xs px-2 py-1 rounded-md transition-all"
-                >
-                  
-                </button>
+                  className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 bg-red-500 text-white text-xs px-2 py-1 rounded-md transition-all"
+                >Supprimer</button>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] p-1 truncate opacity-0 group-hover:opacity-100 transition-all">
+              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] p-1 truncate [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-all">
                 {m.file_name}
               </div>
             </div>
@@ -1787,7 +1781,7 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
               {post.platforms?.map(pl => (
                 <span key={pl}>{PLATFORMS.find(x => x.id === pl)?.icon}</span>
               ))}
-              <button onClick={() => deleteDraft(post.id)} className="ml-2 text-red-400 hover:text-red-600 text-sm"></button>
+              <button onClick={() => deleteDraft(post.id)} className="ml-2 text-red-400 hover:text-red-600 text-sm">Supprimer</button>
             </div>
           </div>
 

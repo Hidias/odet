@@ -50,10 +50,10 @@ const WIDGET_REGISTRY = {
 }
 
 const CATEGORIES = {
-  formation:  { label: ' Formation',  color: 'amber' },
-  commerce:   { label: ' Commerce',   color: 'blue' },
-  alertes:    { label: ' Alertes',    color: 'red' },
-  analytique: { label: ' Analytique', color: 'green' },
+  formation:  { label: 'Formation',  color: 'amber' },
+  commerce:   { label: 'Commerce',   color: 'blue' },
+  alertes:    { label: 'Alertes',    color: 'red' },
+  analytique: { label: 'Analytique', color: 'green' },
 }
 
 const SIZE_CLASSES = {
@@ -1085,12 +1085,12 @@ export default function Dashboard() {
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 cursor-grab active:cursor-grabbing">
-                  <GripVertical className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <GripVertical className="w-3.5 h-3.5 text-gray-300 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" />
                   <Icon className={`w-4 h-4 text-${reg.color}-500`} />
                   <h3 className="text-sm font-semibold text-gray-700">{reg.label}</h3>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  <button onClick={() => cycleSize(config.widget_id)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 text-xs font-mono opacity-0 group-hover:opacity-100 transition-opacity" title="Changer taille">{config.size.toUpperCase()}</button>
+                  <button onClick={() => cycleSize(config.widget_id)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 text-xs font-mono [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Changer taille">{config.size.toUpperCase()}</button>
                   <button onClick={() => toggleWidget(config.widget_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-300 hover:text-red-500 transition-colors" title="Retirer ce widget"><X className="w-3.5 h-3.5" /></button>
                 </div>
               </div>

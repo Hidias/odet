@@ -8,6 +8,7 @@ import {
   Calculator, AlertTriangle, CheckCircle, Clock, Lock, Unlock,
   Download, RefreshCw, Plus, X, ChevronDown, Search, Eye, EyeOff, LogOut, FileText
 } from 'lucide-react'
+import SearchSelect from '../../../ui/SearchSelect'
 
 // ════════════════════════════════════════════════════════════
 //  ESPACE COMPTABLE - Access Campus
@@ -37,13 +38,13 @@ const EXERCICES = getExercices()
 // ════════════════════════════════════════════════════════════
 
 const TABS = [
-  { key: 'balance', label: ' Balance âgée' },
-  { key: 'encaissements', label: ' Encaissements' },
-  { key: 'rapprochement', label: ' Rapprochement' },
-  { key: 'annotations', label: ' Annotations' },
-  { key: 'clotures', label: ' Clôtures' },
-  { key: 'export', label: ' Export Excel' },
-  { key: 'fec', label: ' FEC DGFiP' },
+  { key: 'balance', label: 'Balance âgée' },
+  { key: 'encaissements', label: 'Encaissements' },
+  { key: 'rapprochement', label: 'Rapprochement' },
+  { key: 'annotations', label: 'Annotations' },
+  { key: 'clotures', label: 'Clôtures' },
+  { key: 'export', label: 'Export Excel' },
+  { key: 'fec', label: 'FEC DGFiP' },
 ]
 
 const fmt = (n) => {
@@ -555,18 +556,11 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
           <div className="border rounded-lg p-4 bg-gray-50 space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1.5">Facture concernée</label>
-              <select
+              <SearchSelect
                 value={selectedInvoice?.id || ''}
-                onChange={e => setSelectedInvoice(unpaidInvoices.find(i => i.id === e.target.value) || null)}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="">- Sélectionner une facture -</option>
-                {unpaidInvoices.map(inv => (
-                  <option key={inv.id} value={inv.id}>
-                    {inv.reference} - {inv.clients?.name || '-'} - {fmt(parseFloat(inv.amount_due))} restant
-                  </option>
-                ))}
-              </select>
+                onChange={v => setSelectedInvoice(unpaidInvoices.find(i => i.id === v) || null)}
+                options={unpaidInvoices.map(inv => ({ value: inv.id, label: `${inv.reference} - ${inv.clients?.name || '-'}`, hint: `${fmt(parseFloat(inv.amount_due))} restant` }))}
+                emptyLabel="- Sélectionner une facture -" searchPlaceholder="Référence ou client..." aria-label="Facture" />
               {selectedInvoice && (
                 <div className="mt-2 text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded px-3 py-2">
                   Total TTC : {fmt(parseFloat(selectedInvoice.total_ttc))} •
@@ -1296,15 +1290,11 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
                       onClick={() => saveNote(tx.id, tx.date)}
                       disabled={saving}
                       className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
-                    >
-                      
-                    </button>
+                    >Enregistrer</button>
                     <button
                       onClick={() => setEditingId(null)}
                       className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
-                    >
-                      
-                    </button>
+                    >Annuler</button>
                   </div>
                 ) : (
                   tx.note_comptable && (
@@ -1322,9 +1312,7 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
                     onClick={() => { setEditingId(tx.id); setEditValue(tx.note_comptable || '') }}
                     className="text-xs text-gray-400 hover:text-violet-600 transition-colors p-1"
                     title="Annoter"
-                  >
-                    
-                  </button>
+                  >Note</button>
                 )}
               </div>
             </div>

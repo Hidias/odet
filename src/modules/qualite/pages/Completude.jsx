@@ -10,6 +10,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { buildCompletudePDF } from '../pdf/completudePDF'
+import SearchSelect from '../../../ui/SearchSelect'
 
 const PRIORITIES = {
   bloquant: { label: 'Bloquant', color: 'red', icon: '' },
@@ -709,16 +710,11 @@ export default function Completude() {
           </select>
           
           {clients.length > 0 && (
-            <select 
-              value={filterClient}
-              onChange={(e) => setFilterClient(e.target.value)}
-              className="input"
-            >
-              <option value="all">Tous clients</option>
-              {clients.map(client => (
-                <option key={client} value={client}>{client}</option>
-              ))}
-            </select>
+            <SearchSelect
+              value={filterClient === 'all' ? '' : filterClient}
+              onChange={(v) => setFilterClient(v || 'all')}
+              options={clients.map(client => ({ value: client, label: client }))}
+              emptyLabel="Tous clients" searchPlaceholder="Rechercher un client..." aria-label="Filtrer par client" />
           )}
           
           <div className="ml-auto text-sm text-gray-600">
@@ -821,7 +817,7 @@ export default function Completude() {
                               title="Corriger"
                             >
                               <ExternalLink className="w-4 h-4" />
-                              <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <span className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                 Corriger
                               </span>
                             </a>

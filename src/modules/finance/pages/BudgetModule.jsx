@@ -14,16 +14,16 @@ import { useSirenCheck } from '../../commercial/lib/useSirenCheck'
 // ════════════════════════════════════════════════════════════
 
 const TABS = [
-  { key: 'transactions', label: ' Transactions' },
-  { key: 'saisie', label: ' Saisie' },
-  { key: 'dashboard', label: ' Dashboard' },
-  { key: 'categorisation', label: ' Catégorisation' },
-  { key: 'previsionnel', label: ' Prévisionnel' },
-  { key: 'comptable', label: ' Comptable' },
-  { key: 'categories', label: ' Catégories' },
-  { key: 'rules', label: ' Règles' },
-  { key: 'import', label: ' Import' },
-  { key: 'releves', label: ' Relevés' },
+  { key: 'transactions', label: 'Transactions' },
+  { key: 'saisie', label: 'Saisie' },
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'categorisation', label: 'Catégorisation' },
+  { key: 'previsionnel', label: 'Prévisionnel' },
+  { key: 'comptable', label: 'Comptable' },
+  { key: 'categories', label: 'Catégories' },
+  { key: 'rules', label: 'Règles' },
+  { key: 'import', label: 'Import' },
+  { key: 'releves', label: 'Relevés' },
 ]
 
 // Seul ce compte peut voir les transactions privées.
@@ -437,18 +437,16 @@ function TransactionsTab({ filtered, categories, months, filterMonth, setFilterM
                   <td className="px-2 py-1.5">
                     <div className="flex gap-0.5">
                       {tx.category_name === 'Restauration pro' && tx.debit > 0 && (
-                        <button onClick={() => onMealGuest && onMealGuest(tx.id)} className="text-amber-400 hover:text-amber-600 text-xs" title="Registre invités"></button>
+                        <button onClick={() => onMealGuest && onMealGuest(tx.id)} className="text-amber-400 hover:text-amber-600 text-xs" title="Registre invités">Invités</button>
                       )}
                       {canSeePrivate && (
                         <button
                           onClick={() => togglePrivate(tx)}
                           className={`text-xs ${tx.is_private ? 'text-slate-700' : 'text-gray-300 hover:text-slate-600'}`}
                           title={tx.is_private ? 'Rendre visible par tous' : 'Masquer pour les autres comptes'}
-                        >
-                          {tx.is_private ? '' : ''}
-                        </button>
+                        >{tx.is_private ? 'Privé' : 'Masquer'}</button>
                       )}
-                      {tx.is_manual && <button onClick={() => deleteTx(tx.id)} className="text-red-300 hover:text-red-600 text-xs"></button>}
+                      {tx.is_manual && <button onClick={() => deleteTx(tx.id)} className="text-red-300 hover:text-red-600 text-xs">Supprimer</button>}
                     </div>
                   </td>
                 </tr>
@@ -931,7 +929,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
               {previews.map((p, i) => (
                 <div key={i} className="relative group">
                   {p.url ? <img src={p.url} alt={p.name} className="w-16 h-16 object-cover rounded border" /> : <div className="w-16 h-16 bg-gray-100 rounded border flex items-center justify-center text-xs"> PDF</div>}
-                  <button onClick={() => removeFile(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs leading-none opacity-0 group-hover:opacity-100"></button>
+                  <button onClick={() => removeFile(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs leading-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100">×</button>
                 </div>
               ))}
             </div>
@@ -1085,7 +1083,7 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
                       className="text-xs text-emerald-600 hover:text-emerald-800 whitespace-nowrap" title="Créer comme prospect"
                     >+</button>
                   )}
-                  <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600 text-xs"></button>
+                  <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600 text-xs">Retirer</button>
                 </div>
               ))}
             </div>
@@ -1127,8 +1125,8 @@ function SaisieTab({ categories, rules, loadAll, clients }) {
                     </button>
                   ))}
                 </div>
-                <button onClick={() => editTxInForm(tx)} className="text-blue-500 hover:text-blue-700 text-xs px-1" title="Modifier"></button>
-                <button onClick={() => deleteTxLocal(tx.id)} className="text-red-400 hover:text-red-600 text-xs px-1" title="Supprimer"></button>
+                <button onClick={() => editTxInForm(tx)} className="text-blue-500 hover:text-blue-700 text-xs px-1" title="Modifier">Modifier</button>
+                <button onClick={() => deleteTxLocal(tx.id)} className="text-red-400 hover:text-red-600 text-xs px-1" title="Supprimer">Supprimer</button>
               </div>
             </div>
           ))}</div>
@@ -1511,10 +1509,10 @@ function RelevesTab({ statements, transactions, loadAll }) {
                       <td className="px-2 py-2 text-right whitespace-nowrap">
                         {st.sent_to_comptable && (
                           <button onClick={() => sendToComptable(st)} disabled={sendingId === st.id}
-                            className="text-gray-300 hover:text-green-600 text-xs mr-2" title="Renvoyer au comptable"></button>
+                            className="text-gray-300 hover:text-green-600 text-xs mr-2" title="Renvoyer au comptable">Renvoyer</button>
                         )}
-                        <button onClick={() => openPdf(st)} className="text-blue-500 hover:text-blue-700 text-xs mr-2" title="Ouvrir le PDF"></button>
-                        <button onClick={() => deleteStatement(st)} className="text-red-300 hover:text-red-600 text-xs" title="Supprimer"></button>
+                        <button onClick={() => openPdf(st)} className="text-blue-500 hover:text-blue-700 text-xs mr-2" title="Ouvrir le PDF">PDF</button>
+                        <button onClick={() => deleteStatement(st)} className="text-red-300 hover:text-red-600 text-xs" title="Supprimer">Supprimer</button>
                       </td>
                     </tr>
                   )
@@ -2649,7 +2647,7 @@ function CategoriesTab({ categories, loadAll }) {
               <td className="px-3 py-1"><input type="text" value={ef.name} onChange={e=>setEf(f=>({...f,name:e.target.value}))} className="border rounded px-2 py-1 text-sm w-full"/></td>
               <td className="px-3 py-1"><select value={ef.direction} onChange={e=>setEf(f=>({...f,direction:e.target.value}))} className="border rounded px-2 py-1 text-xs"><option value="depense">Dépense</option><option value="recette">Recette</option><option value="neutre">Neutre</option></select></td>
               <td className="px-3 py-1"><select value={ef.type} onChange={e=>setEf(f=>({...f,type:e.target.value}))} className="border rounded px-2 py-1 text-xs"><option value="fixe">Fixe</option><option value="variable">Variable</option><option value="exceptionnel">Exceptionnel</option></select></td>
-              <td className="px-3 py-1 text-right"><button onClick={upd} className="text-green-600 text-xs mr-2"></button><button onClick={()=>setEditId(null)} className="text-gray-400 text-xs"></button></td>
+              <td className="px-3 py-1 text-right"><button onClick={upd} className="text-green-600 text-xs mr-2">OK</button><button onClick={()=>setEditId(null)} className="text-gray-400 text-xs">Annuler</button></td>
             </>):(<>
               <td className="px-3 py-1.5 text-lg">{cat.icon}</td>
               <td className="px-3 py-1.5 font-medium text-gray-700">{cat.name}</td>
@@ -2803,7 +2801,7 @@ function RulesTab({ rules, categories, loadAll }) {
               className="w-full border rounded-lg px-3 py-2 text-sm pr-8"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"></button>
+              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">×</button>
             )}
           </div>
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="border rounded-lg px-3 py-2 text-sm min-w-48">
@@ -2879,12 +2877,8 @@ function RulesTab({ rules, categories, loadAll }) {
                       </td>
                       <td className="px-3 py-1.5 text-right">
                         <div className="flex gap-1 justify-end">
-                          <button onClick={saveEdit} disabled={saving} className="px-2 py-1 bg-emerald-500 text-white rounded text-xs hover:bg-emerald-600 disabled:opacity-50">
-                            {saving ? '...' : ''}
-                          </button>
-                          <button onClick={cancelEdit} className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs hover:bg-gray-300">
-                            
-                          </button>
+                          <button onClick={saveEdit} disabled={saving} className="px-2 py-1 bg-emerald-500 text-white rounded text-xs hover:bg-emerald-600 disabled:opacity-50">{saving ? '...' : 'OK'}</button>
+                          <button onClick={cancelEdit} className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs hover:bg-gray-300">Annuler</button>
                         </div>
                       </td>
                     </>
@@ -2900,13 +2894,9 @@ function RulesTab({ rules, categories, loadAll }) {
                         {r.direction === 'debit' ? ' Débit' : r.direction === 'credit' ? ' Crédit' : ' Tous'}
                       </td>
                       <td className="px-3 py-1.5 text-right">
-                        <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100" style={{ opacity: 1 }}>
-                          <button onClick={() => startEdit(r)} className="px-2 py-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded text-xs transition" title="Modifier">
-                            
-                          </button>
-                          <button onClick={() => del(r.id, r.keyword)} className="px-2 py-1 text-red-300 hover:text-red-600 hover:bg-red-50 rounded text-xs transition" title="Supprimer">
-                            
-                          </button>
+                        <div className="flex gap-1 justify-end [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100" style={{ opacity: 1 }}>
+                          <button onClick={() => startEdit(r)} className="px-2 py-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded text-xs transition" title="Modifier">Modifier</button>
+                          <button onClick={() => del(r.id, r.keyword)} className="px-2 py-1 text-red-300 hover:text-red-600 hover:bg-red-50 rounded text-xs transition" title="Supprimer">Supprimer</button>
                         </div>
                       </td>
                     </>
@@ -3785,7 +3775,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                 <h3 className="font-bold text-green-800"> Rapprochement bancaire</h3>
                 <p className="text-xs text-green-600 mt-0.5">Montant reçu : <b>{fmt(matchTx.amount)}</b></p>
               </div>
-              <button onClick={() => setShowMatchModal(false)} className="text-gray-400 hover:text-gray-600 text-xl"></button>
+              <button onClick={() => setShowMatchModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">Fermer</button>
             </div>
 
             <div className="overflow-y-auto flex-1 p-4 space-y-4">
@@ -4061,8 +4051,8 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                                   ? <span className="text-xs text-green-600"> exact</span>
                                   : <span className="text-xs text-amber-600"> écart {fmt(Math.abs(totalM - tx.credit))}</span>
                               })()}
-                              <button onClick={() => detachMatch(i)} className="text-xs text-red-400 hover:text-red-600" title="Détacher"></button>
-                              <button onClick={() => toggleSearchPanel(i)} className="text-xs text-blue-500 hover:text-blue-700"></button>
+                              <button onClick={() => detachMatch(i)} className="text-xs text-red-400 hover:text-red-600" title="Détacher">Détacher</button>
+                              <button onClick={() => toggleSearchPanel(i)} className="text-xs text-blue-500 hover:text-blue-700">Chercher</button>
                             </div>
                           </td>
                         </tr>
@@ -4401,8 +4391,8 @@ ${txList}` }]
                       <td className="px-2 py-1.5 whitespace-nowrap">
                         {!done && !skip && (
                           <>
-                            <button onClick={() => applySuggestion(s)} className="text-green-600 hover:text-green-800 text-sm mr-1" title="Valider"></button>
-                            <button onClick={() => setIgnored(prev => new Set([...prev, s.id]))} className="text-gray-400 hover:text-gray-600 text-sm" title="Ignorer"></button>
+                            <button onClick={() => applySuggestion(s)} className="text-green-600 hover:text-green-800 text-sm mr-1" title="Valider">Valider</button>
+                            <button onClick={() => setIgnored(prev => new Set([...prev, s.id]))} className="text-gray-400 hover:text-gray-600 text-sm" title="Ignorer">Ignorer</button>
                           </>
                         )}
                         {done && <span className="text-green-500"></span>}
@@ -4968,7 +4958,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
       // GOUYA si ce mois (fév-mai 2026) et pas encore débité
       const gouya = curSorties.filter(tx => tx.description?.includes('GOUYA'))
       if (gouya.length === 0 && now.getFullYear() === 2026 && now.getMonth() >= 1 && now.getMonth() <= 4) {
-        cashFlowItems.push({ date: `${currentYearMonth}-25`, label: ' GOUYA Frais juridiques', montant: -673.56, type: 'sortie' })
+        cashFlowItems.push({ date: `${currentYearMonth}-25`, label: 'GOUYA Frais juridiques', montant: -673.56, type: 'sortie' })
       }
 
       // Factures attendues (entrées)
@@ -5643,7 +5633,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
                         <option value="facture">Facturé</option>
                         <option value="annule">Annulé</option>
                       </select>
-                      <button onClick={() => deletePipe(p.id)} className="text-red-400 hover:text-red-600"></button>
+                      <button onClick={() => deletePipe(p.id)} className="text-red-400 hover:text-red-600">Supprimer</button>
                     </>
                   ) : (
                     <span className={`text-xs px-1.5 py-0.5 rounded ${
@@ -5844,7 +5834,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients }) {
                       onChange={e => updateActionNote(action.id, e.target.value)}
                       className="text-xs border-0 border-b border-transparent hover:border-gray-200 focus:border-blue-300 w-full mt-1 px-0 py-0.5 bg-transparent focus:outline-none focus:ring-0" />
                   </div>
-                  <button onClick={() => deleteAction(action.id)} className="text-gray-300 hover:text-red-500 text-xs"></button>
+                  <button onClick={() => deleteAction(action.id)} className="text-gray-300 hover:text-red-500 text-xs">Supprimer</button>
                 </div>
               </div>
             ))}
@@ -6130,7 +6120,7 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
               </p>
             )}
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl"></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">Fermer</button>
         </div>
 
         {loading ? (
@@ -6184,7 +6174,7 @@ function MealGuestModal({ transactionId, transaction, clients, onClose, onSaved 
                       <button onClick={() => { setProspectInit({ name: g.company, contact_name: g.name }); setShowProspect(true) }}
                         className="text-xs text-emerald-600 hover:text-emerald-800 whitespace-nowrap" title="Créer comme prospect">+</button>
                     )}
-                    <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600"></button>
+                    <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600">Retirer</button>
                   </div>
                 ))}
                 {guests.length === 0 && (
@@ -6286,7 +6276,7 @@ function ProspectCreateModal({ initial, onClose, onCreated }) {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-4 border-b bg-emerald-50 rounded-t-xl">
           <h3 className="font-bold text-emerald-800"> Créer un prospect</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl"></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">Fermer</button>
         </div>
 
         <div className="p-4 space-y-3">

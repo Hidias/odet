@@ -15,6 +15,7 @@ import CompteRenduModal from '../../formation/components/CompteRenduModal'
 import SuiteRdvModal from '../components/suivi/SuiteRdvModal'
 import PrepRdvModal from '../components/suivi/PrepRdvModal'
 import { OUTCOME_LABELS, authorFromEmail, todayStr, fmtDate as fmtDateLocal } from '../components/suivi/suiviUtils'
+import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 
 const RESULT_LABELS = {
   chaud: ' Intéressé', tiede: ' Tiède', froid: ' Refus',
@@ -530,12 +531,9 @@ export default function ProspectRDVDetail() {
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
                 <div className="flex gap-2">
-                  <select value={formData.client_id}
-                    onChange={e => setFormData({ ...formData, client_id: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm">
-                    <option value="">Sélectionner un client</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <SearchSelect value={formData.client_id} className="flex-1"
+                    onChange={v => setFormData({ ...formData, client_id: v })}
+                    options={clientOptions(clients)} emptyLabel="Sélectionner un client" searchPlaceholder="Rechercher un client..." aria-label="Client" />
                   <button onClick={() => setShowNewClientModal(true)}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-primary-600 hover:bg-primary-50 flex items-center gap-1">
                     <Plus className="w-4 h-4" />
@@ -548,10 +546,10 @@ export default function ProspectRDVDetail() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
                 <div className="flex gap-2 flex-wrap">
                   {[
-                    { value: 'a_prendre', label: ' À planifier' },
-                    { value: 'prevu', label: ' Prévu' },
-                    { value: 'realise', label: ' Réalisé' },
-                    { value: 'annule', label: ' Annulé' },
+                    { value: 'a_prendre', label: 'À planifier' },
+                    { value: 'prevu', label: 'Prévu' },
+                    { value: 'realise', label: 'Réalisé' },
+                    { value: 'annule', label: 'Annulé' },
                   ].map(s => (
                     <button key={s.value} type="button"
                       onClick={() => setFormData({ ...formData, status: s.value })}

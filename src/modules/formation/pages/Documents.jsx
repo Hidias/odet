@@ -10,6 +10,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { downloadDocument, setOrganization } from '../pdf/pdfGenerator'
 import CourierEditor from './CourierEditor'
+import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
 const categories = [
   { id: 'all', name: 'Tous' },
@@ -597,30 +598,20 @@ export default function Documents() {
                 
                 <div>
                   <label className="label">Lier à une session (optionnel)</label>
-                  <select
+                  <SearchSelect
                     value={uploadForm.session_id}
-                    onChange={(e) => setUploadForm({ ...uploadForm, session_id: e.target.value })}
-                    className="input"
-                  >
-                    <option value="">-- Aucune --</option>
-                    {sessions.map(s => (
-                      <option key={s.id} value={s.id}>{s.reference} - {s.courses?.title}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setUploadForm({ ...uploadForm, session_id: v })}
+                    options={sessions.map(s => ({ value: s.id, label: s.reference, hint: s.courses?.title || '' }))}
+                    emptyLabel="-- Aucune --" searchPlaceholder="Référence ou formation..." aria-label="Session" />
                 </div>
                 
                 <div>
                   <label className="label">Lier à une formation (optionnel)</label>
-                  <select
+                  <SearchSelect
                     value={uploadForm.course_id}
-                    onChange={(e) => setUploadForm({ ...uploadForm, course_id: e.target.value })}
-                    className="input"
-                  >
-                    <option value="">-- Aucune --</option>
-                    {courses.map(c => (
-                      <option key={c.id} value={c.id}>{c.code} - {c.title}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setUploadForm({ ...uploadForm, course_id: v })}
+                    options={courseOptions(courses)}
+                    emptyLabel="-- Aucune --" searchPlaceholder="Rechercher une formation..." aria-label="Formation" />
                 </div>
                 
                 <div>

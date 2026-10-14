@@ -13,6 +13,8 @@ import {
   CreditCard, AlertTriangle, CheckCircle, Clock, Ban, Copy, Receipt, Mail
 } from 'lucide-react'
 import { money, fmtDate as fmtDateShort, calcLineTotal as calcItemTotal } from '../../../core/utils'
+import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
+import PickerMenu from '../../../ui/PickerMenu'
 
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
@@ -1430,10 +1432,9 @@ export default function Invoices() {
               <label className="text-xs text-gray-500 block mb-1">Client</label>
               {ro
                 ? <p className="text-sm font-medium">{client?.name || '-'}</p>
-                : <select value={current?.client_id || ''} onChange={e => handleClientChange(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
-                    <option value="">- Sélectionner -</option>
-                    {clients.filter(c => c.status !== 'inactif').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                : <SearchSelect value={current?.client_id || ''} onChange={v => handleClientChange(v)}
+                    options={clientOptions(clients.filter(c => c.status !== 'inactif'))}
+                    emptyLabel="- Sélectionner -" searchPlaceholder="Nom, ville, SIRET..." aria-label="Client" />
               }
             </div>
             <div>
@@ -1461,10 +1462,12 @@ export default function Invoices() {
                   <label className="text-xs text-gray-500 block mb-1">Client de facturation (OPCO)</label>
                   {ro
                     ? <p className="text-sm font-medium text-amber-700">{clients.find(c => c.id === current?.billing_client_id)?.name || '-'}</p>
-                    : <select value={current?.billing_client_id || ''} onChange={e => setCurrent({...current, billing_client_id: e.target.value})} className="w-full border border-amber-300 rounded-lg px-3 py-2 text-sm bg-amber-50">
-                        <option value="">- Sélectionner l'OPCO -</option>
-                        {clients.filter(c => c.status !== 'inactif').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
+                    : <SearchSelect value={current?.billing_client_id || ''} onChange={v => setCurrent({...current, billing_client_id: v})}
+                        options={[
+                          ...clientOptions(clients.filter(c => c.status !== 'inactif' && c.client_type === 'opco')).map(o => ({ ...o, group: 'OPCO' })),
+                          ...clientOptions(clients.filter(c => c.status !== 'inactif' && c.client_type !== 'opco')).map(o => ({ ...o, group: 'Autres payeurs' })),
+                        ]}
+                        emptyLabel="- Sélectionner l'OPCO -" searchPlaceholder="Rechercher un OPCO ou un payeur..." aria-label="Client de facturation" />
                   }
                 </div>
                 <div className="col-span-2 flex items-end">
@@ -1526,12 +1529,13 @@ export default function Invoices() {
           {!ro && (
             <div className="flex gap-2 mt-3">
               <button onClick={addItem} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50">+ Ligne</button>
-              <div className="relative group">
-                <button className="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50">+ Depuis formation</button>
-                <div className="absolute left-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-10 w-64 max-h-48 overflow-y-auto hidden group-hover:block">
-                  {courses.map(c => <button key={c.id} onClick={() => addFromCourse(c)} className="w-full text-left px-3 py-2 hover:bg-gray-50 text-xs border-b"><span className="font-medium">{c.code}</span> - {c.title} ({money(c.price_ht)})</button>)}
-                </div>
-              </div>
+              <PickerMenu
+                buttonClassName="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50"
+                searchPlaceholder="Rechercher une formation..."
+                emptyText="Aucune formation"
+                items={courses.map(c => ({ key: c.id, label: c.title, hint: [c.code, c.price_ht ? money(c.price_ht) : 'Prix à définir'].filter(Boolean).join(' · '), course: c }))}
+                onPick={it => addFromCourse(it.course)}
+              >+ Depuis formation</PickerMenu>
             </div>
           )}
         </div>

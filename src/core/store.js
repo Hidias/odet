@@ -195,7 +195,8 @@ export const useDataStore = create((set, get) => ({
       website: client.website || null,
       opco_name: client.opco_name || null,
       taille_entreprise: client.taille_entreprise || null,
-      tva: client.tva || null,
+      tva: client.vat_exempt ? null : (client.tva || null),
+      vat_exempt: !!client.vat_exempt,
       notes: client.notes || null,
       status: client.status || 'prospect',
       client_type: client.client_type || 'entreprise',
@@ -235,6 +236,7 @@ export const useDataStore = create((set, get) => ({
     if (updates.status !== undefined) validUpdates.status = updates.status
     if (updates.client_type !== undefined) validUpdates.client_type = updates.client_type
     if (updates.tva !== undefined) validUpdates.tva = updates.tva
+    if (updates.vat_exempt !== undefined) validUpdates.vat_exempt = !!updates.vat_exempt
     
     console.log('Updating client:', id, validUpdates)
     const { data, error } = await supabase

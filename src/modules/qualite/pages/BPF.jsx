@@ -295,6 +295,7 @@ export default function BPF() {
             case 'organisme_formation': caSousTraitance += amount; break
             case 'public': caAgentsPublics += amount; break
             case 'opco': caOpco += amount; break
+            case 'particulier': caParticuliers += amount; break
             default: caEntreprises += amount
           }
         })

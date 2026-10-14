@@ -8,12 +8,12 @@ import CourseDocumentsList from '../components/CourseDocumentsList'
 
 // Thèmes du matériel
 const EQUIPMENT_THEMES = {
-  SECOURISME: { label: ' Secourisme', color: 'green' },
-  INCENDIE: { label: ' Incendie', color: 'red' },
-  ELECTRIQUE: { label: ' Électrique', color: 'yellow' },
-  HAUTEUR: { label: ' Travail en hauteur', color: 'purple' },
-  MANUTENTION: { label: ' Manutention', color: 'blue' },
-  GENERAL: { label: ' Général', color: 'gray' },
+  SECOURISME: { label: 'Secourisme', color: 'green' },
+  INCENDIE: { label: 'Incendie', color: 'red' },
+  ELECTRIQUE: { label: 'Électrique', color: 'yellow' },
+  HAUTEUR: { label: 'Travail en hauteur', color: 'purple' },
+  MANUTENTION: { label: 'Manutention', color: 'blue' },
+  GENERAL: { label: 'Général', color: 'gray' },
 }
 
 // Couleurs des thèmes selon leur nom
@@ -620,7 +620,7 @@ export default function Courses() {
                     </div>
                     <h3 className="font-semibold text-gray-900">{course.title}</h3>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                     <button onClick={() => handleDuplicate(course.id)} className="p-1.5 hover:bg-gray-100 rounded" title="Dupliquer">
                       <Copy className="w-4 h-4 text-gray-500" />
                     </button>

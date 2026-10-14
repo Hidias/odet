@@ -503,9 +503,9 @@ export default function AdminImport() {
         <div className="border-b border-gray-200 mb-6">
           <nav className="-mb-px flex gap-6">
             {[
-              { id: 'import-api',     label: ' Import INSEE' },
-              { id: 'enrichissement', label: ' Enrichissement' },
-              { id: 'import-fichier', label: ' Import fichier' },
+              { id: 'import-api',     label: 'Import INSEE' },
+              { id: 'enrichissement', label: 'Enrichissement' },
+              { id: 'import-fichier', label: 'Import fichier' },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${

@@ -4,6 +4,7 @@ import { supabase } from '../../../core/supabase'
 import { Plus, Search, Edit, Trash2, X, Save, FileText, Upload, Eye, Building2, Download, CheckSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
+import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 
 // Fonction de formatage des noms
 const formatName = (value, type) => {
@@ -856,10 +857,8 @@ export default function Trainees() {
                 </div>
                 <div>
                   <label className="label">Entreprise</label>
-                  <select className="input" value={form.client_id} onChange={(e) => setForm({...form, client_id: e.target.value})}>
-                    <option value="">Sélectionner...</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <SearchSelect value={form.client_id} onChange={(v) => setForm({...form, client_id: v})}
+                    options={clientOptions(clients)} emptyLabel="Sélectionner..." searchPlaceholder="Rechercher une entreprise..." aria-label="Entreprise" />
                 </div>
                 <div>
                   <label className="label">Notes</label>
@@ -1043,14 +1042,11 @@ export default function Trainees() {
               <div className="p-4 overflow-y-auto flex-1">
                 <div className="mb-4">
                   <label className="label">Entreprise (pour tous)</label>
-                  <select 
-                    className="input w-64" 
+                  <SearchSelect
+                    className="w-64"
                     value={bulkClientId}
-                    onChange={(e) => setBulkClientId(e.target.value)}
-                  >
-                    <option value="">Sélectionner...</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                    onChange={(v) => setBulkClientId(v)}
+                    options={clientOptions(clients)} emptyLabel="Sélectionner..." searchPlaceholder="Rechercher une entreprise..." aria-label="Entreprise" />
                 </div>
                 
                 <div className="space-y-2">
@@ -1171,10 +1167,8 @@ export default function Trainees() {
                 
                 <div>
                   <label className="label">Entreprise</label>
-                  <select className="input w-full" value={massClientId} onChange={(e) => setMassClientId(e.target.value)}>
-                    <option value="">- Ne pas modifier -</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <SearchSelect value={massClientId} onChange={(v) => setMassClientId(v)}
+                    options={clientOptions(clients)} emptyLabel="- Ne pas modifier -" searchPlaceholder="Rechercher une entreprise..." aria-label="Entreprise" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 p-4 border-t">

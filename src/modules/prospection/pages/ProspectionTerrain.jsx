@@ -20,12 +20,12 @@ import toast from 'react-hot-toast'
 
 // ─── Constantes ──────────────────────────────────────────────
 const CALL_RESULTS = [
-  { id: 'chaud',        label: ' Intéressé',      sublabel: 'Veut un RDV',  color: 'bg-green-100 border-green-400 text-green-700' },
-  { id: 'tiede',        label: ' Tiède',           sublabel: 'À rappeler',   color: 'bg-amber-100 border-amber-400 text-amber-700' },
-  { id: 'froid',        label: ' Pas intéressé',  sublabel: 'Archiver',     color: 'bg-blue-100 border-blue-400 text-blue-700' },
-  { id: 'no_answer',    label: ' Pas de réponse',  sublabel: 'Répondeur',    color: 'bg-gray-100 border-gray-300 text-gray-600' },
-  { id: 'blocked',      label: ' Barrage',         sublabel: 'Secrétariat',  color: 'bg-red-100 border-red-300 text-red-600' },
-  { id: 'wrong_number', label: ' Faux numéro',     sublabel: 'Supprimer',    color: 'bg-purple-100 border-purple-300 text-purple-600' },
+  { id: 'chaud',        label: 'Intéressé',      sublabel: 'Veut un RDV',  color: 'bg-green-100 border-green-400 text-green-700' },
+  { id: 'tiede',        label: 'Tiède',           sublabel: 'À rappeler',   color: 'bg-amber-100 border-amber-400 text-amber-700' },
+  { id: 'froid',        label: 'Pas intéressé',  sublabel: 'Archiver',     color: 'bg-blue-100 border-blue-400 text-blue-700' },
+  { id: 'no_answer',    label: 'Pas de réponse',  sublabel: 'Répondeur',    color: 'bg-gray-100 border-gray-300 text-gray-600' },
+  { id: 'blocked',      label: 'Barrage',         sublabel: 'Secrétariat',  color: 'bg-red-100 border-red-300 text-red-600' },
+  { id: 'wrong_number', label: 'Faux numéro',     sublabel: 'Supprimer',    color: 'bg-purple-100 border-purple-300 text-purple-600' },
 ]
 
 

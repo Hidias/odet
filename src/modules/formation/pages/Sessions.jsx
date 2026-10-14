@@ -11,6 +11,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import MultiSiretWizard from '../components/MultiSiretWizard'
 import SessionPlanning from '../components/SessionPlanning'
+import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 
 // Type de journée déduit des horaires : ≤ 4h30 = demi-journée (même règle que Quotes / MultiSiretWizard)
 const dayTypeFromTimes = (startTime, endTime) => {
@@ -686,14 +687,14 @@ export default function Sessions() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={(e) => handleDuplicate(session.id, e)}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="p-1.5 hover:bg-gray-100 rounded-lg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                                 title="Dupliquer"
                               >
                                 <Copy className="w-4 h-4 text-gray-500" />
                               </button>
                               <button
                                 onClick={(e) => handleDelete(session.id, e)}
-                                className="p-1.5 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="p-1.5 hover:bg-red-50 rounded-lg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                                 title="Supprimer"
                               >
                                 <Trash2 className="w-4 h-4 text-red-500" />
@@ -758,7 +759,7 @@ export default function Sessions() {
                       </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={(e) => handleDelete(session.id, e)} className="p-1 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity" title="Supprimer">
+                      <button onClick={(e) => handleDelete(session.id, e)} className="p-1 hover:bg-red-50 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Supprimer">
                         <Trash2 className="w-3.5 h-3.5 text-red-400" />
                       </button>
                       <ChevronRight className="w-4 h-4 text-amber-400" />
@@ -818,14 +819,14 @@ export default function Sessions() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => handleDuplicate(session.id, e)}
-                      className="p-2 hover:bg-gray-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-2 hover:bg-gray-100 rounded-lg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                       title="Dupliquer"
                     >
                       <Copy className="w-4 h-4 text-gray-500" />
                     </button>
                     <button
                       onClick={(e) => handleDelete(session.id, e)}
-                      className="p-2 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-2 hover:bg-red-50 rounded-lg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                       title="Supprimer"
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
@@ -893,19 +894,12 @@ export default function Sessions() {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="label">Donneur d'ordre (OF) *</label>
-                      <select value={formData.client_id} onChange={(e) => setFormData({ ...formData, client_id: e.target.value })} className="input" required>
-                        <option value="">Sélectionner...</option>
-                        <optgroup label=" Organismes de formation">
-                          {clients.filter(c => c.client_type === 'organisme_formation').map(client => (
-                            <option key={client.id} value={client.id}>{client.name}</option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Autres clients">
-                          {clients.filter(c => c.client_type !== 'organisme_formation').map(client => (
-                            <option key={client.id} value={client.id}>{client.name}</option>
-                          ))}
-                        </optgroup>
-                      </select>
+                      <SearchSelect value={formData.client_id} onChange={(v) => setFormData({ ...formData, client_id: v })} required
+                        options={[
+                          ...clientOptions(clients.filter(c => c.client_type === 'organisme_formation')).map(o => ({ ...o, group: 'Organismes de formation' })),
+                          ...clientOptions(clients.filter(c => c.client_type !== 'organisme_formation')).map(o => ({ ...o, group: 'Autres clients' })),
+                        ]}
+                        emptyLabel="Sélectionner..." searchPlaceholder="Nom, ville, SIRET..." aria-label="Client" />
                     </div>
                     <div>
                       <label className="label">Formateur</label>
@@ -1065,34 +1059,22 @@ export default function Sessions() {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Formation *</label>
-                  <select
+                  <SearchSelect
                     value={formData.course_id}
-                    onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
-                    className="input"
+                    onChange={(v) => setFormData({ ...formData, course_id: v })}
                     required
-                  >
-                    <option value="">Sélectionner...</option>
-                    {courses.map(course => (
-                      <option key={course.id} value={course.id}>
-                        {course.title} ({course.duration_hours || course.duration || '?'}h)
-                      </option>
-                    ))}
-                  </select>
+                    options={courseOptions(courses)}
+                    emptyLabel="Sélectionner..." searchPlaceholder="Rechercher une formation..." aria-label="Formation" />
                 </div>
                 
                 <div>
                   <label className="label">Client *</label>
-                  <select
+                  <SearchSelect
                     value={formData.client_id}
-                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                    className="input"
+                    onChange={(v) => setFormData({ ...formData, client_id: v })}
                     required
-                  >
-                    <option value="">Sélectionner...</option>
-                    {clients.map(client => (
-                      <option key={client.id} value={client.id}>{client.name}</option>
-                    ))}
-                  </select>
+                    options={clientOptions(clients)}
+                    emptyLabel="Sélectionner..." searchPlaceholder="Nom, ville, SIRET..." aria-label="Client" />
                 </div>
               </div>
               
@@ -1330,16 +1312,12 @@ export default function Sessions() {
                       className="input pl-8 py-1.5 text-sm"
                     />
                   </div>
-                  <select
+                  <SearchSelect
                     value={traineeClientFilter}
-                    onChange={(e) => setTraineeClientFilter(e.target.value)}
-                    className="input py-1.5 text-sm w-40"
-                  >
-                    <option value="">Toutes entreprises</option>
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setTraineeClientFilter(v)}
+                    className="w-56"
+                    options={clientOptions(clients, { excludeArchived: false })}
+                    emptyLabel="Toutes entreprises" searchPlaceholder="Rechercher une entreprise..." aria-label="Filtrer par entreprise" />
                 </div>
                 
                 {/* Liste stagiaires avec checkboxes */}
@@ -1476,19 +1454,12 @@ export default function Sessions() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-gray-500 block mb-1">Client *</label>
-                        <select value={formData.client_id} onChange={(e) => setFormData({ ...formData, client_id: e.target.value })} className="w-full border rounded-lg px-3 py-1.5 text-sm">
-                          <option value="">Sélectionner...</option>
-                          <optgroup label=" Organismes de formation">
-                            {clients.filter(c => c.client_type === 'organisme_formation').map(c => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="Autres clients">
-                            {clients.filter(c => c.client_type !== 'organisme_formation').map(c => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </optgroup>
-                        </select>
+                        <SearchSelect value={formData.client_id} onChange={(v) => setFormData({ ...formData, client_id: v })}
+                          options={[
+                          ...clientOptions(clients.filter(c => c.client_type === 'organisme_formation')).map(o => ({ ...o, group: 'Organismes de formation' })),
+                          ...clientOptions(clients.filter(c => c.client_type !== 'organisme_formation')).map(o => ({ ...o, group: 'Autres clients' })),
+                        ]}
+                          emptyLabel="Sélectionner..." searchPlaceholder="Nom, ville, SIRET..." aria-label="Client" />
                       </div>
                       <div>
                         <label className="text-xs text-gray-500 block mb-1">Formateur</label>
@@ -1515,10 +1486,9 @@ export default function Sessions() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
                       <label className="text-xs text-gray-500 block mb-1">Client *</label>
-                      <select value={formData.client_id} onChange={(e) => setFormData({ ...formData, client_id: e.target.value })} className="w-full border rounded-lg px-2 py-1.5 text-sm">
-                        <option value="">Sélectionner...</option>
-                        {clients.filter(c => c.status !== 'inactif').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
+                      <SearchSelect value={formData.client_id} onChange={(v) => setFormData({ ...formData, client_id: v })}
+                        options={clientOptions(clients.filter(c => c.status !== 'inactif'))}
+                        emptyLabel="Sélectionner..." searchPlaceholder="Nom, ville, SIRET..." aria-label="Client" />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 block mb-1">Formateur</label>

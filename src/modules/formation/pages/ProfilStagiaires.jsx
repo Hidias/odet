@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx-js-style'
+import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 
 export default function ProfilStagiaires() {
   const { sessions, fetchSessions, clients, fetchClients, courses, fetchCourses } = useDataStore()
@@ -515,16 +516,11 @@ export default function ProfilStagiaires() {
               <Building className="w-4 h-4" />
               Client
             </label>
-            <select
+            <SearchSelect
               value={filterClient}
-              onChange={(e) => setFilterClient(e.target.value)}
-              className="input"
-            >
-              <option value="">Tous les clients</option>
-              {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+              onChange={(v) => setFilterClient(v)}
+              options={clientOptions(clients, { excludeArchived: false })}
+              emptyLabel="Tous les clients" searchPlaceholder="Rechercher un client..." aria-label="Filtrer par client" />
           </div>
           
           {/* Formation */}
@@ -533,16 +529,11 @@ export default function ProfilStagiaires() {
               <BookOpen className="w-4 h-4" />
               Formation
             </label>
-            <select
+            <SearchSelect
               value={filterCourse}
-              onChange={(e) => setFilterCourse(e.target.value)}
-              className="input"
-            >
-              <option value="">Toutes les formations</option>
-              {courses.map(c => (
-                <option key={c.id} value={c.id}>{c.title}</option>
-              ))}
-            </select>
+              onChange={(v) => setFilterCourse(v)}
+              options={courseOptions(courses)}
+              emptyLabel="Toutes les formations" searchPlaceholder="Rechercher une formation..." aria-label="Filtrer par formation" />
           </div>
           
           {/* Financement */}

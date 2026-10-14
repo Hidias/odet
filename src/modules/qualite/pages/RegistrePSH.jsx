@@ -10,6 +10,7 @@ import {
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import SearchSelect from '../../../ui/SearchSelect'
 
 // ===== LABELS & ICÔNES =====
 const sourceLabels = {
@@ -401,10 +402,9 @@ export default function RegistrePSH() {
               {/* Session liée */}
               <div>
                 <label className="block text-sm font-medium mb-1">Session liée</label>
-                <select value={formData.session_id} onChange={e => setFormData({ ...formData, session_id: e.target.value })} className="input w-full">
-                  <option value="">Aucune</option>
-                  {sessions.map(s => <option key={s.id} value={s.id}>{s.reference} - {s.courses?.title || ''}</option>)}
-                </select>
+                <SearchSelect value={formData.session_id} onChange={v => setFormData({ ...formData, session_id: v })}
+                  options={sessions.map(s => ({ value: s.id, label: s.reference, hint: s.courses?.title || '' }))}
+                  emptyLabel="Aucune" searchPlaceholder="Référence ou formation..." aria-label="Session" />
               </div>
 
               {/* Besoin fonctionnel */}

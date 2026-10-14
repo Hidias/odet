@@ -9,6 +9,7 @@ import {
   Download, PieChart, Table2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 
 const ratingColor = (value, max = 5) => {
   const percent = (value / max) * 100
@@ -993,16 +994,12 @@ export default function Indicateurs() {
             ))}
           </select>
           
-          <select 
-            className="input input-sm w-48"
+          <SearchSelect
+            className="w-56"
             value={filterClient}
-            onChange={(e) => setFilterClient(e.target.value)}
-          >
-            <option value="">Tous les clients</option>
-            {clients.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+            onChange={(v) => setFilterClient(v)}
+            options={clientOptions(clients, { excludeArchived: false })}
+            emptyLabel="Tous les clients" searchPlaceholder="Rechercher un client..." aria-label="Filtrer par client" />
           
           <select 
             className="input input-sm w-40"
@@ -1469,16 +1466,12 @@ export default function Indicateurs() {
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
-                <select
+                <SearchSelect
                   value={filterCourse}
-                  onChange={(e) => setFilterCourse(e.target.value)}
-                  className="input input-sm w-auto"
-                >
-                  <option value="">Toutes formations</option>
-                  {courses.map(c => (
-                    <option key={c.id} value={c.id}>{c.title}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setFilterCourse(v)}
+                  className="w-64"
+                  options={courseOptions(courses)}
+                  emptyLabel="Toutes formations" searchPlaceholder="Rechercher une formation..." aria-label="Filtrer par formation" />
                 {(filterCSP || filterSituation || filterFunding || filterCourse) && (
                   <button
                     onClick={() => {

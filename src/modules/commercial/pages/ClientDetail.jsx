@@ -12,27 +12,28 @@ import { useAuthStore } from '../../../core/store'
 import { authorFromEmail } from '../../prospection/components/suivi/suiviUtils'
 import { canExportVCard, buildVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 import { publicBaseUrl } from '../../../core/org/orgUtils'
+import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
 const STATUS_OPTIONS = [
-  { value: 'prospect', label: ' Prospect', color: 'bg-orange-100 text-orange-700' },
-  { value: 'en_discussion', label: ' En discussion', color: 'bg-blue-100 text-blue-700' },
-  { value: 'actif', label: ' Actif', color: 'bg-green-100 text-green-700' },
-  { value: 'a_completer', label: ' À compléter', color: 'bg-purple-100 text-purple-700' },
-  { value: 'inactif', label: ' Inactif', color: 'bg-gray-100 text-gray-500' },
+  { value: 'prospect', label: 'Prospect', color: 'bg-orange-100 text-orange-700' },
+  { value: 'en_discussion', label: 'En discussion', color: 'bg-blue-100 text-blue-700' },
+  { value: 'actif', label: 'Actif', color: 'bg-green-100 text-green-700' },
+  { value: 'a_completer', label: 'À compléter', color: 'bg-purple-100 text-purple-700' },
+  { value: 'inactif', label: 'Inactif', color: 'bg-gray-100 text-gray-500' },
 ]
 
 const INTERACTION_TYPES = [
-  { value: 'call', label: ' Appel', icon: Phone, color: 'bg-green-100 text-green-600' },
-  { value: 'email', label: ' Email', icon: Mail, color: 'bg-blue-100 text-blue-600' },
-  { value: 'sms', label: ' SMS', icon: Smartphone, color: 'bg-cyan-100 text-cyan-600' },
-  { value: 'meeting', label: ' Réunion', icon: Calendar, color: 'bg-purple-100 text-purple-600' },
-  { value: 'note', label: ' Note interne', icon: StickyNote, color: 'bg-yellow-100 text-yellow-600' },
-  { value: 'devis', label: ' Devis', icon: FileText, color: 'bg-indigo-100 text-indigo-600' },
-  { value: 'facture', label: ' Facture', icon: Receipt, color: 'bg-teal-100 text-teal-600' },
-  { value: 'relance', label: ' Relance', icon: RefreshCw, color: 'bg-orange-100 text-orange-600' },
+  { value: 'call', label: 'Appel', icon: Phone, color: 'bg-green-100 text-green-600' },
+  { value: 'email', label: 'Email', icon: Mail, color: 'bg-blue-100 text-blue-600' },
+  { value: 'sms', label: 'SMS', icon: Smartphone, color: 'bg-cyan-100 text-cyan-600' },
+  { value: 'meeting', label: 'Réunion', icon: Calendar, color: 'bg-purple-100 text-purple-600' },
+  { value: 'note', label: 'Note interne', icon: StickyNote, color: 'bg-yellow-100 text-yellow-600' },
+  { value: 'devis', label: 'Devis', icon: FileText, color: 'bg-indigo-100 text-indigo-600' },
+  { value: 'facture', label: 'Facture', icon: Receipt, color: 'bg-teal-100 text-teal-600' },
+  { value: 'relance', label: 'Relance', icon: RefreshCw, color: 'bg-orange-100 text-orange-600' },
 ]
 
 
@@ -445,7 +446,8 @@ export default function ClientDetail() {
       default_payment_terms: editForm.default_payment_terms || 'à 30 jours',
       billing_email: editForm.billing_email || null,
       satisfaction_mode: editForm.satisfaction_mode || 'after_session',
-      tva: editForm.tva || null,
+      tva: editForm.vat_exempt ? null : (editForm.tva || null),
+      vat_exempt: !!editForm.vat_exempt,
     }).eq('id', id)
     if (error) return toast.error('Erreur sauvegarde')
     toast.success(wasAutoPromoted ? 'Fiche complétée → statut passé en Prospect ' : 'Client mis à jour', wasAutoPromoted ? { icon: '' } : {})
@@ -968,7 +970,7 @@ export default function ClientDetail() {
                   <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{client.name}</h1>
                 )}
                 {client.siret && <p className="text-xs sm:text-sm text-gray-500 font-mono mt-0.5">SIRET {client.siret}</p>}
-                {client.tva && <p className="text-xs text-gray-400 font-mono mt-0.5">TVA {client.tva}</p>}
+                {client.vat_exempt ? <p className="text-xs text-gray-400 mt-0.5">Non assujetti à la TVA</p> : client.tva && <p className="text-xs text-gray-400 font-mono mt-0.5">TVA {client.tva}</p>}
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
@@ -1106,9 +1108,7 @@ export default function ClientDetail() {
                               )}
                               {!source.isClients && (
                                 <button onClick={() => markDejaClient([item.siren])}
-                                  className="ml-2 text-green-600 hover:text-green-800 font-medium whitespace-nowrap">
-                                  
-                                </button>
+                                  className="ml-2 text-green-600 hover:text-green-800 font-medium whitespace-nowrap">Déjà client</button>
                               )}
                             </div>
                           ))}
@@ -1151,8 +1151,19 @@ export default function ClientDetail() {
                   </button>
                 </div>
               </div>
-              <div><label className="text-xs font-medium text-gray-500 mb-1 block">N° TVA intracommunautaire</label>
-                <input value={editForm.tva || ''} onChange={e => setEditForm({ ...editForm, tva: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border rounded-lg text-sm font-mono" placeholder="FR00000000000" /></div>
+              <div><label className="text-xs font-medium text-gray-500 mb-1 flex items-center justify-between">N° TVA intracommunautaire
+                  {pappersUrl(editForm.siret) && <a href={pappersUrl(editForm.siret)} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-primary-600 hover:underline">Voir sur Pappers</a>}
+                </label>
+                <div className="flex gap-2">
+                  <input value={editForm.vat_exempt ? '' : (editForm.tva || '')} disabled={!!editForm.vat_exempt} onChange={e => setEditForm({ ...editForm, tva: e.target.value.toUpperCase() })} className="flex-1 min-w-0 px-3 py-2 border rounded-lg text-sm font-mono disabled:bg-gray-50" placeholder={editForm.vat_exempt ? 'Non assujetti' : 'FR00000000000'} />
+                  {!editForm.vat_exempt && tvaFromSiren(editForm.siret) && tvaFromSiren(editForm.siret) !== editForm.tva && (
+                    <button type="button" onClick={() => setEditForm({ ...editForm, tva: tvaFromSiren(editForm.siret) })} className="px-3 py-2 border rounded-lg text-xs font-semibold hover:bg-gray-50 whitespace-nowrap">Calculer</button>
+                  )}
+                </div>
+                <label className="flex items-center gap-2 mt-2 text-xs text-gray-600 cursor-pointer">
+                  <input type="checkbox" checked={!!editForm.vat_exempt} onChange={e => setEditForm({ ...editForm, vat_exempt: e.target.checked })} />
+                  Non assujetti à la TVA
+                </label></div>
               <div><label className="text-xs font-medium text-gray-500 mb-1 block">Site web</label>
                 <input value={editForm.website || ''} onChange={e => setEditForm({ ...editForm, website: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="www.example.fr" /></div>
               <div className="col-span-2"><label className="text-xs font-medium text-gray-500 mb-1 block">Adresse</label>
@@ -1199,12 +1210,13 @@ export default function ClientDetail() {
                 <label className="text-xs font-medium text-gray-500 mb-2 block">Type de client</label>
                 <div className="flex gap-2 flex-wrap">
                   {[
-                    { value: 'entreprise', label: ' Entreprise', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                    { value: 'organisme_formation', label: ' Organisme de formation', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-                    { value: 'public', label: ' Établissement public', active: 'bg-teal-500 text-white', inactive: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
-                    { value: 'opco', label: ' OPCO', active: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                    { value: 'entreprise', label: 'Entreprise', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                    { value: 'organisme_formation', label: 'Organisme de formation', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+                    { value: 'public', label: 'Établissement public', active: 'bg-teal-500 text-white', inactive: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
+                    { value: 'opco', label: 'OPCO', active: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                    { value: 'particulier', label: 'Particulier', active: 'bg-gray-700 text-white', inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
                   ].map(s => (
-                    <button key={s.value} type="button" onClick={() => setEditForm({ ...editForm, client_type: s.value })}
+                    <button key={s.value} type="button" onClick={() => setEditForm(s.value === 'particulier' ? { ...editForm, client_type: s.value, vat_exempt: true } : { ...editForm, client_type: s.value })}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${editForm.client_type === s.value ? s.active : s.inactive}`}>
                       {s.label}
                     </button>
@@ -1307,7 +1319,8 @@ export default function ClientDetail() {
                   }`}>
                     {client.client_type === 'organisme_formation' ? ' Organisme de formation' :
                      client.client_type === 'public' ? ' Établissement public' :
-                     client.client_type === 'opco' ? ' OPCO' : client.client_type}
+                     client.client_type === 'opco' ? ' OPCO' :
+                     client.client_type === 'particulier' ? ' Particulier' : client.client_type}
                   </span>
                 </div>
               )}
@@ -1452,7 +1465,7 @@ export default function ClientDetail() {
                         {c.phone && <a href={'tel:' + c.phone} className="text-xs text-gray-500 hover:text-primary-600"> {c.phone}</a>}
                       </div>
                     </div>
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                    <div className="flex gap-0.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0 ml-2">
                       {vcardAllowed && <button onClick={() => exportContactVCard(c)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Enregistrer sur le téléphone (vCard)"><Smartphone className="w-3.5 h-3.5" /></button>}
                       <button onClick={() => openEditContact(c)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Modifier"><Edit className="w-3.5 h-3.5" /></button>
                       <button onClick={() => deleteContact(c.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-white" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -1776,7 +1789,7 @@ export default function ClientDetail() {
                               {item.content && <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-line leading-relaxed">{item.content}</p>}
                             </div>
                             {item.deletable && (
-                              <button onClick={() => deleteInteraction(item.rawId)} className="p-1 text-gray-300 hover:text-red-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => deleteInteraction(item.rawId)} className="p-1 text-gray-300 hover:text-red-500 shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}

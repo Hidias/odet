@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import SirenConflictModal from '../components/SirenConflictModal'
 import { useSirenCheck } from '../lib/useSirenCheck'
 import { canExportVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
+import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
 
 // Formatage nom entreprise (majuscules)
 const formatCompanyName = (value) => {
@@ -50,10 +51,10 @@ const enrichProspectWithAPI = async (name, city) => {
         phone: siege.telephone || '',
         email: siege.email || '',
         website: siege.site_internet || '',
-        tva: company.numero_tva_intra || '',
+        tva: tvaFromSiren(company.siren || siege.siret),
         legal_form: company.forme_juridique || '',
         activity: company.activite_principale || '',
-        naf_code: company.section_activite_principale || '',
+        naf_code: company.activite_principale || '',
         employees: company.tranche_effectif_salarie || '',
         created_date: company.date_creation || ''
       }
@@ -314,6 +315,8 @@ export default function Clients() {
   const { clients, fetchClients, createClient, updateClient, deleteClient } = useDataStore()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  // Entreprises (tous les professionnels) ou particuliers : deux listes séparées
+  const [clientKind, setClientKind] = useState('pro')
   const [sortField, setSortField] = useState('name')
   const [sortDir, setSortDir] = useState('asc')
   const [showForm, setShowForm] = useState(false)
@@ -331,7 +334,7 @@ export default function Clients() {
   const [enriching, setEnriching] = useState(false)
   const fileInputRef = useRef(null)
   const [form, setForm] = useState({
-    name: '', siret: '', address: '', postal_code: '', city: '', tva: '', email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise'
+    name: '', siret: '', address: '', postal_code: '', city: '', tva: '', vat_exempt: false, email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise'
   })
 
   const [autoFilled, setAutoFilled] = useState(false)
@@ -357,7 +360,7 @@ export default function Clients() {
           address: addrParts.join(' ') || f.address,
           postal_code: siege.code_postal || f.postal_code,
           city: (siege.libelle_commune || f.city || '').toUpperCase(),
-          tva: company.numero_tva_intra || f.tva,
+          tva: f.vat_exempt ? '' : (tvaFromSiren(company.siren || clean) || f.tva),
           phone: siege.telephone || f.phone,
           email: siege.email || f.email,
         }))
@@ -421,7 +424,9 @@ export default function Clients() {
     }
   }
 
-  const filtered = clients.filter(c => {
+  const isParticulier = (c) => c.client_type === 'particulier'
+  const kindClients = clients.filter(c => clientKind === 'particulier' ? isParticulier(c) : !isParticulier(c))
+  const filtered = kindClients.filter(c => {
     const searchFields = `${c.name || ''} ${c.siret || ''} ${c.contact_name || ''} ${c.address || ''} ${c.email || ''} ${c.contact_email || ''}`.toLowerCase()
     const matchSearch = !search || searchFields.includes(search.toLowerCase())
     const matchStatus = filterStatus === 'all' ? c.status !== 'archive' : c.status === filterStatus
@@ -444,6 +449,7 @@ export default function Clients() {
         postal_code: client.postal_code || '',
         city: client.city || '',
         tva: client.tva || '',
+        vat_exempt: !!client.vat_exempt,
         email: client.contact_email || client.email || '',
         phone: client.contact_phone || client.phone || '',
         contact_name: client.contact_name || '',
@@ -454,7 +460,7 @@ export default function Clients() {
       })
       setSelectedClient(client)
     } else {
-      setForm({ name: '', siret: '', address: '', postal_code: '', city: '', tva: '', email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise' })
+      setForm({ name: '', siret: '', address: '', postal_code: '', city: '', tva: '', vat_exempt: false, email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise' })
       setAutoFilled(false)
       setSelectedClient(null)
     }
@@ -475,7 +481,8 @@ export default function Clients() {
       name: formatCompanyName(formData.name),
       contact_email: formData.email,
       contact_phone: formData.phone,
-      tva: formData.tva || null,
+      tva: formData.vat_exempt ? null : (formData.tva || null),
+      vat_exempt: !!formData.vat_exempt,
       postal_code: formData.postal_code || null,
       city: formData.city ? formData.city.toUpperCase() : null,
     })
@@ -493,7 +500,8 @@ export default function Clients() {
         name: formatCompanyName(form.name),
         contact_email: form.email,
         contact_phone: form.phone,
-        tva: form.tva || null,
+        tva: form.vat_exempt ? null : (form.tva || null),
+        vat_exempt: !!form.vat_exempt,
         postal_code: form.postal_code || null,
         city: form.city ? form.city.toUpperCase() : null,
       })
@@ -823,6 +831,19 @@ export default function Clients() {
         </div>
       </div>
       
+      <div className="flex gap-1 mb-3 border-b border-gray-200" role="tablist" aria-label="Type de client">
+        {[
+          { key: 'pro', label: 'Entreprises', count: clients.filter(c => !isParticulier(c) && c.status !== 'archive').length },
+          { key: 'particulier', label: 'Particuliers', count: clients.filter(c => isParticulier(c) && c.status !== 'archive').length },
+        ].map(tab => (
+          <button key={tab.key} type="button" role="tab" aria-selected={clientKind === tab.key}
+            onClick={() => { setClientKind(tab.key); setFilterStatus('all') }}
+            className={'px-4 py-2.5 -mb-px text-sm font-semibold border-b-2 transition-colors ' + (clientKind === tab.key ? 'border-primary-600 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-800')}>
+            {tab.label} <span className="ml-1 text-xs font-medium text-gray-400">{tab.count}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="card mb-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex-1 relative">
@@ -837,12 +858,12 @@ export default function Clients() {
           </div>
           <div className="flex bg-gray-100 rounded-lg p-1 gap-0.5">
             {[
-              { key: 'all', label: 'Tous', count: clients.filter(c => c.status !== 'archive').length },
-              { key: 'actif', label: ' Actif', count: clients.filter(c => c.status === 'actif').length, cls: 'text-green-700' },
-              { key: 'en_discussion', label: ' Discussion', count: clients.filter(c => c.status === 'en_discussion').length, cls: 'text-blue-700' },
-              { key: 'prospect', label: ' Prospect', count: clients.filter(c => c.status === 'prospect').length, cls: 'text-orange-700' },
-              { key: 'a_completer', label: ' À compléter', count: clients.filter(c => c.status === 'a_completer').length, cls: 'text-purple-700' },
-              { key: 'archive', label: ' Archivé', count: clients.filter(c => c.status === 'archive').length, cls: 'text-gray-500' },
+              { key: 'all', label: 'Tous', count: kindClients.filter(c => c.status !== 'archive').length },
+              { key: 'actif', label: 'Actif', count: kindClients.filter(c => c.status === 'actif').length, cls: 'text-green-700' },
+              { key: 'en_discussion', label: 'Discussion', count: kindClients.filter(c => c.status === 'en_discussion').length, cls: 'text-blue-700' },
+              { key: 'prospect', label: 'Prospect', count: kindClients.filter(c => c.status === 'prospect').length, cls: 'text-orange-700' },
+              { key: 'a_completer', label: 'À compléter', count: kindClients.filter(c => c.status === 'a_completer').length, cls: 'text-purple-700' },
+              { key: 'archive', label: 'Archivé', count: kindClients.filter(c => c.status === 'archive').length, cls: 'text-gray-500' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setFilterStatus(tab.key)}
                 className={'px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ' + (filterStatus === tab.key ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900')}>
@@ -911,7 +932,7 @@ export default function Clients() {
                   <td className="px-4 py-3">
                     <div className="relative">
                       <button onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === client.id ? null : client.id) }}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       {actionMenuId === client.id && (
@@ -1065,25 +1086,33 @@ export default function Clients() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="label">Nom de l'entreprise *</label>
+                  <label className="label">{form.client_type === 'particulier' ? 'Nom et prénom *' : "Nom de l'entreprise *"}</label>
                   <input className="input" value={form.name} onChange={(e) => setForm({...form, name: formatCompanyName(e.target.value)})} />
                 </div>
                 
+                {form.client_type !== 'particulier' && (
                 <div>
-                  <label className="label flex items-center justify-between">
+                  <label className="label flex items-center justify-between gap-2">
                     SIRET
-                    {siretEnriching && <span className="text-xs text-blue-500 font-normal flex items-center gap-1"><span className="animate-spin inline-block"></span> Recherche INSEE...</span>}
-                    {autoFilled && !siretEnriching && <span className="text-xs text-green-600 font-normal"> Pré-rempli auto</span>}
+                    <span className="flex items-center gap-3">
+                      {siretEnriching && <span className="text-xs text-blue-500 font-normal flex items-center gap-1"><span className="animate-spin inline-block"></span> Recherche INSEE...</span>}
+                      {autoFilled && !siretEnriching && <span className="text-xs text-green-600 font-normal"> Pré-rempli auto</span>}
+                      {pappersUrl(form.siret) && (
+                        <a href={pappersUrl(form.siret)} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-primary-600 hover:underline">Voir sur Pappers</a>
+                      )}
+                    </span>
                   </label>
                   <input className="input font-mono" value={form.siret}
                     onChange={(e) => {
                       const val = e.target.value
-                      setForm({...form, siret: val})
+                      const computed = tvaFromSiren(val)
+                      setForm({...form, siret: val, tva: form.vat_exempt ? '' : (computed || form.tva)})
                       if (val.replace(/\s/g, '').length === 14) enrichBySiret(val)
                     }}
                     placeholder="14 chiffres → pré-remplissage auto"
                   />
                 </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
@@ -1109,11 +1138,21 @@ export default function Clients() {
                     <input type="email" className="input" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
                   </div>
                 </div>
+                {form.client_type !== 'particulier' && (
                 <div>
                   <label className="label">N° TVA intracommunautaire</label>
-                  <input className="input font-mono" value={form.tva} onChange={(e) => setForm({...form, tva: e.target.value.toUpperCase()})} placeholder="FR00000000000" />
+                  <input className="input font-mono disabled:bg-gray-50 disabled:text-gray-400" value={form.vat_exempt ? '' : form.tva} disabled={form.vat_exempt}
+                    onChange={(e) => setForm({...form, tva: e.target.value.toUpperCase()})} placeholder={form.vat_exempt ? 'Non assujetti' : 'FR00000000000'} />
+                  <p className="text-xs text-gray-400 mt-1">Calculé depuis le SIREN pour une entreprise française. Saisie libre pour un client étranger.</p>
+                  <label className="flex items-center gap-2 mt-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4" checked={!!form.vat_exempt}
+                      onChange={(e) => setForm({...form, vat_exempt: e.target.checked, tva: e.target.checked ? '' : (tvaFromSiren(form.siret) || form.tva)})} />
+                    Non assujetti à la TVA (aucun numéro sur les factures)
+                  </label>
                 </div>
+                )}
                 
+                {form.client_type !== 'particulier' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label">Contact principal</label>
@@ -1124,16 +1163,17 @@ export default function Clients() {
                     <input className="input" placeholder="Ex: Directeur" value={form.contact_function} onChange={(e) => setForm({...form, contact_function: e.target.value})} />
                   </div>
                 </div>
+                )}
                 
                 <div className="border-t pt-4">
                   <h4 className="font-medium text-gray-700 mb-3">Statut</h4>
                   <div className="flex gap-2 flex-wrap">
                     {[
-                      { value: 'prospect', label: ' Prospect', active: 'bg-orange-500 text-white', inactive: 'bg-orange-50 text-orange-700 hover:bg-orange-100' },
-                      { value: 'en_discussion', label: ' En discussion', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                      { value: 'actif', label: ' Actif', active: 'bg-green-500 text-white', inactive: 'bg-green-50 text-green-700 hover:bg-green-100' },
-                      { value: 'a_completer', label: ' À compléter', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-                      { value: 'archive', label: ' Archivé', active: 'bg-gray-500 text-white', inactive: 'bg-gray-50 text-gray-500 hover:bg-gray-100' }
+                      { value: 'prospect', label: 'Prospect', active: 'bg-orange-500 text-white', inactive: 'bg-orange-50 text-orange-700 hover:bg-orange-100' },
+                      { value: 'en_discussion', label: 'En discussion', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                      { value: 'actif', label: 'Actif', active: 'bg-green-500 text-white', inactive: 'bg-green-50 text-green-700 hover:bg-green-100' },
+                      { value: 'a_completer', label: 'À compléter', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+                      { value: 'archive', label: 'Archivé', active: 'bg-gray-500 text-white', inactive: 'bg-gray-50 text-gray-500 hover:bg-gray-100' }
                     ].map(s => (
                       <button key={s.value} type="button" onClick={() => setForm({...form, status: s.value})}
                         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.status === s.value ? s.active : s.inactive}`}>
@@ -1147,12 +1187,15 @@ export default function Clients() {
                   <h4 className="font-medium text-gray-700 mb-3">Type de client <span className="text-xs text-gray-400 font-normal">(pour le BPF)</span></h4>
                   <div className="flex gap-2 flex-wrap">
                     {[
-                      { value: 'entreprise', label: ' Entreprise', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                      { value: 'organisme_formation', label: ' Organisme de formation', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-                      { value: 'public', label: ' Établissement public', active: 'bg-teal-500 text-white', inactive: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
-                      { value: 'opco', label: ' OPCO', active: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                      { value: 'entreprise', label: 'Entreprise', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                      { value: 'organisme_formation', label: 'Organisme de formation', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+                      { value: 'public', label: 'Établissement public', active: 'bg-teal-500 text-white', inactive: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
+                      { value: 'opco', label: 'OPCO', active: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                      { value: 'particulier', label: 'Particulier', active: 'bg-gray-700 text-white', inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
                     ].map(s => (
-                      <button key={s.value} type="button" onClick={() => setForm({...form, client_type: s.value})}
+                      <button key={s.value} type="button" onClick={() => setForm(s.value === 'particulier'
+                        ? {...form, client_type: s.value, vat_exempt: true, tva: '', siret: ''}
+                        : {...form, client_type: s.value, vat_exempt: form.client_type === 'particulier' ? false : form.vat_exempt})}
                         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.client_type === s.value ? s.active : s.inactive}`}>
                         {s.label}
                       </button>

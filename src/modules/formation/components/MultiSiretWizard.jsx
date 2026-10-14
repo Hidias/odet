@@ -3,6 +3,7 @@ import { X, Plus, Trash2, Building2, Users, FileCheck, ChevronRight, ChevronLeft
 import { supabase } from '../../../core/supabase'
 import { useDataStore as useStore } from '../../../core/store'
 import toast from 'react-hot-toast'
+import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
 const FUNDING_TYPES = [
   { value: 'none', label: 'Aucun (pas de mention)' },
@@ -548,12 +549,9 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <label className="label">Formation *</label>
-                    <select className="input" value={common.course_id} onChange={e => setCommon({...common, course_id: e.target.value})}>
-                      <option value="">Sélectionner...</option>
-                      {courses.filter(c => c.is_active !== false).map(c => (
-                        <option key={c.id} value={c.id}>{c.code ? `[${c.code}] ` : ''}{c.title}</option>
-                      ))}
-                    </select>
+                    <SearchSelect value={common.course_id} onChange={v => setCommon({...common, course_id: v})}
+                      options={courseOptions(courses.filter(c => c.is_active !== false))}
+                      emptyLabel="Sélectionner..." searchPlaceholder="Rechercher une formation..." aria-label="Formation" />
                   </div>
                   
                   <div>

@@ -26,6 +26,7 @@ import {
   Zap, CheckCircle, XCircle, RefreshCw, Loader, User, Briefcase,
   TrendingUp, Building2, MapPin, ChevronDown, ChevronUp, Copy, Check, Edit3
 } from 'lucide-react'
+import SearchSelect from '../../../ui/SearchSelect'
 
 // ─── Constantes & helpers ───────────────────────────────────────────────────
 
@@ -127,10 +128,10 @@ const DEPT_CENTERS = {
 }
 
 const SORT_MODES = [
-  { id: 'smart', label: ' Priorité' },
-  { id: 'proche', label: ' Proximité' },
-  { id: 'gros', label: ' Effectif' },
-  { id: 'score', label: ' Score' },
+  { id: 'smart', label: 'Priorité' },
+  { id: 'proche', label: 'Proximité' },
+  { id: 'gros', label: 'Effectif' },
+  { id: 'score', label: 'Score' },
 ]
 
 function distanceKm(lat1, lon1, lat2, lon2) {
@@ -869,9 +870,9 @@ export default function EnrichissementRapide() {
         <div className="grid grid-cols-4 gap-2 mb-3">
           {[
             { label: 'Enrichis', val: dbStats.done + sessionStats.done, session: sessionStats.done, color: 'text-primary-600' },
-            { label: ' Tels', val: dbStats.phones + sessionStats.phones, session: sessionStats.phones, color: 'text-green-600' },
-            { label: ' Emails', val: dbStats.emails + sessionStats.emails, session: sessionStats.emails, color: 'text-blue-600' },
-            { label: ' Exclus', val: dbStats.excluded + sessionStats.excluded, session: sessionStats.excluded, color: 'text-red-400' },
+            { label: 'Tels', val: dbStats.phones + sessionStats.phones, session: sessionStats.phones, color: 'text-green-600' },
+            { label: 'Emails', val: dbStats.emails + sessionStats.emails, session: sessionStats.emails, color: 'text-blue-600' },
+            { label: 'Exclus', val: dbStats.excluded + sessionStats.excluded, session: sessionStats.excluded, color: 'text-red-400' },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-lg border border-gray-200 px-3 py-2 text-center">
               <p className={`text-xl font-bold ${s.color}`}>{s.val}</p>
@@ -909,11 +910,8 @@ export default function EnrichissementRapide() {
             <option value="100">≤ 100km</option>
             <option value="150">≤ 150km</option>
           </select>
-          <select value={departementFilter} onChange={(e) => setDepartementFilter(e.target.value)}
-            className="border rounded-md px-2 py-1 text-xs">
-            <option value="">Tous dép.</option>
-            {departements.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+          <SearchSelect value={departementFilter} onChange={(v) => setDepartementFilter(v)} className="w-36"
+            options={departements.map(d => ({ value: d, label: d }))} emptyLabel="Tous dép." searchPlaceholder="Département..." aria-label="Département" />
           <select value={effectifFilter} onChange={(e) => setEffectifFilter(e.target.value)}
             className="border rounded-md px-2 py-1 text-xs">
             <option value="">Effectif</option><option value="1-5">1-5</option><option value="6-19">6-19</option><option value="20-49">20-49</option><option value="50-99">50-99</option><option value="100-249">100-249</option><option value="250+">250+</option>
@@ -1263,9 +1261,7 @@ export default function EnrichissementRapide() {
                       className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
                     {siteWeb && (
                       <button onClick={scrapeWebsite} disabled={scraping}
-                        className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm font-medium whitespace-nowrap">
-                        {scraping ? '' : ''}
-                      </button>
+                        className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm font-medium whitespace-nowrap">{scraping ? 'Recherche...' : 'Chercher sur le site'}</button>
                     )}
                   </div>
                 </div>

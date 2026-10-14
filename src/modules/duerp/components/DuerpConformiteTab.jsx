@@ -256,10 +256,10 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
       {/* ═══ SOUS-NAVIGATION ═══ */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
         {[
-          { id: 'dashboard', label: ' Tableau de bord', count: null },
-          { id: 'equipements', label: ' Équipements', count: equipements.length },
-          { id: 'personnel', label: ' Personnel', count: habilitations.length },
-          { id: 'verifications', label: ' Vérifications', count: verifications.length },
+          { id: 'dashboard', label: 'Tableau de bord', count: null },
+          { id: 'equipements', label: 'Équipements', count: equipements.length },
+          { id: 'personnel', label: 'Personnel', count: habilitations.length },
+          { id: 'verifications', label: 'Vérifications', count: verifications.length },
         ].map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
             className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition ${

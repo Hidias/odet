@@ -14,6 +14,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { generateDuerpPDF, generateDuerpExcel } from '../lib/duerpExport'
 import DuerpConformiteTab from '../components/DuerpConformiteTab'
+import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES - alignées sur le schéma SQL déployé
@@ -980,11 +981,11 @@ export default function DuerpDetail() {
       <div className="border-b border-gray-200 mb-4 overflow-x-auto">
         <div className="flex min-w-max">
           {[
-            { id: 'units',    label: ' Unités',     count: units.length },
-            { id: 'risks',    label: ' Risques',    count: risks.length },
-            { id: 'actions',  label: ' Actions',    count: actions.length },
-            { id: 'conformite', label: ' Conformité' },
-            { id: 'synthese', label: ' Synthèse' },
+            { id: 'units',    label: 'Unités',     count: units.length },
+            { id: 'risks',    label: 'Risques',    count: risks.length },
+            { id: 'actions',  label: 'Actions',    count: actions.length },
+            { id: 'conformite', label: 'Conformité' },
+            { id: 'synthese', label: 'Synthèse' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`pb-3 pt-2 px-3 sm:px-4 text-sm font-medium border-b-2 whitespace-nowrap transition ${
@@ -1751,19 +1752,15 @@ export default function DuerpDetail() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-500">Risque lié</label>
-                  <select value={actionForm.risk_id || ''} onChange={e => setActionForm({ ...actionForm, risk_id: e.target.value || null })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm">
-                    <option value="">- Aucun -</option>
-                    {risks.map(r => <option key={r.id} value={r.id}>{r.danger}</option>)}
-                  </select>
+                  <SearchSelect value={actionForm.risk_id || ''} onChange={v => setActionForm({ ...actionForm, risk_id: v || null })}
+                    options={risks.map(r => ({ value: r.id, label: r.danger || 'Risque sans libellé', hint: r.situation || '' }))}
+                    emptyLabel="- Aucun -" searchPlaceholder="Rechercher un risque..." aria-label="Risque lié" />
                 </div>
                 <div>
                   <label className="text-xs text-gray-500">Formation liée (catalogue Access)</label>
-                  <select value={actionForm.course_id || ''} onChange={e => setActionForm({ ...actionForm, course_id: e.target.value || null })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm">
-                    <option value="">- Aucune -</option>
-                    {courses.map(c => <option key={c.id} value={c.id}> {c.title}</option>)}
-                  </select>
+                  <SearchSelect value={actionForm.course_id || ''} onChange={v => setActionForm({ ...actionForm, course_id: v || null })}
+                    options={courseOptions(courses)}
+                    emptyLabel="- Aucune -" searchPlaceholder="Rechercher une formation..." aria-label="Formation liée" />
                 </div>
                 <div>
                   <label className="text-xs text-gray-500">Statut</label>

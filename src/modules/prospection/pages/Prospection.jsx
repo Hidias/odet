@@ -384,7 +384,7 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
           {rdv.clients?.name || 'Client inconnu'}
         </span>
         <button onClick={(e) => { e.stopPropagation(); onDelete(e, rdv.id) }}
-          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity flex-shrink-0">
+          className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 text-gray-300 hover:text-red-400 transition-opacity flex-shrink-0">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
@@ -439,9 +439,7 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
               </button>
             ))}
             <button onClick={(e) => { e.stopPropagation(); setShowClose(false) }}
-              className="px-2 py-1 text-[10px] text-gray-400 rounded hover:bg-gray-100">
-              
-            </button>
+              className="px-2 py-1 text-[10px] text-gray-400 rounded hover:bg-gray-100">Fermer</button>
           </div>
         </div>
       )}
@@ -490,7 +488,7 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
         </span>
         <button
           onClick={(e) => onDelete(e, rdv.id)}
-          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity flex-shrink-0 mt-0.5"
+          className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 text-gray-300 hover:text-red-400 transition-opacity flex-shrink-0 mt-0.5"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

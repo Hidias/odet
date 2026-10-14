@@ -28,6 +28,8 @@ import StageEmailModal from '../components/StageEmailModal'
 import { SignatureAuditBadge } from '../../../ui/signature/SignaturePad'
 import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionDOPDF } from '../pdf/satisfactionDOPDF'
+import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
+import PickerMenu from '../../../ui/PickerMenu'
 
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
@@ -3195,11 +3197,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             { id: 'presence', label: 'Présence' },
             { id: 'objectifs', label: 'Validation objectifs' },
             { id: 'suivi', label: 'Évaluations' },
-            { id: 'materiel', label: ' Matériel' },
+            { id: 'materiel', label: 'Matériel' },
             { id: 'costs', label: 'Coûts supplémentaires' },
             { id: 'funding', label: ` Financement${sessionFundings.length > 0 ? ` (${sessionFundings.length})` : ''}` },
             { id: 'documents', label: 'Documents' },
-            ...(isSST ? [{ id: 'sst_certification', label: ' Certification SST' }] : []),
+            ...(isSST ? [{ id: 'sst_certification', label: 'Certification SST' }] : []),
             { id: 'positionnement', label: 'Test positionnement' },
             { id: 'scans', label: 'Scans uploadés' },
             { id: 'attendance', label: 'QR Émargement' },
@@ -3602,9 +3604,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                     }`}
                                     title={!hasFullPresence ? 'Présence 100% requise' : ''}
-                                  >
-                                    {isValidated ? '' : '○'}
-                                  </button>
+                                  >{isValidated ? 'Validé' : 'À valider'}</button>
                                   
                                   {/* Commentaire si objectif non acquis */}
                                   {!isValidated && hasFullPresence && (
@@ -3652,25 +3652,16 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 </span>
                               )}
                               {/* Bouton forcer le résultat */}
-                              <div className="relative group">
-                                <button className="text-xs text-gray-400 hover:text-gray-600 px-1" title="Forcer le résultat">
-                                  
-                                </button>
-                                <div className="absolute right-0 mt-1 w-32 bg-white border rounded shadow-lg hidden group-hover:block z-10">
-                                  <button 
-                                    onClick={() => openForceModal(trainee.id, 'acquired')}
-                                    className="block w-full text-left px-3 py-2 text-xs hover:bg-green-50 text-green-700"
-                                  >
-                                    Forcer Acquis
-                                  </button>
-                                  <button 
-                                    onClick={() => openForceModal(trainee.id, 'not_acquired')}
-                                    className="block w-full text-left px-3 py-2 text-xs hover:bg-red-50 text-red-700"
-                                  >
-                                    Forcer Non Acquis
-                                  </button>
-                                </div>
-                              </div>
+                              <PickerMenu
+                                searchable={false}
+                                minWidth={170}
+                                buttonClassName="text-xs text-gray-500 hover:text-gray-800 px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200"
+                                items={[
+                                  { key: 'acquired', label: 'Forcer Acquis' },
+                                  { key: 'not_acquired', label: 'Forcer Non Acquis' },
+                                ]}
+                                onPick={it => openForceModal(trainee.id, it.key)}
+                              >Forcer</PickerMenu>
                             </div>
                           </td>
                         </tr>
@@ -4553,16 +4544,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     {(fundingForm.funder_type === 'opco' || fundingForm.funder_type === 'entreprise') && (
                       <div>
                         <label className="label">Lier à un client existant (optionnel)</label>
-                        <select
-                          className="input"
+                        <SearchSelect
                           value={fundingForm.funder_client_id}
-                          onChange={(e) => handlePrefillClientFunding(e.target.value)}
-                        >
-                          <option value="">- Saisie manuelle -</option>
-                          {clients.filter(c => c.status === 'active' || c.status === 'client').map(c => (
-                            <option key={c.id} value={c.id}>{c.name}{c.siret ? ` (${c.siret})` : ''}</option>
-                          ))}
-                        </select>
+                          onChange={(v) => handlePrefillClientFunding(v)}
+                          options={clientOptions(clients)}
+                          emptyLabel="- Saisie manuelle -" searchPlaceholder="Nom, ville, SIRET..." aria-label="Financeur" />
                       </div>
                     )}
 
@@ -5242,9 +5228,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         onClick={() => handleRegenerateCode(t.id)}
                         className="p-1 hover:bg-gray-100 rounded transition"
                         title="Régénérer le code"
-                      >
-                        
-                      </button>
+                      >Nouveau code</button>
                       {accessCodes[t.id].locked && (
                         <span className="text-xs text-red-600" title="Compte verrouillé"></span>
                       )}
@@ -5296,10 +5280,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     autoFocus
                   />
                 </div>
-                <select value={traineeFilterClient} onChange={(e) => setTraineeFilterClient(e.target.value)} className="input w-full">
-                  <option value="">Toutes les entreprises</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <SearchSelect value={traineeFilterClient} onChange={(v) => setTraineeFilterClient(v)}
+                  options={clientOptions(clients, { excludeArchived: false })}
+                  emptyLabel="Toutes les entreprises" searchPlaceholder="Rechercher une entreprise..." aria-label="Filtrer par entreprise" />
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 {availableTrainees.length === 0 ? <p className="text-gray-500 text-center py-4">Aucun stagiaire disponible</p> : (
@@ -5661,16 +5644,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               </div>
               <div>
                 <label className="label">Entreprise</label>
-                <select 
-                  className="input w-full"
+                <SearchSelect
                   value={newTraineeForm.client_id}
-                  onChange={(e) => setNewTraineeForm(prev => ({ ...prev, client_id: e.target.value }))}
-                >
-                  <option value="">-- Aucune --</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setNewTraineeForm(prev => ({ ...prev, client_id: v }))}
+                  options={clientOptions(clients)}
+                  emptyLabel="-- Aucune --" searchPlaceholder="Rechercher une entreprise..." aria-label="Entreprise" />
               </div>
             </div>
             <div className="flex justify-end gap-2 p-4 border-t">

@@ -7,6 +7,7 @@ import { Loader2, Plus, CalendarPlus, Pencil } from 'lucide-react'
 import { loadContracts, saveContract, generateContractVisits, loadClientsLight, loadSites } from '../lib/itvData'
 import { MONTHS, monthLabel, frShort } from '../lib/schedule'
 import { Sheet, Empty } from '../components/ui'
+import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 
 export default function Contrats({ types }) {
   const [contracts, setContracts] = useState(null)
@@ -86,9 +87,8 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
       footer={<><button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button><button type="button" className="btn btn-primary" onClick={save} disabled={busy}>Enregistrer</button></>}>
       {!contract.client_id && (
         <div><label className="label" htmlFor="ct-client">Client</label>
-          <select id="ct-client" className="select" value={f.client_id} onChange={(e) => setF({ ...f, client_id: e.target.value, site_ids: [] })}>
-            <option value="">Choisir</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? `, ${c.city}` : ''}</option>)}
-          </select></div>
+          <SearchSelect id="ct-client" value={f.client_id} onChange={(v) => setF({ ...f, client_id: v, site_ids: [] })}
+            options={clientOptions(clients)} emptyLabel="Choisir" searchPlaceholder="Rechercher un client..." aria-label="Client" /></div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="sm:col-span-2"><label className="label" htmlFor="ct-label">Intitulé</label><input id="ct-label" className="input" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} /></div>

@@ -10,6 +10,7 @@ import {
 import { format, differenceInHours, differenceInBusinessDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import SearchSelect from '../../../ui/SearchSelect'
 
 const getUserName = (email) => teamFirstNameByEmail(email) || 'Utilisateur'
 
@@ -511,10 +512,9 @@ export default function NonConformites() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Session liée</label>
-                  <select value={formDataNC.session_id} onChange={e => setFormDataNC({...formDataNC, session_id: e.target.value})} className="input w-full">
-                    <option value="">Aucune</option>
-                    {sessions.map(s => <option key={s.id} value={s.id}>{s.reference}</option>)}
-                  </select>
+                  <SearchSelect value={formDataNC.session_id} onChange={v => setFormDataNC({...formDataNC, session_id: v})}
+                    options={sessions.map(s => ({ value: s.id, label: s.reference, hint: [s.courses?.title, s.start_date].filter(Boolean).join(' · ') }))}
+                    emptyLabel="Aucune" searchPlaceholder="Référence de session..." aria-label="Session" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Indicateur Qualiopi</label>
@@ -588,10 +588,9 @@ export default function NonConformites() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Session liée</label>
-                  <select value={formDataRecl.session_id} onChange={e => setFormDataRecl({...formDataRecl, session_id: e.target.value})} className="input w-full">
-                    <option value="">Aucune</option>
-                    {sessions.map(s => <option key={s.id} value={s.id}>{s.reference}</option>)}
-                  </select>
+                  <SearchSelect value={formDataRecl.session_id} onChange={v => setFormDataRecl({...formDataRecl, session_id: v})}
+                    options={sessions.map(s => ({ value: s.id, label: s.reference, hint: [s.courses?.title, s.start_date].filter(Boolean).join(' · ') }))}
+                    emptyLabel="Aucune" searchPlaceholder="Référence de session..." aria-label="Session" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Responsable</label>

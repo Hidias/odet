@@ -14,6 +14,8 @@ import {
   GraduationCap, Calendar, MapPin, Users
 } from 'lucide-react'
 import { money } from '../../../core/utils'
+import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
+import PickerMenu from '../../../ui/PickerMenu'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useRelanceIA } from '../lib/useRelanceIA'
 
@@ -1511,76 +1513,19 @@ export default function Quotes() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
-                  <div className="relative" ref={clientComboRef}>
-                    <div className="relative">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                      <input
-                        type="text"
-                        value={clientSearchTerm}
-                        onChange={(e) => {
-                          setClientSearchTerm(e.target.value)
-                          setShowClientDropdown(true)
-                          if (currentQuote.client_id) {
-                            // User is re-typing → clear selection
-                            const match = clients.find(c => c.id === currentQuote.client_id)
-                            if (match && e.target.value !== match.name) {
-                              setCurrentQuote(prev => ({ ...prev, client_id: '', contact_id: '' }))
-                              setContacts([])
-                            }
-                          }
-                        }}
-                        onFocus={() => setShowClientDropdown(true)}
-                        placeholder="Rechercher un client..."
-                        className={`w-full pl-9 pr-9 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 text-sm ${
-                          currentQuote.client_id ? 'border-green-300 bg-green-50/30' : 'border-gray-200'
-                        }`}
-                      />
-                      {currentQuote.client_id && (
-                        <button onClick={clearClientSelection}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-red-500 transition-colors">
-                          <X size={16} />
-                        </button>
-                      )}
-                    </div>
-                    {showClientDropdown && (
-                      <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-72 overflow-y-auto">
-                        {!clientSearchTerm.trim() && (
-                          <div className="px-3 py-1.5 text-xs font-medium text-gray-400 bg-gray-50 border-b">
-                            Clients récents
-                          </div>
-                        )}
-                        {clientComboResults.length === 0 ? (
-                          <div className="px-4 py-6 text-center text-sm text-gray-400">
-                            Aucun client trouvé pour "{clientSearchTerm}"
-                          </div>
-                        ) : (
-                          clientComboResults.map(c => (
-                            <button key={c.id}
-                              onClick={() => selectClient(c)}
-                              className={`w-full text-left px-3 py-2.5 hover:bg-primary-50 transition-colors border-b border-gray-50 last:border-0 ${
-                                currentQuote.client_id === c.id ? 'bg-primary-50' : ''
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium text-gray-900 text-sm">{c.name}</span>
-                                {c.city && (
-                                  <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{c.postal_code?.slice(0,2)} {c.city}</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3 mt-0.5">
-                                {c.contact_name && (
-                                  <span className="text-xs text-gray-500"> {c.contact_name}</span>
-                                )}
-                                {c.siret && (
-                                  <span className="text-xs text-gray-400 font-mono">{c.siret}</span>
-                                )}
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <SearchSelect
+                    value={currentQuote.client_id || ''}
+                    onChange={v => handleClientChange(v)}
+                    options={(() => {
+                      const recentIds = [...new Set(quotes.map(q => q.client_id).filter(Boolean))].slice(0, 8)
+                      const recent = clientOptions(recentIds.map(id => clients.find(c => c.id === id)).filter(Boolean)).map(o => ({ ...o, group: 'Clients récents' }))
+                      const rest = clientOptions(clients.filter(c => !recentIds.includes(c.id))).map(o => ({ ...o, group: 'Tous les clients' }))
+                      return [...recent, ...rest]
+                    })()}
+                    emptyLabel="- Sélectionner un client -"
+                    searchPlaceholder="Nom, ville, SIRET, contact..."
+                    aria-label="Client"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Contact</label>
@@ -1748,34 +1693,24 @@ export default function Quotes() {
               </div>
               {/* Add buttons - always at bottom after lines */}
               <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                <div className="relative group">
-                  <button className="text-sm px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1">
-                    <Plus size={14} /> Depuis formation
-                  </button>
-                  <div className="absolute left-0 top-full mt-1 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 hidden group-hover:block max-h-64 overflow-y-auto">
-                    {courses.map(c => (
-                      <button key={c.id} onClick={() => addFromCourse(c)}
-                        className="w-full text-left px-4 py-2.5 hover:bg-gray-50 border-b border-gray-100 last:border-0">
-                        <p className="text-sm font-medium text-gray-800">{c.title}</p>
-                        <p className="text-xs text-gray-400">{c.code} · {c.price_ht ? money(c.price_ht) : 'Prix à définir'}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="relative group">
-                  <button className="text-sm px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors flex items-center gap-1">
-                    <Plus size={14} /> Matériel
-                  </button>
-                  <div className="absolute left-0 top-full mt-1 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 hidden group-hover:block">
-                    {predefinedMaterials.map((mat, i) => (
-                      <button key={i} onClick={() => addFromMaterial(mat)}
-                        className="w-full text-left px-4 py-2.5 hover:bg-orange-50 border-b border-gray-100 last:border-0">
-                        <p className="text-sm font-medium text-gray-800">{mat.description_title}</p>
-                        <p className="text-xs text-gray-400">{mat.code} · {mat.description_detail} · {money(mat.unit_price_ht)}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <PickerMenu
+                  buttonClassName="text-sm px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1"
+                  searchPlaceholder="Rechercher une formation..."
+                  emptyText="Aucune formation"
+                  items={courses.map(c => ({ key: c.id, label: c.title, hint: [c.code, c.price_ht ? money(c.price_ht) : 'Prix à définir'].filter(Boolean).join(' · '), course: c }))}
+                  onPick={it => addFromCourse(it.course)}
+                >
+                  <Plus size={14} /> Depuis formation
+                </PickerMenu>
+                <PickerMenu
+                  buttonClassName="text-sm px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors flex items-center gap-1"
+                  searchPlaceholder="Rechercher du matériel..."
+                  emptyText="Aucun matériel"
+                  items={predefinedMaterials.map((mat, i) => ({ key: i, label: mat.description_title, hint: [mat.code, mat.description_detail, money(mat.unit_price_ht)].filter(Boolean).join(' · '), mat }))}
+                  onPick={it => addFromMaterial(it.mat)}
+                >
+                  <Plus size={14} /> Matériel
+                </PickerMenu>
                 <button onClick={addItem}
                   className="text-sm px-3 py-1.5 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors flex items-center gap-1">
                   <Plus size={14} /> Ligne libre
@@ -2244,12 +2179,12 @@ export default function Quotes() {
                           <label className="block text-xs font-medium text-gray-600 mb-1">Créneau</label>
                           <div className="flex flex-wrap gap-1.5">
                             {[
-                              { key: 'matin',    label: ' Matin',      start: '08:00', end: '12:00' },
-                              { key: 'aprem',    label: ' Après-midi', start: '13:00', end: '17:00' },
-                              { key: 'soiree',   label: ' Soirée',     start: '18:00', end: '22:00' },
-                              { key: 'nuit',     label: ' Nuit',       start: '21:00', end: '05:00' },
-                              { key: 'journee',  label: ' Journée',    start: '09:00', end: '17:00' },
-                              { key: 'perso',    label: ' Perso',      start: null,    end: null    },
+                              { key: 'matin',    label: 'Matin',      start: '08:00', end: '12:00' },
+                              { key: 'aprem',    label: 'Après-midi', start: '13:00', end: '17:00' },
+                              { key: 'soiree',   label: 'Soirée',     start: '18:00', end: '22:00' },
+                              { key: 'nuit',     label: 'Nuit',       start: '21:00', end: '05:00' },
+                              { key: 'journee',  label: 'Journée',    start: '09:00', end: '17:00' },
+                              { key: 'perso',    label: 'Perso',      start: null,    end: null    },
                             ].map(p => (
                               <button
                                 key={p.key}
