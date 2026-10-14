@@ -2,10 +2,14 @@
 // Techniciens : comptes du personnel (profiles) cochés dans itv_technicians ; nom et téléphone lus dans le compte.
 
 import { supabase } from '../../../core/supabase'
+import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { profileName } from '../../../core/org/currentOrg'
 import { DEFAULT_OPERATION_LABELS, todayIso } from './schedule'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
+// Listes : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
+const mustAll = async (build, options) => must(await fetchAll(build, options))
+const mustAllIn = async (build, column, ids, options) => must(await fetchAllIn(build, column, ids, options))
 
 // ─── Réglages, types, pièces, techniciens ───
 export async function loadSettings() {
@@ -48,7 +52,7 @@ export async function setTechnician(profileId, on, color) {
 export const setTechnicianColor = async (profileId, color) => must(await supabase.from('itv_technicians').update({ color }).eq('profile_id', profileId))
 
 // ─── Clients et sites (tables existantes) ───
-export const loadClientsLight = async () => must(await supabase.from('clients').select('id, name, city, postal_code, address').order('name'))
+export const loadClientsLight = async () => mustAll(() => supabase.from('clients').select('id, name, city, postal_code, address').order('name'))
 export const loadClient = async (id) => must(await supabase.from('clients').select('id, name, address, postal_code, city, siret, contact_name, contact_phone, contact_email, email').eq('id', id).single())
 export const loadSites = async (clientId) => must(await supabase.from('sites').select('*').eq('client_id', clientId).order('name'))
 export const loadPrimaryContact = async (clientId) => {
@@ -119,9 +123,9 @@ export async function loadEquipmentHistory(equipmentId) {
 /** Opérations déjà faites (pour ne pas reproposer une maintenance additionnelle faite) : { equipment_id: [{ operation, year }] } */
 export async function loadDoneOperations(equipmentIds) {
   if (!equipmentIds.length) return {}
-  const rows = must(await supabase.from('itv_visit_items')
+  const rows = await mustAllIn(() => supabase.from('itv_visit_items')
     .select('equipment_id, operation, result, itv_visits!inner(status, started_at, planned_on)')
-    .in('equipment_id', equipmentIds).neq('operation', 'verification'))
+    .neq('operation', 'verification'), 'equipment_id', equipmentIds)
   const out = {}
   for (const r of rows || []) {
     if (r.itv_visits?.status !== 'terminee' || !['conforme', 'remplace'].includes(r.result)) continue
@@ -133,9 +137,11 @@ export async function loadDoneOperations(equipmentIds) {
 
 // ─── Contrats ───
 export const loadContracts = async (clientId = null) => {
-  let q = supabase.from('itv_contracts').select('*, clients(id, name, city)').order('created_at', { ascending: false })
-  if (clientId) q = q.eq('client_id', clientId)
-  return must(await q)
+  return mustAll(() => {
+    let q = supabase.from('itv_contracts').select('*, clients(id, name, city)').order('created_at', { ascending: false })
+    if (clientId) q = q.eq('client_id', clientId)
+    return q
+  })
 }
 export async function saveContract(c) {
   const row = { ...c, updated_at: new Date().toISOString() }
@@ -148,14 +154,16 @@ export const generateContractVisits = async (contractId, year) => must(await sup
 // ─── Visites ───
 const VISIT_COLS = '*, clients(id, name, city), sites(id, name, address, postal_code, city, latitude, longitude, access_notes), itv_contracts(id, label, annual_price_ht)'
 export async function loadVisits({ from = null, to = null, technicianId = null, status = null, clientId = null, siteId = null } = {}) {
-  let q = supabase.from('itv_visits').select(VISIT_COLS)
-  if (from) q = q.gte('planned_on', from)
-  if (to) q = q.lte('planned_on', to)
-  if (technicianId) q = q.eq('technician_id', technicianId)
-  if (status) q = Array.isArray(status) ? q.in('status', status) : q.eq('status', status)
-  if (clientId) q = q.eq('client_id', clientId)
-  if (siteId) q = q.eq('site_id', siteId)
-  return must(await q.order('planned_on', { ascending: true, nullsFirst: false }).order('route_order'))
+  return mustAll(() => {
+    let q = supabase.from('itv_visits').select(VISIT_COLS)
+    if (from) q = q.gte('planned_on', from)
+    if (to) q = q.lte('planned_on', to)
+    if (technicianId) q = q.eq('technician_id', technicianId)
+    if (status) q = Array.isArray(status) ? q.in('status', status) : q.eq('status', status)
+    if (clientId) q = q.eq('client_id', clientId)
+    if (siteId) q = q.eq('site_id', siteId)
+    return q.order('planned_on', { ascending: true, nullsFirst: false }).order('route_order')
+  })
 }
 export const loadVisit = async (id) => must(await supabase.from('itv_visits').select(VISIT_COLS).eq('id', id).single())
 export const loadVisitItems = async (visitId) => must(await supabase.from('itv_visit_items').select('*').eq('visit_id', visitId))
@@ -221,8 +229,8 @@ export async function shrinkImage(file, max = 1600) {
 // ─── À planifier : sites dont des appareils arrivent à échéance, et visites de contrat non planifiées ───
 export async function loadDueSites(horizonIso) {
   const [eq, open] = await Promise.all([
-    must(await supabase.from('itv_equipment').select('id, site_id, client_id, next_check_on, type_id, itv_equipment_types(name, family)').neq('status', 'retire').lte('next_check_on', horizonIso)),
-    must(await supabase.from('itv_visits').select(VISIT_COLS).in('status', ['a_planifier', 'planifiee', 'en_cours'])),
+    mustAll(() => supabase.from('itv_equipment').select('id, site_id, client_id, next_check_on, type_id, itv_equipment_types(name, family)').neq('status', 'retire').lte('next_check_on', horizonIso)),
+    mustAll(() => supabase.from('itv_visits').select(VISIT_COLS).in('status', ['a_planifier', 'planifiee', 'en_cours'])),
   ])
   const bySite = new Map()
   for (const e of eq || []) {
@@ -244,8 +252,8 @@ export async function loadDueSites(horizonIso) {
   }
   const ids = [...bySite.keys()].filter((id) => !planned.has(id))
   if (!ids.length) return []
-  const sites = must(await supabase.from('sites').select('id, name, address, postal_code, city, latitude, longitude, client_id, clients(id, name)').in('id', ids))
-  const contracts = must(await supabase.from('itv_contracts').select('client_id').eq('status', 'actif'))
+  const sites = await mustAllIn(() => supabase.from('sites').select('id, name, address, postal_code, city, latitude, longitude, client_id, clients(id, name)'), 'id', ids)
+  const contracts = await mustAll(() => supabase.from('itv_contracts').select('client_id').eq('status', 'actif'))
   const withContract = new Set((contracts || []).map((c) => c.client_id))
   return (sites || []).map((s) => ({ ...bySite.get(s.id), site: s, client: s.clients, contract: withContract.has(s.client_id) }))
     .sort((a, b) => (a.first_due || '9999').localeCompare(b.first_due || '9999'))

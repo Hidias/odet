@@ -2,6 +2,7 @@ import { orgReferentHandicap, currentUserName, teamNames } from '../../../core/o
 import { useEffect, useState } from 'react'
 import { useDataStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import {
   Plus, Search, X, Save, Edit, Trash2, Calendar,
   Mail, Phone, FileInput, MessageSquare, User, Building2, Users,
@@ -71,10 +72,10 @@ export default function RegistrePSH() {
   // ===== CHARGEMENT =====
   const loadRequests = async () => {
     setLoading(true)
-    const { data, error } = await supabase
+    const { data, error } = await fetchAll(() => supabase
       .from('psh_requests')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }))
     if (!error) setRequests(data || [])
     else console.error('PSH load error:', error)
     setLoading(false)

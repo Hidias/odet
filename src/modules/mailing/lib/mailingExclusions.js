@@ -11,6 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 
 // NAF des organismes de formation / enseignement (format stocké : « 85.59A »)
 export const OF_NAF = ['85.51Z', '85.52Z', '85.53Z', '85.59A', '85.59B', '85.60Z', '85.42Z', '85.41Z']
@@ -65,8 +66,11 @@ export const FLAG_LABELS = {
  */
 export async function loadMailingExclusions() {
   const [blR, stR] = await Promise.all([
-    supabase.from('mailing_blocklist').select('kind, value, category'),
-    supabase.from('mailing_email_status').select('email, status, flags').or('status.neq.ok,flags.cs.{rgpd}'),
+    // fetchAll OBLIGATOIRE : une liste tronquée à 1 000 lignes laisserait partir
+    // des mails vers des adresses désabonnées, bloquées ou RGPD.
+    fetchAll(() => supabase.from('mailing_blocklist').select('kind, value, category')),
+    // mailing_email_status n'a pas de colonne id : clé primaire = email
+    fetchAll(() => supabase.from('mailing_email_status').select('email, status, flags').or('status.neq.ok,flags.cs.{rgpd}'), { orderBy: 'email' }),
   ])
   if (blR.error) throw blR.error
   if (stR.error) throw stR.error

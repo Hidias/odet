@@ -1,6 +1,7 @@
 import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDistanceToNowStrict, parseISO, isToday, isTomorrow, isBefore, startOfDay, format } from 'date-fns'
@@ -62,13 +63,14 @@ export default function Prospection() {
 
   const loadData = async () => {
     try {
-      const { data, error } = await supabase
+      // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
+      const { data, error } = await fetchAll(() => supabase
         .from('prospect_rdv')
         .select(`
           *,
           clients (id, name, city, proprietaire)
         `)
-        .order('updated_at', { ascending: false })
+        .order('updated_at', { ascending: false }))
       if (error) throw error
       setRdvs(data || [])
     } catch (err) {

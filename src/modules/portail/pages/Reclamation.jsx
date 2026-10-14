@@ -1,4 +1,4 @@
-import { orgDirigeant, orgEmail } from '../../../core/org/currentOrg'
+import { orgEmail } from '../../../core/org/currentOrg'
 import { useState } from 'react'
 import { useBranding } from '../../../core/branding/BrandingProvider'
 import { supabase } from '../../../core/supabase'
@@ -37,39 +37,22 @@ export default function Reclamation() {
     setSessionInfo(null)
     
     try {
-      const { data, error } = await supabase
-        .from('sessions')
-        .select('id, reference, start_date, end_date, course_id')
-        .eq('reference', fullRef)
-        .maybeSingle()
-      
-      console.log('Session lookup:', { fullRef, data, error })
-      
+      // Vérification par fonction publique : le portail ne lit aucune table directement
+      const { data, error } = await supabase.rpc('public_reclamation_session', { p_reference: fullRef })
+
       if (error) {
         console.error('Supabase error:', error)
         setSessionError('Erreur lors de la vérification')
         return
       }
-      
+
       if (!data) {
         setSessionError('Session non trouvée. Vérifiez le numéro.')
         return
       }
-      
-      // Récupérer le titre du cours séparément
-      let courseTitle = 'Formation'
-      if (data.course_id) {
-        const { data: courseData } = await supabase
-          .from('courses')
-          .select('title')
-          .eq('id', data.course_id)
-          .maybeSingle()
-        
-        if (courseData?.title) {
-          courseTitle = courseData.title
-        }
-      }
-      
+
+      const courseTitle = data.title || 'Formation'
+
       setSessionInfo({
         id: data.id,
         reference: data.reference,
@@ -109,49 +92,19 @@ export default function Reclamation() {
     setError('')
     
     try {
-      // Créer la réclamation dans la table reclamations
-      const { error: reclError } = await supabase
-        .from('reclamations')
-        .insert({
-          source: 'stagiaire',
-          canal: 'formulaire',
-          session_id: sessionInfo.id,
-          subject: `Réclamation - ${form.fullName}`,
-          description: `**Réclamation reçue via formulaire public**
+      // Enregistrement et notification par fonction publique
+      const { error: reclError } = await supabase.rpc('public_reclamation_submit', {
+        p_session_id: sessionInfo.id,
+        p_full_name: form.fullName,
+        p_email: form.email,
+        p_phone: form.phone || null,
+        p_company: form.company || null,
+        p_message: form.message,
+      })
 
-**Informations du réclamant:**
-- Nom: ${form.fullName}
-- Email: ${form.email}
-- Téléphone: ${form.phone || 'Non renseigné'}
-- Entreprise: ${form.company || 'Non renseignée'}
-
-**Session concernée:**
-- Référence: ${sessionInfo.reference}
-- Formation: ${sessionInfo.title}
-
-**Message:**
-${form.message}`,
-          status: 'open',
-          responsable: orgDirigeant() || null
-        })
-      
       if (reclError) throw reclError
       
-      // Créer une notification
-      await supabase
-        .from('notifications')
-        .insert({
-          type: 'reclamation',
-          title: 'Nouvelle réclamation reçue',
-          message: `${form.fullName} - ${sessionInfo.reference}`,
-          link: '/non-conformites',
-          metadata: {
-            fullName: form.fullName,
-            email: form.email,
-            sessionRef: sessionInfo.reference
-          }
-        })
-      
+      // La notification est créée par la fonction
       setSubmitted(true)
     } catch (err) {
       console.error('Erreur soumission:', err)

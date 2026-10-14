@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useDataStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
+import { fetchAllIn } from '../../../core/fetchAll'
 import { 
   Users, Download, Filter, Calendar, Building, BookOpen, DollarSign,
   PieChart, BarChart3, TrendingUp, User, Briefcase, Heart, Info
@@ -87,7 +88,8 @@ export default function ProfilStagiaires() {
     const sessionIds = filteredSessions.map(s => s.id)
     
     // Charger les stagiaires des sessions filtrées
-    const { data: sessionTrainees, error } = await supabase
+    // fetchAllIn : lots d'identifiants + pagination complète (pas de troncature à 1 000)
+    const { data: sessionTrainees, error } = await fetchAllIn(() => supabase
       .from('session_trainees')
       .select(`
         session_id,
@@ -102,8 +104,7 @@ export default function ProfilStagiaires() {
           job_title,
           has_disability
         )
-      `)
-      .in('session_id', sessionIds)
+      `), 'session_id', sessionIds)
     
     if (error) {
       console.error('Erreur chargement stagiaires:', error)

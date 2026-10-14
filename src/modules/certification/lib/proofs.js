@@ -4,6 +4,7 @@
 // Les preuves ajoutées à la main (cert_proofs) complètent ces règles.
 
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 
 const filled = (v) => v != null && String(v).trim() !== ''
 
@@ -57,7 +58,10 @@ export async function loadEvidence() {
     count('trainee_evaluations'),
     count('evaluations_cold', (q) => q.not('completed_at', 'is', null)),
     count('trainer_evaluations'),
-    supabase.from('session_emails_sent').select('attachments').then(({ data }) => (data || []).filter((m) => JSON.stringify(m.attachments || '').toLowerCase().includes('satisfaction')).length, () => 0),
+    // Filtre « pièce jointe contenant satisfaction » non exprimable côté PostgREST
+    // (pas de cast jsonb → texte dans un filtre) : fetchAll sur la seule colonne utile,
+    // pour compter TOUS les envois et non les 1 000 premiers.
+    fetchAll(() => supabase.from('session_emails_sent').select('attachments')).then(({ data }) => (data || []).filter((m) => JSON.stringify(m.attachments || '').toLowerCase().includes('satisfaction')).length, () => 0),
     count('reclamations'),
     count('non_conformites'),
     count('quality_alerts', (q) => q.neq('status', 'pending')),

@@ -5698,7 +5698,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           {selectedTraineeInfo.info.ssn_refused ? (
                             <p className="text-sm text-red-600 italic">Refusé par le stagiaire</p>
                           ) : (
-                            <p className="font-mono font-medium text-sm">{selectedTraineeInfo.info.ssn || '-'}</p>
+                            <p className="font-medium text-sm">{selectedTraineeInfo.info.ssn_present ? 'Renseigné (consultable sur la fiche du stagiaire)' : '-'}</p>
                           )}
                         </div>
                       </div>

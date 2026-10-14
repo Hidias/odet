@@ -138,7 +138,8 @@ export default function Trainees() {
         last_name: trainee.last_name || '',
         email: trainee.email || '',
         phone: trainee.phone || '',
-        social_security_number: trainee.social_security_number || '',
+        // Le numéro n'est jamais chargé dans la liste : champ vide = numéro conservé
+        social_security_number: '',
         client_id: trainee.client_id || '',
         notes: trainee.notes || '',
         birth_date: trainee.birth_date || '',
@@ -166,15 +167,15 @@ export default function Trainees() {
     // Log d'audit : consultation fiche stagiaire
     logAudit('view', 'trainee', trainee.id, `${trainee.first_name} ${trainee.last_name}`)
     
-    // Charger le N° sécu déchiffré si le stagiaire en a un
-    if (trainee.social_security_number || trainee.ssn_encrypted) {
+    // Le numéro est lu à la demande, par une fonction réservée à la direction, à la gestion
+    // et au formateur de la session
+    if (trainee.ssn_present) {
       setLoadingSSN(true)
-      const { data } = await getTraineeWithSSN(trainee.id)
-      if (data?.social_security_number) {
+      const { data, error } = await getTraineeWithSSN(trainee.id)
+      if (error) {
+        setDecryptedSSN('Accès réservé à la direction, à la gestion et au formateur de la session')
+      } else if (data?.social_security_number) {
         setDecryptedSSN(data.social_security_number)
-      } else if (trainee.social_security_number) {
-        // Fallback : N° non chiffré (ancien format)
-        setDecryptedSSN(trainee.social_security_number)
       }
       setLoadingSSN(false)
     }
@@ -736,14 +737,14 @@ export default function Trainees() {
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-amber-600 font-medium mb-1">N° Sécurité Sociale (Passeport Prévention)</p>
-                    <span className="text-xs text-green-600 flex items-center gap-1"> Chiffré</span>
+                    <span className="text-xs text-green-600 flex items-center gap-1">Accès protégé</span>
                   </div>
                   {selectedTrainee.refused_ssn ? (
                     <p className="text-sm text-red-600 font-medium">A refusé de communiquer son numéro</p>
                   ) : loadingSSN ? (
-                    <p className="font-mono text-lg text-amber-400">Déchiffrement...</p>
+                    <p className="font-mono text-lg text-amber-400">Chargement...</p>
                   ) : (
-                    <p className="font-mono text-lg font-bold text-amber-800">{decryptedSSN || selectedTrainee.social_security_number || 'Non renseigné'}</p>
+                    <p className="font-mono text-lg font-bold text-amber-800">{decryptedSSN || (selectedTrainee.ssn_present ? 'Renseigné' : 'Non renseigné')}</p>
                   )}
                 </div>
                 {selectedTrainee.notes && (
@@ -841,7 +842,7 @@ export default function Trainees() {
                   <input 
                     type="text" 
                     className="input font-mono" 
-                    placeholder="X XX XX XX XXX XXX XX" 
+                    placeholder={selectedTrainee?.ssn_present ? 'Déjà enregistré : laisser vide pour le conserver' : 'X XX XX XX XXX XXX XX'} 
                     value={form.social_security_number} 
                     onChange={(e) => setForm({...form, social_security_number: e.target.value})}
                     disabled={form.refused_ssn}

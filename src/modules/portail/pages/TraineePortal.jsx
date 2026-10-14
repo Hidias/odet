@@ -225,6 +225,10 @@ export default function TraineePortal() {
   const [quizSummary, setQuizSummary] = useState(null)
 
   const [accessCode, setAccessCode] = useState('')
+  // Ticket délivré par la vérification du code d'accès, exigé ensuite pour lire ou modifier la fiche
+  const [portalTicket, setPortalTicket] = useState(null)
+  // Numéro de sécurité sociale déjà connu : jamais renvoyé, seulement ses 4 derniers chiffres
+  const [ssnOnFile, setSsnOnFile] = useState({ known: false, last4: '' })
   const [codeError, setCodeError] = useState('')
   const [attemptsRemaining, setAttemptsRemaining] = useState(5)
 
@@ -306,6 +310,7 @@ export default function TraineePortal() {
 
   const handleSelectTrainee = (trainee) => {
     setSelectedTrainee(trainee)
+    setPortalTicket(null)
     setAccessCode('')
     setCodeError('')
     setAttemptsRemaining(5 - (trainee.access_code_attempts || 0))
@@ -335,7 +340,8 @@ export default function TraineePortal() {
         setSubmitting(false)
         return
       }
-      await loadTraineeData(selectedTrainee)
+      setPortalTicket(data.ticket || null)
+      await loadTraineeData(selectedTrainee, data.ticket || null)
     } catch (err) {
       console.error('Erreur :', err)
       setCodeError('Erreur lors de la vérification')
@@ -363,9 +369,9 @@ export default function TraineePortal() {
     setCurrentStep('hub')
   }
 
-  const loadTraineeData = async (trainee = selectedTrainee) => {
+  const loadTraineeData = async (trainee = selectedTrainee, ticket = portalTicket) => {
     try {
-      const { data: traineeData, error: traineeError } = await supabase.rpc('load_trainee_data', { p_token: token, p_trainee_id: trainee.id })
+      const { data: traineeData, error: traineeError } = await supabase.rpc('load_trainee_data', { p_token: token, p_trainee_id: trainee.id, p_ticket: ticket })
       if (traineeError) throw traineeError
 
       const infoData = traineeData?.info_sheet
@@ -375,6 +381,7 @@ export default function TraineePortal() {
       const testCompleted = traineeData?.positioning_test_completed || false
 
       setInfoSheet(infoData)
+      setSsnOnFile({ known: !!infoData?.ssn_on_file, last4: infoData?.ssn_last4 || '' })
       setPositioningQuestions(questions)
       setPositioningTestCompleted(testCompleted)
 
@@ -389,7 +396,7 @@ export default function TraineePortal() {
         birth_date_display: birthDateDisplay,
         email: traineeData?.email || trainee.email || '',
         email_refused: trainee.email_refused || infoData?.email_refused || false,
-        ssn: infoData?.ssn || '',
+        ssn: '',
         ssn_refused: infoData?.ssn_refused || false,
         last_training_year: infoData?.last_training_year?.toString() || '',
         highest_diploma: infoData?.highest_diploma || '',
@@ -453,7 +460,7 @@ export default function TraineePortal() {
     else if (!isValidBirthDate(infoForm.birth_date_display)) errors.birth_date = 'Date invalide (format JJ/MM/AAAA)'
     if (!infoForm.ssn_refused) {
       const ssnNumbers = infoForm.ssn.replace(/\s/g, '')
-      if (!ssnNumbers) errors.ssn = 'Numéro requis, ou cochez "Je refuse"'
+      if (!ssnNumbers) { if (!ssnOnFile.known) errors.ssn = 'Numéro requis, ou cochez "Je refuse"' }
       else if (ssnNumbers.length !== 15) errors.ssn = 'Le numéro doit contenir 15 chiffres (13 + clé)'
       else if (!/^\d{15}$/.test(ssnNumbers)) errors.ssn = 'Le numéro ne doit contenir que des chiffres'
       else if (!validateSSNKey(infoForm.ssn)) errors.ssn = 'La clé de contrôle est incorrecte, vérifiez votre numéro'
@@ -481,13 +488,15 @@ export default function TraineePortal() {
         job_title: infoForm.job_title || null,
         gender: infoForm.gender || null,
       }
-      const { error: updateError } = await supabase.rpc('update_trainee_data', { p_token: token, p_trainee_id: selectedTrainee.id, p_data: traineeUpdate })
+      const { error: updateError } = await supabase.rpc('update_trainee_data', { p_token: token, p_trainee_id: selectedTrainee.id, p_data: traineeUpdate, p_ticket: portalTicket })
       if (updateError) throw updateError
-      setSelectedTrainee({ ...selectedTrainee, ...traineeUpdate })
+      const { social_security_number: _ssnSent, ...traineeShown } = traineeUpdate
+      setSelectedTrainee({ ...selectedTrainee, ...traineeShown })
 
       const { error: infoError } = await supabase.rpc('save_trainee_info', {
         p_token: token,
         p_trainee_id: selectedTrainee.id,
+        p_ticket: portalTicket,
         p_data: {
           email: infoForm.email_refused ? null : infoForm.email,
           ssn: infoForm.ssn_refused ? null : infoForm.ssn.replace(/\s/g, ''),
@@ -507,7 +516,11 @@ export default function TraineePortal() {
 
       await supabase.rpc('portal_set_email_refused', { p_token: token, p_trainee_id: selectedTrainee.id, p_refused: !!infoForm.email_refused })
 
-      setInfoSheet({ ...infoForm, filled_at: new Date().toISOString() })
+      const typedSsn = infoForm.ssn.replace(/\s/g, '')
+      if (infoForm.ssn_refused) setSsnOnFile({ known: false, last4: '' })
+      else if (typedSsn) setSsnOnFile({ known: true, last4: typedSsn.slice(-4) })
+      setInfoForm((f) => ({ ...f, ssn: '' }))
+      setInfoSheet({ ...infoForm, ssn: '', filled_at: new Date().toISOString() })
 
       if (positioningQuestions.length > 0 && !positioningTestCompleted) {
         setCurrentStep('hub')
@@ -673,7 +686,7 @@ export default function TraineePortal() {
 
   // ---------------- Vues plein écran ----------------
   if (showDocuments) {
-    return <TraineeDocuments session={session} traineeId={selectedTrainee?.id} onBack={() => setShowDocuments(false)} />
+    return <TraineeDocuments token={token} session={session} traineeId={selectedTrainee?.id} onBack={() => setShowDocuments(false)} />
   }
 
   if (signingPeriod && selectedTrainee) {
@@ -928,9 +941,12 @@ export default function TraineePortal() {
                 <div>
                   <label className={labelClass}>Numéro de Sécurité sociale {!infoForm.ssn_refused && '*'}</label>
                   <input type="text" value={infoForm.ssn} onChange={(e) => setInfoForm({ ...infoForm, ssn: formatSSN(e.target.value) })}
-                    disabled={infoForm.ssn_refused} placeholder={infoForm.ssn_refused ? 'Non communiqué' : '1 23 45 67 890 123 45'} maxLength={21}
+                    disabled={infoForm.ssn_refused} placeholder={infoForm.ssn_refused ? 'Non communiqué' : (ssnOnFile.known ? `Déjà enregistré (se termine par ${ssnOnFile.last4})` : '1 23 45 67 890 123 45')} maxLength={21}
                     className={`${inputClass} font-mono ${infoForm.ssn_refused ? 'bg-gray-50 text-gray-400' : ''}`} />
                   {formErrors.ssn && <p className={errorClass}>{formErrors.ssn}</p>}
+                  {ssnOnFile.known && !infoForm.ssn_refused && !infoForm.ssn && (
+                    <p className="text-ui-sm mt-1 text-gray-500">Numéro déjà enregistré. Laissez vide pour le conserver, ou saisissez-le pour le corriger.</p>
+                  )}
                   {infoForm.ssn && !infoForm.ssn_refused && infoForm.ssn.replace(/\s/g, '').length === 15 && (
                     <p className={`text-ui-sm mt-1 ${validateSSNKey(infoForm.ssn) ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-warning))]'}`}>
                       {validateSSNKey(infoForm.ssn) ? 'Numéro valide' : 'Clé de contrôle incorrecte, vérifiez votre saisie'}

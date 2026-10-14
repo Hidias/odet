@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { Search, Download, Phone, Mail, Globe, Filter, TrendingUp } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useDataStore } from '../../../core/store'
@@ -52,30 +53,53 @@ export default function ProspectionMassive() {
   }, [])
 
   async function loadStats() {
-    const { data, error } = await supabase
-      .from('prospection_massive')
-      .select('enrichment_status, phone, email, departement')
-    
-    if (error) {
+    // Table de ~275 000 lignes : on ne charge plus les lignes (PostgREST les
+    // tronquait à 1 000, d'où des statistiques fausses). Chaque chiffre affiché
+    // est désormais une requête de comptage côté base (head: true, aucune ligne
+    // transférée), avec exactement les mêmes critères qu'avant :
+    //   - « avec téléphone » = valeur non vide (équivalent du test JS `p.phone`) :
+    //     like '_%' exclut NULL et la chaîne vide ;
+    //   - « avec contacts » d'un département = téléphone OU email non vide.
+    const compter = async (filtrer) => {
+      const { count, error } = await filtrer(
+        supabase.from('prospection_massive').select('id', { count: 'exact', head: true })
+      )
+      if (error) throw error
+      return count || 0
+    }
+    const AVEC_TEL = (q) => q.like('phone', '_%')
+    const AVEC_EMAIL = (q) => q.like('email', '_%')
+
+    let total, enriched, pending, withPhone, withEmail, withBoth
+    const byDept = {}
+    try {
+      ;[total, enriched, pending, withPhone, withEmail, withBoth] = await Promise.all([
+        compter((q) => q),
+        compter((q) => q.eq('enrichment_status', 'done')),
+        compter((q) => q.eq('enrichment_status', 'pending')),
+        compter(AVEC_TEL),
+        compter(AVEC_EMAIL),
+        compter((q) => AVEC_EMAIL(AVEC_TEL(q))),
+      ])
+
+      // Par département : 2 comptages par département, par lots de 10 requêtes
+      // simultanées (5 départements × 2) pour ne pas saturer l'API quand la zone couvre toute la France.
+      const depts = Object.keys(DEPARTEMENTS)
+      for (let i = 0; i < depts.length; i += 5) {
+        const lot = depts.slice(i, i + 5)
+        const res = await Promise.all(lot.map(async (dept) => {
+          const [deptTotal, withContacts] = await Promise.all([
+            compter((q) => q.eq('departement', dept)),
+            compter((q) => q.eq('departement', dept).or('phone.like._*,email.like._*')),
+          ])
+          return [dept, { total: deptTotal, withContacts }]
+        }))
+        res.forEach(([dept, v]) => { byDept[dept] = v })
+      }
+    } catch (error) {
       console.error('Erreur stats:', error)
       return
     }
-    
-    const total = data.length
-    const enriched = data.filter(p => p.enrichment_status === 'done').length
-    const pending = data.filter(p => p.enrichment_status === 'pending').length
-    const withPhone = data.filter(p => p.phone).length
-    const withEmail = data.filter(p => p.email).length
-    const withBoth = data.filter(p => p.phone && p.email).length
-    
-    const byDept = {}
-    Object.keys(DEPARTEMENTS).forEach(dept => {
-      const deptData = data.filter(p => p.departement === dept)
-      byDept[dept] = {
-        total: deptData.length,
-        withContacts: deptData.filter(p => p.phone || p.email).length
-      }
-    })
     
     setStats({
       total,
@@ -143,26 +167,31 @@ export default function ProspectionMassive() {
   async function exportCSV() {
     toast('Préparation export CSV...', { duration: 2000 })
     
-    let query = supabase
-      .from('prospection_massive')
-      .select('*')
+    // Requête reconstruite à chaque page : fetchAll pagine jusqu'au bout
+    // (sans lui, l'export était tronqué à 1 000 lignes sans avertissement)
+    const buildQuery = () => {
+      let query = supabase
+        .from('prospection_massive')
+        .select('*')
+      
+      if (selectedDepts.length > 0) {
+        query = query.in('departement', selectedDepts)
+      }
+      if (selectedEffectifs.length > 0) {
+        query = query.in('effectif', selectedEffectifs)
+      }
+      if (contactsFilter === 'with') {
+        query = query.or('phone.not.is.null,email.not.is.null')
+      } else if (contactsFilter === 'without') {
+        query = query.is('phone', null).is('email', null)
+      }
+      if (searchQuery) {
+        query = query.or(`name.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%`)
+      }
+      return query
+    }
     
-    if (selectedDepts.length > 0) {
-      query = query.in('departement', selectedDepts)
-    }
-    if (selectedEffectifs.length > 0) {
-      query = query.in('effectif', selectedEffectifs)
-    }
-    if (contactsFilter === 'with') {
-      query = query.or('phone.not.is.null,email.not.is.null')
-    } else if (contactsFilter === 'without') {
-      query = query.is('phone', null).is('email', null)
-    }
-    if (searchQuery) {
-      query = query.or(`name.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%`)
-    }
-    
-    const { data, error } = await query
+    const { data, error } = await fetchAll(buildQuery)
     
     if (error) {
       toast.error('Erreur export')

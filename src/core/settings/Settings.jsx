@@ -454,7 +454,8 @@ function UsersSection({ isSuperadmin }) {
     setBusy(true)
     try {
       const r = await callApi('/api/admin-users', { action: 'reset', email })
-      setResetLink(r.link); toast.success('Lien de réinitialisation généré')
+      if (r.link) { setResetLink(r.link); toast.success('Lien de réinitialisation généré') }
+      else { setResetLink(null); toast.success('Lien de réinitialisation envoyé par email') }
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
   const remove = async (p) => {

@@ -2,6 +2,7 @@ import { currentUserName } from '../../../core/org/currentOrg'
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { useDataStore } from '../../../core/store'
 import {
   Plus, Search, Shield, Building2, Calendar, MapPin, ChevronDown, ChevronUp,
@@ -143,9 +144,10 @@ export default function DuerpProjects() {
 
       // Compteurs risques par projet
       if (proj?.length) {
-        const { data: risks } = await supabase
+        // fetchAll : compteurs sur TOUS les risques et actions (sinon tronqués à 1 000)
+        const { data: risks } = await fetchAll(() => supabase
           .from('duerp_risks')
-          .select('project_id, risque_brut')
+          .select('project_id, risque_brut'))
         const counts = {}
         ;(risks || []).forEach(r => {
           if (!counts[r.project_id]) counts[r.project_id] = { total: 0, max: 0 }
@@ -154,9 +156,9 @@ export default function DuerpProjects() {
         })
         setRiskCounts(counts)
 
-        const { data: actions } = await supabase
+        const { data: actions } = await fetchAll(() => supabase
           .from('duerp_actions')
-          .select('project_id, statut')
+          .select('project_id, statut'))
         const aCounts = {}
         ;(actions || []).forEach(a => {
           if (!aCounts[a.project_id]) aCounts[a.project_id] = { total: 0, done: 0 }

@@ -3,6 +3,7 @@ import { loadTemplateContext, fillDeep, fillTemplate } from '../../../core/org/t
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { 
   FileText, Download, ChevronDown, ChevronRight, Save, X, Edit,
   Building2, ClipboardList, Table, Users2, BarChart3, CheckSquare,
@@ -421,7 +422,7 @@ export default function QualiteEditables() {
   const loadRegistre = async (table) => {
     setLoadingData(true)
     try {
-      const { data, error } = await supabase.from(table).select('*').order('created_at', { ascending: false })
+      const { data, error } = await fetchAll(() => supabase.from(table).select('*').order('created_at', { ascending: false }))
       if (error) toast.error(`Erreur: ${error.message}`)
       else setRegistreData(prev => ({ ...prev, [table]: data || [] }))
     } catch (e) { console.error(e) }
@@ -435,16 +436,17 @@ export default function QualiteEditables() {
     
     try {
       // Charger TOUTES les sessions avec leurs stagiaires
-      const { data: sessions, error: sessErr } = await supabase
+      // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
+      const { data: sessions, error: sessErr } = await fetchAll(() => supabase
         .from('sessions')
-        .select('id, status, start_date, session_trainees(id)')
+        .select('id, status, start_date, session_trainees(id)'))
       
       if (sessErr) console.error('Sessions error:', sessErr)
       
       // Charger toutes les évaluations à chaud
-      const { data: evalData, error: evalErr } = await supabase
+      const { data: evalData, error: evalErr } = await fetchAll(() => supabase
         .from('trainee_evaluations')
-        .select('*')
+        .select('*'))
       
       if (evalErr) console.error('Evals error:', evalErr)
       
@@ -476,8 +478,8 @@ export default function QualiteEditables() {
         : 'N/A'
       
       // Charger réclamations et NC
-      const { data: recl } = await supabase.from('reclamations').select('id, status')
-      const { data: ncs } = await supabase.from('non_conformites').select('id, status')
+      const { data: recl } = await fetchAll(() => supabase.from('reclamations').select('id, status'))
+      const { data: ncs } = await fetchAll(() => supabase.from('non_conformites').select('id, status'))
       
       const allSessions = sessions || []
       

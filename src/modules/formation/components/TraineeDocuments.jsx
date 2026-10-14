@@ -9,53 +9,28 @@ import toast from 'react-hot-toast'
  * Affiche les documents accessibles via QR code
  */
 
-export default function TraineeDocuments({ session, traineeId, onBack }) {
+export default function TraineeDocuments({ token, session, traineeId, onBack }) {
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState({})
 
   useEffect(() => {
-    const courseId = session?.course_id || session?.courses?.id
-    if (session?.id && courseId) {
-      loadDocuments(courseId)
+    if (token && session?.id) {
+      loadDocuments()
+    } else {
+      setLoading(false)
     }
-  }, [session])
+  }, [session, token])
 
-  const loadDocuments = async (courseId) => {
+  // Documents de la formation activés pour cette session, lus par le jeton du portail
+  const loadDocuments = async () => {
     try {
-      // Charger les documents stagiaires pour cette formation
-      const { data: docData, error: docError } = await supabase
-        .from('course_documents')
-        .select('*')
-        .eq('course_id', courseId)
-        .eq('type', 'document_stagiaire')
-
-      if (docError) throw docError
-
-      if (docData && docData.length > 0) {
-        // Vérifier quels documents sont activés pour cette session
-        const docIds = docData.map(d => d.id)
-        const { data: accessData, error: accessError } = await supabase
-          .from('session_document_access')
-          .select('document_id')
-          .eq('session_id', session.id)
-          .eq('is_active', true)
-          .in('document_id', docIds)
-
-        if (accessError) throw accessError
-
-        if (accessData && accessData.length > 0) {
-          // Ne garder que les documents activés
-          const activeDocIds = new Set(accessData.map(a => a.document_id))
-          setDocuments(docData.filter(d => activeDocIds.has(d.id)))
-        } else {
-          setDocuments([])
-        }
-      } else {
-        setDocuments([])
-      }
+      const { data, error } = await supabase.rpc('portal_documents', { p_token: token })
+      if (error) throw error
+      setDocuments(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Erreur chargement documents:', error)
+      setDocuments([])
     } finally {
       setLoading(false)
     }
@@ -63,16 +38,10 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
 
   const downloadDocument = async (doc) => {
     setDownloading(prev => ({ ...prev, [doc.id]: true }))
-    
+
     try {
-      // Enregistrer le téléchargement pour traçabilité (Qualiopi)
-      await supabase
-        .from('course_document_downloads')
-        .insert([{
-          document_id: doc.id,
-          session_id: session.id,
-          trainee_id: traineeId || null
-        }])
+      // Traçabilité du téléchargement (Qualiopi)
+      await supabase.rpc('portal_log_download', { p_token: token, p_document_id: doc.id, p_trainee_id: traineeId || null })
 
       // Ouvrir le PDF dans un nouvel onglet
       window.open(doc.file_url, '_blank')

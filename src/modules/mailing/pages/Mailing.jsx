@@ -10,6 +10,7 @@
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAllOrThrow as fetchAll, fetchAll as fetchAllResult } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import {
   Send, Plus, ArrowLeft, Loader2, CheckCircle, Square, Play, X, RefreshCw, AlertTriangle,
@@ -60,16 +61,6 @@ const fmtDT = (d) => d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', m
 const fmtD = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-'
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 1000) / 10 : 0
 
-async function fetchAll(build) {
-  const all = []
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await build().range(from, from + 999)
-    if (error) throw error
-    all.push(...(data || []))
-    if (!data || data.length < 1000) break
-  }
-  return all
-}
 
 // Pièce jointe stockée d'une campagne → format attendu par send-mailing-single
 async function loadCampaignAttachment(campaign) {
@@ -236,7 +227,8 @@ function MailingStats() {
     try {
       const [sends, aud] = await Promise.all([
         fetchAll(() => supabase.from('mailing_sends').select('email, replied_at, unsubscribed_at').eq('status', 'sent').not('campaign_id', 'is', null)),
-        fetchAll(() => supabase.from('mailing_audience_v').select('email, nafs, departements')),
+        // Vue sans colonne id : départage sur email (unique, GROUP BY email dans la vue)
+        fetchAll(() => supabase.from('mailing_audience_v').select('email, nafs, departements'), { orderBy: 'email' }),
       ])
       const audMap = new Map(aud.map(a => [a.email, a]))
       const sect = {}, dep = {}
@@ -352,8 +344,9 @@ export default function Mailing() {
   async function loadCampaigns(silent = false) {
     if (!silent) setLoadingCampaigns(true)
     const [{ data }, { data: stats }] = await Promise.all([
-      supabase.from('mailing_campaigns').select('*').order('created_at', { ascending: false }),
-      supabase.from('mailing_campaign_stats_v').select('*'),
+      fetchAllResult(() => supabase.from('mailing_campaigns').select('*').order('created_at', { ascending: false })),
+      // Vue sans colonne id : une ligne par campagne (GROUP BY campaign_id)
+      fetchAllResult(() => supabase.from('mailing_campaign_stats_v').select('*'), { orderBy: 'campaign_id' }),
     ])
     setCampaigns(data || [])
     setStatsMap(Object.fromEntries((stats || []).map(s => [s.campaign_id, s])))
@@ -441,11 +434,11 @@ export default function Mailing() {
         await supabase.from('mailing_sends').update({ status: 'pending', error_message: null })
           .eq('campaign_id', campaign.id).eq('status', 'error')
       }
-      const { data: sends } = await supabase
+      const { data: sends } = await fetchAllResult(() => supabase
         .from('mailing_sends')
         .select('id, email, company_name, unsubscribe_token, vars')
         .eq('campaign_id', campaign.id).eq('status', 'pending')
-        .order('created_at')
+        .order('created_at'))
       const ok = await dropBlockedSends(sends || [])
       if (!ok.length) { toast('Aucun envoi à faire'); setBusy(false); return }
       const attachment = await loadCampaignAttachment(campaign).catch(e => { toast.error(e.message); return null })
@@ -509,9 +502,9 @@ export default function Mailing() {
     try { attachmentFile = await loadCampaignAttachment(c) } catch { /* PJ absente */ }
     let preselectEmails = null
     if (nonRepondants) {
-      const { data } = await supabase.from('mailing_sends')
+      const { data } = await fetchAllResult(() => supabase.from('mailing_sends')
         .select('email').eq('campaign_id', c.id).eq('status', 'sent')
-        .is('replied_at', null).is('unsubscribed_at', null)
+        .is('replied_at', null).is('unsubscribed_at', null))
       preselectEmails = (data || []).map(s => s.email)
       if (!preselectEmails.length) { toast('Aucun non-répondant à relancer'); return }
     }

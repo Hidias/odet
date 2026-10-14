@@ -2,6 +2,7 @@ import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import {
   Save, ArrowLeft, Calendar, Clock, MapPin, User, Phone, Mail,
@@ -122,7 +123,8 @@ export default function ProspectRDVDetail() {
   }, [formData.client_id])
 
   const loadClients = async () => {
-    const { data } = await supabase.from('clients').select('*').order('name')
+    // fetchAll : liste complète des clients (sinon tronquée à 1 000)
+    const { data } = await fetchAll(() => supabase.from('clients').select('*').order('name'))
     setClients(data || [])
   }
 
