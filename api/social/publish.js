@@ -6,6 +6,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { requireUser } from '../_lib/auth.js'
+import { isTestEnvironment } from '../_lib/mailer.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -393,6 +394,11 @@ export default async function handler(req, res) {
   }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Environnement de test : rien n'est publié sur les vrais comptes (les jetons viennent d'une copie de la production)
+  if (isTestEnvironment()) {
+    return res.status(200).json({ success: false, simulation: true, error: 'Environnement de test : publication simulée, rien n\'a été publié' })
   }
 
   try {

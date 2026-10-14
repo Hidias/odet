@@ -6,6 +6,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { requireCronOrUser } from '../_lib/auth.js'
+import { isTestEnvironment } from '../_lib/mailer.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -16,6 +17,9 @@ const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
 
 export default async function handler(req, res) {
   if (!(await requireCronOrUser(req, res))) return
+
+  // Environnement de test : aucune publication programmée n'est envoyée
+  if (isTestEnvironment()) return res.status(200).json({ message: 'Environnement de test : publication désactivée', count: 0 })
 
   try {
     const now = new Date().toISOString()

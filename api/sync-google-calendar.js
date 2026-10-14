@@ -23,6 +23,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHash, createSign } from 'crypto'
 import { requireCronOrUser } from './_lib/auth.js'
+import { isTestEnvironment } from './_lib/mailer.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -765,7 +766,8 @@ export default async function handler(req, res) {
   // ou mettre la variable Vercel GCAL_SYNC_ENABLED à "false"
   const rawFlag = process.env.GCAL_SYNC_ENABLED
   const flag = String(rawFlag || '').trim().toLowerCase()
-  const writesEnabled = flag === 'false' ? false : WRITES_ENABLED
+  // Environnement de test : simulation forcée, rien n'est écrit dans les vrais agendas
+  const writesEnabled = isTestEnvironment() ? false : (flag === 'false' ? false : WRITES_ENABLED)
   const envFlag = rawFlag === undefined ? 'absente' : `présente (${flag})`
   const dryRun = req.query?.dry === 'true' || !writesEnabled
 
