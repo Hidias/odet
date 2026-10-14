@@ -5,12 +5,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Upload, Loader2, AlertTriangle } from 'lucide-react'
-import { useDataStore } from '../../../core/store'
+import { useDataStore, useAuthStore } from '../../../core/store'
 import { importerAccuse, marquerFichier, apiPasseport, telechargerTexte, loadAccuses } from '../lib/ppData'
 import { lireAccuse, frDate, isoDate, daysBetween } from '../lib/rules'
 
 export default function PpFichiers({ fichiers, fichiersSansAccuse, format, reload, today }) {
   const { organization, fetchOrganization } = useDataStore()
+  const { userRole } = useAuthStore()
   const [busy, setBusy] = useState(false)
   const [resultat, setResultat] = useState(null)
   const [accuses, setAccuses] = useState([])
@@ -48,6 +49,15 @@ export default function PpFichiers({ fichiers, fichiersSansAccuse, format, reloa
   }
 
   const alerte = format.regles?.alerte_sans_accuse_jours ?? 15
+
+  const numerosFictifs = async () => {
+    if (!window.confirm('Créer des numéros fictifs chiffrés pour les stagiaires de démonstration qui n\'en ont pas ?')) return
+    try {
+      const r = await apiPasseport('demo-seed')
+      toast.success(`${r.crees} numéro${r.crees > 1 ? 's' : ''} fictif${r.crees > 1 ? 's' : ''} créé${r.crees > 1 ? 's' : ''}, ${r.laisses_sans_numero} stagiaire${r.laisses_sans_numero > 1 ? 's' : ''} laissé${r.laisses_sans_numero > 1 ? 's' : ''} sans numéro`)
+      await reload()
+    } catch (e) { toast.error(e.message) }
+  }
 
   return (
     <div className="space-y-4">
@@ -107,6 +117,13 @@ export default function PpFichiers({ fichiers, fichiersSansAccuse, format, reloa
           </tbody>
         </table>
       </section>
+
+      {organization?.demo_mode && userRole === 'superadmin' && (
+        <section className="card flex flex-wrap items-center gap-3">
+          <p className="text-ui-sm text-gray-700 flex-1">Mode démonstration : numéros fictifs, chiffrés comme les vrais, pour les stagiaires fictifs (environ un sur huit reste sans numéro pour montrer le blocage).</p>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={numerosFictifs}>Créer les numéros fictifs</button>
+        </section>
+      )}
 
       {accuses.length > 0 && (
         <section className="card space-y-1">
