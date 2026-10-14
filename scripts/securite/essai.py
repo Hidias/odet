@@ -58,7 +58,7 @@ create temp view etat_essai as
   select 'contrainte', conrelid::regclass::text || '.' || conname, md5(pg_get_constraintdef(oid))
   from pg_constraint where connamespace = 'public'::regnamespace
   union all
-  select 'déclencheur', tgrelid::regclass::text || '.' || tgname, md5(tgfoid::regprocedure::text || tgenabled)
+  select 'déclencheur', tgrelid::regclass::text || '.' || tgname, md5(tgfoid::regprocedure::text || tgenabled::text)
   from pg_trigger where not tgisinternal and tgrelid in (select oid from pg_class where relnamespace = 'public'::regnamespace)
   union all
   select 'bucket', id, md5(public::text) from storage.buckets
