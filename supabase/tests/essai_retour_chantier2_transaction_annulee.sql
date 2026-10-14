@@ -105,10 +105,14 @@ begin
     and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e');
 
   insert into app.etat_avant_chantier2 (kind, name, definition)
-  select 'table_acl', table_name || '|' || grantee, string_agg(privilege_type, ',' order by privilege_type)
-  from information_schema.role_table_grants
-  where table_schema = 'public' and grantee in ('anon', 'authenticated')
-  group by table_name, grantee;
+  -- Lecture directe des droits (information_schema ne liste pas MAINTAIN, droit de PostgreSQL 17)
+  select 'table_acl', c.relname || '|' || pg_get_userbyid(a.grantee), string_agg(a.privilege_type, ',' order by a.privilege_type)
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  cross join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+  where n.nspname = 'public' and c.relkind in ('r', 'v', 'm', 'p', 'f')
+    and a.grantee in ('anon'::regrole, 'authenticated'::regrole)
+  group by c.relname, a.grantee;
 
   insert into app.etat_avant_chantier2 (kind, name, definition)
   select 'bucket', id, public::text from storage.buckets;
