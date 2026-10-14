@@ -2,6 +2,10 @@
 
 But : ne plus jamais tester sur la production. Chaque branche autre que `main` est publiée par Vercel en **préversion** branchée sur la base **odet-test**, une copie de la production faite à partir d'une sauvegarde de nuit.
 
+> **État au 14/10/2026 : la base odet-test n'existe pas encore.** L'offre gratuite de Supabase limite à 2 projets actifs par personne (odet-gld et la base de test d'Ardoise). Décision reportée : passer en offre Pro, ou mettre Ardoise en pause pendant les essais.
+> En attendant, les préversions restent branchées sur la **production**, comme avant, mais protégées : aucun email ne part vers un vrai destinataire, rien n'est publié sur les réseaux sociaux ni écrit dans Google Agenda. Le bandeau rouge n'apparaît pas (il ne s'affiche que sur une autre base que la production).
+> La suite de ce document décrit le fonctionnement prévu une fois odet-test créée.
+
 Tout se fait depuis GitHub web, Vercel et Supabase. Aucun terminal.
 
 ## 1. Ce qui est en place
