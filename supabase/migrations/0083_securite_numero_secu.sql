@@ -4,6 +4,9 @@
 -- Après :
 --   * le numéro vit dans la table trainee_ssn, sans aucune règle d'accès : seules les fonctions
 --     contrôlées par rôle le lisent ou l'écrivent ;
+--   * partout dans l'application, le numéro n'est affiché que masqué (3 derniers chiffres au plus,
+--     décision du 14/10) : get_trainee_with_ssn renvoie la forme masquée ; le numéro complet ne sort
+--     que côté serveur (déclaration Passeport de prévention) ;
 --   * les anciennes colonnes restent (aucun code existant ne casse) mais un déclencheur déplace
 --     toute valeur écrite vers trainee_ssn et les remet à vide ;
 --   * trainees.ssn_present et trainee_info_sheets.ssn_present disent seulement si le numéro est connu ;
@@ -134,7 +137,7 @@ begin
   end if;
 end $$;
 
--- Lecture du numéro par le personnel autorisé
+-- Lecture du numéro, masqué (3 derniers chiffres), par le personnel autorisé
 create or replace function public.get_trainee_with_ssn(p_id uuid)
 returns table(id uuid, first_name text, last_name text, email text, phone text, social_security_number text,
               client_id uuid, notes text, birth_date date, refused_ssn boolean, has_disability boolean,
@@ -152,7 +155,7 @@ begin
   end if;
   return query
   select t.id, t.first_name::text, t.last_name::text, t.email::text, t.phone::text,
-         (select s.ssn from public.trainee_ssn s where s.trainee_id = t.id),
+         (select repeat('•', greatest(length(s.ssn) - 3, 0)) || right(s.ssn, 3) from public.trainee_ssn s where s.trainee_id = t.id),
          t.client_id, t.notes, t.birth_date, t.refused_ssn, t.has_disability,
          t.disability_details, t.disability_adaptations, t.created_at, t.updated_at
   from public.trainees t

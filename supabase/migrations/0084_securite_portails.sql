@@ -1,7 +1,7 @@
 -- 0084_securite_portails.sql : les portails publics ne passent plus que par des fonctions à jeton (chantier 2).
 -- 1. Portail stagiaire : quand le stagiaire a un code d'accès, la vérification du code délivre un ticket
 --    (valable 12 heures) exigé ensuite pour lire ou modifier ses données. Le numéro de sécurité sociale
---    n'est plus jamais renvoyé : seulement « connu ou non » et ses 4 derniers chiffres.
+--    n'est plus jamais renvoyé : seulement « connu ou non » et ses 3 derniers chiffres (décision du 14/10 : masque au plus restrictif).
 --    Les fonctions gardent leurs noms ; le ticket est un paramètre facultatif ajouté à la fin.
 -- 2. Documents du stagiaire : lus et tracés par portal_documents et portal_log_download
 --    (avant : lecture directe de course_documents et session_document_access par anon).
@@ -127,7 +127,7 @@ begin
       'email', coalesce(v_trainee.email, v_info_sheet.email),
       'ssn', null,
       'ssn_on_file', v_ssn is not null,
-      'ssn_last4', case when v_ssn is not null then right(v_ssn, 4) end,
+      'ssn_last3', case when v_ssn is not null then right(v_ssn, 3) end,
       'ssn_refused', coalesce(v_trainee.refused_ssn, v_info_sheet.ssn_refused, false),
       'csp', coalesce(v_trainee.csp, v_info_sheet.csp),
       'job_title', coalesce(v_trainee.job_title, v_info_sheet.job_title),

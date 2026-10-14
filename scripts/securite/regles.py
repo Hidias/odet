@@ -405,6 +405,29 @@ $f$;
         arr = "array[" + ", ".join(f"'{t}'" for t in tbls) + "]"
         out.append(f"select pg_temp.regles({arr}, {lit(module)},\n"
                    f"  {lit(sel)},\n  {lit(ins)},\n  {lit(upd)},\n  {lit(dele)});")
+    # Passeport de prévention (module passeport, chantier 16) : tables pp_* créées par 0190.
+    # Ligne de matrice validée le 14/10 : SA·AD et DIR·GES lisent, créent, modifient, suppriment ;
+    # tous les autres : aucun accès ; pp_nir : serveur seulement (aucune règle).
+    # Les noms exacts ne sont connus qu'à l'application : la règle s'applique à toutes les tables pp_*.
+    out.append("""
+-- pp_* : Passeport de prévention (module passeport) ; pp_nir : serveur seulement
+do $$
+declare r record;
+begin
+  for r in select p.tablename, p.policyname from pg_policies p
+           where p.schemaname = 'public' and p.tablename like 'pp\\_%' loop
+    execute format('drop policy %I on public.%I', r.policyname, r.tablename);
+  end loop;
+  for r in select tablename from pg_tables where schemaname = 'public' and tablename like 'pp\\_%' loop
+    if r.tablename = 'pp_nir' then
+      execute 'alter table public.pp_nir enable row level security';
+      execute 'revoke all on table public.pp_nir from anon, authenticated';
+    else
+      perform pg_temp.regles(array[r.tablename], 'passeport',
+        '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))');
+    end if;
+  end loop;
+end $$;""")
     out[0] = out[0].replace('@@GRP@@', grp_function())
     out.append("\ninsert into public.schema_migrations (version) values ('0082_securite_regles') on conflict (version) do nothing;\n")
     return "\n".join(out)

@@ -502,4 +502,23 @@ select pg_temp.regles(array['user_planning_events'], null,
   $r$(((select app.grp('int')) and user_id = (select auth.uid())) or (select app.grp('mgr')))$r$,
   $r$(((select app.grp('int')) and user_id = (select auth.uid())) or (select app.grp('mgr')))$r$);
 
+-- pp_* : Passeport de prévention (module passeport) ; pp_nir : serveur seulement
+do $$
+declare r record;
+begin
+  for r in select p.tablename, p.policyname from pg_policies p
+           where p.schemaname = 'public' and p.tablename like 'pp\_%' loop
+    execute format('drop policy %I on public.%I', r.policyname, r.tablename);
+  end loop;
+  for r in select tablename from pg_tables where schemaname = 'public' and tablename like 'pp\_%' loop
+    if r.tablename = 'pp_nir' then
+      execute 'alter table public.pp_nir enable row level security';
+      execute 'revoke all on table public.pp_nir from anon, authenticated';
+    else
+      perform pg_temp.regles(array[r.tablename], 'passeport',
+        '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))');
+    end if;
+  end loop;
+end $$;
+
 insert into public.schema_migrations (version) values ('0082_securite_regles') on conflict (version) do nothing;

@@ -227,8 +227,8 @@ export default function TraineePortal() {
   const [accessCode, setAccessCode] = useState('')
   // Ticket délivré par la vérification du code d'accès, exigé ensuite pour lire ou modifier la fiche
   const [portalTicket, setPortalTicket] = useState(null)
-  // Numéro de sécurité sociale déjà connu : jamais renvoyé, seulement ses 4 derniers chiffres
-  const [ssnOnFile, setSsnOnFile] = useState({ known: false, last4: '' })
+  // Numéro de sécurité sociale déjà connu : jamais renvoyé, seulement ses 3 derniers chiffres
+  const [ssnOnFile, setSsnOnFile] = useState({ known: false, last3: '' })
   const [codeError, setCodeError] = useState('')
   const [attemptsRemaining, setAttemptsRemaining] = useState(5)
 
@@ -381,7 +381,7 @@ export default function TraineePortal() {
       const testCompleted = traineeData?.positioning_test_completed || false
 
       setInfoSheet(infoData)
-      setSsnOnFile({ known: !!infoData?.ssn_on_file, last4: infoData?.ssn_last4 || '' })
+      setSsnOnFile({ known: !!infoData?.ssn_on_file, last3: infoData?.ssn_last3 || '' })
       setPositioningQuestions(questions)
       setPositioningTestCompleted(testCompleted)
 
@@ -517,8 +517,8 @@ export default function TraineePortal() {
       await supabase.rpc('portal_set_email_refused', { p_token: token, p_trainee_id: selectedTrainee.id, p_refused: !!infoForm.email_refused })
 
       const typedSsn = infoForm.ssn.replace(/\s/g, '')
-      if (infoForm.ssn_refused) setSsnOnFile({ known: false, last4: '' })
-      else if (typedSsn) setSsnOnFile({ known: true, last4: typedSsn.slice(-4) })
+      if (infoForm.ssn_refused) setSsnOnFile({ known: false, last3: '' })
+      else if (typedSsn) setSsnOnFile({ known: true, last3: typedSsn.slice(-3) })
       setInfoForm((f) => ({ ...f, ssn: '' }))
       setInfoSheet({ ...infoForm, ssn: '', filled_at: new Date().toISOString() })
 
@@ -941,7 +941,7 @@ export default function TraineePortal() {
                 <div>
                   <label className={labelClass}>Numéro de Sécurité sociale {!infoForm.ssn_refused && '*'}</label>
                   <input type="text" value={infoForm.ssn} onChange={(e) => setInfoForm({ ...infoForm, ssn: formatSSN(e.target.value) })}
-                    disabled={infoForm.ssn_refused} placeholder={infoForm.ssn_refused ? 'Non communiqué' : (ssnOnFile.known ? `Déjà enregistré (se termine par ${ssnOnFile.last4})` : '1 23 45 67 890 123 45')} maxLength={21}
+                    disabled={infoForm.ssn_refused} placeholder={infoForm.ssn_refused ? 'Non communiqué' : (ssnOnFile.known ? `Déjà enregistré (se termine par ${ssnOnFile.last3})` : '1 23 45 67 890 123 45')} maxLength={21}
                     className={`${inputClass} font-mono ${infoForm.ssn_refused ? 'bg-gray-50 text-gray-400' : ''}`} />
                   {formErrors.ssn && <p className={errorClass}>{formErrors.ssn}</p>}
                   {ssnOnFile.known && !infoForm.ssn_refused && !infoForm.ssn && (

@@ -167,7 +167,7 @@ begin
       ('ad', 'modifie un gestionnaire', 'with x as (update public.profiles set fonction = fonction where id = ''' || u_ges || ''' returning 1) select count(*) from x', '=1'),
       ('lec', 'modifie son propre profil', 'with x as (update public.profiles set fonction = fonction where id = auth.uid() returning 1) select count(*) from x', '=1'),
       -- Fonctions
-      ('ges', 'lit le numéro de sécurité sociale', 'select count(*) from public.get_trainee_with_ssn(''' || v_tr1 || ''') where social_security_number = ''185057800608436''', '=1'),
+      ('ges', 'lit le numéro de sécurité sociale masqué', 'select count(*) from public.get_trainee_with_ssn(''' || v_tr1 || ''') where social_security_number = ''••••••••••••436''', '=1'),
       ('for', 'lit le numéro d''un stagiaire de sa session', 'select count(*) from public.get_trainee_with_ssn(''' || v_tr1 || ''') where social_security_number is not null', '=1'),
       ('for', 'ne lit pas le numéro hors de ses sessions', 'select count(*) from public.get_trainee_with_ssn(''' || v_tr2 || ''')', 'refus'),
       ('com', 'ne lit pas le numéro de sécurité sociale', 'select count(*) from public.get_trainee_with_ssn(''' || v_tr1 || ''')', 'refus'),
@@ -234,7 +234,7 @@ begin
     select r->>'ticket' into v_ticket from (select public.verify_trainee_access_code(v_st1, v_code) r) x;
     select count(*) into v_n from (select public.load_trainee_data(v_token, v_tr1, v_ticket) d) x
       where d->'info_sheet'->>'ssn' is null and (d->'info_sheet'->>'ssn_on_file')::boolean
-        and d->'info_sheet'->>'ssn_last4' = '8436';
+        and d->'info_sheet'->>'ssn_last3' = '436';
     v_got := v_n::text;
     execute 'reset role';
   exception when others then
@@ -292,6 +292,19 @@ begin
                  group by tablename, cmd, roles having count(*) > 1) then
     v_lines := v_lines || 'OK      base  une seule règle permissive par action et par table'::text;
   else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  une seule règle permissive par action et par table'::text; end if;
+
+  -- Passeport de prévention (si le module est installé) : pp_nir réservée au serveur
+  if to_regclass('public.pp_nir') is not null then
+    v_total := v_total + 2;
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'pp_nir')
+       and not has_table_privilege('authenticated', 'public.pp_nir', 'SELECT') then
+      v_lines := v_lines || 'OK      base  pp_nir : aucune règle, aucun droit pour les comptes connectés'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  pp_nir : aucune règle, aucun droit pour les comptes connectés'::text; end if;
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename like 'pp\_%'
+                   and (coalesce(qual, '') || coalesce(with_check, '')) not like '%app.grp(''mgr'')%') then
+      v_lines := v_lines || 'OK      base  tables pp_* réservées à la direction et à la gestion'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  tables pp_* réservées à la direction et à la gestion'::text; end if;
+  end if;
 
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
