@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
-import { useDataStore } from '../../../core/store'
+import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
 import { Plus, Search, Edit, Trash2, X, Save, Clock, Users, Euro, Copy, Upload, FileSpreadsheet, Package, ChevronDown, ChevronRight, ClipboardList, GraduationCap, FileText, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import TestsPositionnement from './TestsPositionnement'
 import CourseDocumentsList from '../components/CourseDocumentsList'
+import CourseSequencesModal from '../../suivi/components/CourseSequencesModal'
+import { countSequencesByCourse, canEditCatalog } from '../../suivi/lib/sfData'
 
 // Thèmes du matériel
 const EQUIPMENT_THEMES = {
@@ -108,6 +110,13 @@ export default function Courses() {
     courses, fetchCourses, createCourse, updateCourse, deleteCourse, duplicateCourse,
     themes, fetchThemes
   } = useDataStore()
+  // Suivi formatif (module optionnel) : séquences par formation
+  const { modules: enabledModules, userRole } = useAuthStore()
+  const suiviFormatifOn = (enabledModules || []).includes('suivi_formatif')
+  const [sequencesCourse, setSequencesCourse] = useState(null)
+  const [sequenceCounts, setSequenceCounts] = useState({})
+  const reloadSequenceCounts = () => { countSequencesByCourse().then(setSequenceCounts).catch(() => setSequenceCounts({})) }
+  useEffect(() => { if (suiviFormatifOn) reloadSequenceCounts() }, [suiviFormatifOn])
   
   const [search, setSearch] = useState('')
   const [themeFilter, setThemeFilter] = useState('')
@@ -624,6 +633,11 @@ export default function Courses() {
                     <button onClick={() => handleDuplicate(course.id)} className="p-1.5 hover:bg-gray-100 rounded" title="Dupliquer">
                       <Copy className="w-4 h-4 text-gray-500" />
                     </button>
+                    {suiviFormatifOn && (
+                      <button onClick={() => setSequencesCourse(course)} className="p-1.5 hover:bg-gray-100 rounded" title="Séquences et évaluation formative" aria-label="Séquences et évaluation formative">
+                        <ClipboardList className="w-4 h-4 text-gray-500" />
+                      </button>
+                    )}
                     <button onClick={() => openForm(course)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier">
                       <Edit className="w-4 h-4 text-gray-500" />
                     </button>
@@ -642,6 +656,12 @@ export default function Courses() {
                     <Clock className="w-4 h-4" />
                     {course.duration_hours || course.duration || '?'}h
                   </span>
+                  {suiviFormatifOn && sequenceCounts[course.id] > 0 && (
+                    <button type="button" onClick={() => setSequencesCourse(course)} className="flex items-center gap-1 text-primary-600 hover:text-primary-700">
+                      <ClipboardList className="w-4 h-4" />
+                      {sequenceCounts[course.id]} séquence{sequenceCounts[course.id] > 1 ? 's' : ''}{course.formative_enabled ? '' : ' (suivi désactivé)'}
+                    </button>
+                  )}
                   {/* Prix masqué - conservé en base de données */}
                   {course.program_url && (
                     <a
@@ -664,6 +684,16 @@ export default function Courses() {
         </>
       )}
       
+      {/* Séquences et évaluation formative (module Suivi formatif) */}
+      {sequencesCourse && (
+        <CourseSequencesModal
+          course={sequencesCourse}
+          canEdit={canEditCatalog(userRole)}
+          onClose={() => setSequencesCourse(null)}
+          onSaved={() => { reloadSequenceCounts(); fetchCourses() }}
+        />
+      )}
+
       {/* Modal formulaire */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
