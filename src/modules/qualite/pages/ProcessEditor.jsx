@@ -851,11 +851,11 @@ export default function ProcessEditor() {
               </div>
               
               <div className="flex items-center gap-1">
-                <button onClick={handleSaveVersion} disabled={saving} className="flex items-center gap-1 px-2 py-1 bg-[rgb(var(--c-success))] text-white rounded text-ui-sm hover:bg-[rgb(var(--c-success))] disabled:opacity-50">
+                <button onClick={handleSaveVersion} disabled={saving} className="flex items-center gap-1 btn btn-secondary text-ui-sm hover:bg-[rgb(var(--c-success))] disabled:opacity-50">
                   {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Sauver
                 </button>
                 
-                <button onClick={handleExportPNG} className="flex items-center gap-1 px-2 py-1 bg-[rgb(var(--c-info))] text-white rounded text-ui-sm hover:bg-[rgb(var(--c-info))]">
+                <button onClick={handleExportPNG} className="flex items-center gap-1 btn btn-secondary text-ui-sm hover:bg-[rgb(var(--c-info))]">
                   <Image className="w-3 h-3" /> PNG
                 </button>
                 

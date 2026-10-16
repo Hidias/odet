@@ -444,7 +444,7 @@ Exemple :
                 <button
                   onClick={handleSend}
                   disabled={loading}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))] disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 btn btn-secondary disabled:opacity-50"
                 >
                   {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                   Envoyer

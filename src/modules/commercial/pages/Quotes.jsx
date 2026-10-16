@@ -1003,7 +1003,7 @@ export default function Quotes() {
                   </button>
                   <button
                     onClick={() => setRelanceConfirmed(true)}
-                    className="px-6 py-2 bg-[rgb(var(--c-warning))] text-white text-ui font-medium rounded-ui-sm hover:bg-[rgb(var(--c-warning))] flex items-center gap-2"
+                    className="btn btn-secondary text-ui font-medium rounded-ui-sm hover:bg-[rgb(var(--c-warning))] flex items-center gap-2"
                   >
                     <Send size={15} /> Préparer l'envoi…
                   </button>
@@ -1104,7 +1104,7 @@ export default function Quotes() {
                     </span>
                     <button onClick={(e) => { e.stopPropagation(); relanceQuote(q, { senderName: q.created_by || currentUserName() }) }}
                       disabled={relanceGenerating === q.id}
-                      className="text-ui-sm px-3 py-1.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] font-medium flex items-center gap-1 disabled:opacity-60">
+                      className="text-ui-sm btn btn-secondary font-medium flex items-center gap-1 disabled:opacity-60">
                       {relanceGenerating === q.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Relancer
                     </button>
                   </div>
@@ -1421,12 +1421,12 @@ export default function Quotes() {
                 {items.some(it => it.accepted === true) && (
                   <div className="px-4 py-3 bg-[rgb(var(--c-warning-bg))] border-t border-[rgb(var(--c-warning)/0.3)] flex items-center gap-3 flex-wrap">
                     <button onClick={downloadPartialPDF} disabled={generatingPartialPdf}
-                      className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50">
+                      className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50">
                       <Download size={14} /> Bon de commande partiel (PDF)
                     </button>
                     {items.some(it => it.accepted === true && it.course_id) && (
                       <button onClick={() => openSessionWizard(currentQuote)}
-                        className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-success))]">
+                        className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))]">
                         <GraduationCap size={14} /> Générer session(s)
                       </button>
                     )}
@@ -2004,7 +2004,7 @@ export default function Quotes() {
                     <button
                       onClick={generateEmailText}
                       disabled={sendLoading}
-                      className="px-4 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50 flex items-center gap-2"
+                      className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50 flex items-center gap-2"
                     >
                       {sendLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                       {sendEmail.body ? 'Régénérer' : 'Générer'}
@@ -2089,7 +2089,7 @@ export default function Quotes() {
                 <button
                   onClick={handleSendQuoteEmail}
                   disabled={sendSending}
-                  className="px-6 py-2.5 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-success))] transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))] transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {sendSending ? (
                     <><Loader2 size={16} className="animate-spin" /> Envoi en cours...</>
@@ -2323,7 +2323,7 @@ export default function Quotes() {
                 {selectedCount} formation{selectedCount > 1 ? 's' : ''} sélectionnée{selectedCount > 1 ? 's' : ''}
               </span>
               <button onClick={handleCreateSessions} disabled={sessionCreating || selectedCount === 0}
-                className="px-5 py-2.5 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-success))] transition-colors disabled:opacity-50 flex items-center gap-2">
+                className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))] transition-colors disabled:opacity-50 flex items-center gap-2">
                 {sessionCreating ? (
                   <><Loader2 size={16} className="animate-spin" /> Création...</>
                 ) : (

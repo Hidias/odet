@@ -3039,7 +3039,7 @@ function RulesTab({ rules, categories, loadAll }) {
                       </td>
                       <td className="px-3 py-1.5 text-right">
                         <div className="flex gap-1 justify-end">
-                          <button onClick={saveEdit} disabled={saving} className="px-2 py-1 bg-[rgb(var(--c-success))] text-white rounded text-ui-sm hover:bg-[rgb(var(--c-success))] disabled:opacity-50">{saving ? '...' : 'OK'}</button>
+                          <button onClick={saveEdit} disabled={saving} className="btn btn-secondary text-ui-sm hover:bg-[rgb(var(--c-success))] disabled:opacity-50">{saving ? '...' : 'OK'}</button>
                           <button onClick={cancelEdit} className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-ui-sm hover:bg-gray-300">Annuler</button>
                         </div>
                       </td>
@@ -6361,7 +6361,7 @@ function MealGuestModal({ transactionId, transaction, clients, associates = [], 
         <div className="flex gap-2 p-4 border-t bg-gray-50 rounded-b-xl">
           <button onClick={onClose} className="px-4 py-2 border rounded-ui-sm text-ui text-gray-600 hover:bg-gray-100">Annuler</button>
           <div className="flex-1" />
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving} className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50">
             {saving ? '...' : ' Enregistrer'}
           </button>
         </div>
@@ -6509,7 +6509,7 @@ function ProspectCreateModal({ initial, onClose, onCreated }) {
         <div className="flex gap-2 p-4 border-t bg-gray-50 rounded-b-xl">
           <button onClick={onClose} className="px-4 py-2 border rounded-ui-sm text-ui text-gray-600 hover:bg-gray-100">Annuler</button>
           <div className="flex-1" />
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-success))] disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving} className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))] disabled:opacity-50">
             {saving ? '...' : ' Créer le prospect'}
           </button>
         </div>

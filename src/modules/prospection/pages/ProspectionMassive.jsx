@@ -415,7 +415,7 @@ export default function ProspectionMassive() {
           <button
             onClick={exportCSV}
             disabled={total === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
             Exporter CSV

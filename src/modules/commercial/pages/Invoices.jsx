@@ -963,11 +963,11 @@ export default function Invoices() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="page-title">Facturation</h1>
         <div className="flex gap-2 flex-wrap justify-end">
-          <button onClick={() => setShowQuoteSelector(true)} className="px-4 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] flex items-center gap-2 text-ui"><Receipt size={16} />Depuis un devis</button>
-          <button onClick={openSessionSelector} className="px-4 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))] flex items-center gap-2 text-ui"><CheckCircle size={16} />Depuis une session</button>
-          <button onClick={() => handleNew('invoice')} className="px-4 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] flex items-center gap-2 text-ui"><Plus size={16} />Facture libre</button>
-          <button onClick={() => { setGroupedClientSearch(''); setGroupedClientId(''); setGroupedClientOpen(false); setShowGroupedModal(true) }} className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] flex items-center gap-2 text-ui"><Receipt size={16} />Sous-traitance groupée</button>
-          <button onClick={() => handleNew('credit_note')} className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] flex items-center gap-2 text-ui"><Plus size={16} />Avoir</button>
+          <button onClick={() => setShowQuoteSelector(true)} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Depuis un devis</button>
+          <button onClick={openSessionSelector} className="btn btn-secondary flex items-center gap-2 text-ui"><CheckCircle size={16} />Depuis une session</button>
+          <button onClick={() => handleNew('invoice')} className="btn btn-primary flex items-center gap-2 text-ui"><Plus size={16} />Facture libre</button>
+          <button onClick={() => { setGroupedClientSearch(''); setGroupedClientId(''); setGroupedClientOpen(false); setShowGroupedModal(true) }} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Sous-traitance groupée</button>
+          <button onClick={() => handleNew('credit_note')} className="btn btn-secondary flex items-center gap-2 text-ui"><Plus size={16} />Avoir</button>
         </div>
       </div>
 
@@ -1046,7 +1046,7 @@ export default function Invoices() {
                     <td className="px-4 py-3 text-right font-medium">{money(inv.total_ttc)}</td>
                     <td className="px-4 py-3 text-right font-medium">{parseFloat(inv.amount_due) > 0 ? <span className="text-[rgb(var(--c-danger))]">{money(inv.amount_due)}</span> : '-'}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-ui-sm font-medium`} style={toneStyle(st.color)}>{st.label}</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-ui-sm font-medium whitespace-nowrap`} style={toneStyle(st.color)}>{st.label}</span>
                       {odDays > 0 && <span className="text-ui-sm text-[rgb(var(--c-danger))] block">+{odDays}j</span>}
                     </td>
                     <td className="px-4 py-3 text-center text-ui-sm text-gray-500">{inv.due_date ? fmtDateShort(inv.due_date) : '-'}</td>
@@ -1168,7 +1168,7 @@ export default function Invoices() {
               <button
                 onClick={handleSendInvoice}
                 disabled={sendingEmail || !sendForm.to}
-                className="px-5 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50 flex items-center gap-2"
+                className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50 flex items-center gap-2"
               >
                 {sendingEmail ? (
                   <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />Envoi…</>
@@ -1351,7 +1351,7 @@ export default function Invoices() {
             <div className="flex justify-end gap-3 p-4 border-t shrink-0">
               <button onClick={() => setShowGroupedModal(false)} className="px-4 py-2 text-ui text-gray-600 hover:text-gray-800">Annuler</button>
               <button onClick={handleGroupedInvoice} disabled={!groupedSessions.some(s => !s.subcontract_invoiced)}
-                className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] text-ui font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                className="btn btn-secondary text-ui font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 <Receipt size={16} />Générer la facture
               </button>
             </div>
@@ -1377,7 +1377,7 @@ export default function Invoices() {
           {mode === 'view' && (isCr ? current?.status !== 'draft' : !['paid', 'cancelled', 'credited'].includes(current?.status)) && (
             <button
               onClick={() => openSendModal(current)}
-              className="px-3 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui flex items-center gap-1 hover:bg-[rgb(var(--c-info))]"
+              className="btn btn-secondary text-ui flex items-center gap-1 hover:bg-[rgb(var(--c-info))]"
             >
               <Mail size={14} />
               {isCr
@@ -1395,11 +1395,11 @@ export default function Invoices() {
                   <Copy size={14} />Avoir
                 </button>
               )}
-              <button onClick={() => handleEdit(current)} className="px-3 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui flex items-center gap-1"><Pencil size={14} />Modifier</button>
+              <button onClick={() => handleEdit(current)} className="btn btn-secondary text-ui flex items-center gap-1"><Pencil size={14} />Modifier</button>
             </>
           )}
           {(mode === 'create' || mode === 'edit') && (
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui disabled:opacity-50">
+            <button onClick={handleSave} disabled={saving} className="btn btn-secondary text-ui disabled:opacity-50">
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           )}
@@ -1612,7 +1612,7 @@ export default function Invoices() {
                 ? (current.status === 'due' && parseFloat(current.amount_due) > 0.01)
                 : (!['cancelled', 'credited'].includes(current.status) && (current.status !== 'paid' || parseFloat(current.amount_due) > 0.01))
               ) && (
-                <button onClick={() => { setPaymentForm({...paymentForm, amount: parseFloat(current.amount_due) > 0.01 ? current.amount_due : ''}); setShowPaymentForm(true) }} className="px-3 py-1.5 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui-sm flex items-center gap-1">
+                <button onClick={() => { setPaymentForm({...paymentForm, amount: parseFloat(current.amount_due) > 0.01 ? current.amount_due : ''}); setShowPaymentForm(true) }} className="btn btn-secondary text-ui-sm flex items-center gap-1">
                   <CreditCard size={14} />{isCr ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}
                 </button>
               )}
@@ -1639,7 +1639,7 @@ export default function Invoices() {
                 </div>
                 <div className="flex gap-2 mt-3 justify-end">
                   <button onClick={() => setShowPaymentForm(false)} className="px-3 py-1.5 border rounded-ui-sm text-ui">Annuler</button>
-                  <button onClick={handleAddPayment} className="px-4 py-1.5 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui">Valider</button>
+                  <button onClick={handleAddPayment} className="btn btn-secondary text-ui">Valider</button>
                 </div>
               </div>
             )}
@@ -1733,7 +1733,7 @@ export default function Invoices() {
             </div>
             <div className="p-4 border-t flex justify-end gap-3">
               <button onClick={() => setShowSendModal(false)} className="px-4 py-2 border rounded-ui-sm text-ui text-gray-600 hover:bg-gray-50" disabled={sendingEmail}>Annuler</button>
-              <button onClick={handleSendInvoice} disabled={sendingEmail || !sendForm.to} className="px-5 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50 flex items-center gap-2">
+              <button onClick={handleSendInvoice} disabled={sendingEmail || !sendForm.to} className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50 flex items-center gap-2">
                 {sendingEmail
                   ? <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />Envoi…</>
                   : <><Mail size={14} />{sendModalInv.type === 'credit_note' ? (sendModalRelances.length === 0 ? "Envoyer l'avoir" : "Renvoyer l'avoir") : (sendModalRelances.length === 0 ? 'Envoyer' : `Envoyer la relance ${sendModalRelances.length}`)}</>

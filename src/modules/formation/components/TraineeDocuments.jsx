@@ -144,7 +144,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
             {onBack && (
               <button
                 onClick={onBack}
-                className="px-6 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] transition-colors"
+                className="btn btn-secondary transition-colors"
               >
                 Retour à l'accueil
               </button>
@@ -183,7 +183,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
                     <button
                       onClick={() => downloadDocument(doc)}
                       disabled={isDownloading}
-                      className="w-full px-4 py-3 bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full btn btn-secondary transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isDownloading ? (
                         <>

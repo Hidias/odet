@@ -29,7 +29,7 @@ export function Tabs({ tabs, value, onChange, visible = 6, className = '' }) {
 
   return (
     <div className={`tabs ${className}`} role="tablist" style={{ overflow: 'visible' }}>
-      <div className="flex gap-1 overflow-x-auto min-w-0">
+      <div className="flex gap-1 overflow-x-auto min-w-0 tabs-scroll">
         {shown.map((t) => <Tab key={t.id} t={t} />)}
       </div>
       {more.length > 0 && (
