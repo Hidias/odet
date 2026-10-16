@@ -496,7 +496,7 @@ export default function Qualiopi() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="page-title flex items-center gap-3">
             <Award className="w-8 h-8 text-primary-600" />
             Espace Qualiopi
           </h1>

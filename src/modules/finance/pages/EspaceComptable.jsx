@@ -325,7 +325,7 @@ export default function EspaceComptable() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <Calculator className="w-7 h-7 text-gray-800" />
             Espace Comptable
           </h1>

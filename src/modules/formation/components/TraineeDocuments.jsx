@@ -116,7 +116,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-[rgb(var(--c-info-bg))] rounded-full mb-4">
               <FileText className="w-8 h-8 text-[rgb(var(--c-info))]" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="page-title mb-2">
                Documents de formation
             </h1>
             <h2 className="text-lg text-gray-700 mb-1">
