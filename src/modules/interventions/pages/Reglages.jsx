@@ -43,7 +43,7 @@ function TypesSection({ types, setTypes }) {
   return (
     <section className="space-y-3">
       {toConfirm > 0 && (
-        <div className="rounded-ui border border-amber-300 bg-amber-50 p-3 text-ui-sm text-amber-900 flex gap-2">
+        <div className="rounded-ui border border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] p-3 text-ui-sm text-[rgb(var(--c-warning))] flex gap-2">
           <AlertTriangle className="w-4 h-4 flex-none mt-0.5" />
           <span>{toConfirm} type{toConfirm > 1 ? 's' : ''} à confirmer. Les valeurs de départ viennent des textes et des normes (source indiquée sur chaque type) : vérifiez-les selon votre pratique, puis cochez « Valeurs confirmées ».</span>
         </div>
@@ -99,7 +99,7 @@ function TypeForm({ type, onClose, onSaved }) {
   return (
     <Sheet title={type.id ? type.name : 'Nouveau type de matériel'} onClose={onClose} wide
       footer={<>
-        {type.id && <button type="button" className="btn btn-ghost text-red-700 mr-auto" onClick={remove}>Supprimer</button>}
+        {type.id && <button type="button" className="btn btn-ghost text-[rgb(var(--c-danger))] mr-auto" onClick={remove}>Supprimer</button>}
         <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
         <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>Enregistrer</button>
       </>}>

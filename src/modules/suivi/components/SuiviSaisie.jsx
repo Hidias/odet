@@ -21,7 +21,7 @@ function StatusButton({ st, active, fromGroup, onClick, disabled, label }) {
       : { background: st.solid, color: '#FFFFFF', border: `1px solid ${st.solid}` }
   return (
     <button type="button" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={active && !fromGroup}
-      className="min-h-[44px] rounded-lg text-sm font-semibold disabled:opacity-60" style={style}>
+      className="min-h-[44px] rounded-ui-sm text-ui font-semibold disabled:opacity-60" style={style}>
       {st.code}
     </button>
   )
@@ -153,12 +153,12 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
 
   return (
     <div className="flex flex-col min-h-full">
-      <div className="flex items-center justify-between gap-2 px-4 py-2 bg-nav text-nav-fg text-xs">
+      <div className="flex items-center justify-between gap-2 px-4 py-2 bg-nav text-nav-fg text-ui-sm">
         <span className="flex items-center gap-1.5" style={{ color: pill.color }}>
           <pill.icon className="w-3.5 h-3.5" aria-hidden="true" />{pill.text}
         </span>
         <div className="flex items-center gap-3">
-          {lastError && online && <span className="text-red-200">Envoi refusé, nouvel essai</span>}
+          {lastError && online && <span className="text-[rgb(var(--c-danger)/0.6)]">Envoi refusé, nouvel essai</span>}
           <button type="button" onClick={() => setView('epreuve')} className="underline underline-offset-2 min-h-[32px]">Avant l'épreuve</button>
         </div>
       </div>
@@ -169,7 +169,7 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
           return (
             <button key={s.id} type="button" onClick={() => setCurrent(s.id)}
               aria-label={`Séquence ${i + 1}${s.closed_at ? ', terminée' : ''}${isCur ? ', affichée' : ''}`}
-              className={`shrink-0 min-h-[36px] px-3 rounded-full text-[13px] font-semibold border ${isCur ? 'bg-nav text-nav-fg border-transparent' : s.closed_at ? 'bg-green-50 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}>
+              className={`shrink-0 min-h-[36px] px-3 rounded-full text-[13px] font-semibold border ${isCur ? 'bg-nav text-nav-fg border-transparent' : s.closed_at ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)]' : 'bg-white text-gray-600 border-gray-300'}`}>
               {s.closed_at ? '✓ ' : ''}S{i + 1}
             </button>
           )
@@ -179,21 +179,21 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
       {seq && (
         <section className="px-4 py-3 bg-white border-b border-gray-200 space-y-2.5">
           <div className="font-display font-semibold text-base leading-snug">S{seqIndex + 1} · {seq.title}</div>
-          <div className="flex flex-wrap gap-1.5 text-xs">
-            <span className="px-2 py-1 rounded-md bg-nav text-nav-fg">{modalityLabel(seq.modality)}</span>
-            {(seq.competences || []).length > 0 && <span className="px-2 py-1 rounded-md bg-gray-100">{seq.competences.join(' · ')}</span>}
-            {seq.closed_at && <span className="px-2 py-1 rounded-md bg-green-50 text-green-800">Terminée</span>}
+          <div className="flex flex-wrap gap-1.5 text-ui-sm">
+            <span className="px-2 py-1 rounded-ui-sm bg-nav text-nav-fg">{modalityLabel(seq.modality)}</span>
+            {(seq.competences || []).length > 0 && <span className="px-2 py-1 rounded-ui-sm bg-gray-100">{seq.competences.join(' · ')}</span>}
+            {seq.closed_at && <span className="px-2 py-1 rounded-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]">Terminée</span>}
           </div>
-          <div className="rounded-xl bg-gray-50 p-2.5 space-y-1.5">
+          <div className="rounded-ui bg-gray-50 p-2.5 space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-sm">Tout le groupe</span>
+              <span className="font-semibold text-ui">Tout le groupe</span>
               <div className="flex gap-1.5">
                 {STATUSES.map((st) => {
                   const active = seq.group_status === st.key
                   return (
                     <button key={st.key} type="button" onClick={() => setGroup(st.key)} disabled={!canWrite} aria-pressed={active}
                       aria-label={`Tout le groupe : ${st.label}`}
-                      className="w-11 h-11 rounded-lg text-[13px] font-semibold disabled:opacity-60"
+                      className="w-11 h-11 rounded-ui-sm text-[13px] font-semibold disabled:opacity-60"
                       style={active ? { background: st.solid, color: '#fff', border: `1px solid ${st.solid}` } : { background: '#fff', color: '#4B5250', border: '1px solid #D8D8D3' }}>
                       {st.code}
                     </button>
@@ -201,7 +201,7 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
                 })}
               </div>
             </div>
-            <p className="text-xs text-gray-600">
+            <p className="text-ui-sm text-gray-600">
               {seq.group_status ? `Groupe : ${statusOf(seq.group_status).label} · ajusté pour ${adjusted} stagiaire${adjusted > 1 ? 's' : ''} (fond plein)` : 'Pas de note de groupe : touchez un statut pour tout le groupe, puis ajustez les exceptions.'}
             </p>
           </div>
@@ -221,7 +221,7 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
                   <div className="min-w-0">
                     <div className="font-semibold text-[15px] truncate">{fullName(t)}</div>
                     {coverage.hasRoleSequences && (
-                      <div className={`text-xs ${count ? 'text-gray-500' : 'text-amber-700 font-medium'}`}>
+                      <div className={`text-ui-sm ${count ? 'text-gray-500' : 'text-[rgb(var(--c-warning))] font-medium'}`}>
                         {count ? `${principalRole(sequences.find(hasRoles))} ${count} fois` : `Jamais ${String(principalRole(sequences.find(hasRoles)) || 'rôle principal').toLowerCase()}`}
                       </div>
                     )}
@@ -230,12 +230,12 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
                     {hasRoles(seq) && (
                       <button type="button" onClick={() => cycleRole(t)} disabled={!canWrite}
                         aria-label={`Rôle de ${fullName(t)} : ${row?.role || 'aucun'}, toucher pour changer`}
-                        className={`min-h-[44px] px-2.5 rounded-lg text-xs font-semibold border ${row?.role === p ? 'bg-nav text-nav-fg border-transparent' : row?.role ? 'bg-gray-100 border-gray-100' : 'bg-white text-gray-500 border-gray-300'}`}>
+                        className={`min-h-[44px] px-2.5 rounded-ui-sm text-ui-sm font-semibold border ${row?.role === p ? 'bg-nav text-nav-fg border-transparent' : row?.role ? 'bg-gray-100 border-gray-100' : 'bg-white text-gray-500 border-gray-300'}`}>
                         {row?.role || 'Rôle'}
                       </button>
                     )}
                     <button type="button" onClick={() => openSheet(t)} disabled={!canWrite} aria-label={`Remarque pour ${fullName(t)}`}
-                      className="relative w-11 h-11 rounded-lg border border-gray-300 bg-white flex items-center justify-center">
+                      className="relative w-11 h-11 rounded-ui-sm border border-gray-300 bg-white flex items-center justify-center">
                       <MessageSquare className="w-[18px] h-[18px]" aria-hidden="true" />
                       {(row?.remark || (row?.indicators_met || []).length > 0) && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent-500" />}
                     </button>
@@ -247,28 +247,28 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
                       onClick={() => setStatus(t, st.key)} disabled={!canWrite} label={`${fullName(t)} : ${st.label}`} />
                   ))}
                 </div>
-                {row?.remark && !compact && <p className="text-xs text-gray-600">« {row.remark} »</p>}
+                {row?.remark && !compact && <p className="text-ui-sm text-gray-600">« {row.remark} »</p>}
               </li>
             )
           })}
-          {trainees.length === 0 && <li className="py-8 text-center text-sm text-gray-500">Aucun stagiaire présent pour cette séquence</li>}
+          {trainees.length === 0 && <li className="py-8 text-center text-ui text-gray-500">Aucun stagiaire présent pour cette séquence</li>}
         </ul>
       )}
 
       <footer className="sticky bottom-0 bg-white border-t border-gray-200 px-4 pt-2.5 pb-4 space-y-2">
         {coverage.hasRoleSequences && neverNames.length > 0 && (
-          <div className="flex items-start gap-2 text-[13px] px-2.5 py-2 rounded-lg bg-amber-50 text-amber-900">
+          <div className="flex items-start gap-2 text-[13px] px-2.5 py-2 rounded-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
             <span>Jamais {String(principalRole(sequences.find(hasRoles)) || 'en rôle principal').toLowerCase()} : {neverNames.join(', ')}. {remaining} séquence{remaining > 1 ? 's' : ''} pratique{remaining > 1 ? 's' : ''} restante{remaining > 1 ? 's' : ''}.</span>
           </div>
         )}
         {canWrite ? (
           <button type="button" onClick={toggleClose}
-            className={`w-full min-h-[48px] rounded-xl font-semibold text-[15px] flex items-center justify-center gap-2 ${seq?.closed_at ? 'bg-white border border-gray-300 text-gray-800' : 'bg-accent-500 text-white'}`}>
+            className={`w-full min-h-[48px] rounded-ui font-semibold text-[15px] flex items-center justify-center gap-2 ${seq?.closed_at ? 'bg-white border border-gray-300 text-gray-800' : 'bg-accent-500 text-white'}`}>
             {seq?.closed_at ? <><RotateCcw className="w-4 h-4" aria-hidden="true" />Rouvrir la séquence</> : <><Check className="w-4 h-4" aria-hidden="true" />Séquence terminée</>}
           </button>
         ) : (
-          <p className="text-center text-sm text-gray-500">Lecture seule</p>
+          <p className="text-center text-ui text-gray-500">Lecture seule</p>
         )}
       </footer>
 
@@ -280,9 +280,9 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h2 className="font-display font-semibold text-lg">{fullName(sheet.trainee)}</h2>
-                <p className="text-sm text-gray-500">S{seqIndex + 1} · {seq.title}</p>
+                <p className="text-ui text-gray-500">S{seqIndex + 1} · {seq.title}</p>
               </div>
-              <button type="button" onClick={() => setSheet(null)} aria-label="Fermer" className="w-11 h-11 rounded-lg border border-gray-300 flex items-center justify-center"><X className="w-[18px] h-[18px]" /></button>
+              <button type="button" onClick={() => setSheet(null)} aria-label="Fermer" className="w-11 h-11 rounded-ui-sm border border-gray-300 flex items-center justify-center"><X className="w-[18px] h-[18px]" /></button>
             </div>
 
             {hasRoles(seq) && (
@@ -290,7 +290,7 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
                 <legend className="text-[13px] font-semibold text-gray-600 mb-2">Rôle tenu dans la mise en situation</legend>
                 <div className="grid grid-cols-2 gap-2">
                   {['', ...seq.roles].map((r) => (
-                    <label key={r || 'aucun'} className={`min-h-[44px] flex items-center gap-2 px-3 rounded-lg border text-sm ${sheet.role === r ? 'bg-nav text-nav-fg border-transparent font-semibold' : 'border-gray-300'}`}>
+                    <label key={r || 'aucun'} className={`min-h-[44px] flex items-center gap-2 px-3 rounded-ui-sm border text-ui ${sheet.role === r ? 'bg-nav text-nav-fg border-transparent font-semibold' : 'border-gray-300'}`}>
                       <input type="radio" name="sf-role" checked={sheet.role === r} onChange={() => setSheet({ ...sheet, role: r })} />
                       {r || 'Aucun'}
                     </label>
@@ -303,7 +303,7 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
               <fieldset>
                 <legend className="text-[13px] font-semibold text-gray-600 mb-1">Indicateurs de réussite</legend>
                 {seq.success_indicators.map((ind) => (
-                  <label key={ind} className="min-h-[44px] flex items-center gap-2.5 text-sm">
+                  <label key={ind} className="min-h-[44px] flex items-center gap-2.5 text-ui">
                     <input type="checkbox" className="w-5 h-5" checked={sheet.indicators.includes(ind)}
                       onChange={(e) => setSheet({ ...sheet, indicators: e.target.checked ? [...sheet.indicators, ind] : sheet.indicators.filter((x) => x !== ind) })} />
                     {ind}
@@ -322,12 +322,12 @@ export default function SuiviSaisie({ data, canWrite, onReload, compact = false 
               </div>
               <div className="flex gap-2 items-start">
                 <textarea id="sf-remark" rows={2} value={sheet.remark} onChange={(e) => setSheet({ ...sheet, remark: e.target.value })}
-                  className="input flex-1 resize-none text-sm" />
+                  className="input flex-1 resize-none text-ui" />
                 <SpeechToTextButton compact onTranscript={(txt) => setSheet((s) => ({ ...s, remark: s.remark ? `${s.remark} ${txt}` : txt }))} />
               </div>
             </div>
 
-            <button type="button" onClick={saveSheet} className="w-full min-h-[48px] rounded-xl bg-nav text-nav-fg font-semibold">Enregistrer</button>
+            <button type="button" onClick={saveSheet} className="w-full min-h-[48px] rounded-ui bg-nav text-nav-fg font-semibold">Enregistrer</button>
           </section>
         </div>
       )}
@@ -342,40 +342,40 @@ function AvantEpreuve({ coverage, onBack, principal }) {
   return (
     <div className="flex flex-col min-h-full bg-gray-50">
       <div className="px-4 py-3 bg-white border-b border-gray-200">
-        <button type="button" onClick={onBack} className="flex items-center gap-1 text-sm min-h-[40px]"><ChevronLeft className="w-4 h-4" aria-hidden="true" />Saisie</button>
+        <button type="button" onClick={onBack} className="flex items-center gap-1 text-ui min-h-[40px]"><ChevronLeft className="w-4 h-4" aria-hidden="true" />Saisie</button>
         <h2 className="font-display font-semibold text-lg">Avant l'épreuve</h2>
-        <p className="text-sm text-gray-500">Qui n'a pas encore été vu, compétence par compétence</p>
+        <p className="text-ui text-gray-500">Qui n'a pas encore été vu, compétence par compétence</p>
       </div>
       <div className="p-4 space-y-3">
-        {!coverage.hasRoleSequences && <p className="text-sm text-gray-600">Aucune séquence avec rôles dans cette session.</p>}
+        {!coverage.hasRoleSequences && <p className="text-ui text-gray-600">Aucune séquence avec rôles dans cette session.</p>}
         {missing.map((c) => (
-          <section key={c.code} className="bg-white rounded-xl p-3.5 space-y-2">
+          <section key={c.code} className="bg-white rounded-ui p-3.5 space-y-2">
             <div className="flex justify-between items-baseline">
               <h3 className="font-semibold text-[15px]">{c.code} · en {String(c.principal || principal || 'rôle principal').toLowerCase()}</h3>
-              <span className="font-display font-semibold text-amber-700">{c.seen} / {c.total}</span>
+              <span className="font-display font-semibold text-[rgb(var(--c-warning))]">{c.seen} / {c.total}</span>
             </div>
-            <div className="h-2 rounded bg-gray-100 overflow-hidden"><div className="h-2 bg-amber-600" style={{ width: `${c.total ? Math.round((c.seen / c.total) * 100) : 0}%` }} /></div>
-            <p className="text-sm">Pas encore : <strong>{c.missing.map(name).join(', ')}</strong></p>
+            <div className="h-2 rounded bg-gray-100 overflow-hidden"><div className="h-2 bg-[rgb(var(--c-warning))]" style={{ width: `${c.total ? Math.round((c.seen / c.total) * 100) : 0}%` }} /></div>
+            <p className="text-ui">Pas encore : <strong>{c.missing.map(name).join(', ')}</strong></p>
           </section>
         ))}
-        <section className="bg-white rounded-xl p-3.5 space-y-2">
+        <section className="bg-white rounded-ui p-3.5 space-y-2">
           <div className="flex justify-between items-baseline">
             <h3 className="font-semibold text-[15px]">À revoir, pas encore repris</h3>
-            <span className="font-display font-semibold text-red-700">{coverage.pending.length}</span>
+            <span className="font-display font-semibold text-[rgb(var(--c-danger))]">{coverage.pending.length}</span>
           </div>
           {coverage.pending.map((x, i) => (
-            <p key={i} className="text-sm"><strong>{name(x.trainee)}</strong> · {x.sequence.title}{x.remark ? ` · « ${x.remark} »` : ''}</p>
+            <p key={i} className="text-ui"><strong>{name(x.trainee)}</strong> · {x.sequence.title}{x.remark ? ` · « ${x.remark} »` : ''}</p>
           ))}
         </section>
         {complete.length > 0 && (
-          <section className="bg-white rounded-xl p-3.5 space-y-1.5">
-            <h3 className="font-semibold text-[15px] mb-1 flex items-center gap-1.5"><ClipboardCheck className="w-4 h-4 text-green-700" aria-hidden="true" />Toutes vues</h3>
+          <section className="bg-white rounded-ui p-3.5 space-y-1.5">
+            <h3 className="font-semibold text-[15px] mb-1 flex items-center gap-1.5"><ClipboardCheck className="w-4 h-4 text-[rgb(var(--c-success))]" aria-hidden="true" />Toutes vues</h3>
             {complete.map((c) => (
-              <div key={c.code} className="flex justify-between text-sm"><span>{c.code}</span><span className="font-semibold text-green-800">{c.seen} / {c.total}</span></div>
+              <div key={c.code} className="flex justify-between text-ui"><span>{c.code}</span><span className="font-semibold text-[rgb(var(--c-success))]">{c.seen} / {c.total}</span></div>
             ))}
           </section>
         )}
-        <p className="text-xs text-gray-500">Simple rappel : rien n'empêche de passer à l'épreuve. La grille de certification reste celle de l'onglet de certification.</p>
+        <p className="text-ui-sm text-gray-500">Simple rappel : rien n'empêche de passer à l'épreuve. La grille de certification reste celle de l'onglet de certification.</p>
       </div>
     </div>
   )

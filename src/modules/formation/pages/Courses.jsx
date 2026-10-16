@@ -521,7 +521,7 @@ export default function Courses() {
         <nav className="flex gap-4">
           <button
             onClick={() => setActiveTab('formations')}
-            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
               activeTab === 'formations' 
                 ? 'border-primary-500 text-primary-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -530,12 +530,12 @@ export default function Courses() {
             <div className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4" />
               Catalogue
-              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{courses.length}</span>
+              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-ui-sm">{courses.length}</span>
             </div>
           </button>
           <button
             onClick={() => setActiveTab('tests')}
-            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
               activeTab === 'tests' 
                 ? 'border-primary-500 text-primary-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -548,7 +548,7 @@ export default function Courses() {
           </button>
           <button
             onClick={() => setActiveTab('documents')}
-            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
               activeTab === 'documents' 
                 ? 'border-primary-500 text-primary-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -615,14 +615,14 @@ export default function Courses() {
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       {theme && (
                         <span 
-                          className="inline-block px-2 py-0.5 rounded text-xs text-white font-medium"
+                          className="inline-block px-2 py-0.5 rounded text-ui-sm text-white font-medium"
                           style={{ backgroundColor: getThemeColor(theme.name) }}
                         >
                           {theme.name}
                         </span>
                       )}
                       {course.code && (
-                        <span className="inline-block px-2 py-0.5 rounded text-xs font-mono font-bold bg-gray-100 text-gray-700 border">
+                        <span className="inline-block px-2 py-0.5 rounded text-ui-sm font-mono font-bold bg-gray-100 text-gray-700 border">
                           {course.code}
                         </span>
                       )}
@@ -641,17 +641,17 @@ export default function Courses() {
                     <button onClick={() => openForm(course)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier">
                       <Edit className="w-4 h-4 text-gray-500" />
                     </button>
-                    <button onClick={() => handleDelete(course.id)} className="p-1.5 hover:bg-red-50 rounded" title="Supprimer">
-                      <Trash2 className="w-4 h-4 text-red-500" />
+                    <button onClick={() => handleDelete(course.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded" title="Supprimer">
+                      <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                     </button>
                   </div>
                 </div>
                 
                 {course.description && (
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{course.description}</p>
+                  <p className="text-ui text-gray-600 mb-3 line-clamp-2">{course.description}</p>
                 )}
                 
-                <div className="flex flex-wrap gap-3 text-sm text-gray-500">
+                <div className="flex flex-wrap gap-3 text-ui text-gray-500">
                   <span className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
                     {course.duration_hours || course.duration || '?'}h
@@ -697,12 +697,12 @@ export default function Courses() {
       {/* Modal formulaire */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-8">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-2xl my-8">
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="text-xl font-semibold">
                 {selectedCourse ? 'Modifier la formation' : 'Nouvelle formation'}
               </h2>
-              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-ui-sm">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -730,7 +730,7 @@ export default function Courses() {
                   <div className="flex gap-1">
                     <input 
                       type="text" 
-                      className="input font-mono text-sm uppercase" 
+                      className="input font-mono text-ui uppercase" 
                       placeholder="SST-FI" 
                       value={form.code} 
                       onChange={(e) => setForm({...form, code: e.target.value.toUpperCase()})} 
@@ -740,7 +740,7 @@ export default function Courses() {
                     <button
                       type="button"
                       onClick={() => setForm({...form, code: ensureUniqueCode(suggestCode(form.title))})}
-                      className="text-xs text-blue-600 hover:underline mt-1"
+                      className="text-ui-sm text-[rgb(var(--c-info))] hover:underline mt-1"
                     >
                       Suggestion : {suggestCode(form.title)}
                     </button>
@@ -814,13 +814,13 @@ export default function Courses() {
               </div>
               
               {/* Matériel formateur - Sélection par checkboxes */}
-              <div className="border rounded-lg p-4 bg-gray-50">
+              <div className="border rounded-ui-sm p-4 bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
                   <label className="label flex items-center gap-2 mb-0">
                     <Package className="w-4 h-4" />
                     Matériel requis (formateur)
                   </label>
-                  <span className="text-sm text-gray-500">{selectedEquipment.length} sélectionné(s)</span>
+                  <span className="text-ui text-gray-500">{selectedEquipment.length} sélectionné(s)</span>
                 </div>
                 
                 <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -838,10 +838,10 @@ export default function Courses() {
                           onClick={() => setExpandedThemes({...expandedThemes, [themeKey]: !isExpanded})}
                           className="w-full flex items-center justify-between p-2 hover:bg-gray-50"
                         >
-                          <span className="font-medium text-sm">{themeInfo.label}</span>
+                          <span className="font-medium text-ui">{themeInfo.label}</span>
                           <div className="flex items-center gap-2">
                             {selectedInTheme > 0 && (
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{selectedInTheme}</span>
+                              <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-0.5 rounded">{selectedInTheme}</span>
                             )}
                             {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                           </div>
@@ -863,12 +863,12 @@ export default function Courses() {
                                   }}
                                   className="w-4 h-4 rounded"
                                 />
-                                <span className="text-sm flex-1">{eq.name}</span>
+                                <span className="text-ui flex-1">{eq.name}</span>
                                 {eq.ratio_per_persons && (
-                                  <span className="text-xs text-gray-400">1/{eq.ratio_per_persons} pers.</span>
+                                  <span className="text-ui-sm text-gray-400">1/{eq.ratio_per_persons} pers.</span>
                                 )}
                                 {eq.is_consumable && (
-                                  <span className="text-xs bg-orange-100 text-orange-600 px-1 rounded">Conso.</span>
+                                  <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1 rounded">Conso.</span>
                                 )}
                               </label>
                             ))}
@@ -885,23 +885,23 @@ export default function Courses() {
                     <button
                       type="button"
                       onClick={() => setShowAddEquipment(true)}
-                      className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                      className="text-ui text-[rgb(var(--c-info))] hover:underline flex items-center gap-1"
                     >
                       <Plus className="w-4 h-4" />
                       Ajouter un équipement personnalisé
                     </button>
                   ) : (
-                    <div className="space-y-2 p-2 bg-blue-50 rounded">
+                    <div className="space-y-2 p-2 bg-[rgb(var(--c-info-bg))] rounded">
                       <input
                         type="text"
                         placeholder="Nom de l'équipement"
-                        className="input text-sm"
+                        className="input text-ui"
                         value={newEquipment.name}
                         onChange={(e) => setNewEquipment({...newEquipment, name: e.target.value})}
                       />
                       <div className="flex gap-2">
                         <select
-                          className="input text-sm flex-1"
+                          className="input text-ui flex-1"
                           value={newEquipment.theme}
                           onChange={(e) => setNewEquipment({...newEquipment, theme: e.target.value})}
                         >
@@ -912,7 +912,7 @@ export default function Courses() {
                         <input
                           type="number"
                           placeholder="Ratio (vide=1/session)"
-                          className="input text-sm w-32"
+                          className="input text-ui w-32"
                           value={newEquipment.ratio_per_persons || ''}
                           onChange={(e) => setNewEquipment({...newEquipment, ratio_per_persons: e.target.value ? parseInt(e.target.value) : null})}
                         />
@@ -952,7 +952,7 @@ export default function Courses() {
                     <button
                       type="button"
                       onClick={handleRemoveProgram}
-                      className="p-1 hover:bg-red-100 rounded text-red-500"
+                      className="p-1 hover:bg-[rgb(var(--c-danger-bg))] rounded text-[rgb(var(--c-danger))]"
                       title="Supprimer"
                     >
                       <X className="w-4 h-4" />
@@ -979,7 +979,7 @@ export default function Courses() {
                   </button>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-1">Le programme sera accessible depuis la fiche formation</p>
+              <p className="text-ui-sm text-gray-500 mt-1">Le programme sera accessible depuis la fiche formation</p>
             </div>
             
             <div className="flex justify-end gap-3 p-4 border-t">
@@ -997,20 +997,20 @@ export default function Courses() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => !importing && setImportPreview(null)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
-              <div className="flex items-center justify-between p-4 border-b bg-green-50">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-3xl max-h-[90vh] overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b bg-[rgb(var(--c-success-bg))]">
                 <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="w-6 h-6 text-green-600" />
+                  <FileSpreadsheet className="w-6 h-6 text-[rgb(var(--c-success))]" />
                   <div>
                     <h2 className="text-lg font-semibold">Import formations Sellsy</h2>
-                    <p className="text-sm text-gray-600">{importPreview.length} formation(s) détectée(s)</p>
+                    <p className="text-ui text-gray-600">{importPreview.length} formation(s) détectée(s)</p>
                   </div>
                 </div>
                 {!importing && <button onClick={() => setImportPreview(null)}><X className="w-5 h-5" /></button>}
               </div>
               
               <div className="p-4 overflow-y-auto max-h-[60vh]">
-                <table className="w-full text-sm">
+                <table className="w-full text-ui">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="text-left py-2 px-3 font-medium">Formation</th>
@@ -1022,11 +1022,11 @@ export default function Courses() {
                     {importPreview.map((formation, idx) => {
                       const exists = courses.find(c => c.title?.toLowerCase() === formation.title?.toLowerCase())
                       return (
-                        <tr key={idx} className={exists ? 'bg-yellow-50' : ''}>
+                        <tr key={idx} className={exists ? 'bg-[rgb(var(--c-warning-bg))]' : ''}>
                           <td className="py-2 px-3">
                             <div className="font-medium">{formation.title}</div>
-                            <div className="text-xs text-gray-500 truncate max-w-md">{formation.description}</div>
-                            {exists && <span className="text-xs text-yellow-600"> Existe déjà</span>}
+                            <div className="text-ui-sm text-gray-500 truncate max-w-md">{formation.description}</div>
+                            {exists && <span className="text-ui-sm text-[rgb(var(--c-warning))]"> Existe déjà</span>}
                           </td>
                           <td className="py-2 px-3 text-center text-gray-600">{formation.duration_hours}h</td>
                           <td className="py-2 px-3 text-right text-gray-900 font-medium">{formation.price_ht?.toLocaleString('fr-FR')} €</td>
@@ -1038,7 +1038,7 @@ export default function Courses() {
               </div>
               
               <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-                <p className="text-sm text-gray-600">
+                <p className="text-ui text-gray-600">
                   Les formations existantes seront ignorées. Toutes les formations importées sont modifiables.
                 </p>
                 <div className="flex gap-2">

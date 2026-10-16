@@ -511,8 +511,8 @@ export default function AdminImport() {
               { id: 'import-fichier', label: 'Import fichier' },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
-                  activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`py-3 px-1 border-b-2 text-ui font-medium transition-colors ${
+                  activeTab === tab.id ? 'border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 {tab.label}
@@ -524,30 +524,30 @@ export default function AdminImport() {
         {/* ══════════════════ ONGLET IMPORT INSEE ══════════════════ */}
         {activeTab === 'import-api' && (
           <>
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <div className="bg-white rounded-ui-sm shadow p-6 mb-6">
               <h2 className="text-lg font-semibold mb-4"> Départements à importer</h2>
               <div className="flex flex-wrap gap-2 mb-4">
                 {Object.entries(DEPARTEMENTS).map(([code, name]) => (
                   <button key={code} onClick={() => toggleDept(code)} disabled={importing}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedDepts.includes(code) ? 'bg-blue-100 text-blue-800 border-2 border-blue-300' : 'bg-gray-100 text-gray-500 border-2 border-transparent'} ${importing ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-80'}`}
+                    className={`px-3 py-2 rounded-ui-sm text-ui font-medium transition-colors ${selectedDepts.includes(code) ? 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] border-2 border-[rgb(var(--c-info)/0.3)]' : 'bg-gray-100 text-gray-500 border-2 border-transparent'} ${importing ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-80'}`}
                   >
                     {code} - {name}
                   </button>
                 ))}
               </div>
-              <div className="text-sm text-gray-500 mb-4">
+              <div className="text-ui text-gray-500 mb-4">
                 {selectedDepts.length} départements × {TRANCHES.length} tranches = {selectedDepts.length * TRANCHES.length} appels API
                 <span className="ml-2 text-gray-400">• SCI et auto-entrepreneurs exclus</span>
               </div>
               <div className="flex gap-3">
                 {!importing ? (
                   <button onClick={lancerImport} disabled={selectedDepts.length === 0}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium ${selectedDepts.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-ui-sm font-medium ${selectedDepts.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white'}`}
                   >
                     <Play className="w-5 h-5" /> Lancer l&apos;import
                   </button>
                 ) : (
-                  <button onClick={arreterImport} className="flex items-center gap-2 px-6 py-3 rounded-lg font-medium bg-red-600 hover:bg-red-700 text-white">
+                  <button onClick={arreterImport} className="flex items-center gap-2 px-6 py-3 rounded-ui-sm font-medium bg-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger))] text-white">
                     <Square className="w-5 h-5" /> Arrêter
                   </button>
                 )}
@@ -555,12 +555,12 @@ export default function AdminImport() {
             </div>
 
             {(importing || completedTranches > 0) && (
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <div className="bg-white rounded-ui-sm shadow p-6 mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-lg font-semibold"> Progression</h2>
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-4 text-ui">
                     {importing && currentDept && (
-                      <span className="text-blue-600 flex items-center gap-1">
+                      <span className="text-[rgb(var(--c-info))] flex items-center gap-1">
                         <Loader className="w-4 h-4 animate-spin" />
                         {DEPARTEMENTS[currentDept]} - {TRANCHES.find(t => t.code === currentTranche)?.label || '...'}
                       </span>
@@ -569,19 +569,19 @@ export default function AdminImport() {
                   </div>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-4 mb-4">
-                  <div className="bg-blue-600 h-4 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+                  <div className="bg-[rgb(var(--c-info))] h-4 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }} />
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   {[
-                    { label: 'Récupérés API', value: totalStats.recupere, cls: 'bg-blue-50 text-blue-600 text-blue-900' },
-                    { label: 'Après filtres',  value: totalStats.filtre,   cls: 'bg-green-50 text-green-600 text-green-900' },
-                    { label: 'Nouveaux',        value: totalStats.insere,   cls: 'bg-emerald-50 text-emerald-600 text-emerald-900' },
+                    { label: 'Récupérés API', value: totalStats.recupere, cls: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] text-[rgb(var(--c-info))]' },
+                    { label: 'Après filtres',  value: totalStats.filtre,   cls: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] text-[rgb(var(--c-success))]' },
+                    { label: 'Nouveaux',        value: totalStats.insere,   cls: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] text-[rgb(var(--c-success))]' },
                     { label: 'Doublons',        value: totalStats.doublons, cls: 'bg-gray-50 text-gray-600 text-gray-700' },
                   ].map(({ label, value, cls }) => {
                     const [bg, label_c, val_c] = cls.split(' ')
                     return (
-                      <div key={label} className={`${bg} rounded-lg p-3 text-center`}>
-                        <p className={`text-xs ${label_c}`}>{label}</p>
+                      <div key={label} className={`${bg} rounded-ui-sm p-3 text-center`}>
+                        <p className={`text-ui-sm ${label_c}`}>{label}</p>
                         <p className={`text-xl font-bold ${val_c}`}>{value.toLocaleString()}</p>
                       </div>
                     )
@@ -590,20 +590,20 @@ export default function AdminImport() {
                 <div className="space-y-2">
                   {Object.entries(DEPARTEMENTS).filter(([code]) => selectedDepts.includes(code)).map(([code, name]) => {
                     const dept = deptProgress[code]
-                    if (!dept) return <div key={code} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg text-gray-400"><div className="w-5 h-5" /><span className="font-medium">{code} - {name}</span><span className="text-xs ml-auto">En attente</span></div>
+                    if (!dept) return <div key={code} className="flex items-center gap-3 p-3 bg-gray-50 rounded-ui-sm text-gray-400"><div className="w-5 h-5" /><span className="font-medium">{code} - {name}</span><span className="text-ui-sm ml-auto">En attente</span></div>
                     const done_t  = Object.values(dept.tranches || {}).filter(t => t.status === 'success').length
                     const err_t   = Object.values(dept.tranches || {}).filter(t => t.status === 'error').length
                     const expanded = expandedDepts[code]
                     return (
                       <div key={code}>
-                        <div onClick={() => toggleExpand(code)} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${dept.status === 'loading' ? 'bg-blue-50' : dept.status === 'success' ? 'bg-green-50' : dept.status === 'stopped' ? 'bg-yellow-50' : 'bg-gray-50'}`}>
-                          {dept.status === 'loading' && <Loader className="w-5 h-5 animate-spin text-blue-500" />}
-                          {dept.status === 'success' && <Check className="w-5 h-5 text-green-500" />}
-                          {dept.status === 'stopped' && <Square className="w-5 h-5 text-yellow-500" />}
+                        <div onClick={() => toggleExpand(code)} className={`flex items-center gap-3 p-3 rounded-ui-sm cursor-pointer transition-colors ${dept.status === 'loading' ? 'bg-[rgb(var(--c-info-bg))]' : dept.status === 'success' ? 'bg-[rgb(var(--c-success-bg))]' : dept.status === 'stopped' ? 'bg-[rgb(var(--c-warning-bg))]' : 'bg-gray-50'}`}>
+                          {dept.status === 'loading' && <Loader className="w-5 h-5 animate-spin text-[rgb(var(--c-info))]" />}
+                          {dept.status === 'success' && <Check className="w-5 h-5 text-[rgb(var(--c-success))]" />}
+                          {dept.status === 'stopped' && <Square className="w-5 h-5 text-[rgb(var(--c-warning))]" />}
                           <span className="font-medium">{code} - {name}</span>
-                          <div className="flex items-center gap-2 ml-auto text-sm">
-                            {dept.total?.insere > 0 && <span className="text-green-700 font-medium">{dept.total.insere.toLocaleString()} insérés</span>}
-                            <span className="text-gray-500">{done_t}/{TRANCHES.length}{err_t > 0 && <span className="text-red-500 ml-1">({err_t} err)</span>}</span>
+                          <div className="flex items-center gap-2 ml-auto text-ui">
+                            {dept.total?.insere > 0 && <span className="text-[rgb(var(--c-success))] font-medium">{dept.total.insere.toLocaleString()} insérés</span>}
+                            <span className="text-gray-500">{done_t}/{TRANCHES.length}{err_t > 0 && <span className="text-[rgb(var(--c-danger))] ml-1">({err_t} err)</span>}</span>
                             {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                           </div>
                         </div>
@@ -612,7 +612,7 @@ export default function AdminImport() {
                             {TRANCHES.map(tranche => {
                               const t = dept.tranches?.[tranche.code]
                               return (
-                                <div key={tranche.code} className={`text-xs px-2 py-1.5 rounded text-center ${!t ? 'bg-gray-100 text-gray-400' : t.status === 'loading' ? 'bg-blue-100 text-blue-700' : t.status === 'success' ? (t.insere > 0 ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-600') : 'bg-red-100 text-red-700'}`}>
+                                <div key={tranche.code} className={`text-ui-sm px-2 py-1.5 rounded text-center ${!t ? 'bg-gray-100 text-gray-400' : t.status === 'loading' ? 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' : t.status === 'success' ? (t.insere > 0 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]') : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'}`}>
                                   <div className="font-medium">{tranche.label}</div>
                                   {t?.status === 'loading' && <Loader className="w-3 h-3 animate-spin mx-auto mt-0.5" />}
                                   {t?.status === 'success' && <div>{t.insere > 0 ? `+${t.insere}` : '0 new'}</div>}
@@ -629,11 +629,11 @@ export default function AdminImport() {
               </div>
             )}
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
-              <h3 className="font-semibold text-blue-900 mb-2"> Infos</h3>
-              <p className="text-sm text-blue-800 mb-1"><strong>Import :</strong> 14 tranches d'effectif par département - SCI et auto-entrepreneurs exclus</p>
-              <p className="text-sm text-blue-800 mb-1"><strong>Enrichissement :</strong> Cron automatique à 3h du matin (20 prospects/nuit)</p>
-              <p className="text-sm text-blue-800"><strong>Rapport phoning :</strong> Email hebdo chaque lundi à 8h</p>
+            <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4 mt-6">
+              <h3 className="font-semibold text-[rgb(var(--c-info))] mb-2"> Infos</h3>
+              <p className="text-ui text-[rgb(var(--c-info))] mb-1"><strong>Import :</strong> 14 tranches d'effectif par département - SCI et auto-entrepreneurs exclus</p>
+              <p className="text-ui text-[rgb(var(--c-info))] mb-1"><strong>Enrichissement :</strong> Cron automatique à 3h du matin (20 prospects/nuit)</p>
+              <p className="text-ui text-[rgb(var(--c-info))]"><strong>Rapport phoning :</strong> Email hebdo chaque lundi à 8h</p>
             </div>
           </>
         )}
@@ -641,14 +641,14 @@ export default function AdminImport() {
         {/* ══════════════════ ONGLET ENRICHISSEMENT ══════════════════ */}
         {activeTab === 'enrichissement' && (
           <>
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-ui-sm shadow p-6">
               <h2 className="text-lg font-semibold mb-4"> Enrichissement - Scraping Sites Web</h2>
-              <p className="text-sm text-gray-600 mb-2">• Scrape les sites web des prospects pour extraire emails &amp; téléphones</p>
-              <p className="text-sm text-gray-600 mb-2">• Traite {enrichBatchSize} prospects par batch (~2-3 minutes)</p>
-              <p className="text-sm text-gray-600 mb-4">•  Cron automatique chaque nuit à 3h du matin</p>
+              <p className="text-ui text-gray-600 mb-2">• Scrape les sites web des prospects pour extraire emails &amp; téléphones</p>
+              <p className="text-ui text-gray-600 mb-2">• Traite {enrichBatchSize} prospects par batch (~2-3 minutes)</p>
+              <p className="text-ui text-gray-600 mb-4">•  Cron automatique chaque nuit à 3h du matin</p>
               <div className="flex items-center gap-3 mb-4">
-                <label className="text-sm text-gray-700">Batch size :</label>
-                <select value={enrichBatchSize} onChange={(e) => setEnrichBatchSize(Number(e.target.value))} className="border rounded px-3 py-1 text-sm" disabled={enriching}>
+                <label className="text-ui text-gray-700">Batch size :</label>
+                <select value={enrichBatchSize} onChange={(e) => setEnrichBatchSize(Number(e.target.value))} className="border rounded px-3 py-1 text-ui" disabled={enriching}>
                   <option value={10}>10 (rapide ~1 min)</option>
                   <option value={20}>20 (normal ~2 min)</option>
                   <option value={50}>50 (long ~5 min)</option>
@@ -656,31 +656,31 @@ export default function AdminImport() {
               </div>
               <div className="flex gap-3">
                 <button onClick={lancerEnrichissement} disabled={enriching}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium ${enriching ? 'bg-gray-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-ui-sm font-medium ${enriching ? 'bg-gray-300 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-700 text-white'}`}
                 >
                   {enriching ? <><Loader className="w-5 h-5 animate-spin" /> Enrichissement...</> : <><RefreshCw className="w-5 h-5" /> Lancer l&apos;enrichissement</>}
                 </button>
                 <button onClick={lancerEnrichissementBoucle} disabled={enriching}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium ${enriching ? 'bg-gray-300 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700 text-white'}`}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-ui-sm font-medium ${enriching ? 'bg-gray-300 cursor-not-allowed' : 'bg-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning))] text-white'}`}
                 >
                    Enrichir en boucle (5 batchs)
                 </button>
               </div>
             </div>
             {enrichStats && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mt-4">
-                <h2 className="text-lg font-semibold text-purple-900 mb-4">{enrichStats.message}</h2>
+              <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-6 mt-4">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">{enrichStats.message}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div><p className="text-sm text-purple-700">Traités</p><p className="text-2xl font-bold text-purple-900">{enrichStats.stats?.total || 0}</p></div>
-                  <div><p className="text-sm text-purple-700"> Emails</p><p className="text-2xl font-bold text-green-700">{enrichStats.stats?.emails_found || 0}</p></div>
-                  <div><p className="text-sm text-purple-700"> Téléphones</p><p className="text-2xl font-bold text-green-700">{enrichStats.stats?.phones_found || 0}</p></div>
-                  <div><p className="text-sm text-purple-700"> Échecs</p><p className="text-2xl font-bold text-red-700">{enrichStats.stats?.failed || 0}</p></div>
+                  <div><p className="text-ui text-gray-800">Traités</p><p className="text-2xl font-bold text-gray-800">{enrichStats.stats?.total || 0}</p></div>
+                  <div><p className="text-ui text-gray-800"> Emails</p><p className="text-2xl font-bold text-[rgb(var(--c-success))]">{enrichStats.stats?.emails_found || 0}</p></div>
+                  <div><p className="text-ui text-gray-800"> Téléphones</p><p className="text-2xl font-bold text-[rgb(var(--c-success))]">{enrichStats.stats?.phones_found || 0}</p></div>
+                  <div><p className="text-ui text-gray-800"> Échecs</p><p className="text-2xl font-bold text-[rgb(var(--c-danger))]">{enrichStats.stats?.failed || 0}</p></div>
                 </div>
                 {enrichHistory.length > 1 && (
-                  <div className="mt-4 pt-4 border-t border-purple-200">
-                    <p className="text-sm font-semibold text-purple-800 mb-2">Historique des batchs :</p>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-ui font-semibold text-gray-800 mb-2">Historique des batchs :</p>
                     {enrichHistory.map((h, i) => (
-                      <p key={i} className="text-xs text-purple-700">Batch {i + 1}: {h.stats?.emails_found || 0} emails, {h.stats?.phones_found || 0} tels sur {h.stats?.total || 0} prospects</p>
+                      <p key={i} className="text-ui-sm text-gray-800">Batch {i + 1}: {h.stats?.emails_found || 0} emails, {h.stats?.phones_found || 0} tels sur {h.stats?.total || 0} prospects</p>
                     ))}
                   </div>
                 )}
@@ -695,18 +695,18 @@ export default function AdminImport() {
 
             {/* Étape 0 : Upload */}
             {fileStep === 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white rounded-ui-sm shadow p-6">
                 <h2 className="text-lg font-semibold mb-2"> Import depuis fichier</h2>
-                <p className="text-sm text-gray-500 mb-6">
+                <p className="text-ui text-gray-500 mb-6">
                   Importe n&apos;importe quel fichier Excel (.xlsx, .xls) ou CSV dans la base prospects ou clients.
                   Les colonnes sont détectées automatiquement - tu peux ajuster le mapping avant l&apos;import.
                 </p>
                 <div onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-300 hover:border-blue-400 rounded-xl p-12 text-center cursor-pointer transition-colors group"
+                  className="border-2 border-dashed border-gray-300 hover:border-[rgb(var(--c-info)/0.3)] rounded-ui p-12 text-center cursor-pointer transition-colors group"
                 >
-                  <FileSpreadsheet className="w-12 h-12 text-gray-300 group-hover:text-blue-400 mx-auto mb-3 transition-colors" />
+                  <FileSpreadsheet className="w-12 h-12 text-gray-300 group-hover:text-[rgb(var(--c-info))] mx-auto mb-3 transition-colors" />
                   <p className="text-gray-600 font-medium mb-1">Clique pour choisir un fichier</p>
-                  <p className="text-sm text-gray-400">.xlsx · .xls · .csv</p>
+                  <p className="text-ui text-gray-400">.xlsx · .xls · .csv</p>
                 </div>
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileChange} />
               </div>
@@ -714,21 +714,21 @@ export default function AdminImport() {
 
             {/* Étape 1 : Mapping */}
             {fileStep === 1 && (
-              <div className="bg-white rounded-lg shadow p-6 space-y-5">
+              <div className="bg-white rounded-ui-sm shadow p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold"> Correspondance des colonnes</h2>
-                    <p className="text-sm text-gray-500 mt-0.5">{fileName} · {rawRows.length} ligne{rawRows.length > 1 ? 's' : ''}</p>
+                    <p className="text-ui text-gray-500 mt-0.5">{fileName} · {rawRows.length} ligne{rawRows.length > 1 ? 's' : ''}</p>
                   </div>
-                  <button onClick={resetFileImport} className="text-gray-400 hover:text-red-500 transition-colors" title="Recommencer">
+                  <button onClick={resetFileImport} className="text-gray-400 hover:text-[rgb(var(--c-danger))] transition-colors" title="Recommencer">
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
 
                 {sheets.length > 1 && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Feuille</label>
-                    <select value={activeSheet} onChange={e => handleSheetChange(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                    <label className="block text-ui font-medium text-gray-700 mb-1">Feuille</label>
+                    <select value={activeSheet} onChange={e => handleSheetChange(e.target.value)} className="border border-gray-200 rounded-ui-sm px-3 py-2 text-ui">
                       {sheets.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
@@ -736,29 +736,29 @@ export default function AdminImport() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Importer dans</label>
-                    <select value={targetTable} onChange={e => { setTargetTable(e.target.value); setColMapping(autoDetect(rawHeaders)) }} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                    <label className="block text-ui font-medium text-gray-700 mb-1">Importer dans</label>
+                    <select value={targetTable} onChange={e => { setTargetTable(e.target.value); setColMapping(autoDetect(rawHeaders)) }} className="w-full border border-gray-200 rounded-ui-sm px-3 py-2 text-ui">
                       <option value="prospection_massive">Base prospects (prospection_massive)</option>
                       <option value="clients">Clients</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Code NAF global <span className="text-gray-400 font-normal text-xs">(optionnel - toutes les lignes)</span>
+                    <label className="block text-ui font-medium text-gray-700 mb-1">
+                      Code NAF global <span className="text-gray-400 font-normal text-ui-sm">(optionnel - toutes les lignes)</span>
                     </label>
-                    <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Ex : 5530Z (Terrains de camping)" value={globalNaf} onChange={e => setGlobalNaf(e.target.value)} />
+                    <input className="w-full border border-gray-200 rounded-ui-sm px-3 py-2 text-ui" placeholder="Ex : 5530Z (Terrains de camping)" value={globalNaf} onChange={e => setGlobalNaf(e.target.value)} />
                   </div>
                 </div>
 
                 <div>
                   {/* Étiquette groupe (optionnel) */}
                   {targetTable === 'prospection_massive' && (
-                    <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                      <label className="block text-sm font-medium text-purple-700 mb-1">
-                        Groupe / Étiquette <span className="text-purple-400 font-normal">(optionnel - permet de retrouver ces contacts dans Mailing)</span>
+                    <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-ui-sm">
+                      <label className="block text-ui font-medium text-gray-800 mb-1">
+                        Groupe / Étiquette <span className="text-gray-500 font-normal">(optionnel - permet de retrouver ces contacts dans Mailing)</span>
                       </label>
                       <input
-                        className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                        className="w-full border border-gray-200 rounded-ui-sm px-3 py-2 text-ui focus:outline-none focus:ring-2 focus:ring-gray-400 bg-white"
                         placeholder="Ex : hôtellerie, transport 2026..."
                         value={groupeTag}
                         onChange={e => setGroupeTag(e.target.value)}
@@ -766,12 +766,12 @@ export default function AdminImport() {
                     </div>
                   )}
 
-                  <p className="text-sm font-medium text-gray-700 mb-2">
+                  <p className="text-ui font-medium text-gray-700 mb-2">
                     Correspondance colonnes → champs
-                    <span className="ml-2 text-xs text-gray-400 font-normal">Détection auto - modifie si besoin</span>
+                    <span className="ml-2 text-ui-sm text-gray-400 font-normal">Détection auto - modifie si besoin</span>
                   </p>
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
+                  <div className="border border-gray-200 rounded-ui-sm overflow-hidden">
+                    <table className="w-full text-ui">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="text-left px-4 py-2.5 text-gray-500 font-medium w-1/3">Colonne fichier</th>
@@ -782,10 +782,10 @@ export default function AdminImport() {
                       <tbody className="divide-y divide-gray-100">
                         {rawHeaders.map(h => (
                           <tr key={h} className="hover:bg-gray-50">
-                            <td className="px-4 py-2 font-medium text-gray-700 text-xs truncate max-w-xs">{h}</td>
-                            <td className="px-4 py-2 text-gray-400 text-xs truncate max-w-xs">{String(rawRows[0]?.[h] ?? '').slice(0, 35) || '-'}</td>
+                            <td className="px-4 py-2 font-medium text-gray-700 text-ui-sm truncate max-w-xs">{h}</td>
+                            <td className="px-4 py-2 text-gray-400 text-ui-sm truncate max-w-xs">{String(rawRows[0]?.[h] ?? '').slice(0, 35) || '-'}</td>
                             <td className="px-4 py-2">
-                              <select value={colMapping[h] || ''} onChange={e => setColMapping(prev => ({ ...prev, [h]: e.target.value }))} className="border border-gray-200 rounded px-2 py-1 text-xs w-full">
+                              <select value={colMapping[h] || ''} onChange={e => setColMapping(prev => ({ ...prev, [h]: e.target.value }))} className="border border-gray-200 rounded px-2 py-1 text-ui-sm w-full">
                                 {availableFields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                               </select>
                             </td>
@@ -799,9 +799,9 @@ export default function AdminImport() {
                 {/* Aperçu 3 lignes normalisées */}
                 {Object.values(colMapping).some(Boolean) && (
                   <div>
-                    <p className="text-sm font-medium text-gray-700 mb-2">Aperçu (3 premières lignes normalisées)</p>
-                    <div className="border border-gray-100 rounded-lg overflow-x-auto">
-                      <table className="text-xs w-full">
+                    <p className="text-ui font-medium text-gray-700 mb-2">Aperçu (3 premières lignes normalisées)</p>
+                    <div className="border border-gray-100 rounded-ui-sm overflow-x-auto">
+                      <table className="text-ui-sm w-full">
                         <thead className="bg-gray-50">
                           <tr>{Object.entries(colMapping).filter(([, v]) => v).map(([col, field]) => <th key={col} className="text-left px-3 py-2 text-gray-500 whitespace-nowrap font-medium">{field}</th>)}</tr>
                         </thead>
@@ -823,13 +823,13 @@ export default function AdminImport() {
                 )}
 
                 {!Object.values(colMapping).some(Boolean) && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+                  <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm px-4 py-3 text-ui text-[rgb(var(--c-warning))]">
                      Aucune colonne n&apos;est mappée. Si le fichier a plusieurs feuilles, sélectionne la bonne ci-dessus (ex: "TOUS" ou "Données").
                   </div>
                 )}
                 <div className="flex justify-end pt-2">
                   <button onClick={checkDuplicates} disabled={!Object.values(colMapping).some(Boolean)}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-40"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui font-medium disabled:opacity-40"
                   >
                     Vérifier les doublons →
                   </button>
@@ -839,58 +839,58 @@ export default function AdminImport() {
 
             {/* Étape 2 : Doublons */}
             {fileStep === 2 && (
-              <div className="bg-white rounded-lg shadow p-6 space-y-5">
+              <div className="bg-white rounded-ui-sm shadow p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold">
                     {duplicates.length > 0 ? ' Doublons détectés' : ' Aucun doublon'}
                   </h2>
-                  <button onClick={resetFileImport} className="text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                  <button onClick={resetFileImport} className="text-gray-400 hover:text-[rgb(var(--c-danger))] transition-colors"><Trash2 className="w-5 h-5" /></button>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-green-50 border border-green-100 rounded-lg p-4 text-center">
-                    <p className="text-xs text-green-600">Nouvelles lignes</p>
-                    <p className="text-2xl font-bold text-green-900">{newRows.length}</p>
+                  <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm p-4 text-center">
+                    <p className="text-ui-sm text-[rgb(var(--c-success))]">Nouvelles lignes</p>
+                    <p className="text-2xl font-bold text-[rgb(var(--c-success))]">{newRows.length}</p>
                   </div>
-                  <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 text-center">
-                    <p className="text-xs text-amber-600">Doublons</p>
-                    <p className="text-2xl font-bold text-amber-900">{duplicates.length}</p>
+                  <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-4 text-center">
+                    <p className="text-ui-sm text-[rgb(var(--c-warning))]">Doublons</p>
+                    <p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{duplicates.length}</p>
                   </div>
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-center">
-                    <p className="text-xs text-blue-600">Total fichier</p>
-                    <p className="text-2xl font-bold text-blue-900">{rawRows.length}</p>
+                  <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4 text-center">
+                    <p className="text-ui-sm text-[rgb(var(--c-info))]">Total fichier</p>
+                    <p className="text-2xl font-bold text-[rgb(var(--c-info))]">{rawRows.length}</p>
                   </div>
                 </div>
 
                 {duplicates.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-gray-700">Choisir l&apos;action pour chaque doublon</p>
+                      <p className="text-ui font-medium text-gray-700">Choisir l&apos;action pour chaque doublon</p>
                       <div className="flex gap-2">
-                        <button onClick={() => setAllDupAction('skip')} className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700">Tout ignorer</button>
-                        <button onClick={() => setAllDupAction('update')} className="px-3 py-1.5 text-xs bg-blue-100 hover:bg-blue-200 rounded-lg text-blue-700">Tout mettre à jour</button>
+                        <button onClick={() => setAllDupAction('skip')} className="px-3 py-1.5 text-ui-sm bg-gray-100 hover:bg-gray-200 rounded-ui-sm text-gray-700">Tout ignorer</button>
+                        <button onClick={() => setAllDupAction('update')} className="px-3 py-1.5 text-ui-sm bg-[rgb(var(--c-info-bg))] hover:bg-[rgb(var(--c-info-bg))] rounded-ui-sm text-[rgb(var(--c-info))]">Tout mettre à jour</button>
                       </div>
                     </div>
-                    <div className="border border-amber-100 rounded-lg overflow-hidden max-h-72 overflow-y-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-amber-50 sticky top-0">
+                    <div className="border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm overflow-hidden max-h-72 overflow-y-auto">
+                      <table className="w-full text-ui-sm">
+                        <thead className="bg-[rgb(var(--c-warning-bg))] sticky top-0">
                           <tr>
-                            <th className="text-left px-3 py-2 text-amber-700 font-medium">Entreprise</th>
-                            <th className="text-left px-3 py-2 text-amber-700 font-medium">Email / SIRET</th>
-                            <th className="text-left px-3 py-2 text-amber-700 font-medium">Doublon</th>
-                            <th className="text-center px-3 py-2 text-amber-700 font-medium">Action</th>
+                            <th className="text-left px-3 py-2 text-[rgb(var(--c-warning))] font-medium">Entreprise</th>
+                            <th className="text-left px-3 py-2 text-[rgb(var(--c-warning))] font-medium">Email / SIRET</th>
+                            <th className="text-left px-3 py-2 text-[rgb(var(--c-warning))] font-medium">Doublon</th>
+                            <th className="text-center px-3 py-2 text-[rgb(var(--c-warning))] font-medium">Action</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-amber-50">
+                        <tbody className="divide-y divide-[rgb(var(--c-warning)/0.3)]">
                           {duplicates.map(d => (
-                            <tr key={d.index} className="bg-white hover:bg-amber-50">
+                            <tr key={d.index} className="bg-white hover:bg-[rgb(var(--c-warning-bg))]">
                               <td className="px-3 py-2 text-gray-700 truncate max-w-xs">{d.row.name || '-'}</td>
                               <td className="px-3 py-2 text-gray-500">{d.row.email || d.row.siret || '-'}</td>
-                              <td className="px-3 py-2"><span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">{d.reason}</span></td>
+                              <td className="px-3 py-2"><span className="bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">{d.reason}</span></td>
                               <td className="px-3 py-2">
                                 <div className="flex items-center justify-center gap-1">
-                                  <button onClick={() => setDupAction(d.index, 'skip')} className={`px-2 py-1 rounded text-xs font-medium transition-colors ${d.action === 'skip' ? 'bg-gray-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Ignorer</button>
-                                  <button onClick={() => setDupAction(d.index, 'update')} className={`px-2 py-1 rounded text-xs font-medium transition-colors ${d.action === 'update' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>Mettre à jour</button>
+                                  <button onClick={() => setDupAction(d.index, 'skip')} className={`px-2 py-1 rounded text-ui-sm font-medium transition-colors ${d.action === 'skip' ? 'bg-gray-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Ignorer</button>
+                                  <button onClick={() => setDupAction(d.index, 'update')} className={`px-2 py-1 rounded text-ui-sm font-medium transition-colors ${d.action === 'update' ? 'bg-[rgb(var(--c-info))] text-white' : 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))]'}`}>Mettre à jour</button>
                                 </div>
                               </td>
                             </tr>
@@ -902,9 +902,9 @@ export default function AdminImport() {
                 )}
 
                 <div className="flex justify-between pt-2">
-                  <button onClick={() => setFileStep(1)} className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm">← Retour au mapping</button>
+                  <button onClick={() => setFileStep(1)} className="px-4 py-2 text-gray-600 hover:text-gray-800 text-ui">← Retour au mapping</button>
                   <button onClick={runImport} disabled={newRows.length === 0 && duplicates.every(d => d.action === 'skip')}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold disabled:opacity-40"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-semibold disabled:opacity-40"
                   >
                     <Upload className="w-4 h-4" />
                     Lancer ({newRows.length + duplicates.filter(d => d.action === 'update').length} lignes)
@@ -915,33 +915,33 @@ export default function AdminImport() {
 
             {/* Étape 3 : Progression */}
             {fileStep === 3 && (
-              <div className="bg-white rounded-lg shadow p-8 text-center">
-                <Loader className="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4" />
+              <div className="bg-white rounded-ui-sm shadow p-8 text-center">
+                <Loader className="w-10 h-10 animate-spin text-[rgb(var(--c-info))] mx-auto mb-4" />
                 <h2 className="text-lg font-semibold mb-3">Import en cours…</h2>
                 <div className="w-full bg-gray-200 rounded-full h-3 mb-3 max-w-md mx-auto">
-                  <div className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                  <div className="bg-[rgb(var(--c-info))] h-3 rounded-full transition-all duration-300"
                     style={{ width: importProgress.total > 0 ? `${Math.round((importProgress.done / importProgress.total) * 100)}%` : '0%' }} />
                 </div>
-                <p className="text-sm text-gray-500">{importProgress.done} / {importProgress.total} lignes</p>
-                {importProgress.errors > 0 && <p className="text-xs text-red-500 mt-1">{importProgress.errors} erreur{importProgress.errors > 1 ? 's' : ''}</p>}
+                <p className="text-ui text-gray-500">{importProgress.done} / {importProgress.total} lignes</p>
+                {importProgress.errors > 0 && <p className="text-ui-sm text-[rgb(var(--c-danger))] mt-1">{importProgress.errors} erreur{importProgress.errors > 1 ? 's' : ''}</p>}
               </div>
             )}
 
             {/* Étape 4 : Résultat */}
             {fileStep === 4 && importLog && (
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white rounded-ui-sm shadow p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <CheckCircle className="w-8 h-8 text-green-500" />
+                  <CheckCircle className="w-8 h-8 text-[rgb(var(--c-success))]" />
                   <h2 className="text-xl font-bold text-gray-900">Import terminé</h2>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-green-50 rounded-lg p-4 text-center"><p className="text-xs text-green-600">Insérées</p><p className="text-2xl font-bold text-green-900">{importLog.inserted}</p></div>
-                  <div className="bg-blue-50 rounded-lg p-4 text-center"><p className="text-xs text-blue-600">Mises à jour</p><p className="text-2xl font-bold text-blue-900">{importLog.updated}</p></div>
-                  <div className="bg-gray-50 rounded-lg p-4 text-center"><p className="text-xs text-gray-600">Ignorées</p><p className="text-2xl font-bold text-gray-700">{importLog.skipped}</p></div>
-                  <div className="bg-red-50 rounded-lg p-4 text-center"><p className="text-xs text-red-600">Erreurs</p><p className="text-2xl font-bold text-red-900">{importLog.errors}</p></div>
+                  <div className="bg-[rgb(var(--c-success-bg))] rounded-ui-sm p-4 text-center"><p className="text-ui-sm text-[rgb(var(--c-success))]">Insérées</p><p className="text-2xl font-bold text-[rgb(var(--c-success))]">{importLog.inserted}</p></div>
+                  <div className="bg-[rgb(var(--c-info-bg))] rounded-ui-sm p-4 text-center"><p className="text-ui-sm text-[rgb(var(--c-info))]">Mises à jour</p><p className="text-2xl font-bold text-[rgb(var(--c-info))]">{importLog.updated}</p></div>
+                  <div className="bg-gray-50 rounded-ui-sm p-4 text-center"><p className="text-ui-sm text-gray-600">Ignorées</p><p className="text-2xl font-bold text-gray-700">{importLog.skipped}</p></div>
+                  <div className="bg-[rgb(var(--c-danger-bg))] rounded-ui-sm p-4 text-center"><p className="text-ui-sm text-[rgb(var(--c-danger))]">Erreurs</p><p className="text-2xl font-bold text-[rgb(var(--c-danger))]">{importLog.errors}</p></div>
                 </div>
-                <p className="text-sm text-gray-500 mb-4">Résultat enregistré dans les logs d&apos;import.</p>
-                <button onClick={resetFileImport} className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium">
+                <p className="text-ui text-gray-500 mb-4">Résultat enregistré dans les logs d&apos;import.</p>
+                <button onClick={resetFileImport} className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-ui-sm text-ui font-medium">
                   <Upload className="w-4 h-4" /> Importer un autre fichier
                 </button>
               </div>

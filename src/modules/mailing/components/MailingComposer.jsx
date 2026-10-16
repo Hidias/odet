@@ -334,13 +334,13 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
     <div className="space-y-4">
       {/* ── En-tête ── */}
       <div className="flex flex-wrap items-center gap-3">
-        <button onClick={onCancel} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft className="w-5 h-5" /></button>
+        <button onClick={onCancel} className="p-2 hover:bg-gray-100 rounded-ui-sm"><ArrowLeft className="w-5 h-5" /></button>
         <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
           placeholder="Nom de la campagne *"
-          className="flex-1 min-w-[240px] text-lg font-semibold border-b border-transparent hover:border-gray-200 focus:border-blue-500 focus:outline-none px-1 py-1" />
-        <span className="text-sm text-gray-500">{selection.size} destinataire{selection.size > 1 ? 's' : ''}</span>
+          className="flex-1 min-w-[240px] text-lg font-semibold border-b border-transparent hover:border-gray-200 focus:border-[rgb(var(--c-info)/0.3)] focus:outline-none px-1 py-1" />
+        <span className="text-ui text-gray-500">{selection.size} destinataire{selection.size > 1 ? 's' : ''}</span>
         <button onClick={prepare} disabled={!canPrepare || preparing}
-          className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold disabled:opacity-40">
+          className="flex items-center gap-2 px-5 py-2.5 bg-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-semibold disabled:opacity-40">
           {preparing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
           {mode === 'serveur' && when === 'later' ? 'Programmer…' : 'Lancer…'}
         </button>
@@ -348,7 +348,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
         {/* ── Destinataires ── */}
-        <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4">
+        <div className="xl:col-span-7 bg-white rounded-ui border border-gray-200 p-4">
           <MailingAudience
             value={selection}
             onChange={setSelection}
@@ -362,85 +362,85 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
 
         {/* ── Message ── */}
         <div className="xl:col-span-5 space-y-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          <div className="bg-white rounded-ui border border-gray-200 p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <select value={templateId} onChange={e => applyTemplate(e.target.value)} className="flex-1 min-w-[160px] border rounded-lg px-2 py-1.5 text-sm">
+              <select value={templateId} onChange={e => applyTemplate(e.target.value)} className="flex-1 min-w-[160px] border rounded-ui-sm px-2 py-1.5 text-ui">
                 <option value="">Modèle…</option>
                 {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
               {templateId && (
                 <>
-                  <button onClick={() => saveTemplate(false)} title="Mettre à jour ce modèle" className="p-1.5 border rounded-lg text-gray-600 hover:bg-gray-50"><Save className="w-4 h-4" /></button>
-                  <button onClick={deleteTemplate} title="Supprimer ce modèle" className="p-1.5 border rounded-lg text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => saveTemplate(false)} title="Mettre à jour ce modèle" className="p-1.5 border rounded-ui-sm text-gray-600 hover:bg-gray-50"><Save className="w-4 h-4" /></button>
+                  <button onClick={deleteTemplate} title="Supprimer ce modèle" className="p-1.5 border rounded-ui-sm text-gray-400 hover:text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>
                 </>
               )}
-              <button onClick={() => saveTemplate(true)} className="px-2.5 py-1.5 border rounded-lg text-xs text-gray-700 hover:bg-gray-50">Enregistrer comme modèle</button>
+              <button onClick={() => saveTemplate(true)} className="px-2.5 py-1.5 border rounded-ui-sm text-ui-sm text-gray-700 hover:bg-gray-50">Enregistrer comme modèle</button>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Objet *</label>
+              <label className="block text-ui-sm font-medium text-gray-600 mb-1">Objet *</label>
               <input ref={subjectRef} value={form.subject} onFocus={() => { lastFocus.current = 'subject' }}
                 onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
                 placeholder="Ex : Sécurité au travail - {entreprise}"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-gray-200 rounded-ui-sm px-3 py-2 text-ui focus:outline-none focus:ring-2 focus:ring-[rgb(var(--c-info)/0.3)]" />
             </div>
 
             <div>
               <div className="flex flex-wrap items-center gap-1 mb-1">
-                <label className="text-xs font-medium text-gray-600 mr-1">Message *</label>
+                <label className="text-ui-sm font-medium text-gray-600 mr-1">Message *</label>
                 {MAILING_VARIABLES.map(v => (
                   <button key={v.key} type="button" onClick={() => insertVar(v.key)} title={`Ex : ${v.example}`}
-                    className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[11px] hover:bg-blue-100">{`{${v.key}}`}</button>
+                    className="px-1.5 py-0.5 rounded bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] text-ui-sm hover:bg-[rgb(var(--c-info-bg))]">{`{${v.key}}`}</button>
                 ))}
                 <button onClick={() => setShowAI(s => !s)}
-                  className="ml-auto flex items-center gap-1 text-[11px] px-2 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-full">
+                  className="ml-auto flex items-center gap-1 text-ui-sm px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full">
                   <Sparkles className="w-3 h-3" /> Aide interactive
                 </button>
               </div>
               {showAI && (
-                <div className="mb-2 bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2">
+                <div className="mb-2 bg-gray-50 border border-gray-200 rounded-ui-sm p-3 space-y-2">
                   <textarea rows={3} value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}
                     placeholder="Ex : mail de prospection pour des campings sur la formation SST et l'incendie, ton professionnel"
-                    className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm bg-white" />
+                    className="w-full border border-gray-200 rounded-ui-sm px-3 py-2 text-ui bg-white" />
                   <div className="flex gap-2">
                     <button onClick={generateWithAI} disabled={aiLoading || !aiPrompt.trim()}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs disabled:opacity-50">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 text-white rounded-ui-sm text-ui-sm disabled:opacity-50">
                       {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Générer
                     </button>
-                    <button onClick={() => setShowAI(false)} className="px-3 py-1.5 text-xs text-gray-600">Fermer</button>
+                    <button onClick={() => setShowAI(false)} className="px-3 py-1.5 text-ui-sm text-gray-600">Fermer</button>
                   </div>
                 </div>
               )}
               <textarea ref={bodyRef} rows={12} value={form.body_html} onFocus={() => { lastFocus.current = 'body' }}
                 onChange={e => setForm(f => ({ ...f, body_html: e.target.value }))}
                 placeholder={'{bonjour}\n\n...'}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <p className="text-[11px] text-gray-400">HTML accepté. La signature et le lien de désabonnement sont ajoutés automatiquement.</p>
+                className="w-full border border-gray-200 rounded-ui-sm px-3 py-2 text-ui font-mono focus:outline-none focus:ring-2 focus:ring-[rgb(var(--c-info)/0.3)]" />
+              <p className="text-ui-sm text-gray-400">HTML accepté. La signature et le lien de désabonnement sont ajoutés automatiquement.</p>
               {missingVarCount > 0 && (
-                <p className="text-[11px] text-amber-700 mt-1"> {missingVarCount} destinataire{missingVarCount > 1 ? 's' : ''} sans valeur pour une variable utilisée ({usedVars.filter(v => v !== 'bonjour').map(v => `{${v}}`).join(', ')}) : elle sera laissée vide.</p>
+                <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1"> {missingVarCount} destinataire{missingVarCount > 1 ? 's' : ''} sans valeur pour une variable utilisée ({usedVars.filter(v => v !== 'bonjour').map(v => `{${v}}`).join(', ')}) : elle sera laissée vide.</p>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Signature / expéditeur</label>
+                <label className="block text-ui-sm font-medium text-gray-600 mb-1">Signature / expéditeur</label>
                 <select value={form.signature_caller} onChange={e => setForm(f => ({ ...f, signature_caller: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm">
+                  className="w-full border border-gray-200 rounded-ui-sm px-2 py-2 text-ui">
                   {sigOptions().map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Pièce jointe</label>
+                <label className="block text-ui-sm font-medium text-gray-600 mb-1">Pièce jointe</label>
                 {attachment ? (
-                  <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-2 py-2">
+                  <div className="flex items-center gap-2 border border-gray-200 rounded-ui-sm px-2 py-2">
                     <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-xs text-gray-700 truncate flex-1">{attachment.filename}</span>
-                    <button onClick={() => setAttachment(null)} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
+                    <span className="text-ui-sm text-gray-700 truncate flex-1">{attachment.filename}</span>
+                    <button onClick={() => setAttachment(null)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]"><X className="w-4 h-4" /></button>
                   </div>
                 ) : (
                   <>
                     <button onClick={() => fileRef.current?.click()}
-                      className="w-full border border-dashed border-gray-300 hover:border-blue-400 rounded-lg px-2 py-2 text-xs text-gray-500 text-left">
+                      className="w-full border border-dashed border-gray-300 hover:border-[rgb(var(--c-info)/0.3)] rounded-ui-sm px-2 py-2 text-ui-sm text-gray-500 text-left">
                       + Fichier (max 3 Mo)
                     </button>
                     <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
@@ -451,54 +451,54 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
           </div>
 
           {/* ── Aperçu ── */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-gray-50 border-b text-xs text-gray-500">
+          <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
+            <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-gray-50 border-b text-ui-sm text-gray-500">
               <Eye className="w-3.5 h-3.5" /> Aperçu pour
               <select value={previewRow?.email || ''} onChange={e => setPreviewEmail(e.target.value)} className="border rounded px-1 py-0.5 max-w-[220px]">
                 {!selectionList.length && <option value="">(exemple)</option>}
                 {selectionList.slice(0, 200).map(r => <option key={r.email} value={r.email}>{r.display_name}</option>)}
               </select>
-              <button onClick={sendTest} className="ml-auto flex items-center gap-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded">
+              <button onClick={sendTest} className="ml-auto flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-700 text-white rounded">
                 <Mail className="w-3.5 h-3.5" /> Test à {user?.email}
               </button>
             </div>
-            <p className="px-3 pt-2 text-sm"><span className="text-gray-400">Objet :</span> <strong>{previewSubject || '-'}</strong></p>
+            <p className="px-3 pt-2 text-ui"><span className="text-gray-400">Objet :</span> <strong>{previewSubject || '-'}</strong></p>
             {form.body_html
               ? <iframe srcDoc={previewSrc} title="apercu" sandbox="allow-same-origin" className="w-full border-none" style={{ height: 300 }} />
-              : <p className="p-6 text-center text-sm text-gray-400">Message vide</p>}
+              : <p className="p-6 text-center text-ui text-gray-400">Message vide</p>}
           </div>
 
           {/* ── Envoi ── */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          <div className="bg-white rounded-ui border border-gray-200 p-4 space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => setMode('serveur')}
-                className={`flex items-start gap-2 p-3 rounded-lg border text-left ${mode === 'serveur' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <Server className="w-4 h-4 mt-0.5 text-blue-600" />
-                <span><span className="block text-sm font-medium">Par le serveur</span><span className="block text-[11px] text-gray-500">Pas besoin de laisser la page ouverte. Programmable.</span></span>
+                className={`flex items-start gap-2 p-3 rounded-ui-sm border text-left ${mode === 'serveur' ? 'border-[rgb(var(--c-info)/0.3)] bg-[rgb(var(--c-info-bg))]' : 'border-gray-200 hover:bg-gray-50'}`}>
+                <Server className="w-4 h-4 mt-0.5 text-[rgb(var(--c-info))]" />
+                <span><span className="block text-ui font-medium">Par le serveur</span><span className="block text-ui-sm text-gray-500">Pas besoin de laisser la page ouverte. Programmable.</span></span>
               </button>
               <button onClick={() => { setMode('navigateur'); setWhen('now') }}
-                className={`flex items-start gap-2 p-3 rounded-lg border text-left ${mode === 'navigateur' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                className={`flex items-start gap-2 p-3 rounded-ui-sm border text-left ${mode === 'navigateur' ? 'border-[rgb(var(--c-info)/0.3)] bg-[rgb(var(--c-info-bg))]' : 'border-gray-200 hover:bg-gray-50'}`}>
                 <Monitor className="w-4 h-4 mt-0.5 text-gray-600" />
-                <span><span className="block text-sm font-medium">Depuis ce navigateur</span><span className="block text-[11px] text-gray-500">Immédiat, l'onglet doit rester ouvert.</span></span>
+                <span><span className="block text-ui font-medium">Depuis ce navigateur</span><span className="block text-ui-sm text-gray-500">Immédiat, l'onglet doit rester ouvert.</span></span>
               </button>
             </div>
 
             {mode === 'serveur' && (
-              <div className="flex flex-wrap items-center gap-3 text-sm">
+              <div className="flex flex-wrap items-center gap-3 text-ui">
                 <label className="flex items-center gap-1.5"><input type="radio" checked={when === 'now'} onChange={() => setWhen('now')} /> Maintenant</label>
                 <label className="flex items-center gap-1.5"><input type="radio" checked={when === 'later'} onChange={() => setWhen('later')} /> Programmer le</label>
                 {when === 'later' && (
-                  <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} className="border rounded-lg px-2 py-1 text-sm" />
+                  <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} className="border rounded-ui-sm px-2 py-1 text-ui" />
                 )}
               </div>
             )}
 
             <div>
-              <p className="text-xs font-medium text-gray-600 mb-1">Cadence</p>
+              <p className="text-ui-sm font-medium text-gray-600 mb-1">Cadence</p>
               <div className="flex flex-wrap gap-2">
                 {CADENCES.map(c => (
                   <button key={c.value} onClick={() => setCadence(c.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs border ${cadence === c.value ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-600 hover:border-blue-300'}`}>
+                    className={`px-3 py-1.5 rounded-ui-sm text-ui-sm border ${cadence === c.value ? 'bg-[rgb(var(--c-info))] text-white border-[rgb(var(--c-info)/0.3)]' : 'border-gray-200 text-gray-600 hover:border-[rgb(var(--c-info)/0.3)]'}`}>
                     {c.label}
                   </button>
                 ))}
@@ -506,11 +506,11 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
             </div>
 
             {selection.size > 0 && (
-              <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+              <p className="text-ui-sm text-gray-600 bg-gray-50 rounded-ui-sm px-3 py-2">
                 <CalendarClock className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />
                 {selection.size} mail{selection.size > 1 ? 's' : ''} · environ {durationMin >= 60 ? `${Math.floor(durationMin / 60)} h ${durationMin % 60} min` : `${durationMin} min`}
                 {' '}· début {fmtDateTime(startDate)} · fin vers {fmtDateTime(endDate)}
-                {selection.size > 400 && <span className="block text-amber-700 mt-1"> Plus de 400 mails : c'est au-delà de votre plus gros envoi journalier connu (457 le 15/05).</span>}
+                {selection.size > 400 && <span className="block text-[rgb(var(--c-warning))] mt-1"> Plus de 400 mails : c'est au-delà de votre plus gros envoi journalier connu (457 le 15/05).</span>}
               </p>
             )}
           </div>
@@ -520,16 +520,16 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
       {/* ── Confirmation ── */}
       {prepared && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-lg p-6 space-y-4">
             <h3 className="text-lg font-bold">{mode === 'serveur' && when === 'later' ? 'Programmer la campagne' : 'Lancer la campagne'}</h3>
-            <ul className="text-sm space-y-1.5 text-gray-700">
+            <ul className="text-ui space-y-1.5 text-gray-700">
               <li><strong>{prepared.kept.length}</strong> destinataire{prepared.kept.length > 1 ? 's' : ''} - « {form.subject} »</li>
               {Object.keys(prepared.removed).length > 0 && (
-                <li className="text-orange-700">
+                <li className="text-[rgb(var(--c-warning))]">
                   Retirés à la vérification finale : {Object.entries(prepared.removed).map(([k, n]) => `${EXCLUSION_LABELS[k] || (k === 'disparue' ? 'Adresse disparue' : k)} ${n}`).join(' · ')}
                 </li>
               )}
-              {prepared.recent > 0 && <li className="text-amber-700"> {prepared.recent} ont déjà reçu un mail il y a moins de 30 jours (envoi quand même)</li>}
+              {prepared.recent > 0 && <li className="text-[rgb(var(--c-warning))]"> {prepared.recent} ont déjà reçu un mail il y a moins de 30 jours (envoi quand même)</li>}
               <li>Expéditeur : <strong>{senderEmailFor(form.signature_caller)}</strong></li>
               <li>Mode : <strong>{mode === 'serveur' ? 'serveur' : 'ce navigateur (ne pas fermer l’onglet)'}</strong> · cadence {cadence} s</li>
               <li>{mode === 'serveur' && when === 'later' ? 'Début' : 'Départ'} : <strong>{fmtDateTime(startDate)}</strong> · fin estimée {fmtDateTime(new Date(startDate.getTime() + Math.max(0, prepared.kept.length - 1) * cadence * 1000))}</li>
@@ -537,9 +537,9 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
               <li>Rapport de fin envoyé à <strong>{senderEmailFor(form.signature_caller)}</strong></li>
             </ul>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setPrepared(null)} disabled={launching} className="px-4 py-2 text-sm text-gray-600">Annuler</button>
+              <button onClick={() => setPrepared(null)} disabled={launching} className="px-4 py-2 text-ui text-gray-600">Annuler</button>
               <button onClick={launch} disabled={launching || !prepared.kept.length}
-                className="flex items-center gap-2 px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+                className="flex items-center gap-2 px-5 py-2 bg-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-semibold disabled:opacity-50">
                 {launching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />} Confirmer
               </button>
             </div>

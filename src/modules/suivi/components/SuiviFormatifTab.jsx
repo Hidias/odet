@@ -58,7 +58,7 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
     return <div className="card text-center text-gray-500 py-10">Le module Suivi formatif n'est pas activé (Console, Modules).</div>
   }
   if (loading) return <div className="card flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
-  if (error) return <div className="card text-red-700">{error}</div>
+  if (error) return <div className="card text-[rgb(var(--c-danger))]">{error}</div>
 
   const phoneUrl = `${window.location.origin}/#/suivi/${sessionId}`
 
@@ -114,7 +114,7 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Reprendre les séquences de la formation'}
           </button>
         )}
-        <p className="text-xs text-gray-500">Les séquences se définissent dans le catalogue, fiche de la formation, bouton « Séquences ».</p>
+        <p className="text-ui-sm text-gray-500">Les séquences se définissent dans le catalogue, fiche de la formation, bouton « Séquences ».</p>
       </div>
     )
   }
@@ -134,25 +134,25 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
   return (
     <div className="space-y-5">
       {sessionDone && !lastSheet && canWrite && (
-        <div className="card bg-amber-50 border-amber-200 flex flex-wrap items-center justify-between gap-3">
-          <span className="text-amber-900 text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" aria-hidden="true" />Session terminée : la fiche de suivi n'est pas encore archivée.</span>
+        <div className="card bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)] flex flex-wrap items-center justify-between gap-3">
+          <span className="text-[rgb(var(--c-warning))] text-ui flex items-center gap-2"><AlertTriangle className="w-4 h-4" aria-hidden="true" />Session terminée : la fiche de suivi n'est pas encore archivée.</span>
           <button type="button" onClick={() => archive(null)} disabled={busy} className="btn btn-primary btn-sm">Archiver la fiche</button>
         </div>
       )}
       {lastSheet && changedSince && canWrite && (
-        <div className="card bg-amber-50 border-amber-200 flex flex-wrap items-center justify-between gap-3">
-          <span className="text-amber-900 text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" aria-hidden="true" />Saisies modifiées depuis la version {lastSheet.version} archivée : archivez une nouvelle version (l'ancienne reste).</span>
+        <div className="card bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)] flex flex-wrap items-center justify-between gap-3">
+          <span className="text-[rgb(var(--c-warning))] text-ui flex items-center gap-2"><AlertTriangle className="w-4 h-4" aria-hidden="true" />Saisies modifiées depuis la version {lastSheet.version} archivée : archivez une nouvelle version (l'ancienne reste).</span>
           <button type="button" onClick={() => setReasonAsk('')} disabled={busy} className="btn btn-primary btn-sm">Nouvelle version</button>
         </div>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-3">
-          <div className="card py-2.5 px-4"><div className="text-xs text-gray-500">Séquences notées</div><div className="font-display text-xl font-semibold">{noted} sur {data.sequences.length}</div></div>
+          <div className="card py-2.5 px-4"><div className="text-ui-sm text-gray-500">Séquences notées</div><div className="font-display text-xl font-semibold">{noted} sur {data.sequences.length}</div></div>
           {coverage.hasRoleSequences && (
-            <div className="card py-2.5 px-4"><div className="text-xs text-gray-500">Jamais {String(roleName || 'en rôle principal').toLowerCase()}</div><div className={`font-display text-xl font-semibold ${coverage.neverPrincipal.length ? 'text-amber-700' : ''}`}>{coverage.neverPrincipal.length} stagiaire{coverage.neverPrincipal.length > 1 ? 's' : ''}</div></div>
+            <div className="card py-2.5 px-4"><div className="text-ui-sm text-gray-500">Jamais {String(roleName || 'en rôle principal').toLowerCase()}</div><div className={`font-display text-xl font-semibold ${coverage.neverPrincipal.length ? 'text-[rgb(var(--c-warning))]' : ''}`}>{coverage.neverPrincipal.length} stagiaire{coverage.neverPrincipal.length > 1 ? 's' : ''}</div></div>
           )}
-          <div className="card py-2.5 px-4"><div className="text-xs text-gray-500">À revoir non repris</div><div className={`font-display text-xl font-semibold ${coverage.pending.length ? 'text-red-700' : ''}`}>{coverage.pending.length}</div></div>
+          <div className="card py-2.5 px-4"><div className="text-ui-sm text-gray-500">À revoir non repris</div><div className={`font-display text-xl font-semibold ${coverage.pending.length ? 'text-[rgb(var(--c-danger))]' : ''}`}>{coverage.pending.length}</div></div>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={showQr} className="btn btn-secondary flex items-center gap-2"><Smartphone className="w-4 h-4" aria-hidden="true" />Ouvrir sur téléphone</button>
@@ -174,7 +174,7 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
                 <th scope="col" className="text-left font-semibold px-2 min-w-[160px]">Stagiaire</th>
                 {data.sequences.map((s, i) => (
                   <th key={s.id} scope="col" title={`${s.title} · ${modalityLabel(s.modality)}${(s.competences || []).length ? ` · ${s.competences.join(', ')}` : ''}`} className="font-semibold w-12 text-center leading-tight">
-                    S{i + 1}<br /><span className="font-normal text-gray-500 text-[11px]">{modalityShort(s.modality)}</span>
+                    S{i + 1}<br /><span className="font-normal text-gray-500 text-ui-sm">{modalityShort(s.modality)}</span>
                   </th>
                 ))}
                 {coverage.hasRoleSequences && <th scope="col" className="font-semibold px-2 text-center">{roleName || 'Rôle'}</th>}
@@ -196,20 +196,20 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
                         : { background: st.solid, color: '#fff' }
                     return (
                       <td key={s.id} title={`${s.title}${st ? ` : ${st.label}` : ''}${row?.role ? ` · ${row.role}` : ''}${row?.remark ? ` · ${row.remark}` : ''}`}
-                        className="w-12 h-8 text-center rounded-md font-semibold" style={style}>
+                        className="w-12 h-8 text-center rounded-ui-sm font-semibold" style={style}>
                         {st ? st.code : ''}{isP ? ' P' : ''}
                       </td>
                     )
                   })}
                   {coverage.hasRoleSequences && (
-                    <td className={`text-center font-semibold rounded-md ${coverage.principalCount[t.id] ? '' : 'bg-amber-50 text-amber-800'}`}>{coverage.principalCount[t.id] || 0}</td>
+                    <td className={`text-center font-semibold rounded-ui-sm ${coverage.principalCount[t.id] ? '' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>{coverage.principalCount[t.id] || 0}</td>
                   )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-gray-600">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-ui-sm text-gray-600">
           {STATUSES.map((s) => <span key={s.key}><strong style={{ color: s.solid }}>{s.code}</strong> {s.label.toLowerCase()}</span>)}
           <span>Fond pâle : note du groupe · fond plein : noté pour le stagiaire · P : {String(roleName || 'rôle principal').toLowerCase()}</span>
         </div>
@@ -219,22 +219,22 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
         <section className="card space-y-1.5">
           <h3 className="font-semibold">Avant l'épreuve</h3>
           {coverage.byCompetence.filter((c) => c.missing.length).map((c) => (
-            <p key={c.code} className="text-sm"><strong>{c.code}</strong> · {c.seen} sur {c.total} vus · pas encore : {c.missing.map(fullName).join(', ')}</p>
+            <p key={c.code} className="text-ui"><strong>{c.code}</strong> · {c.seen} sur {c.total} vus · pas encore : {c.missing.map(fullName).join(', ')}</p>
           ))}
         </section>
       )}
 
       <section className="card space-y-1.5">
         <h3 className="font-semibold">Remarques</h3>
-        {remarks.length === 0 && <p className="text-sm text-gray-500">Aucune remarque.</p>}
-        {remarks.map((r) => <p key={r.k} className="text-sm"><strong>{r.who}</strong> · {r.seq} · {r.text}</p>)}
+        {remarks.length === 0 && <p className="text-ui text-gray-500">Aucune remarque.</p>}
+        {remarks.map((r) => <p key={r.k} className="text-ui"><strong>{r.who}</strong> · {r.seq} · {r.text}</p>)}
       </section>
 
       <section className="card space-y-2">
         <h3 className="font-semibold flex items-center gap-2"><History className="w-4 h-4" aria-hidden="true" />Fiches archivées</h3>
-        {data.sheets.length === 0 && <p className="text-sm text-gray-500">Aucune fiche archivée. Une fiche archivée n'est jamais remplacée : chaque archivage crée une nouvelle version.</p>}
+        {data.sheets.length === 0 && <p className="text-ui text-gray-500">Aucune fiche archivée. Une fiche archivée n'est jamais remplacée : chaque archivage crée une nouvelle version.</p>}
         {data.sheets.map((sh) => (
-          <div key={sh.id} className="flex flex-wrap items-center justify-between gap-2 text-sm border-b border-gray-100 py-1.5">
+          <div key={sh.id} className="flex flex-wrap items-center justify-between gap-2 text-ui border-b border-gray-100 py-1.5">
             <span><strong>Version {sh.version}</strong> · {frDateTime(sh.created_at)}{sh.reason ? ` · ${sh.reason}` : ''}</span>
             <button type="button" onClick={() => openArchive(sh.file_path).catch((e) => toast.error(e.message || 'Ouverture impossible'))} className="btn btn-secondary btn-sm">Ouvrir</button>
           </div>
@@ -243,21 +243,21 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
 
       {qr !== null && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setQr(null)}>
-          <div role="dialog" aria-label="Ouvrir sur téléphone" className="bg-white rounded-xl p-5 max-w-sm w-full text-center space-y-3" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-label="Ouvrir sur téléphone" className="bg-white rounded-ui p-5 max-w-sm w-full text-center space-y-3" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center"><h3 className="font-semibold">Ouvrir sur téléphone</h3><button type="button" aria-label="Fermer" onClick={() => setQr(null)} className="p-2"><X className="w-4 h-4" /></button></div>
             {qr ? <img src={qr} alt="QR code de la saisie du suivi formatif" className="mx-auto w-56 h-56" /> : null}
-            <p className="text-xs text-gray-500 break-all">{phoneUrl}</p>
-            <p className="text-xs text-gray-500">Le formateur doit être connecté à son compte sur le téléphone.</p>
+            <p className="text-ui-sm text-gray-500 break-all">{phoneUrl}</p>
+            <p className="text-ui-sm text-gray-500">Le formateur doit être connecté à son compte sur le téléphone.</p>
           </div>
         </div>
       )}
 
       {reasonAsk !== null && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setReasonAsk(null)}>
-          <div role="dialog" aria-label="Nouvelle version de la fiche" className="bg-white rounded-xl p-5 max-w-md w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-label="Nouvelle version de la fiche" className="bg-white rounded-ui p-5 max-w-md w-full space-y-3" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold">Nouvelle version de la fiche</h3>
-            <p className="text-sm text-gray-600">La version {lastSheet?.version} reste archivée telle quelle. Indiquez pourquoi une nouvelle version est archivée.</p>
-            <label htmlFor="sf-reason" className="text-sm font-medium">Motif</label>
+            <p className="text-ui text-gray-600">La version {lastSheet?.version} reste archivée telle quelle. Indiquez pourquoi une nouvelle version est archivée.</p>
+            <label htmlFor="sf-reason" className="text-ui font-medium">Motif</label>
             <input id="sf-reason" className="input w-full" value={reasonAsk} onChange={(e) => setReasonAsk(e.target.value)} placeholder="Ex. remarque complétée après la session" />
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setReasonAsk(null)} className="btn btn-secondary">Annuler</button>

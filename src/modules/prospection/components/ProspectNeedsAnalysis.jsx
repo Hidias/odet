@@ -288,15 +288,15 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
       {/* Header avec boutons */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileCheck className="w-5 h-5 text-blue-600" />
+          <FileCheck className="w-5 h-5 text-[rgb(var(--c-info))]" />
           <h3 className="font-semibold">Analyse du besoin</h3>
           {analysis ? (
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1">
+            <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded flex items-center gap-1">
               <CheckCircle className="w-3 h-3" />
               Complétée
             </span>
           ) : (
-            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded flex items-center gap-1">
+            <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-2 py-0.5 rounded flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />
               À remplir
             </span>
@@ -334,20 +334,20 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
 
       {/* Formulaire */}
       {showForm && (
-        <div className="border rounded-lg p-6 space-y-6 bg-white">
+        <div className="border rounded-ui-sm p-6 space-y-6 bg-white">
           {/* Date de l'analyse */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-blue-600" />
+          <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4">
+            <label className="block text-ui font-medium mb-2 flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-[rgb(var(--c-info))]" />
               Date de l'analyse
             </label>
             <input
               type="date"
               value={formData.analysis_date}
               onChange={(e) => setFormData({ ...formData, analysis_date: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border rounded-ui-sm"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-ui-sm text-gray-500 mt-1">
               Cette date apparaîtra sur le document PDF
             </p>
           </div>
@@ -357,7 +357,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
             <h4 className="font-semibold text-lg border-b pb-2">1. Contexte et enjeux</h4>
             
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-ui font-medium mb-2">
                 Pourquoi cette formation maintenant ?
               </label>
               <div className="space-y-2">
@@ -369,7 +369,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                       onChange={() => handleCheckbox('context_reasons', reason.value)}
                       className="w-4 h-4 rounded"
                     />
-                    <span className="text-sm">{reason.label}</span>
+                    <span className="text-ui">{reason.label}</span>
                   </label>
                 ))}
               </div>
@@ -377,27 +377,27 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
 
             {formData.context_reasons.includes('autre') && (
               <div>
-                <label className="block text-sm font-medium mb-1">Précisez :</label>
+                <label className="block text-ui font-medium mb-1">Précisez :</label>
                 <input
                   type="text"
                   value={formData.context_other}
                   onChange={(e) => setFormData({ ...formData, context_other: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-ui-sm"
                   placeholder="Autre raison..."
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-ui font-medium mb-1">
                 Enjeux spécifiques
-                <span className="text-xs text-gray-500 ml-2">(Quels sont les enjeux pour l'entreprise ?)</span>
+                <span className="text-ui-sm text-gray-500 ml-2">(Quels sont les enjeux pour l'entreprise ?)</span>
               </label>
               <textarea
                 value={formData.context_stakes}
                 onChange={(e) => setFormData({ ...formData, context_stakes: e.target.value })}
                 rows={4}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 border rounded-ui-sm"
                 placeholder="Ex: Réduire les accidents du travail, Mise en conformité réglementaire..."
               />
             </div>
@@ -408,28 +408,28 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
             <h4 className="font-semibold text-lg border-b pb-2">2. Objectifs attendus</h4>
             
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-ui font-medium mb-1">
                 Que souhaitez-vous que les stagiaires sachent faire à l'issue ?
               </label>
               <textarea
                 value={formData.objectives_description}
                 onChange={(e) => setFormData({ ...formData, objectives_description: e.target.value })}
                 rows={4}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 border rounded-ui-sm"
                 placeholder="Ex: Être capable de porter secours à une victime, Savoir utiliser un extincteur..."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-ui font-medium mb-1">
                 Résultats mesurables attendus
-                <span className="text-xs text-gray-500 ml-2">(Comment mesurerez-vous l'efficacité ?)</span>
+                <span className="text-ui-sm text-gray-500 ml-2">(Comment mesurerez-vous l'efficacité ?)</span>
               </label>
               <textarea
                 value={formData.objectives_measurable}
                 onChange={(e) => setFormData({ ...formData, objectives_measurable: e.target.value })}
                 rows={3}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 border rounded-ui-sm"
                 placeholder="Ex: 100% des participants certifiés, Réduction de 50% des incidents..."
               />
             </div>
@@ -441,22 +441,22 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Nombre de participants</label>
+                <label className="block text-ui font-medium mb-1">Nombre de participants</label>
                 <input
                   type="number"
                   value={formData.participants_count}
                   onChange={(e) => setFormData({ ...formData, participants_count: parseInt(e.target.value) || '' })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-ui-sm"
                   placeholder="Ex: 12"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Niveau</label>
+                <label className="block text-ui font-medium mb-1">Niveau</label>
                 <select
                   value={formData.level}
                   onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-ui-sm"
                 >
                   <option value="">Sélectionner</option>
                   <option value="debutant">Débutant</option>
@@ -467,7 +467,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Profils des participants</label>
+              <label className="block text-ui font-medium mb-2">Profils des participants</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {PROFILES.map(profile => (
                   <label key={profile.value} className="flex items-center gap-2">
@@ -477,14 +477,14 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                       onChange={() => handleCheckbox('participants_profiles', profile.value)}
                       className="w-4 h-4 rounded"
                     />
-                    <span className="text-sm">{profile.label}</span>
+                    <span className="text-ui">{profile.label}</span>
                   </label>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Prérequis déjà validés ?</label>
+              <label className="block text-ui font-medium mb-2">Prérequis déjà validés ?</label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2">
                   <input
@@ -493,7 +493,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                     onChange={() => setFormData({ ...formData, prerequisites_validated: true })}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">Oui</span>
+                  <span className="text-ui">Oui</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -502,21 +502,21 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                     onChange={() => setFormData({ ...formData, prerequisites_validated: false })}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">Non</span>
+                  <span className="text-ui">Non</span>
                 </label>
               </div>
             </div>
 
-            <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
-              <label className="block text-sm font-medium">Particularités</label>
+            <div className="space-y-3 bg-gray-50 p-4 rounded-ui-sm">
+              <label className="block text-ui font-medium">Particularités</label>
               
               <div>
-                <label className="block text-xs text-gray-600 mb-1">PSH (Personnes en Situation de Handicap)</label>
+                <label className="block text-ui-sm text-gray-600 mb-1">PSH (Personnes en Situation de Handicap)</label>
                 <input
                   type="text"
                   value={formData.particularities_psh}
                   onChange={(e) => setFormData({ ...formData, particularities_psh: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  className="w-full px-3 py-2 border rounded-ui-sm text-ui"
                   placeholder="Précisez les adaptations nécessaires..."
                 />
               </div>
@@ -528,16 +528,16 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                   onChange={(e) => setFormData({ ...formData, particularities_non_french: e.target.checked })}
                   className="w-4 h-4 rounded"
                 />
-                <span className="text-sm">Public non francophone</span>
+                <span className="text-ui">Public non francophone</span>
               </label>
 
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Autres particularités</label>
+                <label className="block text-ui-sm text-gray-600 mb-1">Autres particularités</label>
                 <input
                   type="text"
                   value={formData.particularities_other}
                   onChange={(e) => setFormData({ ...formData, particularities_other: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  className="w-full px-3 py-2 border rounded-ui-sm text-ui"
                   placeholder="Autres particularités..."
                 />
               </div>
@@ -549,7 +549,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
             <h4 className="font-semibold text-lg border-b pb-2">4. Contraintes et moyens</h4>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Lieu de formation</label>
+              <label className="block text-ui font-medium mb-2">Lieu de formation</label>
               <div className="space-y-2">
                 <label className="flex items-center gap-2">
                   <input
@@ -558,7 +558,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                     onChange={() => setFormData({ ...formData, location_type: 'access_formation' })}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">Dans nos locaux</span>
+                  <span className="text-ui">Dans nos locaux</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -567,7 +567,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                     onChange={() => setFormData({ ...formData, location_type: 'client' })}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">Chez le client</span>
+                  <span className="text-ui">Chez le client</span>
                 </label>
               </div>
 
@@ -577,7 +577,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                     type="text"
                     value={formData.location_client_address}
                     onChange={(e) => setFormData({ ...formData, location_client_address: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 border rounded-ui-sm"
                     placeholder="Adresse complète..."
                   />
                 </div>
@@ -586,30 +586,30 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Horaires souhaités</label>
+                <label className="block text-ui font-medium mb-1">Horaires souhaités</label>
                 <input
                   type="text"
                   value={formData.preferred_schedule}
                   onChange={(e) => setFormData({ ...formData, preferred_schedule: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-ui-sm"
                   placeholder="Ex: 9h-17h"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Dates préférentielles</label>
+                <label className="block text-ui font-medium mb-1">Dates préférentielles</label>
                 <input
                   type="text"
                   value={formData.preferred_dates}
                   onChange={(e) => setFormData({ ...formData, preferred_dates: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-ui-sm"
                   placeholder="Ex: Semaine du 15/02"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Matériel spécifique entreprise</label>
+              <label className="block text-ui font-medium mb-2">Matériel spécifique entreprise</label>
               <div className="flex gap-4 mb-2">
                 <label className="flex items-center gap-2">
                   <input
@@ -618,7 +618,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                     onChange={() => setFormData({ ...formData, company_equipment: true })}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">Oui</span>
+                  <span className="text-ui">Oui</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -627,7 +627,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                     onChange={() => setFormData({ ...formData, company_equipment: false })}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">Non</span>
+                  <span className="text-ui">Non</span>
                 </label>
               </div>
 
@@ -636,14 +636,14 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                   type="text"
                   value={formData.company_equipment_details}
                   onChange={(e) => setFormData({ ...formData, company_equipment_details: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-ui-sm"
                   placeholder="Précisez le matériel..."
                 />
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Équipements de protection fournis</label>
+              <label className="block text-ui font-medium mb-2">Équipements de protection fournis</label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2">
                   <input
@@ -652,7 +652,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                     onChange={() => setFormData({ ...formData, ppe_provided: true })}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">Oui</span>
+                  <span className="text-ui">Oui</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -661,42 +661,42 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                     onChange={() => setFormData({ ...formData, ppe_provided: false })}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">Non</span>
+                  <span className="text-ui">Non</span>
                 </label>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Autres contraintes</label>
+              <label className="block text-ui font-medium mb-1">Autres contraintes</label>
               <textarea
                 value={formData.other_constraints}
                 onChange={(e) => setFormData({ ...formData, other_constraints: e.target.value })}
                 rows={3}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 border rounded-ui-sm"
                 placeholder="Ex: Contraintes d'accès, besoins spécifiques..."
               />
             </div>
           </div>
 
           {/* SIGNATURES */}
-          <div className="space-y-4 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-lg border-2 border-blue-200">
+          <div className="space-y-4 bg-gray-50 p-6 rounded-ui-sm border-2 border-[rgb(var(--c-info)/0.3)]">
             <div className="flex items-center gap-2">
-              <div className="w-1 h-6 bg-blue-600 rounded"></div>
+              <div className="w-1 h-6 bg-[rgb(var(--c-info))] rounded"></div>
               <h4 className="font-semibold text-lg">Signatures (optionnel)</h4>
             </div>
-            <p className="text-sm text-gray-700">
+            <p className="text-ui text-gray-700">
               Signez directement sur l'écran. Les signatures apparaîtront sur le PDF généré.
               <br />
-              <span className="text-blue-700 font-medium"> Fonctionne sur tablette tactile et souris</span>
+              <span className="text-[rgb(var(--c-info))] font-medium"> Fonctionne sur tablette tactile et souris</span>
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Signature formateur */}
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+                <label className="block text-ui font-semibold text-gray-700">
                    Signature formateur (vous)
                 </label>
-                <div className="border-2 border-gray-400 rounded-lg bg-white shadow-sm">
+                <div className="border-2 border-gray-400 rounded-ui-sm bg-white shadow-sm">
                   <SignatureCanvas
                     ref={signatureTrainerRef}
                     canvasProps={{
@@ -718,10 +718,10 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
 
               {/* Signature client */}
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+                <label className="block text-ui font-semibold text-gray-700">
                    Signature client (sur place uniquement)
                 </label>
-                <div className="border-2 border-gray-400 rounded-lg bg-white shadow-sm">
+                <div className="border-2 border-gray-400 rounded-ui-sm bg-white shadow-sm">
                   <SignatureCanvas
                     ref={signatureClientRef}
                     canvasProps={{
@@ -739,7 +739,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
                   <Eraser className="w-3 h-3" />
                   Effacer
                 </button>
-                <p className="text-xs text-gray-600 bg-white/70 p-2 rounded border border-gray-300">
+                <p className="text-ui-sm text-gray-600 bg-white/70 p-2 rounded border border-gray-300">
                    <strong>À distance ?</strong> Laissez vide. Vous signerez, téléchargerez le PDF, et l'enverrez au client pour signature manuelle.
                 </p>
               </div>
@@ -769,7 +769,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
 
       {/* Résumé compact si rempli et formulaire masqué */}
       {!showForm && analysis && (
-        <div className="border rounded-lg p-4 bg-gray-50 text-sm">
+        <div className="border rounded-ui-sm p-4 bg-gray-50 text-ui">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <span className="font-medium">Date de l'analyse :</span> {
@@ -796,7 +796,7 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
             </div>
           </div>
           {analysis.filled_at && (
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="mt-2 text-ui-sm text-gray-500">
               Remplie le {new Date(analysis.filled_at).toLocaleDateString('fr-FR')}
             </div>
           )}

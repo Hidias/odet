@@ -34,8 +34,8 @@ import {
 
 function Tile({ label, value }) {
   return (
-    <div className="bg-gray-50 rounded-lg px-4 py-3">
-      <p className="text-xs text-gray-500">{label}</p>
+    <div className="bg-gray-50 rounded-ui-sm px-4 py-3">
+      <p className="text-ui-sm text-gray-500">{label}</p>
       <p className="text-2xl font-semibold text-gray-900">{value}</p>
     </div>
   )
@@ -44,13 +44,13 @@ function Tile({ label, value }) {
 function Block({ title, count, children, action, defaultOpen = true, muted = false }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <section className={`bg-white border rounded-xl ${muted ? 'border-gray-100' : 'border-gray-200'}`}>
+    <section className={`bg-white border rounded-ui ${muted ? 'border-gray-100' : 'border-gray-200'}`}>
       <header className="flex items-center gap-2 px-4 py-3">
         <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2 text-left flex-1 min-w-0">
           {open ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-          <h3 className={`text-sm font-semibold ${muted ? 'text-gray-500' : 'text-gray-900'}`}>{title}</h3>
+          <h3 className={`text-ui font-semibold ${muted ? 'text-gray-500' : 'text-gray-900'}`}>{title}</h3>
           {count !== undefined && (
-            <span className={`text-xs px-2 py-0.5 rounded-md ${count > 0 && !muted ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500'}`}>
+            <span className={`text-ui-sm px-2 py-0.5 rounded-ui-sm ${count > 0 && !muted ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500'}`}>
               {count}
             </span>
           )}
@@ -63,7 +63,7 @@ function Block({ title, count, children, action, defaultOpen = true, muted = fal
 }
 
 function Empty({ text }) {
-  return <p className="text-sm text-gray-500 py-2">{text}</p>
+  return <p className="text-ui text-gray-500 py-2">{text}</p>
 }
 
 function Row({ children, actions }) {
@@ -80,8 +80,8 @@ function Btn({ onClick, children, primary = false }) {
     <button
       onClick={onClick}
       className={primary
-        ? 'px-2.5 py-1.5 text-xs font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-700'
-        : 'px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50'}
+        ? 'px-2.5 py-1.5 text-ui-sm font-medium bg-gray-900 text-white rounded-ui-sm hover:bg-gray-700'
+        : 'px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50'}
     >
       {children}
     </button>
@@ -92,7 +92,7 @@ function PhoneLink({ phone }) {
   if (!phone) return null
   return (
     <a href={`tel:${String(phone).replace(/\s/g, '')}`}
-      className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
+      className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">
       <Phone className="w-3.5 h-3.5" /> {phone}
     </a>
   )
@@ -289,7 +289,7 @@ export default function SuiviCommercial() {
         <div className="flex gap-1.5">
           {['all', ...teamFirstNames()].map(p => (
             <button key={p} onClick={() => setPerson(p)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium border ${
+              className={`px-3 py-1.5 rounded-ui-sm text-ui-sm font-medium border ${
                 person === p ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
               }`}>
               {p === 'all' ? 'Tous' : p}
@@ -298,11 +298,11 @@ export default function SuiviCommercial() {
         </div>
         <div className="ml-auto flex gap-2">
           <button onClick={() => { setLoading(true); load() }}
-            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50" aria-label="Actualiser" title="Actualiser">
+            className="p-2 border border-gray-200 rounded-ui-sm hover:bg-gray-50" aria-label="Actualiser" title="Actualiser">
             <RefreshCw className="w-4 h-4 text-gray-500" />
           </button>
           <button onClick={() => navigate('/prospection/nouveau')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-700">
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white rounded-ui-sm text-ui-sm font-medium hover:bg-gray-700">
             <Plus className="w-3.5 h-3.5" /> Nouveau RDV
           </button>
         </div>
@@ -318,13 +318,13 @@ export default function SuiviCommercial() {
 
       {/* Tri de départ */}
       {triCount > 0 && (
-        <div className="flex items-center gap-3 flex-wrap bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-          <ListChecks className="w-5 h-5 text-amber-700 shrink-0" />
-          <p className="text-sm text-amber-900 flex-1 min-w-[220px]">
+        <div className="flex items-center gap-3 flex-wrap bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui px-4 py-3">
+          <ListChecks className="w-5 h-5 text-[rgb(var(--c-warning))] shrink-0" />
+          <p className="text-ui text-[rgb(var(--c-warning))] flex-1 min-w-[220px]">
             {triCount} ancien(s) élément(s) à trier : RDV jamais clôturés, devis de plus de 45 jours, rappels en retard de plus de 7 jours.
           </p>
           <button onClick={() => setMode('tri')}
-            className="px-3 py-2 text-sm font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700">
+            className="px-3 py-2 text-ui font-medium bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))]">
             Ouvrir le tri
           </button>
         </div>
@@ -343,8 +343,8 @@ export default function SuiviCommercial() {
                 <ExternalLink className="w-4 h-4" />
               </button>
             </>}>
-              <p className="text-sm font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-ui font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
+              <p className="text-ui-sm text-gray-500">
                 RDV du {fmtDate(rdvRefDate(r))}{r.conducted_by ? ` · ${r.conducted_by}` : ''}
                 {late > 0 ? ` · depuis ${late} j` : ''}
                 {r.formations_interet?.length ? ` · ${r.formations_interet.join(', ')}` : ''}
@@ -366,15 +366,15 @@ export default function SuiviCommercial() {
               <ExternalLink className="w-4 h-4" />
             </button>
           </>}>
-            <p className="text-sm font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-ui font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
+            <p className="text-ui-sm text-gray-500">
               Signalé le {fmtDate(rdvRefDate(r))}
               {r.contact_name ? ` · ${r.contact_name}` : ''}
               {(r.source || '').includes('marine') ? ' · via la prospection téléphonique' : ''}
               {r.formations_interet?.length ? ` · ${r.formations_interet.join(', ')}` : ''}
             </p>
             {(r.notes || r.notes_crm) && (
-              <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">{r.notes || r.notes_crm}</p>
+              <p className="text-ui-sm text-gray-600 line-clamp-2 whitespace-pre-line">{r.notes || r.notes_crm}</p>
             )}
           </Row>
         ))}
@@ -388,8 +388,8 @@ export default function SuiviCommercial() {
               <Btn primary onClick={() => navigate(`/devis?client_id=${r.client_id}`)}>Créer le devis</Btn>
               <Btn onClick={() => setSuiteRdv(r)}>Changer la suite</Btn>
             </>}>
-              <p className="text-sm font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-ui font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
+              <p className="text-ui-sm text-gray-500">
                 RDV du {fmtDate(rdvRefDate(r))}{r.outcome_reason ? ` · ${r.outcome_reason}` : ''}
               </p>
             </Row>
@@ -402,7 +402,7 @@ export default function SuiviCommercial() {
         title="À recontacter"
         count={data.recontacter.length}
         action={data.recontacterPlusTard.length > 0 && (
-          <span className="text-xs text-gray-500">{data.recontacterPlusTard.length} plus tard</span>
+          <span className="text-ui-sm text-gray-500">{data.recontacterPlusTard.length} plus tard</span>
         )}
       >
         {data.recontacter.length === 0 ? <Empty text="Personne à recontacter aujourd'hui." /> : data.recontacter.map(r => (
@@ -410,8 +410,8 @@ export default function SuiviCommercial() {
             <PhoneLink phone={r.contact_phone || r.clients?.contact_phone} />
             <Btn primary onClick={() => setSuiteRdv(r)}>Noter la suite</Btn>
           </>}>
-            <p className="text-sm font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-ui font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
+            <p className="text-ui-sm text-gray-500">
               Prévu le {fmtDate(r.next_action_date)} · {r.next_action || 'Recontacter'}
               {r.contact_name ? ` · ${r.contact_name}` : ''}
             </p>
@@ -458,7 +458,7 @@ export default function SuiviCommercial() {
         title="Rappels du jour"
         count={data.rappelsJour.length}
         action={
-          <button onClick={() => navigate('/prospection?tab=session')} className="text-xs text-primary-600 hover:underline">
+          <button onClick={() => navigate('/prospection?tab=session')} className="text-ui-sm text-primary-600 hover:underline">
             Lancer une session
           </button>
         }
@@ -470,11 +470,11 @@ export default function SuiviCommercial() {
               <PhoneLink phone={cb.contact_mobile || cb.clients?.contact_phone} />
               <Btn onClick={() => setMoveCb(cb)}>Déplacer</Btn>
             </>}>
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-ui font-medium text-gray-900">
                 {cb.clients?.name || 'Client inconnu'}
-                <span className="text-xs font-normal text-gray-500"> · {cb.called_by || '-'}</span>
+                <span className="text-ui-sm font-normal text-gray-500"> · {cb.called_by || '-'}</span>
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-ui-sm text-gray-500">
                 {late > 0 ? `En retard de ${late} j` : `Aujourd'hui${cb.callback_time ? ' à ' + fmtTime(cb.callback_time) : ''}`}
                 {cb.contact_name ? ` · ${cb.contact_name}` : ''}
                 {cb.callback_reason ? ` · ${cb.callback_reason}` : ''}
@@ -489,16 +489,16 @@ export default function SuiviCommercial() {
         {data.aVenir.length === 0 ? <Empty text="Aucun RDV planifié." /> : data.aVenir.map(r => (
           <Row key={r.id} actions={<>
             {r.prep_done_at
-              ? <span className="text-xs px-2 py-0.5 rounded-md bg-green-50 text-green-700">préparé</span>
-              : <span className="text-xs px-2 py-0.5 rounded-md bg-amber-50 text-amber-700">à préparer</span>}
+              ? <span className="text-ui-sm px-2 py-0.5 rounded-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]">préparé</span>
+              : <span className="text-ui-sm px-2 py-0.5 rounded-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]">à préparer</span>}
             <Btn primary={!r.prep_done_at} onClick={() => setPrepRdv(r)}>{r.prep_done_at ? 'Voir la préparation' : 'Préparer'}</Btn>
             <Btn onClick={() => setPlanRdv(r)}>Déplacer</Btn>
             <button onClick={() => navigate(`/prospection/${r.id}`)} className="p-1.5 text-gray-400 hover:text-gray-700" aria-label="Ouvrir le RDV">
               <ExternalLink className="w-4 h-4" />
             </button>
           </>}>
-            <p className="text-sm font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-ui font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
+            <p className="text-ui-sm text-gray-500">
               <span className="capitalize">{fmtDateLong(r.rdv_date)}</span>
               {r.rdv_time ? ` à ${fmtTime(r.rdv_time)}` : ''}
               {r.conducted_by ? ` · ${r.conducted_by}` : ''}

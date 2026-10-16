@@ -41,11 +41,11 @@ const ConfirmModal = ({ show, onConfirm, onCancel, message }) => {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm mx-4">
+      <div className="relative bg-white rounded-ui shadow-md p-6 max-w-sm mx-4">
         <p className="text-gray-700 mb-4">{message}</p>
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="btn btn-secondary">Annuler</button>
-          <button onClick={onConfirm} className="btn bg-red-600 text-white hover:bg-red-700">Supprimer</button>
+          <button onClick={onConfirm} className="btn bg-[rgb(var(--c-danger))] text-white hover:bg-[rgb(var(--c-danger))]">Supprimer</button>
         </div>
       </div>
     </div>
@@ -588,12 +588,12 @@ export default function Trainees() {
             )}
           </div>
           {showClientDropdown && (
-            <div className="absolute z-30 top-full mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-hidden">
+            <div className="absolute z-30 top-full mt-1 w-full bg-white border rounded-ui-sm shadow-md max-h-60 overflow-hidden">
               <div className="p-2 border-b">
                 <input
                   type="text"
                   placeholder="Rechercher entreprise..."
-                  className="input w-full text-sm"
+                  className="input w-full text-ui"
                   value={clientSearch}
                   onChange={(e) => setClientSearch(e.target.value)}
                   autoFocus
@@ -601,7 +601,7 @@ export default function Trainees() {
               </div>
               <div className="overflow-y-auto max-h-48">
                 <button
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-gray-500"
+                  className="w-full text-left px-3 py-2 text-ui hover:bg-gray-50 text-gray-500"
                   onClick={() => { setFilterClient(''); setClientSearch(''); setShowClientDropdown(false) }}
                 >
                   Toutes entreprises
@@ -609,14 +609,14 @@ export default function Trainees() {
                 {filteredClients.map(c => (
                   <button
                     key={c.id}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-primary-50 ${filterClient === c.id ? 'bg-primary-50 text-primary-700 font-medium' : ''}`}
+                    className={`w-full text-left px-3 py-2 text-ui hover:bg-primary-50 ${filterClient === c.id ? 'bg-primary-50 text-primary-700 font-medium' : ''}`}
                     onClick={() => { setFilterClient(c.id); setClientSearch(''); setShowClientDropdown(false) }}
                   >
                     {c.name}
                   </button>
                 ))}
                 {filteredClients.length === 0 && (
-                  <p className="px-3 py-2 text-sm text-gray-400">Aucun résultat</p>
+                  <p className="px-3 py-2 text-ui text-gray-400">Aucun résultat</p>
                 )}
               </div>
             </div>
@@ -631,16 +631,16 @@ export default function Trainees() {
       
       {/* Barre d'actions en masse */}
       {selectedIds.size > 0 && (
-        <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-primary-700">
+        <div className="bg-primary-50 border border-primary-200 rounded-ui-sm p-3 flex items-center justify-between">
+          <span className="text-ui font-medium text-primary-700">
             <CheckSquare className="w-4 h-4 inline mr-1" />
             {selectedIds.size} stagiaire(s) sélectionné(s)
           </span>
           <div className="flex gap-2">
-            <button onClick={() => setShowBulkActions(true)} className="btn btn-primary text-sm py-1.5">
+            <button onClick={() => setShowBulkActions(true)} className="btn btn-primary text-ui py-1.5">
               Modifier en masse
             </button>
-            <button onClick={() => setSelectedIds(new Set())} className="btn btn-secondary text-sm py-1.5">
+            <button onClick={() => setSelectedIds(new Set())} className="btn btn-secondary text-ui py-1.5">
               Désélectionner
             </button>
           </div>
@@ -684,7 +684,7 @@ export default function Trainees() {
                       {t.first_name} {t.last_name?.toUpperCase()}
                     </button>
                     {t.has_disability && (
-                      <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded" title="Situation de handicap"></span>
+                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 text-ui-sm rounded" title="Situation de handicap"></span>
                     )}
                   </div>
                 </td>
@@ -693,10 +693,10 @@ export default function Trainees() {
                 <td className="py-3 px-4 text-gray-600">{t.clients?.name || '-'}</td>
                 <td className="py-3 px-4 text-right">
                   <div className="flex justify-end gap-1">
-                    <button onClick={() => openPreview(t)} className="p-2 hover:bg-gray-100 rounded" title="Aperçu"><Eye className="w-4 h-4 text-blue-500" /></button>
+                    <button onClick={() => openPreview(t)} className="p-2 hover:bg-gray-100 rounded" title="Aperçu"><Eye className="w-4 h-4 text-[rgb(var(--c-info))]" /></button>
                     <button onClick={() => openDocs(t)} className="p-2 hover:bg-gray-100 rounded" title="Documents"><FileText className="w-4 h-4 text-gray-500" /></button>
                     <button onClick={() => openForm(t)} className="p-2 hover:bg-gray-100 rounded" title="Modifier"><Edit className="w-4 h-4 text-gray-500" /></button>
-                    <button onClick={() => setConfirmDelete(t.id)} className="p-2 hover:bg-gray-100 rounded" title="Supprimer"><Trash2 className="w-4 h-4 text-red-500" /></button>
+                    <button onClick={() => setConfirmDelete(t.id)} className="p-2 hover:bg-gray-100 rounded" title="Supprimer"><Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" /></button>
                   </div>
                 </td>
               </tr>
@@ -712,7 +712,7 @@ export default function Trainees() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowPreview(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-md">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Fiche stagiaire</h2>
                 <button onClick={() => setShowPreview(false)}><X className="w-5 h-5" /></button>
@@ -726,7 +726,7 @@ export default function Trainees() {
                     </p>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-2 gap-3 text-ui">
                   <div>
                     <p className="text-gray-500">Email</p>
                     <p className="font-medium">{selectedTrainee.email || '-'}</p>
@@ -745,41 +745,41 @@ export default function Trainees() {
                   </div>
                 </div>
                 {passeportOn ? (passeportEdit ? <PasseportTraineeBlock trainee={selectedTrainee} onChange={fetchTrainees} /> : null) : (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-amber-600 font-medium mb-1">N° Sécurité Sociale (Passeport Prévention)</p>
-                    <span className="text-xs text-green-600 flex items-center gap-1"> Chiffré</span>
+                    <p className="text-ui-sm text-[rgb(var(--c-warning))] font-medium mb-1">N° Sécurité Sociale (Passeport Prévention)</p>
+                    <span className="text-ui-sm text-[rgb(var(--c-success))] flex items-center gap-1"> Chiffré</span>
                   </div>
                   {selectedTrainee.refused_ssn ? (
-                    <p className="text-sm text-red-600 font-medium">A refusé de communiquer son numéro</p>
+                    <p className="text-ui text-[rgb(var(--c-danger))] font-medium">A refusé de communiquer son numéro</p>
                   ) : loadingSSN ? (
-                    <p className="font-mono text-lg text-amber-400">Déchiffrement...</p>
+                    <p className="font-mono text-lg text-[rgb(var(--c-warning))]">Déchiffrement...</p>
                   ) : (
-                    <p className="font-mono text-lg font-bold text-amber-800">{decryptedSSN || selectedTrainee.social_security_number || 'Non renseigné'}</p>
+                    <p className="font-mono text-lg font-bold text-[rgb(var(--c-warning))]">{decryptedSSN || selectedTrainee.social_security_number || 'Non renseigné'}</p>
                   )}
                 </div>
                 )}
                 {selectedTrainee.notes && (
                   <div>
-                    <p className="text-gray-500 text-sm">Notes</p>
-                    <p className="text-sm">{selectedTrainee.notes}</p>
+                    <p className="text-gray-500 text-ui">Notes</p>
+                    <p className="text-ui">{selectedTrainee.notes}</p>
                   </div>
                 )}
                 
                 {/* Handicap */}
                 {selectedTrainee.has_disability && (
-                  <div className="col-span-2 mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                    <p className="text-purple-700 font-medium text-sm mb-2"> Situation de handicap</p>
+                  <div className="col-span-2 mt-2 p-3 bg-gray-50 border border-gray-200 rounded-ui-sm">
+                    <p className="text-gray-800 font-medium text-ui mb-2"> Situation de handicap</p>
                     {selectedTrainee.disability_details && (
                       <div className="mb-2">
-                        <p className="text-gray-500 text-xs">Besoins identifiés :</p>
-                        <p className="text-sm">{selectedTrainee.disability_details}</p>
+                        <p className="text-gray-500 text-ui-sm">Besoins identifiés :</p>
+                        <p className="text-ui">{selectedTrainee.disability_details}</p>
                       </div>
                     )}
                     {selectedTrainee.disability_adaptations && (
                       <div>
-                        <p className="text-gray-500 text-xs">Adaptations :</p>
-                        <p className="text-sm">{selectedTrainee.disability_adaptations}</p>
+                        <p className="text-gray-500 text-ui-sm">Adaptations :</p>
+                        <p className="text-ui">{selectedTrainee.disability_adaptations}</p>
                       </div>
                     )}
                   </div>
@@ -788,7 +788,7 @@ export default function Trainees() {
               <div className="flex justify-between gap-2 p-4 border-t">
                 <button 
                   onClick={() => handleExportData(selectedTrainee)} 
-                  className="btn btn-secondary text-sm flex items-center gap-1"
+                  className="btn btn-secondary text-ui flex items-center gap-1"
                   title="Export RGPD - Droit d'accès"
                 >
                   <Download className="w-4 h-4" />
@@ -808,7 +808,7 @@ export default function Trainees() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowForm(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-lg">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">{selectedTrainee ? 'Modifier' : 'Nouveau'} stagiaire</h2>
                 <button onClick={() => setShowForm(false)}><X className="w-5 h-5" /></button>
@@ -850,7 +850,7 @@ export default function Trainees() {
                   </div>
                 </div>
                 {passeportOn ? (
-                  <p className="text-sm text-gray-600">Nom de naissance et numéro de sécurité sociale : bloc « Passeport de prévention » de la fiche (aperçu du stagiaire).</p>
+                  <p className="text-ui text-gray-600">Nom de naissance et numéro de sécurité sociale : bloc « Passeport de prévention » de la fiche (aperçu du stagiaire).</p>
                 ) : (
                 <div>
                   <label className="label">N° Sécurité Sociale</label>
@@ -862,7 +862,7 @@ export default function Trainees() {
                     onChange={(e) => setForm({...form, social_security_number: e.target.value})}
                     disabled={form.refused_ssn}
                   />
-                  <label className="flex items-center gap-2 mt-2 text-sm text-gray-600">
+                  <label className="flex items-center gap-2 mt-2 text-ui text-gray-600">
                     <input 
                       type="checkbox" 
                       checked={form.refused_ssn} 
@@ -968,7 +968,7 @@ export default function Trainees() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowDocs(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Documents - {selectedTrainee.first_name} {selectedTrainee.last_name}</h2>
                 <button onClick={() => setShowDocs(false)}><X className="w-5 h-5" /></button>
@@ -985,14 +985,14 @@ export default function Trainees() {
                 ) : (
                   <div className="space-y-2">
                     {traineeDocuments.map(doc => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={doc.id} className="flex items-center justify-between p-3 border rounded-ui-sm">
                         <div>
                           <p className="font-medium">{doc.name}</p>
-                          <p className="text-sm text-gray-500">{format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                          <p className="text-ui text-gray-500">{format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm')}</p>
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => viewDoc(doc)} className="p-2 hover:bg-gray-100 rounded"><Eye className="w-4 h-4" /></button>
-                          <button onClick={() => handleDeleteDoc(doc)} className="p-2 hover:bg-gray-100 rounded text-red-600"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDeleteDoc(doc)} className="p-2 hover:bg-gray-100 rounded text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
                     ))}
@@ -1016,13 +1016,13 @@ export default function Trainees() {
       {duplicateWarning && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center">
           <div className="fixed inset-0 bg-black/50" onClick={() => setDuplicateWarning(null)} />
-          <div className="relative bg-white rounded-xl shadow-xl p-6 max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-amber-600 mb-3 flex items-center gap-2">
+          <div className="relative bg-white rounded-ui shadow-md p-6 max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-[rgb(var(--c-warning))] mb-3 flex items-center gap-2">
                Doublons détectés
             </h3>
             <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
               {duplicateWarning.duplicates.map((d, i) => (
-                <div key={i} className="p-2 bg-amber-50 border border-amber-200 rounded text-sm">
+                <div key={i} className="p-2 bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded text-ui">
                   {d.type === 'internal' ? (
                     <p>{d.reason}</p>
                   ) : d.type === 'existing' ? (
@@ -1033,12 +1033,12 @@ export default function Trainees() {
                 </div>
               ))}
             </div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-ui text-gray-600 mb-4">
               Voulez-vous quand même créer {duplicateWarning.type === 'single' ? 'ce stagiaire' : 'ces stagiaires'} ?
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setDuplicateWarning(null)} className="btn btn-secondary">Annuler</button>
-              <button onClick={duplicateWarning.onConfirm} className="btn bg-amber-600 text-white hover:bg-amber-700">
+              <button onClick={duplicateWarning.onConfirm} className="btn bg-[rgb(var(--c-warning))] text-white hover:bg-[rgb(var(--c-warning))]">
                 Créer quand même
               </button>
             </div>
@@ -1051,7 +1051,7 @@ export default function Trainees() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={closeBulkModal} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Ajouter plusieurs stagiaires</h2>
                 <button onClick={closeBulkModal}><X className="w-5 h-5" /></button>
@@ -1067,7 +1067,7 @@ export default function Trainees() {
                 </div>
                 
                 <div className="space-y-2">
-                  <div className="grid grid-cols-12 gap-2 text-sm font-medium text-gray-600 px-1">
+                  <div className="grid grid-cols-12 gap-2 text-ui font-medium text-gray-600 px-1">
                     <div className="col-span-2">Prénom *</div>
                     <div className="col-span-2">NOM *</div>
                     <div className="col-span-3">Email</div>
@@ -1108,7 +1108,7 @@ export default function Trainees() {
                       />
                       <input 
                         type="text" 
-                        className="input col-span-2 font-mono text-xs" 
+                        className="input col-span-2 font-mono text-ui-sm" 
                         placeholder={passeportOn ? 'N° Sécu : fiche' : 'N° Sécu'}
                         disabled={passeportOn}
                         value={passeportOn ? '' : (trainee.social_security_number || '')}
@@ -1116,7 +1116,7 @@ export default function Trainees() {
                       />
                       <button 
                         onClick={() => removeBulkRow(index)} 
-                        className="col-span-1 p-2 text-red-500 hover:text-red-700 disabled:opacity-30"
+                        className="col-span-1 p-2 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] disabled:opacity-30"
                         disabled={bulkTrainees.length === 1}
                       >
                         <X className="w-4 h-4" />
@@ -1125,12 +1125,12 @@ export default function Trainees() {
                   ))}
                 </div>
                 
-                <button onClick={addBulkRow} className="mt-4 text-primary-600 hover:text-primary-700 flex items-center gap-1 text-sm">
+                <button onClick={addBulkRow} className="mt-4 text-primary-600 hover:text-primary-700 flex items-center gap-1 text-ui">
                   <Plus className="w-4 h-4" /> Ajouter une ligne
                 </button>
               </div>
               <div className="flex justify-between items-center gap-2 p-4 border-t">
-                <p className="text-sm text-gray-500">
+                <p className="text-ui text-gray-500">
                   {bulkTrainees.filter(t => t.first_name && t.last_name).length} stagiaire(s) à créer
                 </p>
                 <div className="flex gap-2">
@@ -1150,13 +1150,13 @@ export default function Trainees() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowBulkActions(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-md">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Modifier {selectedIds.size} stagiaire(s)</h2>
                 <button onClick={() => setShowBulkActions(false)}><X className="w-5 h-5" /></button>
               </div>
               <div className="p-4 space-y-4">
-                <p className="text-sm text-gray-500">Laissez vide les champs que vous ne souhaitez pas modifier.</p>
+                <p className="text-ui text-gray-500">Laissez vide les champs que vous ne souhaitez pas modifier.</p>
                 
                 <div>
                   <label className="label">Genre</label>

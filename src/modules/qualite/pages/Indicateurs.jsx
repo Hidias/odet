@@ -13,16 +13,16 @@ import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSe
 
 const ratingColor = (value, max = 5) => {
   const percent = (value / max) * 100
-  if (percent >= 80) return 'text-green-600 bg-green-100'
-  if (percent >= 60) return 'text-yellow-600 bg-yellow-100'
-  return 'text-red-600 bg-red-100'
+  if (percent >= 80) return 'text-[rgb(var(--c-success))] bg-[rgb(var(--c-success-bg))]'
+  if (percent >= 60) return 'text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))]'
+  return 'text-[rgb(var(--c-danger))] bg-[rgb(var(--c-danger-bg))]'
 }
 
 const ratingBg = (value, max = 5) => {
   const percent = (value / max) * 100
-  if (percent >= 80) return 'bg-green-500'
-  if (percent >= 60) return 'bg-yellow-500'
-  return 'bg-red-500'
+  if (percent >= 80) return 'bg-[rgb(var(--c-success))]'
+  if (percent >= 60) return 'bg-[rgb(var(--c-warning))]'
+  return 'bg-[rgb(var(--c-danger))]'
 }
 
 export default function Indicateurs() {
@@ -1012,7 +1012,7 @@ export default function Indicateurs() {
             <option value="month">Ce mois</option>
           </select>
           
-          <span className="text-sm text-gray-500">
+          <span className="text-ui text-gray-500">
             {filteredSessions.length} session(s) • {totalTrainees} stagiaires • {filteredHotEvals.length} éval. à chaud ({totalTrainees > 0 ? Math.round(filteredHotEvals.length / totalTrainees * 100) : 0}%) • {coldStats ? `${coldStats.sentCount} éval. à froid envoyées (${coldStats.sendRate}%)` : '0 éval. à froid'}
           </span>
         </div>
@@ -1024,52 +1024,52 @@ export default function Indicateurs() {
           <div className="flex items-center gap-3">
             <Star className="w-8 h-8" />
             <div>
-              <p className="text-sm font-medium">Score Global</p>
+              <p className="text-ui font-medium">Score Global</p>
               <p className="text-3xl font-bold">{globalScore()}/5</p>
             </div>
           </div>
         </div>
         
-        <div className={`card p-4 ${successRate ? (parseInt(successRate.rate) >= 80 ? 'bg-green-100 text-green-700' : parseInt(successRate.rate) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') : 'bg-gray-100 text-gray-500'}`}>
+        <div className={`card p-4 ${successRate ? (parseInt(successRate.rate) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : parseInt(successRate.rate) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]') : 'bg-gray-100 text-gray-500'}`}>
           <div className="flex items-center gap-3">
             <Target className="w-8 h-8" />
             <div>
-              <p className="text-sm font-medium">Taux de réussite</p>
+              <p className="text-ui font-medium">Taux de réussite</p>
               <p className="text-3xl font-bold">{successRate ? `${successRate.rate}%` : '-'}</p>
-              {successRate && <p className="text-xs">{successRate.acquired}/{successRate.total} acquis</p>}
+              {successRate && <p className="text-ui-sm">{successRate.acquired}/{successRate.total} acquis</p>}
             </div>
           </div>
         </div>
         
-        <div className={`card p-4 ${presenceRate ? (parseInt(presenceRate.rate) >= 80 ? 'bg-green-100 text-green-700' : parseInt(presenceRate.rate) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') : 'bg-gray-100 text-gray-500'}`}>
+        <div className={`card p-4 ${presenceRate ? (parseInt(presenceRate.rate) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : parseInt(presenceRate.rate) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]') : 'bg-gray-100 text-gray-500'}`}>
           <div className="flex items-center gap-3">
             <UserCheck className="w-8 h-8" />
             <div>
-              <p className="text-sm font-medium">Taux de présence</p>
+              <p className="text-ui font-medium">Taux de présence</p>
               <p className="text-3xl font-bold">{presenceRate ? `${presenceRate.rate}%` : '-'}</p>
-              {presenceRate && <p className="text-xs">{presenceRate.present}/{presenceRate.total} complet</p>}
+              {presenceRate && <p className="text-ui-sm">{presenceRate.present}/{presenceRate.total} complet</p>}
             </div>
           </div>
         </div>
         
-        <div className={`card p-4 ${abandonRate ? (parseInt(abandonRate.rate) <= 5 ? 'bg-green-100 text-green-700' : parseInt(abandonRate.rate) <= 15 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') : 'bg-gray-100 text-gray-500'}`}>
+        <div className={`card p-4 ${abandonRate ? (parseInt(abandonRate.rate) <= 5 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : parseInt(abandonRate.rate) <= 15 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]') : 'bg-gray-100 text-gray-500'}`}>
           <div className="flex items-center gap-3">
             <LogOut className="w-8 h-8" />
             <div>
-              <p className="text-sm font-medium">Taux d'abandon</p>
+              <p className="text-ui font-medium">Taux d'abandon</p>
               <p className="text-3xl font-bold">{abandonRate ? `${abandonRate.rate}%` : '-'}</p>
-              {abandonRate && <p className="text-xs">{abandonRate.abandoned}/{abandonRate.total} abandons</p>}
+              {abandonRate && <p className="text-ui-sm">{abandonRate.abandoned}/{abandonRate.total} abandons</p>}
             </div>
           </div>
         </div>
         
-        <div className={`card p-4 ${globalRecommendRate ? (parseInt(globalRecommendRate.rate) >= 80 ? 'bg-green-100 text-green-700' : parseInt(globalRecommendRate.rate) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') : 'bg-gray-100 text-gray-500'}`}>
+        <div className={`card p-4 ${globalRecommendRate ? (parseInt(globalRecommendRate.rate) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : parseInt(globalRecommendRate.rate) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]') : 'bg-gray-100 text-gray-500'}`}>
           <div className="flex items-center gap-3">
             <ThumbsUp className="w-8 h-8" />
             <div>
-              <p className="text-sm font-medium">Taux de recommandation</p>
+              <p className="text-ui font-medium">Taux de recommandation</p>
               <p className="text-3xl font-bold">{globalRecommendRate ? `${globalRecommendRate.rate}%` : '-'}</p>
-              {globalRecommendRate && <p className="text-xs">{globalRecommendRate.recommended}/{globalRecommendRate.total} recommandent</p>}
+              {globalRecommendRate && <p className="text-ui-sm">{globalRecommendRate.recommended}/{globalRecommendRate.total} recommandent</p>}
             </div>
           </div>
         </div>
@@ -1079,9 +1079,9 @@ export default function Indicateurs() {
       <div className="grid grid-cols-3 gap-4">
         <div className="card bg-white p-4">
           <div className="flex items-center gap-3">
-            <Thermometer className="w-8 h-8 text-orange-500" />
+            <Thermometer className="w-8 h-8 text-[rgb(var(--c-warning))]" />
             <div>
-              <p className="text-sm text-gray-600">Éval. à chaud</p>
+              <p className="text-ui text-gray-600">Éval. à chaud</p>
               <p className="text-2xl font-bold">{filteredHotEvals.length}</p>
             </div>
           </div>
@@ -1089,9 +1089,9 @@ export default function Indicateurs() {
         
         <div className="card bg-white p-4">
           <div className="flex items-center gap-3">
-            <Users className="w-8 h-8 text-blue-500" />
+            <Users className="w-8 h-8 text-[rgb(var(--c-info))]" />
             <div>
-              <p className="text-sm text-gray-600">Éval. formateur</p>
+              <p className="text-ui text-gray-600">Éval. formateur</p>
               <p className="text-2xl font-bold">{filteredTrainerEvals.length}</p>
             </div>
           </div>
@@ -1099,17 +1099,17 @@ export default function Indicateurs() {
         
         <div className="card bg-white p-4">
           <div className="flex items-center gap-3">
-            <Clock className="w-8 h-8 text-purple-500" />
+            <Clock className="w-8 h-8 text-gray-800" />
             <div>
-              <p className="text-sm text-gray-600">Éval. à froid</p>
+              <p className="text-ui text-gray-600">Éval. à froid</p>
               <p className="text-2xl font-bold">
                 {coldStats ? coldStats.sentCount : 0}
-                <span className="text-sm font-normal text-gray-500 ml-1">
+                <span className="text-ui font-normal text-gray-500 ml-1">
                   envoyées
                 </span>
               </p>
               {coldStats && coldStats.receivedCount > 0 && (
-                <p className="text-xs text-green-600">{coldStats.receivedCount} reçues</p>
+                <p className="text-ui-sm text-[rgb(var(--c-success))]">{coldStats.receivedCount} reçues</p>
               )}
             </div>
           </div>
@@ -1120,21 +1120,21 @@ export default function Indicateurs() {
       <div className="flex gap-2 border-b">
         <button 
           onClick={() => setActiveTab('hot')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'hot' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'hot' ? 'border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <Thermometer className="w-4 h-4 inline mr-2" />
           À chaud ({filteredHotEvals.length})
         </button>
         <button 
           onClick={() => setActiveTab('trainer')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'trainer' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'trainer' ? 'border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <UserCheck className="w-4 h-4 inline mr-2" />
           Formateur ({filteredTrainerEvals.length})
         </button>
         <button 
           onClick={() => setActiveTab('cold')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'cold' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'cold' ? 'border-gray-400 text-gray-800' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <Clock className="w-4 h-4 inline mr-2" />
           À froid ({coldStats ? `${coldStats.sentCount}/${coldStats.totalTrainees}` : '0'})
@@ -1142,7 +1142,7 @@ export default function Indicateurs() {
         {isAdmin && (
           <button 
             onClick={() => setActiveTab('stats')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'stats' ? 'border-teal-500 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'stats' ? 'border-gray-400 text-gray-800' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
             <PieChart className="w-4 h-4 inline mr-2" />
             Stats détaillées
@@ -1156,7 +1156,7 @@ export default function Indicateurs() {
         {activeTab === 'hot' && (
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Thermometer className="w-5 h-5 text-orange-500" />
+              <Thermometer className="w-5 h-5 text-[rgb(var(--c-warning))]" />
               Évaluations à chaud (stagiaires) - Critères qualité
             </h3>
             
@@ -1170,8 +1170,8 @@ export default function Indicateurs() {
                     <div key={idx} className="flex items-center gap-4">
                       <div className="flex-1">
                         <div className="flex justify-between mb-1">
-                          <span className="text-sm font-medium">{stat.label}</span>
-                          <span className={`text-sm font-bold px-2 py-0.5 rounded ${ratingColor(parseFloat(stat.avg))}`}>
+                          <span className="text-ui font-medium">{stat.label}</span>
+                          <span className={`text-ui font-bold px-2 py-0.5 rounded ${ratingColor(parseFloat(stat.avg))}`}>
                             {stat.avg}/5
                           </span>
                         </div>
@@ -1192,14 +1192,14 @@ export default function Indicateurs() {
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
                       <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Questionnaires reçus</span>
-                        <span className={`text-sm font-bold px-2 py-0.5 rounded ${parseInt(hotStats.questionnaireRate) >= 80 ? 'bg-green-100 text-green-700' : parseInt(hotStats.questionnaireRate) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                        <span className="text-ui font-medium">Questionnaires reçus</span>
+                        <span className={`text-ui font-bold px-2 py-0.5 rounded ${parseInt(hotStats.questionnaireRate) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : parseInt(hotStats.questionnaireRate) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'}`}>
                           {hotStats.questionnaireRate}%
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className={`h-2 rounded-full ${parseInt(hotStats.questionnaireRate) >= 80 ? 'bg-green-500' : parseInt(hotStats.questionnaireRate) >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                          className={`h-2 rounded-full ${parseInt(hotStats.questionnaireRate) >= 80 ? 'bg-[rgb(var(--c-success))]' : parseInt(hotStats.questionnaireRate) >= 60 ? 'bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger))]'}`}
                           style={{ width: `${hotStats.questionnaireRate}%` }}
                         />
                       </div>
@@ -1210,14 +1210,14 @@ export default function Indicateurs() {
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
                       <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Taux de recommandation</span>
-                        <span className={`text-sm font-bold px-2 py-0.5 rounded ${parseInt(hotStats.recommendRate) >= 80 ? 'bg-green-100 text-green-700' : parseInt(hotStats.recommendRate) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                        <span className="text-ui font-medium">Taux de recommandation</span>
+                        <span className={`text-ui font-bold px-2 py-0.5 rounded ${parseInt(hotStats.recommendRate) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : parseInt(hotStats.recommendRate) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'}`}>
                           {hotStats.recommendRate}%
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className={`h-2 rounded-full ${parseInt(hotStats.recommendRate) >= 80 ? 'bg-green-500' : parseInt(hotStats.recommendRate) >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                          className={`h-2 rounded-full ${parseInt(hotStats.recommendRate) >= 80 ? 'bg-[rgb(var(--c-success))]' : parseInt(hotStats.recommendRate) >= 60 ? 'bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger))]'}`}
                           style={{ width: `${hotStats.recommendRate}%` }}
                         />
                       </div>
@@ -1225,7 +1225,7 @@ export default function Indicateurs() {
                   </div>
                 </div>
                 
-                <div className="text-sm text-gray-500 text-center">
+                <div className="text-ui text-gray-500 text-center">
                   {hotStats.totalWithResponse} questionnaire(s) reçu(s) sur {hotStats.total} stagiaire(s)
                 </div>
               </div>
@@ -1237,7 +1237,7 @@ export default function Indicateurs() {
         {activeTab === 'trainer' && (
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-blue-500" />
+              <UserCheck className="w-5 h-5 text-[rgb(var(--c-info))]" />
               Évaluations formateur
             </h3>
             
@@ -1250,8 +1250,8 @@ export default function Indicateurs() {
                     <div key={idx} className="flex items-center gap-4">
                       <div className="flex-1">
                         <div className="flex justify-between mb-1">
-                          <span className="text-sm font-medium">{stat.label}</span>
-                          <span className={`text-sm font-bold px-2 py-0.5 rounded ${ratingColor(parseFloat(stat.avg))}`}>
+                          <span className="text-ui font-medium">{stat.label}</span>
+                          <span className={`text-ui font-bold px-2 py-0.5 rounded ${ratingColor(parseFloat(stat.avg))}`}>
                             {stat.avg}/5
                           </span>
                         </div>
@@ -1268,13 +1268,13 @@ export default function Indicateurs() {
                 
                 <div className="border-t pt-4 flex items-center gap-8">
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-blue-500" />
-                    <span className="text-sm">Objectifs atteints (moyenne) : </span>
-                    <span className={`font-bold px-2 py-1 rounded ${parseInt(trainerStats.avgObjectives) >= 80 ? 'bg-green-100 text-green-700' : parseInt(trainerStats.avgObjectives) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                    <TrendingUp className="w-5 h-5 text-[rgb(var(--c-info))]" />
+                    <span className="text-ui">Objectifs atteints (moyenne) : </span>
+                    <span className={`font-bold px-2 py-1 rounded ${parseInt(trainerStats.avgObjectives) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : parseInt(trainerStats.avgObjectives) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'}`}>
                       {trainerStats.avgObjectives}%
                     </span>
                   </div>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-ui text-gray-500">
                     Base : {trainerStats.total} session(s)
                   </span>
                 </div>
@@ -1287,7 +1287,7 @@ export default function Indicateurs() {
         {activeTab === 'cold' && (
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-purple-500" />
+              <Clock className="w-5 h-5 text-gray-800" />
               Évaluations à froid (90 jours)
             </h3>
             
@@ -1297,40 +1297,40 @@ export default function Indicateurs() {
               <div className="space-y-6">
                 {/* Taux d'envoi et de retour */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-purple-700 flex items-center gap-2">
+                      <span className="text-ui font-medium text-gray-800 flex items-center gap-2">
                         <Send className="w-4 h-4" /> Taux d'envoi
                       </span>
-                      <span className={`text-xl font-bold ${parseInt(coldStats.sendRate) >= 100 ? 'text-green-600' : parseInt(coldStats.sendRate) >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      <span className={`text-xl font-bold ${parseInt(coldStats.sendRate) >= 100 ? 'text-[rgb(var(--c-success))]' : parseInt(coldStats.sendRate) >= 80 ? 'text-[rgb(var(--c-warning))]' : 'text-[rgb(var(--c-danger))]'}`}>
                         {coldStats.sendRate}%
                       </span>
                     </div>
-                    <div className="w-full bg-purple-200 rounded-full h-3">
+                    <div className="w-full bg-gray-200 rounded-full h-3">
                       <div 
-                        className={`h-3 rounded-full ${parseInt(coldStats.sendRate) >= 100 ? 'bg-green-500' : parseInt(coldStats.sendRate) >= 80 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                        className={`h-3 rounded-full ${parseInt(coldStats.sendRate) >= 100 ? 'bg-[rgb(var(--c-success))]' : parseInt(coldStats.sendRate) >= 80 ? 'bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger))]'}`}
                         style={{ width: `${Math.min(coldStats.sendRate, 100)}%` }}
                       />
                     </div>
-                    <p className="text-xs text-purple-600 mt-1">{coldStats.sentCount} envoyées / {coldStats.totalTrainees} stagiaires</p>
+                    <p className="text-ui-sm text-gray-800 mt-1">{coldStats.sentCount} envoyées / {coldStats.totalTrainees} stagiaires</p>
                   </div>
                   
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-700 flex items-center gap-2">
+                      <span className="text-ui font-medium text-[rgb(var(--c-info))] flex items-center gap-2">
                         <CheckCircle className="w-4 h-4" /> Taux de retour
                       </span>
-                      <span className={`text-xl font-bold ${parseInt(coldStats.returnRate) >= 50 ? 'text-green-600' : parseInt(coldStats.returnRate) >= 25 ? 'text-yellow-600' : 'text-orange-600'}`}>
+                      <span className={`text-xl font-bold ${parseInt(coldStats.returnRate) >= 50 ? 'text-[rgb(var(--c-success))]' : parseInt(coldStats.returnRate) >= 25 ? 'text-[rgb(var(--c-warning))]' : 'text-[rgb(var(--c-warning))]'}`}>
                         {coldStats.returnRate}%
                       </span>
                     </div>
-                    <div className="w-full bg-blue-200 rounded-full h-3">
+                    <div className="w-full bg-[rgb(var(--c-info-bg))] rounded-full h-3">
                       <div 
-                        className={`h-3 rounded-full ${parseInt(coldStats.returnRate) >= 50 ? 'bg-green-500' : parseInt(coldStats.returnRate) >= 25 ? 'bg-yellow-500' : 'bg-orange-500'}`}
+                        className={`h-3 rounded-full ${parseInt(coldStats.returnRate) >= 50 ? 'bg-[rgb(var(--c-success))]' : parseInt(coldStats.returnRate) >= 25 ? 'bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-warning))]'}`}
                         style={{ width: `${coldStats.returnRate}%` }}
                       />
                     </div>
-                    <p className="text-xs text-blue-600 mt-1">{coldStats.receivedCount} reçues / {coldStats.sentCount} envoyées</p>
+                    <p className="text-ui-sm text-[rgb(var(--c-info))] mt-1">{coldStats.receivedCount} reçues / {coldStats.sentCount} envoyées</p>
                   </div>
                 </div>
                 
@@ -1343,18 +1343,18 @@ export default function Indicateurs() {
                         <div key={idx} className="flex items-center gap-4">
                           <div className="flex-1">
                             <div className="flex justify-between mb-1">
-                              <span className="text-sm font-medium">{stat.label}</span>
-                              <span className={`text-sm font-bold px-2 py-0.5 rounded ${parseInt(stat.rate) >= 80 ? 'bg-green-100 text-green-700' : parseInt(stat.rate) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              <span className="text-ui font-medium">{stat.label}</span>
+                              <span className={`text-ui font-bold px-2 py-0.5 rounded ${parseInt(stat.rate) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : parseInt(stat.rate) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'}`}>
                                 {stat.rate}% Oui
                               </span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div 
-                                className={`h-2 rounded-full ${parseInt(stat.rate) >= 80 ? 'bg-green-500' : parseInt(stat.rate) >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                className={`h-2 rounded-full ${parseInt(stat.rate) >= 80 ? 'bg-[rgb(var(--c-success))]' : parseInt(stat.rate) >= 60 ? 'bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger))]'}`}
                                 style={{ width: `${stat.rate}%` }}
                               />
                             </div>
-                            <span className="text-xs text-gray-500">{stat.yesCount}/{stat.count} réponses</span>
+                            <span className="text-ui-sm text-gray-500">{stat.yesCount}/{stat.count} réponses</span>
                           </div>
                         </div>
                       ))}
@@ -1362,18 +1362,18 @@ export default function Indicateurs() {
                     
                     <div className="border-t pt-4 flex flex-wrap items-center gap-8">
                       <div className="flex items-center gap-2">
-                        <ThumbsUp className="w-5 h-5 text-green-500" />
-                        <span className="text-sm">Recommandation : </span>
-                        <span className={`font-bold px-2 py-1 rounded ${parseInt(coldStats.recommendRate) >= 80 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        <ThumbsUp className="w-5 h-5 text-[rgb(var(--c-success))]" />
+                        <span className="text-ui">Recommandation : </span>
+                        <span className={`font-bold px-2 py-1 rounded ${parseInt(coldStats.recommendRate) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>
                           {coldStats.recommendRate}%
                         </span>
                       </div>
                     </div>
                   </>
                 ) : (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500">
+                  <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-4 text-center text-gray-500">
                     <p>Aucune réponse reçue pour le moment</p>
-                    <p className="text-sm mt-1">Les statistiques de satisfaction apparaîtront ici quand des stagiaires auront répondu</p>
+                    <p className="text-ui mt-1">Les statistiques de satisfaction apparaîtront ici quand des stagiaires auront répondu</p>
                   </div>
                 )}
               </div>
@@ -1386,7 +1386,7 @@ export default function Indicateurs() {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-teal-500" />
+                <PieChart className="w-5 h-5 text-gray-800" />
                 Statistiques détaillées (RGPD-compliant)
               </h3>
               <button
@@ -1399,9 +1399,9 @@ export default function Indicateurs() {
             </div>
             
             {/* Sélecteur de groupement */}
-            <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-4 mb-4">
               <div className="flex flex-wrap items-center gap-4">
-                <span className="text-sm font-medium text-teal-700">Grouper par :</span>
+                <span className="text-ui font-medium text-gray-800">Grouper par :</span>
                 {[
                   { value: 'csp', label: 'CSP', icon: Users },
                   { value: 'situation', label: 'Situation', icon: Building },
@@ -1412,10 +1412,10 @@ export default function Indicateurs() {
                   <button
                     key={opt.value}
                     onClick={() => setStatsGroupBy(opt.value)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${
+                    className={`px-3 py-1.5 rounded-full text-ui font-medium flex items-center gap-1.5 transition-colors ${
                       statsGroupBy === opt.value 
-                        ? 'bg-teal-600 text-white' 
-                        : 'bg-white text-teal-700 border border-teal-300 hover:bg-teal-100'
+                        ? 'bg-gray-700 text-white' 
+                        : 'bg-white text-gray-800 border border-gray-200 hover:bg-gray-100'
                     }`}
                   >
                     <opt.icon className="w-4 h-4" />
@@ -1423,16 +1423,16 @@ export default function Indicateurs() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-teal-600 mt-2">
+              <p className="text-ui-sm text-gray-800 mt-2">
                 <Info className="w-3 h-3 inline mr-1" />
                 Conformité RGPD : les groupes de moins de {RGPD_THRESHOLD} personnes uniques sont masqués
               </p>
             </div>
             
             {/* Filtres additionnels */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-4 mb-6">
               <div className="flex flex-wrap items-center gap-4">
-                <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                <span className="text-ui font-medium text-gray-700 flex items-center gap-1">
                   <Filter className="w-4 h-4" />
                   Filtrer :
                 </span>
@@ -1480,7 +1480,7 @@ export default function Indicateurs() {
                       setFilterFunding('')
                       setFilterCourse('')
                     }}
-                    className="text-xs text-red-600 hover:underline"
+                    className="text-ui-sm text-[rgb(var(--c-danger))] hover:underline"
                   >
                     Réinitialiser filtres
                   </button>
@@ -1497,14 +1497,14 @@ export default function Indicateurs() {
                   <div className="text-center py-12 text-gray-500">
                     <Table2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
                     <p>Aucune donnée disponible pour ce critère</p>
-                    <p className="text-sm mt-1">Vérifiez que les champs CSP, situation et financement sont renseignés</p>
+                    <p className="text-ui mt-1">Vérifiez que les champs CSP, situation et financement sont renseignés</p>
                   </div>
                 )
               }
               
               return (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-ui">
                     <thead>
                       <tr className="bg-gray-100">
                         <th className="text-left py-3 px-4 font-semibold">
@@ -1528,7 +1528,7 @@ export default function Indicateurs() {
                           <td className="py-3 px-4 font-medium">{stat.label}</td>
                           <td className="text-center py-3 px-3">
                             {stat.isRGPDHidden ? (
-                              <span className="text-gray-400 text-xs" title="Effectif insuffisant pour garantir l'anonymat">
+                              <span className="text-gray-400 text-ui-sm" title="Effectif insuffisant pour garantir l'anonymat">
                                 &lt;{RGPD_THRESHOLD}
                               </span>
                             ) : (
@@ -1537,7 +1537,7 @@ export default function Indicateurs() {
                           </td>
                           <td className="text-center py-3 px-3">
                             {stat.isRGPDHidden ? (
-                              <span className="text-gray-400 text-xs">
+                              <span className="text-gray-400 text-ui-sm">
                                 &lt;{RGPD_THRESHOLD}
                               </span>
                             ) : (
@@ -1548,9 +1548,9 @@ export default function Indicateurs() {
                             {stat.isRGPDHidden ? (
                               <span className="text-gray-300">-</span>
                             ) : stat.tauxReussite ? (
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                parseInt(stat.tauxReussite) >= 80 ? 'bg-green-100 text-green-700' :
-                                parseInt(stat.tauxReussite) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                              <span className={`px-2 py-0.5 rounded text-ui-sm font-medium ${
+                                parseInt(stat.tauxReussite) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                                parseInt(stat.tauxReussite) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                               }`}>
                                 {stat.tauxReussite}%
                               </span>
@@ -1560,9 +1560,9 @@ export default function Indicateurs() {
                             {stat.isRGPDHidden ? (
                               <span className="text-gray-300">-</span>
                             ) : (
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                parseInt(stat.tauxPresence) >= 80 ? 'bg-green-100 text-green-700' :
-                                parseInt(stat.tauxPresence) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                              <span className={`px-2 py-0.5 rounded text-ui-sm font-medium ${
+                                parseInt(stat.tauxPresence) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                                parseInt(stat.tauxPresence) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                               }`}>
                                 {stat.tauxPresence}%
                               </span>
@@ -1572,9 +1572,9 @@ export default function Indicateurs() {
                             {stat.isRGPDHidden ? (
                               <span className="text-gray-300">-</span>
                             ) : (
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                parseInt(stat.tauxAbandon) <= 5 ? 'bg-green-100 text-green-700' :
-                                parseInt(stat.tauxAbandon) <= 15 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                              <span className={`px-2 py-0.5 rounded text-ui-sm font-medium ${
+                                parseInt(stat.tauxAbandon) <= 5 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                                parseInt(stat.tauxAbandon) <= 15 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                               }`}>
                                 {stat.tauxAbandon}%
                               </span>
@@ -1584,9 +1584,9 @@ export default function Indicateurs() {
                             {stat.isRGPDHidden ? (
                               <span className="text-gray-300">-</span>
                             ) : stat.satisfaction ? (
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                parseFloat(stat.satisfaction) >= 4 ? 'bg-green-100 text-green-700' :
-                                parseFloat(stat.satisfaction) >= 3 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                              <span className={`px-2 py-0.5 rounded text-ui-sm font-medium ${
+                                parseFloat(stat.satisfaction) >= 4 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                                parseFloat(stat.satisfaction) >= 3 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                               }`}>
                                 {stat.satisfaction}/5
                               </span>
@@ -1596,9 +1596,9 @@ export default function Indicateurs() {
                             {stat.isRGPDHidden ? (
                               <span className="text-gray-300">-</span>
                             ) : stat.tauxRecommandation ? (
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                parseInt(stat.tauxRecommandation) >= 80 ? 'bg-green-100 text-green-700' :
-                                parseInt(stat.tauxRecommandation) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                              <span className={`px-2 py-0.5 rounded text-ui-sm font-medium ${
+                                parseInt(stat.tauxRecommandation) >= 80 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                                parseInt(stat.tauxRecommandation) >= 60 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                               }`}>
                                 {stat.tauxRecommandation}%
                               </span>
@@ -1614,20 +1614,20 @@ export default function Indicateurs() {
                     <h4 className="font-medium text-gray-700">Répartition visuelle</h4>
                     {groupedStats.filter(s => !s.isRGPDHidden).slice(0, 8).map((stat, idx) => (
                       <div key={idx} className="flex items-center gap-4">
-                        <div className="w-48 truncate text-sm font-medium" title={stat.label}>
+                        <div className="w-48 truncate text-ui font-medium" title={stat.label}>
                           {stat.label}
                         </div>
                         <div className="flex-1 bg-gray-200 rounded-full h-6 relative overflow-hidden">
                           <div 
-                            className="h-6 bg-teal-500 rounded-full flex items-center justify-end pr-2"
+                            className="h-6 bg-gray-700 rounded-full flex items-center justify-end pr-2"
                             style={{ width: `${Math.max((stat.nbFormes / Math.max(...groupedStats.filter(s => !s.isRGPDHidden).map(s => s.nbFormes))) * 100, 10)}%` }}
                           >
-                            <span className="text-xs font-bold text-white">{stat.nbFormes}</span>
+                            <span className="text-ui-sm font-bold text-white">{stat.nbFormes}</span>
                           </div>
                         </div>
                         <div className="w-20 text-right">
-                          <span className={`text-xs font-medium ${
-                            stat.satisfaction && parseFloat(stat.satisfaction) >= 4 ? 'text-green-600' : 'text-gray-500'
+                          <span className={`text-ui-sm font-medium ${
+                            stat.satisfaction && parseFloat(stat.satisfaction) >= 4 ? 'text-[rgb(var(--c-success))]' : 'text-gray-500'
                           }`}>
                             {stat.satisfaction ? `${stat.satisfaction}/5` : '-'}
                           </span>
@@ -1637,12 +1637,12 @@ export default function Indicateurs() {
                   </div>
                   
                   {/* Note RGPD */}
-                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h5 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
+                  <div className="mt-6 p-4 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm">
+                    <h5 className="font-medium text-[rgb(var(--c-info))] mb-2 flex items-center gap-2">
                       <Info className="w-4 h-4" />
                       Information sur la conformité RGPD
                     </h5>
-                    <ul className="text-sm text-blue-700 space-y-1">
+                    <ul className="text-ui text-[rgb(var(--c-info))] space-y-1">
                       <li>• Les données sont agrégées et anonymisées (aucun nom affiché)</li>
                       <li>• Les groupes de moins de {RGPD_THRESHOLD} personnes sont masqués</li>
                       <li>• L'export CSV respecte les mêmes règles d'anonymisation</li>
@@ -1657,10 +1657,10 @@ export default function Indicateurs() {
       </div>
       
       {/* Section Alertes Qualité */}
-      <div className="card p-6 border-l-4 border-orange-500">
+      <div className="card p-6 border-l-4 border-[rgb(var(--c-warning)/0.3)]">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-orange-500" />
+            <AlertTriangle className="w-5 h-5 text-[rgb(var(--c-warning))]" />
             Alertes Qualité (Notes 1-3)
           </h3>
           <div className="flex gap-2">
@@ -1688,7 +1688,7 @@ export default function Indicateurs() {
               <div className="text-center py-8 text-gray-500">
                 <AlertTriangle className="w-12 h-12 mx-auto mb-2 opacity-30" />
                 <p>{alertFilter === 'pending' ? 'Aucune alerte en attente' : 'Aucune alerte'}</p>
-                <p className="text-sm">Les notes de 1 à 3 génèrent automatiquement des alertes</p>
+                <p className="text-ui">Les notes de 1 à 3 génèrent automatiquement des alertes</p>
               </div>
             )
           }
@@ -1698,17 +1698,17 @@ export default function Indicateurs() {
               {filteredAlerts.map((alert) => (
                 <div 
                   key={alert.id} 
-                  className={`border rounded-lg p-3 ${alert.status === 'pending' ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'}`}
+                  className={`border rounded-ui-sm p-3 ${alert.status === 'pending' ? 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)]' : 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]'}`}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${alert.score === 1 ? 'bg-red-500 text-white' : alert.score === 2 ? 'bg-orange-500 text-white' : 'bg-yellow-500 text-white'}`}>
+                        <span className={`px-2 py-0.5 rounded text-ui-sm font-bold ${alert.score === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : alert.score === 2 ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-[rgb(var(--c-warning))] text-white'}`}>
                           {alert.score}/5
                         </span>
-                        <span className="font-medium text-sm">{alert.criterion_label}</span>
+                        <span className="font-medium text-ui">{alert.criterion_label}</span>
                       </div>
-                      <div className="text-xs text-gray-600 space-y-0.5">
+                      <div className="text-ui-sm text-gray-600 space-y-0.5">
                         <p>
                           <span className="font-medium">Session:</span> {alert.sessions?.reference || 'N/A'} - {alert.sessions?.courses?.name || alert.sessions?.course?.name || ''}
                         </p>
@@ -1723,13 +1723,13 @@ export default function Indicateurs() {
                           <span className="font-medium">Stagiaire:</span> {alert.trainees?.first_name || ''} {alert.trainees?.last_name || 'N/A'}
                         </p>
                         {alert.status !== 'pending' && (
-                          <p className="text-green-700">
+                          <p className="text-[rgb(var(--c-success))]">
                             <span className="font-medium">Traité par:</span> {alert.treated_by} le {new Date(alert.treated_at).toLocaleDateString('fr-FR')}
                             {alert.treatment_comment && ` - ${alert.treatment_comment}`}
                           </p>
                         )}
                         {alert.non_conformites && (
-                          <p className="text-blue-700">
+                          <p className="text-[rgb(var(--c-info))]">
                             <span className="font-medium">NC liée:</span> {alert.non_conformites.title}
                           </p>
                         )}
@@ -1793,21 +1793,21 @@ export default function Indicateurs() {
       {/* Modal traitement alerte */}
       {showAlertModal && selectedAlert && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-ui-sm p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-5 h-5 text-[rgb(var(--c-success))]" />
               Traiter l'alerte
             </h3>
-            <div className="mb-4 text-sm text-gray-600 space-y-1">
+            <div className="mb-4 text-ui text-gray-600 space-y-1">
               <p><strong>Critère:</strong> {selectedAlert.criterion_label}</p>
-              <p><strong>Note:</strong> <span className={`px-2 py-0.5 rounded text-xs font-bold ${selectedAlert.score === 1 ? 'bg-red-500 text-white' : selectedAlert.score === 2 ? 'bg-orange-500 text-white' : 'bg-yellow-500 text-white'}`}>{selectedAlert.score}/5</span></p>
+              <p><strong>Note:</strong> <span className={`px-2 py-0.5 rounded text-ui-sm font-bold ${selectedAlert.score === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : selectedAlert.score === 2 ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-[rgb(var(--c-warning))] text-white'}`}>{selectedAlert.score}/5</span></p>
               <p><strong>Session:</strong> {selectedAlert.sessions?.reference || 'N/A'} - {selectedAlert.sessions?.courses?.name || selectedAlert.sessions?.course?.name || ''}</p>
               <p><strong>Date:</strong> {selectedAlert.sessions?.start_date ? new Date(selectedAlert.sessions.start_date).toLocaleDateString('fr-FR') : 'N/A'}</p>
               <p><strong>Formateur:</strong> {selectedAlert.sessions?.trainer?.first_name || ''} {selectedAlert.sessions?.trainer?.last_name || 'N/A'}</p>
               <p><strong>Stagiaire:</strong> {selectedAlert.trainees?.first_name || ''} {selectedAlert.trainees?.last_name || 'N/A'}</p>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Commentaire de traitement *</label>
+              <label className="block text-ui font-medium mb-1">Commentaire de traitement *</label>
               <textarea
                 value={treatmentComment}
                 onChange={(e) => setTreatmentComment(e.target.value)}
@@ -1838,42 +1838,42 @@ export default function Indicateurs() {
       )}
       
       {/* Texte explicatif */}
-      <div className="card p-6 bg-blue-50 border border-blue-200">
+      <div className="card p-6 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)]">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Info className="w-5 h-5 text-blue-500" />
+          <Info className="w-5 h-5 text-[rgb(var(--c-info))]" />
           Comment sont calculés les indicateurs ?
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-ui text-gray-700">
           <div>
-            <h4 className="font-semibold text-blue-800 mb-2">Score Global</h4>
+            <h4 className="font-semibold text-[rgb(var(--c-info))] mb-2">Score Global</h4>
             <p className="mb-2">Moyenne pondérée des évaluations :</p>
-            <ul className="list-disc list-inside space-y-1 text-xs">
+            <ul className="list-disc list-inside space-y-1 text-ui-sm">
               <li><strong>Évaluations stagiaires (à chaud)</strong> : moyenne des 14 critères (Organisation, Contenu, Formateur, Perception)</li>
               <li><strong>Évaluations formateur</strong> : si disponibles, incluses dans le calcul</li>
             </ul>
-            <p className="mt-2 text-xs italic">Score = (Moyenne stagiaires + Moyenne formateurs) / 2</p>
+            <p className="mt-2 text-ui-sm italic">Score = (Moyenne stagiaires + Moyenne formateurs) / 2</p>
           </div>
           <div>
-            <h4 className="font-semibold text-blue-800 mb-2">Taux de réussite</h4>
+            <h4 className="font-semibold text-[rgb(var(--c-info))] mb-2">Taux de réussite</h4>
             <p className="mb-2">Pourcentage de stagiaires ayant acquis leurs objectifs :</p>
-            <p className="text-xs">= Nombre "Acquis" / Total stagiaires évalués × 100</p>
-            <p className="mt-2 text-xs italic">Un stagiaire obtient "Acquis" si tous ses objectifs sont validés ET présence 100%</p>
+            <p className="text-ui-sm">= Nombre "Acquis" / Total stagiaires évalués × 100</p>
+            <p className="mt-2 text-ui-sm italic">Un stagiaire obtient "Acquis" si tous ses objectifs sont validés ET présence 100%</p>
           </div>
           <div>
-            <h4 className="font-semibold text-blue-800 mb-2">Taux de présence</h4>
+            <h4 className="font-semibold text-[rgb(var(--c-info))] mb-2">Taux de présence</h4>
             <p className="mb-2">Pourcentage de stagiaires avec présence complète :</p>
-            <p className="text-xs">= Stagiaires 100% présents / Total stagiaires × 100</p>
+            <p className="text-ui-sm">= Stagiaires 100% présents / Total stagiaires × 100</p>
           </div>
           <div>
-            <h4 className="font-semibold text-blue-800 mb-2">Taux de recommandation</h4>
+            <h4 className="font-semibold text-[rgb(var(--c-info))] mb-2">Taux de recommandation</h4>
             <p className="mb-2">Pourcentage de stagiaires recommandant la formation :</p>
-            <p className="text-xs">= Réponses "Oui" / Total réponses × 100</p>
-            <p className="mt-2 text-xs italic">Recueil des appréciations : indicateur 30. Publication avec la méthode de calcul : indicateur 2.</p>
+            <p className="text-ui-sm">= Réponses "Oui" / Total réponses × 100</p>
+            <p className="mt-2 text-ui-sm italic">Recueil des appréciations : indicateur 30. Publication avec la méthode de calcul : indicateur 2.</p>
           </div>
         </div>
-        <div className="mt-4 pt-4 border-t border-blue-200">
-          <h4 className="font-semibold text-orange-800 mb-2">Alertes Qualité</h4>
-          <p className="text-xs">Toute note de 1 à 3/5 génère automatiquement une alerte. Ces alertes doivent être traitées (commentaire justificatif) ou liées à une non-conformité pour démontrer l'amélioration continue lors de l'audit Qualiopi.</p>
+        <div className="mt-4 pt-4 border-t border-[rgb(var(--c-info)/0.3)]">
+          <h4 className="font-semibold text-[rgb(var(--c-warning))] mb-2">Alertes Qualité</h4>
+          <p className="text-ui-sm">Toute note de 1 à 3/5 génère automatiquement une alerte. Ces alertes doivent être traitées (commentaire justificatif) ou liées à une non-conformité pour démontrer l'amélioration continue lors de l'audit Qualiopi.</p>
         </div>
       </div>
     </div>

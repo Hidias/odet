@@ -385,7 +385,7 @@ export default function QualiteEditables() {
   }
 
   const toggleCat = (id) => setExpandedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
-  const getColor = (c) => ({ blue: 'bg-blue-500', green: 'bg-green-500', purple: 'bg-purple-500', orange: 'bg-orange-500', teal: 'bg-teal-500', gray: 'bg-gray-500' }[c] || 'bg-gray-500')
+  const getColor = (c) => ({ blue: 'bg-[rgb(var(--c-info))]', green: 'bg-[rgb(var(--c-success))]', purple: 'bg-gray-700', orange: 'bg-[rgb(var(--c-warning))]', teal: 'bg-gray-700', gray: 'bg-gray-500' }[c] || 'bg-gray-500')
   
   const openEditor = (docId) => {
     const saved = savedDocs[docId]
@@ -553,10 +553,10 @@ export default function QualiteEditables() {
     
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <div className="p-4 border-b flex items-center justify-between bg-gray-50">
-            <div><h2 className="font-bold text-lg">{docInfo?.name}</h2><p className="text-sm text-gray-500">{docCode(docInfo?.code)}</p></div>
-            <button onClick={() => setEditingDoc(null)} className="p-2 hover:bg-gray-200 rounded-lg"><X className="w-5 h-5" /></button>
+            <div><h2 className="font-bold text-lg">{docInfo?.name}</h2><p className="text-ui text-gray-500">{docCode(docInfo?.code)}</p></div>
+            <button onClick={() => setEditingDoc(null)} className="p-2 hover:bg-gray-200 rounded-ui-sm"><X className="w-5 h-5" /></button>
           </div>
           
           <div className="p-4 overflow-y-auto flex-1 space-y-4">
@@ -564,15 +564,15 @@ export default function QualiteEditables() {
             {editingDoc === 'organigramme' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Direction (personnes et rôles)</label>
+                  <label className="block text-ui font-medium mb-2">Direction (personnes et rôles)</label>
                   {(editData.direction || DEFAULT_DATA.organigramme.direction).map((dir, idx) => (
-                    <div key={idx} className="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <div key={idx} className="mb-4 p-3 bg-gray-50 rounded-ui-sm">
                       <input type="text" value={dir.nom} onChange={e => {
                         const newDir = [...(editData.direction || DEFAULT_DATA.organigramme.direction)]
                         newDir[idx] = { ...newDir[idx], nom: e.target.value }
                         setEditData({ ...editData, direction: newDir })
                       }} className="input w-full mb-2" placeholder="Nom" />
-                      <label className="text-xs text-gray-500">Rôles (un par ligne)</label>
+                      <label className="text-ui-sm text-gray-500">Rôles (un par ligne)</label>
                       <textarea value={(dir.roles || []).join('\n')} onChange={e => {
                         const newDir = [...(editData.direction || DEFAULT_DATA.organigramme.direction)]
                         newDir[idx] = { ...newDir[idx], roles: e.target.value.split('\n') }
@@ -582,9 +582,9 @@ export default function QualiteEditables() {
                   ))}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Formateurs (personnes et spécialités)</label>
+                  <label className="block text-ui font-medium mb-2">Formateurs (personnes et spécialités)</label>
                   {(editData.formateurs || DEFAULT_DATA.organigramme.formateurs).map((form, idx) => (
-                    <div key={idx} className="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <div key={idx} className="mb-4 p-3 bg-gray-50 rounded-ui-sm">
                       <input type="text" value={form.nom} onChange={e => {
                         const newForm = [...(editData.formateurs || DEFAULT_DATA.organigramme.formateurs)]
                         newForm[idx] = { ...newForm[idx], nom: e.target.value }
@@ -605,18 +605,18 @@ export default function QualiteEditables() {
             {editingDoc.startsWith('des-') && (
               <>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Personne désignée</label>
+                  <label className="block text-ui font-medium mb-1">Personne désignée</label>
                   <div className="input w-full bg-gray-50 text-gray-700">
                     {(DES_ROLE[editingDoc] && tplCtx?.role?.[DES_ROLE[editingDoc][0]]?.nom) || 'Non désignée'}
                     {DES_ROLE[editingDoc] && tplCtx?.role?.[DES_ROLE[editingDoc][0]]?.suppleant ? `, suppléant ${tplCtx.role[DES_ROLE[editingDoc][0]].suppleant}` : ''}
-                    <span className="block text-xs text-gray-500 mt-1">Se change dans Paramètres &gt; Qualité et référents</span>
+                    <span className="block text-ui-sm text-gray-500 mt-1">Se change dans Paramètres &gt; Qualité et référents</span>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Date de désignation</label>
+                  <label className="block text-ui font-medium mb-1">Date de désignation</label>
                   <input type="date" value={editData.date || ''} onChange={e => setEditData({...editData, date: e.target.value})} className="input w-full" />
                 </div>
-                <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+                <div className="rounded-ui-sm bg-gray-50 p-3 text-ui text-gray-700">
                   La mission, les tâches et les compétences attendues viennent des « Fiches de mission des référents ».
                   <button type="button" className="block mt-1 text-primary-600 font-semibold" onClick={() => { setEditingDoc(null); setRichOpen('des-fiches') }}>Ouvrir les fiches de mission</button>
                 </div>
@@ -627,22 +627,22 @@ export default function QualiteEditables() {
             {editingDoc.startsWith('proc-') && (
               <>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Objectif</label>
+                  <label className="block text-ui font-medium mb-1">Objectif</label>
                   <textarea value={editData.objectif || ''} onChange={e => setEditData({...editData, objectif: e.target.value})} className="input w-full h-20" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Responsable</label>
+                    <label className="block text-ui font-medium mb-1">Responsable</label>
                     <select value={editData.responsable || ''} onChange={e => setEditData({...editData, responsable: e.target.value})} className="input w-full">
                       {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </div>
-                  {editData.delaiAccuse !== undefined && <div><label className="block text-sm font-medium mb-1">Délai AR</label><input type="text" value={editData.delaiAccuse || ''} onChange={e => setEditData({...editData, delaiAccuse: e.target.value})} className="input w-full" /></div>}
-                  {editData.delaiCloture !== undefined && <div><label className="block text-sm font-medium mb-1">Délai clôture</label><input type="text" value={editData.delaiCloture || ''} onChange={e => setEditData({...editData, delaiCloture: e.target.value})} className="input w-full" /></div>}
-                  {editData.delaiTraitement !== undefined && <div><label className="block text-sm font-medium mb-1">Délai traitement</label><input type="text" value={editData.delaiTraitement || ''} onChange={e => setEditData({...editData, delaiTraitement: e.target.value})} className="input w-full" /></div>}
+                  {editData.delaiAccuse !== undefined && <div><label className="block text-ui font-medium mb-1">Délai AR</label><input type="text" value={editData.delaiAccuse || ''} onChange={e => setEditData({...editData, delaiAccuse: e.target.value})} className="input w-full" /></div>}
+                  {editData.delaiCloture !== undefined && <div><label className="block text-ui font-medium mb-1">Délai clôture</label><input type="text" value={editData.delaiCloture || ''} onChange={e => setEditData({...editData, delaiCloture: e.target.value})} className="input w-full" /></div>}
+                  {editData.delaiTraitement !== undefined && <div><label className="block text-ui font-medium mb-1">Délai traitement</label><input type="text" value={editData.delaiTraitement || ''} onChange={e => setEditData({...editData, delaiTraitement: e.target.value})} className="input w-full" /></div>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Indicateurs</label>
+                  <label className="block text-ui font-medium mb-1">Indicateurs</label>
                   {(editData.indicateurs || []).map((ind, i) => (
                     <div key={i} className="flex gap-2 mb-2">
                       <input type="text" value={ind} onChange={e => { const n = [...(editData.indicateurs || [])]; n[i] = e.target.value; setEditData({...editData, indicateurs: n}) }} className="input flex-1" />
@@ -653,16 +653,16 @@ export default function QualiteEditables() {
                 </div>
                 {editData.swimlanes && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">Étapes du logigramme</label>
-                    <div className="text-xs text-gray-500 mb-2">Format: Acteur | Étape | Délai | Output</div>
+                    <label className="block text-ui font-medium mb-1">Étapes du logigramme</label>
+                    <div className="text-ui-sm text-gray-500 mb-2">Format: Acteur | Étape | Délai | Output</div>
                     {editData.swimlanes.map((row, i) => (
                       <div key={i} className="grid grid-cols-4 gap-1 mb-2">
-                        <input type="text" value={row.acteur || ''} onChange={e => { const n = [...editData.swimlanes]; n[i] = {...n[i], acteur: e.target.value}; setEditData({...editData, swimlanes: n}) }} className="input text-xs" placeholder="Acteur" />
-                        <input type="text" value={row.etape || ''} onChange={e => { const n = [...editData.swimlanes]; n[i] = {...n[i], etape: e.target.value}; setEditData({...editData, swimlanes: n}) }} className="input text-xs" placeholder="Étape" />
-                        <input type="text" value={row.delai || ''} onChange={e => { const n = [...editData.swimlanes]; n[i] = {...n[i], delai: e.target.value}; setEditData({...editData, swimlanes: n}) }} className="input text-xs" placeholder="Délai" />
+                        <input type="text" value={row.acteur || ''} onChange={e => { const n = [...editData.swimlanes]; n[i] = {...n[i], acteur: e.target.value}; setEditData({...editData, swimlanes: n}) }} className="input text-ui-sm" placeholder="Acteur" />
+                        <input type="text" value={row.etape || ''} onChange={e => { const n = [...editData.swimlanes]; n[i] = {...n[i], etape: e.target.value}; setEditData({...editData, swimlanes: n}) }} className="input text-ui-sm" placeholder="Étape" />
+                        <input type="text" value={row.delai || ''} onChange={e => { const n = [...editData.swimlanes]; n[i] = {...n[i], delai: e.target.value}; setEditData({...editData, swimlanes: n}) }} className="input text-ui-sm" placeholder="Délai" />
                         <div className="flex gap-1">
-                          <input type="text" value={row.output || ''} onChange={e => { const n = [...editData.swimlanes]; n[i] = {...n[i], output: e.target.value}; setEditData({...editData, swimlanes: n}) }} className="input text-xs flex-1" placeholder="Output" />
-                          <button onClick={() => setEditData({...editData, swimlanes: editData.swimlanes.filter((_, idx) => idx !== i)})} className="text-red-500"><Trash2 className="w-3 h-3" /></button>
+                          <input type="text" value={row.output || ''} onChange={e => { const n = [...editData.swimlanes]; n[i] = {...n[i], output: e.target.value}; setEditData({...editData, swimlanes: n}) }} className="input text-ui-sm flex-1" placeholder="Output" />
+                          <button onClick={() => setEditData({...editData, swimlanes: editData.swimlanes.filter((_, idx) => idx !== i)})} className="text-[rgb(var(--c-danger))]"><Trash2 className="w-3 h-3" /></button>
                         </div>
                       </div>
                     ))}
@@ -675,7 +675,7 @@ export default function QualiteEditables() {
             {/* CHECKLISTS */}
             {editingDoc.startsWith('ck-') && (
               <div>
-                <label className="block text-sm font-medium mb-1">Items de la checklist</label>
+                <label className="block text-ui font-medium mb-1">Items de la checklist</label>
                 {(editData.items || []).map((item, i) => (
                   <div key={i} className="flex gap-2 mb-2">
                     <span className="w-6 text-center text-gray-500">{i + 1}.</span>
@@ -691,13 +691,13 @@ export default function QualiteEditables() {
             {editingDoc === 'contrat-st' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium mb-1">Nom du prestataire</label><input type="text" value={editData.prestataire || ''} onChange={e => setEditData({...editData, prestataire: e.target.value})} className="input w-full" /></div>
-                  <div><label className="block text-sm font-medium mb-1">Durée du contrat</label><input type="text" value={editData.duree || ''} onChange={e => setEditData({...editData, duree: e.target.value})} className="input w-full" placeholder="ex: 1 an renouvelable" /></div>
+                  <div><label className="block text-ui font-medium mb-1">Nom du prestataire</label><input type="text" value={editData.prestataire || ''} onChange={e => setEditData({...editData, prestataire: e.target.value})} className="input w-full" /></div>
+                  <div><label className="block text-ui font-medium mb-1">Durée du contrat</label><input type="text" value={editData.duree || ''} onChange={e => setEditData({...editData, duree: e.target.value})} className="input w-full" placeholder="ex: 1 an renouvelable" /></div>
                 </div>
-                <div><label className="block text-sm font-medium mb-1">Objet du contrat</label><textarea value={editData.objet || ''} onChange={e => setEditData({...editData, objet: e.target.value})} className="input w-full h-20" /></div>
-                <div><label className="block text-sm font-medium mb-1">Montant</label><input type="text" value={editData.montant || ''} onChange={e => setEditData({...editData, montant: e.target.value})} className="input w-full" /></div>
+                <div><label className="block text-ui font-medium mb-1">Objet du contrat</label><textarea value={editData.objet || ''} onChange={e => setEditData({...editData, objet: e.target.value})} className="input w-full h-20" /></div>
+                <div><label className="block text-ui font-medium mb-1">Montant</label><input type="text" value={editData.montant || ''} onChange={e => setEditData({...editData, montant: e.target.value})} className="input w-full" /></div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Obligations du prestataire</label>
+                  <label className="block text-ui font-medium mb-1">Obligations du prestataire</label>
                   {(editData.obligations || []).map((o, i) => (
                     <div key={i} className="flex gap-2 mb-2">
                       <input type="text" value={o} onChange={e => { const n = [...(editData.obligations || [])]; n[i] = e.target.value; setEditData({...editData, obligations: n}) }} className="input flex-1" />
@@ -707,7 +707,7 @@ export default function QualiteEditables() {
                   <button onClick={() => setEditData({...editData, obligations: [...(editData.obligations || []), '']})} className="btn btn-sm btn-secondary"><Plus className="w-4 h-4 mr-1" /> Ajouter</button>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Conditions particulières</label>
+                  <label className="block text-ui font-medium mb-1">Conditions particulières</label>
                   {(editData.conditions || []).map((c, i) => (
                     <div key={i} className="flex gap-2 mb-2">
                       <input type="text" value={c} onChange={e => { const n = [...(editData.conditions || [])]; n[i] = e.target.value; setEditData({...editData, conditions: n}) }} className="input flex-1" />
@@ -722,7 +722,7 @@ export default function QualiteEditables() {
             {/* CHARTE SOUS-TRAITANCE */}
             {editingDoc === 'charte-st' && (
               <div>
-                <label className="block text-sm font-medium mb-1">Engagements qualité du prestataire</label>
+                <label className="block text-ui font-medium mb-1">Engagements qualité du prestataire</label>
                 {(editData.engagements || []).map((e, i) => (
                   <div key={i} className="flex gap-2 mb-2">
                     <span className="w-6 text-center text-gray-500">{i + 1}.</span>
@@ -738,13 +738,13 @@ export default function QualiteEditables() {
             {editingDoc === 'nda' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Parties au contrat</label>
+                  <label className="block text-ui font-medium mb-1">Parties au contrat</label>
                   <input type="text" value={raisonSociale()} disabled className="input w-full mb-2 bg-gray-100" />
                   <input type="text" value={(editData.parties || [])[1] || ''} onChange={e => setEditData({...editData, parties: [raisonSociale(), e.target.value]})} className="input w-full" placeholder="Nom du cocontractant" />
                 </div>
-                <div><label className="block text-sm font-medium mb-1">Durée de confidentialité</label><input type="text" value={editData.duree || ''} onChange={e => setEditData({...editData, duree: e.target.value})} className="input w-full" placeholder="ex: 5 ans après fin du contrat" /></div>
+                <div><label className="block text-ui font-medium mb-1">Durée de confidentialité</label><input type="text" value={editData.duree || ''} onChange={e => setEditData({...editData, duree: e.target.value})} className="input w-full" placeholder="ex: 5 ans après fin du contrat" /></div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Informations confidentielles couvertes</label>
+                  <label className="block text-ui font-medium mb-1">Informations confidentielles couvertes</label>
                   {(editData.informations || []).map((info, i) => (
                     <div key={i} className="flex gap-2 mb-2">
                       <input type="text" value={info} onChange={e => { const n = [...(editData.informations || [])]; n[i] = e.target.value; setEditData({...editData, informations: n}) }} className="input flex-1" />
@@ -759,10 +759,10 @@ export default function QualiteEditables() {
             {/* PLAN D'ACTIONS */}
             {editingDoc === 'plan-action' && (
               <div>
-                <label className="block text-sm font-medium mb-2">Actions en cours</label>
-                <div className="text-xs text-gray-500 mb-2">Gérez vos actions d'amélioration continue</div>
+                <label className="block text-ui font-medium mb-2">Actions en cours</label>
+                <div className="text-ui-sm text-gray-500 mb-2">Gérez vos actions d'amélioration continue</div>
                 {(editData.actions || []).map((act, i) => (
-                  <div key={i} className="p-3 bg-gray-50 rounded-lg mb-3">
+                  <div key={i} className="p-3 bg-gray-50 rounded-ui-sm mb-3">
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <input type="text" value={act.action || ''} onChange={e => { const n = [...(editData.actions || [])]; n[i] = {...n[i], action: e.target.value}; setEditData({...editData, actions: n}) }} className="input col-span-2" placeholder="Description de l'action" />
                       <select value={act.responsable || ''} onChange={e => { const n = [...(editData.actions || [])]; n[i] = {...n[i], responsable: e.target.value}; setEditData({...editData, actions: n}) }} className="input">
@@ -780,7 +780,7 @@ export default function QualiteEditables() {
                         <option value="basse">Basse</option>
                       </select>
                     </div>
-                    <button onClick={() => setEditData({...editData, actions: (editData.actions || []).filter((_, idx) => idx !== i)})} className="text-red-500 text-xs">Supprimer cette action</button>
+                    <button onClick={() => setEditData({...editData, actions: (editData.actions || []).filter((_, idx) => idx !== i)})} className="text-[rgb(var(--c-danger))] text-ui-sm">Supprimer cette action</button>
                   </div>
                 ))}
                 <button onClick={() => setEditData({...editData, actions: [...(editData.actions || []), { action: '', responsable: P(0), echeance: '', statut: 'en_cours', priorite: 'normale' }]})} className="btn btn-sm btn-secondary"><Plus className="w-4 h-4 mr-1" /> Ajouter action</button>
@@ -791,22 +791,22 @@ export default function QualiteEditables() {
             {editingDoc === 'carto-risques' && (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Fréquence de revue</label>
+                  <label className="block text-ui font-medium mb-1">Fréquence de revue</label>
                   <input type="text" value={editData.revue || ''} onChange={e => setEditData({...editData, revue: e.target.value})} className="input w-full" />
                 </div>
-                <div className="text-xs text-gray-500">Gravité et probabilité de 1 (faible) à 4 (forte). Criticité = gravité x probabilité : de 1 à 4 acceptable et surveillé, de 5 à 8 à réduire (action planifiée), de 9 à 16 prioritaire (action immédiate).</div>
+                <div className="text-ui-sm text-gray-500">Gravité et probabilité de 1 (faible) à 4 (forte). Criticité = gravité x probabilité : de 1 à 4 acceptable et surveillé, de 5 à 8 à réduire (action planifiée), de 9 à 16 prioritaire (action immédiate).</div>
                 {(editData.risques || []).map((r, i) => {
                   const upd = (k, v) => { const n = [...(editData.risques || [])]; n[i] = {...n[i], [k]: v}; setEditData({...editData, risques: n}) }
                   const crit = (Number(r.gravite) || 0) * (Number(r.probabilite) || 0)
                   return (
-                    <div key={i} className="p-3 bg-gray-50 rounded-lg space-y-2">
+                    <div key={i} className="p-3 bg-gray-50 rounded-ui-sm space-y-2">
                       <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-2">
                         <input type="text" value={r.processus || ''} onChange={e => upd('processus', e.target.value)} className="input" placeholder="Processus" />
                         <input type="text" value={r.risque || ''} onChange={e => upd('risque', e.target.value)} className="input" placeholder="Risque sur la qualité des formations" />
                       </div>
                       <div className="grid grid-cols-3 gap-2 items-center">
-                        <label className="text-xs">Gravité<select value={r.gravite || 1} onChange={e => upd('gravite', Number(e.target.value))} className="input">{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
-                        <label className="text-xs">Probabilité<select value={r.probabilite || 1} onChange={e => upd('probabilite', Number(e.target.value))} className="input">{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
+                        <label className="text-ui-sm">Gravité<select value={r.gravite || 1} onChange={e => upd('gravite', Number(e.target.value))} className="input">{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
+                        <label className="text-ui-sm">Probabilité<select value={r.probabilite || 1} onChange={e => upd('probabilite', Number(e.target.value))} className="input">{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
                         <span className={`badge ${crit >= 9 ? 'badge-danger' : crit >= 5 ? 'badge-warning' : 'badge-success'} justify-self-start`}>Criticité {crit}</span>
                       </div>
                       <input type="text" value={r.maitrise || ''} onChange={e => upd('maitrise', e.target.value)} className="input w-full" placeholder="Mesures de maîtrise en place" />
@@ -817,7 +817,7 @@ export default function QualiteEditables() {
                         </select>
                         <input type="date" value={r.echeance || ''} onChange={e => upd('echeance', e.target.value)} className="input" />
                       </div>
-                      <button onClick={() => setEditData({...editData, risques: (editData.risques || []).filter((_, idx) => idx !== i)})} className="text-red-500 text-xs">Retirer ce risque</button>
+                      <button onClick={() => setEditData({...editData, risques: (editData.risques || []).filter((_, idx) => idx !== i)})} className="text-[rgb(var(--c-danger))] text-ui-sm">Retirer ce risque</button>
                     </div>
                   )
                 })}
@@ -884,13 +884,13 @@ export default function QualiteEditables() {
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
               <input type="search" className="input flex-1" placeholder="Rechercher un document, un code ou un indicateur" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Rechercher un document" />
-              <div className="inline-flex rounded-lg bg-gray-100 p-0.5 self-start" role="group" aria-label="Filtre">
+              <div className="inline-flex rounded-ui-sm bg-gray-100 p-0.5 self-start" role="group" aria-label="Filtre">
                 {[['tous', 'Tous'], ['revoir', 'À traiter'], ['publics', 'Publics']].map(([k, l]) => (
-                  <button key={k} type="button" onClick={() => setFilter(k)} className={`h-9 px-3 rounded-md text-sm font-semibold ${filter === k ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'}`}>{l}</button>
+                  <button key={k} type="button" onClick={() => setFilter(k)} className={`h-9 px-3 rounded-ui-sm text-ui font-semibold ${filter === k ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'}`}>{l}</button>
                 ))}
               </div>
             </div>
-            {toReview > 0 && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">{toReview} document{toReview > 1 ? 's' : ''} validé{toReview > 1 ? 's' : ''} il y a plus d'un an : revue annuelle à faire.</p>}
+            {toReview > 0 && <p className="text-ui text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-2">{toReview} document{toReview > 1 ? 's' : ''} validé{toReview > 1 ? 's' : ''} il y a plus d'un an : revue annuelle à faire.</p>}
             {!templates && <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}
             {CATS.map((cat) => {
               const Icon = cat.icon
@@ -902,8 +902,8 @@ export default function QualiteEditables() {
                 <div key={cat.id} className="card p-0 overflow-hidden">
                   <button onClick={() => toggleCat(cat.id)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50">
                     <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${getColor(cat.color)} text-white`}><Icon className="w-5 h-5" /></div>
-                      <div className="text-left"><h3 className="font-semibold">{cat.name}</h3><p className="text-sm text-gray-500">{rich.length + legacy.length} document{rich.length + legacy.length > 1 ? 's' : ''}</p></div>
+                      <div className={`p-2 rounded-ui-sm ${getColor(cat.color)} text-white`}><Icon className="w-5 h-5" /></div>
+                      <div className="text-left"><h3 className="font-semibold">{cat.name}</h3><p className="text-ui text-gray-500">{rich.length + legacy.length} document{rich.length + legacy.length > 1 ? 's' : ''}</p></div>
                     </div>
                     {isExp ? <ChevronDown className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
                   </button>
@@ -915,7 +915,7 @@ export default function QualiteEditables() {
                             <FileText className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                             <span className="flex flex-col gap-0.5">
                               <span className="font-medium text-gray-900">{t.name}</span>
-                              <span className="text-xs text-gray-500">{docCode(t.code)}{(t.indicators || []).length ? ` · Ind. ${t.indicators.join(', ')}` : ''}{savedDocs[t.id]?.next_review ? ` · revue le ${savedDocs[t.id].next_review.split('-').reverse().join('/')}` : ''}</span>
+                              <span className="text-ui-sm text-gray-500">{docCode(t.code)}{(t.indicators || []).length ? ` · Ind. ${t.indicators.join(', ')}` : ''}{savedDocs[t.id]?.next_review ? ` · revue le ${savedDocs[t.id].next_review.split('-').reverse().join('/')}` : ''}</span>
                             </span>
                           </button>
                           <div className="flex items-center gap-2">
@@ -930,10 +930,10 @@ export default function QualiteEditables() {
                           <div className="flex items-center gap-3">
                             <FileText className="w-5 h-5 text-gray-400" />
                             <div>
-                              <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded mr-2">{docCode(docItem.code)}</span>
+                              <span className="text-ui-sm font-mono bg-gray-100 px-1.5 py-0.5 rounded mr-2">{docCode(docItem.code)}</span>
                               <span>{docItem.name}</span>
-                              {docItem.indicateur && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Q{docItem.indicateur}</span>}
-                              {savedDocs[docItem.id] && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Édité</span>}
+                              {docItem.indicateur && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1.5 py-0.5 rounded">Q{docItem.indicateur}</span>}
+                              {savedDocs[docItem.id] && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-1.5 py-0.5 rounded">Édité</span>}
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -955,11 +955,11 @@ export default function QualiteEditables() {
 
       {activeTab === 'registres' && (
         <div className="space-y-4">
-          <p className="text-sm text-blue-700 bg-blue-50 p-3 rounded-lg">Les registres sont liés aux données de l'application. Cliquez "Charger" pour voir les données.</p>
+          <p className="text-ui text-[rgb(var(--c-info))] bg-[rgb(var(--c-info-bg))] p-3 rounded-ui-sm">Les registres sont liés aux données de l'application. Cliquez "Charger" pour voir les données.</p>
           {QUALITY_DOCS.registres.docs.map(reg => (
             <div key={reg.id} className="card">
               <div className="flex items-center justify-between mb-3">
-                <div><h3 className="font-semibold">{reg.name}</h3><p className="text-sm text-gray-500">{docCode(reg.code)}</p></div>
+                <div><h3 className="font-semibold">{reg.name}</h3><p className="text-ui text-gray-500">{docCode(reg.code)}</p></div>
                 <div className="flex gap-2">
                   <button onClick={() => loadRegistre(reg.table)} disabled={loadingData} className="btn btn-sm btn-secondary flex items-center gap-1">
                     {loadingData ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Charger
@@ -972,7 +972,7 @@ export default function QualiteEditables() {
                   {registreData[reg.table].length > 0 ? (
                     reg.table === 'programme_versions' ? (
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-ui">
                           <thead className="bg-gray-800 text-white">
                             <tr>
                               <th className="text-left px-3 py-2.5 font-semibold">Réf. document</th>
@@ -1003,13 +1003,13 @@ export default function QualiteEditables() {
                               const isNewGroup = i === 0 || progCode(arr[i - 1].ref_doc) !== progCode(item.ref_doc)
                               const isLatest = isNewGroup
                               return (
-                                <tr key={i} className={`${isNewGroup && i > 0 ? 'border-t-2 border-gray-300' : ''} ${isLatest ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'}`}>
+                                <tr key={i} className={`${isNewGroup && i > 0 ? 'border-t-2 border-gray-300' : ''} ${isLatest ? 'bg-[rgb(var(--c-info-bg))]' : 'bg-white hover:bg-gray-50'}`}>
                                   <td className="px-3 py-2.5">
-                                    <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{docCode(progCode(item.ref_doc))}</span>
+                                    <span className="font-mono text-ui-sm bg-gray-100 px-1.5 py-0.5 rounded">{docCode(progCode(item.ref_doc))}</span>
                                   </td>
                                   <td className="px-3 py-2.5 text-gray-800">{item.nom_programme}</td>
                                   <td className="px-3 py-2.5 text-center">
-                                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${isLatest ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                                    <span className={`inline-block px-2 py-0.5 rounded text-ui-sm font-bold ${isLatest ? 'bg-[rgb(var(--c-info))] text-white' : 'bg-gray-200 text-gray-700'}`}>
                                       V{item.version}
                                     </span>
                                   </td>
@@ -1024,7 +1024,7 @@ export default function QualiteEditables() {
                       </div>
                     ) : reg.table === 'psh_requests' ? (
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-ui">
                           <thead className="bg-gray-800 text-white">
                             <tr>
                               <th className="text-left px-3 py-2.5 font-semibold">Réf.</th>
@@ -1036,19 +1036,19 @@ export default function QualiteEditables() {
                           </thead>
                           <tbody className="divide-y">
                             {registreData[reg.table].map((item, i) => {
-                              const pshDecisionClass = { a_analyser: 'bg-gray-100 text-gray-700', adapte: 'bg-green-100 text-green-700', partiel: 'bg-blue-100 text-blue-700', oriente: 'bg-purple-100 text-purple-700', refuse: 'bg-red-100 text-red-700' }
+                              const pshDecisionClass = { a_analyser: 'bg-gray-100 text-gray-700', adapte: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]', partiel: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', oriente: 'bg-gray-100 text-gray-800', refuse: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' }
                               const pshDecisionLabel = { a_analyser: 'À analyser', adapte: 'Adaptée', partiel: 'Partielle', oriente: 'Orientée', refuse: 'Refusée' }
-                              const pshStatusClass = { open: 'bg-red-100 text-red-700', in_review: 'bg-yellow-100 text-yellow-700', awaiting_info: 'bg-orange-100 text-orange-700', decided: 'bg-blue-100 text-blue-700', implemented: 'bg-purple-100 text-purple-700', closed: 'bg-green-100 text-green-700' }
+                              const pshStatusClass = { open: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]', in_review: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', awaiting_info: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', decided: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', implemented: 'bg-gray-100 text-gray-800', closed: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' }
                               const pshStatusLabel = { open: 'Ouverte', in_review: 'En analyse', awaiting_info: 'Info manquante', decided: 'Décidée', implemented: 'Mise en œuvre', closed: 'Clôturé' }
                               return (
-                                <tr key={i} className={item.is_test ? 'bg-yellow-50' : 'bg-white hover:bg-gray-50'}>
+                                <tr key={i} className={item.is_test ? 'bg-[rgb(var(--c-warning-bg))]' : 'bg-white hover:bg-gray-50'}>
                                   <td className="px-3 py-2.5">
-                                    <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{item.reference}</span>
-                                    {item.is_test && <span className="ml-1.5 text-xs bg-yellow-200 text-yellow-800 px-1 py-0.5 rounded">test</span>}
+                                    <span className="font-mono text-ui-sm bg-gray-100 px-1.5 py-0.5 rounded">{item.reference}</span>
+                                    {item.is_test && <span className="ml-1.5 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1 py-0.5 rounded">test</span>}
                                   </td>
                                   <td className="px-3 py-2.5 text-gray-800">{(item.besoin_fonctionnel || '-').substring(0, 45)}</td>
-                                  <td className="px-3 py-2.5"><span className={`text-xs px-2 py-0.5 rounded ${pshDecisionClass[item.decision] || 'bg-gray-100 text-gray-700'}`}>{pshDecisionLabel[item.decision] || item.decision}</span></td>
-                                  <td className="px-3 py-2.5"><span className={`text-xs px-2 py-0.5 rounded ${pshStatusClass[item.status] || 'bg-gray-100 text-gray-700'}`}>{pshStatusLabel[item.status] || item.status}</span></td>
+                                  <td className="px-3 py-2.5"><span className={`text-ui-sm px-2 py-0.5 rounded ${pshDecisionClass[item.decision] || 'bg-gray-100 text-gray-700'}`}>{pshDecisionLabel[item.decision] || item.decision}</span></td>
+                                  <td className="px-3 py-2.5"><span className={`text-ui-sm px-2 py-0.5 rounded ${pshStatusClass[item.status] || 'bg-gray-100 text-gray-700'}`}>{pshStatusLabel[item.status] || item.status}</span></td>
                                   <td className="px-3 py-2.5 text-gray-600">{format(new Date(item.created_at), 'dd/MM/yyyy')}</td>
                                 </tr>
                               )
@@ -1057,7 +1057,7 @@ export default function QualiteEditables() {
                         </table>
                       </div>
                     ) : (
-                      <table className="w-full text-sm">
+                      <table className="w-full text-ui">
                         <thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Date</th><th className="text-left px-3 py-2">Description</th><th className="px-3 py-2">Statut</th></tr></thead>
                         <tbody className="divide-y">
                           {registreData[reg.table].slice(0, 5).map((item, i) => (
@@ -1065,10 +1065,10 @@ export default function QualiteEditables() {
                               <td className="px-3 py-2">{format(new Date(item.created_at || item.date_veille || item.date), 'dd/MM/yy')}</td>
                               <td className="px-3 py-2">{(item.subject || item.sujet || item.titre || item.description || item.name || '-').substring(0, 50)}</td>
                               <td className="px-3 py-2 text-center">
-                                <span className={`px-2 py-0.5 rounded text-xs ${
+                                <span className={`px-2 py-0.5 rounded text-ui-sm ${
                                   (item.status === 'resolved' || item.status === 'closed' || item.statut === 'traite') 
-                                    ? 'bg-green-100 text-green-700' 
-                                    : 'bg-yellow-100 text-yellow-700'
+                                    ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' 
+                                    : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'
                                 }`}>
                                   {item.status || item.statut || '-'}
                                 </span>
@@ -1089,7 +1089,7 @@ export default function QualiteEditables() {
       {activeTab === 'rdd' && (
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <div><h3 className="font-semibold text-lg">Revue de Direction</h3><p className="text-sm text-gray-500">Année glissante depuis août {rddData ? format(rddData.periode.start, 'yyyy') : ''}</p></div>
+            <div><h3 className="font-semibold text-lg">Revue de Direction</h3><p className="text-ui text-gray-500">Année glissante depuis août {rddData ? format(rddData.periode.start, 'yyyy') : ''}</p></div>
             <div className="flex gap-2">
               <button onClick={loadRDD} disabled={loadingData} className="btn btn-sm btn-secondary flex items-center gap-1">{loadingData ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Actualiser</button>
               <button onClick={() => generatePDF('rdd', { id: 'rdd', name: 'Revue de direction', code: 'QUAL-RDD' })} disabled={!rddData} className="btn btn-sm btn-primary flex items-center gap-1"><Download className="w-4 h-4" /> PDF</button>
@@ -1097,20 +1097,20 @@ export default function QualiteEditables() {
           </div>
           {rddData ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg"><p className="text-2xl font-bold text-blue-700">{rddData.sessions.terminees}/{rddData.sessions.total}</p><p className="text-sm text-blue-600">Sessions</p></div>
-              <div className="p-4 bg-green-50 rounded-lg"><p className="text-2xl font-bold text-green-700">{rddData.stagiaires}</p><p className="text-sm text-green-600">Stagiaires</p></div>
-              <div className="p-4 bg-purple-50 rounded-lg">
-                <p className="text-2xl font-bold text-purple-700">{rddData.satisfaction.score === 'N/A' ? '-' : `${rddData.satisfaction.score}/5`}</p>
-                <p className="text-sm text-purple-600">Satisfaction</p>
-                {rddData.satisfaction.score === 'N/A' && <p className="text-xs text-purple-400 mt-1">Aucune évaluation</p>}
+              <div className="p-4 bg-[rgb(var(--c-info-bg))] rounded-ui-sm"><p className="text-2xl font-bold text-[rgb(var(--c-info))]">{rddData.sessions.terminees}/{rddData.sessions.total}</p><p className="text-ui text-[rgb(var(--c-info))]">Sessions</p></div>
+              <div className="p-4 bg-[rgb(var(--c-success-bg))] rounded-ui-sm"><p className="text-2xl font-bold text-[rgb(var(--c-success))]">{rddData.stagiaires}</p><p className="text-ui text-[rgb(var(--c-success))]">Stagiaires</p></div>
+              <div className="p-4 bg-gray-50 rounded-ui-sm">
+                <p className="text-2xl font-bold text-gray-800">{rddData.satisfaction.score === 'N/A' ? '-' : `${rddData.satisfaction.score}/5`}</p>
+                <p className="text-ui text-gray-800">Satisfaction</p>
+                {rddData.satisfaction.score === 'N/A' && <p className="text-ui-sm text-gray-500 mt-1">Aucune évaluation</p>}
               </div>
-              <div className="p-4 bg-orange-50 rounded-lg">
-                <p className="text-2xl font-bold text-orange-700">{rddData.satisfaction.tauxReco === 'N/A' ? '-' : `${rddData.satisfaction.tauxReco}%`}</p>
-                <p className="text-sm text-orange-600">Recommandation</p>
-                {rddData.satisfaction.tauxReco === 'N/A' && <p className="text-xs text-orange-400 mt-1">Aucune évaluation</p>}
+              <div className="p-4 bg-[rgb(var(--c-warning-bg))] rounded-ui-sm">
+                <p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{rddData.satisfaction.tauxReco === 'N/A' ? '-' : `${rddData.satisfaction.tauxReco}%`}</p>
+                <p className="text-ui text-[rgb(var(--c-warning))]">Recommandation</p>
+                {rddData.satisfaction.tauxReco === 'N/A' && <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">Aucune évaluation</p>}
               </div>
-              <div className="p-4 bg-red-50 rounded-lg"><p className="text-2xl font-bold text-red-700">{rddData.reclamations.total}</p><p className="text-sm text-red-600">Réclamations</p></div>
-              <div className="p-4 bg-yellow-50 rounded-lg"><p className="text-2xl font-bold text-yellow-700">{rddData.nc.total}</p><p className="text-sm text-yellow-600">Non-conformités</p></div>
+              <div className="p-4 bg-[rgb(var(--c-danger-bg))] rounded-ui-sm"><p className="text-2xl font-bold text-[rgb(var(--c-danger))]">{rddData.reclamations.total}</p><p className="text-ui text-[rgb(var(--c-danger))]">Réclamations</p></div>
+              <div className="p-4 bg-[rgb(var(--c-warning-bg))] rounded-ui-sm"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{rddData.nc.total}</p><p className="text-ui text-[rgb(var(--c-warning))]">Non-conformités</p></div>
             </div>
           ) : <div className="text-center py-8"><Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" /><p className="text-gray-500 mt-2">Chargement...</p></div>}
         </div>

@@ -109,7 +109,7 @@ export default function PpReglages({ courses, settings, setSettings, presets, fo
             <button type="button" className="btn btn-primary" disabled={busy} onClick={enregistrer}>Enregistrer</button>
           </div>
 
-          <div className="rounded-ui bg-amber-50 text-amber-900 p-3 text-ui-sm flex flex-wrap items-center gap-3">
+          <div className="rounded-ui bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] p-3 text-ui-sm flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 flex-1 min-w-[220px]">Valeurs proposées
               <select className="select" value={form.preset_code || ''} onChange={(e) => appliquer(e.target.value)}>
                 <option value="">Choisir une fiche officielle</option>
@@ -187,8 +187,8 @@ export default function PpReglages({ courses, settings, setSettings, presets, fo
               <label className="block"><span className="label">Nom de la formation dans le fichier (si différent du catalogue)</span>
                 <input className="input" value={form.nom_formation || ''} onChange={(e) => set('nom_formation', e.target.value)} placeholder={course.title} /></label>
               {manquants.length > 0
-                ? <p className="text-ui-sm text-red-700">À compléter avant de déclarer : {manquants.join(', ')}.</p>
-                : <p className="text-ui-sm text-green-800">Réglages complets.</p>}
+                ? <p className="text-ui-sm text-[rgb(var(--c-danger))]">À compléter avant de déclarer : {manquants.join(', ')}.</p>
+                : <p className="text-ui-sm text-[rgb(var(--c-success))]">Réglages complets.</p>}
             </>
           )}
           <p className="text-ui-sm muted">Les sessions réalisées pour le compte d'un autre organisme (sous-traitance) ne sont jamais déclarées par nous : c'est le donneur d'ordre qui déclare.</p>

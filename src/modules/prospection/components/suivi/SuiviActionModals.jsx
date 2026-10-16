@@ -16,13 +16,13 @@ import { callers, SANS_SUITE_REASONS, quickDates, todayStr, fmtDate, logInteract
 function ModalShell({ title, subtitle, onClose, children, footer }) {
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-ui shadow-md w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-gray-100">
           <div>
             <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-            {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+            {subtitle && <p className="text-ui text-gray-500">{subtitle}</p>}
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100" aria-label="Fermer">
+          <button onClick={onClose} className="p-1.5 rounded-ui-sm hover:bg-gray-100" aria-label="Fermer">
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
@@ -42,7 +42,7 @@ function DatePicker({ value, onChange }) {
             key={q.label}
             type="button"
             onClick={() => onChange(q.value)}
-            className={`px-2.5 py-1 rounded-md text-xs border ${
+            className={`px-2.5 py-1 rounded-ui-sm text-ui-sm border ${
               value === q.value ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700 hover:border-gray-500'
             }`}
           >
@@ -55,7 +55,7 @@ function DatePicker({ value, onChange }) {
         value={value}
         min={todayStr()}
         onChange={e => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+        className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
       />
     </div>
   )
@@ -66,7 +66,7 @@ function SaveButton({ saving, onClick, label }) {
     <button
       onClick={onClick}
       disabled={saving}
-      className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+      className="flex items-center gap-2 px-4 py-2 text-ui font-medium bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 disabled:opacity-50"
     >
       {saving && <Loader2 className="w-4 h-4 animate-spin" />}
       {label}
@@ -76,7 +76,7 @@ function SaveButton({ saving, onClick, label }) {
 
 function CancelButton({ onClick }) {
   return (
-    <button onClick={onClick} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+    <button onClick={onClick} className="px-4 py-2 text-ui text-gray-600 border border-gray-200 rounded-ui-sm hover:bg-gray-50">
       Annuler
     </button>
   )
@@ -124,18 +124,18 @@ export function PlanifierRdvModal({ rdv, clientName, author, onClose, onDone }) 
       onClose={onClose}
       footer={<><CancelButton onClick={onClose} /><SaveButton saving={saving} onClick={save} label="Planifier" /></>}
     >
-      <label className="block text-sm font-medium text-gray-700">Date</label>
+      <label className="block text-ui font-medium text-gray-700">Date</label>
       <DatePicker value={date} onChange={setDate} />
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Heure</label>
+          <label className="block text-ui font-medium text-gray-700 mb-1">Heure</label>
           <input type="time" value={time} onChange={e => setTime(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+            className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Mené par</label>
+          <label className="block text-ui font-medium text-gray-700 mb-1">Mené par</label>
           <select value={who} onChange={e => setWho(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui">
             {callers().map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
@@ -207,23 +207,23 @@ export function ConvertirRappelModal({ rdv, clientName, author, onClose, onDone 
       onClose={onClose}
       footer={<><CancelButton onClick={onClose} /><SaveButton saving={saving} onClick={save} label="Créer le rappel" /></>}
     >
-      <p className="text-sm text-gray-600">
+      <p className="text-ui text-gray-600">
         Le contact rejoint la file de rappels du phoning. Le RDV disparaît du suivi.
       </p>
-      <label className="block text-sm font-medium text-gray-700">Rappeler le</label>
+      <label className="block text-ui font-medium text-gray-700">Rappeler le</label>
       <DatePicker value={date} onChange={setDate} />
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Qui rappelle</label>
+          <label className="block text-ui font-medium text-gray-700 mb-1">Qui rappelle</label>
           <select value={who} onChange={e => setWho(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui">
             {callers().map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Pourquoi</label>
+          <label className="block text-ui font-medium text-gray-700 mb-1">Pourquoi</label>
           <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Ex. dirigeant absent"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+            className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui" />
         </div>
       </div>
     </ModalShell>
@@ -278,7 +278,7 @@ export function DeplacerRappelModal({ callback, clientName, author, onClose, onD
       footer={
         <>
           <button onClick={abandon} disabled={saving}
-            className="mr-auto px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50">
+            className="mr-auto px-3 py-2 text-ui text-[rgb(var(--c-danger))] border border-[rgb(var(--c-danger)/0.3)] rounded-ui-sm hover:bg-[rgb(var(--c-danger-bg))] disabled:opacity-50">
             Abandonner
           </button>
           <CancelButton onClick={onClose} />
@@ -287,14 +287,14 @@ export function DeplacerRappelModal({ callback, clientName, author, onClose, onD
       }
     >
       {callback?.callback_reason && (
-        <p className="text-sm text-gray-600">Motif : {callback.callback_reason}</p>
+        <p className="text-ui text-gray-600">Motif : {callback.callback_reason}</p>
       )}
-      <label className="block text-sm font-medium text-gray-700">Nouvelle date</label>
+      <label className="block text-ui font-medium text-gray-700">Nouvelle date</label>
       <DatePicker value={date} onChange={setDate} />
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Qui rappelle</label>
+        <label className="block text-ui font-medium text-gray-700 mb-1">Qui rappelle</label>
         <select value={who} onChange={e => setWho(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+          className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui">
           {callers().map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
@@ -346,14 +346,14 @@ export function VeilleModal({ group, author, onClose, onDone }) {
       onClose={onClose}
       footer={<><CancelButton onClick={onClose} /><SaveButton saving={saving} onClick={save} label="Mettre en veille" /></>}
     >
-      <p className="text-sm text-gray-600">
+      <p className="text-ui text-gray-600">
         Les devis sortent de la liste et reviennent seuls à cette date. Rien n'est classé perdu.
       </p>
-      <label className="block text-sm font-medium text-gray-700">Revenir le</label>
+      <label className="block text-ui font-medium text-gray-700">Revenir le</label>
       <DatePicker value={date} onChange={setDate} />
       <input value={why} onChange={e => setWhy(e.target.value)}
         placeholder="Pourquoi ? Ex. décision après le budget 2027"
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+        className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui" />
     </ModalShell>
   )
 }
@@ -384,7 +384,7 @@ export function SansSuiteInline({ rdv, author, onDone }) {
   if (!open) {
     return (
       <button onClick={() => setOpen(true)}
-        className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
+        className="px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">
         Sans suite
       </button>
     )
@@ -392,12 +392,12 @@ export function SansSuiteInline({ rdv, author, onDone }) {
   return (
     <span className="flex items-center gap-1">
       <select value={reason} onChange={e => setReason(e.target.value)}
-        className="px-2 py-1 border border-gray-300 rounded-md text-xs">
+        className="px-2 py-1 border border-gray-300 rounded-ui-sm text-ui-sm">
         {SANS_SUITE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
       </select>
       <button onClick={save} disabled={saving}
-        className="px-2 py-1 text-xs bg-gray-900 text-white rounded-md disabled:opacity-50">OK</button>
-      <button onClick={() => setOpen(false)} className="px-1.5 py-1 text-xs text-gray-500">Annuler</button>
+        className="px-2 py-1 text-ui-sm bg-gray-900 text-white rounded-ui-sm disabled:opacity-50">OK</button>
+      <button onClick={() => setOpen(false)} className="px-1.5 py-1 text-ui-sm text-gray-500">Annuler</button>
     </span>
   )
 }

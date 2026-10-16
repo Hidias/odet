@@ -106,7 +106,7 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
           {MONTHS.map((m, i) => (
             <button key={m} type="button" aria-pressed={f.visit_months.includes(i + 1)} onClick={() => toggle('visit_months', i + 1)}
-              className={`rounded-md border text-ui-sm capitalize ${f.visit_months.includes(i + 1) ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-300'}`} style={{ height: 36 }}>{m}</button>
+              className={`rounded-ui-sm border text-ui-sm capitalize ${f.visit_months.includes(i + 1) ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-300'}`} style={{ height: 36 }}>{m}</button>
           ))}
         </div>
       </fieldset>

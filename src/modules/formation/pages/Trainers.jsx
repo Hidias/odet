@@ -37,11 +37,11 @@ const ConfirmModal = ({ show, onConfirm, onCancel, message }) => {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm mx-4">
+      <div className="relative bg-white rounded-ui shadow-md p-6 max-w-sm mx-4">
         <p className="text-gray-700 mb-4">{message}</p>
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="btn btn-secondary">Annuler</button>
-          <button onClick={onConfirm} className="btn bg-red-600 text-white hover:bg-red-700">Supprimer</button>
+          <button onClick={onConfirm} className="btn bg-[rgb(var(--c-danger))] text-white hover:bg-[rgb(var(--c-danger))]">Supprimer</button>
         </div>
       </div>
     </div>
@@ -339,12 +339,12 @@ export default function Trainers() {
   }
   
   const getCertificateStatus = (cert) => {
-    if (cert.no_expiry || !cert.expiry_date) return { status: 'valid', color: 'bg-green-100 text-green-800' }
+    if (cert.no_expiry || !cert.expiry_date) return { status: 'valid', color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' }
     const expiryDate = parseISO(cert.expiry_date)
     const daysLeft = differenceInDays(expiryDate, new Date())
-    if (isPast(expiryDate)) return { status: 'expired', color: 'bg-red-100 text-red-800', label: 'Expiré' }
-    if (daysLeft <= 60) return { status: 'warning', color: 'bg-orange-100 text-orange-800', label: `${daysLeft}j` }
-    return { status: 'valid', color: 'bg-green-100 text-green-800' }
+    if (isPast(expiryDate)) return { status: 'expired', color: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]', label: 'Expiré' }
+    if (daysLeft <= 60) return { status: 'warning', color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', label: `${daysLeft}j` }
+    return { status: 'valid', color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' }
   }
   
   const usedQualifications = getAllUsedQualifications()
@@ -393,35 +393,35 @@ export default function Trainers() {
               <div key={item.id} className="p-4 hover:bg-gray-50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <UserCheck className="w-5 h-5 text-green-600" />
+                    <div className="w-10 h-10 bg-[rgb(var(--c-success-bg))] rounded-ui-sm flex items-center justify-center">
+                      <UserCheck className="w-5 h-5 text-[rgb(var(--c-success))]" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <button onClick={() => openPreview(item)} className="font-medium text-gray-900 hover:text-primary hover:underline">
                           {item.first_name} {item.last_name?.toUpperCase()}
                         </button>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${item.is_internal ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                        <span className={`text-ui-sm px-2 py-0.5 rounded-full font-medium ${item.is_internal ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-200 text-gray-600'}`}>
                           {item.is_internal ? 'Interne' : 'Externe'}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-500">{item.email}{item.phone && ` • ${item.phone}`}</p>
+                      <p className="text-ui text-gray-500">{item.email}{item.phone && ` • ${item.phone}`}</p>
                       {item.qualifications_list && item.qualifications_list.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {item.qualifications_list.map((qual, idx) => (
-                            <span key={idx} className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{qual}</span>
+                            <span key={idx} className="text-ui-sm px-2 py-0.5 rounded-full bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]">{qual}</span>
                           ))}
                         </div>
                       )}
-                      {item.certification_number && <p className="text-xs text-blue-500 mt-1">N° {item.certification_number}</p>}
+                      {item.certification_number && <p className="text-ui-sm text-[rgb(var(--c-info))] mt-1">N° {item.certification_number}</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => openPreview(item)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Aperçu"><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => openCertificates(item)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Certificats"><FileText className="w-4 h-4" /></button>
-                    <button onClick={() => openDevelopment(item)} className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Développement"><BookOpen className="w-4 h-4" /></button>
-                    <button onClick={() => handleEdit(item)} className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg" title="Modifier"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => setConfirmDelete(item.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => openPreview(item)} className="p-2 text-gray-400 hover:text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded-ui-sm" title="Aperçu"><Eye className="w-4 h-4" /></button>
+                    <button onClick={() => openCertificates(item)} className="p-2 text-gray-400 hover:text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))] rounded-ui-sm" title="Certificats"><FileText className="w-4 h-4" /></button>
+                    <button onClick={() => openDevelopment(item)} className="p-2 text-gray-400 hover:text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] rounded-ui-sm" title="Développement"><BookOpen className="w-4 h-4" /></button>
+                    <button onClick={() => handleEdit(item)} className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-ui-sm" title="Modifier"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => setConfirmDelete(item.id)} className="p-2 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               </div>
@@ -435,7 +435,7 @@ export default function Trainers() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowPreview(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-md">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Fiche formateur</h2>
                 <button onClick={() => setShowPreview(false)}><X className="w-5 h-5" /></button>
@@ -443,11 +443,11 @@ export default function Trainers() {
               <div className="p-4 space-y-4">
                 <div className="text-center pb-3 border-b">
                   <h3 className="text-xl font-bold">{selectedTrainer.first_name} {selectedTrainer.last_name?.toUpperCase()}</h3>
-                  <span className={`inline-block mt-2 text-sm px-3 py-1 rounded-full font-medium ${selectedTrainer.is_internal ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                  <span className={`inline-block mt-2 text-ui px-3 py-1 rounded-full font-medium ${selectedTrainer.is_internal ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-200 text-gray-600'}`}>
                     {selectedTrainer.is_internal ? 'Interne' : 'Externe'}
                   </span>
                 </div>
-                <div className="space-y-3 text-sm">
+                <div className="space-y-3 text-ui">
                   <div>
                     <p className="text-gray-500">Email</p>
                     <p className="font-medium break-all">{selectedTrainer.email || '-'}</p>
@@ -458,17 +458,17 @@ export default function Trainers() {
                   </div>
                 </div>
                 {selectedTrainer.certification_number && (
-                  <div className="text-sm"><p className="text-gray-500">N° Agrément</p><p className="font-medium text-blue-600">{selectedTrainer.certification_number}</p></div>
+                  <div className="text-ui"><p className="text-gray-500">N° Agrément</p><p className="font-medium text-[rgb(var(--c-info))]">{selectedTrainer.certification_number}</p></div>
                 )}
                 {selectedTrainer.specialties && (
-                  <div className="text-sm"><p className="text-gray-500">Spécialités</p><p className="font-medium">{selectedTrainer.specialties}</p></div>
+                  <div className="text-ui"><p className="text-gray-500">Spécialités</p><p className="font-medium">{selectedTrainer.specialties}</p></div>
                 )}
                 {selectedTrainer.qualifications_list && selectedTrainer.qualifications_list.length > 0 && (
                   <div>
-                    <p className="text-gray-500 text-sm mb-2">Qualifications</p>
+                    <p className="text-gray-500 text-ui mb-2">Qualifications</p>
                     <div className="flex flex-wrap gap-1">
                       {selectedTrainer.qualifications_list.map((qual, idx) => (
-                        <span key={idx} className="text-sm px-2 py-1 rounded-full bg-blue-100 text-blue-700">{qual}</span>
+                        <span key={idx} className="text-ui px-2 py-1 rounded-full bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]">{qual}</span>
                       ))}
                     </div>
                   </div>
@@ -487,7 +487,7 @@ export default function Trainers() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={resetForm} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-lg max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
                 <h2 className="text-lg font-semibold">{editingId ? 'Modifier' : 'Nouveau'} formateur</h2>
                 <button onClick={resetForm}><X className="w-5 h-5" /></button>
@@ -507,8 +507,8 @@ export default function Trainers() {
                   <label className="label">Qualifications</label>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {formData.qualifications.map((qual, idx) => (
-                      <span key={idx} className="inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                        {qual}<button type="button" onClick={() => removeQualification(qual)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
+                      <span key={idx} className="inline-flex items-center gap-1 text-ui px-2 py-1 rounded-full bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]">
+                        {qual}<button type="button" onClick={() => removeQualification(qual)} className="hover:text-[rgb(var(--c-danger))]"><X className="w-3 h-3" /></button>
                       </span>
                     ))}
                   </div>
@@ -520,7 +520,7 @@ export default function Trainers() {
                 </div>
                 
                 <div><label className="label">N° Agrément</label><input type="text" value={formData.certification_number} onChange={(e) => setFormData({...formData, certification_number: e.target.value})} className="input" /></div>
-                <div><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formData.is_internal} onChange={(e) => setFormData({...formData, is_internal: e.target.checked})} className="w-4 h-4 rounded" /><span className="text-sm">Formateur interne</span></label></div>
+                <div><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formData.is_internal} onChange={(e) => setFormData({...formData, is_internal: e.target.checked})} className="w-4 h-4 rounded" /><span className="text-ui">Formateur interne</span></label></div>
                 
                 {/* Signature du formateur - uniquement en mode édition */}
                 {editingId && (
@@ -550,15 +550,15 @@ export default function Trainers() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowQualificationsManager(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-md">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Qualifications</h2>
                 <button onClick={() => setShowQualificationsManager(false)}><X className="w-5 h-5" /></button>
               </div>
               <div className="p-4">
-                <p className="text-sm text-gray-500 mb-4">Qualifications utilisées par les formateurs</p>
+                <p className="text-ui text-gray-500 mb-4">Qualifications utilisées par les formateurs</p>
                 {usedQualifications.length === 0 ? <p className="text-center text-gray-500 py-8">Aucune</p> : (
-                  <div className="flex flex-wrap gap-2">{usedQualifications.map(q => <span key={q} className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm">{q}</span>)}</div>
+                  <div className="flex flex-wrap gap-2">{usedQualifications.map(q => <span key={q} className="px-3 py-1 rounded-full bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] text-ui">{q}</span>)}</div>
                 )}
               </div>
               <div className="flex justify-end p-4 border-t"><button onClick={() => setShowQualificationsManager(false)} className="btn btn-primary">Fermer</button></div>
@@ -572,20 +572,20 @@ export default function Trainers() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={closeCertificates} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b">
                 <div><h2 className="text-lg font-semibold">Certificats - {selectedTrainer.first_name} {selectedTrainer.last_name?.toUpperCase()}</h2></div>
                 <button onClick={closeCertificates}><X className="w-5 h-5" /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 {!showCertForm && (
-                  <button onClick={() => setShowCertForm(true)} className="w-full mb-4 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-primary-500 hover:text-primary-500 flex items-center justify-center gap-2">
+                  <button onClick={() => setShowCertForm(true)} className="w-full mb-4 p-3 border-2 border-dashed border-gray-300 rounded-ui-sm text-gray-500 hover:border-primary-500 hover:text-primary-500 flex items-center justify-center gap-2">
                     <Plus className="w-5 h-5" /> Ajouter
                   </button>
                 )}
                 {showCertForm && (
-                  <form onSubmit={handleCertSubmit} className="mb-4 p-4 bg-blue-50 rounded-lg space-y-4 border border-blue-200">
-                    <h4 className="font-medium text-blue-800">Nouveau certificat</h4>
+                  <form onSubmit={handleCertSubmit} className="mb-4 p-4 bg-[rgb(var(--c-info-bg))] rounded-ui-sm space-y-4 border border-[rgb(var(--c-info)/0.3)]">
+                    <h4 className="font-medium text-[rgb(var(--c-info))]">Nouveau certificat</h4>
                     
                     {/* Nom du certificat */}
                     <div>
@@ -657,7 +657,7 @@ export default function Trainers() {
                             onChange={(e) => setCertFormData({...certFormData, no_expiry: e.target.checked, expiry_date: ''})} 
                             className="w-4 h-4 rounded border-gray-300" 
                           />
-                          <span className="text-sm text-gray-700">Sans date limite</span>
+                          <span className="text-ui text-gray-700">Sans date limite</span>
                         </label>
                       </div>
                     </div>
@@ -671,11 +671,11 @@ export default function Trainers() {
                         onChange={(e) => setCertFormData({...certFormData, file: e.target.files[0]})} 
                         className="input" 
                       />
-                      <p className="text-xs text-gray-500 mt-1">PDF, JPG ou PNG (max 5 Mo)</p>
+                      <p className="text-ui-sm text-gray-500 mt-1">PDF, JPG ou PNG (max 5 Mo)</p>
                     </div>
                     
                     {/* Boutons */}
-                    <div className="flex justify-end gap-3 pt-2 border-t border-blue-200">
+                    <div className="flex justify-end gap-3 pt-2 border-t border-[rgb(var(--c-info)/0.3)]">
                       <button type="button" onClick={resetCertForm} className="btn btn-secondary">Annuler</button>
                       <button type="submit" disabled={uploading} className="btn btn-primary">
                         {uploading ? 'Enregistrement...' : 'Enregistrer'}
@@ -688,23 +688,23 @@ export default function Trainers() {
                     {certificates.map(cert => {
                       const st = getCertificateStatus(cert)
                       return (
-                        <div key={cert.id} className={`p-4 rounded-lg border ${st.status === 'expired' ? 'border-red-300 bg-red-50' : st.status === 'warning' ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white'}`}>
+                        <div key={cert.id} className={`p-4 rounded-ui-sm border ${st.status === 'expired' ? 'border-[rgb(var(--c-danger)/0.3)] bg-[rgb(var(--c-danger-bg))]' : st.status === 'warning' ? 'border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))]' : 'border-gray-200 bg-white'}`}>
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-semibold text-gray-900">{cert.name}</p>
                                 {cert.certificate_type && (
-                                  <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">{cert.certificate_type}</span>
+                                  <span className="text-ui-sm px-2 py-0.5 rounded bg-gray-100 text-gray-600">{cert.certificate_type}</span>
                                 )}
                                 {st.label && (
-                                  <span className={`text-xs px-2 py-0.5 rounded-full ${st.color} flex items-center gap-1`}>
+                                  <span className={`text-ui-sm px-2 py-0.5 rounded-full ${st.color} flex items-center gap-1`}>
                                     <AlertTriangle className="w-3 h-3" />{st.label}
                                   </span>
                                 )}
                               </div>
                               
                               {/* Dates */}
-                              <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-500">
+                              <div className="mt-2 flex flex-wrap gap-4 text-ui-sm text-gray-500">
                                 {cert.obtained_date && (
                                   <span className="flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
@@ -713,7 +713,7 @@ export default function Trainers() {
                                 )}
                                 <span className="flex items-center gap-1">
                                   {cert.no_expiry ? (
-                                    <span className="text-green-600 font-medium"> Sans date limite</span>
+                                    <span className="text-[rgb(var(--c-success))] font-medium"> Sans date limite</span>
                                   ) : cert.expiry_date ? (
                                     <>
                                       <Calendar className="w-3 h-3" />
@@ -728,11 +728,11 @@ export default function Trainers() {
                             
                             <div className="flex gap-1 ml-4">
                               {(cert.file_path || cert.file_url) && (
-                                <button onClick={() => viewCertificateFile(cert)} className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-gray-100" title="Voir le fichier">
+                                <button onClick={() => viewCertificateFile(cert)} className="p-2 text-gray-400 hover:text-primary-600 rounded-ui-sm hover:bg-gray-100" title="Voir le fichier">
                                   <Eye className="w-4 h-4" />
                                 </button>
                               )}
-                              <button onClick={() => setConfirmDeleteCert(cert)} className="p-2 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50" title="Supprimer">
+                              <button onClick={() => setConfirmDeleteCert(cert)} className="p-2 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] rounded-ui-sm hover:bg-[rgb(var(--c-danger-bg))]" title="Supprimer">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
@@ -753,13 +753,13 @@ export default function Trainers() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={closeDevelopment} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b">
                 <div>
                   <h2 className="text-lg font-semibold">
                     Développement des compétences - {selectedTrainer.first_name} {selectedTrainer.last_name?.toUpperCase()}
                   </h2>
-                  <p className="text-sm text-gray-500">Plan de formation et entretiens professionnels</p>
+                  <p className="text-ui text-gray-500">Plan de formation et entretiens professionnels</p>
                 </div>
                 <button onClick={closeDevelopment}>
                   <X className="w-5 h-5" />

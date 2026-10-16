@@ -87,9 +87,9 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(var(--c-info)/0.3)] mx-auto mb-4" />
           <p className="text-gray-600">Chargement des documents...</p>
         </div>
       </div>
@@ -97,7 +97,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Bouton retour */}
         {onBack && (
@@ -111,10 +111,10 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
         )}
 
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-ui-sm shadow-md p-6 mb-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-              <FileText className="w-8 h-8 text-blue-600" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-[rgb(var(--c-info-bg))] rounded-full mb-4">
+              <FileText className="w-8 h-8 text-[rgb(var(--c-info))]" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
                Documents de formation
@@ -122,7 +122,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
             <h2 className="text-lg text-gray-700 mb-1">
               {session.courses?.title}
             </h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-ui text-gray-500">
               Session du {new Date(session.start_date).toLocaleDateString('fr-FR')}
               {session.end_date && ` au ${new Date(session.end_date).toLocaleDateString('fr-FR')}`}
             </p>
@@ -131,7 +131,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
 
         {/* Liste des documents */}
         {documents.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="bg-white rounded-ui-sm shadow-md p-8 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
               <FileText className="w-8 h-8 text-gray-400" />
             </div>
@@ -144,7 +144,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
             {onBack && (
               <button
                 onClick={onBack}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="px-6 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] transition-colors"
               >
                 Retour à l'accueil
               </button>
@@ -156,11 +156,11 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
               const isDownloading = downloading[doc.id]
               
               return (
-                <div key={doc.id} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                <div key={doc.id} className="bg-white rounded-ui-sm shadow-md p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0">
-                      <div className="w-16 h-16 bg-red-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-8 h-8 text-red-600" />
+                      <div className="w-16 h-16 bg-[rgb(var(--c-danger-bg))] rounded-ui-sm flex items-center justify-center">
+                        <FileText className="w-8 h-8 text-[rgb(var(--c-danger))]" />
                       </div>
                     </div>
                     
@@ -168,10 +168,10 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
                       <h3 className="font-semibold text-gray-900 mb-1">
                         Livret de formation
                       </h3>
-                      <p className="text-sm text-gray-600 mb-1">
+                      <p className="text-ui text-gray-600 mb-1">
                         {doc.file_name}
                       </p>
-                      <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <div className="flex items-center gap-3 text-ui-sm text-gray-500">
                         <span> PDF</span>
                         <span>•</span>
                         <span>{(doc.file_size / 1024 / 1024).toFixed(1)} MB</span>
@@ -183,7 +183,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
                     <button
                       onClick={() => downloadDocument(doc)}
                       disabled={isDownloading}
-                      className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-3 bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isDownloading ? (
                         <>
@@ -205,14 +205,14 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
         )}
 
         {/* Note informative */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="mt-6 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4">
           <div className="flex gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-[rgb(var(--c-info))] flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-blue-900 font-medium mb-1">
+              <p className="text-ui text-[rgb(var(--c-info))] font-medium mb-1">
                  À propos de ce document
               </p>
-              <p className="text-sm text-blue-800">
+              <p className="text-ui text-[rgb(var(--c-info))]">
                 Ce livret contient les supports pédagogiques de votre formation. 
                 Vous pouvez le télécharger et le consulter à tout moment.
               </p>
@@ -221,7 +221,7 @@ export default function TraineeDocuments({ session, traineeId, onBack }) {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
+        <div className="mt-8 text-center text-ui text-gray-500">
           <p>{appName()}, session {session.reference}</p>
         </div>
       </div>

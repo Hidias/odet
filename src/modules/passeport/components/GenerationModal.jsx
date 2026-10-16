@@ -47,7 +47,7 @@ export default function GenerationModal({ inscriptionIds, correction = false, on
         </div>
         <div className="p-4 space-y-4">
           {state.loading && <div className="flex items-center gap-2 text-ui"><Loader2 className="w-5 h-5 animate-spin" /> Contrôles et fabrication en cours…</div>}
-          {state.error && <div className="text-red-700 text-ui">Échec : {state.error}</div>}
+          {state.error && <div className="text-[rgb(var(--c-danger))] text-ui">Échec : {state.error}</div>}
           {!state.loading && !state.error && (
             <>
               {state.fichiers.length === 0 && <div className="card bg-gray-50 text-ui">Aucun stagiaire ne peut partir pour l'instant : voir les motifs ci-dessous.</div>}
@@ -65,13 +65,13 @@ export default function GenerationModal({ inscriptionIds, correction = false, on
                 </div>
               ))}
               {state.fichiers.length > 0 && (
-                <div className="rounded-ui bg-amber-50 text-amber-900 p-3 text-ui-sm leading-relaxed">
+                <div className="rounded-ui bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] p-3 text-ui-sm leading-relaxed">
                   <b>N'ouvrez pas ces fichiers dans Excel ou Numbers</b> : ils cassent le séparateur et les zéros. Déposez-les tels quels sur le portail du Passeport de prévention (espace organisme, import en masse), dans la rubrique du bon type, puis revenez déposer l'accusé de traitement dans « Fichiers et accusés ».
                 </div>
               )}
               {state.retires.length > 0 && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2 font-semibold text-ui"><AlertTriangle className="w-4 h-4 text-amber-600" /> Restent à déclarer ({state.retires.length})</div>
+                  <div className="flex items-center gap-2 font-semibold text-ui"><AlertTriangle className="w-4 h-4 text-[rgb(var(--c-warning))]" /> Restent à déclarer ({state.retires.length})</div>
                   <ul className="text-ui-sm divide-y divide-gray-100">
                     {state.retires.map((r) => <li key={r.inscription_id} className="py-1.5"><b>{r.qui}</b> : {r.motif}</li>)}
                   </ul>

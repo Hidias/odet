@@ -1,3 +1,4 @@
+import { toneStyle } from '../../../ui/StatusBadge'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -552,17 +553,17 @@ export default function BPF() {
   const SectionHeader = ({ id, icon: Icon, title, color = 'blue' }) => (
     <button
       onClick={() => toggleSection(id)}
-      className={`w-full flex items-center gap-3 p-3 bg-${color}-50 border border-${color}-200 rounded-lg hover:bg-${color}-100 transition-colors`}
+      className={`w-full flex items-center gap-3 p-3 border rounded-ui-sm transition-colors`} style={toneStyle(color, { text: false, border: true })}
     >
       {openSections[id] ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-      <Icon className={`w-5 h-5 text-${color}-600`} />
-      <span className="font-semibold text-sm">{title}</span>
+      <Icon className={`w-5 h-5`} style={toneStyle(color, { bg: false })} />
+      <span className="font-semibold text-ui">{title}</span>
     </button>
   )
 
   const NumField = ({ label, field, suffix = '€', disabled = false, bold = false, sub = false }) => (
     <div className={`flex items-center justify-between gap-2 ${sub ? 'ml-6' : ''} ${bold ? 'font-semibold bg-gray-50 p-2 rounded' : ''}`}>
-      <span className={`text-sm ${bold ? 'text-gray-900' : 'text-gray-700'} flex-1`}>{label}</span>
+      <span className={`text-ui ${bold ? 'text-gray-900' : 'text-gray-700'} flex-1`}>{label}</span>
       <div className="flex items-center gap-1">
         <input
           type="text"
@@ -571,19 +572,19 @@ export default function BPF() {
           defaultValue={form[field] || 0}
           onBlur={(e) => updateForm(field, parseFloat(e.target.value) || 0)}
           disabled={disabled}
-          className={`w-32 text-right text-sm border rounded px-2 py-1 ${disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'} ${bold ? 'font-semibold' : ''}`}
+          className={`w-32 text-right text-ui border rounded px-2 py-1 ${disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'} ${bold ? 'font-semibold' : ''}`}
         />
-        <span className="text-xs text-gray-400 w-6">{suffix}</span>
+        <span className="text-ui-sm text-gray-400 w-6">{suffix}</span>
       </div>
     </div>
   )
 
   const TotalRow = ({ label, value, suffix = '€' }) => (
-    <div className="flex items-center justify-between gap-2 font-bold bg-blue-50 p-2 rounded border border-blue-200">
-      <span className="text-sm text-blue-900">{label}</span>
+    <div className="flex items-center justify-between gap-2 font-bold bg-[rgb(var(--c-info-bg))] p-2 rounded border border-[rgb(var(--c-info)/0.3)]">
+      <span className="text-ui text-[rgb(var(--c-info))]">{label}</span>
       <div className="flex items-center gap-1">
-        <span className="w-32 text-right text-sm font-bold text-blue-900">{typeof value === 'number' ? value.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : value}</span>
-        <span className="text-xs text-blue-600 w-6">{suffix}</span>
+        <span className="w-32 text-right text-ui font-bold text-[rgb(var(--c-info))]">{typeof value === 'number' ? value.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : value}</span>
+        <span className="text-ui-sm text-[rgb(var(--c-info))] w-6">{suffix}</span>
       </div>
     </div>
   )
@@ -597,16 +598,16 @@ export default function BPF() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <FileText className="w-6 h-6 text-blue-600" />
+            <FileText className="w-6 h-6 text-[rgb(var(--c-info))]" />
             Bilan Pédagogique et Financier
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Cerfa 10443*17 - Exercice {year}</p>
+          <p className="text-ui text-gray-500 mt-1">Cerfa 10443*17 - Exercice {year}</p>
         </div>
         <div className="flex items-center gap-2">
           <select
             value={year}
             onChange={(e) => setYear(parseInt(e.target.value))}
-            className="input text-sm w-28"
+            className="input text-ui w-28"
           >
             {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2, CURRENT_YEAR - 3].map(y => (
               <option key={y} value={y}>{y}</option>
@@ -615,7 +616,7 @@ export default function BPF() {
           <button
             onClick={handleCalculate}
             disabled={calculating}
-            className="btn btn-secondary flex items-center gap-2 text-sm"
+            className="btn btn-secondary flex items-center gap-2 text-ui"
           >
             {calculating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
             Calculer
@@ -623,7 +624,7 @@ export default function BPF() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="btn btn-primary flex items-center gap-2 text-sm"
+            className="btn btn-primary flex items-center gap-2 text-ui"
           >
             {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Sauvegarder
@@ -633,9 +634,9 @@ export default function BPF() {
 
       {/* Info calcul */}
       {form.calculated_at && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
-          <CheckCircle className="w-4 h-4 text-green-600" />
-          <span className="text-sm text-green-800">
+        <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm p-3 flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-[rgb(var(--c-success))]" />
+          <span className="text-ui text-[rgb(var(--c-success))]">
             Dernier calcul auto : {new Date(form.calculated_at).toLocaleString('fr-FR')} - {form.nb_sessions} sessions ({form.nb_sessions_realisees} terminées)
           </span>
         </div>
@@ -647,28 +648,28 @@ export default function BPF() {
         {openSections.A && (
           <div className="grid grid-cols-2 gap-3 p-3">
             <div>
-              <label className="text-xs text-gray-500">N° de déclaration (NDA)</label>
-              <input className="input text-sm" value={form.org_nda} onChange={(e) => updateForm('org_nda', e.target.value)} />
+              <label className="text-ui-sm text-gray-500">N° de déclaration (NDA)</label>
+              <input className="input text-ui" value={form.org_nda} onChange={(e) => updateForm('org_nda', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">SIRET</label>
-              <input className="input text-sm" value={form.org_siret} onChange={(e) => updateForm('org_siret', e.target.value)} />
+              <label className="text-ui-sm text-gray-500">SIRET</label>
+              <input className="input text-ui" value={form.org_siret} onChange={(e) => updateForm('org_siret', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Forme juridique</label>
-              <input className="input text-sm" value={ORG.forme_juridique} disabled />
+              <label className="text-ui-sm text-gray-500">Forme juridique</label>
+              <input className="input text-ui" value={ORG.forme_juridique} disabled />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Code NAF</label>
-              <input className="input text-sm" value={ORG.naf} disabled />
+              <label className="text-ui-sm text-gray-500">Code NAF</label>
+              <input className="input text-ui" value={ORG.naf} disabled />
             </div>
             <div className="col-span-2">
-              <label className="text-xs text-gray-500">Dénomination</label>
-              <input className="input text-sm" value={form.org_name} onChange={(e) => updateForm('org_name', e.target.value)} />
+              <label className="text-ui-sm text-gray-500">Dénomination</label>
+              <input className="input text-ui" value={form.org_name} onChange={(e) => updateForm('org_name', e.target.value)} />
             </div>
             <div className="col-span-2">
-              <label className="text-xs text-gray-500">Adresse</label>
-              <input className="input text-sm" value={form.org_address} onChange={(e) => updateForm('org_address', e.target.value)} />
+              <label className="text-ui-sm text-gray-500">Adresse</label>
+              <input className="input text-ui" value={form.org_address} onChange={(e) => updateForm('org_address', e.target.value)} />
             </div>
           </div>
         )}
@@ -681,17 +682,17 @@ export default function BPF() {
           <div className="p-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-gray-500">Exercice comptable du</label>
-                <input type="date" className="input text-sm" value={form.exercice_start} onChange={(e) => updateForm('exercice_start', e.target.value)} />
+                <label className="text-ui-sm text-gray-500">Exercice comptable du</label>
+                <input type="date" className="input text-ui" value={form.exercice_start} onChange={(e) => updateForm('exercice_start', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-gray-500">Au</label>
-                <input type="date" className="input text-sm" value={form.exercice_end} onChange={(e) => updateForm('exercice_end', e.target.value)} />
+                <label className="text-ui-sm text-gray-500">Au</label>
+                <input type="date" className="input text-ui" value={form.exercice_end} onChange={(e) => updateForm('exercice_end', e.target.value)} />
               </div>
             </div>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={form.has_distance_learning} onChange={(e) => updateForm('has_distance_learning', e.target.checked)} className="w-4 h-4" />
-              <span className="text-sm">Actions de formation à distance (e-learning, classes virtuelles)</span>
+              <span className="text-ui">Actions de formation à distance (e-learning, classes virtuelles)</span>
             </label>
           </div>
         )}
@@ -703,7 +704,7 @@ export default function BPF() {
         {openSections.C && (
           <div className="p-3 space-y-2">
             <NumField label="1. Entreprises pour la formation de leurs salariés" field="c1_entreprises" />
-            <p className="text-xs text-gray-500 font-medium mt-3 mb-1">2. Organismes gestionnaires des fonds de la formation :</p>
+            <p className="text-ui-sm text-gray-500 font-medium mt-3 mb-1">2. Organismes gestionnaires des fonds de la formation :</p>
             <NumField label="a. Contrats d'apprentissage" field="c2a_apprentissage" sub />
             <NumField label="b. Contrats de professionnalisation" field="c2b_pro" sub />
             <NumField label="c. Promotion/reconversion par alternance" field="c2c_alternance" sub />
@@ -714,7 +715,7 @@ export default function BPF() {
             <NumField label="h. Plan de développement des compétences / OPCO" field="c2h_plan_dev" sub />
             <TotalRow label="Total ligne 2 (a à h)" value={getC2Total()} />
             <NumField label="3. Pouvoirs publics - formation de leurs agents" field="c3_agents_publics" />
-            <p className="text-xs text-gray-500 font-medium mt-2 mb-1">Pouvoirs publics - publics spécifiques :</p>
+            <p className="text-ui-sm text-gray-500 font-medium mt-2 mb-1">Pouvoirs publics - publics spécifiques :</p>
             <NumField label="4. Instances européennes" field="c4_europe" sub />
             <NumField label="5. État" field="c5_etat" sub />
             <NumField label="6. Conseils régionaux" field="c6_regions" sub />
@@ -737,8 +738,8 @@ export default function BPF() {
             <NumField label="Total des charges liées à l'activité de formation" field="d_total" bold />
             <NumField label="• dont Salaires des formateurs" field="d_salaires_formateurs" sub />
             <NumField label="• dont Achats de prestation / honoraires de formation" field="d_sous_traitance" sub />
-            <div className="bg-amber-50 border border-amber-200 rounded p-2 mt-2">
-              <p className="text-xs text-amber-800">
+            <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded p-2 mt-2">
+              <p className="text-ui-sm text-[rgb(var(--c-warning))]">
                 <AlertCircle className="w-3 h-3 inline mr-1" />
                 Le cadre D doit être rempli manuellement depuis votre comptabilité. Les cadres C et D n'ont pas à s'équilibrer.
               </p>
@@ -752,9 +753,9 @@ export default function BPF() {
         <SectionHeader id="E" icon={Users} title="E. PERSONNES DISPENSANT DES HEURES DE FORMATION" />
         {openSections.E && (
           <div className="p-3">
-            <table className="w-full text-sm">
+            <table className="w-full text-ui">
               <thead>
-                <tr className="border-b text-xs text-gray-500">
+                <tr className="border-b text-ui-sm text-gray-500">
                   <th className="text-left py-2">Type</th>
                   <th className="text-right py-2 w-32">Nombre</th>
                   <th className="text-right py-2 w-32">Heures dispensées</th>
@@ -763,13 +764,13 @@ export default function BPF() {
               <tbody className="divide-y">
                 <tr>
                   <td className="py-2">Personnes de votre organisme (internes)</td>
-                  <td className="py-2"><input type="text" inputMode="numeric" className="input text-sm text-right w-28 ml-auto block" value={form.e_internes_nb} onChange={(e) => updateForm('e_internes_nb', parseInt(e.target.value) || 0)} /></td>
-                  <td className="py-2"><input type="text" inputMode="decimal" className="input text-sm text-right w-28 ml-auto block" value={form.e_internes_heures} onChange={(e) => updateForm('e_internes_heures', parseFloat(e.target.value) || 0)} /></td>
+                  <td className="py-2"><input type="text" inputMode="numeric" className="input text-ui text-right w-28 ml-auto block" value={form.e_internes_nb} onChange={(e) => updateForm('e_internes_nb', parseInt(e.target.value) || 0)} /></td>
+                  <td className="py-2"><input type="text" inputMode="decimal" className="input text-ui text-right w-28 ml-auto block" value={form.e_internes_heures} onChange={(e) => updateForm('e_internes_heures', parseFloat(e.target.value) || 0)} /></td>
                 </tr>
                 <tr>
                   <td className="py-2">Personnes extérieures (sous-traitance)</td>
-                  <td className="py-2"><input type="text" inputMode="numeric" className="input text-sm text-right w-28 ml-auto block" value={form.e_externes_nb} onChange={(e) => updateForm('e_externes_nb', parseInt(e.target.value) || 0)} /></td>
-                  <td className="py-2"><input type="text" inputMode="decimal" className="input text-sm text-right w-28 ml-auto block" value={form.e_externes_heures} onChange={(e) => updateForm('e_externes_heures', parseFloat(e.target.value) || 0)} /></td>
+                  <td className="py-2"><input type="text" inputMode="numeric" className="input text-ui text-right w-28 ml-auto block" value={form.e_externes_nb} onChange={(e) => updateForm('e_externes_nb', parseInt(e.target.value) || 0)} /></td>
+                  <td className="py-2"><input type="text" inputMode="decimal" className="input text-ui text-right w-28 ml-auto block" value={form.e_externes_heures} onChange={(e) => updateForm('e_externes_heures', parseFloat(e.target.value) || 0)} /></td>
                 </tr>
               </tbody>
             </table>
@@ -782,9 +783,9 @@ export default function BPF() {
         <SectionHeader id="F1" icon={GraduationCap} title="F-1. TYPE DE STAGIAIRES" color="purple" />
         {openSections.F1 && (
           <div className="p-3">
-            <table className="w-full text-sm">
+            <table className="w-full text-ui">
               <thead>
-                <tr className="border-b text-xs text-gray-500">
+                <tr className="border-b text-ui-sm text-gray-500">
                   <th className="text-left py-2">Type de stagiaire</th>
                   <th className="text-right py-2 w-28">Nombre</th>
                   <th className="text-right py-2 w-32">Heures formation</th>
@@ -800,11 +801,11 @@ export default function BPF() {
                 ].map(row => (
                   <tr key={row.key}>
                     <td className="py-2">{row.label}</td>
-                    <td className="py-2"><input type="text" inputMode="numeric" className="input text-sm text-right w-24 ml-auto block" value={form[row.key + '_nb']} onChange={(e) => updateForm(row.key + '_nb', parseInt(e.target.value) || 0)} /></td>
-                    <td className="py-2"><input type="text" inputMode="decimal" className="input text-sm text-right w-28 ml-auto block" value={form[row.key + '_heures']} onChange={(e) => updateForm(row.key + '_heures', parseFloat(e.target.value) || 0)} /></td>
+                    <td className="py-2"><input type="text" inputMode="numeric" className="input text-ui text-right w-24 ml-auto block" value={form[row.key + '_nb']} onChange={(e) => updateForm(row.key + '_nb', parseInt(e.target.value) || 0)} /></td>
+                    <td className="py-2"><input type="text" inputMode="decimal" className="input text-ui text-right w-28 ml-auto block" value={form[row.key + '_heures']} onChange={(e) => updateForm(row.key + '_heures', parseFloat(e.target.value) || 0)} /></td>
                   </tr>
                 ))}
-                <tr className="bg-blue-50 font-semibold">
+                <tr className="bg-[rgb(var(--c-info-bg))] font-semibold">
                   <td className="py-2">TOTAL (1)</td>
                   <td className="py-2 text-right pr-2">{getF1Total('nb')}</td>
                   <td className="py-2 text-right pr-2">{getF1Total('heures').toFixed(1)}</td>
@@ -821,9 +822,9 @@ export default function BPF() {
         {openSections.F2 && (
           <div className="p-3">
             <div className="flex items-center gap-4">
-              <span className="text-sm flex-1">Stagiaires dont l'action a été confiée à un autre organisme (2)</span>
-              <input type="text" inputMode="numeric" className="input text-sm text-right w-24" value={form.f2_nb} onChange={(e) => updateForm('f2_nb', parseInt(e.target.value) || 0)} />
-              <input type="text" inputMode="decimal" className="input text-sm text-right w-28" value={form.f2_heures} onChange={(e) => updateForm('f2_heures', parseFloat(e.target.value) || 0)} />
+              <span className="text-ui flex-1">Stagiaires dont l'action a été confiée à un autre organisme (2)</span>
+              <input type="text" inputMode="numeric" className="input text-ui text-right w-24" value={form.f2_nb} onChange={(e) => updateForm('f2_nb', parseInt(e.target.value) || 0)} />
+              <input type="text" inputMode="decimal" className="input text-ui text-right w-28" value={form.f2_heures} onChange={(e) => updateForm('f2_heures', parseFloat(e.target.value) || 0)} />
             </div>
           </div>
         )}
@@ -834,9 +835,9 @@ export default function BPF() {
         <SectionHeader id="F3" icon={ClipboardCheck} title="F-3. OBJECTIF GÉNÉRAL DES PRESTATIONS" color="purple" />
         {openSections.F3 && (
           <div className="p-3">
-            <table className="w-full text-sm">
+            <table className="w-full text-ui">
               <thead>
-                <tr className="border-b text-xs text-gray-500">
+                <tr className="border-b text-ui-sm text-gray-500">
                   <th className="text-left py-2">Objectif</th>
                   <th className="text-right py-2 w-28">Nombre</th>
                   <th className="text-right py-2 w-32">Heures</th>
@@ -853,19 +854,19 @@ export default function BPF() {
                 ].map(row => (
                   <tr key={row.key}>
                     <td className="py-2">{row.label}</td>
-                    <td className="py-2"><input type="text" inputMode="numeric" className="input text-sm text-right w-24 ml-auto block" value={form[row.key + '_nb']} onChange={(e) => updateForm(row.key + '_nb', parseInt(e.target.value) || 0)} /></td>
-                    <td className="py-2"><input type="text" inputMode="decimal" className="input text-sm text-right w-28 ml-auto block" value={form[row.key + '_heures']} onChange={(e) => updateForm(row.key + '_heures', parseFloat(e.target.value) || 0)} /></td>
+                    <td className="py-2"><input type="text" inputMode="numeric" className="input text-ui text-right w-24 ml-auto block" value={form[row.key + '_nb']} onChange={(e) => updateForm(row.key + '_nb', parseInt(e.target.value) || 0)} /></td>
+                    <td className="py-2"><input type="text" inputMode="decimal" className="input text-ui text-right w-28 ml-auto block" value={form[row.key + '_heures']} onChange={(e) => updateForm(row.key + '_heures', parseFloat(e.target.value) || 0)} /></td>
                   </tr>
                 ))}
-                <tr className="bg-blue-50 font-semibold">
+                <tr className="bg-[rgb(var(--c-info-bg))] font-semibold">
                   <td className="py-2">TOTAL (3)</td>
                   <td className="py-2 text-right pr-2">{getF3Total('nb')}</td>
                   <td className="py-2 text-right pr-2">{getF3Total('heures').toFixed(1)}</td>
                 </tr>
               </tbody>
             </table>
-            <div className="bg-green-50 border border-green-200 rounded p-2 mt-2">
-              <p className="text-xs text-green-800">
+            <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded p-2 mt-2">
+              <p className="text-ui-sm text-[rgb(var(--c-success))]">
                 <Info className="w-3 h-3 inline mr-1" />
                 Si aucune formation n'est inscrite au RS ou RNCP actuellement → tout en ligne d. Les totaux (1) et (3) doivent être égaux.
               </p>
@@ -879,9 +880,9 @@ export default function BPF() {
         <SectionHeader id="F4" icon={ClipboardCheck} title="F-4. SPÉCIALITÉS DE FORMATION (codes NSF)" color="purple" />
         {openSections.F4 && (
           <div className="p-3">
-            <table className="w-full text-sm">
+            <table className="w-full text-ui">
               <thead>
-                <tr className="border-b text-xs text-gray-500">
+                <tr className="border-b text-ui-sm text-gray-500">
                   <th className="text-left py-2 w-16">Code</th>
                   <th className="text-left py-2">Spécialité</th>
                   <th className="text-right py-2 w-28">Nombre</th>
@@ -892,28 +893,28 @@ export default function BPF() {
                 {form.specialites.map((spec, i) => (
                   <tr key={i}>
                     <td className="py-2">
-                      <input className="input text-sm w-14" value={spec.code} onChange={(e) => {
+                      <input className="input text-ui w-14" value={spec.code} onChange={(e) => {
                         const s = [...form.specialites]
                         s[i] = { ...s[i], code: e.target.value }
                         updateForm('specialites', s)
                       }} />
                     </td>
                     <td className="py-2">
-                      <input className="input text-sm w-full" value={spec.label} onChange={(e) => {
+                      <input className="input text-ui w-full" value={spec.label} onChange={(e) => {
                         const s = [...form.specialites]
                         s[i] = { ...s[i], label: e.target.value }
                         updateForm('specialites', s)
                       }} />
                     </td>
                     <td className="py-2">
-                      <input type="text" inputMode="numeric" className="input text-sm text-right w-24 ml-auto block" value={spec.nb} onChange={(e) => {
+                      <input type="text" inputMode="numeric" className="input text-ui text-right w-24 ml-auto block" value={spec.nb} onChange={(e) => {
                         const s = [...form.specialites]
                         s[i] = { ...s[i], nb: parseInt(e.target.value) || 0 }
                         updateForm('specialites', s)
                       }} />
                     </td>
                     <td className="py-2">
-                      <input type="text" inputMode="decimal" className="input text-sm text-right w-28 ml-auto block" value={spec.heures} onChange={(e) => {
+                      <input type="text" inputMode="decimal" className="input text-ui text-right w-28 ml-auto block" value={spec.heures} onChange={(e) => {
                         const s = [...form.specialites]
                         s[i] = { ...s[i], heures: parseFloat(e.target.value) || 0 }
                         updateForm('specialites', s)
@@ -922,11 +923,11 @@ export default function BPF() {
                   </tr>
                 ))}
                 <tr>
-                  <td colSpan={2} className="py-2 text-sm">Autres spécialités</td>
-                  <td className="py-2"><input type="text" inputMode="numeric" className="input text-sm text-right w-24 ml-auto block" value={form.specialites_autres_nb} onChange={(e) => updateForm('specialites_autres_nb', parseInt(e.target.value) || 0)} /></td>
-                  <td className="py-2"><input type="text" inputMode="decimal" className="input text-sm text-right w-28 ml-auto block" value={form.specialites_autres_heures} onChange={(e) => updateForm('specialites_autres_heures', parseFloat(e.target.value) || 0)} /></td>
+                  <td colSpan={2} className="py-2 text-ui">Autres spécialités</td>
+                  <td className="py-2"><input type="text" inputMode="numeric" className="input text-ui text-right w-24 ml-auto block" value={form.specialites_autres_nb} onChange={(e) => updateForm('specialites_autres_nb', parseInt(e.target.value) || 0)} /></td>
+                  <td className="py-2"><input type="text" inputMode="decimal" className="input text-ui text-right w-28 ml-auto block" value={form.specialites_autres_heures} onChange={(e) => updateForm('specialites_autres_heures', parseFloat(e.target.value) || 0)} /></td>
                 </tr>
-                <tr className="bg-blue-50 font-semibold">
+                <tr className="bg-[rgb(var(--c-info-bg))] font-semibold">
                   <td colSpan={2} className="py-2">TOTAL (4)</td>
                   <td className="py-2 text-right pr-2">{getF4Total('nb')}</td>
                   <td className="py-2 text-right pr-2">{getF4Total('heures').toFixed(1)}</td>
@@ -943,9 +944,9 @@ export default function BPF() {
         {openSections.G && (
           <div className="p-3">
             <div className="flex items-center gap-4">
-              <span className="text-sm flex-1">Formations confiées par un autre OF (5)</span>
-              <input type="text" inputMode="numeric" className="input text-sm text-right w-24" value={form.g_nb} onChange={(e) => updateForm('g_nb', parseInt(e.target.value) || 0)} />
-              <input type="text" inputMode="decimal" className="input text-sm text-right w-28" value={form.g_heures} onChange={(e) => updateForm('g_heures', parseFloat(e.target.value) || 0)} />
+              <span className="text-ui flex-1">Formations confiées par un autre OF (5)</span>
+              <input type="text" inputMode="numeric" className="input text-ui text-right w-24" value={form.g_nb} onChange={(e) => updateForm('g_nb', parseInt(e.target.value) || 0)} />
+              <input type="text" inputMode="decimal" className="input text-ui text-right w-28" value={form.g_heures} onChange={(e) => updateForm('g_heures', parseFloat(e.target.value) || 0)} />
             </div>
           </div>
         )}
@@ -957,24 +958,24 @@ export default function BPF() {
         {openSections.H && (
           <div className="grid grid-cols-2 gap-3 p-3">
             <div>
-              <label className="text-xs text-gray-500">Nom et prénom</label>
-              <input className="input text-sm" value={form.h_dirigeant} onChange={(e) => updateForm('h_dirigeant', e.target.value)} />
+              <label className="text-ui-sm text-gray-500">Nom et prénom</label>
+              <input className="input text-ui" value={form.h_dirigeant} onChange={(e) => updateForm('h_dirigeant', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Qualité</label>
-              <input className="input text-sm" value={form.h_qualite} onChange={(e) => updateForm('h_qualite', e.target.value)} />
+              <label className="text-ui-sm text-gray-500">Qualité</label>
+              <input className="input text-ui" value={form.h_qualite} onChange={(e) => updateForm('h_qualite', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Email</label>
-              <input className="input text-sm" value={form.h_email} onChange={(e) => updateForm('h_email', e.target.value)} />
+              <label className="text-ui-sm text-gray-500">Email</label>
+              <input className="input text-ui" value={form.h_email} onChange={(e) => updateForm('h_email', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Téléphone</label>
-              <input className="input text-sm" value={form.h_phone} onChange={(e) => updateForm('h_phone', e.target.value)} />
+              <label className="text-ui-sm text-gray-500">Téléphone</label>
+              <input className="input text-ui" value={form.h_phone} onChange={(e) => updateForm('h_phone', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Lieu de signature</label>
-              <input className="input text-sm" value={form.h_lieu} onChange={(e) => updateForm('h_lieu', e.target.value)} />
+              <label className="text-ui-sm text-gray-500">Lieu de signature</label>
+              <input className="input text-ui" value={form.h_lieu} onChange={(e) => updateForm('h_lieu', e.target.value)} />
             </div>
           </div>
         )}
@@ -982,9 +983,9 @@ export default function BPF() {
 
       {/* ═══ NOTES ═══ */}
       <div className="card p-3">
-        <label className="text-sm font-medium text-gray-700">Notes internes</label>
+        <label className="text-ui font-medium text-gray-700">Notes internes</label>
         <textarea
-          className="input text-sm mt-1 w-full"
+          className="input text-ui mt-1 w-full"
           rows={3}
           value={form.notes}
           onChange={(e) => updateForm('notes', e.target.value)}
@@ -994,8 +995,8 @@ export default function BPF() {
 
       {/* ═══ CONTRÔLE DE COHÉRENCE ═══ */}
       <div className="card p-4 space-y-2">
-        <h3 className="font-semibold text-sm flex items-center gap-2">
-          <ClipboardCheck className="w-4 h-4 text-blue-600" />
+        <h3 className="font-semibold text-ui flex items-center gap-2">
+          <ClipboardCheck className="w-4 h-4 text-[rgb(var(--c-info))]" />
           Contrôle de cohérence
         </h3>
         {[
@@ -1004,10 +1005,10 @@ export default function BPF() {
           { label: 'Total F-1 heures = F-3 heures', ok: Math.abs(getF1Total('heures') - getF3Total('heures')) < 0.5, v1: getF1Total('heures').toFixed(1), v2: getF3Total('heures').toFixed(1) },
           { label: 'Total F-1 heures = F-4 heures', ok: Math.abs(getF1Total('heures') - getF4Total('heures')) < 0.5, v1: getF1Total('heures').toFixed(1), v2: getF4Total('heures').toFixed(1) },
         ].map((check, i) => (
-          <div key={i} className={`flex items-center gap-2 text-sm p-2 rounded ${check.ok ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-            {check.ok ? <CheckCircle className="w-4 h-4 text-green-600" /> : <AlertCircle className="w-4 h-4 text-red-600" />}
+          <div key={i} className={`flex items-center gap-2 text-ui p-2 rounded ${check.ok ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'}`}>
+            {check.ok ? <CheckCircle className="w-4 h-4 text-[rgb(var(--c-success))]" /> : <AlertCircle className="w-4 h-4 text-[rgb(var(--c-danger))]" />}
             <span>{check.label}</span>
-            {!check.ok && <span className="text-xs ml-auto">({check.v1} ≠ {check.v2})</span>}
+            {!check.ok && <span className="text-ui-sm ml-auto">({check.v1} ≠ {check.v2})</span>}
           </div>
         ))}
       </div>

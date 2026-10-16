@@ -41,10 +41,10 @@ export default function FormativeSummary({ summary, traineeId, className = '' })
     r.counts.none ? `${r.counts.none} non noté${r.counts.none > 1 ? 's' : ''}` : null,
   ].filter(Boolean)
   return (
-    <p className={`text-xs text-gray-600 ${className}`}>
+    <p className={`text-ui-sm text-gray-600 ${className}`}>
       <span className="font-medium text-gray-700">Formatif :</span> {parts.join(' · ') || 'rien de noté'}
       {roleSeqs.length > 0 && <> · {String(roleName).toLowerCase()} {r.principal} fois</>}
-      {roleSeqs.length > 0 && notSeen.size > 0 && <span className="text-amber-700"> · jamais vu en {String(roleName).toLowerCase()} sur {[...notSeen].sort().join(', ')}</span>}
+      {roleSeqs.length > 0 && notSeen.size > 0 && <span className="text-[rgb(var(--c-warning))]"> · jamais vu en {String(roleName).toLowerCase()} sur {[...notSeen].sort().join(', ')}</span>}
     </p>
   )
 }

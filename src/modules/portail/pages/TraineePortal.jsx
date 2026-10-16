@@ -57,7 +57,7 @@ const ProgressStepper = ({ currentStep, hasTest }) => {
               }`}>
                 {isDone ? <CheckCircle className="w-4 h-4 check-pop" /> : <Icon className="w-4 h-4" />}
               </div>
-              <span className={`text-[10px] mt-1 font-semibold ${isDone ? 'text-primary-900' : isActive ? 'text-accent-700' : 'text-gray-400'}`}>{step.label}</span>
+              <span className={`text-ui-sm mt-1 font-semibold ${isDone ? 'text-primary-900' : isActive ? 'text-accent-700' : 'text-gray-400'}`}>{step.label}</span>
             </div>
             {idx < steps.length - 1 && (
               <div className="flex-1 mx-2 -mt-4">
@@ -841,7 +841,7 @@ export default function TraineePortal() {
           </div>
         )}
 
-        <div className="bg-white rounded-b-ui-lg shadow-lg shadow-primary-900/5 p-5 sm:p-6">
+        <div className="bg-white rounded-b-ui-lg shadow-md shadow-primary-900/5 p-5 sm:p-6">
           <div key={currentStep} className="portal-step-enter">
 
             {/* Sélection du stagiaire */}
@@ -875,7 +875,7 @@ export default function TraineePortal() {
             {currentStep === 'verify_code' && (
               <div>
                 <div className="text-center mb-6">
-                  <div className="w-16 h-16 rounded-ui-lg bg-primary-900 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <div className="w-16 h-16 rounded-ui-lg bg-primary-900 flex items-center justify-center mx-auto mb-4 shadow-md">
                     <Shield className="w-8 h-8 text-white" />
                   </div>
                   <h2 className="font-display text-xl font-bold mb-1">Vérification d'accès</h2>
@@ -1202,7 +1202,7 @@ export default function TraineePortal() {
 
             {currentStep === 'thank_you' && (
               <div className="text-center py-8 portal-card-enter">
-                <div className="w-20 h-20 rounded-full bg-primary-900 flex items-center justify-center mx-auto mb-5 shadow-lg">
+                <div className="w-20 h-20 rounded-full bg-primary-900 flex items-center justify-center mx-auto mb-5 shadow-md">
                   <CheckCircle className="w-10 h-10 text-white check-pop" />
                 </div>
                 <h2 className="font-display text-2xl font-bold text-gray-900 mb-2">C'est noté</h2>

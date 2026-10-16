@@ -122,9 +122,9 @@ export default function PpADeclarer({ aDeclarer, today, reload }) {
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold">{i.last_name} {i.first_name}</div>
                     {i.motif && <div className="text-ui-sm muted">{i.motif}</div>}
-                    {i.bloquants.map((b) => <div key={b.code} className="text-ui-sm text-red-700">{b.label}</div>)}
+                    {i.bloquants.map((b) => <div key={b.code} className="text-ui-sm text-[rgb(var(--c-danger))]">{b.label}</div>)}
                     {i.statutAffiche === 'genere' && <div className="text-ui-sm muted">Fichier préparé : accusé de traitement attendu</div>}
-                    {i.statutAffiche === 'rejete' && <div className="text-ui-sm text-red-700">{i.dernier_envoi?.code_erreur} : <Link to="../a-corriger" className="underline">à corriger</Link></div>}
+                    {i.statutAffiche === 'rejete' && <div className="text-ui-sm text-[rgb(var(--c-danger))]">{i.dernier_envoi?.code_erreur} : <Link to="../a-corriger" className="underline">à corriger</Link></div>}
                     {i.nir_present && !i.bloquants.length && i.statutAffiche === 'a_declarer' && <div className="text-ui-sm muted">Numéro se termine par {i.nir_fin}</div>}
                   </div>
                   <div className="flex flex-col items-end gap-1">

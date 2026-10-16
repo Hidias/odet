@@ -205,7 +205,7 @@ export default function Layout() {
               onClick={() => setOpenSections((prev) => ({ ...prev, [section.id]: !isOpen }))}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-ui-sm ${navHover}`}
             >
-              <span className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${isActiveSection ? (navIsDark ? 'text-nav-fg' : 'text-gray-900') : navMuted}`}>
+              <span className={`text-ui-sm font-semibold uppercase tracking-[0.12em] ${isActiveSection ? (navIsDark ? 'text-nav-fg' : 'text-gray-900') : navMuted}`}>
                 {section.label}
               </span>
               <ChevronDown className={`w-4 h-4 ${navMuted} transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -275,7 +275,7 @@ export default function Layout() {
         <button type="button" onClick={handleLogout} aria-label="Se déconnecter" className="w-11 h-11 rounded-ui-sm flex items-center justify-center text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg">
           <LogOut className="w-5 h-5" />
         </button>
-        <div className="w-9 h-9 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-[11px] uppercase mt-1" title={profile?.display_name || user?.email}>
+        <div className="w-9 h-9 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase mt-1" title={profile?.display_name || user?.email}>
           {initials(profile, user)}
         </div>
       </div>
@@ -312,14 +312,14 @@ export default function Layout() {
     </div>
   )
   const DisplayMenu = () => (
-    <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-xl z-50 p-3 animate-fadeIn">
+    <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-md z-50 p-3 animate-fadeIn">
       <div className="font-display font-semibold mb-2">Affichage</div>
       <div className="grid grid-cols-3 gap-2 mb-3">
         {Object.entries(UI_PRESETS).map(([key, p]) => (
           <button key={key} type="button" onClick={() => update({ preset: key })}
             className={`rounded-ui-sm border p-2 text-left ${prefs.preset === key ? 'border-accent-500 ring-2 ring-accent-500/20' : 'border-gray-200 hover:border-gray-300'}`}>
             <div className="text-ui font-semibold">{p.label}</div>
-            <div className="text-[11px] text-gray-500 leading-tight mt-0.5">{p.description}</div>
+            <div className="text-ui-sm text-gray-500 leading-tight mt-0.5">{p.description}</div>
           </button>
         ))}
       </div>
@@ -333,12 +333,12 @@ export default function Layout() {
         <Choice label="Listes" options={LISTS} value={prefs.lists} onChange={(v) => update({ lists: v })}
           render={(o) => ({ table: 'Tableaux', cards: 'Cartes' })[o]} />
       </div>
-      <div className="text-[11px] text-gray-400 mt-2">Réglages personnels, mémorisés sur votre compte.</div>
+      <div className="text-ui-sm text-gray-400 mt-2">Réglages personnels, mémorisés sur votre compte.</div>
     </div>
   )
 
   const NotificationsMenu = () => (
-    <div className="absolute right-0 top-11 w-[360px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-xl z-50 overflow-hidden animate-fadeIn">
+    <div className="absolute right-0 top-11 w-[360px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-md z-50 overflow-hidden animate-fadeIn">
       <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
         <span className="font-display font-semibold">Notifications</span>
         {unreadCount > 0 && (
@@ -363,7 +363,7 @@ export default function Layout() {
               <span className="min-w-0 flex-1">
                 <span className={`block text-ui ${!n.read_at ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>{n.title}</span>
                 {n.message && <span className="block text-ui-sm text-gray-500 truncate">{n.message}</span>}
-                <span className="block text-[11px] text-gray-400 mt-0.5">{format(new Date(n.created_at), 'd MMM à HH:mm', { locale: fr })}</span>
+                <span className="block text-ui-sm text-gray-400 mt-0.5">{format(new Date(n.created_at), 'd MMM à HH:mm', { locale: fr })}</span>
               </span>
             </button>
             {n.type === 'email_sync' && n.metadata?.to_email && (
@@ -455,7 +455,7 @@ export default function Layout() {
                 className={`h-9 w-9 rounded-ui-sm flex items-center justify-center hover:bg-gray-100 relative ${showNotifications ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}>
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-accent-500 text-accent-fg text-[11px] rounded-full flex items-center justify-center font-semibold">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-accent-500 text-accent-fg text-ui-sm rounded-full flex items-center justify-center font-semibold">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -466,11 +466,11 @@ export default function Layout() {
             <div className="relative">
               <button type="button" onClick={() => { const v = !showUserMenu; closeMenus(); setShowUserMenu(v) }} aria-label="Compte"
                 className="h-9 pl-1 pr-2 rounded-ui-sm flex items-center gap-2 hover:bg-gray-100">
-                <span className="w-7 h-7 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-[11px] uppercase">{initials(profile, user)}</span>
+                <span className="w-7 h-7 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase">{initials(profile, user)}</span>
                 <ChevronDown className="w-4 h-4 text-gray-500 hidden sm:block" />
               </button>
               {showUserMenu && (
-                <div className="absolute right-0 top-11 w-64 bg-white rounded-ui border border-gray-200 shadow-xl z-50 overflow-hidden animate-fadeIn">
+                <div className="absolute right-0 top-11 w-64 bg-white rounded-ui border border-gray-200 shadow-md z-50 overflow-hidden animate-fadeIn">
                   <div className="px-3 py-3 border-b border-gray-100">
                     <div className="text-ui font-semibold text-gray-900 truncate">{profile?.display_name || user?.email}</div>
                     <div className="text-ui-sm text-gray-500 truncate">{user?.email}</div>

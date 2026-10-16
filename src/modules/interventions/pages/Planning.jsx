@@ -139,7 +139,7 @@ export default function Planning({ technicians }) {
             const fam = Object.entries(d.families || {}).map(([f, c]) => `${c} ${f.toLowerCase()}`).join(', ')
             return (
               <div key={d.site_id} draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'due', siteId: d.site_id }))}
-                className="flex gap-2 p-2.5 rounded-lg border border-gray-200 bg-white cursor-grab active:cursor-grabbing">
+                className="flex gap-2 p-2.5 rounded-ui-sm border border-gray-200 bg-white cursor-grab active:cursor-grabbing">
                 <GripVertical className="w-4 h-4 text-gray-300 flex-none mt-0.5 hidden xl:block" />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-ui truncate">{d.client?.name}</div>
@@ -195,7 +195,7 @@ export default function Planning({ technicians }) {
             const list = byTech[t.id] || []
             const km = routeKm(list.map((v) => ({ lat: v.sites?.latitude, lng: v.sites?.longitude })))
             return (
-              <div key={t.id} className={`space-y-1.5 rounded-lg p-1 ${dragOver === t.id ? 'bg-gray-50 ring-1 ring-gray-300' : ''}`}
+              <div key={t.id} className={`space-y-1.5 rounded-ui-sm p-1 ${dragOver === t.id ? 'bg-gray-50 ring-1 ring-gray-300' : ''}`}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(t.id) }} onDragLeave={() => setDragOver(null)} onDrop={(e) => onDrop(e, t.id)}>
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="font-semibold flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: t.color }} />{t.name}</span>
@@ -204,8 +204,8 @@ export default function Planning({ technicians }) {
                 {list.map((v, i) => (
                   <div key={v.id} draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'visit', id: v.id }))}
                     onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.stopPropagation(); onDrop(e, t.id, v.id) }}
-                    className="flex items-center gap-2 p-2 rounded-lg border border-gray-200 bg-white cursor-grab">
-                    <span className="w-6 h-6 rounded-full text-white text-xs font-semibold flex items-center justify-center flex-none" style={{ background: t.color }}>{i + 1}</span>
+                    className="flex items-center gap-2 p-2 rounded-ui-sm border border-gray-200 bg-white cursor-grab">
+                    <span className="w-6 h-6 rounded-full text-white text-ui-sm font-semibold flex items-center justify-center flex-none" style={{ background: t.color }}>{i + 1}</span>
                     <Link to={`/interventions/visite/${v.id}`} className="flex-1 min-w-0 text-gray-900 no-underline">
                       <div className="text-ui font-medium truncate">{v.clients?.name}</div>
                       <div className="text-ui-sm text-gray-500 truncate">{[v.sites?.city, v.status === 'terminee' ? 'terminée' : v.status === 'en_cours' ? 'en cours' : null].filter(Boolean).join(', ')}</div>
@@ -217,7 +217,7 @@ export default function Planning({ technicians }) {
                     {v.status !== 'terminee' && v.status !== 'en_cours' && <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label="Retirer de la journée" onClick={() => unplan(v)}><X className="w-4 h-4" /></button>}
                   </div>
                 ))}
-                <div className="h-9 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-ui-sm text-gray-500"><Plus className="w-3.5 h-3.5 mr-1" />Déposer un site ici</div>
+                <div className="h-9 border border-dashed border-gray-300 rounded-ui-sm flex items-center justify-center text-ui-sm text-gray-500"><Plus className="w-3.5 h-3.5 mr-1" />Déposer un site ici</div>
               </div>
             )
           })}

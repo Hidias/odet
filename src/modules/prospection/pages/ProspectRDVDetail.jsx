@@ -23,20 +23,20 @@ const RESULT_LABELS = {
   a_rappeler: ' À rappeler',
 }
 const RESULT_COLORS = {
-  chaud: 'bg-red-50 border-red-200 text-red-800',
-  tiede: 'bg-orange-50 border-orange-200 text-orange-800',
-  froid: 'bg-blue-50 border-blue-200 text-blue-800',
+  chaud: 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))]',
+  tiede: 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]',
+  froid: 'bg-[rgb(var(--c-info-bg))] border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))]',
   no_answer: 'bg-gray-50 border-gray-200 text-gray-700',
-  blocked: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-  wrong_number: 'bg-purple-50 border-purple-200 text-purple-800',
+  blocked: 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]',
+  wrong_number: 'bg-gray-50 border-gray-200 text-gray-800',
 }
 const INTERACTION_COLORS = {
-  phoning: 'bg-purple-50 border-purple-200',
-  email: 'bg-blue-50 border-blue-200',
-  meeting: 'bg-green-50 border-green-200',
-  call: 'bg-indigo-50 border-indigo-200',
-  devis: 'bg-amber-50 border-amber-200',
-  relance: 'bg-red-50 border-red-200',
+  phoning: 'bg-gray-50 border-gray-200',
+  email: 'bg-[rgb(var(--c-info-bg))] border-[rgb(var(--c-info)/0.3)]',
+  meeting: 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]',
+  call: 'bg-[rgb(var(--c-info-bg))] border-[rgb(var(--c-info)/0.3)]',
+  devis: 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)]',
+  relance: 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)]',
   note: 'bg-gray-50 border-gray-200',
 }
 
@@ -299,7 +299,7 @@ export default function ProspectRDVDetail() {
       const { data: inter, error } = await supabase.from('client_interactions').insert({
         client_id: formData.client_id,
         type: 'note',
-        title: ' Note ' + author,
+        title: 'Note ' + author,
         content: newNote.trim(),
         author,
         interaction_date: new Date().toISOString(),
@@ -412,7 +412,7 @@ export default function ProspectRDVDetail() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/prospection')}
-            className="p-2 hover:bg-gray-100 rounded-lg">
+            className="p-2 hover:bg-gray-100 rounded-ui-sm">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -421,35 +421,35 @@ export default function ProspectRDVDetail() {
                 {isNew ? 'Nouveau RDV' : (selectedClient?.name || 'RDV')}
               </h1>
               {isTransfer && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700 border border-violet-200">
+                <span className="px-2 py-0.5 rounded-full text-ui-sm font-medium bg-gray-100 text-gray-800 border border-gray-200">
                   Transfert
                 </span>
               )}
               {isFromPhoning && !isTransfer && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
+                <span className="px-2 py-0.5 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border border-[rgb(var(--c-warning)/0.3)]">
                   Prospect chaud
                 </span>
               )}
               {formData.formations_interet?.length > 0 && formData.formations_interet.map(f => (
-                <span key={f} className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                <span key={f} className="px-2 py-0.5 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] border border-[rgb(var(--c-info)/0.3)]">
                    {f}
                 </span>
               ))}
             </div>
             {selectedClient?.city && (
-              <p className="text-sm text-gray-500 mt-0.5">{selectedClient.city}</p>
+              <p className="text-ui text-gray-500 mt-0.5">{selectedClient.city}</p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           {!isNew && (
             <button onClick={handleDelete}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 border border-red-200">
+              className="flex items-center gap-1.5 px-3 py-2 text-ui bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] rounded-ui-sm hover:bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)]">
               <Trash2 className="w-4 h-4" /> Supprimer
             </button>
           )}
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 text-sm font-medium">
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 disabled:opacity-50 text-ui font-medium">
             <Save className="w-4 h-4" />
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
@@ -458,44 +458,44 @@ export default function ProspectRDVDetail() {
 
       {/* ── Quick actions (si RDV existant) ─────────────────────────────── */}
       {!isNew && (
-        <div className="flex items-center gap-2 flex-wrap bg-gray-50 rounded-xl p-3 border border-gray-200">
-          <span className="text-xs font-semibold text-gray-500 uppercase mr-1">Action rapide</span>
+        <div className="flex items-center gap-2 flex-wrap bg-gray-50 rounded-ui p-3 border border-gray-200">
+          <span className="text-ui-sm font-semibold text-gray-500 uppercase mr-1">Action rapide</span>
           {formData.status !== 'prevu' && formData.status !== 'a_prendre' ? null : (
             <button onClick={() => setFormData(f => ({ ...f, status: 'prevu' }))}
-              className={'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ' +
-                (formData.status === 'prevu' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50')}>
+              className={'px-3 py-1.5 rounded-ui-sm text-ui font-medium border transition-colors ' +
+                (formData.status === 'prevu' ? 'bg-[rgb(var(--c-info))] text-white border-[rgb(var(--c-info)/0.3)]' : 'bg-white text-gray-700 border-gray-300 hover:bg-[rgb(var(--c-info-bg))]')}>
                Prévu
             </button>
           )}
           <button onClick={() => setFormData(f => ({ ...f, status: 'a_prendre', rdv_date: '', rdv_time: '' }))}
-            className={'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ' +
-              (formData.status === 'a_prendre' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-red-50')}>
+            className={'px-3 py-1.5 rounded-ui-sm text-ui font-medium border transition-colors ' +
+              (formData.status === 'a_prendre' ? 'bg-[rgb(var(--c-danger))] text-white border-[rgb(var(--c-danger)/0.3)]' : 'bg-white text-gray-700 border-gray-300 hover:bg-[rgb(var(--c-danger-bg))]')}>
              À planifier
           </button>
           <button onClick={() => handleQuickStatus('realise')}
-            className={'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ' +
-              (formData.status === 'realise' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-green-50')}>
+            className={'px-3 py-1.5 rounded-ui-sm text-ui font-medium border transition-colors ' +
+              (formData.status === 'realise' ? 'bg-[rgb(var(--c-success))] text-white border-[rgb(var(--c-success)/0.3)]' : 'bg-white text-gray-700 border-gray-300 hover:bg-[rgb(var(--c-success-bg))]')}>
              Réalisé
           </button>
           <button onClick={() => handleQuickStatus('annule')}
-            className={'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ' +
+            className={'px-3 py-1.5 rounded-ui-sm text-ui font-medium border transition-colors ' +
               (formData.status === 'annule' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50')}>
              Annulé
           </button>
           {(formData.status === 'realise' || (formData.status === 'prevu' && formData.rdv_date && formData.rdv_date < todayStr())) && (
             <button onClick={() => setShowSuite(true)}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 flex items-center gap-1.5">
+              className="px-3 py-1.5 rounded-ui-sm text-ui font-medium bg-gray-900 text-white hover:bg-gray-700 flex items-center gap-1.5">
               <CheckCircle className="w-4 h-4" /> Suite du RDV
             </button>
           )}
           {(formData.status === 'prevu' || formData.status === 'a_prendre') && (
             <button onClick={() => setShowPrep(true)}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-1.5">
+              className="px-3 py-1.5 rounded-ui-sm text-ui font-medium bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center gap-1.5">
               <FileText className="w-4 h-4" /> Préparer le RDV
             </button>
           )}
           {outcomeInfo?.outcome && (
-            <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-gray-300 text-gray-700">
+            <span className="px-2.5 py-1 rounded-ui-sm text-ui-sm font-medium bg-white border border-gray-300 text-gray-700">
               Suite : {OUTCOME_LABELS[outcomeInfo.outcome] || outcomeInfo.outcome}
               {outcomeInfo.outcome === 'a_recontacter' && formData.next_action_date ? ` le ${fmtDateLocal(formData.next_action_date)}` : ''}
               {outcomeInfo.outcome_by ? ` · ${outcomeInfo.outcome_by}` : ''}
@@ -503,13 +503,13 @@ export default function ProspectRDVDetail() {
           )}
           {formData.client_id && formData.status === 'realise' && (
             <button onClick={() => navigate(`/devis?client_id=${formData.client_id}`)}
-              className="ml-auto px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 flex items-center gap-1.5">
+              className="ml-auto px-3 py-1.5 rounded-ui-sm text-ui font-medium bg-[rgb(var(--c-warning))] text-white hover:bg-[rgb(var(--c-warning))] flex items-center gap-1.5">
               <FileText className="w-4 h-4" /> Créer devis
             </button>
           )}
           {formData.client_id && (
             <button onClick={() => navigate(`/clients/${formData.client_id}`)}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-gray-600 border border-gray-300 hover:bg-gray-50 flex items-center gap-1.5">
+              className="px-3 py-1.5 rounded-ui-sm text-ui font-medium bg-white text-gray-600 border border-gray-300 hover:bg-gray-50 flex items-center gap-1.5">
               <ExternalLink className="w-4 h-4" /> Fiche client
             </button>
           )}
@@ -522,20 +522,20 @@ export default function ProspectRDVDetail() {
         <div className="lg:col-span-2 space-y-6">
 
           {/* Infos RDV */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-ui border border-gray-200 p-5">
             <h2 className="text-base font-semibold mb-4 flex items-center gap-2 text-gray-800">
               <Calendar className="w-4 h-4 text-primary-600" /> Informations du RDV
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Client *</label>
                 <div className="flex gap-2">
                   <SearchSelect value={formData.client_id} className="flex-1"
                     onChange={v => setFormData({ ...formData, client_id: v })}
                     options={clientOptions(clients)} emptyLabel="Sélectionner un client" searchPlaceholder="Rechercher un client..." aria-label="Client" />
                   <button onClick={() => setShowNewClientModal(true)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-primary-600 hover:bg-primary-50 flex items-center gap-1">
+                    className="px-3 py-2 border border-gray-300 rounded-ui-sm text-ui text-primary-600 hover:bg-primary-50 flex items-center gap-1">
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
@@ -543,7 +543,7 @@ export default function ProspectRDVDetail() {
 
               {/* Statut */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+                <label className="block text-ui font-medium text-gray-700 mb-2">Statut</label>
                 <div className="flex gap-2 flex-wrap">
                   {[
                     { value: 'a_prendre', label: 'À planifier' },
@@ -553,7 +553,7 @@ export default function ProspectRDVDetail() {
                   ].map(s => (
                     <button key={s.value} type="button"
                       onClick={() => setFormData({ ...formData, status: s.value })}
-                      className={'px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ' +
+                      className={'px-3 py-1.5 rounded-ui-sm border text-ui font-medium transition-colors ' +
                         (formData.status === s.value ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400')}>
                       {s.label}
                     </button>
@@ -563,22 +563,22 @@ export default function ProspectRDVDetail() {
 
               {formData.status !== 'a_prendre' && (<>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Date</label>
                   <input type="date" value={formData.rdv_date}
                     onChange={e => setFormData({ ...formData, rdv_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Heure</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Heure</label>
                   <input type="time" value={formData.rdv_time}
                     onChange={e => setFormData({ ...formData, rdv_time: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Type</label>
                   <select value={formData.rdv_type}
                     onChange={e => setFormData({ ...formData, rdv_type: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm">
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui">
                     <option value="decouverte">Découverte</option>
                     <option value="suivi">Suivi</option>
                     <option value="signature">Signature</option>
@@ -588,10 +588,10 @@ export default function ProspectRDVDetail() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Lieu</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Lieu</label>
                   <select value={formData.rdv_location}
                     onChange={e => setFormData({ ...formData, rdv_location: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm">
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui">
                     <option value="leurs_locaux"> Leurs locaux</option>
                     <option value="nos_locaux"> Nos locaux</option>
                     <option value="visio"> Visio</option>
@@ -601,10 +601,10 @@ export default function ProspectRDVDetail() {
               </>)}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mené par</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Mené par</label>
                 <select value={formData.conducted_by}
                   onChange={e => setFormData({ ...formData, conducted_by: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm">
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui">
                   <option value="">Sélectionner</option>
                   {teamFirstNames().map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -613,79 +613,79 @@ export default function ProspectRDVDetail() {
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="urgent" checked={formData.is_urgent}
                   onChange={e => setFormData({ ...formData, is_urgent: e.target.checked })}
-                  className="w-4 h-4 rounded border-gray-300 text-red-600" />
-                <label htmlFor="urgent" className="text-sm text-gray-700 cursor-pointer"> Urgent</label>
+                  className="w-4 h-4 rounded border-gray-300 text-[rgb(var(--c-danger))]" />
+                <label htmlFor="urgent" className="text-ui text-gray-700 cursor-pointer"> Urgent</label>
               </div>
             </div>
           </div>
 
           {/* Contact */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-ui border border-gray-200 p-5">
             <h2 className="text-base font-semibold mb-4 flex items-center gap-2 text-gray-800">
               <User className="w-4 h-4 text-primary-600" /> Contact
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {contacts.length > 0 && (
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact existant</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Contact existant</label>
                   <select value={formData.contact_id || ''}
                     onChange={e => {
                       const c = contacts.find(c => c.id === e.target.value)
                       if (c) setFormData({ ...formData, contact_id: c.id, contact_name: c.name || '', contact_email: c.email || '', contact_phone: c.phone || c.mobile || '' })
                       else setFormData({ ...formData, contact_id: null, contact_name: '', contact_email: '', contact_phone: '' })
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm">
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui">
                     <option value="">- Saisie manuelle -</option>
                     {contacts.map(c => <option key={c.id} value={c.id}>{c.name} {c.is_primary && '(Principal)'}</option>)}
                   </select>
                 </div>
               )}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Nom</label>
                 <input type="text" value={formData.contact_name}
                   onChange={e => setFormData({ ...formData, contact_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Email</label>
                 <input type="email" value={formData.contact_email}
                   onChange={e => setFormData({ ...formData, contact_email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Téléphone</label>
                 <input type="tel" value={formData.contact_phone}
                   onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui" />
               </div>
             </div>
           </div>
 
           {/* Prochaine action */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-ui border border-gray-200 p-5">
             <h2 className="text-base font-semibold mb-4 flex items-center gap-2 text-gray-800">
-              <Zap className="w-4 h-4 text-amber-500" /> Prochaine action
+              <Zap className="w-4 h-4 text-[rgb(var(--c-warning))]" /> Prochaine action
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Action</label>
                 <input type="text" value={formData.next_action}
                   onChange={e => setFormData({ ...formData, next_action: e.target.value })}
                   placeholder="Ex: Envoyer devis SST"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Date</label>
                 <input type="date" value={formData.next_action_date}
                   onChange={e => setFormData({ ...formData, next_action_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui" />
               </div>
             </div>
           </div>
 
           {/* Analyse des besoins */}
           {formData.client_id && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-white rounded-ui border border-gray-200 p-5">
               <h2 className="text-base font-semibold mb-4 flex items-center gap-2 text-gray-800">
                 <FileText className="w-4 h-4 text-primary-600" /> Analyse des besoins
               </h2>
@@ -696,7 +696,7 @@ export default function ProspectRDVDetail() {
           {/* Compte-rendu */}
           {formData.client_id && (
             <button onClick={() => setShowCompteRendu(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 text-sm font-medium">
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[rgb(var(--c-success))] text-white rounded-ui hover:bg-[rgb(var(--c-success))] text-ui font-medium">
               <Mail className="w-4 h-4" /> Générer Compte-Rendu
             </button>
           )}
@@ -707,11 +707,11 @@ export default function ProspectRDVDetail() {
 
           {/* Info client */}
           {selectedClient && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h3 className="font-semibold text-gray-900 mb-3 text-sm flex items-center gap-2">
+            <div className="bg-white rounded-ui border border-gray-200 p-4">
+              <h3 className="font-semibold text-gray-900 mb-3 text-ui flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-gray-400" /> {selectedClient.name}
               </h3>
-              <div className="space-y-1.5 text-sm">
+              <div className="space-y-1.5 text-ui">
                 {selectedClient.city && (
                   <div className="flex items-center gap-2 text-gray-600">
                     <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
@@ -726,7 +726,7 @@ export default function ProspectRDVDetail() {
                   </a>
                 )}
                 {selectedClient.email && (
-                  <div className="flex items-center gap-2 text-gray-600 text-xs truncate">
+                  <div className="flex items-center gap-2 text-gray-600 text-ui-sm truncate">
                     <Mail className="w-3.5 h-3.5 flex-shrink-0" />
                     {selectedClient.email}
                   </div>
@@ -736,13 +736,13 @@ export default function ProspectRDVDetail() {
           )}
 
           {/* Fil CRM ─────────────────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <h3 className="font-semibold text-gray-800 text-ui flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-primary-500" />
                 Fil CRM
                 {crmFil.length > 0 && (
-                  <span className="bg-primary-100 text-primary-700 text-xs px-1.5 py-0.5 rounded-full">
+                  <span className="bg-primary-100 text-primary-700 text-ui-sm px-1.5 py-0.5 rounded-full">
                     {crmFil.length}
                   </span>
                 )}
@@ -757,10 +757,10 @@ export default function ProspectRDVDetail() {
                 <div className="flex gap-2">
                   <textarea value={newNote} onChange={e => setNewNote(e.target.value)}
                     rows={2} placeholder="Ajouter une note, un compte-rendu d'appel..."
-                    className="flex-1 border border-gray-200 rounded-lg px-2.5 py-2 text-sm resize-none focus:ring-2 focus:ring-primary-400 focus:border-transparent" />
+                    className="flex-1 border border-gray-200 rounded-ui-sm px-2.5 py-2 text-ui resize-none focus:ring-2 focus:ring-primary-400 focus:border-transparent" />
                 </div>
                 <button onClick={addNote} disabled={!newNote.trim() || savingNote || !formData.client_id}
-                  className="w-full py-1.5 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
+                  className="w-full py-1.5 rounded-ui-sm text-ui font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
                   <Plus className="w-3.5 h-3.5" />
                   {savingNote ? 'Ajout...' : 'Ajouter note'}
                 </button>
@@ -770,14 +770,14 @@ export default function ProspectRDVDetail() {
 
               {/* Fil */}
               {crmFil.length === 0 && !crmLoading && (
-                <p className="text-xs text-gray-400 italic text-center py-3">Aucune interaction enregistrée</p>
+                <p className="text-ui-sm text-gray-400 italic text-center py-3">Aucune interaction enregistrée</p>
               )}
 
               {crmFil.map((item, i) => (
                 <div key={item.id + '-' + i}>
                   {item._type === 'call' ? (
                     /* ── Appel de prospection ── */
-                    <div className={'rounded-lg border p-3 text-xs space-y-1.5 ' + (RESULT_COLORS[item.result] || 'bg-gray-50 border-gray-200')}>
+                    <div className={'rounded-ui-sm border p-3 text-ui-sm space-y-1.5 ' + (RESULT_COLORS[item.result] || 'bg-gray-50 border-gray-200')}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold">
                            {item.author} - {RESULT_LABELS[item.result] || item.result}
@@ -817,14 +817,14 @@ export default function ProspectRDVDetail() {
                         </p>
                       )}
                       {item.duration > 0 && (
-                        <p className="opacity-50 text-[10px]">
+                        <p className="opacity-50 text-ui-sm">
                            {Math.floor(item.duration / 60)}min {item.duration % 60}s
                         </p>
                       )}
                     </div>
                   ) : (
                     /* ── Interaction (note, email, meeting…) ── */
-                    <div className={'rounded-lg border p-3 text-xs space-y-1 ' + (INTERACTION_COLORS[item.type] || INTERACTION_COLORS.note)}>
+                    <div className={'rounded-ui-sm border p-3 text-ui-sm space-y-1 ' + (INTERACTION_COLORS[item.type] || INTERACTION_COLORS.note)}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold">{item.title || item.type}</span>
                         <span className="text-gray-500 whitespace-nowrap">{item.author} · {fmtDateTime(item.date)}</span>
@@ -839,18 +839,18 @@ export default function ProspectRDVDetail() {
 
               {/* Note initiale RDV (contexte de la prise de rendez-vous) si elle n'est pas dans les appels */}
               {initialNotes && marineCalls.length === 0 && (
-                <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs">
-                  <p className="font-semibold text-violet-700 mb-1">Note initiale</p>
-                  <p className="text-violet-800 whitespace-pre-line leading-snug">{initialNotes}</p>
+                <div className="rounded-ui-sm border border-gray-200 bg-gray-50 p-3 text-ui-sm">
+                  <p className="font-semibold text-gray-800 mb-1">Note initiale</p>
+                  <p className="text-gray-800 whitespace-pre-line leading-snug">{initialNotes}</p>
                 </div>
               )}
             </div>
           </div>
 
           {/* Notes brutes du RDV (champ éditable, en bas) */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="bg-white rounded-ui border border-gray-200 p-4">
             <button onClick={() => setShowFullNotes(!showFullNotes)}
-              className="w-full flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
+              className="w-full flex items-center justify-between text-ui font-medium text-gray-700 mb-2">
               <span className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-gray-400" /> Notes du RDV (brutes)
               </span>
@@ -859,17 +859,17 @@ export default function ProspectRDVDetail() {
             {showFullNotes && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Contenu brut - figé sauf modification volontaire</span>
+                  <span className="text-ui-sm text-gray-400">Contenu brut - figé sauf modification volontaire</span>
                   <SpeechToTextButton onTranscript={text => setFormData(f => ({ ...f, notes: f.notes ? f.notes + ' ' + text : text }))} />
                 </div>
                 <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })}
                   rows={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 text-ui resize-none"
                   placeholder="Notes brutes..." />
               </div>
             )}
             {!showFullNotes && formData.notes && (
-              <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-line">{formData.notes}</p>
+              <p className="text-ui-sm text-gray-500 line-clamp-2 whitespace-pre-line">{formData.notes}</p>
             )}
           </div>
 
@@ -879,10 +879,10 @@ export default function ProspectRDVDetail() {
       {/* ── Modal création client ─────────────────────────────────────────── */}
       {showNewClientModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full">
+          <div className="bg-white rounded-ui max-w-lg w-full">
             <div className="p-4 border-b flex items-center justify-between">
               <h2 className="text-lg font-bold">Créer un client</h2>
-              <button onClick={() => setShowNewClientModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setShowNewClientModal(false)} className="p-2 hover:bg-gray-100 rounded-ui-sm">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -895,34 +895,34 @@ export default function ProspectRDVDetail() {
                 { label: "Adresse", field: 'address', placeholder: '12 rue Example' },
               ].map(({ label, field, placeholder }) => (
                 <div key={field}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">{label}</label>
                   <input type="text" value={newClientData[field]}
                     onChange={e => setNewClientData({ ...newClientData, [field]: e.target.value })}
                     placeholder={placeholder}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui" />
                 </div>
               ))}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Code postal</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Code postal</label>
                   <input type="text" value={newClientData.postal_code}
                     onChange={e => setNewClientData({ ...newClientData, postal_code: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Ville</label>
                   <input type="text" value={newClientData.city}
                     onChange={e => setNewClientData({ ...newClientData, city: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui" />
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setShowNewClientModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-ui-sm text-ui hover:bg-gray-50">
                   Annuler
                 </button>
                 <button onClick={handleCreateClient}
-                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-ui-sm text-ui hover:bg-primary-700">
                   Créer
                 </button>
               </div>

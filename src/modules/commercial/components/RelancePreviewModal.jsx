@@ -23,20 +23,20 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-ui shadow-md max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-5 py-3 flex items-center justify-between">
+        <div className="bg-gray-50 px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
             <Sparkles className="w-4 h-4" />
-            <span className="font-semibold text-sm">Relance IA - {relanceLabel}</span>
+            <span className="font-semibold text-ui">Relance IA - {relanceLabel}</span>
             {isFallback && (
-              <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+              <span className="text-ui-sm bg-[rgb(var(--c-warning))] text-[rgb(var(--c-warning))] px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" /> Fallback (IA indisponible)
               </span>
             )}
           </div>
-          <button onClick={onCancel} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
+          <button onClick={onCancel} className="p-1 hover:bg-white/20 rounded-ui-sm transition-colors">
             <X className="w-4 h-4 text-white" />
           </button>
         </div>
@@ -44,7 +44,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
         <div className="p-5 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
 
           {/* Infos contexte */}
-          <div className="flex flex-wrap gap-3 text-xs">
+          <div className="flex flex-wrap gap-3 text-ui-sm">
             <div className="px-2 py-1 bg-gray-100 rounded-full">
               <span className="text-gray-500">Client:</span> <span className="font-semibold">{quote.clients?.name}</span>
             </div>
@@ -57,43 +57,43 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
             <div className="px-2 py-1 bg-gray-100 rounded-full">
               <span className="text-gray-500">À:</span> <span className="font-semibold">{clientEmail}</span>
             </div>
-            {tone && <div className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">{toneLabels[tone] || tone}</div>}
+            {tone && <div className="px-2 py-1 bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] rounded-full font-medium">{toneLabels[tone] || tone}</div>}
           </div>
 
           {/* Objet */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1 block">Objet</label>
+            <label className="text-ui-sm font-semibold text-gray-500 mb-1 block">Objet</label>
             {editMode ? (
               <input
                 type="text"
                 value={editSubject}
                 onChange={e => setEditSubject(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 outline-none"
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui focus:ring-2 focus:ring-[rgb(var(--c-info)/0.3)] outline-none"
               />
             ) : (
-              <div className="bg-gray-50 rounded-lg px-3 py-2 text-sm font-medium">{subject}</div>
+              <div className="bg-gray-50 rounded-ui-sm px-3 py-2 text-ui font-medium">{subject}</div>
             )}
           </div>
 
           {/* Corps de l'email */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1 block">Corps de l'email</label>
+            <label className="text-ui-sm font-semibold text-gray-500 mb-1 block">Corps de l'email</label>
             {editMode ? (
               <textarea
                 value={editBody}
                 onChange={e => setEditBody(e.target.value)}
                 rows={8}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 outline-none resize-none leading-relaxed"
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui focus:ring-2 focus:ring-[rgb(var(--c-info)/0.3)] outline-none resize-none leading-relaxed"
               />
             ) : (
-              <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm whitespace-pre-line leading-relaxed">
+              <div className="bg-gray-50 rounded-ui-sm px-4 py-3 text-ui whitespace-pre-line leading-relaxed">
                 {body}
               </div>
             )}
           </div>
 
           {/* Note signature */}
-          <p className="text-[10px] text-gray-400 italic">
+          <p className="text-ui-sm text-gray-400 italic">
             La signature email sera ajoutée automatiquement à l'envoi (depuis votre compte email).
           </p>
         </div>
@@ -108,7 +108,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
               }
               setEditMode(!editMode)
             }}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 text-ui-sm font-medium text-gray-600 hover:bg-gray-200 rounded-ui-sm transition-colors"
           >
             <Edit2 className="w-3.5 h-3.5" />
             {editMode ? 'Aperçu' : 'Modifier'}
@@ -116,11 +116,11 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
 
           <div className="flex gap-2">
             <button onClick={onCancel} disabled={sending}
-              className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-100 font-medium text-gray-600 transition-colors">
+              className="px-4 py-2 text-ui border rounded-ui-sm hover:bg-gray-100 font-medium text-gray-600 transition-colors">
               Annuler
             </button>
             <button onClick={handleSend} disabled={sending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm flex items-center gap-2 disabled:opacity-50 transition-colors">
+              className="px-4 py-2 text-ui bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] font-medium shadow-sm flex items-center gap-2 disabled:opacity-50 transition-colors">
               {sending ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Envoi...</>
               ) : (

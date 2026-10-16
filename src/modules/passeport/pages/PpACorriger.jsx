@@ -44,7 +44,7 @@ export default function PpACorriger({ aCorriger, format, reload }) {
                 <div className="text-ui-sm text-gray-600">{i.course_title}, fin {frDate(i.end_date)} · {i.reference}</div>
                 <div className="text-ui-sm"><span className="badge badge-danger">{e.code_erreur || 'Rejet'}</span> {e.description_erreur}{e.colonne ? ` (colonne ${e.colonne})` : ''}</div>
                 <div className="text-ui-sm text-gray-800"><b>Cause probable :</b> {causeLabel(e, format.regles)}</div>
-                {i.bloquants.map((b) => <div key={b.code} className="text-ui-sm text-red-700">{b.label}</div>)}
+                {i.bloquants.map((b) => <div key={b.code} className="text-ui-sm text-[rgb(var(--c-danger))]">{b.label}</div>)}
                 <div className="text-ui-sm muted">Envoi n° {i.ligne?.tentative || 1}. Prochain envoi : <code>{prochain.idDeclaration}</code>, <code className="break-all">{prochain.idUnique}</code></div>
               </div>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => setFiche(i)}>Corriger la fiche</button>
