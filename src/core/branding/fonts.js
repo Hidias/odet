@@ -34,3 +34,13 @@ import '@fontsource/ibm-plex-sans/latin-600.css'
 import '@fontsource/ibm-plex-sans/latin-ext-400.css'
 import '@fontsource/ibm-plex-sans/latin-ext-500.css'
 import '@fontsource/ibm-plex-sans/latin-ext-600.css'
+
+// Lisibilité
+import '@fontsource/atkinson-hyperlegible-next/latin-400.css'
+import '@fontsource/atkinson-hyperlegible-next/latin-500.css'
+import '@fontsource/atkinson-hyperlegible-next/latin-600.css'
+import '@fontsource/atkinson-hyperlegible-next/latin-700.css'
+import '@fontsource/atkinson-hyperlegible-next/latin-ext-400.css'
+import '@fontsource/atkinson-hyperlegible-next/latin-ext-500.css'
+import '@fontsource/atkinson-hyperlegible-next/latin-ext-600.css'
+import '@fontsource/atkinson-hyperlegible-next/latin-ext-700.css'

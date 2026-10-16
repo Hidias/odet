@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Lock, Eye, EyeOff, CheckCircle, Loader2, AlertCircle } from 'lucide-react'
 import { supabase } from '../supabase'
-import { useBranding, brandLogo } from '../branding/BrandingProvider'
+import { useBranding, brandLogo, appIcon } from '../branding/BrandingProvider'
 
 // Choix du mot de passe : après une invitation (mode 'welcome'), un lien de réinitialisation
 // (mode 'reset') ou depuis le menu utilisateur (mode 'change', déjà connecté).
@@ -26,7 +26,7 @@ function strength(pw) {
 
 export default function SetPassword({ mode = 'change', onDone }) {
   const { branding } = useBranding()
-  const logo = brandLogo(branding, false)
+  const logo = appIcon(branding) || brandLogo(branding, false)
   const [ready, setReady] = useState(mode === 'change')
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')

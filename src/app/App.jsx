@@ -26,6 +26,7 @@ const Settings = lazy(() => import('../core/settings/Settings'))
 const SetupWizard = lazy(() => import('../core/setup/SetupWizard'))
 const SetPassword = lazy(() => import('../core/auth/SetPassword'))
 const Console = lazy(() => import('../core/console/Console'))
+const DesignReference = lazy(() => import('../ui/DesignReference'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
 const Indicateurs = lazy(() => import('../modules/qualite/pages/Indicateurs'))
@@ -254,6 +255,7 @@ export default function App() {
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="parametres" element={<Settings />} />
             <Route path="console" element={<Console />} />
+            <Route path="design-systeme" element={<DesignReference />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />
           </Route>
