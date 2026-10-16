@@ -63,12 +63,12 @@ export default function SuiviTelephone() {
           </div>
         )}
         {enabled && loading && <SuiviLoader />}
-        {enabled && !loading && error && <div className="p-6 text-center text-red-700">{error}</div>}
+        {enabled && !loading && error && <div className="p-6 text-center text-[rgb(var(--c-danger))]">{error}</div>}
         {enabled && !loading && !error && data && data.sequences.length === 0 && (
           <div className="p-6 text-center text-gray-600 space-y-2">
             <ClipboardList className="w-10 h-10 mx-auto text-gray-300" aria-hidden="true" />
             <p>Aucune séquence pour cette formation.</p>
-            <p className="text-sm">Elles se définissent dans le catalogue, fiche de la formation, bouton « Séquences ».</p>
+            <p className="text-ui">Elles se définissent dans le catalogue, fiche de la formation, bouton « Séquences ».</p>
           </div>
         )}
         {enabled && !loading && !error && data && data.sequences.length > 0 && (

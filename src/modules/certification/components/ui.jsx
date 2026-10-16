@@ -19,15 +19,15 @@ export function StatusBadge({ status, children }) {
 // Pastille numérotée d'un indicateur (vue d'ensemble des 33)
 export function IndicatorTile({ ind, active, onClick }) {
   const cls = {
-    preuves: 'bg-green-700 text-white border-green-700',
-    a_completer: 'bg-amber-50 text-amber-900 border-amber-500',
+    preuves: 'bg-[rgb(var(--c-success))] text-white border-[rgb(var(--c-success)/0.3)]',
+    a_completer: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)]',
     manquant: 'bg-accent-500 text-accent-fg border-accent-500',
     non_applicable: 'bg-white text-gray-400 border-gray-300 border-dashed',
   }[ind.status] || 'bg-white text-gray-700 border-gray-300'
   return (
     <button type="button" onClick={onClick} title={`Indicateur ${ind.number} : ${STATUS_LABEL[ind.status]}`}
       aria-label={`Indicateur ${ind.number}, ${STATUS_LABEL[ind.status]}`}
-      className={`w-9 h-9 rounded-md border text-xs font-semibold flex items-center justify-center ${cls} ${active ? 'ring-2 ring-offset-1 ring-gray-900' : ''}`}>
+      className={`w-9 h-9 rounded-ui-sm border text-ui-sm font-semibold flex items-center justify-center ${cls} ${active ? 'ring-2 ring-offset-1 ring-gray-900' : ''}`}>
       {ind.number}
     </button>
   )
@@ -45,7 +45,7 @@ export function DueBadge({ date }) {
 export function Step({ done, current, title, children, aside }) {
   return (
     <div className="flex gap-3 items-start">
-      <span className={`mt-0.5 w-5 h-5 rounded-full flex-none flex items-center justify-center ${done ? 'bg-green-700' : current ? 'border-2 border-amber-500 bg-white' : 'border-2 border-gray-300 bg-white'}`}>
+      <span className={`mt-0.5 w-5 h-5 rounded-full flex-none flex items-center justify-center ${done ? 'bg-[rgb(var(--c-success))]' : current ? 'border-2 border-[rgb(var(--c-warning)/0.3)] bg-white' : 'border-2 border-gray-300 bg-white'}`}>
         {done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
       </span>
       <div className="flex-1 min-w-0">
@@ -74,7 +74,7 @@ export function Progress({ value, tone = 'accent' }) {
   const v = Math.max(0, Math.min(100, Math.round(value || 0)))
   return (
     <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden" role="progressbar" aria-valuenow={v} aria-valuemin={0} aria-valuemax={100}>
-      <div className={`h-full ${tone === 'green' ? 'bg-green-700' : 'bg-accent-500'}`} style={{ width: `${v}%` }} />
+      <div className={`h-full ${tone === 'green' ? 'bg-[rgb(var(--c-success))]' : 'bg-accent-500'}`} style={{ width: `${v}%` }} />
     </div>
   )
 }

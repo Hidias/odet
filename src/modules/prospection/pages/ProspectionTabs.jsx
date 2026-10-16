@@ -46,7 +46,7 @@ export default function ProspectionTabs() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm whitespace-nowrap
+                  flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-ui whitespace-nowrap
                   transition-colors
                   ${effectiveTab === tab.id
                     ? 'border-primary-500 text-primary-600'
@@ -58,7 +58,7 @@ export default function ProspectionTabs() {
                 <Icon className="w-5 h-5" />
                 {tab.label}
                 {tab.adminOnly && (
-                  <span className="ml-0.5 text-[10px] text-gray-300" title="Réservé à la direction"></span>
+                  <span className="ml-0.5 text-ui-sm text-gray-300" title="Réservé à la direction"></span>
                 )}
               </button>
             )

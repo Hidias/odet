@@ -20,13 +20,13 @@ import {
 import toast from 'react-hot-toast'
 
 const STATUS_STYLE = {
-  ok:         { label: 'OK',          cls: 'bg-green-100 text-green-700' },
-  a_verifier: { label: 'À vérifier',  cls: 'bg-amber-100 text-amber-700' },
-  invalide:   { label: 'Invalide',    cls: 'bg-red-100 text-red-700' },
+  ok:         { label: 'OK',          cls: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
+  a_verifier: { label: 'À vérifier',  cls: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
+  invalide:   { label: 'Invalide',    cls: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' },
 }
 
 const CATEGORY_STYLE = {
-  desabonne:  { label: 'Désabonné',  cls: 'bg-purple-100 text-purple-700' },
+  desabonne:  { label: 'Désabonné',  cls: 'bg-gray-100 text-gray-800' },
   concurrent: { label: 'Concurrent', cls: 'bg-gray-800 text-white' },
   manuel:     { label: 'Manuel',     cls: 'bg-gray-100 text-gray-700' },
 }
@@ -224,29 +224,29 @@ export default function MailingQualite({ user, onBack }) {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft className="w-5 h-5" /></button>
+        <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-ui-sm"><ArrowLeft className="w-5 h-5" /></button>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">Qualité des adresses</h1>
-          <p className="text-sm text-gray-500">Rien n'est modifié automatiquement : chaque correction se fait sur votre clic.</p>
+          <p className="text-ui text-gray-500">Rien n'est modifié automatiquement : chaque correction se fait sur votre clic.</p>
         </div>
       </div>
 
       <div className="flex gap-2">
         <button onClick={() => setTab('qualite')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'qualite' ? 'bg-blue-600 text-white' : 'border text-gray-600 hover:bg-gray-50'}`}>
+          className={`px-4 py-2 rounded-ui-sm text-ui font-medium ${tab === 'qualite' ? 'bg-[rgb(var(--c-info))] text-white' : 'border text-gray-600 hover:bg-gray-50'}`}>
           <ShieldAlert className="w-4 h-4 inline mr-1.5 -mt-0.5" />Adresses à vérifier
-          {counts.a_traiter > 0 && <span className="ml-2 text-xs bg-white/20 px-1.5 py-0.5 rounded-full">{counts.a_traiter}</span>}
+          {counts.a_traiter > 0 && <span className="ml-2 text-ui-sm bg-white/20 px-1.5 py-0.5 rounded-full">{counts.a_traiter}</span>}
         </button>
         <button onClick={() => setTab('blocage')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'blocage' ? 'bg-gray-900 text-white' : 'border text-gray-600 hover:bg-gray-50'}`}>
+          className={`px-4 py-2 rounded-ui-sm text-ui font-medium ${tab === 'blocage' ? 'bg-gray-900 text-white' : 'border text-gray-600 hover:bg-gray-50'}`}>
           <Ban className="w-4 h-4 inline mr-1.5 -mt-0.5" />Liste de blocage
-          <span className="ml-2 text-xs bg-black/10 px-1.5 py-0.5 rounded-full">{blocklist.length}</span>
+          <span className="ml-2 text-ui-sm bg-black/10 px-1.5 py-0.5 rounded-full">{blocklist.length}</span>
         </button>
       </div>
 
       {/* ═══════════════════ QUALITÉ ═══════════════════ */}
       {tab === 'qualite' && (
-        <div className="bg-white rounded-xl border border-gray-200">
+        <div className="bg-white rounded-ui border border-gray-200">
           <div className="p-4 border-b space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               {[
@@ -254,13 +254,13 @@ export default function MailingQualite({ user, onBack }) {
                 ['info', 'Pour info'], ['manuel', 'Décisions manuelles'], ['tout', 'Tout'],
               ].map(([k, l]) => (
                 <button key={k} onClick={() => setFilter(k)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border ${filter === k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  className={`px-3 py-1.5 rounded-full text-ui-sm font-medium border ${filter === k ? 'bg-[rgb(var(--c-info))] text-white border-[rgb(var(--c-info)/0.3)]' : 'bg-white text-gray-600 border-gray-200 hover:border-[rgb(var(--c-info)/0.3)]'}`}>
                   {l} ({counts[k]})
                 </button>
               ))}
               <div className="flex-1" />
               <button onClick={runAnalysis} disabled={analysing}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-ui-sm text-ui-sm font-medium disabled:opacity-50">
                 <RefreshCw className={`w-3.5 h-3.5 ${analysing ? 'animate-spin' : ''}`} /> Relancer l'analyse
               </button>
             </div>
@@ -268,14 +268,14 @@ export default function MailingQualite({ user, onBack }) {
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-gray-400" />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Adresse, entreprise…"
-                  className="border rounded-lg pl-8 pr-3 py-1.5 text-xs w-56" />
+                  className="border rounded-ui-sm pl-8 pr-3 py-1.5 text-ui-sm w-56" />
               </div>
-              <select value={flagFilter} onChange={e => setFlagFilter(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
+              <select value={flagFilter} onChange={e => setFlagFilter(e.target.value)} className="border rounded-ui-sm px-2 py-1.5 text-ui-sm">
                 <option value="">Tous les motifs</option>
                 {flagOptions.map(f => <option key={f} value={f}>{FLAG_LABELS[f] || f}</option>)}
               </select>
               {lastRun && (
-                <span className="text-xs text-gray-400">
+                <span className="text-ui-sm text-gray-400">
                   Dernière analyse : {lastRun.total} adresses · {lastRun.ok} OK · {lastRun.a_verifier} à vérifier · {lastRun.invalide} invalides
                 </span>
               )}
@@ -285,7 +285,7 @@ export default function MailingQualite({ user, onBack }) {
           {loading ? (
             <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
           ) : filtered.length === 0 ? (
-            <p className="text-center py-10 text-sm text-gray-400">
+            <p className="text-center py-10 text-ui text-gray-400">
               {filter === 'a_traiter' ? ' Rien à traiter' : 'Aucune adresse'}
             </p>
           ) : (
@@ -299,27 +299,27 @@ export default function MailingQualite({ user, onBack }) {
                     <div className="flex flex-wrap items-start gap-3">
                       <div className="flex-1 min-w-[240px]">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-sm font-medium text-gray-900 break-all">{r.email}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${st.cls}`}>{st.label}</span>
-                          {r.is_protected && <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700">Client / contact</span>}
-                          {r.manual && <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-600" title={r.decided_at ? `Par ${r.decided_by || '?'} le ${new Date(r.decided_at).toLocaleDateString('fr-FR')}` : ''}>Décision manuelle</span>}
+                          <span className="font-mono text-ui font-medium text-gray-900 break-all">{r.email}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-ui-sm font-medium ${st.cls}`}>{st.label}</span>
+                          {r.is_protected && <span className="px-2 py-0.5 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]">Client / contact</span>}
+                          {r.manual && <span className="px-2 py-0.5 rounded-full text-ui-sm font-medium bg-gray-100 text-gray-600" title={r.decided_at ? `Par ${r.decided_by || '?'} le ${new Date(r.decided_at).toLocaleDateString('fr-FR')}` : ''}>Décision manuelle</span>}
                         </div>
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {(r.flags || []).map(f => (
-                            <span key={f} className={`px-1.5 py-0.5 rounded text-[10px] ${INFO_FLAGS.includes(f) ? 'bg-gray-100 text-gray-500' : 'bg-orange-50 text-orange-700'}`}>
+                            <span key={f} className={`px-1.5 py-0.5 rounded text-ui-sm ${INFO_FLAGS.includes(f) ? 'bg-gray-100 text-gray-500' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>
                               {FLAG_LABELS[f] || f}
                             </span>
                           ))}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1.5 space-y-0.5">
+                        <div className="text-ui-sm text-gray-500 mt-1.5 space-y-0.5">
                           {r.noms_prospects && <p> {r.nb_prospects} fiche{r.nb_prospects > 1 ? 's' : ''} prospect : {r.noms_prospects}</p>}
                           {r.noms_clients && <p> Client : {r.noms_clients}</p>}
                           {r.noms_contacts && <p> Contact : {r.noms_contacts}</p>}
                           {r.note && <p className="italic"> {r.note}</p>}
                         </div>
                         {r.suggestion && !isEditing && (
-                          <p className="text-xs mt-1.5">
-                             Correction proposée : <span className="font-mono font-medium text-green-700">{r.suggestion}</span>
+                          <p className="text-ui-sm mt-1.5">
+                             Correction proposée : <span className="font-mono font-medium text-[rgb(var(--c-success))]">{r.suggestion}</span>
                           </p>
                         )}
                       </div>
@@ -327,38 +327,38 @@ export default function MailingQualite({ user, onBack }) {
                       <div className="flex flex-wrap gap-1.5">
                         {r.status !== 'ok' && (
                           <button onClick={() => setStatus(r, 'ok')} disabled={busy === r.email}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-green-50 text-green-700 hover:bg-green-100 rounded-lg disabled:opacity-50">
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] rounded-ui-sm disabled:opacity-50">
                             <CheckCircle className="w-3.5 h-3.5" /> Valider
                           </button>
                         )}
                         {r.status !== 'invalide' && (
                           <button onClick={() => setStatus(r, 'invalide')} disabled={busy === r.email}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-red-50 text-red-700 hover:bg-red-100 rounded-lg disabled:opacity-50">
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm disabled:opacity-50">
                             <XCircle className="w-3.5 h-3.5" /> Invalider
                           </button>
                         )}
                         {r.is_protected ? (
                           cid && (
                             <button onClick={() => navigate(`/clients/${cid}`)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg">
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded-ui-sm">
                               <ExternalLink className="w-3.5 h-3.5" /> Fiche client
                             </button>
                           )
                         ) : (
                           r.nb_prospects > 0 && (
                             <button onClick={() => setEditing(isEditing ? null : { email: r.email, value: r.suggestion || r.email })}
-                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg">
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-ui-sm">
                               <Pencil className="w-3.5 h-3.5" /> Corriger
                             </button>
                           )
                         )}
                         <button onClick={() => blockEmail(r)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg">
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-ui-sm">
                           <Ban className="w-3.5 h-3.5" /> Bloquer
                         </button>
                         {r.manual && (
                           <button onClick={() => resetAuto(r)} disabled={busy === r.email} title="Annuler la décision manuelle"
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-50">
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm text-gray-500 hover:bg-gray-100 rounded-ui-sm disabled:opacity-50">
                             <RotateCcw className="w-3.5 h-3.5" /> Auto
                           </button>
                         )}
@@ -366,15 +366,15 @@ export default function MailingQualite({ user, onBack }) {
                     </div>
 
                     {isEditing && (
-                      <div className="flex flex-wrap items-center gap-2 bg-gray-50 border rounded-lg p-2">
+                      <div className="flex flex-wrap items-center gap-2 bg-gray-50 border rounded-ui-sm p-2">
                         <input value={editing.value} onChange={e => setEditing({ ...editing, value: e.target.value })}
-                          className="flex-1 min-w-[220px] border rounded px-2 py-1.5 text-sm font-mono" autoFocus />
-                        <span className="text-xs text-gray-500">{r.nb_prospects} fiche{r.nb_prospects > 1 ? 's' : ''} prospect modifiée{r.nb_prospects > 1 ? 's' : ''}</span>
+                          className="flex-1 min-w-[220px] border rounded px-2 py-1.5 text-ui font-mono" autoFocus />
+                        <span className="text-ui-sm text-gray-500">{r.nb_prospects} fiche{r.nb_prospects > 1 ? 's' : ''} prospect modifiée{r.nb_prospects > 1 ? 's' : ''}</span>
                         <button onClick={() => applyFix(r)} disabled={busy === r.email}
-                          className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                          className="px-3 py-1.5 text-ui-sm bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] disabled:opacity-50">
                           {busy === r.email ? 'Correction…' : 'Appliquer'}
                         </button>
-                        <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">Annuler</button>
+                        <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-ui-sm text-gray-600 hover:bg-gray-100 rounded-ui-sm">Annuler</button>
                       </div>
                     )}
                   </div>
@@ -388,10 +388,10 @@ export default function MailingQualite({ user, onBack }) {
       {/* ═══════════════════ BLOCAGE ═══════════════════ */}
       {tab === 'blocage' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
-            <h3 className="font-semibold text-sm text-gray-800">Ajouter</h3>
+          <div className="bg-white rounded-ui border border-gray-200 p-4 space-y-3">
+            <h3 className="font-semibold text-ui text-gray-800">Ajouter</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
-              <select value={blForm.kind} onChange={e => setBlForm(f => ({ ...f, kind: e.target.value }))} className="md:col-span-2 border rounded-lg px-2 py-2 text-sm">
+              <select value={blForm.kind} onChange={e => setBlForm(f => ({ ...f, kind: e.target.value }))} className="md:col-span-2 border rounded-ui-sm px-2 py-2 text-ui">
                 <option value="domaine">Domaine</option>
                 <option value="email">Adresse</option>
                 <option value="nom">Nom contient</option>
@@ -399,38 +399,38 @@ export default function MailingQualite({ user, onBack }) {
               <input value={blForm.value} onChange={e => setBlForm(f => ({ ...f, value: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && addBlock()}
                 placeholder={blForm.kind === 'domaine' ? 'apave.com' : blForm.kind === 'email' ? 'contact@exemple.fr' : 'APAVE'}
-                className="md:col-span-4 border rounded-lg px-3 py-2 text-sm" />
-              <select value={blForm.category} onChange={e => setBlForm(f => ({ ...f, category: e.target.value }))} className="md:col-span-2 border rounded-lg px-2 py-2 text-sm">
+                className="md:col-span-4 border rounded-ui-sm px-3 py-2 text-ui" />
+              <select value={blForm.category} onChange={e => setBlForm(f => ({ ...f, category: e.target.value }))} className="md:col-span-2 border rounded-ui-sm px-2 py-2 text-ui">
                 <option value="concurrent">Concurrent (invisible)</option>
                 <option value="manuel">Autre (exclu)</option>
               </select>
               <input value={blForm.note} onChange={e => setBlForm(f => ({ ...f, note: e.target.value }))}
-                placeholder="Note (facultatif)" className="md:col-span-3 border rounded-lg px-3 py-2 text-sm" />
-              <button onClick={addBlock} className="md:col-span-1 flex items-center justify-center gap-1 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm">
+                placeholder="Note (facultatif)" className="md:col-span-3 border rounded-ui-sm px-3 py-2 text-ui" />
+              <button onClick={addBlock} className="md:col-span-1 flex items-center justify-center gap-1 bg-gray-900 hover:bg-gray-800 text-white rounded-ui-sm text-ui">
                 <Plus className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-ui-sm text-gray-400">
               Un <strong>concurrent</strong> n'apparaît plus du tout dans le mailing. « Nom contient » s'applique au nom de l'entreprise.
               Les <strong>désabonnés</strong> sont ajoutés automatiquement.
             </p>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200">
+          <div className="bg-white rounded-ui border border-gray-200">
             <div className="p-3 border-b">
               <div className="relative w-64">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-gray-400" />
                 <input value={blSearch} onChange={e => setBlSearch(e.target.value)} placeholder="Rechercher…"
-                  className="border rounded-lg pl-8 pr-3 py-1.5 text-xs w-full" />
+                  className="border rounded-ui-sm pl-8 pr-3 py-1.5 text-ui-sm w-full" />
               </div>
             </div>
             {loadingBl ? (
               <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
             ) : filteredBl.length === 0 ? (
-              <p className="text-center py-8 text-sm text-gray-400">Liste vide</p>
+              <p className="text-center py-8 text-ui text-gray-400">Liste vide</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-xs text-gray-500">
+              <table className="w-full text-ui">
+                <thead className="bg-gray-50 text-ui-sm text-gray-500">
                   <tr>
                     <th className="text-left px-3 py-2">Type</th>
                     <th className="text-left px-3 py-2">Valeur</th>
@@ -445,13 +445,13 @@ export default function MailingQualite({ user, onBack }) {
                     const c = CATEGORY_STYLE[b.category] || CATEGORY_STYLE.manuel
                     return (
                       <tr key={b.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-xs text-gray-500">{KIND_LABEL[b.kind] || b.kind}</td>
-                        <td className="px-3 py-2 font-mono text-xs break-all">{b.value}</td>
-                        <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${c.cls}`}>{c.label}</span></td>
-                        <td className="px-3 py-2 text-xs text-gray-500 hidden md:table-cell">{b.note || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-400 hidden md:table-cell">{new Date(b.created_at).toLocaleDateString('fr-FR')}</td>
+                        <td className="px-3 py-2 text-ui-sm text-gray-500">{KIND_LABEL[b.kind] || b.kind}</td>
+                        <td className="px-3 py-2 font-mono text-ui-sm break-all">{b.value}</td>
+                        <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-ui-sm font-medium ${c.cls}`}>{c.label}</span></td>
+                        <td className="px-3 py-2 text-ui-sm text-gray-500 hidden md:table-cell">{b.note || '-'}</td>
+                        <td className="px-3 py-2 text-ui-sm text-gray-400 hidden md:table-cell">{new Date(b.created_at).toLocaleDateString('fr-FR')}</td>
                         <td className="px-3 py-2 text-right">
-                          <button onClick={() => removeBlock(b)} className="p-1.5 text-gray-400 hover:text-red-600 rounded" title="Retirer">
+                          <button onClick={() => removeBlock(b)} className="p-1.5 text-gray-400 hover:text-[rgb(var(--c-danger))] rounded" title="Retirer">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>

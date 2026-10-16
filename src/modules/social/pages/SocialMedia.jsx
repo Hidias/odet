@@ -209,7 +209,7 @@ export default function SocialMedia() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D35]"> Social & Communication</h1>
-          <p className="text-sm text-gray-500 mt-1">Générez et planifiez vos publications sur tous vos réseaux</p>
+          <p className="text-ui text-gray-500 mt-1">Générez et planifiez vos publications sur tous vos réseaux</p>
         </div>
       </div>
 
@@ -217,12 +217,12 @@ export default function SocialMedia() {
       <ConnectionPanel connections={connections} onRefresh={loadConnections} />
 
       {/* Onglets */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-gray-100 rounded-ui p-1">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 py-2 px-3 rounded-ui-sm text-ui font-medium transition-all ${
               activeTab === t.id
                 ? 'bg-white text-[#0F2D35] shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
@@ -230,7 +230,7 @@ export default function SocialMedia() {
           >
             {t.label}
             {t.count > 0 && (
-              <span className="ml-1.5 bg-[#E9B44C] text-[#0F2D35] text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              <span className="ml-1.5 bg-[#E9B44C] text-[#0F2D35] text-ui-sm font-bold px-1.5 py-0.5 rounded-full">
                 {t.count}
               </span>
             )}
@@ -293,29 +293,29 @@ function ConnectionPanel({ connections, onRefresh }) {
   const connectedCount = platformConfigs.filter(p => connections?.[p.id]?.connected).length
 
   return (
-    <div className="bg-white rounded-xl border overflow-hidden">
+    <div className="bg-white rounded-ui border overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-[#0F2D35]"> Réseaux connectés</span>
+          <span className="text-ui font-medium text-[#0F2D35]"> Réseaux connectés</span>
           <div className="flex gap-1">
             {platformConfigs.map(p => {
               const isConnected = connections?.[p.id]?.connected
               return (
                 <span
                   key={p.id}
-                  className={`text-sm ${isConnected ? '' : 'opacity-30 grayscale'}`}
+                  className={`text-ui ${isConnected ? '' : 'opacity-30 grayscale'}`}
                   title={`${p.label} : ${isConnected ? 'connecté' : 'non connecté'}`}
                 >
                   {p.icon}
-                  {isConnected && <span className="text-[8px] ml-[-4px]"></span>}
+                  {isConnected && <span className="text-ui-sm ml-[-4px]"></span>}
                 </span>
               )
             })}
           </div>
-          <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+          <span className="text-ui-sm bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
             {connectedCount}/4
           </span>
         </div>
@@ -332,32 +332,32 @@ function ConnectionPanel({ connections, onRefresh }) {
               return (
                 <div
                   key={p.id}
-                  className={`rounded-lg border p-3 text-center space-y-2 ${
-                    isConnected ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                  className={`rounded-ui-sm border p-3 text-center space-y-2 ${
+                    isConnected ? 'border-[rgb(var(--c-success)/0.3)] bg-[rgb(var(--c-success-bg))]' : 'border-gray-200'
                   } ${p.disabled ? 'opacity-50' : ''}`}
                 >
                   <div className="text-2xl">{p.icon}</div>
-                  <div className="text-xs font-medium">{p.label}</div>
+                  <div className="text-ui-sm font-medium">{p.label}</div>
 
                   {isConnected ? (
                     <>
-                      <div className="text-[10px] text-green-700 font-medium"> Connecté</div>
-                      {p.details && <div className="text-[10px] text-gray-500 truncate">{p.details}</div>}
+                      <div className="text-ui-sm text-[rgb(var(--c-success))] font-medium"> Connecté</div>
+                      {p.details && <div className="text-ui-sm text-gray-500 truncate">{p.details}</div>}
                     </>
                   ) : (
                     <>
                       {p.linkedTo ? (
-                        <div className="text-[10px] text-gray-400">
+                        <div className="text-ui-sm text-gray-400">
                           {connections?.[p.linkedTo]?.connected
                             ? ` Lié via ${p.linkedTo === 'facebook' ? 'Facebook' : 'LinkedIn page'}`
                             : `Connectez ${p.linkedTo === 'facebook' ? 'Facebook' : 'LinkedIn page'} d'abord`}
                         </div>
                       ) : p.disabled ? (
-                        <div className="text-[10px] text-gray-400">{p.details}</div>
+                        <div className="text-ui-sm text-gray-400">{p.details}</div>
                       ) : p.connectUrl ? (
                         <a
                           href={p.connectUrl}
-                          className="inline-block text-[10px] bg-[#0F2D35] text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-colors font-medium"
+                          className="inline-block text-ui-sm bg-[#0F2D35] text-white px-3 py-1.5 rounded-ui-sm hover:opacity-90 transition-colors font-medium"
                         >
                           Connecter
                         </a>
@@ -370,7 +370,7 @@ function ConnectionPanel({ connections, onRefresh }) {
           </div>
 
           {connectedCount < 3 && (
-            <p className="text-[10px] text-gray-400 mt-3 text-center">
+            <p className="text-ui-sm text-gray-400 mt-3 text-center">
                Connectez vos comptes pour publier directement depuis l'application. Facebook connecte aussi Instagram automatiquement.
             </p>
           )}
@@ -630,13 +630,13 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
     <div className="space-y-4">
       {/* Bandeau si on édite un brouillon */}
       {editingId && (
-        <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-amber-800"> Édition du brouillon : <strong>{title}</strong></span>
+        <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-3 flex items-center justify-between">
+          <span className="text-ui font-medium text-[rgb(var(--c-warning))]"> Édition du brouillon : <strong>{title}</strong></span>
           <button
             onClick={() => {
               setEditingId(null); setGeneratedPosts(null); setEditedPosts({}); setTitle(''); setFreeInput(''); setScheduledAt(''); setSelectedMedia([])
             }}
-            className="text-xs bg-white border border-amber-300 text-amber-700 px-3 py-1 rounded-lg hover:bg-amber-100"
+            className="text-ui-sm bg-white border border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))] px-3 py-1 rounded-ui-sm hover:bg-[rgb(var(--c-warning-bg))]"
           >
              Annuler l'édition
           </button>
@@ -644,7 +644,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
       )}
 
       {/* Étape 1 : Type de post + Plateformes */}
-      <div className="bg-white rounded-xl border p-4 space-y-4">
+      <div className="bg-white rounded-ui border p-4 space-y-4">
         <h2 className="font-bold text-[#0F2D35]">1⃣ Quel type de contenu ?</h2>
 
         {/* Types de post */}
@@ -653,27 +653,27 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
             <button
               key={type.id}
               onClick={() => setPostType(type.id)}
-              className={`p-2.5 rounded-lg border text-left transition-all ${
+              className={`p-2.5 rounded-ui-sm border text-left transition-all ${
                 postType === type.id
-                  ? 'border-[#E9B44C] bg-amber-50 ring-2 ring-[#E9B44C]/30'
+                  ? 'border-[#E9B44C] bg-[rgb(var(--c-warning-bg))] ring-2 ring-[#E9B44C]/30'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="text-sm font-medium">{type.label}</div>
-              <div className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{type.desc}</div>
+              <div className="text-ui font-medium">{type.label}</div>
+              <div className="text-ui-sm text-gray-500 mt-0.5 line-clamp-1">{type.desc}</div>
             </button>
           ))}
         </div>
 
         {/* Plateformes */}
         <div>
-          <h3 className="text-sm font-medium text-gray-600 mb-2">Publier sur :</h3>
+          <h3 className="text-ui font-medium text-gray-600 mb-2">Publier sur :</h3>
           <div className="flex gap-2">
             {PLATFORMS.map(p => (
               <button
                 key={p.id}
                 onClick={() => togglePlatform(p.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-ui-sm border text-ui font-medium transition-all ${
                   selectedPlatforms.includes(p.id)
                     ? `border-${p.color}-400 bg-${p.color}-50 text-${p.color}-700 ring-1 ring-${p.color}-200`
                     : 'border-gray-200 text-gray-400 hover:border-gray-300'
@@ -681,7 +681,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               >
                 <span>{p.icon}</span>
                 {p.label}
-                {selectedPlatforms.includes(p.id) && <span className="text-green-500"></span>}
+                {selectedPlatforms.includes(p.id) && <span className="text-[rgb(var(--c-success))]"></span>}
               </button>
             ))}
           </div>
@@ -689,19 +689,19 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 
         {/* Input libre */}
         <div>
-          <label className="text-sm font-medium text-gray-600">Idée ou contexte (optionnel) :</label>
+          <label className="text-ui font-medium text-gray-600">Idée ou contexte (optionnel) :</label>
           <textarea
             value={freeInput}
             onChange={e => setFreeInput(e.target.value)}
             placeholder="Ex : session de secourisme très dynamique hier, les stagiaires ont apprécié la mise en situation..."
-            className="w-full mt-1 border rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-[#E9B44C] focus:border-transparent"
+            className="w-full mt-1 border rounded-ui-sm p-3 text-ui resize-none focus:ring-2 focus:ring-[#E9B44C] focus:border-transparent"
             rows={3}
           />
         </div>
 
         {/* Chiffres réels transmis à l'Aide à la rédaction */}
         {stats && (
-          <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
+          <div className="bg-gray-50 rounded-ui-sm p-3 text-ui-sm text-gray-600">
             <span className="font-medium text-gray-700">Chiffres disponibles :</span>
             <span className="ml-2">
               {[stats.avgRating ? `${stats.avgRating}/5 satisfaction` : null, stats.successRate ? `${stats.successRate} % réussite` : null, `${stats.completedCount} session${stats.completedCount > 1 ? 's' : ''} terminée${stats.completedCount > 1 ? 's' : ''}`].filter(Boolean).join(' • ')}
@@ -714,7 +714,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
         <button
           onClick={generateContent}
           disabled={generating || selectedPlatforms.length === 0}
-          className="w-full py-3 bg-gradient-to-r from-[#0F2D35] to-[#1a4a56] text-white rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          className="w-full py-3 bg-gradient-to-r from-[#0F2D35] to-[#1a4a56] text-white rounded-ui font-medium text-ui hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
         >
           {generating ? (
             <>
@@ -729,7 +729,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 
       {/* Étape 2 : Aperçu et édition */}
       {generatedPosts && (
-        <div className="bg-white rounded-xl border p-4 space-y-4">
+        <div className="bg-white rounded-ui border p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-[#0F2D35]">2⃣ Aperçu et édition</h2>
             <input
@@ -737,19 +737,19 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Titre interne..."
-              className="text-sm border rounded-lg px-3 py-1.5 w-64 focus:ring-2 focus:ring-[#E9B44C]"
+              className="text-ui border rounded-ui-sm px-3 py-1.5 w-64 focus:ring-2 focus:ring-[#E9B44C]"
             />
           </div>
 
           {/* Sélecteur de plateforme pour preview */}
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex gap-1 bg-gray-100 rounded-ui-sm p-1">
             {selectedPlatforms.map(pId => {
               const p = PLATFORMS.find(x => x.id === pId)
               return (
                 <button
                   key={pId}
                   onClick={() => setPreviewPlatform(pId)}
-                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1 ${
+                  className={`flex-1 py-1.5 px-2 rounded-ui-sm text-ui-sm font-medium transition-all flex items-center justify-center gap-1 ${
                     previewPlatform === pId
                       ? 'bg-white shadow-sm text-[#0F2D35]'
                       : 'text-gray-500 hover:text-gray-700'
@@ -757,7 +757,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                 >
                   {p?.icon} {p?.label}
                   {editedPosts[pId] && (
-                    <span className="text-[10px] text-gray-400">({editedPosts[pId].length})</span>
+                    <span className="text-ui-sm text-gray-400">({editedPosts[pId].length})</span>
                   )}
                 </button>
               )
@@ -769,21 +769,21 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
             {/* Éditeur */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-ui font-medium text-gray-700">
                   {PLATFORMS.find(p => p.id === previewPlatform)?.icon}{' '}
                   {PLATFORMS.find(p => p.id === previewPlatform)?.label}
                 </label>
                 <div className="flex gap-1">
                   <button
                     onClick={() => copyToClipboard(previewPlatform)}
-                    className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition-colors"
+                    className="text-ui-sm bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-ui-sm transition-colors"
                     title="Copier"
                   >
                      Copier
                   </button>
                   <button
                     onClick={() => regeneratePlatform(previewPlatform)}
-                    className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition-colors"
+                    className="text-ui-sm bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-ui-sm transition-colors"
                     title="Régénérer"
                   >Régénérer</button>
                 </div>
@@ -791,23 +791,23 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               <textarea
                 value={editedPosts[previewPlatform] || ''}
                 onChange={e => setEditedPosts(prev => ({ ...prev, [previewPlatform]: e.target.value }))}
-                className="w-full border rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-[#E9B44C] focus:border-transparent font-mono"
+                className="w-full border rounded-ui-sm p-3 text-ui resize-none focus:ring-2 focus:ring-[#E9B44C] focus:border-transparent font-mono"
                 rows={12}
               />
-              <div className="flex justify-between text-[10px] text-gray-400">
+              <div className="flex justify-between text-ui-sm text-gray-400">
                 <span>
                   {(editedPosts[previewPlatform] || '').length} / {PLATFORMS.find(p => p.id === previewPlatform)?.maxChars} caractères
                 </span>
               </div>
               {/* Story générée */}
               {withStory && editedPosts.story && (
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 flex items-center justify-between">
-                  <div className="text-xs text-purple-700">
+                <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-2 flex items-center justify-between">
+                  <div className="text-ui-sm text-gray-800">
                     <span className="font-medium"> Story :</span> {editedPosts.story}
                   </div>
                   <button
                     onClick={() => { navigator.clipboard.writeText(editedPosts.story); toast.success('Story copiée !') }}
-                    className="text-[10px] bg-purple-100 hover:bg-purple-200 px-2 py-1 rounded-md text-purple-700 ml-2 shrink-0"
+                    className="text-ui-sm bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-ui-sm text-gray-800 ml-2 shrink-0"
                   >
                      Copier
                   </button>
@@ -816,13 +816,13 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 
               {/* Hashtags LinkedIn à poster en commentaire */}
               {previewPlatform === 'linkedin' && editedPosts.linkedin_hashtags && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 flex items-center justify-between">
-                  <div className="text-xs text-blue-700">
+                <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-2 flex items-center justify-between">
+                  <div className="text-ui-sm text-[rgb(var(--c-info))]">
                     <span className="font-medium"> Commentaire LinkedIn :</span> {editedPosts.linkedin_hashtags}
                   </div>
                   <button
                     onClick={() => { navigator.clipboard.writeText(editedPosts.linkedin_hashtags || ''); toast.success('Hashtags copiés !') }}
-                    className="text-[10px] bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded-md text-blue-700 ml-2 shrink-0"
+                    className="text-ui-sm bg-[rgb(var(--c-info-bg))] hover:bg-[rgb(var(--c-info-bg))] px-2 py-1 rounded-ui-sm text-[rgb(var(--c-info))] ml-2 shrink-0"
                   >
                      Copier
                   </button>
@@ -832,7 +832,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 
             {/* Preview visuel */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700"> Aperçu</label>
+              <label className="text-ui font-medium text-gray-700"> Aperçu</label>
               <PostPreview
                 platform={previewPlatform}
                 content={editedPosts[previewPlatform] || ''}
@@ -843,14 +843,14 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 
           {/* Médias */}
           <div>
-            <h3 className="text-sm font-medium text-gray-600 mb-2"> Photos / Médias</h3>
+            <h3 className="text-ui font-medium text-gray-600 mb-2"> Photos / Médias</h3>
             <div className="flex gap-2 flex-wrap">
               {selectedMedia.map((m, i) => (
-                <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border">
+                <div key={i} className="relative w-16 h-16 rounded-ui-sm overflow-hidden border">
                   <img src={m.file_url} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => setSelectedMedia(prev => prev.filter((_, idx) => idx !== i))}
-                    className="absolute top-0 right-0 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-bl-md"
+                    className="absolute top-0 right-0 bg-[rgb(var(--c-danger))] text-white text-ui-sm w-4 h-4 flex items-center justify-center rounded-bl-md"
                   >×</button>
                 </div>
               ))}
@@ -868,25 +868,25 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setWithStory(!withStory)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${withStory ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-ui-sm border text-ui-sm font-medium transition-all ${withStory ? 'border-gray-400 bg-gray-50 text-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
               >
                  {withStory ? 'Story incluse ' : 'Générer une Story aussi'}
               </button>
-              <span className="text-[10px] text-gray-400">Instagram & Facebook Stories (5-7 mots percutants)</span>
+              <span className="text-ui-sm text-gray-400">Instagram & Facebook Stories (5-7 mots percutants)</span>
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3">
             <div className="flex-1">
-              <label className="text-xs text-gray-500"> Planifier pour : <span className="text-[10px] text-gray-400">(heure de Paris)</span></label>
+              <label className="text-ui-sm text-gray-500"> Planifier pour : <span className="text-ui-sm text-gray-400">(heure de Paris)</span></label>
               <input
                 type="datetime-local"
                 value={scheduledAt}
                 onChange={e => setScheduledAt(e.target.value)}
-                className="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#E9B44C]"
+                className="w-full mt-1 border rounded-ui-sm px-3 py-2 text-ui focus:ring-2 focus:ring-[#E9B44C]"
               />
               {/* Suggestions horaires rapides */}
               <div className="mt-2 flex flex-wrap gap-1">
-                <span className="text-[10px] text-gray-400 w-full mb-0.5"> Horaires optimaux :</span>
+                <span className="text-ui-sm text-gray-400 w-full mb-0.5"> Horaires optimaux :</span>
                 {[
                   { label: 'Mar 8h (LI)', day: 2, hour: 8 },
                   { label: 'Mar 9h (LI)', day: 2, hour: 9 },
@@ -914,7 +914,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                       key={label}
                       type="button"
                       onClick={() => setScheduledAt(getNextWeekday(day, hour))}
-                      className="text-[10px] bg-gray-100 hover:bg-[#E9B44C] hover:text-[#0F2D35] px-2 py-1 rounded-md transition-colors"
+                      className="text-ui-sm bg-gray-100 hover:bg-[#E9B44C] hover:text-[#0F2D35] px-2 py-1 rounded-ui-sm transition-colors"
                     >
                       {label}
                     </button>
@@ -927,14 +927,14 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
               <button
                 onClick={() => savePost('draft')}
                 disabled={saving}
-                className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-300 disabled:opacity-50 transition-colors"
+                className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-ui text-ui font-medium hover:bg-gray-300 disabled:opacity-50 transition-colors"
               >
                  Brouillon
               </button>
               <button
                 onClick={() => savePost(scheduledAt ? 'scheduled' : 'draft')}
                 disabled={saving || !scheduledAt}
-                className="px-4 py-2.5 bg-[#E9B44C] text-[#0F2D35] rounded-xl text-sm font-bold hover:bg-[#d4a43e] disabled:opacity-50 transition-colors"
+                className="px-4 py-2.5 bg-[#E9B44C] text-[#0F2D35] rounded-ui text-ui font-bold hover:bg-[#d4a43e] disabled:opacity-50 transition-colors"
               >
                 {saving ? '...' : ' Planifier'}
               </button>
@@ -1006,7 +1006,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                   setPublishing(false)
                 }}
                 disabled={publishing || saving}
-                className="px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1"
+                className="px-4 py-2.5 bg-gray-50 text-white rounded-ui text-ui font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1"
               >
                 {publishing ? (
                   <><div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" /> Publication...</>
@@ -1030,7 +1030,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                   navigator.clipboard.writeText(allTexts)
                   toast.success('Tous les posts copiés !')
                 }}
-                className="px-5 py-2.5 bg-[#0F2D35] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-colors"
+                className="px-5 py-2.5 bg-[#0F2D35] text-white rounded-ui text-ui font-medium hover:opacity-90 transition-colors"
               >
                  Tout copier
               </button>
@@ -1047,7 +1047,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 // PREVIEW DE POST
 // ═══════════════════════════════════════════════════════════
 function PostPreview({ platform, content, media }) {
-  if (!content) return <div className="text-sm text-gray-400 italic p-4">Aucun contenu</div>
+  if (!content) return <div className="text-ui text-gray-400 italic p-4">Aucun contenu</div>
 
   const platformStyles = {
     linkedin: { bg: 'bg-white', border: 'border-gray-200', accent: '#0a66c2', name: orgName(), subtitle: ['Organisme de formation', orgCity()].filter(Boolean).join(' • ') },
@@ -1059,15 +1059,15 @@ function PostPreview({ platform, content, media }) {
   const style = platformStyles[platform] || platformStyles.linkedin
 
   return (
-    <div className={`${style.bg} border ${style.border} rounded-xl overflow-hidden shadow-sm`}>
+    <div className={`${style.bg} border ${style.border} rounded-ui overflow-hidden shadow-sm`}>
       {/* Header */}
       <div className="flex items-center gap-3 p-3 border-b border-gray-100">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: style.accent }}>
+        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-ui-sm font-bold" style={{ backgroundColor: style.accent }}>
           AF
         </div>
         <div>
-          <div className="font-semibold text-sm">{style.name}</div>
-          <div className="text-[10px] text-gray-500">{style.subtitle}</div>
+          <div className="font-semibold text-ui">{style.name}</div>
+          <div className="text-ui-sm text-gray-500">{style.subtitle}</div>
         </div>
       </div>
 
@@ -1080,13 +1080,13 @@ function PostPreview({ platform, content, media }) {
 
       {/* Contenu */}
       <div className="p-3">
-        <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ maxHeight: '200px', overflow: 'auto' }}>
+        <p className="text-ui whitespace-pre-wrap leading-relaxed" style={{ maxHeight: '200px', overflow: 'auto' }}>
           {content}
         </p>
       </div>
 
       {/* Footer mock */}
-      <div className="px-3 pb-3 flex items-center gap-4 text-[10px] text-gray-400">
+      <div className="px-3 pb-3 flex items-center gap-4 text-ui-sm text-gray-400">
         {platform === 'linkedin' && <><span> J'aime</span><span> Commenter</span><span> Partager</span></>}
         {platform === 'facebook' && <><span> J'aime</span><span> Commenter</span><span>↗ Partager</span></>}
         {platform === 'instagram' && <><span></span><span></span><span></span><span></span></>}
@@ -1164,29 +1164,29 @@ function MediaPicker({ media, selected, onSelect }) {
       <button
         type="button"
         onClick={() => setShowPicker(!showPicker)}
-        className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-[#E9B44C] hover:bg-amber-50 transition-all"
+        className="w-16 h-16 rounded-ui-sm border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-[#E9B44C] hover:bg-[rgb(var(--c-warning-bg))] transition-all"
       >
         {uploading ? (
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent" />
         ) : (
           <>
             <span className="text-lg"></span>
-            <span className="text-[8px] text-gray-400">Photo</span>
+            <span className="text-ui-sm text-gray-400">Photo</span>
           </>
         )}
       </button>
 
       {/* Panneau de sélection */}
       {showPicker && (
-        <div className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-xl border z-50 w-80 max-h-96 overflow-hidden flex flex-col">
+        <div className="absolute bottom-full left-0 mb-2 bg-white rounded-ui shadow-md border z-50 w-80 max-h-96 overflow-hidden flex flex-col">
           {/* Header */}
           <div className="p-3 border-b bg-gray-50">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-[#0F2D35]"> Choisir une photo</h4>
+              <h4 className="text-ui font-semibold text-[#0F2D35]"> Choisir une photo</h4>
               <button onClick={() => setShowPicker(false)} className="text-gray-400 hover:text-gray-600 text-lg">Fermer</button>
             </div>
             {/* Upload rapide */}
-            <label className="flex items-center gap-2 px-3 py-2 bg-[#E9B44C] text-[#0F2D35] rounded-lg cursor-pointer hover:bg-[#d4a43e] transition-colors text-xs font-medium w-full justify-center">
+            <label className="flex items-center gap-2 px-3 py-2 bg-[#E9B44C] text-[#0F2D35] rounded-ui-sm cursor-pointer hover:bg-[#d4a43e] transition-colors text-ui-sm font-medium w-full justify-center">
                Uploader une nouvelle image
               <input
                 type="file"
@@ -1206,7 +1206,7 @@ function MediaPicker({ media, selected, onSelect }) {
                 placeholder=" Rechercher..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full border rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#E9B44C]"
+                className="w-full border rounded-ui-sm px-2 py-1.5 text-ui-sm focus:ring-1 focus:ring-[#E9B44C]"
               />
             </div>
           )}
@@ -1215,14 +1215,14 @@ function MediaPicker({ media, selected, onSelect }) {
           <div className="p-3 overflow-y-auto flex-1">
             {availableMedia.length > 0 ? (
               <>
-                <p className="text-[10px] text-gray-400 mb-2"> Médiathèque ({availableMedia.length} disponibles)</p>
+                <p className="text-ui-sm text-gray-400 mb-2"> Médiathèque ({availableMedia.length} disponibles)</p>
                 <div className="grid grid-cols-4 gap-2">
                   {availableMedia.map(m => (
                     <button
                       key={m.id}
                       type="button"
                       onClick={() => { onSelect(m); setShowPicker(false); }}
-                      className="relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#E9B44C] transition-all group"
+                      className="relative aspect-square rounded-ui-sm overflow-hidden border-2 border-transparent hover:border-[#E9B44C] transition-all group"
                     >
                       <img src={m.file_url} alt={m.file_name} className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
@@ -1235,8 +1235,8 @@ function MediaPicker({ media, selected, onSelect }) {
             ) : (
               <div className="text-center py-6 text-gray-400">
                 <span className="text-2xl block mb-1"></span>
-                <p className="text-xs">{searchTerm ? 'Aucun résultat' : 'Médiathèque vide'}</p>
-                <p className="text-[10px]">Uploadez votre première image ci-dessus</p>
+                <p className="text-ui-sm">{searchTerm ? 'Aucun résultat' : 'Médiathèque vide'}</p>
+                <p className="text-ui-sm">Uploadez votre première image ci-dessus</p>
               </div>
             )}
           </div>
@@ -1304,10 +1304,10 @@ function CalendarTab({ posts, onUpdate }) {
   const selectedPosts = selectedDay ? getPostsForDay(selectedDay) : []
 
   const statusConfig = {
-    scheduled: { label: 'Planifié', bg: 'bg-amber-100 text-amber-800', dot: 'bg-amber-400' },
-    published: { label: 'Publié', bg: 'bg-green-100 text-green-800', dot: 'bg-green-400' },
-    publishing: { label: 'En cours', bg: 'bg-blue-100 text-blue-800', dot: 'bg-blue-400' },
-    failed: { label: 'Échec', bg: 'bg-red-100 text-red-800', dot: 'bg-red-400' },
+    scheduled: { label: 'Planifié', bg: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', dot: 'bg-[rgb(var(--c-warning))]' },
+    published: { label: 'Publié', bg: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]', dot: 'bg-[rgb(var(--c-success))]' },
+    publishing: { label: 'En cours', bg: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', dot: 'bg-[rgb(var(--c-info))]' },
+    failed: { label: 'Échec', bg: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]', dot: 'bg-[rgb(var(--c-danger))]' },
   }
 
   // Actions sur les posts
@@ -1347,14 +1347,14 @@ function CalendarTab({ posts, onUpdate }) {
 
   // Carte de post réutilisable
   const PostCard = ({ p, showDate = false }) => (
-    <div className={`rounded-lg p-3 ${statusConfig[p.status]?.bg || 'bg-gray-100'}`}>
+    <div className={`rounded-ui-sm p-3 ${statusConfig[p.status]?.bg || 'bg-gray-100'}`}>
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs font-semibold">{p.title || 'Sans titre'}</span>
-            <span className="text-[10px] opacity-70">{statusConfig[p.status]?.label}</span>
+            <span className="text-ui-sm font-semibold">{p.title || 'Sans titre'}</span>
+            <span className="text-ui-sm opacity-70">{statusConfig[p.status]?.label}</span>
           </div>
-          <div className="flex items-center gap-2 text-[10px] opacity-70 flex-wrap">
+          <div className="flex items-center gap-2 text-ui-sm opacity-70 flex-wrap">
             {showDate && p.scheduled_at && (
               <span> {new Date(p.scheduled_at).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
             )}
@@ -1368,26 +1368,26 @@ function CalendarTab({ posts, onUpdate }) {
             </span>
           </div>
           {(p.content_facebook || p.content_linkedin) && (
-            <p className="text-[10px] opacity-60 mt-1 line-clamp-2">
+            <p className="text-ui-sm opacity-60 mt-1 line-clamp-2">
               {(p.content_facebook || p.content_linkedin).slice(0, 120)}...
             </p>
           )}
         </div>
         <div className="flex flex-col items-end gap-1 ml-2 flex-shrink-0">
           {p.media_urls?.[0] && (
-            <img src={p.media_urls[0]} alt="" className="w-10 h-10 rounded-md object-cover" />
+            <img src={p.media_urls[0]} alt="" className="w-10 h-10 rounded-ui-sm object-cover" />
           )}
           {p.status === 'scheduled' && (
             <div className="flex gap-1 mt-1">
-              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-green-600 text-white px-1.5 py-0.5 rounded hover:bg-green-700" title="Publier maintenant">Publier</button>
-              <button onClick={() => cancelPost(p.id)} className="text-[9px] bg-gray-500 text-white px-1.5 py-0.5 rounded hover:bg-gray-600" title="Remettre en brouillon">Brouillon</button>
-              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer">Supprimer</button>
+              <button onClick={() => publishNow(p.id)} className="text-ui-sm bg-[rgb(var(--c-success))] text-white px-1.5 py-0.5 rounded hover:bg-[rgb(var(--c-success))]" title="Publier maintenant">Publier</button>
+              <button onClick={() => cancelPost(p.id)} className="text-ui-sm bg-gray-500 text-white px-1.5 py-0.5 rounded hover:bg-gray-600" title="Remettre en brouillon">Brouillon</button>
+              <button onClick={() => deletePost(p.id)} className="text-ui-sm bg-[rgb(var(--c-danger))] text-white px-1.5 py-0.5 rounded hover:bg-[rgb(var(--c-danger))]" title="Supprimer">Supprimer</button>
             </div>
           )}
           {p.status === 'failed' && (
             <div className="flex gap-1 mt-1">
-              <button onClick={() => publishNow(p.id)} className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded hover:bg-amber-600" title="Réessayer">Réessayer</button>
-              <button onClick={() => deletePost(p.id)} className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded hover:bg-red-600" title="Supprimer">Supprimer</button>
+              <button onClick={() => publishNow(p.id)} className="text-ui-sm bg-[rgb(var(--c-warning))] text-white px-1.5 py-0.5 rounded hover:bg-[rgb(var(--c-warning))]" title="Réessayer">Réessayer</button>
+              <button onClick={() => deletePost(p.id)} className="text-ui-sm bg-[rgb(var(--c-danger))] text-white px-1.5 py-0.5 rounded hover:bg-[rgb(var(--c-danger))]" title="Supprimer">Supprimer</button>
             </div>
           )}
         </div>
@@ -1401,24 +1401,24 @@ function CalendarTab({ posts, onUpdate }) {
       <div className="flex gap-2">
         <button
           onClick={() => setViewMode('calendar')}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm border text-[#0F2D35]' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 py-2 rounded-ui-sm text-ui font-medium transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm border text-[#0F2D35]' : 'text-gray-500 hover:text-gray-700'}`}
         >
            Calendrier
         </button>
         <button
           onClick={() => setViewMode('list')}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'list' ? 'bg-white shadow-sm border text-[#0F2D35]' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 py-2 rounded-ui-sm text-ui font-medium transition-all ${viewMode === 'list' ? 'bg-white shadow-sm border text-[#0F2D35]' : 'text-gray-500 hover:text-gray-700'}`}
         >
            Liste ({upcomingPosts.length} planifié{upcomingPosts.length > 1 ? 's' : ''})
         </button>
       </div>
 
       {viewMode === 'list' ? (
-        <div className="bg-white rounded-xl border p-4 space-y-4">
+        <div className="bg-white rounded-ui border p-4 space-y-4">
           {/* Prochaines publications */}
           {upcomingPosts.length > 0 && (
             <div>
-              <h3 className="text-sm font-bold text-[#0F2D35] mb-3"> Prochaines publications</h3>
+              <h3 className="text-ui font-bold text-[#0F2D35] mb-3"> Prochaines publications</h3>
               <div className="space-y-2">
                 {upcomingPosts.map(p => <PostCard key={p.id} p={p} showDate />)}
               </div>
@@ -1428,7 +1428,7 @@ function CalendarTab({ posts, onUpdate }) {
           {/* Historique */}
           {pastPosts.length > 0 && (
             <div className={upcomingPosts.length > 0 ? 'border-t pt-4' : ''}>
-              <h3 className="text-sm font-bold text-[#0F2D35] mb-3"> Historique</h3>
+              <h3 className="text-ui font-bold text-[#0F2D35] mb-3"> Historique</h3>
               <div className="space-y-2">
                 {pastPosts.slice(0, 20).map(p => <PostCard key={p.id} p={p} showDate />)}
               </div>
@@ -1438,35 +1438,35 @@ function CalendarTab({ posts, onUpdate }) {
           {upcomingPosts.length === 0 && pastPosts.length === 0 && (
             <div className="text-center py-8 text-gray-400">
               <div className="text-3xl mb-2"></div>
-              <p className="text-sm">Aucune publication</p>
+              <p className="text-ui">Aucune publication</p>
             </div>
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border p-4 space-y-4">
+        <div className="bg-white rounded-ui border p-4 space-y-4">
           {/* Header navigation */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">◀</button>
+              <button onClick={prevMonth} className="p-1.5 rounded-ui-sm hover:bg-gray-100 text-gray-500">◀</button>
               <h2 className="font-bold text-[#0F2D35] text-lg min-w-[200px] text-center">
                 {monthNames[month]} {year}
               </h2>
-              <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">▶</button>
-              <button onClick={goToday} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg hover:bg-gray-200 transition-colors">
+              <button onClick={nextMonth} className="p-1.5 rounded-ui-sm hover:bg-gray-100 text-gray-500">▶</button>
+              <button onClick={goToday} className="text-ui-sm bg-gray-100 text-gray-600 px-2.5 py-1 rounded-ui-sm hover:bg-gray-200 transition-colors">
                 Aujourd'hui
               </button>
             </div>
             <div className="flex gap-1 items-center">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> <span className="text-[10px] text-gray-500 mr-2">Planifié</span>
-              <span className="w-2.5 h-2.5 rounded-full bg-green-400" /> <span className="text-[10px] text-gray-500 mr-2">Publié</span>
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400" /> <span className="text-[10px] text-gray-500">Échec</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[rgb(var(--c-warning))]" /> <span className="text-ui-sm text-gray-500 mr-2">Planifié</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[rgb(var(--c-success))]" /> <span className="text-ui-sm text-gray-500 mr-2">Publié</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[rgb(var(--c-danger))]" /> <span className="text-ui-sm text-gray-500">Échec</span>
             </div>
           </div>
 
           {/* Jours de la semaine */}
           <div className="grid grid-cols-7 gap-1">
             {dayNames.map(d => (
-              <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">{d}</div>
+              <div key={d} className="text-center text-ui-sm font-semibold text-gray-400 py-1">{d}</div>
             ))}
           </div>
 
@@ -1484,15 +1484,15 @@ function CalendarTab({ posts, onUpdate }) {
                 <button
                   key={dayNum}
                   onClick={() => setSelectedDay(isSelected ? null : dayNum)}
-                  className={`aspect-square rounded-lg border relative flex flex-col items-center justify-start pt-1 transition-all ${
-                    isSelected ? 'border-[#E9B44C] bg-amber-50 ring-2 ring-[#E9B44C]/30'
-                    : isToday ? 'border-[#E9B44C] bg-amber-50/50'
-                    : hasPosts ? 'border-gray-200 hover:border-[#E9B44C] hover:bg-amber-50/30'
+                  className={`aspect-square rounded-ui-sm border relative flex flex-col items-center justify-start pt-1 transition-all ${
+                    isSelected ? 'border-[#E9B44C] bg-[rgb(var(--c-warning-bg))] ring-2 ring-[#E9B44C]/30'
+                    : isToday ? 'border-[#E9B44C] bg-[rgb(var(--c-warning-bg))]'
+                    : hasPosts ? 'border-gray-200 hover:border-[#E9B44C] hover:bg-[rgb(var(--c-warning-bg))]'
                     : isPast ? 'border-gray-100 text-gray-300'
                     : 'border-gray-100 hover:border-gray-200'
                   }`}
                 >
-                  <span className={`text-xs font-medium ${isToday ? 'text-[#E9B44C] font-bold' : isPast && !hasPosts ? 'text-gray-300' : 'text-gray-600'}`}>
+                  <span className={`text-ui-sm font-medium ${isToday ? 'text-[#E9B44C] font-bold' : isPast && !hasPosts ? 'text-gray-300' : 'text-gray-600'}`}>
                     {dayNum}
                   </span>
                   {hasPosts && (
@@ -1500,7 +1500,7 @@ function CalendarTab({ posts, onUpdate }) {
                       {dayPosts.slice(0, 4).map((p, idx) => (
                         <span key={idx} className={`w-2 h-2 rounded-full ${statusConfig[p.status]?.dot || 'bg-gray-300'}`} title={`${p.title} - ${statusConfig[p.status]?.label}`} />
                       ))}
-                      {dayPosts.length > 4 && <span className="text-[8px] text-gray-400">+{dayPosts.length - 4}</span>}
+                      {dayPosts.length > 4 && <span className="text-ui-sm text-gray-400">+{dayPosts.length - 4}</span>}
                     </div>
                   )}
                 </button>
@@ -1511,7 +1511,7 @@ function CalendarTab({ posts, onUpdate }) {
           {/* Détail du jour sélectionné */}
           {selectedDay && (
             <div className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-[#0F2D35] mb-3">
+              <h3 className="text-ui font-semibold text-[#0F2D35] mb-3">
                  {selectedDay} {monthNames[month]} {year}
                 <span className="text-gray-400 font-normal ml-2">{selectedPosts.length} publication{selectedPosts.length > 1 ? 's' : ''}</span>
               </h3>
@@ -1520,7 +1520,7 @@ function CalendarTab({ posts, onUpdate }) {
                   {selectedPosts.map(p => <PostCard key={p.id} p={p} />)}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 text-center py-4">Aucune publication ce jour</p>
+                <p className="text-ui-sm text-gray-400 text-center py-4">Aucune publication ce jour</p>
               )}
             </div>
           )}
@@ -1528,8 +1528,8 @@ function CalendarTab({ posts, onUpdate }) {
           {allPosts.length === 0 && !selectedDay && (
             <div className="text-center py-8 text-gray-400">
               <div className="text-3xl mb-2"></div>
-              <p className="text-sm">Aucune publication planifiée</p>
-              <p className="text-xs">Utilisez le générateur pour créer vos premiers posts !</p>
+              <p className="text-ui">Aucune publication planifiée</p>
+              <p className="text-ui-sm">Utilisez le générateur pour créer vos premiers posts !</p>
             </div>
           )}
         </div>
@@ -1588,10 +1588,10 @@ function LibraryTab({ media, onUpdate }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border p-4 space-y-4">
+    <div className="bg-white rounded-ui border p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-[#0F2D35]"> Médiathèque</h2>
-        <label className="bg-[#0F2D35] text-white text-sm px-4 py-2 rounded-lg cursor-pointer hover:opacity-90 transition-colors">
+        <label className="bg-[#0F2D35] text-white text-ui px-4 py-2 rounded-ui-sm cursor-pointer hover:opacity-90 transition-colors">
           {uploading ? ' Upload...' : ' Ajouter des photos'}
           <input type="file" accept="image/*,video/*" multiple onChange={handleUpload} className="hidden" />
         </label>
@@ -1600,21 +1600,21 @@ function LibraryTab({ media, onUpdate }) {
       {media.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <div className="text-4xl mb-3"></div>
-          <p className="text-sm font-medium">Pas encore de médias</p>
-          <p className="text-xs mt-1">Uploadez vos photos de formations, logos, visuels pour les réutiliser dans vos posts</p>
+          <p className="text-ui font-medium">Pas encore de médias</p>
+          <p className="text-ui-sm mt-1">Uploadez vos photos de formations, logos, visuels pour les réutiliser dans vos posts</p>
         </div>
       ) : (
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
           {media.map(m => (
-            <div key={m.id} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 cursor-pointer">
+            <div key={m.id} className="relative group aspect-square rounded-ui-sm overflow-hidden border border-gray-200 cursor-pointer">
               <img src={m.file_url} alt={m.file_name} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
                 <button
                   onClick={() => deleteMedia(m.id, m.file_url)}
-                  className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 bg-red-500 text-white text-xs px-2 py-1 rounded-md transition-all"
+                  className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 bg-[rgb(var(--c-danger))] text-white text-ui-sm px-2 py-1 rounded-ui-sm transition-all"
                 >Supprimer</button>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] p-1 truncate [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-all">
+              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-ui-sm p-1 truncate [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-all">
                 {m.file_name}
               </div>
             </div>
@@ -1646,9 +1646,9 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
 
   if (posts.length === 0) {
     return (
-      <div className="bg-white rounded-xl border p-8 text-center text-gray-400">
+      <div className="bg-white rounded-ui border p-8 text-center text-gray-400">
         <div className="text-3xl mb-2"></div>
-        <p className="text-sm">Aucun brouillon</p>
+        <p className="text-ui">Aucun brouillon</p>
       </div>
     )
   }
@@ -1656,11 +1656,11 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
   return (
     <div className="space-y-3">
       {posts.map(post => (
-        <div key={post.id} className="bg-white rounded-xl border p-4 space-y-2">
+        <div key={post.id} className="bg-white rounded-ui border p-4 space-y-2">
           <div className="flex items-center justify-between">
             <div>
-              <span className="font-medium text-sm">{post.title || 'Sans titre'}</span>
-              <span className="text-[10px] text-gray-400 ml-2">
+              <span className="font-medium text-ui">{post.title || 'Sans titre'}</span>
+              <span className="text-ui-sm text-gray-400 ml-2">
                 {new Date(post.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
@@ -1668,12 +1668,12 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
               {post.platforms?.map(pl => (
                 <span key={pl}>{PLATFORMS.find(x => x.id === pl)?.icon}</span>
               ))}
-              <button onClick={() => deleteDraft(post.id)} className="ml-2 text-red-400 hover:text-red-600 text-sm">Supprimer</button>
+              <button onClick={() => deleteDraft(post.id)} className="ml-2 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] text-ui">Supprimer</button>
             </div>
           </div>
 
           {/* Preview du contenu */}
-          <div className="text-xs text-gray-600 line-clamp-3">
+          <div className="text-ui-sm text-gray-600 line-clamp-3">
             {post.content_linkedin || post.content_facebook || post.content_instagram || post.content_gmb || 'Aucun contenu'}
           </div>
 
@@ -1681,13 +1681,13 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
           <div className="flex items-center gap-1 pt-1 flex-wrap">
             <button
               onClick={() => onEdit?.(post)}
-              className="text-[10px] bg-[#E9B44C] text-[#0F2D35] font-bold px-3 py-1.5 rounded-md hover:bg-[#d4a43e] transition-colors"
+              className="text-ui-sm bg-[#E9B44C] text-[#0F2D35] font-bold px-3 py-1.5 rounded-ui-sm hover:bg-[#d4a43e] transition-colors"
             >
                Reprendre
             </button>
             <button
               onClick={() => onRecycle?.(post)}
-              className="text-[10px] bg-purple-100 text-purple-700 font-bold px-3 py-1.5 rounded-md hover:bg-purple-200 transition-colors"
+              className="text-ui-sm bg-gray-100 text-gray-800 font-bold px-3 py-1.5 rounded-ui-sm hover:bg-gray-200 transition-colors"
               title="Reformuler ce post avec l'IA"
             >
                Recycler
@@ -1696,7 +1696,7 @@ function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
               <button
                 key={pl}
                 onClick={() => copyPost(post, pl)}
-                className="text-[10px] bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-md transition-colors"
+                className="text-ui-sm bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-ui-sm transition-colors"
               >
                  {PLATFORMS.find(x => x.id === pl)?.label}
               </button>

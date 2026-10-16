@@ -389,13 +389,13 @@ function QualiteSection({ onReferentHandicap }) {
     <>
       <h2 className="section-title">Responsables et référents qualité</h2>
       <p className="text-ui-sm text-gray-500">Chaque rôle est tenu par un utilisateur, avec un suppléant qui le remplace en cas d'absence ou de conflit d'intérêts (obligatoire pour le référent handicap et le référent violences, harcèlement et discriminations). Les documents qualité affichent automatiquement les personnes choisies ici. Le changement est enregistré immédiatement.</p>
-      {demoNames && <p className="text-ui-sm rounded-lg bg-amber-50 border border-amber-300 p-2">Démonstration : les documents affichent les noms fictifs indiqués sous chaque rôle. Ils disparaissent avec l'effacement des données de démonstration (Console) ; les comptes choisis ici prennent alors leur place.</p>}
+      {demoNames && <p className="text-ui-sm rounded-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] p-2">Démonstration : les documents affichent les noms fictifs indiqués sous chaque rôle. Ils disparaissent avec l'effacement des données de démonstration (Console) ; les comptes choisis ici prennent alors leur place.</p>}
       <div className="divide-y border rounded-ui">
         {roles.map((r) => (
           <div key={r.code} className="flex items-center justify-between gap-3 px-3 py-2 flex-wrap">
             <div>
               <div className="text-ui font-medium text-gray-800">{r.label}</div>
-              {demoNames && r.demo_name && <div className="text-ui-sm text-amber-800">Démonstration : {r.demo_name}{r.demo_deputy_name ? `, suppléant ${r.demo_deputy_name}` : ''}</div>}
+              {demoNames && r.demo_name && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Démonstration : {r.demo_name}{r.demo_deputy_name ? `, suppléant ${r.demo_deputy_name}` : ''}</div>}
             </div>
             <div className="flex items-center gap-2">
               {busy === r.code && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
@@ -504,7 +504,7 @@ function UsersSection({ isSuperadmin }) {
                 <td><Toggle checked={p.is_active} onChange={(v) => update(p.id, { is_active: v })} label="" /></td>
                 <td className="text-right whitespace-nowrap">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => reset(p.email)} disabled={busy}><KeyRound className="w-4 h-4" />Mot de passe</button>
-                  {isSuperadmin && p.id !== me?.id && <button type="button" className="btn btn-ghost btn-sm text-red-700" onClick={() => remove(p)}><Trash2 className="w-4 h-4" /></button>}
+                  {isSuperadmin && p.id !== me?.id && <button type="button" className="btn btn-ghost btn-sm text-[rgb(var(--c-danger))]" onClick={() => remove(p)}><Trash2 className="w-4 h-4" /></button>}
                 </td>
               </tr>
             ))}

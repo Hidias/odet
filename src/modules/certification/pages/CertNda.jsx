@@ -190,7 +190,7 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
             <div key={p.kind} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100">
               <div className="flex-1 min-w-0">
                 <div className="text-ui">{p.label}</div>
-                <div className={`text-ui-sm ${p.ready ? 'text-green-800' : 'text-gray-500'}`}>
+                <div className={`text-ui-sm ${p.ready ? 'text-[rgb(var(--c-success))]' : 'text-gray-500'}`}>
                   {p.source === 'depose' ? 'Déposée' : p.source === 'session' ? 'Reprise de la session' : p.source === 'genere' ? 'Générée par l\'outil' : p.hint}
                 </div>
                 {p.docs.map((d) => (

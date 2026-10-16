@@ -129,28 +129,28 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card bg-blue-50 border-blue-200">
+        <div className="card bg-[rgb(var(--c-info-bg))] border-[rgb(var(--c-info)/0.3)]">
           <div className="text-center">
-            <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
-            <p className="text-sm text-blue-700">Stagiaires</p>
+            <p className="text-3xl font-bold text-[rgb(var(--c-info))]">{stats.total}</p>
+            <p className="text-ui text-[rgb(var(--c-info))]">Stagiaires</p>
           </div>
         </div>
-        <div className="card bg-green-50 border-green-200">
+        <div className="card bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]">
           <div className="text-center">
-            <p className="text-3xl font-bold text-green-600">{stats.certified}</p>
-            <p className="text-sm text-green-700">Certifiés</p>
+            <p className="text-3xl font-bold text-[rgb(var(--c-success))]">{stats.certified}</p>
+            <p className="text-ui text-[rgb(var(--c-success))]">Certifiés</p>
           </div>
         </div>
-        <div className="card bg-red-50 border-red-200">
+        <div className="card bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)]">
           <div className="text-center">
-            <p className="text-3xl font-bold text-red-600">{stats.notCertified}</p>
-            <p className="text-sm text-red-700">Non certifiés</p>
+            <p className="text-3xl font-bold text-[rgb(var(--c-danger))]">{stats.notCertified}</p>
+            <p className="text-ui text-[rgb(var(--c-danger))]">Non certifiés</p>
           </div>
         </div>
         <div className="card bg-gray-50 border-gray-200">
           <div className="text-center">
             <p className="text-3xl font-bold text-gray-600">{stats.pending}</p>
-            <p className="text-sm text-gray-700">En attente</p>
+            <p className="text-ui text-gray-700">En attente</p>
           </div>
         </div>
       </div>
@@ -180,11 +180,11 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
             return (
               <div
                 key={trainee.id}
-                className={`p-4 rounded-lg border-2 transition-all ${
+                className={`p-4 rounded-ui-sm border-2 transition-all ${
                   cert
                     ? cert.candidat_certifie
-                      ? 'bg-green-50 border-green-300'
-                      : 'bg-red-50 border-red-300'
+                      ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]'
+                      : 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)]'
                     : 'bg-gray-50 border-gray-300'
                 }`}
               >
@@ -194,9 +194,9 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
                     <div>
                       {cert ? (
                         cert.candidat_certifie ? (
-                          <CheckCircle className="w-8 h-8 text-green-600" />
+                          <CheckCircle className="w-8 h-8 text-[rgb(var(--c-success))]" />
                         ) : (
-                          <AlertCircle className="w-8 h-8 text-red-600" />
+                          <AlertCircle className="w-8 h-8 text-[rgb(var(--c-danger))]" />
                         )
                       ) : (
                         <FileText className="w-8 h-8 text-gray-400" />
@@ -209,7 +209,7 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
                         {trainee.first_name} {trainee.last_name}
                       </p>
                       {cert && (
-                        <p className="text-sm text-gray-600">
+                        <p className="text-ui text-gray-600">
                           {cert.formation_type === 'FI' ? 'Formation Initiale' : 'MAC'} •{' '}
                           {Object.values({
                             c1: cert.c1_acquis,
@@ -224,7 +224,7 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
                         </p>
                       )}
                       {!cert && (
-                        <p className="text-sm text-gray-500">Non évalué</p>
+                        <p className="text-ui text-gray-500">Non évalué</p>
                       )}
                       <FormativeSummary summary={formativeSummary} traineeId={trainee.id} className="mt-0.5" />
                     </div>
@@ -233,12 +233,12 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
                     {cert && (
                       <div>
                         {cert.candidat_certifie ? (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-600 text-white text-sm font-medium">
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[rgb(var(--c-success))] text-white text-ui font-medium">
                             <Award className="w-4 h-4" />
                             Certifié
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-600 text-white text-sm font-medium">
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[rgb(var(--c-danger))] text-white text-ui font-medium">
                             Non certifié
                           </span>
                         )}

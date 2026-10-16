@@ -851,17 +851,17 @@ export default function EnrichissementRapide() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Zap className="w-6 h-6 text-amber-500" />
+              <Zap className="w-6 h-6 text-[rgb(var(--c-warning))]" />
               Mini-Lusha
-              <span className="text-sm font-normal text-gray-400 ml-2">Enrichissement intelligent</span>
+              <span className="text-ui font-normal text-gray-400 ml-2">Enrichissement intelligent</span>
             </h1>
-            <p className="text-gray-500 text-sm mt-0.5">
+            <p className="text-gray-500 text-ui mt-0.5">
               {totalRemaining.toLocaleString()} prospects restants
               {radiusFilter > 0 && ` • ≤ ${radiusFilter}km de ${orgBases()[proximityBase]?.name || 'votre siège'}`}
             </p>
           </div>
           <button onClick={loadProspects}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 text-ui bg-gray-100 hover:bg-gray-200 rounded-ui-sm transition-colors">
             <RefreshCw className="w-3.5 h-3.5" /> Recharger
           </button>
         </div>
@@ -870,40 +870,40 @@ export default function EnrichissementRapide() {
         <div className="grid grid-cols-4 gap-2 mb-3">
           {[
             { label: 'Enrichis', val: dbStats.done + sessionStats.done, session: sessionStats.done, color: 'text-primary-600' },
-            { label: 'Tels', val: dbStats.phones + sessionStats.phones, session: sessionStats.phones, color: 'text-green-600' },
-            { label: 'Emails', val: dbStats.emails + sessionStats.emails, session: sessionStats.emails, color: 'text-blue-600' },
-            { label: 'Exclus', val: dbStats.excluded + sessionStats.excluded, session: sessionStats.excluded, color: 'text-red-400' },
+            { label: 'Tels', val: dbStats.phones + sessionStats.phones, session: sessionStats.phones, color: 'text-[rgb(var(--c-success))]' },
+            { label: 'Emails', val: dbStats.emails + sessionStats.emails, session: sessionStats.emails, color: 'text-[rgb(var(--c-info))]' },
+            { label: 'Exclus', val: dbStats.excluded + sessionStats.excluded, session: sessionStats.excluded, color: 'text-[rgb(var(--c-danger))]' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-lg border border-gray-200 px-3 py-2 text-center">
+            <div key={s.label} className="bg-white rounded-ui-sm border border-gray-200 px-3 py-2 text-center">
               <p className={`text-xl font-bold ${s.color}`}>{s.val}</p>
-              <p className="text-xs text-gray-500">{s.label}</p>
-              {s.session > 0 && <p className="text-xs text-gray-400">+{s.session}</p>}
+              <p className="text-ui-sm text-gray-500">{s.label}</p>
+              {s.session > 0 && <p className="text-ui-sm text-gray-400">+{s.session}</p>}
             </div>
           ))}
         </div>
 
         {/* Filtres compacts */}
-        <div className="bg-white rounded-lg border border-gray-200 p-2.5 mb-3 flex items-center gap-2 flex-wrap text-xs">
-          <div className="flex bg-gray-100 rounded-md p-0.5">
+        <div className="bg-white rounded-ui-sm border border-gray-200 p-2.5 mb-3 flex items-center gap-2 flex-wrap text-ui-sm">
+          <div className="flex bg-gray-100 rounded-ui-sm p-0.5">
             {SORT_MODES.map(m => (
               <button key={m.id} onClick={() => setSortMode(m.id)}
-                className={'px-2.5 py-1 rounded-md font-medium transition-colors ' +
+                className={'px-2.5 py-1 rounded-ui-sm font-medium transition-colors ' +
                   (sortMode === m.id ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700')}>
                 {m.label}
               </button>
             ))}
           </div>
-          <div className="flex bg-gray-100 rounded-md p-0.5">
+          <div className="flex bg-gray-100 rounded-ui-sm p-0.5">
             {Object.entries(orgBases()).map(([key, val]) => (
               <button key={key} onClick={() => setProximityBase(key)}
-                className={'px-2.5 py-1 rounded-md font-medium transition-colors ' +
+                className={'px-2.5 py-1 rounded-ui-sm font-medium transition-colors ' +
                   (proximityBase === key ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700')}>
                  {val.name}
               </button>
             ))}
           </div>
           <select value={radiusFilter} onChange={(e) => setRadiusFilter(parseInt(e.target.value))}
-            className="border rounded-md px-2 py-1 text-xs">
+            className="border rounded-ui-sm px-2 py-1 text-ui-sm">
             <option value="0">∞ km</option>
             <option value="30">≤ 30km</option>
             <option value="50">≤ 50km</option>
@@ -913,11 +913,11 @@ export default function EnrichissementRapide() {
           <SearchSelect value={departementFilter} onChange={(v) => setDepartementFilter(v)} className="w-36"
             options={departements.map(d => ({ value: d, label: d }))} emptyLabel="Tous dép." searchPlaceholder="Département..." aria-label="Département" />
           <select value={effectifFilter} onChange={(e) => setEffectifFilter(e.target.value)}
-            className="border rounded-md px-2 py-1 text-xs">
+            className="border rounded-ui-sm px-2 py-1 text-ui-sm">
             <option value="">Effectif</option><option value="1-5">1-5</option><option value="6-19">6-19</option><option value="20-49">20-49</option><option value="50-99">50-99</option><option value="100-249">100-249</option><option value="250+">250+</option>
           </select>
           <select value={formeFilter} onChange={(e) => setFormeFilter(e.target.value)}
-            className="border rounded-md px-2 py-1 text-xs">
+            className="border rounded-ui-sm px-2 py-1 text-ui-sm">
             <option value="">Forme jur.</option><option value="SAS/SASU">SAS/SASU</option><option value="SARL/EURL">SARL/EURL</option><option value="SA/SCA">SA/SCA</option><option value="EI">EI</option><option value="Association">Association</option><option value="Public">Public</option><option value="Autre">Autre</option>
           </select>
           <span className="text-gray-400 ml-auto">{prospects.length} chargés</span>
@@ -928,7 +928,7 @@ export default function EnrichissementRapide() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" value={searchTerm} onChange={(e) => handleSearch(e.target.value)}
             placeholder="Rechercher par nom, ville ou SIRET..."
-            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm" />
+            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent text-ui" />
           {searchTerm && (
             <button onClick={() => { setSearchTerm(''); setSearchResults(null) }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -936,27 +936,27 @@ export default function EnrichissementRapide() {
             </button>
           )}
           {searchResults !== null && (
-            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-72 overflow-y-auto">
+            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-ui-sm shadow-md border border-gray-200 max-h-72 overflow-y-auto">
               {searching ? (
-                <div className="p-4 text-center text-gray-500 text-sm"><RefreshCw className="w-4 h-4 animate-spin inline mr-2" />Recherche...</div>
+                <div className="p-4 text-center text-gray-500 text-ui"><RefreshCw className="w-4 h-4 animate-spin inline mr-2" />Recherche...</div>
               ) : searchResults.length === 0 ? (
-                <div className="p-4 text-center text-gray-500 text-sm">Aucun résultat</div>
+                <div className="p-4 text-center text-gray-500 text-ui">Aucun résultat</div>
               ) : (
                 searchResults.map(p => (
                   <button key={p.id} onClick={() => selectSearchResult(p)}
                     className="w-full text-left px-4 py-2.5 hover:bg-gray-50 border-b border-gray-100 last:border-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900 text-sm">{p.name}</span>
-                      <span className="flex items-center gap-2 text-xs">
+                      <span className="font-medium text-gray-900 text-ui">{p.name}</span>
+                      <span className="flex items-center gap-2 text-ui-sm">
                         {(() => {
                           const siblings = searchResults.filter(s => s.siren === p.siren && s.id !== p.id).length
-                          return siblings > 0 ? <span className="text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">{siblings + 1} agences</span> : null
+                          return siblings > 0 ? <span className="text-gray-800 bg-gray-50 px-1.5 py-0.5 rounded">{siblings + 1} agences</span> : null
                         })()}
-                        {p.enrichment_status === 'done' && <span className="text-green-600 bg-green-50 px-1.5 py-0.5 rounded"> Enrichi</span>}
-                        {p.enrichment_status === 'failed' && <span className="text-red-600 bg-red-50 px-1.5 py-0.5 rounded"> Exclu</span>}
+                        {p.enrichment_status === 'done' && <span className="text-[rgb(var(--c-success))] bg-[rgb(var(--c-success-bg))] px-1.5 py-0.5 rounded"> Enrichi</span>}
+                        {p.enrichment_status === 'failed' && <span className="text-[rgb(var(--c-danger))] bg-[rgb(var(--c-danger-bg))] px-1.5 py-0.5 rounded"> Exclu</span>}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-ui-sm text-gray-500 mt-0.5">
                        {p.city} ({p.departement}) {p.effectif && '•  ' + getEffectifLabel(p.effectif)} {p.phone && '•  ' + p.phone}
                     </div>
                   </button>
@@ -969,14 +969,14 @@ export default function EnrichissementRapide() {
 
       {/* ─── Fiche Prospect ─────────────────────────────────────────── */}
       {!current ? (
-        <div className="bg-white rounded-xl shadow p-12 text-center">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+        <div className="bg-white rounded-ui shadow p-12 text-center">
+          <CheckCircle className="w-16 h-16 text-[rgb(var(--c-success))] mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Tout est enrichi !</h2>
           <p className="text-gray-600">Aucun prospect restant à traiter.</p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-ui shadow-sm border border-gray-200 overflow-hidden">
             {/* En-tête prospect */}
             <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
               <div className="flex items-start justify-between">
@@ -985,24 +985,24 @@ export default function EnrichissementRapide() {
                     <Building2 className="w-5 h-5 text-gray-400" />
                     {current.name}
                   </h2>
-                  <div className="flex items-center gap-3 mt-1.5 text-sm text-gray-600 flex-wrap">
+                  <div className="flex items-center gap-3 mt-1.5 text-ui text-gray-600 flex-wrap">
                     <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {current.city} ({current.postal_code?.slice(0, 2)})</span>
                     {current.effectif && <span> {getEffectifLabel(current.effectif)}</span>}
                     {current.forme_juridique && <span className="text-gray-400">{getFormeLabel(current.forme_juridique)}</span>}
                     {current.naf && <span className="text-gray-400">{getNafLabel(current.naf)}</span>}
                   </div>
-                  {current.address && <p className="text-xs text-gray-400 mt-1">{current.address}</p>}
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  {current.address && <p className="text-ui-sm text-gray-400 mt-1">{current.address}</p>}
+                  <p className="text-ui-sm text-gray-400 mt-0.5">
                     SIREN: {current.siren} • Score: {current.quality_score}
                     {current._dist != null && <span className="ml-2 text-primary-600 font-medium"> ~{Math.round(current._dist)}km</span>}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setShowEditModal(true)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-medium border border-amber-200 transition-colors">
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))] rounded-ui-sm text-ui-sm font-medium border border-[rgb(var(--c-warning)/0.3)] transition-colors">
                     <Edit3 className="w-3.5 h-3.5" /> Modifier
                   </button>
-                  <span className="text-sm text-gray-400 bg-white px-2.5 py-1 rounded-lg border border-gray-200">
+                  <span className="text-ui text-gray-400 bg-white px-2.5 py-1 rounded-ui-sm border border-gray-200">
                     {currentIndex + 1}/{prospects.length}
                   </span>
                 </div>
@@ -1011,32 +1011,32 @@ export default function EnrichissementRapide() {
 
             {/* ─── Champs identité (si fiche incomplète) ───────────── */}
             {isManualProspect(current) && (
-              <div className="px-6 py-3 bg-amber-50/50 border-b border-amber-100">
-                <p className="text-xs font-medium text-amber-700 mb-2"> Fiche incomplète - compléter les infos :</p>
+              <div className="px-6 py-3 bg-[rgb(var(--c-warning-bg))] border-b border-[rgb(var(--c-warning)/0.3)]">
+                <p className="text-ui-sm font-medium text-[rgb(var(--c-warning))] mb-2"> Fiche incomplète - compléter les infos :</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div>
-                    <label className="text-xs text-gray-500">SIREN</label>
+                    <label className="text-ui-sm text-gray-500">SIREN</label>
                     <input type="text" value={editSiren} onChange={e => setEditSiren(e.target.value)}
                       placeholder="123456789" maxLength={9}
-                      className="w-full px-2 py-1.5 border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 bg-white" />
+                      className="w-full px-2 py-1.5 border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] bg-white" />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">SIRET</label>
+                    <label className="text-ui-sm text-gray-500">SIRET</label>
                     <input type="text" value={editSiret} onChange={e => setEditSiret(e.target.value)}
                       placeholder="12345678901234" maxLength={14}
-                      className="w-full px-2 py-1.5 border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 bg-white" />
+                      className="w-full px-2 py-1.5 border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] bg-white" />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">Code postal</label>
+                    <label className="text-ui-sm text-gray-500">Code postal</label>
                     <input type="text" value={editPostalCode} onChange={e => setEditPostalCode(e.target.value)}
                       placeholder="29000" maxLength={5}
-                      className="w-full px-2 py-1.5 border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 bg-white" />
+                      className="w-full px-2 py-1.5 border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] bg-white" />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">Ville</label>
+                    <label className="text-ui-sm text-gray-500">Ville</label>
                     <input type="text" value={editCity} onChange={e => setEditCity(e.target.value)}
                       placeholder="Ville"
-                      className="w-full px-2 py-1.5 border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 bg-white" />
+                      className="w-full px-2 py-1.5 border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] bg-white" />
                   </div>
                 </div>
               </div>
@@ -1046,32 +1046,32 @@ export default function EnrichissementRapide() {
               {/* ─── Bloc Mini-Lusha : Dirigeant + Emails ───────────── */}
               <div className="mb-5">
                 {lushaLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-400 py-3">
+                  <div className="flex items-center gap-2 text-ui text-gray-400 py-3">
                     <Loader className="w-4 h-4 animate-spin" /> Recherche du dirigeant...
                   </div>
                 ) : lusha ? (
-                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-4">
+                  <div className="bg-gray-50 border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-4">
                     <div className="flex items-start justify-between">
                       <div>
                         {lusha.dirigeant_nom ? (
                           <div className="flex items-center gap-2 mb-2">
-                            <User className="w-4 h-4 text-amber-600" />
+                            <User className="w-4 h-4 text-[rgb(var(--c-warning))]" />
                             <span className="font-semibold text-gray-900">
                               {lusha.dirigeant_prenom} {lusha.dirigeant_nom}
                             </span>
-                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                            <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-2 py-0.5 rounded-full">
                               {lusha.dirigeant_qualite}
                             </span>
                           </div>
                         ) : (
-                          <p className="text-sm text-amber-700 mb-2">Aucun dirigeant trouvé</p>
+                          <p className="text-ui text-[rgb(var(--c-warning))] mb-2">Aucun dirigeant trouvé</p>
                         )}
 
                         {/* Autres dirigeants */}
                         {(() => {
                           const autres = (lusha.tous_dirigeants || []).filter(d => d.nom && d.nom !== lusha.dirigeant_nom)
                           return autres.length > 0 && (
-                            <div className="text-xs text-gray-500 mb-2">
+                            <div className="text-ui-sm text-gray-500 mb-2">
                               Aussi : {autres.slice(0, 3).map(d => `${d.prenom || ''} ${d.nom} (${d.qualite || '?'})`.trim()).join(' • ')}
                             </div>
                           )
@@ -1080,17 +1080,17 @@ export default function EnrichissementRapide() {
                         {/* Email patterns */}
                         {lusha.email_patterns?.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
-                            <span className="text-xs text-gray-500 flex items-center gap-1 mr-1">
+                            <span className="text-ui-sm text-gray-500 flex items-center gap-1 mr-1">
                               <Mail className="w-3 h-3" /> Emails possibles :
                             </span>
                             {lusha.email_patterns.slice(0, 6).map(ep => (
                               <button key={ep} onClick={() => copyEmail(ep)}
-                                className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-all ${
+                                className={`inline-flex items-center gap-1 text-ui-sm px-2 py-1 rounded-ui-sm transition-all ${
                                   copiedEmail === ep
-                                    ? 'bg-green-100 text-green-700 border border-green-300'
+                                    ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] border border-[rgb(var(--c-success)/0.3)]'
                                     : email === ep
-                                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                                      : 'bg-white text-gray-600 border border-gray-200 hover:border-amber-300 hover:bg-amber-50'
+                                      ? 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] border border-[rgb(var(--c-info)/0.3)]'
+                                      : 'bg-white text-gray-600 border border-gray-200 hover:border-[rgb(var(--c-warning)/0.3)] hover:bg-[rgb(var(--c-warning-bg))]'
                                 }`}>
                                 {copiedEmail === ep ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                                 {ep}
@@ -1100,37 +1100,37 @@ export default function EnrichissementRapide() {
                         )}
 
                         {lusha.domain && !lusha.email_patterns?.length && (
-                          <p className="text-xs text-amber-600 mt-1">
+                          <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">
                             Domaine : {lusha.domain} - pas de dirigeant pour générer les patterns
                           </p>
                         )}
 
                         {!lusha.domain && !lusha.email_patterns?.length && lusha.dirigeant_nom && (
-                          <p className="text-xs text-amber-600 mt-2">
+                          <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-2">
                              Pas de site web trouvé - entre un site ci-dessous pour générer les emails du dirigeant
                           </p>
                         )}
                       </div>
 
                       {/* Infos complémentaires */}
-                      <div className="text-right text-xs text-gray-500 ml-4 shrink-0">
+                      <div className="text-right text-ui-sm text-gray-500 ml-4 shrink-0">
                         {lusha.effectif_actuel && lusha.effectif_actuel !== 'NN' && (
                           <p>Effectif API : <strong>{lusha.effectif_actuel}</strong></p>
                         )}
                         {lusha.etat_administratif === 'A' && (
-                          <p className="text-green-600"> Active</p>
+                          <p className="text-[rgb(var(--c-success))]"> Active</p>
                         )}
                         {lusha.etat_administratif === 'C' && (
-                          <p className="text-red-600 font-semibold"> Cessée</p>
+                          <p className="text-[rgb(var(--c-danger))] font-semibold"> Cessée</p>
                         )}
                       </div>
                     </div>
 
                     {/* Bouton rechercher coordonnées */}
-                    <div className="mt-3 pt-3 border-t border-amber-200 flex items-center gap-2">
+                    <div className="mt-3 pt-3 border-t border-[rgb(var(--c-warning)/0.3)] flex items-center gap-2">
                       <button onClick={rechercherCoordonnees}
                         disabled={scraping}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium transition-colors disabled:opacity-50">
                         {scraping ? (
                           <><Loader className="w-3.5 h-3.5 animate-spin" /> Recherche...</>
                         ) : (
@@ -1140,15 +1140,15 @@ export default function EnrichissementRapide() {
                       {siteWeb && lusha.dirigeant_nom && !lusha.email_patterns?.length && (
                         <button onClick={() => enrichViaAPI({ ...current, site_web: siteWeb })}
                           disabled={lushaLoading}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-sm font-medium transition-colors">
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[rgb(var(--c-warning-bg))] hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm text-ui font-medium transition-colors">
                           <Mail className="w-3.5 h-3.5" /> Générer emails
                         </button>
                       )}
-                      {scraping && <span className="text-xs text-amber-600"> Scraping du site en cours...</span>}
+                      {scraping && <span className="text-ui-sm text-[rgb(var(--c-warning))]"> Scraping du site en cours...</span>}
                     </div>
                   </div>
                 ) : (
-                  <div className="text-sm text-gray-400 py-2">
+                  <div className="text-ui text-gray-400 py-2">
                     Pas de données API disponibles
                   </div>
                 )}
@@ -1157,7 +1157,7 @@ export default function EnrichissementRapide() {
               {/* ─── Signaux recrutement ────────────────────────────── */}
               <div className="mb-5">
                 <button onClick={loadSignaux}
-                  className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
+                  className="flex items-center gap-2 text-ui font-medium text-gray-600 hover:text-primary-600 transition-colors">
                   {signauxLoading ? (
                     <Loader className="w-4 h-4 animate-spin" />
                   ) : (
@@ -1165,8 +1165,8 @@ export default function EnrichissementRapide() {
                   )}
                   Signaux recrutement
                   {signaux && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      signaux.match ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                    <span className={`text-ui-sm px-1.5 py-0.5 rounded-full ${
+                      signaux.match ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-100 text-gray-500'
                     }`}>
                       {signaux.match ? `${signaux.match.count} offre(s) !` : `${signaux.total_offres} dans le secteur`}
                     </span>
@@ -1175,28 +1175,28 @@ export default function EnrichissementRapide() {
                 </button>
                 
                 {showSignaux && signaux && (
-                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                  <div className="mt-2 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui">
                     {signaux.match ? (
                       <div className="mb-2">
-                        <p className="font-semibold text-green-700 flex items-center gap-1">
+                        <p className="font-semibold text-[rgb(var(--c-success))] flex items-center gap-1">
                           <Briefcase className="w-4 h-4" />
                            Cette entreprise recrute ! {signaux.match.count} offre(s) active(s)
                         </p>
-                        <div className="mt-1 text-xs text-gray-600">
+                        <div className="mt-1 text-ui-sm text-gray-600">
                           {signaux.match.offres?.slice(0, 3).map((o, i) => (
                             <p key={i} className="ml-5">• {o.intitule || o.titre} ({o.lieu || ''})</p>
                           ))}
                         </div>
                       </div>
                     ) : (
-                      <p className="text-blue-700 mb-2">
+                      <p className="text-[rgb(var(--c-info))] mb-2">
                         Pas d'offre directe, mais <strong>{signaux.total_offres} offres</strong> dans le dép. {signaux.departement}
                         {signaux.secteur && <> en <strong>{signaux.secteur}</strong></>}
                       </p>
                     )}
                     {signaux.top5?.length > 0 && (
-                      <details className="text-xs text-gray-600">
-                        <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
+                      <details className="text-ui-sm text-gray-600">
+                        <summary className="cursor-pointer text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))]">
                           Top recruteurs du secteur ({signaux.total_entreprises} entreprises)
                         </summary>
                         <div className="mt-1 ml-4">
@@ -1213,15 +1213,15 @@ export default function EnrichissementRapide() {
               {/* ─── Recherche manuelle ─────────────────────────────── */}
               <div className="flex gap-2 mb-5">
                 <button onClick={openPJ}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-medium transition-colors">
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium transition-colors">
                   <ExternalLink className="w-3.5 h-3.5" /> Pages Jaunes
                 </button>
                 <button onClick={openGoogle}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui font-medium transition-colors">
                   <Search className="w-3.5 h-3.5" /> Google
                 </button>
                 <button onClick={openSociete}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-ui-sm text-ui font-medium transition-colors">
                   <ExternalLink className="w-3.5 h-3.5" /> Societe.com
                 </button>
               </div>
@@ -1229,28 +1229,28 @@ export default function EnrichissementRapide() {
               {/* ─── Champs de saisie ──────────────────────────────── */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                  <label className="flex items-center gap-2 text-ui font-medium text-gray-700 mb-1">
                     <Phone className="w-4 h-4" /> Téléphone
                   </label>
                   <input ref={phoneRef} type="tel" value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="01 23 45 67 89"
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                    className="w-full border rounded-ui-sm px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
                 </div>
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                  <label className="flex items-center gap-2 text-ui font-medium text-gray-700 mb-1">
                     <Mail className="w-4 h-4" /> Email
                     {lusha?.email_patterns?.includes(email) && (
-                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">pattern</span>
+                      <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded-full">pattern</span>
                     )}
                   </label>
                   <input type="email" value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="contact@entreprise.fr"
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                    className="w-full border rounded-ui-sm px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
                 </div>
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                  <label className="flex items-center gap-2 text-ui font-medium text-gray-700 mb-1">
                     <Globe className="w-4 h-4" /> Site web
                   </label>
                   <div className="flex gap-2">
@@ -1258,10 +1258,10 @@ export default function EnrichissementRapide() {
                       onChange={(e) => setSiteWeb(e.target.value)}
                       onBlur={() => { if (siteWeb && !phone) scrapeWebsite() }}
                       placeholder="www.entreprise.fr"
-                      className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                      className="flex-1 border rounded-ui-sm px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
                     {siteWeb && (
                       <button onClick={scrapeWebsite} disabled={scraping}
-                        className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm font-medium whitespace-nowrap">{scraping ? 'Recherche...' : 'Chercher sur le site'}</button>
+                        className="px-3 py-2 bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] rounded-ui-sm hover:bg-[rgb(var(--c-info-bg))] text-ui font-medium whitespace-nowrap">{scraping ? 'Recherche...' : 'Chercher sur le site'}</button>
                     )}
                   </div>
                 </div>
@@ -1269,44 +1269,44 @@ export default function EnrichissementRapide() {
 
               {/* ─── Notes d'enrichissement ─────────────────────────── */}
               <div className="mt-4">
-                <label className="text-sm font-medium text-gray-700 mb-1 block"> Notes enrichissement</label>
+                <label className="text-ui font-medium text-gray-700 mb-1 block"> Notes enrichissement</label>
                 <textarea value={enrichmentNotes} onChange={e => setEnrichmentNotes(e.target.value)}
                   placeholder="Infos utiles : contact, horaires, particularités..."
                   rows={2}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none" />
+                  className="w-full border rounded-ui-sm px-3 py-2 text-ui focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none" />
               </div>
 
               {/* ─── Groupe + Entreprises liées ─────────────────────── */}
               <div className="mt-3 flex items-center gap-3">
                 <div className="flex-1">
-                  <label className="text-xs font-medium text-gray-500 mb-0.5 block"> Groupe (multi-SIREN)</label>
+                  <label className="text-ui-sm font-medium text-gray-500 mb-0.5 block"> Groupe (multi-SIREN)</label>
                   <input type="text" value={groupe} onChange={e => setGroupe(e.target.value)}
                     placeholder="Ex: Groupe Dupont, Westerly/KeraS..."
-                    className="w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
+                    className="w-full border rounded-ui-sm px-3 py-1.5 text-ui focus:ring-2 focus:ring-gray-400 focus:border-gray-400" />
                 </div>
                 {current?.dirigeant_nom && (
-                  <div className="text-xs text-gray-500 pt-4">
+                  <div className="text-ui-sm text-gray-500 pt-4">
                     <User className="w-3 h-3 inline" /> {current.dirigeant_prenom} {current.dirigeant_nom}
                   </div>
                 )}
               </div>
 
               {linkedCompanies.length > 0 && (
-                <div className="mt-2 bg-purple-50 border border-purple-200 rounded-lg p-3">
-                  <p className="text-xs font-medium text-purple-800 mb-2">
+                <div className="mt-2 bg-gray-50 border border-gray-200 rounded-ui-sm p-3">
+                  <p className="text-ui-sm font-medium text-gray-800 mb-2">
                      {current.dirigeant_nom ? `Même dirigeant (${current.dirigeant_prenom || ''} ${current.dirigeant_nom})` : `Même groupe "${current.groupe}"`} - {linkedCompanies.length} autre(s) entreprise(s) :
                   </p>
                   <div className="space-y-1.5">
                     {linkedCompanies.map(lc => (
-                      <div key={lc.id} className="flex items-center justify-between bg-white rounded px-2.5 py-1.5 border border-purple-100 text-xs">
+                      <div key={lc.id} className="flex items-center justify-between bg-white rounded px-2.5 py-1.5 border border-gray-200 text-ui-sm">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-gray-900">{lc.name}</span>
                           <span className="text-gray-400">{lc.city} ({lc.departement})</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {lc.phone && <span className="text-green-600"> {lc.phone}</span>}
-                          {lc.prospection_status === 'rdv_pris' && <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded"> RDV</span>}
-                          {lc.prospection_status === 'a_rappeler' && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded"></span>}
+                          {lc.phone && <span className="text-[rgb(var(--c-success))]"> {lc.phone}</span>}
+                          {lc.prospection_status === 'rdv_pris' && <span className="bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-1.5 py-0.5 rounded"> RDV</span>}
+                          {lc.prospection_status === 'a_rappeler' && <span className="bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded"></span>}
                           {lc.prospection_status === 'pas_interesse' && <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded"></span>}
                         </div>
                       </div>
@@ -1317,30 +1317,30 @@ export default function EnrichissementRapide() {
 
               {/* ─── Panneau Multi-SIRET (établissements frères) ────── */}
               {siblings.length > 0 && (
-                <div className="mt-4 border border-purple-200 rounded-lg overflow-hidden">
+                <div className="mt-4 border border-gray-200 rounded-ui-sm overflow-hidden">
                   <button onClick={() => setShowSiblings(!showSiblings)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 bg-purple-50 hover:bg-purple-100 transition-colors">
-                    <span className="flex items-center gap-2 text-sm font-medium text-purple-800">
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <span className="flex items-center gap-2 text-ui font-medium text-gray-800">
                       <Building2 className="w-4 h-4" />
                       {siblings.length} autre(s) établissement(s)
-                      <span className="text-xs bg-purple-200 text-purple-700 px-1.5 py-0.5 rounded-full">même SIREN</span>
+                      <span className="text-ui-sm bg-gray-200 text-gray-800 px-1.5 py-0.5 rounded-full">même SIREN</span>
                     </span>
-                    {showSiblings ? <ChevronUp className="w-4 h-4 text-purple-500" /> : <ChevronDown className="w-4 h-4 text-purple-500" />}
+                    {showSiblings ? <ChevronUp className="w-4 h-4 text-gray-800" /> : <ChevronDown className="w-4 h-4 text-gray-800" />}
                   </button>
 
                   {showSiblings && (
-                    <div className="p-3 bg-purple-50/30">
+                    <div className="p-3 bg-gray-50">
                       {/* Boutons appliquer à tous */}
                       <div className="flex flex-wrap gap-2 mb-3">
                         {phone && (
                           <button onClick={() => applyToAllSiblings('phone', phone)}
-                            className="text-xs px-2.5 py-1 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors font-medium">
+                            className="text-ui-sm px-2.5 py-1 bg-gray-100 text-gray-800 rounded-ui-sm hover:bg-gray-200 transition-colors font-medium">
                              Appliquer tél à tous
                           </button>
                         )}
                         {email && (
                           <button onClick={() => applyToAllSiblings('email', email)}
-                            className="text-xs px-2.5 py-1 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors font-medium">
+                            className="text-ui-sm px-2.5 py-1 bg-gray-100 text-gray-800 rounded-ui-sm hover:bg-gray-200 transition-colors font-medium">
                              Appliquer email à tous
                           </button>
                         )}
@@ -1353,52 +1353,52 @@ export default function EnrichissementRapide() {
                           const hasPhone = s.phone || edit.phone
                           const hasEmail = s.email || edit.email
                           return (
-                            <div key={s.id} className={`bg-white rounded-lg border p-3 ${s.is_siege ? 'border-purple-300' : 'border-gray-200'}`}>
+                            <div key={s.id} className={`bg-white rounded-ui-sm border p-3 ${s.is_siege ? 'border-gray-200' : 'border-gray-200'}`}>
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm text-gray-900 truncate max-w-[200px]">{s.name}</span>
-                                  {s.is_siege && <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">Siège</span>}
-                                  {s.enrichment_status === 'done' && <span className="text-xs text-green-600"></span>}
+                                  <span className="font-medium text-ui text-gray-900 truncate max-w-[200px]">{s.name}</span>
+                                  {s.is_siege && <span className="text-ui-sm bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded">Siège</span>}
+                                  {s.enrichment_status === 'done' && <span className="text-ui-sm text-[rgb(var(--c-success))]"></span>}
                                 </div>
-                                <span className="text-xs text-gray-400">{s.city} ({s.departement})</span>
+                                <span className="text-ui-sm text-gray-400">{s.city} ({s.departement})</span>
                               </div>
                               <div className="grid grid-cols-3 gap-2">
                                 <div>
                                   <input type="tel" value={edit.phone}
                                     onChange={e => updateSiblingEdit(s.id, 'phone', e.target.value)}
                                     placeholder="Téléphone"
-                                    className={`w-full text-xs px-2 py-1.5 border rounded-md ${hasPhone ? 'border-green-300 bg-green-50' : 'border-gray-200'}`} />
+                                    className={`w-full text-ui-sm px-2 py-1.5 border rounded-ui-sm ${hasPhone ? 'border-[rgb(var(--c-success)/0.3)] bg-[rgb(var(--c-success-bg))]' : 'border-gray-200'}`} />
                                 </div>
                                 <div>
                                   <input type="email" value={edit.email}
                                     onChange={e => updateSiblingEdit(s.id, 'email', e.target.value)}
                                     placeholder="Email"
-                                    className={`w-full text-xs px-2 py-1.5 border rounded-md ${hasEmail ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`} />
+                                    className={`w-full text-ui-sm px-2 py-1.5 border rounded-ui-sm ${hasEmail ? 'border-[rgb(var(--c-info)/0.3)] bg-[rgb(var(--c-info-bg))]' : 'border-gray-200'}`} />
                                 </div>
                                 <div>
                                   <input type="text" value={edit.notes}
                                     onChange={e => updateSiblingEdit(s.id, 'notes', e.target.value)}
                                     placeholder="Notes"
-                                    className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-md" />
+                                    className="w-full text-ui-sm px-2 py-1.5 border border-gray-200 rounded-ui-sm" />
                                 </div>
                               </div>
-                              {s.site_web && <p className="text-xs text-gray-400 mt-1 truncate"> {s.site_web}</p>}
-                              {s.address && <p className="text-xs text-gray-400 mt-0.5 truncate"> {s.address}</p>}
+                              {s.site_web && <p className="text-ui-sm text-gray-400 mt-1 truncate"> {s.site_web}</p>}
+                              {s.address && <p className="text-ui-sm text-gray-400 mt-0.5 truncate"> {s.address}</p>}
                               <div className="flex gap-1.5 mt-2">
                                 <button
                                   onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(`${s.name} ${s.city || ''} téléphone`)}`, '_blank')}
-                                  className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition-colors">
+                                  className="flex items-center gap-1 text-ui-sm px-2 py-1 bg-[rgb(var(--c-info-bg))] hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] rounded transition-colors">
                                    Google
                                 </button>
                                 <button
                                   onClick={() => window.open(`https://www.pagesjaunes.fr/pagesblanches/recherche?quoiqui=${encodeURIComponent(s.name)}&ou=${encodeURIComponent(s.city || '')}`, '_blank')}
-                                  className="flex items-center gap-1 text-xs px-2 py-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded transition-colors">
+                                  className="flex items-center gap-1 text-ui-sm px-2 py-1 bg-[rgb(var(--c-warning-bg))] hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded transition-colors">
                                    Pages Jaunes
                                 </button>
                                 {s.site_web && (
                                   <button
                                     onClick={() => window.open(s.site_web.startsWith('http') ? s.site_web : `https://${s.site_web}`, '_blank')}
-                                    className="flex items-center gap-1 text-xs px-2 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded transition-colors">
+                                    className="flex items-center gap-1 text-ui-sm px-2 py-1 bg-[rgb(var(--c-success-bg))] hover:bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] rounded transition-colors">
                                      Site web
                                   </button>
                                 )}
@@ -1412,7 +1412,7 @@ export default function EnrichissementRapide() {
                 </div>
               )}
               {siblingsLoading && (
-                <div className="mt-3 text-xs text-gray-400 flex items-center gap-2">
+                <div className="mt-3 text-ui-sm text-gray-400 flex items-center gap-2">
                   <Loader className="w-3.5 h-3.5 animate-spin" /> Chargement des établissements frères...
                 </div>
               )}
@@ -1421,32 +1421,32 @@ export default function EnrichissementRapide() {
             {/* ─── Actions ──────────────────────────────────────────── */}
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
               <button onClick={handleNotFound}
-                className="flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium text-sm transition-colors">
+                className="flex items-center gap-2 px-4 py-2 bg-[rgb(var(--c-danger-bg))] hover:bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] rounded-ui-sm font-medium text-ui transition-colors">
                 <XCircle className="w-4 h-4" /> Exclure
               </button>
               <div className="flex gap-3">
                 <button onClick={handleSkip}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-sm transition-colors">
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-ui-sm font-medium text-ui transition-colors">
                   <SkipForward className="w-4 h-4" /> Passer
-                  <kbd className="text-xs bg-gray-300 px-1.5 py-0.5 rounded ml-1">Échap</kbd>
+                  <kbd className="text-ui-sm bg-gray-300 px-1.5 py-0.5 rounded ml-1">Échap</kbd>
                 </button>
                 <button onClick={handleSave}
                   disabled={saving || (!phone && !email && !siteWeb)}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-ui-sm font-medium text-ui transition-colors ${
                     saving || (!phone && !email && !siteWeb)
                       ? 'bg-gray-300 cursor-not-allowed text-gray-500'
-                      : 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success))] text-white'
                   }`}>
                   {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Sauvegarder
-                  <kbd className="text-xs bg-green-700 px-1.5 py-0.5 rounded ml-1">Entrée</kbd>
+                  <kbd className="text-ui-sm bg-[rgb(var(--c-success))] px-1.5 py-0.5 rounded ml-1">Entrée</kbd>
                 </button>
               </div>
             </div>
           </div>
 
           {/* Raccourcis */}
-          <div className="mt-3 text-center text-xs text-gray-400">
+          <div className="mt-3 text-center text-ui-sm text-gray-400">
             <kbd className="px-1.5 py-0.5 bg-gray-100 rounded">Entrée</kbd> Sauvegarder
             <span className="mx-3">•</span>
             <kbd className="px-1.5 py-0.5 bg-gray-100 rounded">Échap</kbd> Passer
@@ -1459,76 +1459,76 @@ export default function EnrichissementRapide() {
       {/* ─── Modal Modifier la fiche ─────────────────────────────── */}
       {showEditModal && current && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowEditModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-ui-lg shadow-md w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b">
               <h2 className="text-lg font-bold text-gray-900"> Modifier la fiche</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'entreprise</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Nom de l'entreprise</label>
                 <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SIREN</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">SIREN</label>
                   <input type="text" value={editSiren} onChange={e => setEditSiren(e.target.value)}
                     placeholder="123456789" maxLength={9}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SIRET</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">SIRET</label>
                   <input type="text" value={editSiret} onChange={e => setEditSiret(e.target.value)}
                     placeholder="12345678901234" maxLength={14}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Adresse</label>
                 <input type="text" value={editAddress} onChange={e => setEditAddress(e.target.value)}
                   placeholder="12 rue du Port"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500" />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Code postal</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Code postal</label>
                   <input type="text" value={editPostalCode} onChange={e => setEditPostalCode(e.target.value)}
                     placeholder="29000" maxLength={5}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Ville</label>
                   <input type="text" value={editCity} onChange={e => setEditCity(e.target.value)}
                     placeholder="Ville"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500" />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Téléphone</label>
                   <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                     placeholder="01 23 45 67 89"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Email</label>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                     placeholder="contact@..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Site web</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Site web</label>
                   <input type="text" value={siteWeb} onChange={e => setSiteWeb(e.target.value)}
                     placeholder="www...."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500" />
                 </div>
               </div>
             </div>
             <div className="p-5 border-t flex gap-3">
-              <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium">Fermer</button>
+              <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-ui-sm hover:bg-gray-200 text-ui font-medium">Fermer</button>
               <button onClick={() => { setShowEditModal(false); handleSave() }}
-                className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center justify-center gap-2">
+                className="flex-1 px-4 py-2.5 bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))] text-ui font-medium flex items-center justify-center gap-2">
                 <Save className="w-4 h-4" /> Sauvegarder
               </button>
             </div>

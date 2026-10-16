@@ -801,7 +801,7 @@ export default function ProcessEditor() {
     
     return (
       <g key={conn.id}>
-        <path d={path} fill="none" stroke="#6B7280" strokeWidth={2} markerEnd="url(#arrow)" className="cursor-pointer hover:stroke-red-500" onClick={() => { if (confirm('Supprimer ?')) handleDeleteConnection(conn.id) }} />
+        <path d={path} fill="none" stroke="#6B7280" strokeWidth={2} markerEnd="url(#arrow)" className="cursor-pointer hover:stroke-[rgb(var(--c-danger))]" onClick={() => { if (confirm('Supprimer ?')) handleDeleteConnection(conn.id) }} />
         {conn.label && (
           <text x={fromX + (conn.label.toLowerCase() === 'non' ? -15 : 15)} y={fromY + 15} fontSize="10" fontWeight="bold" fill="#374151" textAnchor={conn.label.toLowerCase() === 'non' ? 'end' : 'start'}>{conn.label}</text>
         )}
@@ -818,22 +818,22 @@ export default function ProcessEditor() {
   }
   
   return (
-    <div className="h-full flex bg-white rounded-lg overflow-hidden">
+    <div className="h-full flex bg-white rounded-ui-sm overflow-hidden">
       {/* SIDEBAR */}
       <div className="w-52 bg-gray-50 border-r flex flex-col">
         <div className="p-3 border-b">
-          <h3 className="font-bold text-sm mb-2">Process</h3>
-          <button onClick={() => setShowNewProcessModal(true)} className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-xs">
+          <h3 className="font-bold text-ui mb-2">Process</h3>
+          <button onClick={() => setShowNewProcessModal(true)} className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 text-ui-sm">
             <Plus className="w-3 h-3" /> Nouveau
           </button>
         </div>
         
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {processes.map(p => (
-            <button key={p.id} onClick={() => loadProcess(p)} className={`w-full text-left p-2 rounded text-xs transition ${selectedProcess?.id === p.id ? 'bg-primary-100 border border-primary-300' : 'hover:bg-gray-100'}`}>
+            <button key={p.id} onClick={() => loadProcess(p)} className={`w-full text-left p-2 rounded text-ui-sm transition ${selectedProcess?.id === p.id ? 'bg-primary-100 border border-primary-300' : 'hover:bg-gray-100'}`}>
               <div className="font-bold">{p.code}</div>
               <div className="text-gray-500 truncate">{p.title}</div>
-              <span className={`text-[10px] px-1 rounded ${p.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200'}`}>V{p.version}</span>
+              <span className={`text-ui-sm px-1 rounded ${p.status === 'active' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-200'}`}>V{p.version}</span>
             </button>
           ))}
         </div>
@@ -847,19 +847,19 @@ export default function ProcessEditor() {
             <div className="bg-gray-50 border-b px-3 py-2 flex items-center justify-between">
               <div>
                 <span className="font-bold">{selectedProcess.code}-V{selectedProcess.version}</span>
-                <span className="text-gray-500 text-sm ml-2">{selectedProcess.title}</span>
+                <span className="text-gray-500 text-ui ml-2">{selectedProcess.title}</span>
               </div>
               
               <div className="flex items-center gap-1">
-                <button onClick={handleSaveVersion} disabled={saving} className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50">
+                <button onClick={handleSaveVersion} disabled={saving} className="flex items-center gap-1 px-2 py-1 bg-[rgb(var(--c-success))] text-white rounded text-ui-sm hover:bg-[rgb(var(--c-success))] disabled:opacity-50">
                   {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Sauver
                 </button>
                 
-                <button onClick={handleExportPNG} className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                <button onClick={handleExportPNG} className="flex items-center gap-1 px-2 py-1 bg-[rgb(var(--c-info))] text-white rounded text-ui-sm hover:bg-[rgb(var(--c-info))]">
                   <Image className="w-3 h-3" /> PNG
                 </button>
                 
-                <button onClick={handleExportDocument} className="flex items-center gap-1 px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700">
+                <button onClick={handleExportDocument} className="flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-ui-sm hover:bg-gray-700">
                   <Printer className="w-3 h-3" /> Doc
                 </button>
               </div>
@@ -867,8 +867,8 @@ export default function ProcessEditor() {
             
             <div className="flex-1 flex overflow-hidden">
               {/* PALETTE */}
-              <div className="w-36 bg-gray-50 border-r p-2 overflow-y-auto text-xs">
-                <p className="font-bold text-gray-500 uppercase text-[10px] mb-1">Formes</p>
+              <div className="w-36 bg-gray-50 border-r p-2 overflow-y-auto text-ui-sm">
+                <p className="font-bold text-gray-500 uppercase text-ui-sm mb-1">Formes</p>
                 <div className="space-y-1 mb-3">
                   {Object.entries(SHAPE_TYPES).map(([type, { label, color }]) => (
                     <button key={type} onClick={() => handleAddStep(type)} className="w-full flex items-center gap-2 p-1.5 bg-white rounded border hover:border-primary-500 hover:shadow-sm">
@@ -878,17 +878,17 @@ export default function ProcessEditor() {
                   ))}
                 </div>
                 
-                <p className="font-bold text-gray-500 uppercase text-[10px] mb-1">Actions</p>
-                <button onClick={startConnection} disabled={!selectedStep} className={`w-full flex items-center gap-1 p-1.5 rounded border mb-1 ${isConnecting ? 'bg-orange-100 border-orange-400' : 'bg-white hover:border-primary-500'} disabled:opacity-40`}>
+                <p className="font-bold text-gray-500 uppercase text-ui-sm mb-1">Actions</p>
+                <button onClick={startConnection} disabled={!selectedStep} className={`w-full flex items-center gap-1 p-1.5 rounded border mb-1 ${isConnecting ? 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)]' : 'bg-white hover:border-primary-500'} disabled:opacity-40`}>
                   <Link2 className="w-3 h-3" /> {isConnecting ? 'Cliquez cible' : 'Connecter'}
                 </button>
                 
                 {selectedStep && (
                   <>
-                    <button onClick={() => setEditingStep(selectedStep)} className="w-full flex items-center gap-1 p-1.5 bg-white rounded border hover:border-blue-500 text-blue-600 mb-1">
+                    <button onClick={() => setEditingStep(selectedStep)} className="w-full flex items-center gap-1 p-1.5 bg-white rounded border hover:border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))] mb-1">
                       <Edit2 className="w-3 h-3" /> Modifier
                     </button>
-                    <button onClick={() => handleDeleteStep(selectedStep.id)} className="w-full flex items-center gap-1 p-1.5 bg-white rounded border hover:border-red-500 text-red-600">
+                    <button onClick={() => handleDeleteStep(selectedStep.id)} className="w-full flex items-center gap-1 p-1.5 bg-white rounded border hover:border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))]">
                       <Trash2 className="w-3 h-3" /> Supprimer
                     </button>
                   </>
@@ -920,7 +920,7 @@ export default function ProcessEditor() {
                   <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
                     <div className="text-center">
                       <FileText className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                      <p className="text-sm">Ajoutez des étapes depuis la palette</p>
+                      <p className="text-ui">Ajoutez des étapes depuis la palette</p>
                     </div>
                   </div>
                 )}
@@ -928,7 +928,7 @@ export default function ProcessEditor() {
               
               {/* EDIT PANEL */}
               {editingStep && (
-                <div className="w-64 bg-white border-l p-3 overflow-y-auto text-sm">
+                <div className="w-64 bg-white border-l p-3 overflow-y-auto text-ui">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-bold">Modifier</h3>
                     <button onClick={() => setEditingStep(null)} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
@@ -936,37 +936,37 @@ export default function ProcessEditor() {
                   
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Titre</label>
-                      <input type="text" value={editingStep.title || ''} onChange={(e) => { setEditingStep({ ...editingStep, title: e.target.value }); handleUpdateStep(editingStep.id, { title: e.target.value }) }} className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500" />
+                      <label className="block text-ui-sm font-medium text-gray-600 mb-1">Titre</label>
+                      <input type="text" value={editingStep.title || ''} onChange={(e) => { setEditingStep({ ...editingStep, title: e.target.value }); handleUpdateStep(editingStep.id, { title: e.target.value }) }} className="w-full px-2 py-1.5 border rounded text-ui focus:ring-1 focus:ring-primary-500" />
                     </div>
                     
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
-                      <textarea value={editingStep.description || ''} onChange={(e) => { setEditingStep({ ...editingStep, description: e.target.value }); handleUpdateStep(editingStep.id, { description: e.target.value }) }} rows={2} className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500" />
+                      <label className="block text-ui-sm font-medium text-gray-600 mb-1">Description</label>
+                      <textarea value={editingStep.description || ''} onChange={(e) => { setEditingStep({ ...editingStep, description: e.target.value }); handleUpdateStep(editingStep.id, { description: e.target.value }) }} rows={2} className="w-full px-2 py-1.5 border rounded text-ui focus:ring-1 focus:ring-primary-500" />
                     </div>
                     
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Responsable</label>
-                      <select value={editingStep.responsible_id || ''} onChange={(e) => { setEditingStep({ ...editingStep, responsible_id: e.target.value || null }); handleUpdateStep(editingStep.id, { responsible_id: e.target.value || null }) }} className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500">
+                      <label className="block text-ui-sm font-medium text-gray-600 mb-1">Responsable</label>
+                      <select value={editingStep.responsible_id || ''} onChange={(e) => { setEditingStep({ ...editingStep, responsible_id: e.target.value || null }); handleUpdateStep(editingStep.id, { responsible_id: e.target.value || null }) }} className="w-full px-2 py-1.5 border rounded text-ui focus:ring-1 focus:ring-primary-500">
                         <option value="">--</option>
                         {responsibles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                       </select>
                     </div>
                     
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Délai</label>
-                      <input type="text" placeholder="J+1, 48h..." value={editingStep.delay || ''} onChange={(e) => { setEditingStep({ ...editingStep, delay: e.target.value }); handleUpdateStep(editingStep.id, { delay: e.target.value }) }} className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500" />
+                      <label className="block text-ui-sm font-medium text-gray-600 mb-1">Délai</label>
+                      <input type="text" placeholder="J+1, 48h..." value={editingStep.delay || ''} onChange={(e) => { setEditingStep({ ...editingStep, delay: e.target.value }); handleUpdateStep(editingStep.id, { delay: e.target.value }) }} className="w-full px-2 py-1.5 border rounded text-ui focus:ring-1 focus:ring-primary-500" />
                     </div>
                     
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Outil</label>
-                      <input type="text" placeholder="Logiciel, tableur..." value={editingStep.tool || ''} onChange={(e) => { setEditingStep({ ...editingStep, tool: e.target.value }); handleUpdateStep(editingStep.id, { tool: e.target.value }) }} className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500" />
+                      <label className="block text-ui-sm font-medium text-gray-600 mb-1">Outil</label>
+                      <input type="text" placeholder="Logiciel, tableur..." value={editingStep.tool || ''} onChange={(e) => { setEditingStep({ ...editingStep, tool: e.target.value }); handleUpdateStep(editingStep.id, { tool: e.target.value }) }} className="w-full px-2 py-1.5 border rounded text-ui focus:ring-1 focus:ring-primary-500" />
                     </div>
                     
                     {editingStep.type === 'subprocess' && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Process lié</label>
-                        <select value={editingStep.linked_process_id || ''} onChange={(e) => { setEditingStep({ ...editingStep, linked_process_id: e.target.value || null }); handleUpdateStep(editingStep.id, { linked_process_id: e.target.value || null }) }} className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500">
+                        <label className="block text-ui-sm font-medium text-gray-600 mb-1">Process lié</label>
+                        <select value={editingStep.linked_process_id || ''} onChange={(e) => { setEditingStep({ ...editingStep, linked_process_id: e.target.value || null }); handleUpdateStep(editingStep.id, { linked_process_id: e.target.value || null }) }} className="w-full px-2 py-1.5 border rounded text-ui focus:ring-1 focus:ring-primary-500">
                           <option value="">--</option>
                           {allProcesses.filter(p => p.id !== selectedProcess?.id).map(p => <option key={p.id} value={p.id}>{p.code}</option>)}
                         </select>
@@ -990,19 +990,19 @@ export default function ProcessEditor() {
       {/* MODAL NEW PROCESS */}
       {showNewProcessModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-5 w-full max-w-sm shadow-xl">
+          <div className="bg-white rounded-ui-sm p-5 w-full max-w-sm shadow-md">
             <h3 className="text-lg font-bold mb-4">Nouveau Process</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium mb-1">Code</label>
+                <label className="block text-ui font-medium mb-1">Code</label>
                 <input type="text" value={generateProcessCode()} disabled className="w-full px-3 py-2 bg-gray-100 border rounded" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Titre *</label>
+                <label className="block text-ui font-medium mb-1">Titre *</label>
                 <input type="text" value={newProcessForm.title} onChange={(e) => setNewProcessForm({ ...newProcessForm, title: e.target.value })} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary-500" placeholder="Process formation..." />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
+                <label className="block text-ui font-medium mb-1">Description</label>
                 <textarea value={newProcessForm.description} onChange={(e) => setNewProcessForm({ ...newProcessForm, description: e.target.value })} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary-500" rows={2} />
               </div>
             </div>

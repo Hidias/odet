@@ -76,7 +76,7 @@ export default function CertHome({ settings, deadlines, evaluated, evidence, org
       </Link>
 
       {riPending && (
-        <section className="card space-y-2 lg:col-span-2 border-amber-400">
+        <section className="card space-y-2 lg:col-span-2 border-[rgb(var(--c-warning)/0.3)]">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <h2 className="section-title">Règlement intérieur : mentions obligatoires depuis le 27 juin 2026</h2>
             <span className="badge badge-warning">À vérifier</span>

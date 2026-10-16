@@ -68,7 +68,7 @@ export default function CertMethode({ settings, canWrite, organization, reloadSe
           ))}
         </div>
         <p className="muted text-ui-sm">Seules les sessions terminées comptent. Un résultat calculé sur moins de 10 réponses porte la mention « effectif réduit ».</p>
-        {data.demoCount > 0 && <p className="text-ui-sm rounded-lg bg-amber-50 border border-amber-300 p-2">Les données de démonstration sont comprises dans ce calcul. Ne publiez qu'après les avoir effacées.</p>}
+        {data.demoCount > 0 && <p className="text-ui-sm rounded-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] p-2">Les données de démonstration sont comprises dans ce calcul. Ne publiez qu'après les avoir effacées.</p>}
         {canWrite && (
           <div className="border-t border-gray-100 pt-3 space-y-2">
             <span className="label">Publication sur le site</span>

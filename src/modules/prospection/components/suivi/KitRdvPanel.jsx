@@ -131,31 +131,31 @@ export default function KitRdvPanel({ author }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <p className="text-sm text-gray-600 flex-1 min-w-[200px]">
+        <p className="text-ui text-gray-600 flex-1 min-w-[200px]">
           Les documents à présenter le jour du RDV. Téléchargez tout le kit sur votre téléphone avant d'y aller.
         </p>
         <button onClick={downloadAll} disabled={zipping}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50">
+          className="flex items-center gap-1.5 px-3 py-2 text-ui font-medium bg-gray-900 text-white rounded-ui-sm hover:bg-gray-700 disabled:opacity-50">
           {zipping ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderDown className="w-4 h-4" />}
           Télécharger tout le kit
         </button>
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /> Chargement</div>
+        <div className="flex items-center gap-2 text-ui text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /> Chargement</div>
       ) : byCategory.length === 0 ? (
-        <p className="text-sm text-gray-500">Le kit est vide. Ajoutez vos premiers documents ci-dessous.</p>
+        <p className="text-ui text-gray-500">Le kit est vide. Ajoutez vos premiers documents ci-dessous.</p>
       ) : (
         <div className="space-y-3">
           {byCategory.map(c => (
             <div key={c.value}>
-              <p className="text-xs font-semibold text-gray-500 mb-1">{c.label}</p>
-              <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+              <p className="text-ui-sm font-semibold text-gray-500 mb-1">{c.label}</p>
+              <div className="border border-gray-200 rounded-ui-sm divide-y divide-gray-100">
                 {c.items.map(d => (
                   <div key={d.id} className={`flex items-center gap-2 px-3 py-2 ${d.is_active ? '' : 'opacity-60'}`}>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-900 truncate">{d.title}</p>
-                      <p className="text-xs text-gray-500 truncate">{d.file_name}</p>
+                      <p className="text-ui text-gray-900 truncate">{d.title}</p>
+                      <p className="text-ui-sm text-gray-500 truncate">{d.file_name}</p>
                     </div>
                     <button onClick={() => download(d)} className="p-1.5 text-gray-500 hover:text-gray-900" aria-label="Télécharger" title="Télécharger">
                       <Download className="w-4 h-4" />
@@ -165,7 +165,7 @@ export default function KitRdvPanel({ author }) {
                       {d.is_active ? <Archive className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
                     </button>
                     {!d.is_active && (
-                      <button onClick={() => remove(d)} className="p-1.5 text-red-400 hover:text-red-600" aria-label="Supprimer" title="Supprimer">
+                      <button onClick={() => remove(d)} className="p-1.5 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]" aria-label="Supprimer" title="Supprimer">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
@@ -177,25 +177,25 @@ export default function KitRdvPanel({ author }) {
         </div>
       )}
 
-      <label className="flex items-center gap-2 text-xs text-gray-600">
+      <label className="flex items-center gap-2 text-ui-sm text-gray-600">
         <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
         Afficher les documents archivés
       </label>
 
-      <div className="border border-dashed border-gray-300 rounded-lg p-3 space-y-2">
-        <p className="text-sm font-medium text-gray-800">Ajouter un document</p>
+      <div className="border border-dashed border-gray-300 rounded-ui-sm p-3 space-y-2">
+        <p className="text-ui font-medium text-gray-800">Ajouter un document</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Titre, ex. Programme SST"
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+            className="px-3 py-2 border border-gray-300 rounded-ui-sm text-ui" />
           <select value={category} onChange={e => setCategory(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            className="px-3 py-2 border border-gray-300 rounded-ui-sm text-ui">
             {KIT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <input ref={fileRef} type="file" className="text-sm flex-1 min-w-[200px]" />
+          <input ref={fileRef} type="file" className="text-ui flex-1 min-w-[200px]" />
           <button onClick={upload} disabled={uploading}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
+            className="flex items-center gap-1.5 px-3 py-2 text-ui font-medium bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 disabled:opacity-50">
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             Ajouter
           </button>

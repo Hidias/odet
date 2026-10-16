@@ -76,7 +76,7 @@ export default function PasseportTraineeBlock({ trainee, onChange, compact = fal
           {confirme ? <span className="badge badge-success">Confirmé</span> : aVerifier ? <span className="badge badge-warning">À vérifier</span> : null}
         </div>
         <input id={`pp-nom-${trainee.id}`} className="input" value={nom} onChange={(e) => { setNom(e.target.value); setConfirme(false) }} />
-        {!nomCheck.ok && <p className="text-ui-sm text-red-700">{nomCheck.tropLong ? 'Plus de 30 caractères : le portail le refusera.' : 'Nom vide.'}</p>}
+        {!nomCheck.ok && <p className="text-ui-sm text-[rgb(var(--c-danger))]">{nomCheck.tropLong ? 'Plus de 30 caractères : le portail le refusera.' : 'Nom vide.'}</p>}
         {aVerifier && <p className="text-ui-sm muted">Prérempli avec le nom d'usage. Pour une femme mariée ou un nom composé, demandez le nom inscrit à la naissance.</p>}
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-primary btn-sm" disabled={busy || !nomCheck.ok} onClick={() => saveNom(true)}>Confirmer ce nom de naissance</button>
@@ -95,14 +95,14 @@ export default function PasseportTraineeBlock({ trainee, onChange, compact = fal
         ) : etat.present ? (
           <p className="text-ui font-mono tracking-wider">•••• ••• <b>{etat.fin}</b> <span className="font-sans text-ui-sm muted ml-1">saisi {etat.source === 'portail' ? 'par le stagiaire' : etat.source === 'demo' ? '(fictif)' : 'par l\'organisme'}</span></p>
         ) : (
-          <p className="text-ui-sm text-red-700">Aucun numéro : la formation ne peut pas être déclarée.</p>
+          <p className="text-ui-sm text-[rgb(var(--c-danger))]">Aucun numéro : la formation ne peut pas être déclarée.</p>
         )}
         {saisie ? (
           <div className="space-y-2">
             <input className="input font-mono" inputMode="text" autoComplete="off" placeholder="13 caractères, ou 15 avec la clé"
               value={nir} onChange={(e) => { setNir(e.target.value); setEcarts(null) }} aria-label="Nouveau numéro de sécurité sociale" />
             {ecarts && (
-              <div className="text-ui-sm text-amber-900 bg-amber-50 rounded-ui p-2">
+              <div className="text-ui-sm text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))] rounded-ui p-2">
                 {ecarts}. <button type="button" className="underline" onClick={() => saveNir(true)}>Enregistrer quand même</button>
               </div>
             )}

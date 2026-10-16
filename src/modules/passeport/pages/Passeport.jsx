@@ -103,7 +103,7 @@ export default function Passeport() {
   }
   if (!allowed) return <div className="card">Ce module est réservé à la direction et à la gestion.</div>
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
-  if (error) return <div className="card text-red-700">Impossible de charger le Passeport de prévention : {error}</div>
+  if (error) return <div className="card text-[rgb(var(--c-danger))]">Impossible de charger le Passeport de prévention : {error}</div>
 
   const aDeclarer = sessions.filter((s) => s.aFaire)
   const ctx = {

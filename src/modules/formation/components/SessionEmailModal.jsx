@@ -86,14 +86,14 @@ function MiniSignaturePad({ onValidate, onCancel }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-lg w-full p-5 space-y-3 shadow-2xl">
+      <div className="bg-white rounded-ui-sm max-w-lg w-full p-5 space-y-3 shadow-md">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900"> Signature du formateur</h3>
           <button onClick={onCancel} className="p-1 hover:bg-gray-100 rounded">
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-        <p className="text-xs text-gray-500">
+        <p className="text-ui-sm text-gray-500">
           Signez ci-dessous avec votre souris ou votre doigt. Cette signature sera enregistrée
           dans votre profil formateur et utilisée pour vos prochaines feuilles d'émargement.
         </p>
@@ -101,7 +101,7 @@ function MiniSignaturePad({ onValidate, onCancel }) {
           ref={canvasRef}
           width={600}
           height={200}
-          className="border-2 border-dashed border-gray-300 rounded-lg w-full bg-white touch-none cursor-crosshair"
+          className="border-2 border-dashed border-gray-300 rounded-ui-sm w-full bg-white touch-none cursor-crosshair"
           onMouseDown={startDraw}
           onMouseMove={moveDraw}
           onMouseUp={endDraw}
@@ -113,21 +113,21 @@ function MiniSignaturePad({ onValidate, onCancel }) {
         <div className="flex justify-between gap-2 pt-1">
           <button
             onClick={clear}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-ui-sm text-ui hover:bg-gray-50"
           >
             Effacer
           </button>
           <div className="flex gap-2">
             <button
               onClick={onCancel}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-ui-sm text-ui hover:bg-gray-50"
             >
               Annuler
             </button>
             <button
               onClick={validate}
               disabled={!hasDrawn}
-              className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-5 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Valider
             </button>
@@ -1194,8 +1194,8 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
   // ─── Render ───
   const isBefore = emailType === 'before'
-  const headerBg = isBefore ? 'bg-blue-600' : 'bg-green-600'
-  const btnBg = isBefore ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
+  const headerBg = isBefore ? 'bg-[rgb(var(--c-info))]' : 'bg-[rgb(var(--c-success))]'
+  const btnBg = isBefore ? 'bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))]' : 'bg-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success))]'
   const icon = isBefore ? '' : ''
   const title = isBefore ? 'Documents avant formation' : 'Documents après formation'
 
@@ -1212,8 +1212,8 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
   // Indicateur statut → classes Tailwind
   const statusBadge = (status) => {
-    if (status === 'ok') return { dot: 'bg-green-500', text: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' }
-    if (status === 'warn') return { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200' }
+    if (status === 'ok') return { dot: 'bg-[rgb(var(--c-success))]', text: 'text-[rgb(var(--c-success))]', bg: 'bg-[rgb(var(--c-success-bg))]', border: 'border-[rgb(var(--c-success)/0.3)]' }
+    if (status === 'warn') return { dot: 'bg-[rgb(var(--c-warning))]', text: 'text-[rgb(var(--c-warning))]', bg: 'bg-[rgb(var(--c-warning-bg))]', border: 'border-[rgb(var(--c-warning)/0.3)]' }
     if (status === 'loading') return { dot: 'bg-gray-400 animate-pulse', text: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200' }
     return { dot: 'bg-gray-300', text: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200' }
   }
@@ -1238,7 +1238,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-xl">
+      <div className="bg-white rounded-ui-sm max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-md">
 
         {/* Header */}
         <div className={`${headerBg} text-white p-4 flex items-center justify-between flex-shrink-0`}>
@@ -1256,15 +1256,15 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
           {/* ── GÉNÉRATION EN COURS ── */}
           {step === 'generating' && (
             <div className="flex flex-col items-center justify-center py-10 space-y-4">
-              <Loader className="w-12 h-12 text-blue-600 animate-spin" />
+              <Loader className="w-12 h-12 text-[rgb(var(--c-info))] animate-spin" />
               <p className="text-lg font-semibold text-gray-800">Génération des documents…</p>
-              <div className="w-full max-w-sm bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-1">
+              <div className="w-full max-w-sm bg-gray-50 rounded-ui-sm border border-gray-200 p-3 space-y-1">
                 {generationLog.map((msg, i) => (
-                  <p key={i} className={`text-sm ${/erreur|non trouv|impossible/i.test(msg) ? 'text-amber-600' : /(généré|récupéré|envoy|prêt|ok)/i.test(msg) ? 'text-green-700' : 'text-gray-500'}`}>
+                  <p key={i} className={`text-ui ${/erreur|non trouv|impossible/i.test(msg) ? 'text-[rgb(var(--c-warning))]' : /(généré|récupéré|envoy|prêt|ok)/i.test(msg) ? 'text-[rgb(var(--c-success))]' : 'text-gray-500'}`}>
                     {msg}
                   </p>
                 ))}
-                {generationLog.length === 0 && <p className="text-sm text-gray-400 italic">En attente…</p>}
+                {generationLog.length === 0 && <p className="text-ui text-gray-400 italic">En attente…</p>}
               </div>
             </div>
           )}
@@ -1275,37 +1275,37 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
               {/* ═══ HISTORIQUE DES ENVOIS PRÉCÉDENTS ═══ */}
               {emailHistory.length > 0 && (
-                <div className="border border-amber-300 bg-amber-50 rounded-lg overflow-hidden">
+                <div className="border border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] rounded-ui-sm overflow-hidden">
                   <button
                     onClick={() => setHistoryExpanded(v => !v)}
-                    className="w-full px-3 py-2 flex items-center justify-between hover:bg-amber-100 transition-colors"
+                    className="w-full px-3 py-2 flex items-center justify-between hover:bg-[rgb(var(--c-warning-bg))] transition-colors"
                   >
-                    <div className="flex items-center gap-2 text-sm text-amber-900">
+                    <div className="flex items-center gap-2 text-ui text-[rgb(var(--c-warning))]">
                       <History className="w-4 h-4" />
                       <span className="font-semibold">
                          Déjà envoyé {emailHistory.length} fois pour cette session
                       </span>
                     </div>
-                    <span className="text-xs text-amber-700">
+                    <span className="text-ui-sm text-[rgb(var(--c-warning))]">
                       {historyExpanded ? 'Masquer' : 'Voir détails'}
                     </span>
                   </button>
                   {historyExpanded && (
-                    <div className="px-3 pb-3 space-y-1.5 border-t border-amber-200 pt-2">
+                    <div className="px-3 pb-3 space-y-1.5 border-t border-[rgb(var(--c-warning)/0.3)] pt-2">
                       {emailHistory.map(h => (
-                        <div key={h.id} className="text-xs text-amber-900 bg-white rounded px-2 py-1.5 border border-amber-100">
+                        <div key={h.id} className="text-ui-sm text-[rgb(var(--c-warning))] bg-white rounded px-2 py-1.5 border border-[rgb(var(--c-warning)/0.3)]">
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-medium truncate">{h.to_email}</span>
-                            <span className="text-amber-600 flex-shrink-0">
+                            <span className="text-[rgb(var(--c-warning))] flex-shrink-0">
                               {new Date(h.created_at).toLocaleString('fr-FR', {
                                 day: '2-digit', month: '2-digit', year: 'numeric',
                                 hour: '2-digit', minute: '2-digit'
                               })}
                             </span>
                           </div>
-                          <div className="text-amber-700 truncate mt-0.5">{h.subject}</div>
+                          <div className="text-[rgb(var(--c-warning))] truncate mt-0.5">{h.subject}</div>
                           {Array.isArray(h.attachments) && (
-                            <div className="text-amber-600 mt-0.5">{h.attachments.length} pièce(s) jointe(s)</div>
+                            <div className="text-[rgb(var(--c-warning))] mt-0.5">{h.attachments.length} pièce(s) jointe(s)</div>
                           )}
                         </div>
                       ))}
@@ -1316,9 +1316,9 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
               {/* ═══ TABLEAU DE BORD COMPLÉTUDE (uniquement after) ═══ */}
               {emailType === 'after' && (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="border border-gray-200 rounded-ui-sm overflow-hidden">
                   <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
-                    <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    <p className="text-ui-sm font-semibold text-gray-700 uppercase tracking-wide">
                        Tableau de bord complétude
                     </p>
                   </div>
@@ -1334,21 +1334,21 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                         <div key={row.key} className="px-3 py-2 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${b.dot}`} />
-                            <span className="text-sm text-gray-800 truncate">{row.label}</span>
+                            <span className="text-ui text-gray-800 truncate">{row.label}</span>
                           </div>
-                          <span className={`text-xs ${b.text} flex-shrink-0`}>{row.data.label}</span>
+                          <span className={`text-ui-sm ${b.text} flex-shrink-0`}>{row.data.label}</span>
                         </div>
                       )
                     })}
                   </div>
                   {showSignButton && (
-                    <div className="px-3 py-2 bg-blue-50 border-t border-blue-200 flex items-center justify-between gap-2">
-                      <p className="text-xs text-blue-800">
+                    <div className="px-3 py-2 bg-[rgb(var(--c-info-bg))] border-t border-[rgb(var(--c-info)/0.3)] flex items-center justify-between gap-2">
+                      <p className="text-ui-sm text-[rgb(var(--c-info))]">
                         Pas de signature formateur en base.
                       </p>
                       <button
                         onClick={() => setShowSignaturePad(true)}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700"
+                        className="flex items-center gap-1.5 px-3 py-1 bg-[rgb(var(--c-info))] text-white text-ui-sm font-semibold rounded hover:bg-[rgb(var(--c-info))]"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                         Signer maintenant
@@ -1360,35 +1360,35 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
               {/* Destinataire */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Destinataire</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Destinataire</label>
                 <input
                   type="email"
                   value={toEmail}
                   onChange={(e) => setToEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
                   placeholder="email@exemple.fr"
                 />
               </div>
 
               {/* Objet */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Objet</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Objet</label>
                 <input
                   type="text"
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
                 />
               </div>
 
               {/* Corps */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Message</label>
                 <textarea
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
                   rows={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui resize-none"
                 />
               </div>
 
@@ -1396,12 +1396,12 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
               {!isBefore && evalsLoaded && (() => {
                 const evalData = computeEvalData()
                 return (
-                  <div className="border border-purple-200 rounded-lg overflow-hidden">
+                  <div className="border border-gray-200 rounded-ui-sm overflow-hidden">
                     {/* Header */}
-                    <div className="bg-purple-50 px-4 py-3 flex items-center justify-between">
+                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-purple-800"> Compte rendu de formation</p>
-                        <p className="text-xs text-purple-600 mt-0.5">
+                        <p className="text-ui font-semibold text-gray-800"> Compte rendu de formation</p>
+                        <p className="text-ui-sm text-gray-800 mt-0.5">
                           {evals.length > 0
                             ? `${evals.length} stagiaire${evals.length > 1 ? 's' : ''} - Score moyen : ${evalData?.globalScore || '-'}/5 - Recommandation : ${evalData?.tauxReco !== null ? evalData.tauxReco + '%' : '-'}`
                             : 'Aucune évaluation à chaud pour cette session'
@@ -1412,7 +1412,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                         <button
                           onClick={generateCompteRendu}
                           disabled={crGenerating}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 text-white text-ui-sm font-semibold rounded-ui-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {crGenerating ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <span></span>}
                           {crGenerating ? 'Génération…' : (compteRendu ? 'Regénérer' : "Générer avec l'IA")}
@@ -1422,7 +1422,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
                     {/* Erreur */}
                     {crError && (
-                      <div className="mx-4 mt-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                      <div className="mx-4 mt-3 px-3 py-2 bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] rounded text-ui-sm text-[rgb(var(--c-danger))]">
                         {crError}
                       </div>
                     )}
@@ -1430,10 +1430,10 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                     {/* Commentaires verbatim */}
                     {evals.length > 0 && evalData?.comments.length > 0 && (
                       <div className="px-4 pt-3">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Commentaires des stagiaires</p>
+                        <p className="text-ui-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Commentaires des stagiaires</p>
                         <div className="space-y-1.5">
                           {evalData.comments.map((c, i) => (
-                            <p key={i} className="text-xs text-gray-600 italic bg-gray-50 border border-gray-200 rounded px-3 py-2">
+                            <p key={i} className="text-ui-sm text-gray-600 italic bg-gray-50 border border-gray-200 rounded px-3 py-2">
                               « {c} »
                             </p>
                           ))}
@@ -1445,13 +1445,13 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                     {compteRendu && (
                       <div className="px-4 py-3">
                         <div className="flex items-center justify-between mb-1.5">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Texte généré</p>
+                          <p className="text-ui-sm font-semibold text-gray-500 uppercase tracking-wide">Texte généré</p>
                           <button
                             onClick={() => {
                               setEmailBody(prev => prev + '\n\n--- Compte rendu de la formation ---\n' + compteRendu)
                               toast.success('Compte rendu ajouté au corps du mail')
                             }}
-                            className="text-xs text-purple-600 hover:text-purple-800 font-medium underline"
+                            className="text-ui-sm text-gray-800 hover:text-gray-800 font-medium underline"
                           >
                             + Ajouter au mail
                           </button>
@@ -1459,7 +1459,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                         <textarea
                           value={compteRendu}
                           onChange={e => setCompteRendu(e.target.value)}
-                          className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm text-gray-800 bg-white resize-none focus:outline-none focus:ring-2 focus:ring-purple-300"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui text-gray-800 bg-white resize-none focus:outline-none focus:ring-2 focus:ring-gray-200"
                           rows={Math.max(3, compteRendu.split('\n').length + 1)}
                         />
                       </div>
@@ -1467,7 +1467,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
                     {/* Pas d'évals */}
                     {evals.length === 0 && (
-                      <p className="px-4 py-3 text-xs text-gray-500 italic">
+                      <p className="px-4 py-3 text-ui-sm text-gray-500 italic">
                         Les évaluations à chaud ne sont pas encore disponibles pour cette session.
                       </p>
                     )}
@@ -1479,14 +1479,14 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
               {generatedFiles.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-700">
+                    <p className="text-ui font-medium text-gray-700">
                        Documents générés ({generatedFiles.length - generatedFiles.filter(f => excludedFileIds.has(f.id)).length}/{generatedFiles.length})
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-ui-sm text-gray-500">
                       Total : {formatSize(activeFiles.reduce((s, f) => s + (f.size || 0), 0))}
                     </p>
                   </div>
-                  <div className="bg-green-50 border border-green-200 rounded-lg divide-y divide-green-200">
+                  <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm divide-y divide-[rgb(var(--c-success)/0.3)]">
                     {generatedFiles.map(file => {
                       const isExcluded = excludedFileIds.has(file.id)
                       return (
@@ -1499,29 +1499,29 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                               type="checkbox"
                               checked={!isExcluded}
                               onChange={() => toggleFileExclusion(file.id)}
-                              className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 flex-shrink-0"
+                              className="w-4 h-4 rounded border-gray-300 text-[rgb(var(--c-success))] focus:ring-[rgb(var(--c-success)/0.3)] flex-shrink-0"
                               title={isExcluded ? 'Inclure dans l\'envoi' : 'Exclure de l\'envoi'}
                             />
-                            <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                            <span className={`text-sm text-gray-800 truncate ${isExcluded ? 'line-through' : ''}`}>
+                            <CheckCircle className="w-4 h-4 text-[rgb(var(--c-success))] flex-shrink-0" />
+                            <span className={`text-ui text-gray-800 truncate ${isExcluded ? 'line-through' : ''}`}>
                               {file.name}
                             </span>
-                            <span className="text-xs text-gray-400 flex-shrink-0">{formatSize(file.size)}</span>
+                            <span className="text-ui-sm text-gray-400 flex-shrink-0">{formatSize(file.size)}</span>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <button
                               onClick={() => setPreviewFile(file)}
-                              className="p-1 hover:bg-green-100 rounded text-gray-600 hover:text-green-700"
+                              className="p-1 hover:bg-[rgb(var(--c-success-bg))] rounded text-gray-600 hover:text-[rgb(var(--c-success))]"
                               title="Aperçu"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleRemoveFile(file.id, true)}
-                              className="p-1 hover:bg-green-100 rounded"
+                              className="p-1 hover:bg-[rgb(var(--c-success-bg))] rounded"
                               title="Supprimer"
                             >
-                              <Trash2 className="w-4 h-4 text-red-500" />
+                              <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                             </button>
                           </div>
                         </div>
@@ -1533,9 +1533,9 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
               {/* Avertissement programme manquant */}
               {isBefore && generatedFiles.every(f => f.id !== 'programme') && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-700">
+                <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm px-3 py-2 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-[rgb(var(--c-warning))] flex-shrink-0 mt-0.5" />
+                  <p className="text-ui-sm text-[rgb(var(--c-warning))]">
                     Le programme n'a pas été trouvé dans <strong>Documents de formation</strong>. 
                     Uploadez-le manuellement ci-dessous ou dans la page du cours.
                   </p>
@@ -1544,12 +1544,12 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
               {/* Upload supplémentaire */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-ui font-medium text-gray-700 mb-2">
                   Ajouter des fichiers supplémentaires
                 </label>
-                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg p-3 cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-ui-sm p-3 cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
                   <Upload className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-500">Choisir des fichiers</span>
+                  <span className="text-ui text-gray-500">Choisir des fichiers</span>
                   <input
                     type="file"
                     multiple
@@ -1560,7 +1560,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                 </label>
 
                 {uploadedFiles.length > 0 && (
-                  <div className="mt-2 bg-gray-50 border border-gray-200 rounded-lg divide-y divide-gray-200">
+                  <div className="mt-2 bg-gray-50 border border-gray-200 rounded-ui-sm divide-y divide-gray-200">
                     {uploadedFiles.map(file => {
                       const isExcluded = excludedFileIds.has(file.id)
                       const isPdf = file.name && file.name.toLowerCase().endsWith('.pdf')
@@ -1574,19 +1574,19 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                               type="checkbox"
                               checked={!isExcluded}
                               onChange={() => toggleFileExclusion(file.id)}
-                              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                              className="w-4 h-4 rounded border-gray-300 text-[rgb(var(--c-info))] focus:ring-[rgb(var(--c-info)/0.3)] flex-shrink-0"
                             />
                             <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <span className={`text-sm text-gray-800 truncate ${isExcluded ? 'line-through' : ''}`}>
+                            <span className={`text-ui text-gray-800 truncate ${isExcluded ? 'line-through' : ''}`}>
                               {file.name}
                             </span>
-                            <span className="text-xs text-gray-400 flex-shrink-0">{formatSize(file.size)}</span>
+                            <span className="text-ui-sm text-gray-400 flex-shrink-0">{formatSize(file.size)}</span>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
                             {isPdf && (
                               <button
                                 onClick={() => setPreviewFile(file)}
-                                className="p-1 hover:bg-gray-200 rounded text-gray-600 hover:text-blue-700"
+                                className="p-1 hover:bg-gray-200 rounded text-gray-600 hover:text-[rgb(var(--c-info))]"
                                 title="Aperçu"
                               >
                                 <Eye className="w-4 h-4" />
@@ -1597,7 +1597,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                               className="p-1 hover:bg-gray-200 rounded"
                               title="Supprimer"
                             >
-                              <Trash2 className="w-4 h-4 text-red-500" />
+                              <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                             </button>
                           </div>
                         </div>
@@ -1609,12 +1609,12 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
               {/* Warnings de complétude (bonus) */}
               {sendWarnings.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm px-3 py-2">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-4 h-4 text-[rgb(var(--c-warning))] flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-xs font-semibold text-amber-800 mb-1">Vérifications avant envoi</p>
-                      <ul className="text-xs text-amber-700 space-y-0.5 list-disc list-inside">
+                      <p className="text-ui-sm font-semibold text-[rgb(var(--c-warning))] mb-1">Vérifications avant envoi</p>
+                      <ul className="text-ui-sm text-[rgb(var(--c-warning))] space-y-0.5 list-disc list-inside">
                         {sendWarnings.map((w, i) => <li key={i}>{w}</li>)}
                       </ul>
                     </div>
@@ -1624,9 +1624,9 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
 
               {/* Erreur */}
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-red-700">{error}</p>
+                <div className="bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] rounded-ui-sm px-3 py-2 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-[rgb(var(--c-danger))] flex-shrink-0 mt-0.5" />
+                  <p className="text-ui-sm text-[rgb(var(--c-danger))]">{error}</p>
                 </div>
               )}
             </div>
@@ -1635,7 +1635,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
           {/* ── ENVOI EN COURS ── */}
           {step === 'sending' && (
             <div className="flex flex-col items-center justify-center py-12 space-y-3">
-              <Loader className="w-10 h-10 text-blue-600 animate-spin" />
+              <Loader className="w-10 h-10 text-[rgb(var(--c-info))] animate-spin" />
               <p className="text-gray-600">Envoi de l'email avec {totalFiles} document(s)…</p>
             </div>
           )}
@@ -1643,9 +1643,9 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
           {/* ── ENVOYÉ ── */}
           {step === 'sent' && (
             <div className="flex flex-col items-center justify-center py-12 space-y-2">
-              <CheckCircle className="w-14 h-14 text-green-600" />
+              <CheckCircle className="w-14 h-14 text-[rgb(var(--c-success))]" />
               <p className="text-lg font-semibold text-gray-900">Email envoyé !</p>
-              <p className="text-sm text-gray-500">Il apparaîtra dans vos messages envoyés.</p>
+              <p className="text-ui text-gray-500">Il apparaîtra dans vos messages envoyés.</p>
             </div>
           )}
         </div>
@@ -1656,24 +1656,24 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
             <button
               onClick={handleSendTest}
               disabled={sendingTest || totalFiles === 0 || !userEmail}
-              className="flex items-center gap-1.5 px-3 py-2 border border-blue-300 text-blue-700 bg-white rounded-lg text-sm hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-2 border border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))] bg-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-info-bg))] disabled:opacity-40 disabled:cursor-not-allowed"
               title={userEmail ? `Envoyer un test à ${userEmail}` : 'Configurez votre email dans Paramètres'}
             >
               {sendingTest ? <Loader className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
               Test à moi
             </button>
             <div className="flex gap-3">
-              <button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-100">
+              <button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-ui-sm text-ui hover:bg-gray-100">
                 Annuler
               </button>
               <button
                 onClick={handleSend}
                 disabled={totalFiles === 0}
-                className={`${btnBg} text-white px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-40`}
+                className={`${btnBg} text-white px-5 py-2 rounded-ui-sm text-ui font-medium flex items-center gap-2 disabled:opacity-40`}
               >
                 <Send className="w-4 h-4" />
                 Envoyer · {totalFiles} doc{totalFiles !== 1 ? 's' : ''}
-                {totalSize > 0 && <span className="text-xs opacity-75">({formatSize(totalSize)})</span>}
+                {totalSize > 0 && <span className="text-ui-sm opacity-75">({formatSize(totalSize)})</span>}
               </button>
             </div>
           </div>
@@ -1683,12 +1683,12 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
       {/* ═══ MODAL APERÇU PDF ═══ */}
       {previewFile && (
         <div className="fixed inset-0 bg-black/70 z-[55] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl">
+          <div className="bg-white rounded-ui-sm w-full max-w-5xl h-[90vh] flex flex-col shadow-md">
             <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                <span className="text-sm font-medium text-gray-800 truncate">{previewFile.name}</span>
-                <span className="text-xs text-gray-400 flex-shrink-0">{formatSize(previewFile.size)}</span>
+                <span className="text-ui font-medium text-gray-800 truncate">{previewFile.name}</span>
+                <span className="text-ui-sm text-gray-400 flex-shrink-0">{formatSize(previewFile.size)}</span>
               </div>
               <button
                 onClick={() => setPreviewFile(null)}
@@ -1710,9 +1710,9 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
       {showSignaturePad && (
         savingSignature ? (
           <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center">
-            <div className="bg-white rounded-lg px-6 py-4 flex items-center gap-3">
-              <Loader className="w-5 h-5 animate-spin text-blue-600" />
-              <span className="text-sm text-gray-700">Enregistrement de la signature…</span>
+            <div className="bg-white rounded-ui-sm px-6 py-4 flex items-center gap-3">
+              <Loader className="w-5 h-5 animate-spin text-[rgb(var(--c-info))]" />
+              <span className="text-ui text-gray-700">Enregistrement de la signature…</span>
             </div>
           </div>
         ) : (

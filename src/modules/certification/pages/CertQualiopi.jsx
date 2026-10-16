@@ -132,7 +132,7 @@ export default function CertQualiopi({ settings, canWrite, organization, updateO
         </div>
         <p className="muted text-ui-sm">Majeure : 3 mois pour la lever. Mineure : 6 mois, vérifiée à l'audit suivant. Cinq mineures non levées valent une majeure.</p>
         {nc && (
-          <div className="space-y-2 border border-gray-200 rounded-lg p-3">
+          <div className="space-y-2 border border-gray-200 rounded-ui-sm p-3">
             <div className="grid gap-2 sm:grid-cols-4">
               <label className="block"><span className="label">Audit</span>
                 <select className="select" value={nc.audit_kind} onChange={(e) => setNc({ ...nc, audit_kind: e.target.value })}>{Object.entries(AUDIT_KIND).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>

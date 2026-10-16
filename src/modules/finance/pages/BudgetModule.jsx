@@ -1,3 +1,4 @@
+import { toneStyle } from '../../../ui/StatusBadge'
 import { apiFetch } from '../../../core/api'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -402,13 +403,13 @@ export default function BudgetModule() {
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border p-4 mb-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4 mb-4">
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-xl font-bold text-gray-800"> Budget & Trésorerie</h2>
-          <span className="text-xs text-gray-400">
+          <span className="text-ui-sm text-gray-400">
             {serverKpis?.nb_transactions ?? transactions.length} opérations
             {serverKpis && Number(serverKpis.nb_transactions) > transactions.length && (
-              <span className="ml-1 text-slate-400" title="Des opérations privées ne vous sont pas visibles, mais restent comptées dans les totaux"></span>
+              <span className="ml-1 text-gray-500" title="Des opérations privées ne vous sont pas visibles, mais restent comptées dans les totaux"></span>
             )}
           </span>
         </div>
@@ -435,20 +436,20 @@ export default function BudgetModule() {
         </div>
 
         {stats.soldeCompte < 0 && DECOUVERT_AUTORISE > 0 && Math.abs(stats.soldeCompte) >= DECOUVERT_AUTORISE * 0.8 && (
-          <div className="mt-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2">
+          <div className="mt-2 text-ui-sm bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))] rounded-ui-sm px-3 py-2">
              Découvert à {Math.round(Math.abs(stats.soldeCompte) / DECOUVERT_AUTORISE * 100)}% de l'autorisation
             ({fmt(Math.abs(stats.soldeCompte))} / {fmt(DECOUVERT_AUTORISE)})
           </div>
         )}
 
         {stats.kpiSource === 'local' && (
-          <div className="mt-2 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2">
+          <div className="mt-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))] rounded-ui-sm px-3 py-2">
              Totaux calculés localement - si des opérations privées existent, ces montants peuvent être incomplets.
           </div>
         )}
 
         {canSeePrivate && stats.nbPrivees > 0 && (
-          <div className="mt-2 text-xs bg-slate-50 border border-slate-200 text-slate-600 rounded-lg px-3 py-2">
+          <div className="mt-2 text-ui-sm bg-gray-50 border border-gray-200 text-gray-800 rounded-ui-sm px-3 py-2">
              {stats.nbPrivees} transaction(s) privée(s) - visibles uniquement sur votre compte,
             mais comptées dans les totaux ci-dessus.
           </div>
@@ -457,11 +458,11 @@ export default function BudgetModule() {
 
       {/* Tabs */}
       <nav className="flex gap-1 overflow-x-auto mb-4 pb-1 -mx-1 px-1">{TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap shrink-0 transition
-              ${tab === t.key ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}>
+          <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 py-1.5 rounded-ui-sm text-ui font-medium whitespace-nowrap shrink-0 transition
+              ${tab === t.key ? 'bg-white shadow text-[rgb(var(--c-info))]' : 'text-gray-500 hover:text-gray-700'}`}>
             {t.label}
-            {t.key === 'comptable' && stats.notSent > 0 && <span className="ml-1 bg-blue-500 text-white text-xs rounded-full px-1.5">{stats.notSent}</span>}
-            {t.key === 'categorisation' && stats.unclassified > 0 && <span className="ml-1 bg-amber-500 text-white text-xs rounded-full px-1.5">{stats.unclassified}</span>}
+            {t.key === 'comptable' && stats.notSent > 0 && <span className="ml-1 bg-[rgb(var(--c-info))] text-white text-ui-sm rounded-full px-1.5">{stats.notSent}</span>}
+            {t.key === 'categorisation' && stats.unclassified > 0 && <span className="ml-1 bg-[rgb(var(--c-warning))] text-white text-ui-sm rounded-full px-1.5">{stats.unclassified}</span>}
           </button>
         ))}</nav>
 
@@ -492,7 +493,7 @@ export default function BudgetModule() {
 }
 
 function KPI({ label, value, color = 'blue', sub }) {
-  return <div className={`bg-${color}-50 rounded-lg p-2 border border-${color}-100`}><div className={`text-xs text-${color}-600 font-medium`}>{label}</div><div className={`text-lg font-bold text-${color}-700 truncate`}>{value}</div>{sub && <div className="text-xs text-gray-400">{sub}</div>}</div>
+  return <div className={` rounded-ui-sm p-2 border`} style={toneStyle(color, { border: true })}><div className={`text-ui-sm font-medium`}>{label}</div><div className={`text-lg font-bold truncate`}>{value}</div>{sub && <div className="text-ui-sm text-gray-400">{sub}</div>}</div>
 }
 // ════════════════════════════════════════
 // TRANSACTIONS - avec  invités + badge rapprochement
@@ -512,25 +513,25 @@ function TransactionsTab({ filtered, categories, months, filterMonth, setFilterM
 
   return (
     <div className="space-y-3">
-      <div className="bg-white rounded-xl shadow-sm border p-3">
+      <div className="bg-white rounded-ui shadow-sm border p-3">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+          <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="border rounded-ui-sm px-3 py-2 text-ui">
             <option value="all">Tous les mois</option>
             {months.map(m => <option key={m} value={m}>{ML[m]||m}</option>)}
           </select>
-          <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+          <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="border rounded-ui-sm px-3 py-2 text-ui">
             <option value="all">Toutes catégories</option>
             {categories.map(c => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
           </select>
-          <select value={filterDir} onChange={e => setFilterDir(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+          <select value={filterDir} onChange={e => setFilterDir(e.target.value)} className="border rounded-ui-sm px-3 py-2 text-ui">
             <option value="all">Tout</option><option value="debit">Sorties</option><option value="credit">Entrées</option>
           </select>
-          <input type="text" value={filterSearch} onChange={e => setFilterSearch(e.target.value)} placeholder=" Rechercher..." className="border rounded-lg px-3 py-2 text-sm" />
+          <input type="text" value={filterSearch} onChange={e => setFilterSearch(e.target.value)} placeholder=" Rechercher..." className="border rounded-ui-sm px-3 py-2 text-ui" />
           <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+            <label className="flex items-center gap-1 text-ui-sm text-gray-600 cursor-pointer">
               <input type="checkbox" checked={showPerso} onChange={e => setShowPerso(e.target.checked)} className="rounded" /> Perso
             </label>
-            <select value={filterSpecial} onChange={e => setFilterSpecial(e.target.value)} className="border rounded px-2 py-1 text-xs flex-1">
+            <select value={filterSpecial} onChange={e => setFilterSpecial(e.target.value)} className="border rounded px-2 py-1 text-ui-sm flex-1">
               <option value="">Filtres rapides</option>
               <option value="resto_no_guest"> Restos sans invités</option>
               <option value="credit_no_invoice"> Crédits non rapprochés</option>
@@ -541,61 +542,61 @@ function TransactionsTab({ filtered, categories, months, filterMonth, setFilterM
           </div>
         </div>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-ui shadow-sm border overflow-hidden">
         <div className="max-h-[70vh] overflow-y-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-ui">
             <thead className="bg-gray-50 sticky top-0">
               <tr>
-                <th className="text-left px-3 py-2 text-xs text-gray-500">Date</th>
-                <th className="text-left px-3 py-2 text-xs text-gray-500">Description</th>
-                <th className="text-left px-3 py-2 text-xs text-gray-500">Catégorie</th>
-                <th className="text-right px-3 py-2 text-xs text-gray-500">Débit</th>
-                <th className="text-right px-3 py-2 text-xs text-gray-500">Crédit</th>
-                <th className="text-center px-2 py-2 text-xs text-gray-500">PJ</th>
+                <th className="text-left px-3 py-2 text-ui-sm text-gray-500">Date</th>
+                <th className="text-left px-3 py-2 text-ui-sm text-gray-500">Description</th>
+                <th className="text-left px-3 py-2 text-ui-sm text-gray-500">Catégorie</th>
+                <th className="text-right px-3 py-2 text-ui-sm text-gray-500">Débit</th>
+                <th className="text-right px-3 py-2 text-ui-sm text-gray-500">Crédit</th>
+                <th className="text-center px-2 py-2 text-ui-sm text-gray-500">PJ</th>
                 <th className="px-2 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {displayed.map(tx => (
-                <tr key={tx.id} className={`border-t hover:bg-blue-50/30 ${tx.is_private ? 'bg-slate-100' : (tx.is_personal ? 'bg-purple-50/30' : '')} ${tx.is_manual ? 'border-l-2 border-l-blue-400' : ''}`}>
-                  <td className="px-3 py-1.5 text-gray-500 text-xs whitespace-nowrap">
+                <tr key={tx.id} className={`border-t hover:bg-[rgb(var(--c-info-bg))] ${tx.is_private ? 'bg-gray-100' : (tx.is_personal ? 'bg-gray-50' : '')} ${tx.is_manual ? 'border-l-2 border-l-blue-400' : ''}`}>
+                  <td className="px-3 py-1.5 text-gray-500 text-ui-sm whitespace-nowrap">
                     {tx.date ? new Date(tx.date).toLocaleDateString('fr-FR') : '-'}
-                    {tx.is_manual && <span className="ml-1 text-blue-500"></span>}
-                    {tx.is_personal && <span className="ml-1 text-purple-500"></span>}
-                    {tx.sent_to_comptable && <span className="ml-1 text-green-500" title="Envoyé au comptable"></span>}
-                    {tx.linked_invoice_id && <span className="ml-1 text-blue-500" title="Rapproché avec facture"></span>}
-                    {tx.is_manual && tx.reconciled_at && <span className="ml-1 text-violet-500" title={`Rapproché banque le ${new Date(tx.reconciled_at).toLocaleDateString('fr-FR')}`}></span>}
-                    {tx.is_private && <span className="ml-1 text-slate-600" title="Privée - invisible pour les autres comptes, mais comptée dans les totaux"></span>}
+                    {tx.is_manual && <span className="ml-1 text-[rgb(var(--c-info))]"></span>}
+                    {tx.is_personal && <span className="ml-1 text-gray-800"></span>}
+                    {tx.sent_to_comptable && <span className="ml-1 text-[rgb(var(--c-success))]" title="Envoyé au comptable"></span>}
+                    {tx.linked_invoice_id && <span className="ml-1 text-[rgb(var(--c-info))]" title="Rapproché avec facture"></span>}
+                    {tx.is_manual && tx.reconciled_at && <span className="ml-1 text-gray-800" title={`Rapproché banque le ${new Date(tx.reconciled_at).toLocaleDateString('fr-FR')}`}></span>}
+                    {tx.is_private && <span className="ml-1 text-gray-800" title="Privée - invisible pour les autres comptes, mais comptée dans les totaux"></span>}
                   </td>
-                  <td className="px-3 py-1.5 max-w-xs"><div className="truncate text-gray-800 text-xs" title={tx.description}>{tx.description}</div></td>
+                  <td className="px-3 py-1.5 max-w-xs"><div className="truncate text-gray-800 text-ui-sm" title={tx.description}>{tx.description}</div></td>
                   <td className="px-3 py-1.5">
                     {editingTx === tx.id ? (
-                      <select autoFocus onChange={e => { if (e.target.value) changeCategory(tx.id, e.target.value) }} onBlur={() => setEditingTx(null)} className="border rounded px-1 py-0.5 text-xs w-full" defaultValue="">
+                      <select autoFocus onChange={e => { if (e.target.value) changeCategory(tx.id, e.target.value) }} onBlur={() => setEditingTx(null)} className="border rounded px-1 py-0.5 text-ui-sm w-full" defaultValue="">
                         <option value="">Choisir...</option>
                         {categories.map(c => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
                       </select>
                     ) : (
-                      <button onClick={() => setEditingTx(tx.id)} className={`text-xs px-2 py-0.5 rounded-full hover:ring-2 hover:ring-blue-300 ${tx.category_name === 'Autre / Non classé' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                      <button onClick={() => setEditingTx(tx.id)} className={`text-ui-sm px-2 py-0.5 rounded-full hover:ring-2 hover:ring-[rgb(var(--c-info)/0.3)] ${tx.category_name === 'Autre / Non classé' ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-gray-100 text-gray-600'}`}>
                         {categories.find(c => c.name === tx.category_name)?.icon || ''} {tx.category_name || 'Non classé'}
                       </button>
                     )}
                   </td>
-                  <td className="px-3 py-1.5 text-right font-mono text-xs text-red-600">{tx.debit > 0 ? fmt(tx.debit) : ''}</td>
-                  <td className="px-3 py-1.5 text-right font-mono text-xs text-green-600">{tx.credit > 0 ? fmt(tx.credit) : ''}</td>
-                  <td className="px-2 py-1.5 text-center text-xs">{receipts[tx.id]?.length > 0 && <span title={`${receipts[tx.id].length} fichier(s)`}>{receipts[tx.id].length}</span>}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-ui-sm text-[rgb(var(--c-danger))]">{tx.debit > 0 ? fmt(tx.debit) : ''}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-ui-sm text-[rgb(var(--c-success))]">{tx.credit > 0 ? fmt(tx.credit) : ''}</td>
+                  <td className="px-2 py-1.5 text-center text-ui-sm">{receipts[tx.id]?.length > 0 && <span title={`${receipts[tx.id].length} fichier(s)`}>{receipts[tx.id].length}</span>}</td>
                   <td className="px-2 py-1.5">
                     <div className="flex gap-0.5">
                       {tx.category_name === 'Restauration pro' && tx.debit > 0 && (
-                        <button onClick={() => onMealGuest && onMealGuest(tx.id)} className="text-amber-400 hover:text-amber-600 text-xs" title="Registre invités">Invités</button>
+                        <button onClick={() => onMealGuest && onMealGuest(tx.id)} className="text-[rgb(var(--c-warning))] hover:text-[rgb(var(--c-warning))] text-ui-sm" title="Registre invités">Invités</button>
                       )}
                       {canSeePrivate && (
                         <button
                           onClick={() => togglePrivate(tx)}
-                          className={`text-xs ${tx.is_private ? 'text-slate-700' : 'text-gray-300 hover:text-slate-600'}`}
+                          className={`text-ui-sm ${tx.is_private ? 'text-gray-800' : 'text-gray-300 hover:text-gray-800'}`}
                           title={tx.is_private ? 'Rendre visible par tous' : 'Masquer pour les autres comptes'}
                         >{tx.is_private ? 'Privé' : 'Masquer'}</button>
                       )}
-                      {tx.is_manual && <button onClick={() => deleteTx(tx.id)} className="text-red-300 hover:text-red-600 text-xs">Supprimer</button>}
+                      {tx.is_manual && <button onClick={() => deleteTx(tx.id)} className="text-[rgb(var(--c-danger)/0.6)] hover:text-[rgb(var(--c-danger))] text-ui-sm">Supprimer</button>}
                     </div>
                   </td>
                 </tr>
@@ -1058,53 +1059,53 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
 
   return (
     <div className="grid md:grid-cols-2 gap-4">
-      <div className="bg-white rounded-xl shadow-sm border p-4 space-y-3">
+      <div className="bg-white rounded-ui shadow-sm border p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-gray-700">{editingTxId ? ' Modifier l\'opération' : ' Nouvelle opération'}</h3>
           {editingTxId && (
             <button onClick={() => {
               setEditingTxId(null)
               setForm({ date: new Date().toISOString().split('T')[0], description: '', amount: '', type: 'debit', category_id: '', payer: 'entreprise', notes: '', note_comptable: '' })
-            }} className="text-xs text-gray-500 hover:text-red-500"> Annuler</button>
+            }} className="text-ui-sm text-gray-500 hover:text-[rgb(var(--c-danger))]"> Annuler</button>
           )}
         </div>
 
         {/* Upload zone */}
         <div>
-          <label className="text-xs text-gray-500 font-medium"> Facture(s) / Justificatif(s)</label>
-          <div className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer ${dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+          <label className="text-ui-sm text-gray-500 font-medium"> Facture(s) / Justificatif(s)</label>
+          <div className={`mt-1 border-2 border-dashed rounded-ui-sm p-4 text-center transition-colors cursor-pointer ${dragOver ? 'border-[rgb(var(--c-info)/0.3)] bg-[rgb(var(--c-info-bg))]' : 'border-gray-300 hover:border-[rgb(var(--c-info)/0.3)]'}`}
             onClick={() => document.getElementById('file-input').click()}
             onDrop={handleDrop}
             onDragOver={e => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}>
             <input id="file-input" type="file" multiple accept="image/*,.pdf" onChange={handleFiles} className="hidden" />
-            <p className="text-sm text-gray-500">{dragOver ? ' Lâchez pour ajouter' : ' Cliquez ou glissez vos fichiers ici'}</p>
-            <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG - plusieurs fichiers possibles</p>
+            <p className="text-ui text-gray-500">{dragOver ? ' Lâchez pour ajouter' : ' Cliquez ou glissez vos fichiers ici'}</p>
+            <p className="text-ui-sm text-gray-400 mt-1">PDF, JPG, PNG - plusieurs fichiers possibles</p>
           </div>
           {previews.length > 0 && (
             <div className="flex gap-2 mt-2 flex-wrap">
               {previews.map((p, i) => (
                 <div key={i} className="relative group">
-                  {p.url ? <img src={p.url} alt={p.name} className="w-16 h-16 object-cover rounded border" /> : <div className="w-16 h-16 bg-gray-100 rounded border flex items-center justify-center text-xs"> PDF</div>}
-                  <button onClick={() => removeFile(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs leading-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100">×</button>
+                  {p.url ? <img src={p.url} alt={p.name} className="w-16 h-16 object-cover rounded border" /> : <div className="w-16 h-16 bg-gray-100 rounded border flex items-center justify-center text-ui-sm"> PDF</div>}
+                  <button onClick={() => removeFile(i)} className="absolute -top-1 -right-1 bg-[rgb(var(--c-danger))] text-white rounded-full w-4 h-4 text-ui-sm leading-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100">×</button>
                 </div>
               ))}
             </div>
           )}
           {files.length > 0 && !analyzing && aiResults.length === 0 && (
             <button onClick={analyzeWithAI} disabled={analyzing}
-              className="mt-2 w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
+              className="mt-2 w-full bg-gray-700 text-white py-2 rounded-ui-sm text-ui font-medium hover:bg-gray-700 disabled:opacity-50">
               {files.length > 1 ? ` Analyser ${Math.min(files.length, 5)} fichier${Math.min(files.length, 5) > 1 ? 's' : ''} avec IA${files.length > 5 ? ` (sur ${files.length})` : ''}` : ' Analyser avec IA'}
             </button>
           )}
           {analyzing && (
             <div className="mt-2 space-y-2">
-              <div className="flex items-center gap-2 text-sm text-purple-700 font-medium">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-600 border-t-transparent"></div>
+              <div className="flex items-center gap-2 text-ui text-gray-800 font-medium">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent"></div>
                 Analyse {aiProgress.current}/{aiProgress.total}...
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-purple-600 h-2 rounded-full transition-all duration-300" style={{ width: `${(aiProgress.current / aiProgress.total) * 100}%` }}></div>
+                <div className="bg-gray-700 h-2 rounded-full transition-all duration-300" style={{ width: `${(aiProgress.current / aiProgress.total) * 100}%` }}></div>
               </div>
             </div>
           )}
@@ -1112,13 +1113,13 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
 
         {/* Résultat IA - mode multi-fichiers */}
         {aiResults.length > 1 && !analyzing && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs space-y-2">
+          <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-3 text-ui-sm space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-purple-800"> Fichier {aiCurrentIdx + 1}/{aiResults.length}</span>
-              <span className="text-purple-600 text-[10px]">{aiResults[aiCurrentIdx]?._fileName}</span>
+              <span className="font-bold text-gray-800"> Fichier {aiCurrentIdx + 1}/{aiResults.length}</span>
+              <span className="text-gray-800 text-ui-sm">{aiResults[aiCurrentIdx]?._fileName}</span>
             </div>
             {aiResults[aiCurrentIdx]?._error ? (
-              <div className="text-red-600"> Erreur d'analyse pour ce fichier</div>
+              <div className="text-[rgb(var(--c-danger))]"> Erreur d'analyse pour ce fichier</div>
             ) : (
               <>
                 <div>Fournisseur : <b>{aiResults[aiCurrentIdx]?.fournisseur}</b></div>
@@ -1129,22 +1130,22 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
             )}
             {/* Sélecteur Payé par - bien visible dans le carousel */}
             <div>
-              <label className="text-[10px] text-gray-500 font-medium">Payé par :</label>
+              <label className="text-ui-sm text-gray-500 font-medium">Payé par :</label>
               <div className="flex gap-1 mt-1">
                 {payerOptions(associates).map(p => (
                   <button key={p.v} onClick={() => setForm(f => ({ ...f, payer: p.v }))}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${samePayer(form.payer, p.v, associates) ? (p.v === 'entreprise' ? 'bg-blue-500 text-white border-blue-600 ring-2 ring-blue-300' : 'bg-purple-500 text-white border-purple-600 ring-2 ring-purple-300') : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{p.l}</button>
+                    className={`flex-1 py-1.5 rounded-ui-sm text-ui-sm font-medium border transition-all ${samePayer(form.payer, p.v, associates) ? (p.v === 'entreprise' ? 'bg-[rgb(var(--c-info))] text-white border-[rgb(var(--c-info)/0.3)] ring-2 ring-[rgb(var(--c-info)/0.3)]' : 'bg-gray-700 text-white border-gray-400 ring-2 ring-gray-200') : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{p.l}</button>
                 ))}
               </div>
-              {form.payer !== 'entreprise' && <p className="text-[10px] text-purple-600 mt-0.5"> Sera comptabilisé en dette gérant</p>}
+              {form.payer !== 'entreprise' && <p className="text-ui-sm text-gray-800 mt-0.5"> Sera comptabilisé en dette gérant</p>}
             </div>
             <div className="flex gap-2 pt-1">
               <button onClick={validateAndNext} disabled={saving || !form.description || !form.amount}
-                className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50">
+                className="flex-1 bg-[rgb(var(--c-success))] text-white py-2 rounded-ui-sm text-ui-sm font-medium hover:bg-[rgb(var(--c-success))] disabled:opacity-50">
                 {saving ? '...' : ` Valider & ${aiCurrentIdx + 1 < aiResults.length ? 'Suivant' : 'Terminer'}`}
               </button>
               <button onClick={skipResult}
-                className="px-4 bg-gray-200 text-gray-700 py-2 rounded-lg text-xs font-medium hover:bg-gray-300">
+                className="px-4 bg-gray-200 text-gray-700 py-2 rounded-ui-sm text-ui-sm font-medium hover:bg-gray-300">
                 Passer ▶
               </button>
             </div>
@@ -1153,55 +1154,55 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
 
         {/* Résultat IA - mode fichier unique */}
         {aiResult && aiResults.length <= 1 && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs space-y-1">
-            <div className="font-bold text-purple-800"> Résultat IA :</div>
+          <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-3 text-ui-sm space-y-1">
+            <div className="font-bold text-gray-800"> Résultat IA :</div>
             <div>Fournisseur : <b>{aiResult.fournisseur}</b></div>
             <div>Montant : <b>{aiResult.montant} €</b></div>
             <div>Catégorie : <b>{aiResult.categorie_suggestion}</b></div>
-            <div>Type : <b className={aiResult.type_depense === 'entreprise' ? 'text-blue-600' : 'text-purple-600'}>{aiResult.type_depense}</b></div>
+            <div>Type : <b className={aiResult.type_depense === 'entreprise' ? 'text-[rgb(var(--c-info))]' : 'text-gray-800'}>{aiResult.type_depense}</b></div>
             <div className="text-gray-600 italic">{aiResult.explication}</div>
           </div>
         )}
 
         {/* Direction */}
         <div className="flex gap-2">
-          <button onClick={() => setForm(f => ({ ...f, type: 'debit' }))} className={`flex-1 py-2 rounded-lg text-sm font-medium ${form.type === 'debit' ? 'bg-red-500 text-white' : 'bg-gray-100'}`}> Dépense</button>
-          <button onClick={() => setForm(f => ({ ...f, type: 'credit' }))} className={`flex-1 py-2 rounded-lg text-sm font-medium ${form.type === 'credit' ? 'bg-green-500 text-white' : 'bg-gray-100'}`}> Entrée</button>
+          <button onClick={() => setForm(f => ({ ...f, type: 'debit' }))} className={`flex-1 py-2 rounded-ui-sm text-ui font-medium ${form.type === 'debit' ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`}> Dépense</button>
+          <button onClick={() => setForm(f => ({ ...f, type: 'credit' }))} className={`flex-1 py-2 rounded-ui-sm text-ui font-medium ${form.type === 'credit' ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`}> Entrée</button>
         </div>
-        <div><label className="text-xs text-gray-500">Date</label><input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-        <div><label className="text-xs text-gray-500">Description</label><input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Fournisseur / description" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-        <div><label className="text-xs text-gray-500">Montant (€)</label><input type="text" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0,00" className="w-full border rounded-lg px-3 py-2 text-sm mt-1 font-mono text-lg" /></div>
-        <div><label className="text-xs text-gray-500">Catégorie</label>
-          <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+        <div><label className="text-ui-sm text-gray-500">Date</label><input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+        <div><label className="text-ui-sm text-gray-500">Description</label><input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Fournisseur / description" className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+        <div><label className="text-ui-sm text-gray-500">Montant (€)</label><input type="text" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0,00" className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1 font-mono text-lg" /></div>
+        <div><label className="text-ui-sm text-gray-500">Catégorie</label>
+          <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1">
             <option value="">Auto / Non classé</option>
             {categories.filter(c => form.type === 'debit' ? c.direction !== 'recette' : c.direction !== 'depense').map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-500">Payé par</label>
+          <label className="text-ui-sm text-gray-500">Payé par</label>
           <div className="flex gap-2 mt-1">
             {payerOptions(associates).map(p => (
               <button key={p.v} onClick={() => setForm(f => ({ ...f, payer: p.v }))}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${samePayer(form.payer, p.v, associates) ? (p.v === 'entreprise' ? 'bg-blue-500 text-white border-blue-600' : 'bg-purple-500 text-white border-purple-600') : 'bg-white text-gray-600'}`}>{p.l}</button>
+                className={`flex-1 py-1.5 rounded-ui-sm text-ui-sm font-medium border ${samePayer(form.payer, p.v, associates) ? (p.v === 'entreprise' ? 'bg-[rgb(var(--c-info))] text-white border-[rgb(var(--c-info)/0.3)]' : 'bg-gray-700 text-white border-gray-400') : 'bg-white text-gray-600'}`}>{p.l}</button>
             ))}
           </div>
-          {form.payer !== 'entreprise' && <p className="text-xs text-purple-600 mt-1"> Hors budget entreprise → dette gérant</p>}
+          {form.payer !== 'entreprise' && <p className="text-ui-sm text-gray-800 mt-1"> Hors budget entreprise → dette gérant</p>}
         </div>
 
         {/* ══ SECTION REPAS / INVITÉS ══ */}
         {isRestaurant && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+          <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-amber-800"> Registre repas professionnel</span>
+              <span className="text-ui font-medium text-[rgb(var(--c-warning))]"> Registre repas professionnel</span>
             </div>
 
             {/* Repas pour qui */}
             {associates.length > 0 && (
               <div>
-                <label className="text-xs text-gray-600">Repas pour</label>
+                <label className="text-ui-sm text-gray-600">Repas pour</label>
                 <div className="flex gap-2 mt-1">
                   {associates.map(a => (
-                    <button key={a.slug} onClick={() => setMealFor(a.slug)} className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${mealFor === a.slug ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}>{a.firstName}</button>
+                    <button key={a.slug} onClick={() => setMealFor(a.slug)} className={`flex-1 py-1.5 rounded-ui-sm text-ui-sm font-medium border ${mealFor === a.slug ? 'bg-[rgb(var(--c-info))] text-white' : 'bg-white text-gray-600'}`}>{a.firstName}</button>
                   ))}
                 </div>
               </div>
@@ -1209,26 +1210,26 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
 
             {/* Nombre de convives */}
             <div>
-              <label className="text-xs text-gray-600">Nombre de convives</label>
-              <input type="number" min="1" max="20" value={nbConvives} onChange={e => setNbConvives(parseInt(e.target.value) || 1)} className="w-full border rounded-lg px-3 py-1.5 text-sm mt-1" />
+              <label className="text-ui-sm text-gray-600">Nombre de convives</label>
+              <input type="number" min="1" max="20" value={nbConvives} onChange={e => setNbConvives(parseInt(e.target.value) || 1)} className="w-full border rounded-ui-sm px-3 py-1.5 text-ui mt-1" />
             </div>
 
             {/* Invités */}
             <div>
               <div className="flex items-center justify-between">
-                <label className="text-xs text-gray-600">Invités ({guests.length})</label>
-                <button onClick={addGuest} className="text-xs text-blue-600 hover:text-blue-800">+ Ajouter un invité</button>
+                <label className="text-ui-sm text-gray-600">Invités ({guests.length})</label>
+                <button onClick={addGuest} className="text-ui-sm text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))]">+ Ajouter un invité</button>
               </div>
               {guests.map((g, idx) => (
                 <div key={idx} className="flex gap-1.5 mt-1.5 items-center">
                   <input
                     type="text" value={g.name} onChange={e => updateGuest(idx, 'name', e.target.value)}
-                    placeholder="Nom Prénom" className="flex-1 border rounded px-2 py-1.5 text-xs"
+                    placeholder="Nom Prénom" className="flex-1 border rounded px-2 py-1.5 text-ui-sm"
                   />
                   <div className="relative flex-1">
                     <input
                       type="text" value={g.company} onChange={e => { updateGuest(idx, 'company', e.target.value); updateGuest(idx, 'client_id', '') }}
-                      placeholder="Entreprise" className="w-full border rounded px-2 py-1.5 text-xs"
+                      placeholder="Entreprise" className="w-full border rounded px-2 py-1.5 text-ui-sm"
                       list={`guest-clients-${idx}`}
                     />
                     <datalist id={`guest-clients-${idx}`}>
@@ -1240,53 +1241,53 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
                   {g.company && !clients.find(c => c.name.toUpperCase() === g.company.toUpperCase()) && (
                     <button
                       onClick={() => { setProspectInitial({ name: g.company, contact_name: g.name }); setShowProspectModal(true) }}
-                      className="text-xs text-emerald-600 hover:text-emerald-800 whitespace-nowrap" title="Créer comme prospect"
+                      className="text-ui-sm text-[rgb(var(--c-success))] hover:text-[rgb(var(--c-success))] whitespace-nowrap" title="Créer comme prospect"
                     >+</button>
                   )}
-                  <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600 text-xs">Retirer</button>
+                  <button onClick={() => removeGuest(idx)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] text-ui-sm">Retirer</button>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <div><label className="text-xs text-gray-500">Note comptable</label><input type="text" value={form.note_comptable} onChange={e => setForm(f => ({ ...f, note_comptable: e.target.value }))} placeholder="Explication pour le comptable..." className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-        <div><label className="text-xs text-gray-500">Notes internes</label><input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="N° facture, détail..." className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+        <div><label className="text-ui-sm text-gray-500">Note comptable</label><input type="text" value={form.note_comptable} onChange={e => setForm(f => ({ ...f, note_comptable: e.target.value }))} placeholder="Explication pour le comptable..." className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+        <div><label className="text-ui-sm text-gray-500">Notes internes</label><input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="N° facture, détail..." className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
 
-        <button onClick={handleSave} disabled={saving} className={`w-full py-3 rounded-lg font-medium disabled:opacity-50 ${editingTxId ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+        <button onClick={handleSave} disabled={saving} className={`w-full py-3 rounded-ui-sm font-medium disabled:opacity-50 ${editingTxId ? 'bg-[rgb(var(--c-warning))] text-white hover:bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-info))] text-white hover:bg-[rgb(var(--c-info))]'}`}>
           {saving ? '...' : editingTxId ? ' Modifier' : ' Enregistrer'}
         </button>
       </div>
 
       {/* Colonne droite */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <h3 className="font-bold text-gray-700 mb-3"> Dernières saisies</h3>
         {recent.length === 0 ? <div className="text-center py-8 text-gray-400">Aucune saisie</div> : (
           <div className="space-y-2">{recent.map(tx => (
-            <div key={tx.id} className={`p-2 rounded-lg border ${tx.is_personal ? 'bg-purple-50 border-purple-200' : 'bg-gray-50'}`}>
+            <div key={tx.id} className={`p-2 rounded-ui-sm border ${tx.is_personal ? 'bg-gray-50 border-gray-200' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{tx.description}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-ui font-medium truncate">{tx.description}</div>
+                  <div className="text-ui-sm text-gray-500">
                     {new Date(tx.date).toLocaleDateString('fr-FR')} • {tx.category_name}
-                    {tx.is_personal && <span className="ml-1 text-purple-600">• {payerLabel(tx.payer, associates)}</span>}
-                    {!tx.is_personal && <span className="ml-1 text-blue-600">• Ent.</span>}
+                    {tx.is_personal && <span className="ml-1 text-gray-800">• {payerLabel(tx.payer, associates)}</span>}
+                    {!tx.is_personal && <span className="ml-1 text-[rgb(var(--c-info))]">• Ent.</span>}
                   </div>
                 </div>
-                <div className={`font-mono text-sm font-bold whitespace-nowrap ${tx.debit > 0 ? 'text-red-600' : 'text-green-600'}`}>{tx.debit > 0 ? '-' : '+'}{fmt(tx.debit > 0 ? tx.debit : tx.credit)}</div>
+                <div className={`font-mono text-ui font-bold whitespace-nowrap ${tx.debit > 0 ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-success))]'}`}>{tx.debit > 0 ? '-' : '+'}{fmt(tx.debit > 0 ? tx.debit : tx.credit)}</div>
               </div>
               {/* Actions rapides */}
               <div className="flex items-center gap-1 mt-1.5 pt-1.5 border-t border-gray-200">
                 <div className="flex gap-0.5 flex-1">
                   {payerOptions(associates).map(p => ({ ...p, l: p.v === PAYER_COMPANY ? 'Ent.' : p.l, icon: '' })).map(p => (
                     <button key={p.v} onClick={() => changePayer(tx.id, p.v)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${samePayer(tx.payer, p.v, associates) ? (p.v === 'entreprise' ? 'bg-blue-500 text-white' : 'bg-purple-500 text-white') : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                      className={`px-2 py-0.5 rounded text-ui-sm font-medium transition-all ${samePayer(tx.payer, p.v, associates) ? (p.v === 'entreprise' ? 'bg-[rgb(var(--c-info))] text-white' : 'bg-gray-700 text-white') : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                       {p.icon} {p.l}
                     </button>
                   ))}
                 </div>
-                <button onClick={() => editTxInForm(tx)} className="text-blue-500 hover:text-blue-700 text-xs px-1" title="Modifier">Modifier</button>
-                <button onClick={() => deleteTxLocal(tx.id)} className="text-red-400 hover:text-red-600 text-xs px-1" title="Supprimer">Supprimer</button>
+                <button onClick={() => editTxInForm(tx)} className="text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))] text-ui-sm px-1" title="Modifier">Modifier</button>
+                <button onClick={() => deleteTxLocal(tx.id)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] text-ui-sm px-1" title="Supprimer">Supprimer</button>
               </div>
             </div>
           ))}</div>
@@ -1539,65 +1540,65 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
   return (
     <div className="space-y-4">
       {/* ── Dépôt ── */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <h3 className="font-bold text-gray-700 mb-1"> Relevés bancaires</h3>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-ui-sm text-gray-500 mb-3">
           Déposez le PDF du relevé {bankName(organization)} à chaque début de mois. Les soldes sont lus automatiquement
           puis comparés au solde calculé par l'application : tout écart signale une ligne manquante ou un doublon.
         </p>
         <input ref={fileRef} type="file" accept="application/pdf" onChange={handleFile} disabled={uploading || saving}
-          className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-        {uploading && <div className="mt-2 text-sm text-gray-500"> Lecture du relevé...</div>}
+          className="block w-full text-ui text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-ui-sm file:border-0 file:bg-[rgb(var(--c-info-bg))] file:text-[rgb(var(--c-info))] hover:file:bg-[rgb(var(--c-info-bg))]" />
+        {uploading && <div className="mt-2 text-ui text-gray-500"> Lecture du relevé...</div>}
       </div>
 
       {/* ── Validation avant enregistrement ── */}
       {draft && (
-        <div className={`bg-white rounded-xl shadow-sm border-2 p-4 ${draft._arithmetic_ok === false || manual ? 'border-amber-300' : 'border-green-300'}`}>
+        <div className={`bg-white rounded-ui shadow-sm border-2 p-4 ${draft._arithmetic_ok === false || manual ? 'border-[rgb(var(--c-warning)/0.3)]' : 'border-[rgb(var(--c-success)/0.3)]'}`}>
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-bold text-gray-700">
               {manual ? ' Saisie manuelle' : (draft._arithmetic_ok ? ' Relevé vérifié' : ' Contrôle en échec')}
             </h4>
-            <button onClick={() => { setDraft(null); setDraftFile(null); setManual(false) }} className="text-xs text-gray-400 hover:text-gray-600">Annuler</button>
+            <button onClick={() => { setDraft(null); setDraftFile(null); setManual(false) }} className="text-ui-sm text-gray-400 hover:text-gray-600">Annuler</button>
           </div>
 
           {draft._detail && (
-            <div className="mb-3 text-xs bg-gray-50 border rounded-lg p-3 font-mono space-y-0.5">
+            <div className="mb-3 text-ui-sm bg-gray-50 border rounded-ui-sm p-3 font-mono space-y-0.5">
               <div>Ancien solde : {fmt(draft._detail.opening)}</div>
               <div>− débits : {fmt(draft._detail.debits)}</div>
               <div>+ crédits : {fmt(draft._detail.credits)}</div>
               <div className="border-t pt-0.5 mt-0.5">= attendu : {fmt(draft._detail.expected_closing)}</div>
               <div>déclaré : {fmt(draft._detail.declared_closing)}</div>
-              <div className={draft._arithmetic_ok ? 'text-green-600' : 'text-red-600'}>
+              <div className={draft._arithmetic_ok ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}>
                 écart : {fmt(draft._delta)} {draft._arithmetic_ok ? '' : ''}
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div><label className="text-xs text-gray-500">N° relevé</label>
-              <input type="number" value={draft.statement_number ?? ''} onChange={e => setD('statement_number', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-            <div><label className="text-xs text-gray-500">Année</label>
-              <input type="number" value={draft.statement_year ?? ''} onChange={e => setD('statement_year', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-            <div><label className="text-xs text-gray-500">Début de période</label>
-              <input type="date" value={draft.period_start || ''} onChange={e => setD('period_start', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-            <div><label className="text-xs text-gray-500">Arrêté au *</label>
-              <input type="date" value={draft.period_end || ''} onChange={e => setD('period_end', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-            <div><label className="text-xs text-gray-500">Ancien solde *</label>
-              <input type="number" step="0.01" value={draft.opening_balance ?? ''} onChange={e => setD('opening_balance', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-            <div><label className="text-xs text-gray-500">Nouveau solde *</label>
-              <input type="number" step="0.01" value={draft.closing_balance ?? ''} onChange={e => setD('closing_balance', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-            <div><label className="text-xs text-gray-500">Total débits</label>
-              <input type="number" step="0.01" value={draft.total_debits ?? ''} onChange={e => setD('total_debits', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-            <div><label className="text-xs text-gray-500">Total crédits</label>
-              <input type="number" step="0.01" value={draft.total_credits ?? ''} onChange={e => setD('total_credits', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
+            <div><label className="text-ui-sm text-gray-500">N° relevé</label>
+              <input type="number" value={draft.statement_number ?? ''} onChange={e => setD('statement_number', e.target.value)} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+            <div><label className="text-ui-sm text-gray-500">Année</label>
+              <input type="number" value={draft.statement_year ?? ''} onChange={e => setD('statement_year', e.target.value)} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+            <div><label className="text-ui-sm text-gray-500">Début de période</label>
+              <input type="date" value={draft.period_start || ''} onChange={e => setD('period_start', e.target.value)} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+            <div><label className="text-ui-sm text-gray-500">Arrêté au *</label>
+              <input type="date" value={draft.period_end || ''} onChange={e => setD('period_end', e.target.value)} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+            <div><label className="text-ui-sm text-gray-500">Ancien solde *</label>
+              <input type="number" step="0.01" value={draft.opening_balance ?? ''} onChange={e => setD('opening_balance', e.target.value)} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+            <div><label className="text-ui-sm text-gray-500">Nouveau solde *</label>
+              <input type="number" step="0.01" value={draft.closing_balance ?? ''} onChange={e => setD('closing_balance', e.target.value)} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+            <div><label className="text-ui-sm text-gray-500">Total débits</label>
+              <input type="number" step="0.01" value={draft.total_debits ?? ''} onChange={e => setD('total_debits', e.target.value)} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+            <div><label className="text-ui-sm text-gray-500">Total crédits</label>
+              <input type="number" step="0.01" value={draft.total_credits ?? ''} onChange={e => setD('total_credits', e.target.value)} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
           </div>
 
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-ui-sm text-gray-400 mt-2">
             Rappel : un solde débiteur (à découvert) doit être saisi en négatif.
           </p>
 
           {draft.period_end && (
-            <div className="mt-3 text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+            <div className="mt-3 text-ui-sm bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm px-3 py-2">
               Solde calculé au {fmtDateFR(draft.period_end)} : <strong>{fmt(campusBalanceAt(draft.period_end))}</strong>
               {Number.isFinite(parseFloat(draft.closing_balance)) && (
                 <> - écart avec le relevé : <strong>{fmt(Math.round((campusBalanceAt(draft.period_end) - parseFloat(draft.closing_balance)) * 100) / 100)}</strong></>
@@ -1606,31 +1607,31 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
           )}
 
           <button onClick={saveDraft} disabled={saving}
-            className="mt-3 w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50">
+            className="mt-3 w-full bg-[rgb(var(--c-success))] text-white py-2.5 rounded-ui-sm font-medium hover:bg-[rgb(var(--c-success))] disabled:opacity-50">
             {saving ? ' Enregistrement...' : ' Enregistrer le relevé'}
           </button>
         </div>
       )}
 
       {/* ── Historique ── */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-ui shadow-sm border overflow-hidden">
         <div className="px-4 py-3 border-b">
-          <h4 className="font-bold text-gray-700 text-sm">Historique ({statements.length})</h4>
+          <h4 className="font-bold text-gray-700 text-ui">Historique ({statements.length})</h4>
         </div>
         {statements.length === 0 ? (
-          <div className="text-center py-10 text-gray-400 text-sm">Aucun relevé déposé</div>
+          <div className="text-center py-10 text-gray-400 text-ui">Aucun relevé déposé</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-ui">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-left px-3 py-2 text-xs text-gray-500">Arrêté au</th>
-                  <th className="text-left px-3 py-2 text-xs text-gray-500">N°</th>
-                  <th className="text-right px-3 py-2 text-xs text-gray-500">Ancien solde</th>
-                  <th className="text-right px-3 py-2 text-xs text-gray-500">Nouveau solde</th>
-                  <th className="text-right px-3 py-2 text-xs text-gray-500">Solde calculé</th>
-                  <th className="text-center px-3 py-2 text-xs text-gray-500">Écart</th>
-                  <th className="text-center px-3 py-2 text-xs text-gray-500">Comptable</th>
+                  <th className="text-left px-3 py-2 text-ui-sm text-gray-500">Arrêté au</th>
+                  <th className="text-left px-3 py-2 text-ui-sm text-gray-500">N°</th>
+                  <th className="text-right px-3 py-2 text-ui-sm text-gray-500">Ancien solde</th>
+                  <th className="text-right px-3 py-2 text-ui-sm text-gray-500">Nouveau solde</th>
+                  <th className="text-right px-3 py-2 text-ui-sm text-gray-500">Solde calculé</th>
+                  <th className="text-center px-3 py-2 text-ui-sm text-gray-500">Écart</th>
+                  <th className="text-center px-3 py-2 text-ui-sm text-gray-500">Comptable</th>
                   <th className="px-2 py-2"></th>
                 </tr>
               </thead>
@@ -1640,27 +1641,27 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
                   const delta = campusNow === null ? null : Math.round((campusNow - st.closing_balance) * 100) / 100
                   const aligned = delta !== null && Math.abs(delta) < 0.01
                   return (
-                    <tr key={st.id} className="border-t hover:bg-blue-50/30">
+                    <tr key={st.id} className="border-t hover:bg-[rgb(var(--c-info-bg))]">
                       <td className="px-3 py-2 whitespace-nowrap">{fmtDateFR(st.period_end)}</td>
-                      <td className="px-3 py-2 text-gray-500 text-xs">{st.statement_number ? `${st.statement_number}/${st.statement_year}` : '-'}</td>
-                      <td className="px-3 py-2 text-right font-mono text-xs">{fmt(st.opening_balance)}</td>
-                      <td className={`px-3 py-2 text-right font-mono text-xs font-bold ${st.closing_balance < 0 ? 'text-red-600' : 'text-green-700'}`}>{fmt(st.closing_balance)}</td>
-                      <td className="px-3 py-2 text-right font-mono text-xs text-gray-600">{fmt(campusNow)}</td>
-                      <td className="px-3 py-2 text-center text-xs">
+                      <td className="px-3 py-2 text-gray-500 text-ui-sm">{st.statement_number ? `${st.statement_number}/${st.statement_year}` : '-'}</td>
+                      <td className="px-3 py-2 text-right font-mono text-ui-sm">{fmt(st.opening_balance)}</td>
+                      <td className={`px-3 py-2 text-right font-mono text-ui-sm font-bold ${st.closing_balance < 0 ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-success))]'}`}>{fmt(st.closing_balance)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-ui-sm text-gray-600">{fmt(campusNow)}</td>
+                      <td className="px-3 py-2 text-center text-ui-sm">
                         {aligned
-                          ? <span className="text-green-600" title="Le solde calculé correspond au relevé"> 0,00 €</span>
-                          : <span className="text-red-600 font-bold" title="Ligne manquante ou doublon dans les opérations importées">{fmt(delta)}</span>}
-                        {!st.arithmetic_ok && <span className="ml-1 text-amber-500" title="Le relevé lui-même ne se vérifie pas"></span>}
+                          ? <span className="text-[rgb(var(--c-success))]" title="Le solde calculé correspond au relevé"> 0,00 €</span>
+                          : <span className="text-[rgb(var(--c-danger))] font-bold" title="Ligne manquante ou doublon dans les opérations importées">{fmt(delta)}</span>}
+                        {!st.arithmetic_ok && <span className="ml-1 text-[rgb(var(--c-warning))]" title="Le relevé lui-même ne se vérifie pas"></span>}
                         {st.parse_source === 'manual' && <span className="ml-1 text-gray-400" title="Saisi manuellement"></span>}
                       </td>
                       <td className="px-3 py-2 text-center">
                         {st.sent_to_comptable ? (
-                          <span className="text-xs text-green-600" title={st.sent_to_comptable_at ? `Envoyé le ${fmtDateFR(st.sent_to_comptable_at)}` : 'Envoyé'}> envoyé</span>
+                          <span className="text-ui-sm text-[rgb(var(--c-success))]" title={st.sent_to_comptable_at ? `Envoyé le ${fmtDateFR(st.sent_to_comptable_at)}` : 'Envoyé'}> envoyé</span>
                         ) : (
                           <button
                             onClick={() => sendToComptable(st)}
                             disabled={sendingId === st.id}
-                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
+                            className="text-ui-sm bg-[rgb(var(--c-success))] text-white px-2 py-1 rounded hover:bg-[rgb(var(--c-success))] disabled:opacity-50"
                           >
                             {sendingId === st.id ? '' : ' Envoyer'}
                           </button>
@@ -1669,10 +1670,10 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
                       <td className="px-2 py-2 text-right whitespace-nowrap">
                         {st.sent_to_comptable && (
                           <button onClick={() => sendToComptable(st)} disabled={sendingId === st.id}
-                            className="text-gray-300 hover:text-green-600 text-xs mr-2" title="Renvoyer au comptable">Renvoyer</button>
+                            className="text-gray-300 hover:text-[rgb(var(--c-success))] text-ui-sm mr-2" title="Renvoyer au comptable">Renvoyer</button>
                         )}
-                        <button onClick={() => openPdf(st)} className="text-blue-500 hover:text-blue-700 text-xs mr-2" title="Ouvrir le PDF">PDF</button>
-                        <button onClick={() => deleteStatement(st)} className="text-red-300 hover:text-red-600 text-xs" title="Supprimer">Supprimer</button>
+                        <button onClick={() => openPdf(st)} className="text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))] text-ui-sm mr-2" title="Ouvrir le PDF">PDF</button>
+                        <button onClick={() => deleteStatement(st)} className="text-[rgb(var(--c-danger)/0.6)] hover:text-[rgb(var(--c-danger))] text-ui-sm" title="Supprimer">Supprimer</button>
                       </td>
                     </tr>
                   )
@@ -1681,7 +1682,7 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
             </table>
           </div>
         )}
-        <div className="px-4 py-2 text-xs text-gray-400 border-t">
+        <div className="px-4 py-2 text-ui-sm text-gray-400 border-t">
           « Solde calculé » = cumul des lignes bancaires importées jusqu'à la date d'arrêté.
           Un écart non nul signale une opération manquante ou importée en double.
         </div>
@@ -2056,8 +2057,8 @@ function ComptableTab({ transactions, receipts, loadAll }) {
   // Tableau réutilisable pour les transactions budget
   function TxTable({ items, selectedSet, onToggle, selectAll }) {
     return (
-      <div className="max-h-60 overflow-y-auto border rounded-lg">
-        <table className="w-full text-xs">
+      <div className="max-h-60 overflow-y-auto border rounded-ui-sm">
+        <table className="w-full text-ui-sm">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
               <th className="px-2 py-1.5 text-left">
@@ -2074,14 +2075,14 @@ function ComptableTab({ transactions, receipts, loadAll }) {
           </thead>
           <tbody>
             {items.map(tx => (
-              <tr key={tx.id} className={`border-t ${selectedSet.has(tx.id) ? 'bg-blue-50' : ''}`}>
+              <tr key={tx.id} className={`border-t ${selectedSet.has(tx.id) ? 'bg-[rgb(var(--c-info-bg))]' : ''}`}>
                 <td className="px-2 py-1"><input type="checkbox" checked={selectedSet.has(tx.id)} onChange={() => onToggle(tx.id)} /></td>
                 <td className="px-2 py-1">{new Date(tx.date).toLocaleDateString('fr-FR')}</td>
                 <td className="px-2 py-1 truncate max-w-40">{tx.description}</td>
                 <td className="px-2 py-1">{tx.category_name}</td>
-                <td className="px-2 py-1 text-right font-mono">{tx.debit > 0 ? <span className="text-red-600">-{fmt(tx.debit)}</span> : <span className="text-green-600">+{fmt(tx.credit)}</span>}</td>
-                <td className="px-2 py-1 text-center">{tx.is_personal ? <span className="text-purple-600">Perso</span> : <span className="text-blue-600">Ent.</span>}</td>
-                <td className="px-2 py-1 text-center">{receipts[tx.id]?.length > 0 ? `${receipts[tx.id].length}` : <span className="text-orange-400"></span>}</td>
+                <td className="px-2 py-1 text-right font-mono">{tx.debit > 0 ? <span className="text-[rgb(var(--c-danger))]">-{fmt(tx.debit)}</span> : <span className="text-[rgb(var(--c-success))]">+{fmt(tx.credit)}</span>}</td>
+                <td className="px-2 py-1 text-center">{tx.is_personal ? <span className="text-gray-800">Perso</span> : <span className="text-[rgb(var(--c-info))]">Ent.</span>}</td>
+                <td className="px-2 py-1 text-center">{receipts[tx.id]?.length > 0 ? `${receipts[tx.id].length}` : <span className="text-[rgb(var(--c-warning))]"></span>}</td>
               </tr>
             ))}
           </tbody>
@@ -2093,21 +2094,21 @@ function ComptableTab({ transactions, receipts, loadAll }) {
   return (
     <div className="space-y-4">
       {/* ═══════════════ SECTION 1 : Pièces comptables (transactions budget) ═══════════════ */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-gray-700"> Pièces comptables (justificatifs)</h3>
-          <div className={`text-xs ${comptable.email ? 'text-gray-400' : 'text-amber-600 font-medium'}`}>→ {comptableLabel}</div>
+          <div className={`text-ui-sm ${comptable.email ? 'text-gray-400' : 'text-[rgb(var(--c-warning))] font-medium'}`}>→ {comptableLabel}</div>
         </div>
 
         {toSend.length === 0 ? (
-          <div className="text-center py-6 text-gray-400 text-sm"> Tous les justificatifs ont été envoyés</div>
+          <div className="text-center py-6 text-gray-400 text-ui"> Tous les justificatifs ont été envoyés</div>
         ) : (
           <>
             <TxTable items={toSend} selectedSet={selected} onToggle={toggleSelect} selectAll={setSelected} />
             <div className="mt-3 space-y-2">
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes pour le comptable (optionnel)..." className="w-full border rounded-lg px-3 py-2 text-sm h-16 resize-y" />
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes pour le comptable (optionnel)..." className="w-full border rounded-ui-sm px-3 py-2 text-ui h-16 resize-y" />
               <button onClick={handleSend} disabled={sending || selected.size === 0}
-                className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50">
+                className="w-full bg-[rgb(var(--c-success))] text-white py-2.5 rounded-ui-sm font-medium hover:bg-[rgb(var(--c-success))] disabled:opacity-50">
                 {sending ? ' Envoi en cours...' : ` Envoyer ${selected.size} justificatif(s)`}
               </button>
             </div>
@@ -2117,14 +2118,14 @@ function ComptableTab({ transactions, receipts, loadAll }) {
         {alreadySent.length > 0 && (
           <div className="mt-3 pt-3 border-t">
             <button onClick={() => { setShowResend(!showResend); setResendSelected(new Set()) }}
-              className="text-xs text-blue-600 hover:text-blue-800">
+              className="text-ui-sm text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))]">
               {showResend ? '▲ Masquer' : ` Renvoyer des justificatifs (${alreadySent.length} déjà envoyé(s))`}
             </button>
             {showResend && (
               <div className="mt-2">
                 <TxTable items={alreadySent} selectedSet={resendSelected} onToggle={toggleResend} selectAll={setResendSelected} />
                 <button onClick={handleRequeue} disabled={resetting || resendSelected.size === 0}
-                  className="mt-2 w-full bg-amber-500 text-white py-2 rounded-lg font-medium hover:bg-amber-600 disabled:opacity-50 text-sm">
+                  className="mt-2 w-full bg-[rgb(var(--c-warning))] text-white py-2 rounded-ui-sm font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50 text-ui">
                   {resetting ? '...' : ` Remettre ${resendSelected.size} en file d'envoi`}
                 </button>
               </div>
@@ -2134,19 +2135,19 @@ function ComptableTab({ transactions, receipts, loadAll }) {
       </div>
 
       {/* ═══════════════ SECTION 2 : Factures clients ═══════════════ */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-gray-700"> Factures clients (récap mensuel + PDFs)</h3>
-          <div className={`text-xs ${comptable.email ? 'text-gray-400' : 'text-amber-600 font-medium'}`}>→ {comptableLabel}</div>
+          <div className={`text-ui-sm ${comptable.email ? 'text-gray-400' : 'text-[rgb(var(--c-warning))] font-medium'}`}>→ {comptableLabel}</div>
         </div>
 
         <div className="flex items-center gap-3 mb-3">
           <select value={invMonth} onChange={e => setInvMonth(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm font-medium">
+            className="border rounded-ui-sm px-3 py-2 text-ui font-medium">
             {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          {invLoading && <span className="text-xs text-gray-400"> Chargement...</span>}
-          {!invLoading && <span className="text-xs text-gray-500">
+          {invLoading && <span className="text-ui-sm text-gray-400"> Chargement...</span>}
+          {!invLoading && <span className="text-ui-sm text-gray-500">
             {invoicesData.length} facture(s) • {invToSend.length} à envoyer • {invAlreadySent.length} déjà envoyée(s)
           </span>}
         </div>
@@ -2156,11 +2157,11 @@ function ComptableTab({ transactions, receipts, loadAll }) {
         ) : invToSend.length === 0 && invAlreadySent.length === 0 ? (
           <div className="text-center py-8 text-gray-400">Aucune facture pour ce mois</div>
         ) : invToSend.length === 0 ? (
-          <div className="text-center py-6 text-gray-400 text-sm"> Toutes les factures du mois ont été envoyées</div>
+          <div className="text-center py-6 text-gray-400 text-ui"> Toutes les factures du mois ont été envoyées</div>
         ) : (
           <>
-            <div className="max-h-72 overflow-y-auto border rounded-lg">
-              <table className="w-full text-xs">
+            <div className="max-h-72 overflow-y-auto border rounded-ui-sm">
+              <table className="w-full text-ui-sm">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
                     <th className="px-2 py-1.5 text-left">
@@ -2183,13 +2184,13 @@ function ComptableTab({ transactions, receipts, loadAll }) {
                     const inv = d.invoice
                     const isCr = inv.type === 'credit_note'
                     return (
-                      <tr key={inv.id} className={`border-t ${invSelected.has(inv.id) ? 'bg-blue-50' : ''}`}>
+                      <tr key={inv.id} className={`border-t ${invSelected.has(inv.id) ? 'bg-[rgb(var(--c-info-bg))]' : ''}`}>
                         <td className="px-2 py-1"><input type="checkbox" checked={invSelected.has(inv.id)} onChange={() => toggleInvSelect(inv.id)} /></td>
                         <td className="px-2 py-1 font-mono font-bold whitespace-nowrap">{inv.reference}</td>
                         <td className="px-2 py-1 truncate max-w-32">{d.client?.name || '-'}</td>
                         <td className="px-2 py-1 text-center">{new Date(inv.invoice_date).toLocaleDateString('fr-FR')}</td>
                         <td className="px-2 py-1 text-center">{inv.due_date ? new Date(inv.due_date).toLocaleDateString('fr-FR') : '-'}</td>
-                        <td className={`px-2 py-1 text-right font-mono ${isCr ? 'text-purple-600' : ''}`}>{fmt(inv.total_ht)}</td>
+                        <td className={`px-2 py-1 text-right font-mono ${isCr ? 'text-gray-800' : ''}`}>{fmt(inv.total_ht)}</td>
                         <td className="px-2 py-1 text-right font-mono">{fmt(inv.total_tva)}</td>
                         <td className="px-2 py-1 text-right font-mono font-bold">{fmt(inv.total_ttc)}</td>
                         <td className="px-2 py-1 text-center">
@@ -2205,13 +2206,13 @@ function ComptableTab({ transactions, receipts, loadAll }) {
             </div>
 
             {invSelected.size > 0 && (
-              <div className="mt-3 bg-gray-50 rounded-lg p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                <div><span className="text-gray-500">Factures :</span> <span className="font-bold">{invTotals.nbFacts}</span>{invTotals.nbAvoirs > 0 && <span className="text-purple-600"> + {invTotals.nbAvoirs} avoir(s)</span>}</div>
+              <div className="mt-3 bg-gray-50 rounded-ui-sm p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-ui-sm">
+                <div><span className="text-gray-500">Factures :</span> <span className="font-bold">{invTotals.nbFacts}</span>{invTotals.nbAvoirs > 0 && <span className="text-gray-800"> + {invTotals.nbAvoirs} avoir(s)</span>}</div>
                 <div><span className="text-gray-500">Total HT :</span> <span className="font-bold">{fmt(invTotals.ht)}</span></div>
                 <div><span className="text-gray-500">TVA :</span> <span className="font-bold">{fmt(invTotals.tva)}</span></div>
-                <div><span className="text-gray-500">TTC :</span> <span className="font-bold text-green-700">{fmt(invTotals.ttc)}</span></div>
+                <div><span className="text-gray-500">TTC :</span> <span className="font-bold text-[rgb(var(--c-success))]">{fmt(invTotals.ttc)}</span></div>
                 {invTotals.overdue > 0 && (
-                  <div className="col-span-full"><span className="text-red-600 font-bold"> {invTotals.overdue} en retard - {fmt(invTotals.overdueAmount)} impayé</span></div>
+                  <div className="col-span-full"><span className="text-[rgb(var(--c-danger))] font-bold"> {invTotals.overdue} en retard - {fmt(invTotals.overdueAmount)} impayé</span></div>
                 )}
               </div>
             )}
@@ -2219,9 +2220,9 @@ function ComptableTab({ transactions, receipts, loadAll }) {
             <div className="mt-3 space-y-2">
               <textarea value={invNotes} onChange={e => setInvNotes(e.target.value)}
                 placeholder="Notes pour le comptable (optionnel)..."
-                className="w-full border rounded-lg px-3 py-2 text-sm h-16 resize-y" />
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui h-16 resize-y" />
               <button onClick={handleSendInvoices} disabled={invSending || invSelected.size === 0}
-                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50">
+                className="w-full bg-[rgb(var(--c-info))] text-white py-3 rounded-ui-sm font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50">
                 {invSending
                   ? ` ${invProgress?.step || 'Envoi...'} (${invProgress?.current || 0}/${invProgress?.total || 0})`
                   : ` Envoyer ${invSelected.size} facture(s) + PDFs au comptable`}
@@ -2233,13 +2234,13 @@ function ComptableTab({ transactions, receipts, loadAll }) {
         {invAlreadySent.length > 0 && (
           <div className="mt-3 pt-3 border-t">
             <button onClick={() => { setShowInvResend(!showInvResend); setInvResendSelected(new Set()) }}
-              className="text-xs text-blue-600 hover:text-blue-800">
+              className="text-ui-sm text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))]">
               {showInvResend ? '▲ Masquer' : ` Renvoyer des factures (${invAlreadySent.length} déjà envoyée(s))`}
             </button>
             {showInvResend && (
               <div className="mt-2">
-                <div className="max-h-48 overflow-y-auto border rounded-lg">
-                  <table className="w-full text-xs">
+                <div className="max-h-48 overflow-y-auto border rounded-ui-sm">
+                  <table className="w-full text-ui-sm">
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
                         <th className="px-2 py-1.5 text-left">
@@ -2255,19 +2256,19 @@ function ComptableTab({ transactions, receipts, loadAll }) {
                     </thead>
                     <tbody>
                       {invAlreadySent.map(d => (
-                        <tr key={d.invoice.id} className={`border-t ${invResendSelected.has(d.invoice.id) ? 'bg-blue-50' : ''}`}>
+                        <tr key={d.invoice.id} className={`border-t ${invResendSelected.has(d.invoice.id) ? 'bg-[rgb(var(--c-info-bg))]' : ''}`}>
                           <td className="px-2 py-1"><input type="checkbox" checked={invResendSelected.has(d.invoice.id)} onChange={() => toggleInvResend(d.invoice.id)} /></td>
                           <td className="px-2 py-1 font-mono font-bold">{d.invoice.reference}</td>
                           <td className="px-2 py-1 truncate max-w-32">{d.client?.name || '-'}</td>
                           <td className="px-2 py-1 text-right font-mono">{fmt(d.invoice.total_ttc)}</td>
-                          <td className="px-2 py-1 text-center text-green-600">{d.invoice.sent_to_comptable_at ? new Date(d.invoice.sent_to_comptable_at).toLocaleDateString('fr-FR') : ''}</td>
+                          <td className="px-2 py-1 text-center text-[rgb(var(--c-success))]">{d.invoice.sent_to_comptable_at ? new Date(d.invoice.sent_to_comptable_at).toLocaleDateString('fr-FR') : ''}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
                 <button onClick={handleInvRequeue} disabled={resetting || invResendSelected.size === 0}
-                  className="mt-2 w-full bg-amber-500 text-white py-2 rounded-lg font-medium hover:bg-amber-600 disabled:opacity-50 text-sm">
+                  className="mt-2 w-full bg-[rgb(var(--c-warning))] text-white py-2 rounded-ui-sm font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50 text-ui">
                   {resetting ? '...' : ` Remettre ${invResendSelected.size} facture(s) en file d'envoi`}
                 </button>
               </div>
@@ -2277,20 +2278,20 @@ function ComptableTab({ transactions, receipts, loadAll }) {
       </div>
 
       {/* ═══════════════ SECTION 3 : Historique combiné ═══════════════ */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <h3 className="font-bold text-gray-700 mb-3"> Historique des envois</h3>
 
         {history.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Justificatifs / pièces comptables</h4>
+            <h4 className="text-ui-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide">Justificatifs / pièces comptables</h4>
             <div className="space-y-1.5">
               {history.map(h => (
-                <div key={h.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border text-sm">
-                  <span className="text-green-500"></span>
+                <div key={h.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-ui-sm border text-ui">
+                  <span className="text-[rgb(var(--c-success))]"></span>
                   <div className="flex-1">
                     <div className="font-medium">{new Date(h.sent_at).toLocaleDateString('fr-FR')} à {new Date(h.sent_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-                    <div className="text-xs text-gray-500">{h.nb_transactions} opérations • {h.nb_receipts} PJ • par {h.sent_by}</div>
-                    {h.notes && <div className="text-xs text-gray-400 italic mt-0.5">{h.notes}</div>}
+                    <div className="text-ui-sm text-gray-500">{h.nb_transactions} opérations • {h.nb_receipts} PJ • par {h.sent_by}</div>
+                    {h.notes && <div className="text-ui-sm text-gray-400 italic mt-0.5">{h.notes}</div>}
                   </div>
                 </div>
               ))}
@@ -2300,18 +2301,18 @@ function ComptableTab({ transactions, receipts, loadAll }) {
 
         {invHistory.length > 0 && (
           <div>
-            <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Factures clients</h4>
+            <h4 className="text-ui-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide">Factures clients</h4>
             <div className="space-y-1.5">
               {invHistory.map(h => (
-                <div key={h.id} className="flex items-center gap-3 p-2 bg-indigo-50 rounded-lg border border-indigo-100 text-sm">
-                  <span className="text-indigo-500"></span>
+                <div key={h.id} className="flex items-center gap-3 p-2 bg-[rgb(var(--c-info-bg))] rounded-ui-sm border border-[rgb(var(--c-info)/0.3)] text-ui">
+                  <span className="text-[rgb(var(--c-info))]"></span>
                   <div className="flex-1">
                     <div className="font-medium">{new Date(h.sent_at).toLocaleDateString('fr-FR')} à {new Date(h.sent_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-ui-sm text-gray-500">
                       {h.month_label} • {h.nb_invoices} facture(s) • HT {fmt(h.total_ht)} • TTC {fmt(h.total_ttc)}
-                      {h.nb_overdue > 0 && <span className="text-red-500 ml-1">• {h.nb_overdue} en retard</span>}
+                      {h.nb_overdue > 0 && <span className="text-[rgb(var(--c-danger))] ml-1">• {h.nb_overdue} en retard</span>}
                     </div>
-                    {h.notes && <div className="text-xs text-gray-400 italic mt-0.5">{h.notes}</div>}
+                    {h.notes && <div className="text-ui-sm text-gray-400 italic mt-0.5">{h.notes}</div>}
                   </div>
                 </div>
               ))}
@@ -2448,30 +2449,30 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
     if (!d) return null
     const good = inverse ? !d.up : d.up
     return (
-      <span className={`text-xs font-medium ml-1 ${good ? 'text-green-600' : 'text-red-500'}`}>
+      <span className={`text-ui-sm font-medium ml-1 ${good ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>
         {d.up ? '▲' : '▼'} {Math.abs(d.val).toFixed(0)}%
       </span>
     )
   }
   function KpiCard({ label, value, sub, color = 'gray', prev, prevLabel, inverse = false, large = false }) {
     const colors = {
-      green: 'bg-green-50 border-green-200 text-green-700',
-      red: 'bg-red-50 border-red-200 text-red-700',
-      blue: 'bg-blue-50 border-blue-200 text-blue-700',
-      orange: 'bg-orange-50 border-orange-200 text-orange-700',
-      purple: 'bg-purple-50 border-purple-200 text-purple-700',
+      green: 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)] text-[rgb(var(--c-success))]',
+      red: 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))]',
+      blue: 'bg-[rgb(var(--c-info-bg))] border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))]',
+      orange: 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]',
+      purple: 'bg-gray-50 border-gray-200 text-gray-800',
       gray: 'bg-gray-50 border-gray-200 text-gray-700',
-      amber: 'bg-amber-50 border-amber-200 text-amber-700',
+      amber: 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]',
     }
     return (
-      <div className={`rounded-xl border p-3 ${colors[color]}`}>
-        <div className="text-xs font-medium opacity-70 mb-1">{label}</div>
+      <div className={`rounded-ui border p-3 ${colors[color]}`}>
+        <div className="text-ui-sm font-medium opacity-70 mb-1">{label}</div>
         <div className={`font-bold ${large ? 'text-xl' : 'text-lg'}`}>
           {value}
           {prev !== undefined && <PctBadge cur={parseFloat(value)} prev={prev} inverse={inverse} />}
         </div>
-        {sub && <div className="text-xs opacity-60 mt-0.5">{sub}</div>}
-        {prevLabel && <div className="text-xs opacity-50 mt-0.5">{prevLabel}</div>}
+        {sub && <div className="text-ui-sm opacity-60 mt-0.5">{sub}</div>}
+        {prevLabel && <div className="text-ui-sm opacity-50 mt-0.5">{prevLabel}</div>}
       </div>
     )
   }
@@ -2483,15 +2484,15 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
 
       {/* ── Sélecteur de mois ── */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-medium text-gray-600">Mois analysé :</span>
+        <span className="text-ui font-medium text-gray-600">Mois analysé :</span>
         <div className="flex flex-wrap gap-1.5">
           {sm.map(m => (
             <button
               key={m}
               onClick={() => setSelMonth(m)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              className={`px-3 py-1 rounded-full text-ui-sm font-medium transition-colors ${
                 m === selMonth
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[rgb(var(--c-info))] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -2505,7 +2506,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
       {(facturesRetard.length > 0 || mCur.resultat < 0 || (isCurrentMonth && mCur.caEnc === 0)) && (
         <div className="space-y-2">
           {facturesRetard.length > 0 && (
-            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+            <div className="flex items-start gap-2 bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] rounded-ui p-3 text-ui text-[rgb(var(--c-danger))]">
               <span className="text-lg leading-none"></span>
               <div>
                 <span className="font-semibold">{facturesRetard.length} facture{facturesRetard.length > 1 ? 's' : ''} en retard</span>
@@ -2514,13 +2515,13 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
             </div>
           )}
           {mCur.resultat < 0 && (
-            <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm text-orange-700">
+            <div className="flex items-center gap-2 bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-3 text-ui text-[rgb(var(--c-warning))]">
               <span></span>
               <span><strong>Mois déficitaire</strong> - les charges ({fmt(mCur.charges)}) dépassent le CA encaissé ({fmt(mCur.caEnc)})</span>
             </div>
           )}
           {isCurrentMonth && mCur.caEnc === 0 && (
-            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
+            <div className="flex items-center gap-2 bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-3 text-ui text-[rgb(var(--c-warning))]">
               <span></span>
               <span><strong>Aucun CA encaissé</strong> ce mois pour l'instant</span>
             </div>
@@ -2559,52 +2560,52 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
 
       {/* ── CA encaissé vs CA facturé + TVA ── */}
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-ui border p-4">
           <h3 className="font-bold text-gray-700 mb-3"> CA encaissé vs facturé</h3>
           <div className="space-y-3">
             <div>
-              <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <div className="flex justify-between text-ui-sm text-gray-500 mb-1">
                 <span>CA encaissé (transactions)</span>
-                <span className="font-semibold text-green-700">{fmt(mCur.caEnc)}</span>
+                <span className="font-semibold text-[rgb(var(--c-success))]">{fmt(mCur.caEnc)}</span>
               </div>
               <div className="bg-gray-100 rounded-full h-2">
-                <div className="bg-green-500 rounded-full h-2" style={{width: caFacture > 0 ? `${Math.min((mCur.caEnc / Math.max(mCur.caEnc, caFacture)) * 100, 100)}%` : '100%'}} />
+                <div className="bg-[rgb(var(--c-success))] rounded-full h-2" style={{width: caFacture > 0 ? `${Math.min((mCur.caEnc / Math.max(mCur.caEnc, caFacture)) * 100, 100)}%` : '100%'}} />
               </div>
             </div>
             <div>
-              <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <div className="flex justify-between text-ui-sm text-gray-500 mb-1">
                 <span>CA facturé (factures émises)</span>
-                <span className="font-semibold text-blue-700">{fmt(caFacture)}</span>
+                <span className="font-semibold text-[rgb(var(--c-info))]">{fmt(caFacture)}</span>
               </div>
               <div className="bg-gray-100 rounded-full h-2">
-                <div className="bg-blue-400 rounded-full h-2" style={{width: mCur.caEnc > 0 ? `${Math.min((caFacture / Math.max(mCur.caEnc, caFacture)) * 100, 100)}%` : (caFacture > 0 ? '100%' : '0%')}} />
+                <div className="bg-[rgb(var(--c-info))] rounded-full h-2" style={{width: mCur.caEnc > 0 ? `${Math.min((caFacture / Math.max(mCur.caEnc, caFacture)) * 100, 100)}%` : (caFacture > 0 ? '100%' : '0%')}} />
               </div>
             </div>
             {caFacture > mCur.caEnc && (
-              <div className="text-xs text-orange-600 bg-orange-50 rounded-lg px-3 py-1.5">
+              <div className="text-ui-sm text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))] rounded-ui-sm px-3 py-1.5">
                  {fmt(caFacture - mCur.caEnc)} facturé mais pas encore encaissé ce mois
               </div>
             )}
             {invMois.length > 0 && (
-              <div className="text-xs text-gray-400">{invMois.length} facture{invMois.length > 1 ? 's' : ''} émise{invMois.length > 1 ? 's' : ''} ce mois</div>
+              <div className="text-ui-sm text-gray-400">{invMois.length} facture{invMois.length > 1 ? 's' : ''} émise{invMois.length > 1 ? 's' : ''} ce mois</div>
             )}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-ui border p-4">
           <h3 className="font-bold text-gray-700 mb-3"> TVA - estimation indicative</h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-500">TVA sur encaissements (20%)</span>
-              <span className="font-bold text-orange-700">{fmt(mCur.tvaEstimee)}</span>
+              <span className="text-ui-sm text-gray-500">TVA sur encaissements (20%)</span>
+              <span className="font-bold text-[rgb(var(--c-warning))]">{fmt(mCur.tvaEstimee)}</span>
             </div>
             {tvaFacturee > 0 && (
               <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">TVA facturée (factures émises)</span>
-                <span className="font-semibold text-blue-700">{fmt(tvaFacturee)}</span>
+                <span className="text-ui-sm text-gray-500">TVA facturée (factures émises)</span>
+                <span className="font-semibold text-[rgb(var(--c-info))]">{fmt(tvaFacturee)}</span>
               </div>
             )}
-            <div className="border-t pt-2 text-xs text-gray-400">
+            <div className="border-t pt-2 text-ui-sm text-gray-400">
                Estimation basée sur 20% du CA TTC encaissé. Certains clients peuvent être exonérés. Vérifier avec votre comptable.
             </div>
           </div>
@@ -2613,23 +2614,23 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
 
       {/* ── Projection fin de mois ── */}
       {isCurrentMonth && joursEcoules >= 3 && projCA > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="font-bold text-blue-700 mb-2"> Projection fin de mois - {joursRestants} jours restants</h3>
+        <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui p-4">
+          <h3 className="font-bold text-[rgb(var(--c-info))] mb-2"> Projection fin de mois - {joursRestants} jours restants</h3>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-xs text-gray-500 mb-1">CA projeté</div>
-              <div className="text-lg font-bold text-blue-700">{fmt(projCA)}</div>
-              <div className="text-xs text-gray-400">base : {fmt(mCur.caEnc)} en {joursEcoules}j</div>
+              <div className="text-ui-sm text-gray-500 mb-1">CA projeté</div>
+              <div className="text-lg font-bold text-[rgb(var(--c-info))]">{fmt(projCA)}</div>
+              <div className="text-ui-sm text-gray-400">base : {fmt(mCur.caEnc)} en {joursEcoules}j</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 mb-1">Charges projetées</div>
-              <div className="text-lg font-bold text-red-600">{fmt(projCharges)}</div>
-              <div className="text-xs text-gray-400">base : {fmt(mCur.charges)} en {joursEcoules}j</div>
+              <div className="text-ui-sm text-gray-500 mb-1">Charges projetées</div>
+              <div className="text-lg font-bold text-[rgb(var(--c-danger))]">{fmt(projCharges)}</div>
+              <div className="text-ui-sm text-gray-400">base : {fmt(mCur.charges)} en {joursEcoules}j</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 mb-1">Résultat projeté</div>
-              <div className={`text-lg font-bold ${projCA - projCharges >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmt(projCA - projCharges)}</div>
-              <div className="text-xs text-gray-400">sur {joursMois} jours</div>
+              <div className="text-ui-sm text-gray-500 mb-1">Résultat projeté</div>
+              <div className={`text-lg font-bold ${projCA - projCharges >= 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>{fmt(projCA - projCharges)}</div>
+              <div className="text-ui-sm text-gray-400">sur {joursMois} jours</div>
             </div>
           </div>
         </div>
@@ -2637,7 +2638,7 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
 
       {/* ── Comparaison mois courant vs précédent ── */}
       {prevMonth && (
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-ui border p-4">
           <h3 className="font-bold text-gray-700 mb-3"> Comparaison {ML[selMonth] || selMonth} vs {ML[prevMonth] || prevMonth}</h3>
           <div className="space-y-2">
             {[
@@ -2651,9 +2652,9 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
               const diffPct = prev !== 0 ? ((diff / Math.abs(prev)) * 100).toFixed(0) : null
               return (
                 <div key={label}>
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <div className="flex justify-between text-ui-sm text-gray-500 mb-1">
                     <span>{label}</span>
-                    <span className={`font-medium ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    <span className={`font-medium ${diff >= 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>
                       {diff >= 0 ? '+' : ''}{fmt(diff)}
                       {diffPct && <span className="ml-1 opacity-70">({diff >= 0 ? '+' : ''}{diffPct}%)</span>}
                     </span>
@@ -2662,13 +2663,13 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
                     <div className="flex-1 bg-gray-100 rounded h-3 overflow-hidden flex">
                       <div className="h-full rounded" style={{width: `${(Math.abs(prev) / maxVal) * 100}%`, backgroundColor: colorMap[color], opacity: 0.4}} />
                     </div>
-                    <span className="text-xs w-16 text-right text-gray-400">{fmtS(prev)}</span>
+                    <span className="text-ui-sm w-16 text-right text-gray-400">{fmtS(prev)}</span>
                   </div>
                   <div className="flex gap-1 items-center mt-0.5">
                     <div className="flex-1 bg-gray-100 rounded h-3 overflow-hidden flex">
                       <div className="h-full rounded" style={{width: `${(Math.abs(cur) / maxVal) * 100}%`, backgroundColor: colorMap[color]}} />
                     </div>
-                    <span className="text-xs w-16 text-right font-medium" style={{color: colorMap[color]}}>{fmtS(cur)}</span>
+                    <span className="text-ui-sm w-16 text-right font-medium" style={{color: colorMap[color]}}>{fmtS(cur)}</span>
                   </div>
                 </div>
               )
@@ -2679,24 +2680,24 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
 
       {/* ── Top dépenses + revenus du mois ── */}
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-ui border p-4">
           <h3 className="font-bold text-gray-700 mb-3"> Dépenses du mois</h3>
           {topDep.length === 0
-            ? <div className="text-center py-6 text-gray-400 text-sm">Aucune dépense ce mois</div>
+            ? <div className="text-center py-6 text-gray-400 text-ui">Aucune dépense ce mois</div>
             : <div className="space-y-1.5">
                 {topDep.map(([n, v]) => {
                   const cat = categories.find(c => c.name === n)
                   const pct = ((v / mCur.charges) * 100).toFixed(0)
                   return (
                     <div key={n} className="flex items-center gap-2">
-                      <span className="text-sm w-5">{cat?.icon || ''}</span>
+                      <span className="text-ui w-5">{cat?.icon || ''}</span>
                       <div className="flex-1">
-                        <div className="flex justify-between text-xs">
+                        <div className="flex justify-between text-ui-sm">
                           <span className="text-gray-700 truncate">{n}</span>
-                          <span className="text-red-600 font-medium ml-2">{fmtS(v)} <span className="text-gray-400">({pct}%)</span></span>
+                          <span className="text-[rgb(var(--c-danger))] font-medium ml-2">{fmtS(v)} <span className="text-gray-400">({pct}%)</span></span>
                         </div>
                         <div className="bg-gray-100 rounded-full h-1.5 mt-0.5">
-                          <div className="bg-red-400 rounded-full h-1.5" style={{width: `${(v / maxDep) * 100}%`}} />
+                          <div className="bg-[rgb(var(--c-danger))] rounded-full h-1.5" style={{width: `${(v / maxDep) * 100}%`}} />
                         </div>
                       </div>
                     </div>
@@ -2705,23 +2706,23 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
               </div>
           }
         </div>
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-ui border p-4">
           <h3 className="font-bold text-gray-700 mb-3"> Revenus du mois</h3>
           {topRev.length === 0
-            ? <div className="text-center py-6 text-gray-400 text-sm">Aucun revenu ce mois</div>
+            ? <div className="text-center py-6 text-gray-400 text-ui">Aucun revenu ce mois</div>
             : <div className="space-y-1.5">
                 {topRev.map(([n, v]) => {
                   const cat = categories.find(c => c.name === n)
                   return (
                     <div key={n} className="flex items-center gap-2">
-                      <span className="text-sm w-5">{cat?.icon || ''}</span>
+                      <span className="text-ui w-5">{cat?.icon || ''}</span>
                       <div className="flex-1">
-                        <div className="flex justify-between text-xs">
+                        <div className="flex justify-between text-ui-sm">
                           <span className="text-gray-700 truncate">{n}</span>
-                          <span className="text-green-600 font-medium ml-2">{fmtS(v)}</span>
+                          <span className="text-[rgb(var(--c-success))] font-medium ml-2">{fmtS(v)}</span>
                         </div>
                         <div className="bg-gray-100 rounded-full h-1.5 mt-0.5">
-                          <div className="bg-green-400 rounded-full h-1.5" style={{width: `${(v / maxRev) * 100}%`}} />
+                          <div className="bg-[rgb(var(--c-success))] rounded-full h-1.5" style={{width: `${(v / maxRev) * 100}%`}} />
                         </div>
                       </div>
                     </div>
@@ -2733,26 +2734,26 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
       </div>
 
       {/* ── Flux mensuels historique ── */}
-      <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white rounded-ui border p-4">
         <h3 className="font-bold text-gray-700 mb-3"> Historique des flux</h3>
         <div className="space-y-2">
           {sm.map(m => {
             const d = stats.byMonth[m] || { debit: 0, credit: 0 }
             const isSel = m === selMonth
             return (
-              <div key={m} className={`flex items-center gap-2 rounded-lg px-2 py-1 cursor-pointer transition-colors ${isSel ? 'bg-blue-50' : 'hover:bg-gray-50'}`} onClick={() => setSelMonth(m)}>
-                <div className={`w-16 text-xs font-medium ${isSel ? 'text-blue-700' : 'text-gray-500'}`}>{ML[m] || m}</div>
+              <div key={m} className={`flex items-center gap-2 rounded-ui-sm px-2 py-1 cursor-pointer transition-colors ${isSel ? 'bg-[rgb(var(--c-info-bg))]' : 'hover:bg-gray-50'}`} onClick={() => setSelMonth(m)}>
+                <div className={`w-16 text-ui-sm font-medium ${isSel ? 'text-[rgb(var(--c-info))]' : 'text-gray-500'}`}>{ML[m] || m}</div>
                 <div className="flex-1 flex flex-col gap-0.5">
                   <div className="flex items-center gap-1">
-                    <div className="bg-green-400 rounded-sm h-2.5" style={{width: `${(d.credit / mx) * 100}%`, minWidth: d.credit > 0 ? '2px' : 0}} />
-                    <span className="text-xs text-green-700">{fmtS(d.credit)}</span>
+                    <div className="bg-[rgb(var(--c-success))] rounded-sm h-2.5" style={{width: `${(d.credit / mx) * 100}%`, minWidth: d.credit > 0 ? '2px' : 0}} />
+                    <span className="text-ui-sm text-[rgb(var(--c-success))]">{fmtS(d.credit)}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="bg-red-400 rounded-sm h-2.5" style={{width: `${(d.debit / mx) * 100}%`, minWidth: d.debit > 0 ? '2px' : 0}} />
-                    <span className="text-xs text-red-600">{fmtS(d.debit)}</span>
+                    <div className="bg-[rgb(var(--c-danger))] rounded-sm h-2.5" style={{width: `${(d.debit / mx) * 100}%`, minWidth: d.debit > 0 ? '2px' : 0}} />
+                    <span className="text-ui-sm text-[rgb(var(--c-danger))]">{fmtS(d.debit)}</span>
                   </div>
                 </div>
-                <div className={`w-20 text-right text-xs font-bold ${d.credit - d.debit >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                <div className={`w-20 text-right text-ui-sm font-bold ${d.credit - d.debit >= 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>
                   {d.credit - d.debit >= 0 ? '+' : ''}{fmtS(d.credit - d.debit)}
                 </div>
               </div>
@@ -2763,11 +2764,11 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
 
       {/* ── CCA gérants ── */}
       {(stats.cca || []).some(c => c.value > 0) && (
-        <div className="bg-purple-50 rounded-xl border border-purple-200 p-4">
-          <h3 className="font-bold text-purple-800 mb-2"> Comptes courants associés</h3>
+        <div className="bg-gray-50 rounded-ui border border-gray-200 p-4">
+          <h3 className="font-bold text-gray-800 mb-2"> Comptes courants associés</h3>
           <div className="grid md:grid-cols-2 gap-3">
             {stats.cca.map(c => (
-              <div key={c.key} className="bg-white rounded-lg p-3 border border-purple-100"><div className="text-sm text-gray-600">{c.label}</div><div className="text-xl font-bold text-purple-700">{fmt(c.value)}</div></div>
+              <div key={c.key} className="bg-white rounded-ui-sm p-3 border border-gray-200"><div className="text-ui text-gray-600">{c.label}</div><div className="text-xl font-bold text-gray-800">{fmt(c.value)}</div></div>
             ))}
           </div>
         </div>
@@ -2790,31 +2791,31 @@ function CategoriesTab({ categories, loadAll }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <h3 className="font-bold text-gray-700 mb-3"> Nouvelle catégorie</h3>
         <div className="flex gap-2 flex-wrap">
-          <select value={nw.icon} onChange={e=>setNw(n=>({...n,icon:e.target.value}))} className="border rounded-lg px-2 py-2 text-lg w-14">{icons.map(i=><option key={i} value={i}>{i}</option>)}</select>
-          <input type="text" value={nw.name} onChange={e=>setNw(n=>({...n,name:e.target.value}))} placeholder="Nom" className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-40"/>
-          <select value={nw.direction} onChange={e=>setNw(n=>({...n,direction:e.target.value}))} className="border rounded-lg px-3 py-2 text-sm"><option value="depense">Dépense</option><option value="recette">Recette</option><option value="neutre">Neutre</option></select>
-          <select value={nw.type} onChange={e=>setNw(n=>({...n,type:e.target.value}))} className="border rounded-lg px-3 py-2 text-sm"><option value="fixe">Fixe</option><option value="variable">Variable</option><option value="exceptionnel">Exceptionnel</option></select>
-          <button onClick={add} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Créer</button>
+          <select value={nw.icon} onChange={e=>setNw(n=>({...n,icon:e.target.value}))} className="border rounded-ui-sm px-2 py-2 text-lg w-14">{icons.map(i=><option key={i} value={i}>{i}</option>)}</select>
+          <input type="text" value={nw.name} onChange={e=>setNw(n=>({...n,name:e.target.value}))} placeholder="Nom" className="border rounded-ui-sm px-3 py-2 text-ui flex-1 min-w-40"/>
+          <select value={nw.direction} onChange={e=>setNw(n=>({...n,direction:e.target.value}))} className="border rounded-ui-sm px-3 py-2 text-ui"><option value="depense">Dépense</option><option value="recette">Recette</option><option value="neutre">Neutre</option></select>
+          <select value={nw.type} onChange={e=>setNw(n=>({...n,type:e.target.value}))} className="border rounded-ui-sm px-3 py-2 text-ui"><option value="fixe">Fixe</option><option value="variable">Variable</option><option value="exceptionnel">Exceptionnel</option></select>
+          <button onClick={add} className="bg-[rgb(var(--c-info))] text-white px-4 py-2 rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-info))]">Créer</button>
         </div>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2 text-xs text-gray-500"></th><th className="text-left px-3 py-2 text-xs text-gray-500">Nom</th><th className="text-left px-3 py-2 text-xs text-gray-500">Dir.</th><th className="text-left px-3 py-2 text-xs text-gray-500">Type</th><th className="px-3 py-2"></th></tr></thead>
+      <div className="bg-white rounded-ui shadow-sm border overflow-hidden">
+        <table className="w-full text-ui"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2 text-ui-sm text-gray-500"></th><th className="text-left px-3 py-2 text-ui-sm text-gray-500">Nom</th><th className="text-left px-3 py-2 text-ui-sm text-gray-500">Dir.</th><th className="text-left px-3 py-2 text-ui-sm text-gray-500">Type</th><th className="px-3 py-2"></th></tr></thead>
           <tbody>{categories.map(cat=><tr key={cat.id} className="border-t hover:bg-gray-50">
             {editId===cat.id?(<>
               <td className="px-3 py-1"><select value={ef.icon} onChange={e=>setEf(f=>({...f,icon:e.target.value}))} className="border rounded px-1 py-0.5 text-lg w-12">{icons.map(i=><option key={i} value={i}>{i}</option>)}</select></td>
-              <td className="px-3 py-1"><input type="text" value={ef.name} onChange={e=>setEf(f=>({...f,name:e.target.value}))} className="border rounded px-2 py-1 text-sm w-full"/></td>
-              <td className="px-3 py-1"><select value={ef.direction} onChange={e=>setEf(f=>({...f,direction:e.target.value}))} className="border rounded px-2 py-1 text-xs"><option value="depense">Dépense</option><option value="recette">Recette</option><option value="neutre">Neutre</option></select></td>
-              <td className="px-3 py-1"><select value={ef.type} onChange={e=>setEf(f=>({...f,type:e.target.value}))} className="border rounded px-2 py-1 text-xs"><option value="fixe">Fixe</option><option value="variable">Variable</option><option value="exceptionnel">Exceptionnel</option></select></td>
-              <td className="px-3 py-1 text-right"><button onClick={upd} className="text-green-600 text-xs mr-2">OK</button><button onClick={()=>setEditId(null)} className="text-gray-400 text-xs">Annuler</button></td>
+              <td className="px-3 py-1"><input type="text" value={ef.name} onChange={e=>setEf(f=>({...f,name:e.target.value}))} className="border rounded px-2 py-1 text-ui w-full"/></td>
+              <td className="px-3 py-1"><select value={ef.direction} onChange={e=>setEf(f=>({...f,direction:e.target.value}))} className="border rounded px-2 py-1 text-ui-sm"><option value="depense">Dépense</option><option value="recette">Recette</option><option value="neutre">Neutre</option></select></td>
+              <td className="px-3 py-1"><select value={ef.type} onChange={e=>setEf(f=>({...f,type:e.target.value}))} className="border rounded px-2 py-1 text-ui-sm"><option value="fixe">Fixe</option><option value="variable">Variable</option><option value="exceptionnel">Exceptionnel</option></select></td>
+              <td className="px-3 py-1 text-right"><button onClick={upd} className="text-[rgb(var(--c-success))] text-ui-sm mr-2">OK</button><button onClick={()=>setEditId(null)} className="text-gray-400 text-ui-sm">Annuler</button></td>
             </>):(<>
               <td className="px-3 py-1.5 text-lg">{cat.icon}</td>
               <td className="px-3 py-1.5 font-medium text-gray-700">{cat.name}</td>
-              <td className="px-3 py-1.5"><span className={`text-xs px-2 py-0.5 rounded-full ${cat.direction==='recette'?'bg-green-100 text-green-700':cat.direction==='depense'?'bg-red-100 text-red-700':'bg-gray-100'}`}>{cat.direction}</span></td>
-              <td className="px-3 py-1.5 text-xs text-gray-500">{cat.type}</td>
-              <td className="px-3 py-1.5 text-right"><button onClick={()=>{setEditId(cat.id);setEf({name:cat.name,icon:cat.icon,direction:cat.direction,type:cat.type})}} className="text-blue-500 text-xs mr-2">Modifier</button><button onClick={()=>del(cat.id,cat.name)} className="text-red-400 text-xs">Suppr</button></td>
+              <td className="px-3 py-1.5"><span className={`text-ui-sm px-2 py-0.5 rounded-full ${cat.direction==='recette'?'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]':cat.direction==='depense'?'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]':'bg-gray-100'}`}>{cat.direction}</span></td>
+              <td className="px-3 py-1.5 text-ui-sm text-gray-500">{cat.type}</td>
+              <td className="px-3 py-1.5 text-right"><button onClick={()=>{setEditId(cat.id);setEf({name:cat.name,icon:cat.icon,direction:cat.direction,type:cat.type})}} className="text-[rgb(var(--c-info))] text-ui-sm mr-2">Modifier</button><button onClick={()=>del(cat.id,cat.name)} className="text-[rgb(var(--c-danger))] text-ui-sm">Suppr</button></td>
             </>)}
           </tr>)}</tbody>
         </table>
@@ -2905,26 +2906,26 @@ function RulesTab({ rules, categories, loadAll }) {
     <div className="space-y-4">
       {/* Stats rapides */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl shadow-sm border p-3">
-          <div className="text-xs text-gray-500">Total règles</div>
+        <div className="bg-white rounded-ui shadow-sm border p-3">
+          <div className="text-ui-sm text-gray-500">Total règles</div>
           <div className="text-2xl font-bold text-gray-800">{rules.length}</div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border p-3">
-          <div className="text-xs text-gray-500">Catégories utilisées</div>
-          <div className="text-2xl font-bold text-blue-600">{catStats.length}</div>
+        <div className="bg-white rounded-ui shadow-sm border p-3">
+          <div className="text-ui-sm text-gray-500">Catégories utilisées</div>
+          <div className="text-2xl font-bold text-[rgb(var(--c-info))]">{catStats.length}</div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border p-3">
-          <div className="text-xs text-gray-500">Débit uniquement</div>
-          <div className="text-2xl font-bold text-red-600">{rules.filter(r => r.direction === 'debit').length}</div>
+        <div className="bg-white rounded-ui shadow-sm border p-3">
+          <div className="text-ui-sm text-gray-500">Débit uniquement</div>
+          <div className="text-2xl font-bold text-[rgb(var(--c-danger))]">{rules.filter(r => r.direction === 'debit').length}</div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border p-3">
-          <div className="text-xs text-gray-500">Crédit uniquement</div>
-          <div className="text-2xl font-bold text-emerald-600">{rules.filter(r => r.direction === 'credit').length}</div>
+        <div className="bg-white rounded-ui shadow-sm border p-3">
+          <div className="text-ui-sm text-gray-500">Crédit uniquement</div>
+          <div className="text-2xl font-bold text-[rgb(var(--c-success))]">{rules.filter(r => r.direction === 'credit').length}</div>
         </div>
       </div>
 
       {/* Formulaire ajout */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <h3 className="font-bold text-gray-700 mb-3"> Nouvelle règle</h3>
         <div className="flex gap-2 flex-wrap">
           <input
@@ -2932,26 +2933,26 @@ function RulesTab({ rules, categories, loadAll }) {
             value={nw.keyword}
             onChange={e => setNw(r => ({ ...r, keyword: e.target.value.toUpperCase() }))}
             placeholder="Mot-clé (ex: RESTAURANT)"
-            className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-40 font-mono"
+            className="border rounded-ui-sm px-3 py-2 text-ui flex-1 min-w-40 font-mono"
             onKeyDown={e => e.key === 'Enter' && add()}
           />
-          <select value={nw.category_id} onChange={e => setNw(r => ({ ...r, category_id: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-48">
+          <select value={nw.category_id} onChange={e => setNw(r => ({ ...r, category_id: e.target.value }))} className="border rounded-ui-sm px-3 py-2 text-ui flex-1 min-w-48">
             <option value="">Catégorie...</option>
             {categories.sort((a, b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </select>
-          <select value={nw.direction} onChange={e => setNw(r => ({ ...r, direction: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm">
+          <select value={nw.direction} onChange={e => setNw(r => ({ ...r, direction: e.target.value }))} className="border rounded-ui-sm px-3 py-2 text-ui">
             <option value="both"> Les deux</option>
             <option value="debit"> Débit</option>
             <option value="credit"> Crédit</option>
           </select>
-          <button onClick={add} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+          <button onClick={add} disabled={saving} className="bg-[rgb(var(--c-info))] text-white px-4 py-2 rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50">
             {saving ? '...' : 'Ajouter'}
           </button>
         </div>
       </div>
 
       {/* Recherche et filtres */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <div className="flex gap-2 flex-wrap items-center">
           <div className="relative flex-1 min-w-48">
             <input
@@ -2959,49 +2960,49 @@ function RulesTab({ rules, categories, loadAll }) {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder=" Rechercher mot-clé ou catégorie..."
-              className="w-full border rounded-lg px-3 py-2 text-sm pr-8"
+              className="w-full border rounded-ui-sm px-3 py-2 text-ui pr-8"
             />
             {search && (
               <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">×</button>
             )}
           </div>
-          <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="border rounded-lg px-3 py-2 text-sm min-w-48">
+          <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="border rounded-ui-sm px-3 py-2 text-ui min-w-48">
             <option value="">Toutes les catégories</option>
             {catStats.map(([name, count]) => {
               const cat = categories.find(c => c.name === name)
               return <option key={name} value={cat?.id || ''}>{cat?.icon || ''} {name} ({count})</option>
             })}
           </select>
-          <select value={filterDir} onChange={e => setFilterDir(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+          <select value={filterDir} onChange={e => setFilterDir(e.target.value)} className="border rounded-ui-sm px-3 py-2 text-ui">
             <option value="">Toutes directions</option>
             <option value="both"> Les deux</option>
             <option value="debit"> Débit</option>
             <option value="credit"> Crédit</option>
           </select>
           {(search || filterCat || filterDir) && (
-            <button onClick={() => { setSearch(''); setFilterCat(''); setFilterDir('') }} className="text-sm text-blue-600 hover:text-blue-800">
+            <button onClick={() => { setSearch(''); setFilterCat(''); setFilterDir('') }} className="text-ui text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))]">
               Réinitialiser
             </button>
           )}
-          <span className="text-xs text-gray-400">{filtered.length}/{rules.length} règles</span>
+          <span className="text-ui-sm text-gray-400">{filtered.length}/{rules.length} règles</span>
         </div>
       </div>
 
       {/* Tableau des règles */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-ui shadow-sm border overflow-hidden">
         <div className="max-h-[60vh] overflow-y-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-ui">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th className="text-left px-3 py-2.5 text-xs text-gray-500 uppercase tracking-wider">Mot-clé</th>
-                <th className="text-left px-3 py-2.5 text-xs text-gray-500 uppercase tracking-wider">→ Catégorie</th>
-                <th className="text-left px-3 py-2.5 text-xs text-gray-500 uppercase tracking-wider w-24">Dir.</th>
-                <th className="px-3 py-2.5 text-xs text-gray-500 uppercase tracking-wider w-24 text-right">Actions</th>
+                <th className="text-left px-3 py-2.5 text-ui-sm text-gray-500 uppercase tracking-wider">Mot-clé</th>
+                <th className="text-left px-3 py-2.5 text-ui-sm text-gray-500 uppercase tracking-wider">→ Catégorie</th>
+                <th className="text-left px-3 py-2.5 text-ui-sm text-gray-500 uppercase tracking-wider w-24">Dir.</th>
+                <th className="px-3 py-2.5 text-ui-sm text-gray-500 uppercase tracking-wider w-24 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(r => (
-                <tr key={r.id} className={`border-t hover:bg-gray-50 transition ${editId === r.id ? 'bg-blue-50' : ''}`}>
+                <tr key={r.id} className={`border-t hover:bg-gray-50 transition ${editId === r.id ? 'bg-[rgb(var(--c-info-bg))]' : ''}`}>
                   {editId === r.id ? (
                     <>
                       <td className="px-3 py-1.5">
@@ -3009,7 +3010,7 @@ function RulesTab({ rules, categories, loadAll }) {
                           type="text"
                           value={editData.keyword}
                           onChange={e => setEditData(d => ({ ...d, keyword: e.target.value.toUpperCase() }))}
-                          className="w-full border rounded px-2 py-1 text-xs font-mono bg-white"
+                          className="w-full border rounded px-2 py-1 text-ui-sm font-mono bg-white"
                           autoFocus
                           onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }}
                         />
@@ -3018,7 +3019,7 @@ function RulesTab({ rules, categories, loadAll }) {
                         <select
                           value={editData.category_id}
                           onChange={e => setEditData(d => ({ ...d, category_id: e.target.value }))}
-                          className="w-full border rounded px-2 py-1 text-xs bg-white"
+                          className="w-full border rounded px-2 py-1 text-ui-sm bg-white"
                         >
                           {categories.sort((a, b) => a.name.localeCompare(b.name)).map(c => (
                             <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
@@ -3029,7 +3030,7 @@ function RulesTab({ rules, categories, loadAll }) {
                         <select
                           value={editData.direction}
                           onChange={e => setEditData(d => ({ ...d, direction: e.target.value }))}
-                          className="w-full border rounded px-2 py-1 text-xs bg-white"
+                          className="w-full border rounded px-2 py-1 text-ui-sm bg-white"
                         >
                           <option value="both"> Tous</option>
                           <option value="debit"> Débit</option>
@@ -3038,26 +3039,26 @@ function RulesTab({ rules, categories, loadAll }) {
                       </td>
                       <td className="px-3 py-1.5 text-right">
                         <div className="flex gap-1 justify-end">
-                          <button onClick={saveEdit} disabled={saving} className="px-2 py-1 bg-emerald-500 text-white rounded text-xs hover:bg-emerald-600 disabled:opacity-50">{saving ? '...' : 'OK'}</button>
-                          <button onClick={cancelEdit} className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs hover:bg-gray-300">Annuler</button>
+                          <button onClick={saveEdit} disabled={saving} className="px-2 py-1 bg-[rgb(var(--c-success))] text-white rounded text-ui-sm hover:bg-[rgb(var(--c-success))] disabled:opacity-50">{saving ? '...' : 'OK'}</button>
+                          <button onClick={cancelEdit} className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-ui-sm hover:bg-gray-300">Annuler</button>
                         </div>
                       </td>
                     </>
                   ) : (
                     <>
-                      <td className="px-3 py-1.5 font-mono text-xs">{r.keyword}</td>
+                      <td className="px-3 py-1.5 font-mono text-ui-sm">{r.keyword}</td>
                       <td className="px-3 py-1.5">
-                        <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
+                        <span className="text-ui-sm px-2 py-0.5 bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] rounded-full">
                           {r.budget_categories?.icon} {r.budget_categories?.name}
                         </span>
                       </td>
-                      <td className="px-3 py-1.5 text-xs">
+                      <td className="px-3 py-1.5 text-ui-sm">
                         {r.direction === 'debit' ? ' Débit' : r.direction === 'credit' ? ' Crédit' : ' Tous'}
                       </td>
                       <td className="px-3 py-1.5 text-right">
                         <div className="flex gap-1 justify-end [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100" style={{ opacity: 1 }}>
-                          <button onClick={() => startEdit(r)} className="px-2 py-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded text-xs transition" title="Modifier">Modifier</button>
-                          <button onClick={() => del(r.id, r.keyword)} className="px-2 py-1 text-red-300 hover:text-red-600 hover:bg-red-50 rounded text-xs transition" title="Supprimer">Supprimer</button>
+                          <button onClick={() => startEdit(r)} className="px-2 py-1 text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded text-ui-sm transition" title="Modifier">Modifier</button>
+                          <button onClick={() => del(r.id, r.keyword)} className="px-2 py-1 text-[rgb(var(--c-danger)/0.6)] hover:text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded text-ui-sm transition" title="Supprimer">Supprimer</button>
                         </div>
                       </td>
                     </>
@@ -3876,35 +3877,35 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
   return (
     <div className="space-y-4">
       {/* ══ IMPORT RAPIDE - Texte brut du relevé bancaire ══ */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <h3 className="font-bold text-gray-700 mb-2"> Import rapide - Copier/coller {bankName(organization)}</h3>
-        <p className="text-xs text-gray-500 mb-3">Collez le texte brut copié depuis votre relevé {bankName(organization)} (date + libellé). Ex: "20/02\n20/02\nVIR SOFIS 684,42..."</p>
+        <p className="text-ui-sm text-gray-500 mb-3">Collez le texte brut copié depuis votre relevé {bankName(organization)} (date + libellé). Ex: "20/02\n20/02\nVIR SOFIS 684,42..."</p>
 
         <div className="flex gap-2 mb-2">
-          <button onClick={() => setRawDirection('credit')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${rawDirection === 'credit' ? 'bg-green-500 text-white' : 'bg-gray-100'}`}> Entrée (encaissement)</button>
-          <button onClick={() => setRawDirection('debit')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${rawDirection === 'debit' ? 'bg-red-500 text-white' : 'bg-gray-100'}`}> Sortie (paiement)</button>
+          <button onClick={() => setRawDirection('credit')} className={`flex-1 py-2 rounded-ui-sm text-ui font-medium ${rawDirection === 'credit' ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`}> Entrée (encaissement)</button>
+          <button onClick={() => setRawDirection('debit')} className={`flex-1 py-2 rounded-ui-sm text-ui font-medium ${rawDirection === 'debit' ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`}> Sortie (paiement)</button>
         </div>
 
         <textarea value={rawText} onChange={e => setRawText(e.target.value)}
           placeholder={"20/02\n20/02\nVIR SOFIS 684,42  VIR SOFIS FACT-20251120-00047..."}
-          className="w-full h-28 border rounded-lg p-3 text-xs font-mono resize-y" />
+          className="w-full h-28 border rounded-ui-sm p-3 text-ui-sm font-mono resize-y" />
 
         <div className="flex gap-2 mt-2">
-          <button onClick={handleParseRaw} disabled={!rawText.trim()} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 flex-1">
+          <button onClick={handleParseRaw} disabled={!rawText.trim()} className="bg-[rgb(var(--c-info))] text-white px-4 py-2 rounded-ui-sm text-ui disabled:opacity-50 flex-1">
              Analyser
           </button>
           {rawParsed && rawDirection === 'debit' && (
-            <button onClick={saveWithoutMatch} disabled={rawSaving} className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50">
+            <button onClick={saveWithoutMatch} disabled={rawSaving} className="bg-gray-600 text-white px-4 py-2 rounded-ui-sm text-ui disabled:opacity-50">
               {rawSaving ? '...' : ' Importer (sortie)'}
             </button>
           )}
           {rawParsed && rawDirection === 'credit' && !showMatchModal && (
-            <button onClick={() => startInvoiceMatching(rawParsed)} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">
+            <button onClick={() => startInvoiceMatching(rawParsed)} className="bg-[rgb(var(--c-success))] text-white px-4 py-2 rounded-ui-sm text-ui">
                Rapprocher factures
             </button>
           )}
           {rawParsed && rawDirection === 'credit' && (
-            <button onClick={saveWithoutMatch} disabled={rawSaving} className="bg-gray-400 text-white px-3 py-2 rounded-lg text-xs disabled:opacity-50" title="Importer sans lier à une facture">
+            <button onClick={saveWithoutMatch} disabled={rawSaving} className="bg-gray-400 text-white px-3 py-2 rounded-ui-sm text-ui-sm disabled:opacity-50" title="Importer sans lier à une facture">
               Sans facture
             </button>
           )}
@@ -3912,17 +3913,17 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
         {/* Résultat du parsing */}
         {rawParsed && (
-          <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm space-y-1">
+          <div className="mt-3 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui space-y-1">
             <div className="flex justify-between items-center">
-              <span className="font-medium text-blue-800"> Résultat :</span>
+              <span className="font-medium text-[rgb(var(--c-info))]"> Résultat :</span>
               {rawParsed.detectedClient && (
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Client détecté : {rawParsed.detectedClient.name}</span>
+                <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded-full">Client détecté : {rawParsed.detectedClient.name}</span>
               )}
             </div>
-            <div className="text-xs">Date : <b>{rawParsed.date}</b></div>
-            <div className="text-xs">Description : <b className="break-all">{rawParsed.description}</b></div>
-            <div className="text-xs">Montant : <b className={rawDirection === 'credit' ? 'text-green-700' : 'text-red-700'}>{fmt(rawParsed.amount)}</b></div>
-            <div className="text-xs">Catégorie : <b>{rawParsed.category_name}</b></div>
+            <div className="text-ui-sm">Date : <b>{rawParsed.date}</b></div>
+            <div className="text-ui-sm">Description : <b className="break-all">{rawParsed.description}</b></div>
+            <div className="text-ui-sm">Montant : <b className={rawDirection === 'credit' ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}>{fmt(rawParsed.amount)}</b></div>
+            <div className="text-ui-sm">Catégorie : <b>{rawParsed.category_name}</b></div>
           </div>
         )}
       </div>
@@ -3930,11 +3931,11 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
       {/* ══ MODAL MATCHING FACTURES ══ */}
       {showMatchModal && matchTx && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b bg-green-50 rounded-t-xl">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b bg-[rgb(var(--c-success-bg))] rounded-t-xl">
               <div>
-                <h3 className="font-bold text-green-800"> Rapprochement bancaire</h3>
-                <p className="text-xs text-green-600 mt-0.5">Montant reçu : <b>{fmt(matchTx.amount)}</b></p>
+                <h3 className="font-bold text-[rgb(var(--c-success))]"> Rapprochement bancaire</h3>
+                <p className="text-ui-sm text-[rgb(var(--c-success))] mt-0.5">Montant reçu : <b>{fmt(matchTx.amount)}</b></p>
               </div>
               <button onClick={() => setShowMatchModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">Fermer</button>
             </div>
@@ -3956,16 +3957,16 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <span className="text-sm font-medium text-gray-700">Factures de </span>
-                      <span className="text-sm font-bold text-blue-700">{matchClient?.name}</span>
+                      <span className="text-ui font-medium text-gray-700">Factures de </span>
+                      <span className="text-ui font-bold text-[rgb(var(--c-info))]">{matchClient?.name}</span>
                     </div>
-                    <button onClick={() => setMatchStep('select_client')} className="text-xs text-blue-600 hover:underline">Changer de client</button>
+                    <button onClick={() => setMatchStep('select_client')} className="text-ui-sm text-[rgb(var(--c-info))] hover:underline">Changer de client</button>
                   </div>
 
                   {matchCandidates.length === 0 ? (
                     <div className="text-center py-6 text-gray-400">
-                      <p className="text-sm">Aucune facture en attente pour ce client</p>
-                      <button onClick={() => { setShowMatchModal(false); saveWithoutMatch() }} className="mt-2 text-blue-600 text-sm hover:underline">Importer sans rapprochement</button>
+                      <p className="text-ui">Aucune facture en attente pour ce client</p>
+                      <button onClick={() => { setShowMatchModal(false); saveWithoutMatch() }} className="mt-2 text-[rgb(var(--c-info))] text-ui hover:underline">Importer sans rapprochement</button>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -3975,36 +3976,36 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                         return (
                           <div key={inv.id}
                             onClick={() => toggleInvoice(inv.id)}
-                            className={`p-3 border rounded-lg cursor-pointer transition-all ${isSelected ? 'bg-green-50 border-green-400 ring-1 ring-green-300' : 'hover:bg-gray-50'}`}>
+                            className={`p-3 border rounded-ui-sm cursor-pointer transition-all ${isSelected ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)] ring-1 ring-[rgb(var(--c-success)/0.3)]' : 'hover:bg-gray-50'}`}>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}`}>
-                                  {isSelected && <span className="text-xs"></span>}
+                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${isSelected ? 'bg-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)] text-white' : 'border-gray-300'}`}>
+                                  {isSelected && <span className="text-ui-sm"></span>}
                                 </div>
                                 <div>
-                                  <span className="font-medium text-sm">{inv.reference}</span>
-                                  <span className="text-xs text-gray-500 ml-2">{inv.object ? inv.object.substring(0, 40) : ''}</span>
+                                  <span className="font-medium text-ui">{inv.reference}</span>
+                                  <span className="text-ui-sm text-gray-500 ml-2">{inv.object ? inv.object.substring(0, 40) : ''}</span>
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="font-bold text-sm">{fmt(due)}</div>
-                                <div className="text-xs text-gray-400">TTC: {fmt(inv.total_ttc)}</div>
+                                <div className="font-bold text-ui">{fmt(due)}</div>
+                                <div className="text-ui-sm text-gray-400">TTC: {fmt(inv.total_ttc)}</div>
                               </div>
                             </div>
-                            <div className="text-xs text-gray-400 mt-1">
+                            <div className="text-ui-sm text-gray-400 mt-1">
                               {inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('fr-FR') : ''} - 
-                              <span className={inv.status === 'overdue' ? 'text-red-600 font-medium' : ''}>{inv.status === 'overdue' ? 'En retard' : inv.status === 'partial' ? 'Paiement partiel' : 'À régler'}</span>
+                              <span className={inv.status === 'overdue' ? 'text-[rgb(var(--c-danger))] font-medium' : ''}>{inv.status === 'overdue' ? 'En retard' : inv.status === 'partial' ? 'Paiement partiel' : 'À régler'}</span>
                             </div>
 
                             {/* Allocation manuelle si sélectionnée */}
                             {isSelected && matchSelected.size > 1 && (
                               <div className="mt-2 flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                                <label className="text-xs text-gray-500">Montant imputé :</label>
+                                <label className="text-ui-sm text-gray-500">Montant imputé :</label>
                                 <input
                                   type="number" step="0.01"
                                   value={matchAllocations[inv.id] || ''}
                                   onChange={e => setMatchAllocations(prev => ({ ...prev, [inv.id]: parseFloat(e.target.value) || 0 }))}
-                                  className="w-28 border rounded px-2 py-1 text-xs text-right"
+                                  className="w-28 border rounded px-2 py-1 text-ui-sm text-right"
                                 />
                               </div>
                             )}
@@ -4016,23 +4017,23 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
                   {/* Barre de total */}
                   {matchSelected.size > 0 && (
-                    <div className={`mt-3 p-3 rounded-lg border-2 ${matchExact ? 'bg-green-50 border-green-400' : 'bg-amber-50 border-amber-400'}`}>
-                      <div className="flex justify-between items-center text-sm">
+                    <div className={`mt-3 p-3 rounded-ui-sm border-2 ${matchExact ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]' : 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)]'}`}>
+                      <div className="flex justify-between items-center text-ui">
                         <span className="font-medium">Total sélectionné :</span>
                         <span className="font-bold text-lg">{fmt(matchTotal)}</span>
                       </div>
-                      <div className="flex justify-between items-center text-sm mt-1">
+                      <div className="flex justify-between items-center text-ui mt-1">
                         <span>Montant du virement :</span>
                         <span className="font-bold">{fmt(matchTx.amount)}</span>
                       </div>
                       {!matchExact && (
-                        <div className="mt-2 flex items-center gap-2 text-amber-700">
+                        <div className="mt-2 flex items-center gap-2 text-[rgb(var(--c-warning))]">
                           <span className="text-lg"></span>
-                          <span className="text-xs font-medium">Écart de {fmt(matchDiff)} - {matchTotal > matchTx.amount ? 'Factures > Virement' : 'Virement > Factures'}</span>
+                          <span className="text-ui-sm font-medium">Écart de {fmt(matchDiff)} - {matchTotal > matchTx.amount ? 'Factures > Virement' : 'Virement > Factures'}</span>
                         </div>
                       )}
                       {matchExact && (
-                        <div className="mt-1 text-green-700 text-xs font-medium"> Montants correspondants</div>
+                        <div className="mt-1 text-[rgb(var(--c-success))] text-ui-sm font-medium"> Montants correspondants</div>
                       )}
                     </div>
                   )}
@@ -4042,13 +4043,13 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
             {/* Footer */}
             <div className="flex gap-2 p-4 border-t bg-gray-50 rounded-b-xl">
-              <button onClick={() => setShowMatchModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100">
+              <button onClick={() => setShowMatchModal(false)} className="px-4 py-2 border rounded-ui-sm text-ui text-gray-600 hover:bg-gray-100">
                 Annuler
               </button>
               <div className="flex-1" />
               {matchSelected.size > 0 && (
                 <button onClick={saveReconciliation} disabled={rawSaving}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${matchExact ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-600 hover:bg-amber-700'}`}>
+                  className={`px-4 py-2 rounded-ui-sm text-ui font-medium text-white disabled:opacity-50 ${matchExact ? 'bg-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning))]'}`}>
                   {rawSaving ? '...' : ` Rapprocher ${matchSelected.size} facture(s)${!matchExact ? ' (écart)' : ''}`}
                 </button>
               )}
@@ -4058,7 +4059,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
       )}
 
       {/* ══ IMPORT CSV Crédit Mutuel - Drag & Drop ══ */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <h3 className="font-bold text-gray-700 mb-3"> Import CSV Crédit Mutuel</h3>
 
         {/* Zone drag & drop */}
@@ -4066,25 +4067,25 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
           onDragOver={e => { e.preventDefault(); setCsvDragOver(true) }}
           onDragLeave={() => setCsvDragOver(false)}
           onDrop={handleCsvDrop}
-          className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer
-            ${csvDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/50'}`}
+          className={`border-2 border-dashed rounded-ui p-6 text-center transition-colors cursor-pointer
+            ${csvDragOver ? 'border-[rgb(var(--c-info)/0.3)] bg-[rgb(var(--c-info-bg))]' : 'border-gray-300 bg-gray-50 hover:border-[rgb(var(--c-info)/0.3)] hover:bg-[rgb(var(--c-info-bg))]'}`}
           onClick={() => document.getElementById('csv-file-input')?.click()}
         >
           <input id="csv-file-input" type="file" accept=".csv,.txt,.CSV" className="hidden"
             onChange={e => { if (e.target.files[0]) handleCsvFile(e.target.files[0]); e.target.value = '' }} />
           <div className="text-3xl mb-2"></div>
-          <p className="text-sm font-medium text-gray-700">Glisser-déposer votre fichier CSV ici</p>
-          <p className="text-xs text-gray-400 mt-1">ou cliquer pour sélectionner - export CSV de votre banque (Date opération;Date valeur;Libellé;Débit;Crédit)</p>
+          <p className="text-ui font-medium text-gray-700">Glisser-déposer votre fichier CSV ici</p>
+          <p className="text-ui-sm text-gray-400 mt-1">ou cliquer pour sélectionner - export CSV de votre banque (Date opération;Date valeur;Libellé;Débit;Crédit)</p>
         </div>
 
         {/* Ou coller manuellement */}
         <details className="mt-3">
-          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Ou coller les données CSV manuellement...</summary>
+          <summary className="text-ui-sm text-gray-400 cursor-pointer hover:text-gray-600">Ou coller les données CSV manuellement...</summary>
           <textarea value={csv} onChange={e => setCsv(e.target.value)}
             placeholder="Date operation;Date valeur;Libelle;Debit;Credit&#10;20/02/2026;20/02/2026;VIR OPCO 2I;;834,00"
-            className="w-full h-32 border rounded-lg p-3 text-xs font-mono resize-y mt-2" />
+            className="w-full h-32 border rounded-ui-sm p-3 text-ui-sm font-mono resize-y mt-2" />
           <button onClick={handleCsvPaste} disabled={!csv.trim()}
-            className="mt-2 bg-gray-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-700">
+            className="mt-2 bg-gray-600 text-white px-4 py-2 rounded-ui-sm text-ui disabled:opacity-50 hover:bg-gray-700">
              Analyser
           </button>
         </details>
@@ -4099,26 +4100,26 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
         const manualMatchCount = pre.filter(t => t.hasManualMatch && !t.isDuplicate).length
         const selectedCount = selectedRows.size
         return (
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="bg-white rounded-ui shadow-sm border overflow-hidden">
             {/* Header avec stats */}
-            <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-green-50 border-b flex items-center justify-between flex-wrap gap-2">
+            <div className="px-4 py-3 bg-gray-50 border-b flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold text-gray-700"> {pre.length} transactions</span>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{newCount} nouvelles</span>
-                {dupCount > 0 && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{dupCount} doublons</span>}
-                {manualMatchCount > 0 && <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full"> {manualMatchCount} saisie(s) à rapprocher</span>}
-                {matchedCount > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"> {matchedCount} rapprochées</span>}
-                {ambiguousCount > 0 && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full"> {ambiguousCount} à vérifier</span>}
+                <span className="text-ui font-bold text-gray-700"> {pre.length} transactions</span>
+                <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded-full">{newCount} nouvelles</span>
+                {dupCount > 0 && <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-2 py-0.5 rounded-full">{dupCount} doublons</span>}
+                {manualMatchCount > 0 && <span className="text-ui-sm bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full"> {manualMatchCount} saisie(s) à rapprocher</span>}
+                {matchedCount > 0 && <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-0.5 rounded-full"> {matchedCount} rapprochées</span>}
+                {ambiguousCount > 0 && <span className="text-ui-sm bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full"> {ambiguousCount} à vérifier</span>}
               </div>
               <div className="flex gap-2">
-                <button onClick={selectAllNew} className="text-xs text-blue-600 hover:underline">Sélectionner nouvelles</button>
-                <button onClick={selectNone} className="text-xs text-gray-400 hover:underline">Tout désélectionner</button>
+                <button onClick={selectAllNew} className="text-ui-sm text-[rgb(var(--c-info))] hover:underline">Sélectionner nouvelles</button>
+                <button onClick={selectNone} className="text-ui-sm text-gray-400 hover:underline">Tout désélectionner</button>
               </div>
             </div>
 
             {/* Table */}
             <div className="max-h-96 overflow-y-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-ui-sm">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
                     <th className="px-2 py-1.5 text-left w-8"></th>
@@ -4135,56 +4136,56 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                     <React.Fragment key={i}>
                       <tr onClick={() => toggleRow(i)}
                         className={`border-t cursor-pointer transition-colors
-                          ${tx.isDuplicate ? 'bg-amber-50/50 opacity-60' : tx.hasManualMatch ? 'bg-violet-50/40' : selectedRows.has(i) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                          ${tx.isDuplicate ? 'bg-[rgb(var(--c-warning-bg))] opacity-60' : tx.hasManualMatch ? 'bg-gray-50' : selectedRows.has(i) ? 'bg-[rgb(var(--c-info-bg))]' : 'hover:bg-gray-50'}`}>
                         <td className="px-2 py-1">
                           <input type="checkbox" checked={selectedRows.has(i)} onChange={() => toggleRow(i)}
-                            className="rounded text-blue-600" />
+                            className="rounded text-[rgb(var(--c-info))]" />
                         </td>
                         <td className="px-2 py-1 whitespace-nowrap">{tx.date}</td>
                         <td className="px-2 py-1 truncate max-w-xs" title={tx.description}>{tx.description}</td>
                         <td className="px-2 py-1" onClick={e => e.stopPropagation()}>
                           <select value={tx.category_name} onChange={e => changePreCategory(i, e.target.value)}
-                            className={`text-xs rounded px-1 py-0.5 border-0 cursor-pointer ${tx.category_name === 'Autre / Non classé' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'}`}>
+                            className={`text-ui-sm rounded px-1 py-0.5 border-0 cursor-pointer ${tx.category_name === 'Autre / Non classé' ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-gray-100 text-gray-700'}`}>
                             {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>)}
                           </select>
                         </td>
-                        <td className="px-2 py-1 text-right text-red-600 font-mono">{tx.debit > 0 ? tx.debit.toFixed(2) : ''}</td>
-                        <td className="px-2 py-1 text-right text-green-600 font-mono">{tx.credit > 0 ? tx.credit.toFixed(2) : ''}</td>
+                        <td className="px-2 py-1 text-right text-[rgb(var(--c-danger))] font-mono">{tx.debit > 0 ? tx.debit.toFixed(2) : ''}</td>
+                        <td className="px-2 py-1 text-right text-[rgb(var(--c-success))] font-mono">{tx.credit > 0 ? tx.credit.toFixed(2) : ''}</td>
                         <td className="px-2 py-1 text-center" onClick={e => e.stopPropagation()}>
                           {tx.isDuplicate
-                            ? <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">doublon</span>
+                            ? <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">doublon</span>
                             : tx.hasManualMatch
                               ? <button onClick={() => toggleAbsorb(i)}
-                                  className={`text-xs px-1.5 py-0.5 rounded font-medium transition-colors ${tx.absorbManual ? 'bg-violet-200 text-violet-800 hover:bg-violet-300' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                                  className={`text-ui-sm px-1.5 py-0.5 rounded font-medium transition-colors ${tx.absorbManual ? 'bg-gray-200 text-gray-800 hover:bg-gray-700' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
                                   title={tx.absorbManual ? 'Cliquer pour importer séparément' : 'Cliquer pour absorber la saisie'}>
                                   {tx.absorbManual ? ' absorber' : '↔ séparer'}
                                 </button>
                               : tx.matchConfidence === 'high'
-                                ? <button onClick={() => toggleSearchPanel(i)} className="text-xs bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded hover:bg-blue-300"> rapprochée</button>
+                                ? <button onClick={() => toggleSearchPanel(i)} className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1.5 py-0.5 rounded hover:bg-[rgb(var(--c-info))]"> rapprochée</button>
                                 : tx.matchConfidence === 'medium' || tx.matchConfidence === 'ambiguous'
-                                  ? <button onClick={() => toggleSearchPanel(i)} className="text-xs bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded hover:bg-purple-300"> à vérifier</button>
+                                  ? <button onClick={() => toggleSearchPanel(i)} className="text-ui-sm bg-gray-200 text-gray-800 px-1.5 py-0.5 rounded hover:bg-gray-700"> à vérifier</button>
                                   : tx.credit > 0
-                                    ? <button onClick={() => toggleSearchPanel(i)} className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded hover:bg-gray-300 cursor-pointer"> matcher</button>
-                                    : <span className="text-xs bg-green-200 text-green-800 px-1.5 py-0.5 rounded">nouvelle</span>
+                                    ? <button onClick={() => toggleSearchPanel(i)} className="text-ui-sm bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded hover:bg-gray-300 cursor-pointer"> matcher</button>
+                                    : <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-1.5 py-0.5 rounded">nouvelle</span>
                           }
                         </td>
                       </tr>
 
                       {/* Sous-ligne : saisie manuelle détectée */}
                       {tx.hasManualMatch && !tx.isDuplicate && tx.manualMatch && (
-                        <tr className="bg-violet-50/60 border-t border-violet-100">
+                        <tr className="bg-gray-50 border-t border-gray-200">
                           <td></td>
                           <td colSpan="6" className="px-2 py-1.5" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center gap-2 flex-wrap text-xs">
-                              <span className="text-violet-500 font-medium"> Saisie manuelle existante :</span>
-                              <span className="text-violet-700 font-medium">{tx.manualMatch.date ? new Date(tx.manualMatch.date).toLocaleDateString('fr-FR') : tx.manualMatch.date}</span>
-                              <span className="text-violet-700 truncate max-w-xs" title={tx.manualMatch.description}>{tx.manualMatch.description}</span>
-                              <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded">{tx.manualMatch.category_name}</span>
+                            <div className="flex items-center gap-2 flex-wrap text-ui-sm">
+                              <span className="text-gray-800 font-medium"> Saisie manuelle existante :</span>
+                              <span className="text-gray-800 font-medium">{tx.manualMatch.date ? new Date(tx.manualMatch.date).toLocaleDateString('fr-FR') : tx.manualMatch.date}</span>
+                              <span className="text-gray-800 truncate max-w-xs" title={tx.manualMatch.description}>{tx.manualMatch.description}</span>
+                              <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded">{tx.manualMatch.category_name}</span>
                               {tx.manualMatch.description !== tx.description && (
                                 <span className="text-gray-400 italic">descriptions différentes</span>
                               )}
                               {tx.absorbManual
-                                ? <span className="text-violet-600 font-medium">→ La saisie sera conservée, la ligne banque liée en arrière-plan</span>
+                                ? <span className="text-gray-800 font-medium">→ La saisie sera conservée, la ligne banque liée en arrière-plan</span>
                                 : <span className="text-gray-500">→ Deux lignes séparées seront créées</span>
                               }
                             </div>
@@ -4194,26 +4195,26 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
                       {/* Ligne de détail match pour les crédits - résumé compact */}
                       {tx.credit > 0 && !tx.isDuplicate && tx.matchedInvoices?.length > 0 && searchOpenRow !== i && (
-                        <tr className="bg-blue-50/30">
+                        <tr className="bg-[rgb(var(--c-info-bg))]">
                           <td></td>
                           <td colSpan="6" className="px-2 py-1.5" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs text-gray-500">
+                              <span className="text-ui-sm text-gray-500">
                                 {tx.matchConfidence === 'high' ? '' : ''} {tx.matchType} →
                               </span>
                               {tx.matchedInvoices.map(inv => (
-                                <span key={inv.id} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
+                                <span key={inv.id} className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-0.5 rounded font-medium">
                                   {inv.reference} - {inv.client_name} - {fmt(inv.amount_due)}
                                 </span>
                               ))}
                               {(() => {
                                 const totalM = tx.matchedInvoices.reduce((s, m) => s + m.amount_due, 0)
                                 return Math.abs(totalM - tx.credit) < 0.01
-                                  ? <span className="text-xs text-green-600"> exact</span>
-                                  : <span className="text-xs text-amber-600"> écart {fmt(Math.abs(totalM - tx.credit))}</span>
+                                  ? <span className="text-ui-sm text-[rgb(var(--c-success))]"> exact</span>
+                                  : <span className="text-ui-sm text-[rgb(var(--c-warning))]"> écart {fmt(Math.abs(totalM - tx.credit))}</span>
                               })()}
-                              <button onClick={() => detachMatch(i)} className="text-xs text-red-400 hover:text-red-600" title="Détacher">Détacher</button>
-                              <button onClick={() => toggleSearchPanel(i)} className="text-xs text-blue-500 hover:text-blue-700">Chercher</button>
+                              <button onClick={() => detachMatch(i)} className="text-ui-sm text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]" title="Détacher">Détacher</button>
+                              <button onClick={() => toggleSearchPanel(i)} className="text-ui-sm text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))]">Chercher</button>
                             </div>
                           </td>
                         </tr>
@@ -4226,18 +4227,18 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                         const totalSelected = (tx.matchedInvoices || []).reduce((s, m) => s + m.amount_due, 0)
                         const diff = tx.credit - totalSelected
                         return (
-                          <tr className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                          <tr className="bg-gray-50">
                             <td></td>
                             <td colSpan="6" className="p-3" onClick={e => e.stopPropagation()}>
                               <div className="space-y-2">
                                 {/* Header du panneau */}
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-gray-700"> Rapprocher {fmt(tx.credit)}</span>
+                                    <span className="text-ui font-medium text-gray-700"> Rapprocher {fmt(tx.credit)}</span>
                                     {totalSelected > 0 && (
-                                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                                        Math.abs(diff) < 0.01 ? 'bg-green-100 text-green-700' :
-                                        diff > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                                      <span className={`text-ui-sm px-2 py-0.5 rounded font-medium ${
+                                        Math.abs(diff) < 0.01 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                                        diff > 0 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                                       }`}>
                                         {Math.abs(diff) < 0.01 ? ' Correspondance exacte' :
                                          diff > 0 ? ` Reste ${fmt(diff)} non couvert` :
@@ -4246,25 +4247,25 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                                     )}
                                   </div>
                                   <button onClick={() => { setSearchOpenRow(null); setSearchQuery('') }}
-                                    className="text-gray-400 hover:text-gray-600 text-sm"> Fermer</button>
+                                    className="text-gray-400 hover:text-gray-600 text-ui"> Fermer</button>
                                 </div>
 
                                 {/* Recherche */}
                                 <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                                   placeholder=" Filtrer par client, référence, objet..."
-                                  className="w-full border rounded-lg px-3 py-1.5 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400" />
+                                  className="w-full border rounded-ui-sm px-3 py-1.5 text-ui-sm focus:border-[rgb(var(--c-info)/0.3)] focus:ring-1 focus:ring-[rgb(var(--c-info)/0.3)]" />
 
                                 {/* Liste des factures scorées */}
                                 <div className="max-h-48 overflow-y-auto space-y-1">
                                   {scored.length === 0 ? (
-                                    <div className="text-center py-3 text-xs text-gray-400">Aucune facture impayée trouvée</div>
+                                    <div className="text-center py-3 text-ui-sm text-gray-400">Aucune facture impayée trouvée</div>
                                   ) : scored.slice(0, 15).map(inv => {
                                     const isSelected = selectedInvIds.has(inv.id)
                                     return (
                                       <div key={inv.id} onClick={() => toggleInvoiceForRow(i, inv)}
-                                        className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors text-xs
-                                          ${isSelected ? 'bg-blue-100 border-blue-400' : inv.score >= 80 ? 'bg-green-50 border-green-200 hover:bg-green-100' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                                        <input type="checkbox" checked={isSelected} readOnly className="rounded text-blue-600 pointer-events-none" />
+                                        className={`flex items-center gap-2 p-2 rounded-ui-sm border cursor-pointer transition-colors text-ui-sm
+                                          ${isSelected ? 'bg-[rgb(var(--c-info-bg))] border-[rgb(var(--c-info)/0.3)]' : inv.score >= 80 ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)] hover:bg-[rgb(var(--c-success-bg))]' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                        <input type="checkbox" checked={isSelected} readOnly className="rounded text-[rgb(var(--c-info))] pointer-events-none" />
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2">
                                             <span className="font-medium text-gray-800">{inv.reference}</span>
@@ -4274,14 +4275,14 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                                           {inv.object && <div className="text-gray-400 truncate">{inv.object}</div>}
                                         </div>
                                         <div className="text-right flex-shrink-0">
-                                          <div className={`font-bold ${Math.abs(inv.amount_due - tx.credit) < 0.01 ? 'text-green-700' : 'text-gray-700'}`}>
+                                          <div className={`font-bold ${Math.abs(inv.amount_due - tx.credit) < 0.01 ? 'text-[rgb(var(--c-success))]' : 'text-gray-700'}`}>
                                             {fmt(inv.amount_due)}
                                           </div>
                                           <div className="text-gray-400">{inv.invoice_date}</div>
                                         </div>
                                         {inv.score >= 50 && (
                                           <div className="flex-shrink-0">
-                                            <span className={`text-xs px-1.5 py-0.5 rounded ${inv.score >= 100 ? 'bg-green-200 text-green-800' : inv.score >= 50 ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'}`}>
+                                            <span className={`text-ui-sm px-1.5 py-0.5 rounded ${inv.score >= 100 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : inv.score >= 50 ? 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' : 'bg-gray-200 text-gray-600'}`}>
                                               {inv.reasons[0]}
                                             </span>
                                           </div>
@@ -4293,9 +4294,9 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
                                 {/* Barre de total si sélection */}
                                 {(tx.matchedInvoices || []).length > 0 && (
-                                  <div className={`flex items-center justify-between p-2 rounded-lg border-2 text-xs font-medium ${
-                                    Math.abs(diff) < 0.01 ? 'bg-green-50 border-green-400 text-green-700' :
-                                    diff > 0 ? 'bg-amber-50 border-amber-400 text-amber-700' : 'bg-red-50 border-red-400 text-red-700'
+                                  <div className={`flex items-center justify-between p-2 rounded-ui-sm border-2 text-ui-sm font-medium ${
+                                    Math.abs(diff) < 0.01 ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)] text-[rgb(var(--c-success))]' :
+                                    diff > 0 ? 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))]'
                                   }`}>
                                     <span>{(tx.matchedInvoices || []).length} facture(s) = {fmt(totalSelected)}</span>
                                     <span>Virement : {fmt(tx.credit)}</span>
@@ -4316,7 +4317,7 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
             <div className="px-4 py-3 bg-gray-50 border-t">
               {/* Récap rapprochement */}
               {matchedCount > 0 && (
-                <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 space-y-1">
+                <div className="mb-3 p-2 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm text-ui-sm text-[rgb(var(--c-info))] space-y-1">
                   <div className="font-medium"> Rapprochement automatique :</div>
                   {pre.filter(t => selectedRows.has(pre.indexOf(t)) && t.matchConfidence === 'high' && t.matchedInvoices?.length > 0).map((tx, j) => (
                     <div key={j} className="flex justify-between">
@@ -4327,12 +4328,12 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
                 </div>
               )}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">{selectedCount} ligne(s) sélectionnée(s)</span>
+                <span className="text-ui text-gray-600">{selectedCount} ligne(s) sélectionnée(s)</span>
                 <div className="flex gap-2">
                   <button onClick={() => { setPre([]); setCsv(''); setSelectedRows(new Set()) }}
-                    className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100">Annuler</button>
+                    className="px-4 py-2 border rounded-ui-sm text-ui text-gray-600 hover:bg-gray-100">Annuler</button>
                   <button onClick={doImport} disabled={imp || selectedCount === 0}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-blue-700">
+                    className="bg-[rgb(var(--c-info))] text-white px-4 py-2 rounded-ui-sm text-ui font-medium disabled:opacity-50 hover:bg-[rgb(var(--c-info))]">
                     {imp ? ' Import en cours...' : ` Importer ${selectedCount} transaction(s)${matchedCount > 0 ? ` + ${matchedCount} rapprochement(s)` : ''}${pre.filter((t,i) => selectedRows.has(i) && t.hasManualMatch && t.absorbManual).length > 0 ? ` + ${pre.filter((t,i) => selectedRows.has(i) && t.hasManualMatch && t.absorbManual).length} absorption(s)` : ''}`}
                   </button>
                 </div>
@@ -4481,14 +4482,14 @@ ${txList}` }]
   return (
     <div className="space-y-4">
       {/* Header + Launch */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="font-bold text-gray-700"> Catégorisation intelligente</h3>
-            <p className="text-xs text-gray-500 mt-1">L'IA analyse {candidates.length} transactions et propose des corrections de catégorie</p>
+            <p className="text-ui-sm text-gray-500 mt-1">L'IA analyse {candidates.length} transactions et propose des corrections de catégorie</p>
           </div>
           <button onClick={analyzeAll} disabled={analyzing}
-            className="bg-purple-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
+            className="bg-gray-700 text-white px-6 py-2.5 rounded-ui-sm text-ui font-medium hover:bg-gray-700 disabled:opacity-50">
             {analyzing ? ` Analyse... ${progress.done}/${progress.total}` : ' Lancer l\'analyse'}
           </button>
         </div>
@@ -4496,30 +4497,30 @@ ${txList}` }]
         {analyzing && (
           <div className="mt-3">
             <div className="bg-gray-200 rounded-full h-2">
-              <div className="bg-purple-500 rounded-full h-2 transition-all" style={{ width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%` }} />
+              <div className="bg-gray-700 rounded-full h-2 transition-all" style={{ width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%` }} />
             </div>
-            <p className="text-xs text-gray-500 mt-1">Lot {progress.done}/{progress.total} - {candidates.length} transactions analysées</p>
+            <p className="text-ui-sm text-gray-500 mt-1">Lot {progress.done}/{progress.total} - {candidates.length} transactions analysées</p>
           </div>
         )}
       </div>
 
       {/* Résultats */}
       {suggestions.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="bg-white rounded-ui shadow-sm border p-4">
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="font-bold text-gray-700"> {suggestions.length} correction(s) suggérée(s)</h3>
-              <p className="text-xs text-gray-500">{applied.size} appliquées • {ignored.size} ignorées • {pending.length} en attente</p>
+              <p className="text-ui-sm text-gray-500">{applied.size} appliquées • {ignored.size} ignorées • {pending.length} en attente</p>
             </div>
             {highConf.length > 0 && (
-              <button onClick={applyAll} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700">
+              <button onClick={applyAll} className="bg-[rgb(var(--c-success))] text-white px-4 py-2 rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-success))]">
                  Tout valider ({pending.length})
               </button>
             )}
           </div>
 
-          <div className="max-h-[60vh] overflow-y-auto border rounded-lg">
-            <table className="w-full text-xs">
+          <div className="max-h-[60vh] overflow-y-auto border rounded-ui-sm">
+            <table className="w-full text-ui-sm">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   <th className="text-left px-3 py-2 text-gray-500">Description</th>
@@ -4537,13 +4538,13 @@ ${txList}` }]
                   const skip = ignored.has(s.id)
                   const tx = transactions.find(t => t.id === s.id)
                   return (
-                    <tr key={i} className={`border-t ${done ? 'bg-green-50 opacity-60' : skip ? 'bg-gray-50 opacity-40' : 'hover:bg-blue-50/30'}`}>
+                    <tr key={i} className={`border-t ${done ? 'bg-[rgb(var(--c-success-bg))] opacity-60' : skip ? 'bg-gray-50 opacity-40' : 'hover:bg-[rgb(var(--c-info-bg))]'}`}>
                       <td className="px-3 py-1.5 max-w-48"><div className="truncate" title={s.description}>{s.description}</div></td>
-                      <td className="px-3 py-1.5 font-mono whitespace-nowrap">{tx?.debit > 0 ? <span className="text-red-600">{fmt(tx.debit)}</span> : <span className="text-green-600">{fmt(tx?.credit)}</span>}</td>
-                      <td className="px-3 py-1.5"><span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs">{s.current}</span></td>
-                      <td className="px-3 py-1.5"><span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-medium">{s.suggested}</span></td>
+                      <td className="px-3 py-1.5 font-mono whitespace-nowrap">{tx?.debit > 0 ? <span className="text-[rgb(var(--c-danger))]">{fmt(tx.debit)}</span> : <span className="text-[rgb(var(--c-success))]">{fmt(tx?.credit)}</span>}</td>
+                      <td className="px-3 py-1.5"><span className="bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] px-1.5 py-0.5 rounded text-ui-sm">{s.current}</span></td>
+                      <td className="px-3 py-1.5"><span className="bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-1.5 py-0.5 rounded text-ui-sm font-medium">{s.suggested}</span></td>
                       <td className="px-2 py-1.5 text-center">
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${s.confidence >= 0.9 ? 'bg-green-200 text-green-800' : s.confidence >= 0.7 ? 'bg-amber-200 text-amber-800' : 'bg-red-200 text-red-800'}`}>
+                        <span className={`px-1.5 py-0.5 rounded text-ui-sm font-bold ${s.confidence >= 0.9 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : s.confidence >= 0.7 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'}`}>
                           {Math.round(s.confidence * 100)}%
                         </span>
                       </td>
@@ -4551,11 +4552,11 @@ ${txList}` }]
                       <td className="px-2 py-1.5 whitespace-nowrap">
                         {!done && !skip && (
                           <>
-                            <button onClick={() => applySuggestion(s)} className="text-green-600 hover:text-green-800 text-sm mr-1" title="Valider">Valider</button>
-                            <button onClick={() => setIgnored(prev => new Set([...prev, s.id]))} className="text-gray-400 hover:text-gray-600 text-sm" title="Ignorer">Ignorer</button>
+                            <button onClick={() => applySuggestion(s)} className="text-[rgb(var(--c-success))] hover:text-[rgb(var(--c-success))] text-ui mr-1" title="Valider">Valider</button>
+                            <button onClick={() => setIgnored(prev => new Set([...prev, s.id]))} className="text-gray-400 hover:text-gray-600 text-ui" title="Ignorer">Ignorer</button>
                           </>
                         )}
-                        {done && <span className="text-green-500"></span>}
+                        {done && <span className="text-[rgb(var(--c-success))]"></span>}
                         {skip && <span className="text-gray-400">-</span>}
                       </td>
                     </tr>
@@ -4567,7 +4568,7 @@ ${txList}` }]
 
           {applied.size > 0 && (
             <div className="mt-3 flex justify-end">
-              <button onClick={loadAll} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+              <button onClick={loadAll} className="bg-[rgb(var(--c-info))] text-white px-4 py-2 rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-info))]">
                  Rafraîchir les données
               </button>
             </div>
@@ -4576,10 +4577,10 @@ ${txList}` }]
       )}
 
       {suggestions.length === 0 && !analyzing && (
-        <div className="bg-white rounded-xl shadow-sm border p-8 text-center text-gray-400">
+        <div className="bg-white rounded-ui shadow-sm border p-8 text-center text-gray-400">
           <div className="text-4xl mb-3"></div>
           <p>Cliquez "Lancer l'analyse" pour que l'IA vérifie toutes vos catégorisations</p>
-          <p className="text-xs mt-2">L'IA détecte les erreurs de classement et propose des corrections avec auto-création de règles</p>
+          <p className="text-ui-sm mt-2">L'IA détecte les erreurs de classement et propose des corrections avec auto-création de règles</p>
         </div>
       )}
     </div>
@@ -5335,13 +5336,13 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
   const trendArrow = (pct) => pct > 5 ? '↗' : pct < -5 ? '↘' : '→'
   const trendColor = (pct, inverse = false) => {
     const good = inverse ? pct < -5 : pct > 5
-    return good ? 'text-green-600' : (inverse ? pct > 5 : pct < -5) ? 'text-red-600' : 'text-gray-600'
+    return good ? 'text-[rgb(var(--c-success))]' : (inverse ? pct > 5 : pct < -5) ? 'text-[rgb(var(--c-danger))]' : 'text-gray-600'
   }
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload) return null
     return (
-      <div className="bg-white p-2 rounded shadow border text-xs">
+      <div className="bg-white p-2 rounded shadow border text-ui-sm">
         <div className="font-bold">{label}</div>
         {payload.map((p, i) => (
           <div key={i} style={{ color: p.color }}>{p.name}: {fmt(p.value)}</div>
@@ -5374,46 +5375,46 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
     <div className="space-y-4">
 
       {/* ══ BLOC 1 - Situation actuelle ══ */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-4 text-white">
+      <div className="bg-gray-50 rounded-ui p-4 text-white">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-lg"> Situation - {ML[currentMonthKey.split('/')[0]]} {now.getFullYear()}</h3>
-          <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-            analysis.budgetLibre > 1000 ? 'bg-green-400/30 text-green-100' :
-            analysis.budgetLibre > 0 ? 'bg-amber-400/30 text-amber-100' :
-            'bg-red-400/30 text-red-100'
+          <span className={`px-3 py-1 rounded-full text-ui font-bold ${
+            analysis.budgetLibre > 1000 ? 'bg-[rgb(var(--c-success))] text-[rgb(var(--c-success)/0.6)]' :
+            analysis.budgetLibre > 0 ? 'bg-[rgb(var(--c-warning))] text-[rgb(var(--c-warning)/0.6)]' :
+            'bg-[rgb(var(--c-danger))] text-[rgb(var(--c-danger)/0.6)]'
           }`}>
             {analysis.budgetLibre > 1000 ? ' Confortable' : analysis.budgetLibre > 0 ? ' Attention' : ' Critique'}
           </span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-white/10 rounded-lg p-3">
-            <div className="text-xs opacity-70">Solde {config.solde_override !== '' ? '(manuel)' : '(calculé)'}</div>
+          <div className="bg-white/10 rounded-ui-sm p-3">
+            <div className="text-ui-sm opacity-70">Solde {config.solde_override !== '' ? '(manuel)' : '(calculé)'}</div>
             <div className="font-bold text-xl">{fmt(analysis.solde)}</div>
-            {config.solde_override !== '' && <div className="text-xs opacity-50">Auto : {fmt(analysis.soldeAuto)}</div>}
+            {config.solde_override !== '' && <div className="text-ui-sm opacity-50">Auto : {fmt(analysis.soldeAuto)}</div>}
           </div>
-          <div className="bg-white/10 rounded-lg p-3">
-            <div className="text-xs opacity-70">Solde projeté fin de mois</div>
-            <div className={`font-bold text-xl ${analysis.soldeProjeteFin >= config.marge_securite ? '' : 'text-red-300'}`}>{fmt(analysis.soldeProjeteFin)}</div>
+          <div className="bg-white/10 rounded-ui-sm p-3">
+            <div className="text-ui-sm opacity-70">Solde projeté fin de mois</div>
+            <div className={`font-bold text-xl ${analysis.soldeProjeteFin >= config.marge_securite ? '' : 'text-[rgb(var(--c-danger)/0.6)]'}`}>{fmt(analysis.soldeProjeteFin)}</div>
           </div>
-          <div className={`rounded-lg p-3 ${analysis.budgetLibre > 1000 ? 'bg-green-500/30' : analysis.budgetLibre > 0 ? 'bg-amber-500/30' : 'bg-red-500/30'}`}>
-            <div className="text-xs opacity-70"> Budget libre</div>
+          <div className={`rounded-ui-sm p-3 ${analysis.budgetLibre > 1000 ? 'bg-[rgb(var(--c-success))]' : analysis.budgetLibre > 0 ? 'bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger))]'}`}>
+            <div className="text-ui-sm opacity-70"> Budget libre</div>
             <div className="font-bold text-xl">{fmt(analysis.budgetLibre)}</div>
-            <div className="text-xs opacity-60">Dépensable sans risque</div>
+            <div className="text-ui-sm opacity-60">Dépensable sans risque</div>
           </div>
-          <div className="bg-white/10 rounded-lg p-3">
-            <div className="text-xs opacity-70"> Objectif</div>
+          <div className="bg-white/10 rounded-ui-sm p-3">
+            <div className="text-ui-sm opacity-70"> Objectif</div>
             <div className="font-bold text-xl">{fmt(config.objectif)}</div>
           </div>
         </div>
         {config.objectif > 0 && (
           <div className="mt-3">
-            <div className="flex justify-between text-xs mb-1 opacity-70">
+            <div className="flex justify-between text-ui-sm mb-1 opacity-70">
               <span>{fmt(analysis.solde)}</span>
               <span>Gap : {fmt(Math.max(0, config.objectif - analysis.solde))}</span>
               <span>{fmt(config.objectif)}</span>
             </div>
             <div className="bg-white/20 rounded-full h-2.5">
-              <div className="rounded-full h-2.5 bg-green-400 transition-all"
+              <div className="rounded-full h-2.5 bg-[rgb(var(--c-success))] transition-all"
                 style={{ width: `${Math.min(100, Math.max(2, (analysis.solde / config.objectif) * 100))}%` }} />
             </div>
           </div>
@@ -5421,60 +5422,60 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
       </div>
 
       {/* Paramètres */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <details>
-          <summary className="font-bold text-gray-700 cursor-pointer hover:text-blue-600"> Paramètres</summary>
+          <summary className="font-bold text-gray-700 cursor-pointer hover:text-[rgb(var(--c-info))]"> Paramètres</summary>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
             <div>
-              <label className="text-xs text-gray-500">Solde réel (€) <span className="text-gray-300">vide = auto</span></label>
+              <label className="text-ui-sm text-gray-500">Solde réel (€) <span className="text-gray-300">vide = auto</span></label>
               <input type="number" value={config.solde_override} placeholder={`Auto: ${analysis.soldeAuto}`}
                 onChange={e => updateConfig('solde_override', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm mt-1 font-mono" />
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1 font-mono" />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Objectif fin d'année (€)</label>
+              <label className="text-ui-sm text-gray-500">Objectif fin d'année (€)</label>
               <input type="number" value={config.objectif} onChange={e => updateConfig('objectif', +e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm mt-1 font-mono" />
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1 font-mono" />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Marge de sécurité (€)</label>
+              <label className="text-ui-sm text-gray-500">Marge de sécurité (€)</label>
               <input type="number" value={config.marge_securite} onChange={e => updateConfig('marge_securite', +e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm mt-1 font-mono" />
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1 font-mono" />
             </div>
           </div>
         </details>
       </div>
 
       {/* ══ BLOC 2 - Mois en cours ══ */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-ui shadow-sm border overflow-hidden">
         <div className="px-4 py-3 bg-gray-50 border-b">
           <h3 className="font-bold text-gray-700"> {ML[currentMonthKey.split('/')[0]]} {now.getFullYear()} - Réalisé vs À venir</h3>
         </div>
         <div className="p-4">
-          <div className="grid grid-cols-4 gap-4 text-center text-sm">
+          <div className="grid grid-cols-4 gap-4 text-center text-ui">
             <div></div>
             <div className="font-medium text-gray-500"> Réalisé</div>
             <div className="font-medium text-gray-500"> À venir</div>
             <div className="font-medium text-gray-700">Total mois</div>
 
-            <div className="text-left font-medium text-green-700"> Entrées</div>
-            <div className="font-mono text-green-600">{fmt(analysis.totalEntreesRealisees)}</div>
-            <div className="font-mono text-green-500">{fmt(analysis.totalEntreesAVenir + analysis.totalPipeMois)}</div>
-            <div className="font-mono font-bold text-green-700">{fmt(analysis.totalEntreesMois)}</div>
+            <div className="text-left font-medium text-[rgb(var(--c-success))]"> Entrées</div>
+            <div className="font-mono text-[rgb(var(--c-success))]">{fmt(analysis.totalEntreesRealisees)}</div>
+            <div className="font-mono text-[rgb(var(--c-success))]">{fmt(analysis.totalEntreesAVenir + analysis.totalPipeMois)}</div>
+            <div className="font-mono font-bold text-[rgb(var(--c-success))]">{fmt(analysis.totalEntreesMois)}</div>
 
-            <div className="text-left font-medium text-red-700"> Sorties</div>
-            <div className="font-mono text-red-600">{fmt(analysis.totalSortiesRealisees)}</div>
-            <div className="font-mono text-red-500">{fmt(analysis.totalSortiesAVenir)}</div>
-            <div className="font-mono font-bold text-red-700">{fmt(analysis.totalSortiesMois)}</div>
+            <div className="text-left font-medium text-[rgb(var(--c-danger))]"> Sorties</div>
+            <div className="font-mono text-[rgb(var(--c-danger))]">{fmt(analysis.totalSortiesRealisees)}</div>
+            <div className="font-mono text-[rgb(var(--c-danger))]">{fmt(analysis.totalSortiesAVenir)}</div>
+            <div className="font-mono font-bold text-[rgb(var(--c-danger))]">{fmt(analysis.totalSortiesMois)}</div>
 
             <div className="text-left font-bold text-gray-700 border-t pt-2">Net</div>
-            <div className={`font-mono font-bold border-t pt-2 ${(analysis.totalEntreesRealisees - analysis.totalSortiesRealisees) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+            <div className={`font-mono font-bold border-t pt-2 ${(analysis.totalEntreesRealisees - analysis.totalSortiesRealisees) >= 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>
               {fmt(analysis.totalEntreesRealisees - analysis.totalSortiesRealisees)}
             </div>
             <div className="font-mono border-t pt-2 text-gray-500">
               {fmt((analysis.totalEntreesAVenir + analysis.totalPipeMois) - analysis.totalSortiesAVenir)}
             </div>
-            <div className={`font-mono font-bold text-lg border-t pt-2 ${analysis.netMois >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+            <div className={`font-mono font-bold text-lg border-t pt-2 ${analysis.netMois >= 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>
               {analysis.netMois >= 0 ? '+' : ''}{fmt(analysis.netMois)}
             </div>
           </div>
@@ -5482,13 +5483,13 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
           {/* Détails dépliables */}
           {analysis.entreesAVenir.length > 0 && (
             <details className="mt-4">
-              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600"> {analysis.entreesAVenir.length} facture(s) en attente</summary>
+              <summary className="text-ui-sm text-gray-400 cursor-pointer hover:text-gray-600"> {analysis.entreesAVenir.length} facture(s) en attente</summary>
               <div className="mt-2 space-y-1">
                 {analysis.entreesAVenir.map(inv => {
                   const cli = effectiveClients.find(c => c.id === inv.client_id)
                   const isOD = inv.due_date && inv.due_date < new Date().toISOString().substring(0, 10)
                   return (
-                    <div key={inv.id} className={`flex justify-between text-xs px-2 py-1 rounded ${isOD ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                    <div key={inv.id} className={`flex justify-between text-ui-sm px-2 py-1 rounded ${isOD ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]'}`}>
                       <span>{inv.reference} - {cli?.name || '?'} {isOD && <b> RETARD</b>}</span>
                       <span className="font-mono font-bold">{fmt(parseFloat(inv.amount_due))}</span>
                     </div>
@@ -5500,10 +5501,10 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
           {analysis.sortiesAVenir.length > 0 && (
             <details className="mt-2">
-              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600"> {analysis.sortiesAVenir.length} charge(s) fixe(s) restante(s) ce mois</summary>
+              <summary className="text-ui-sm text-gray-400 cursor-pointer hover:text-gray-600"> {analysis.sortiesAVenir.length} charge(s) fixe(s) restante(s) ce mois</summary>
               <div className="mt-2 space-y-1">
                 {analysis.sortiesAVenir.map((r, i) => (
-                  <div key={i} className="flex justify-between text-xs px-2 py-1 rounded bg-red-50 text-red-700">
+                  <div key={i} className="flex justify-between text-ui-sm px-2 py-1 rounded bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]">
                     <span>{r.icon} {r.description} <span className="text-gray-400">(débité {fmt(r.deja)} / {fmt(r.attendu)})</span></span>
                     <span className="font-mono font-medium">reste ~{fmt(r.montant)}</span>
                   </div>
@@ -5515,18 +5516,18 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
           {/* Budget par catégorie */}
           {analysis.budgetByCat.length > 0 && (
             <details className="mt-3">
-              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600"> Budget par catégorie ce mois</summary>
+              <summary className="text-ui-sm text-gray-400 cursor-pointer hover:text-gray-600"> Budget par catégorie ce mois</summary>
               <div className="mt-2 space-y-1.5">
                 {analysis.budgetByCat.slice(0, 8).map((b, i) => (
-                  <div key={i} className="text-xs">
+                  <div key={i} className="text-ui-sm">
                     <div className="flex justify-between mb-0.5">
                       <span>{b.icon} {b.name}</span>
-                      <span className={`font-mono ${b.remaining < 0 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
+                      <span className={`font-mono ${b.remaining < 0 ? 'text-[rgb(var(--c-danger))] font-bold' : 'text-gray-600'}`}>
                         {fmt(b.spent)} / ~{fmt(b.budget)} {b.remaining < 0 && ''}
                       </span>
                     </div>
                     <div className="bg-gray-100 rounded-full h-1.5">
-                      <div className={`rounded-full h-1.5 ${b.remaining < 0 ? 'bg-red-500' : b.spent / b.budget > 0.8 ? 'bg-amber-400' : 'bg-green-400'}`}
+                      <div className={`rounded-full h-1.5 ${b.remaining < 0 ? 'bg-[rgb(var(--c-danger))]' : b.spent / b.budget > 0.8 ? 'bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-success))]'}`}
                         style={{ width: `${Math.min(100, (b.spent / b.budget) * 100)}%` }} />
                     </div>
                   </div>
@@ -5539,14 +5540,14 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
       {/* Bilan mois précédent */}
       {analysis.bilanPrev && (
-        <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="bg-white rounded-ui shadow-sm border p-4">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-bold text-gray-700"> Bilan {analysis.bilanPrev.month}</h4>
-            <span className={`text-sm font-bold ${analysis.bilanPrev.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <h4 className="text-ui font-bold text-gray-700"> Bilan {analysis.bilanPrev.month}</h4>
+            <span className={`text-ui font-bold ${analysis.bilanPrev.net >= 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>
               Net : {analysis.bilanPrev.net >= 0 ? '+' : ''}{fmt(analysis.bilanPrev.net)}
             </span>
           </div>
-          <div className="flex gap-4 mt-2 text-xs text-gray-500">
+          <div className="flex gap-4 mt-2 text-ui-sm text-gray-500">
             <span>CA : {fmt(analysis.bilanPrev.ca)}</span>
             <span>Entrées : {fmt(analysis.bilanPrev.entrees)}</span>
             <span>Sorties : {fmt(analysis.bilanPrev.sorties)}</span>
@@ -5556,32 +5557,32 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
       {/* ══ CASH FLOW - Mouvements prévus ══ */}
       {analysis.cashFlowItems.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="bg-white rounded-ui shadow-sm border overflow-hidden">
           <div className="px-4 py-3 bg-gray-50 border-b">
             <h3 className="font-bold text-gray-700"> Cash flow - mouvements prévus</h3>
           </div>
           <div className="p-4">
             <div className="space-y-1">
-              <div className="flex justify-between text-xs text-gray-400 px-2 mb-1">
+              <div className="flex justify-between text-ui-sm text-gray-400 px-2 mb-1">
                 <span>Solde actuel</span>
                 <span className="font-mono font-bold text-gray-700">{fmt(analysis.solde)}</span>
               </div>
               {analysis.cashFlowItems.map((item, i) => (
-                <div key={i} className={`flex items-center justify-between text-xs px-2 py-1.5 rounded ${
-                  item.type === 'retard' ? 'bg-red-50 border-l-2 border-red-400' :
-                  item.type === 'entree' ? 'bg-green-50 border-l-2 border-green-400' :
+                <div key={i} className={`flex items-center justify-between text-ui-sm px-2 py-1.5 rounded ${
+                  item.type === 'retard' ? 'bg-[rgb(var(--c-danger-bg))] border-l-2 border-[rgb(var(--c-danger)/0.3)]' :
+                  item.type === 'entree' ? 'bg-[rgb(var(--c-success-bg))] border-l-2 border-[rgb(var(--c-success)/0.3)]' :
                   'bg-gray-50 border-l-2 border-gray-300'
                 }`}>
                   <div className="flex items-center gap-2 flex-1">
                     <span className="text-gray-400 w-16">{item.date.substring(5)}</span>
-                    <span className={item.type === 'retard' ? 'text-red-700 font-medium' : ''}>{item.label}</span>
-                    {item.type === 'retard' && <span className="text-red-500 text-xs"> retard</span>}
+                    <span className={item.type === 'retard' ? 'text-[rgb(var(--c-danger))] font-medium' : ''}>{item.label}</span>
+                    {item.type === 'retard' && <span className="text-[rgb(var(--c-danger))] text-ui-sm"> retard</span>}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`font-mono font-medium ${item.montant >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`font-mono font-medium ${item.montant >= 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>
                       {item.montant >= 0 ? '+' : ''}{fmt(item.montant)}
                     </span>
-                    <span className={`font-mono text-xs w-20 text-right ${item.soldeApres < 0 ? 'text-red-700 font-bold' : item.soldeApres < 2000 ? 'text-amber-600' : 'text-gray-500'}`}>
+                    <span className={`font-mono text-ui-sm w-20 text-right ${item.soldeApres < 0 ? 'text-[rgb(var(--c-danger))] font-bold' : item.soldeApres < 2000 ? 'text-[rgb(var(--c-warning))]' : 'text-gray-500'}`}>
                       → {fmt(item.soldeApres)}
                     </span>
                   </div>
@@ -5589,7 +5590,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
               ))}
             </div>
             {analysis.cashFlowItems.some(i => i.soldeApres < 0) && (
-              <div className="mt-3 p-2 bg-red-100 rounded-lg text-xs text-red-800 font-medium text-center">
+              <div className="mt-3 p-2 bg-[rgb(var(--c-danger-bg))] rounded-ui-sm text-ui-sm text-[rgb(var(--c-danger))] font-medium text-center">
                  Le solde passe dans le rouge - les encaissements doivent arriver AVANT les prélèvements
               </div>
             )}
@@ -5598,13 +5599,13 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
       )}
 
       {/* ══ BLOC 3 - Tendances & Graphiques ══ */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-gray-700"> Tendances</h3>
           <div className="flex gap-1">
             {['6', '12'].map(p => (
               <button key={p} onClick={() => setChartPeriod(p)}
-                className={`text-xs px-2 py-1 rounded ${chartPeriod === p ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-400 hover:bg-gray-100'}`}>
+                className={`text-ui-sm px-2 py-1 rounded ${chartPeriod === p ? 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] font-medium' : 'text-gray-400 hover:bg-gray-100'}`}>
                 {p} mois
               </button>
             ))}
@@ -5613,36 +5614,36 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
         {/* KPIs avec sparklines */}
         <div className="grid grid-cols-3 gap-4 mb-4">
-          <div className="p-3 bg-green-50 rounded-lg">
+          <div className="p-3 bg-[rgb(var(--c-success-bg))] rounded-ui-sm">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs text-gray-500">CA moyen</div>
-                <div className="font-bold text-lg text-green-700">{fmt(analysis.caLast3)}</div>
-                <div className={`text-xs font-medium ${trendColor(analysis.caTrend)}`}>
+                <div className="text-ui-sm text-gray-500">CA moyen</div>
+                <div className="font-bold text-lg text-[rgb(var(--c-success))]">{fmt(analysis.caLast3)}</div>
+                <div className={`text-ui-sm font-medium ${trendColor(analysis.caTrend)}`}>
                   {trendArrow(analysis.caTrend)} {analysis.caTrend > 0 ? '+' : ''}{analysis.caTrend.toFixed(0)}%
                 </div>
               </div>
               <MiniSparkline data={analysis.sparkCA} color="#16a34a" />
             </div>
           </div>
-          <div className="p-3 bg-red-50 rounded-lg">
+          <div className="p-3 bg-[rgb(var(--c-danger-bg))] rounded-ui-sm">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs text-gray-500">Dépenses</div>
-                <div className="font-bold text-lg text-red-700">{fmt(analysis.depLast3)}</div>
-                <div className={`text-xs font-medium ${trendColor(analysis.depTrend, true)}`}>
+                <div className="text-ui-sm text-gray-500">Dépenses</div>
+                <div className="font-bold text-lg text-[rgb(var(--c-danger))]">{fmt(analysis.depLast3)}</div>
+                <div className={`text-ui-sm font-medium ${trendColor(analysis.depTrend, true)}`}>
                   {trendArrow(analysis.depTrend)} {analysis.depTrend > 0 ? '+' : ''}{analysis.depTrend.toFixed(0)}%
                 </div>
               </div>
               <MiniSparkline data={analysis.sparkDep} color="#dc2626" />
             </div>
           </div>
-          <div className={`p-3 rounded-lg ${analysis.margeLast3 >= 0 ? 'bg-blue-50' : 'bg-amber-50'}`}>
+          <div className={`p-3 rounded-ui-sm ${analysis.margeLast3 >= 0 ? 'bg-[rgb(var(--c-info-bg))]' : 'bg-[rgb(var(--c-warning-bg))]'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs text-gray-500">Marge nette</div>
-                <div className={`font-bold text-lg ${analysis.margeLast3 >= 0 ? 'text-blue-700' : 'text-red-700'}`}>{fmt(analysis.margeLast3)}</div>
-                <div className="text-xs text-gray-400">/mois</div>
+                <div className="text-ui-sm text-gray-500">Marge nette</div>
+                <div className={`font-bold text-lg ${analysis.margeLast3 >= 0 ? 'text-[rgb(var(--c-info))]' : 'text-[rgb(var(--c-danger))]'}`}>{fmt(analysis.margeLast3)}</div>
+                <div className="text-ui-sm text-gray-400">/mois</div>
               </div>
               <MiniSparkline data={analysis.sparkNet} color={analysis.margeLast3 >= 0 ? '#2563eb' : '#dc2626'} />
             </div>
@@ -5669,7 +5670,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
           {/* Camembert dépenses */}
           {analysis.pieMain.length > 0 && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1 text-center">Répartition sorties</div>
+              <div className="text-ui-sm font-medium text-gray-500 mb-1 text-center">Répartition sorties</div>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={analysis.pieMain} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
@@ -5684,7 +5685,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
           {/* Donut CA */}
           {(analysis.caDonut[0]?.value > 0 || analysis.caDonut[1]?.value > 0) && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1 text-center">Répartition CA</div>
+              <div className="text-ui-sm font-medium text-gray-500 mb-1 text-center">Répartition CA</div>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={analysis.caDonut} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
@@ -5695,10 +5696,10 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
                   <Legend wrapperStyle={{ fontSize: '10px' }} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="text-center text-xs mt-1">
-                <span className="text-green-600 font-medium">Direct {analysis.totalCAFormations + analysis.totalCASousTrait > 0 ? ((analysis.totalCAFormations / (analysis.totalCAFormations + analysis.totalCASousTrait)) * 100).toFixed(0) : 0}%</span>
+              <div className="text-center text-ui-sm mt-1">
+                <span className="text-[rgb(var(--c-success))] font-medium">Direct {analysis.totalCAFormations + analysis.totalCASousTrait > 0 ? ((analysis.totalCAFormations / (analysis.totalCAFormations + analysis.totalCASousTrait)) * 100).toFixed(0) : 0}%</span>
                 {' '}/{' '}
-                <span className="text-blue-600 font-medium">Sous-traitance {analysis.totalCAFormations + analysis.totalCASousTrait > 0 ? ((analysis.totalCASousTrait / (analysis.totalCAFormations + analysis.totalCASousTrait)) * 100).toFixed(0) : 0}%</span>
+                <span className="text-[rgb(var(--c-info))] font-medium">Sous-traitance {analysis.totalCAFormations + analysis.totalCASousTrait > 0 ? ((analysis.totalCASousTrait / (analysis.totalCAFormations + analysis.totalCASousTrait)) * 100).toFixed(0) : 0}%</span>
               </div>
             </div>
           )}
@@ -5706,20 +5707,20 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
         {/* Projection trimestre */}
         <div className="mt-4 pt-4 border-t">
-          <h4 className="text-sm font-bold text-gray-700 mb-2"> Projection trimestre</h4>
+          <h4 className="text-ui font-bold text-gray-700 mb-2"> Projection trimestre</h4>
           <div className="grid grid-cols-3 gap-2">
             {analysis.trimProjection.map((m, i) => (
-              <div key={i} className={`p-3 rounded-lg border ${m.isCurrent ? 'border-blue-400 bg-blue-50' : 'border-gray-200'} ${m === analysis.moisTendu && m.solde < config.marge_securite ? 'ring-2 ring-red-300' : ''}`}>
-                <div className="text-xs font-medium text-gray-500">{m.label} {m.isCurrent && <span className="text-blue-600">← en cours</span>}</div>
+              <div key={i} className={`p-3 rounded-ui-sm border ${m.isCurrent ? 'border-[rgb(var(--c-info)/0.3)] bg-[rgb(var(--c-info-bg))]' : 'border-gray-200'} ${m === analysis.moisTendu && m.solde < config.marge_securite ? 'ring-2 ring-[rgb(var(--c-danger)/0.3)]' : ''}`}>
+                <div className="text-ui-sm font-medium text-gray-500">{m.label} {m.isCurrent && <span className="text-[rgb(var(--c-info))]">← en cours</span>}</div>
                 <div className="flex justify-between mt-1">
-                  <span className="text-xs text-green-600">CA: {fmt(m.ca)}</span>
-                  <span className="text-xs text-red-600">Dép: {fmt(m.dep)}</span>
+                  <span className="text-ui-sm text-[rgb(var(--c-success))]">CA: {fmt(m.ca)}</span>
+                  <span className="text-ui-sm text-[rgb(var(--c-danger))]">Dép: {fmt(m.dep)}</span>
                 </div>
-                {m.caPipe > 0 && <div className="text-xs text-purple-500">dont pipeline: {fmt(m.caPipe)}</div>}
-                <div className={`font-bold text-sm mt-1 ${m.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                {m.caPipe > 0 && <div className="text-ui-sm text-gray-800">dont pipeline: {fmt(m.caPipe)}</div>}
+                <div className={`font-bold text-ui mt-1 ${m.net >= 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>
                   Net: {m.net >= 0 ? '+' : ''}{fmt(m.net)}
                 </div>
-                <div className={`text-xs mt-0.5 ${m.solde >= config.marge_securite ? 'text-blue-600' : 'text-red-600'}`}>
+                <div className={`text-ui-sm mt-0.5 ${m.solde >= config.marge_securite ? 'text-[rgb(var(--c-info))]' : 'text-[rgb(var(--c-danger))]'}`}>
                   Solde: {fmt(m.solde)}
                 </div>
               </div>
@@ -5729,67 +5730,67 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
       </div>
 
       {/* ══ BLOC 4 - Pipeline ══ */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-gray-700"> Pipeline - CA prévu</h3>
-            <span className="text-xs text-gray-400">
+            <span className="text-ui-sm text-gray-400">
               {pipeline.filter(p => p.source === 'auto').length} devis · {pipeline.filter(p => p.source === 'manual').length} manuels
             </span>
           </div>
-          <button onClick={() => setShowPipeForm(f => !f)} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-200">
+          <button onClick={() => setShowPipeForm(f => !f)} className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-3 py-1 rounded-ui-sm hover:bg-[rgb(var(--c-info-bg))]">
             {showPipeForm ? ' Fermer' : '+ Manuel'}
           </button>
         </div>
 
         {showPipeForm && (
-          <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="mb-3 p-3 bg-[rgb(var(--c-info-bg))] rounded-ui-sm border border-[rgb(var(--c-info)/0.3)]">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               <input type="text" placeholder="Client" value={newPipe.client} onChange={e => setNewPipe(p => ({ ...p, client: e.target.value }))}
-                className="border rounded px-2 py-1.5 text-xs" />
+                className="border rounded px-2 py-1.5 text-ui-sm" />
               <input type="number" placeholder="Montant TTC" value={newPipe.amount_ttc} onChange={e => setNewPipe(p => ({ ...p, amount_ttc: e.target.value }))}
-                className="border rounded px-2 py-1.5 text-xs" />
+                className="border rounded px-2 py-1.5 text-ui-sm" />
               <input type="month" value={newPipe.expected_month} onChange={e => setNewPipe(p => ({ ...p, expected_month: e.target.value }))}
-                className="border rounded px-2 py-1.5 text-xs" />
+                className="border rounded px-2 py-1.5 text-ui-sm" />
               {associates.length > 0 ? (
                 <select value={newPipe.trainer} onChange={e => setNewPipe(p => ({ ...p, trainer: e.target.value }))}
-                  className="border rounded px-2 py-1.5 text-xs">
+                  className="border rounded px-2 py-1.5 text-ui-sm">
                   {associates.map(a => <option key={a.slug} value={a.firstName}>{a.firstName}</option>)}
                 </select>
               ) : (
                 <input type="text" placeholder="Responsable" value={newPipe.trainer} onChange={e => setNewPipe(p => ({ ...p, trainer: e.target.value }))}
-                  className="border rounded px-2 py-1.5 text-xs" />
+                  className="border rounded px-2 py-1.5 text-ui-sm" />
               )}
-              <button onClick={addPipeEntry} className="bg-blue-600 text-white rounded px-3 py-1.5 text-xs hover:bg-blue-700">Ajouter</button>
+              <button onClick={addPipeEntry} className="bg-[rgb(var(--c-info))] text-white rounded px-3 py-1.5 text-ui-sm hover:bg-[rgb(var(--c-info))]">Ajouter</button>
             </div>
             <input type="text" placeholder="Description (optionnel)" value={newPipe.description} onChange={e => setNewPipe(p => ({ ...p, description: e.target.value }))}
-              className="border rounded px-2 py-1.5 text-xs w-full mt-2" />
+              className="border rounded px-2 py-1.5 text-ui-sm w-full mt-2" />
           </div>
         )}
 
         {pipeline.length === 0 ? (
-          <div className="text-center py-4 text-gray-400 text-xs">Les devis envoyés/acceptés apparaîtront ici automatiquement</div>
+          <div className="text-center py-4 text-gray-400 text-ui-sm">Les devis envoyés/acceptés apparaîtront ici automatiquement</div>
         ) : (
           <div className="space-y-1">
             {pipeline.sort((a, b) => (a.expected_month || '').localeCompare(b.expected_month || '')).map(p => (
-              <div key={p.id} className={`flex items-center justify-between p-2 rounded-lg text-xs ${
-                p.source === 'auto' ? 'bg-blue-50/50' : 'bg-gray-50'
+              <div key={p.id} className={`flex items-center justify-between p-2 rounded-ui-sm text-ui-sm ${
+                p.source === 'auto' ? 'bg-[rgb(var(--c-info-bg))]' : 'bg-gray-50'
               }`}>
                 <div className="flex items-center gap-2 flex-1">
                   <span className={`w-2 h-2 rounded-full ${
-                    p.status === 'facture' ? 'bg-green-500' : 
-                    p.status === 'confirme' ? 'bg-blue-500' : 
-                    'bg-amber-500'
+                    p.status === 'facture' ? 'bg-[rgb(var(--c-success))]' : 
+                    p.status === 'confirme' ? 'bg-[rgb(var(--c-info))]' : 
+                    'bg-[rgb(var(--c-warning))]'
                   }`} />
                   {p.source === 'auto' && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      p.quote_status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                    <span className={`text-ui-sm px-1.5 py-0.5 rounded ${
+                      p.quote_status === 'accepted' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]'
                     }`}>
                       {p.quote_status === 'accepted' ? '' : ''} {p.quote_ref}
                     </span>
                   )}
                   {p.source === 'manual' && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500"> manuel</span>
+                    <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-500"> manuel</span>
                   )}
                   <span className="font-medium">{p.client}</span>
                   {p.description && <span className="text-gray-400 truncate max-w-48">- {p.description}</span>}
@@ -5801,27 +5802,27 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
                   {p.source === 'manual' ? (
                     <>
                       <select value={p.status} onChange={e => updatePipeStatus(p.id, e.target.value)}
-                        className="border rounded px-1 py-0.5 text-xs bg-white">
+                        className="border rounded px-1 py-0.5 text-ui-sm bg-white">
                         <option value="prevu">Prévu</option>
                         <option value="confirme">Confirmé</option>
                         <option value="facture">Facturé</option>
                         <option value="annule">Annulé</option>
                       </select>
-                      <button onClick={() => deletePipe(p.id)} className="text-red-400 hover:text-red-600">Supprimer</button>
+                      <button onClick={() => deletePipe(p.id)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]">Supprimer</button>
                     </>
                   ) : (
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      p.quote_status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    <span className={`text-ui-sm px-1.5 py-0.5 rounded ${
+                      p.quote_status === 'accepted' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'
                     }`}>{p.quote_status === 'accepted' ? 'Accepté' : 'Envoyé'}</span>
                   )}
                 </div>
               </div>
             ))}
-            <div className="text-right text-xs text-gray-500 pt-1">
+            <div className="text-right text-ui-sm text-gray-500 pt-1">
               Total pipeline : <b>{fmt(pipeline.reduce((s, p) => s + (p.amount_ht || 0), 0))} HT</b>
               {pipeline.filter(p => p.source === 'auto').length > 0 && (
                 <span className="ml-2">
-                  (dont <span className="text-green-600">{fmt(pipeline.filter(p => p.source === 'auto').reduce((s, p) => s + (p.amount_ht || 0), 0))}</span> devis acceptés)
+                  (dont <span className="text-[rgb(var(--c-success))]">{fmt(pipeline.filter(p => p.source === 'auto').reduce((s, p) => s + (p.amount_ht || 0), 0))}</span> devis acceptés)
                 </span>
               )}
             </div>
@@ -5831,21 +5832,21 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
       {/* ══ BLOC 5 - Recommandations auto ══ */}
       {analysis.recos.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="bg-white rounded-ui shadow-sm border p-4">
           <h3 className="font-bold text-gray-700 mb-3"> Recommandations</h3>
           <div className="space-y-2">
             {analysis.recos.map((reco, i) => (
-              <div key={i} className={`p-3 rounded-lg border-l-4 ${
-                reco.type === 'alert' ? 'bg-red-50 border-red-500' :
-                reco.type === 'optimisation' ? 'bg-amber-50 border-amber-500' :
-                reco.type === 'levier' ? 'bg-blue-50 border-blue-500' :
-                'bg-green-50 border-green-500'
+              <div key={i} className={`p-3 rounded-ui-sm border-l-4 ${
+                reco.type === 'alert' ? 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)]' :
+                reco.type === 'optimisation' ? 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)]' :
+                reco.type === 'levier' ? 'bg-[rgb(var(--c-info-bg))] border-[rgb(var(--c-info)/0.3)]' :
+                'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]'
               }`}>
                 <div className="flex items-start gap-2">
                   <span className="text-lg">{reco.icon}</span>
                   <div>
-                    <div className="font-medium text-sm text-gray-800">{reco.title}</div>
-                    <div className="text-xs text-gray-600 mt-0.5">{reco.detail}</div>
+                    <div className="font-medium text-ui text-gray-800">{reco.title}</div>
+                    <div className="text-ui-sm text-gray-600 mt-0.5">{reco.detail}</div>
                   </div>
                 </div>
               </div>
@@ -5856,32 +5857,32 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
       {/* ══ BLOC 5b - Formations à pousser ══ */}
       {analysis.formationsRank.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="bg-white rounded-ui shadow-sm border p-4">
           <h3 className="font-bold text-gray-700 mb-3"> Formations - Classement rentabilité</h3>
           <div className="space-y-2">
             {analysis.formationsRank.map((f, i) => {
               const ratio = f.prixCatalogue > 0 && f.prixMoyenRealise > 0 ? ((f.prixMoyenRealise / f.prixCatalogue) * 100).toFixed(0) : null
               const isTop = f.prixCatalogue >= 690
               return (
-                <div key={f.id || i} className={`p-3 rounded-lg border ${isTop ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                <div key={f.id || i} className={`p-3 rounded-ui-sm border ${isTop ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]' : 'bg-gray-50 border-gray-200'}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${isTop ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-600'}`}>{f.code}</span>
-                      <span className="text-sm font-medium text-gray-800">{f.title}</span>
+                      <span className={`text-ui-sm font-bold px-2 py-0.5 rounded ${isTop ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-200 text-gray-600'}`}>{f.code}</span>
+                      <span className="text-ui font-medium text-gray-800">{f.title}</span>
                     </div>
-                    <span className="font-mono font-bold text-green-700">{fmt(f.prixCatalogue)} HT</span>
+                    <span className="font-mono font-bold text-[rgb(var(--c-success))]">{fmt(f.prixCatalogue)} HT</span>
                   </div>
-                  <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                  <div className="flex gap-4 mt-1 text-ui-sm text-gray-500">
                     <span>{f.nbDone} session(s) réalisée(s)</span>
-                    {f.nbDone > 0 && <span>Prix moyen réalisé : {fmt(f.prixMoyenRealise)} {ratio && ratio < 80 ? <span className="text-amber-600">( {ratio}% du tarif)</span> : ''}</span>}
-                    {f.sesFutures > 0 && <span className="text-blue-600">{f.sesFutures} à venir</span>}
-                    {isTop && f.sesFutures === 0 && f.nbDone < 3 && <span className="text-red-500 font-medium">→ À développer !</span>}
+                    {f.nbDone > 0 && <span>Prix moyen réalisé : {fmt(f.prixMoyenRealise)} {ratio && ratio < 80 ? <span className="text-[rgb(var(--c-warning))]">( {ratio}% du tarif)</span> : ''}</span>}
+                    {f.sesFutures > 0 && <span className="text-[rgb(var(--c-info))]">{f.sesFutures} à venir</span>}
+                    {isTop && f.sesFutures === 0 && f.nbDone < 3 && <span className="text-[rgb(var(--c-danger))] font-medium">→ À développer !</span>}
                   </div>
                 </div>
               )
             })}
           </div>
-          <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 text-xs text-blue-800">
+          <div className="mt-3 p-3 bg-[rgb(var(--c-info-bg))] rounded-ui-sm border border-[rgb(var(--c-info)/0.3)] text-ui-sm text-[rgb(var(--c-info))]">
              <b>Stratégie :</b> Prioriser en vente directe les formations au tarif catalogue le plus élevé (classement ci-dessus).
             Les formations courtes à petit tarif sont idéales en pack combiné pour augmenter le panier moyen.
           </div>
@@ -5890,10 +5891,10 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
       {/* ══ BLOC 5c - Sessions planifiées ══ */}
       {Object.keys(analysis.sessionsByMonth).length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="bg-white rounded-ui shadow-sm border p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-gray-700"> Sessions planifiées</h3>
-            <span className="text-sm font-mono font-bold text-green-700">{fmt(analysis.sessionsTotal)} HT</span>
+            <span className="text-ui font-mono font-bold text-[rgb(var(--c-success))]">{fmt(analysis.sessionsTotal)} HT</span>
           </div>
           {Object.entries(analysis.sessionsByMonth).sort(([a], [b]) => a.localeCompare(b)).map(([ym, sesList]) => {
             const [y, m] = ym.split('-')
@@ -5901,18 +5902,18 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
             return (
               <div key={ym} className="mb-3">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-bold text-gray-600">{ML[m]} {y}</span>
-                  <span className="text-xs font-mono text-gray-500">{sesList.length} session(s) - {fmt(total)} HT</span>
+                  <span className="text-ui-sm font-bold text-gray-600">{ML[m]} {y}</span>
+                  <span className="text-ui-sm font-mono text-gray-500">{sesList.length} session(s) - {fmt(total)} HT</span>
                 </div>
                 <div className="space-y-1">
                   {sesList.map(ses => (
-                    <div key={ses.id} className="flex items-center justify-between text-xs px-2 py-1 rounded bg-gray-50">
+                    <div key={ses.id} className="flex items-center justify-between text-ui-sm px-2 py-1 rounded bg-gray-50">
                       <div className="flex items-center gap-2">
                         <span className="text-gray-400">{ses.start_date.substring(5)}</span>
                         <span className="font-medium">{ses.courseCode}</span>
                         <span className="text-gray-500">- {ses.clientName}</span>
                       </div>
-                      <span className="font-mono font-medium text-green-600">{fmt(ses.prix)}</span>
+                      <span className="font-mono font-medium text-[rgb(var(--c-success))]">{fmt(ses.prix)}</span>
                     </div>
                   ))}
                 </div>
@@ -5923,61 +5924,61 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
       )}
 
       {/* ══ BLOC 6 - Plan d'action ══ */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <h3 className="font-bold text-gray-700"> Plan d'action</h3>
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{doneCount}/{actions.length} fait{doneCount > 1 ? 's' : ''}</span>
+            <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded-full">{doneCount}/{actions.length} fait{doneCount > 1 ? 's' : ''}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex gap-1">
               {[{ k: 'active', l: 'En cours' }, { k: 'done', l: 'Faits' }, { k: 'all', l: 'Tous' }].map(f => (
                 <button key={f.k} onClick={() => setActionFilter(f.k)}
-                  className={`text-xs px-2 py-1 rounded ${actionFilter === f.k ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:bg-gray-100'}`}>{f.l}</button>
+                  className={`text-ui-sm px-2 py-1 rounded ${actionFilter === f.k ? 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' : 'text-gray-400 hover:bg-gray-100'}`}>{f.l}</button>
               ))}
             </div>
             <button onClick={() => setShowActionForm(f => !f)}
-              className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-200">
+              className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-3 py-1 rounded-ui-sm hover:bg-[rgb(var(--c-info-bg))]">
               {showActionForm ? '' : '+ Ajouter'}
             </button>
           </div>
         </div>
 
         {showActionForm && (
-          <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="mb-3 p-3 bg-[rgb(var(--c-info-bg))] rounded-ui-sm border border-[rgb(var(--c-info)/0.3)]">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <input type="text" placeholder="Titre de l'action" value={newAction.title} onChange={e => setNewAction(a => ({ ...a, title: e.target.value }))}
-                className="border rounded px-2 py-1.5 text-xs col-span-2" />
+                className="border rounded px-2 py-1.5 text-ui-sm col-span-2" />
               <select value={newAction.category} onChange={e => setNewAction(a => ({ ...a, category: e.target.value }))}
-                className="border rounded px-2 py-1.5 text-xs">
+                className="border rounded px-2 py-1.5 text-ui-sm">
                 <option value="general">Général</option>
                 <option value="tresorerie">Trésorerie</option>
                 <option value="charges">Charges</option>
                 <option value="ca">CA / Ventes</option>
               </select>
               <input type="number" placeholder="Impact €/mois" value={newAction.impact_monthly} onChange={e => setNewAction(a => ({ ...a, impact_monthly: e.target.value }))}
-                className="border rounded px-2 py-1.5 text-xs" />
+                className="border rounded px-2 py-1.5 text-ui-sm" />
             </div>
             <div className="flex gap-2 mt-2">
               <input type="text" placeholder="Détail (optionnel)" value={newAction.detail} onChange={e => setNewAction(a => ({ ...a, detail: e.target.value }))}
-                className="border rounded px-2 py-1.5 text-xs flex-1" />
+                className="border rounded px-2 py-1.5 text-ui-sm flex-1" />
               <input type="date" value={newAction.due_date} onChange={e => setNewAction(a => ({ ...a, due_date: e.target.value }))}
-                className="border rounded px-2 py-1.5 text-xs" />
-              <button onClick={addAction} className="bg-blue-600 text-white rounded px-4 py-1.5 text-xs hover:bg-blue-700">Ajouter</button>
+                className="border rounded px-2 py-1.5 text-ui-sm" />
+              <button onClick={addAction} className="bg-[rgb(var(--c-info))] text-white rounded px-4 py-1.5 text-ui-sm hover:bg-[rgb(var(--c-info))]">Ajouter</button>
             </div>
           </div>
         )}
 
         {filteredActions.length === 0 ? (
-          <div className="text-center py-4 text-gray-400 text-xs">
+          <div className="text-center py-4 text-gray-400 text-ui-sm">
             {actionFilter === 'done' ? 'Aucune action terminée' : 'Aucune action en cours - ajoutez-en !'}
           </div>
         ) : (
           <div className="space-y-1.5">
             {filteredActions.map(action => (
-              <div key={action.id} className={`p-3 rounded-lg border transition-all ${
-                action.status === 'done' ? 'bg-green-50/50 border-green-200 opacity-60' :
-                action.status === 'in_progress' ? 'bg-blue-50 border-blue-200' :
+              <div key={action.id} className={`p-3 rounded-ui-sm border transition-all ${
+                action.status === 'done' ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)] opacity-60' :
+                action.status === 'in_progress' ? 'bg-[rgb(var(--c-info-bg))] border-[rgb(var(--c-info)/0.3)]' :
                 action.status === 'not_applicable' ? 'bg-gray-50 border-gray-200 opacity-40' :
                 'bg-white border-gray-200'
               }`}>
@@ -5991,24 +5992,24 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm font-medium ${action.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{action.title}</span>
-                      <span className="text-xs text-gray-300">{statusLabels[action.status]}</span>
-                      {action.impact_monthly > 0 && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">{fmt(action.impact_monthly)}/mois</span>}
-                      {action.due_date && <span className="text-xs text-gray-400">{action.due_date}</span>}
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        action.category === 'tresorerie' ? 'bg-purple-100 text-purple-600' :
-                        action.category === 'charges' ? 'bg-red-100 text-red-600' :
-                        action.category === 'ca' ? 'bg-green-100 text-green-600' :
+                      <span className={`text-ui font-medium ${action.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{action.title}</span>
+                      <span className="text-ui-sm text-gray-300">{statusLabels[action.status]}</span>
+                      {action.impact_monthly > 0 && <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-1.5 py-0.5 rounded">{fmt(action.impact_monthly)}/mois</span>}
+                      {action.due_date && <span className="text-ui-sm text-gray-400">{action.due_date}</span>}
+                      <span className={`text-ui-sm px-1.5 py-0.5 rounded ${
+                        action.category === 'tresorerie' ? 'bg-gray-100 text-gray-800' :
+                        action.category === 'charges' ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' :
+                        action.category === 'ca' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
                         'bg-gray-100 text-gray-500'
                       }`}>{action.category}</span>
                     </div>
-                    {action.detail && <div className="text-xs text-gray-500 mt-0.5">{action.detail}</div>}
+                    {action.detail && <div className="text-ui-sm text-gray-500 mt-0.5">{action.detail}</div>}
                     {/* Mini note éditable */}
                     <input type="text" placeholder="Ajouter un commentaire..." value={action.note || ''}
                       onChange={e => updateActionNote(action.id, e.target.value)}
-                      className="text-xs border-0 border-b border-transparent hover:border-gray-200 focus:border-blue-300 w-full mt-1 px-0 py-0.5 bg-transparent focus:outline-none focus:ring-0" />
+                      className="text-ui-sm border-0 border-b border-transparent hover:border-gray-200 focus:border-[rgb(var(--c-info)/0.3)] w-full mt-1 px-0 py-0.5 bg-transparent focus:outline-none focus:ring-0" />
                   </div>
-                  <button onClick={() => deleteAction(action.id)} className="text-gray-300 hover:text-red-500 text-xs">Supprimer</button>
+                  <button onClick={() => deleteAction(action.id)} className="text-gray-300 hover:text-[rgb(var(--c-danger))] text-ui-sm">Supprimer</button>
                 </div>
               </div>
             ))}
@@ -6017,7 +6018,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
         {/* Résumé impact */}
         {actions.filter(a => a.status === 'done' && a.impact_monthly > 0).length > 0 && (
-          <div className="mt-3 p-2 bg-green-50 rounded-lg border border-green-200 text-xs text-green-700 flex justify-between">
+          <div className="mt-3 p-2 bg-[rgb(var(--c-success-bg))] rounded-ui-sm border border-[rgb(var(--c-success)/0.3)] text-ui-sm text-[rgb(var(--c-success))] flex justify-between">
             <span> Impact des actions réalisées</span>
             <span className="font-bold">{fmt(actions.filter(a => a.status === 'done' && a.impact_monthly > 0).reduce((s, a) => s + a.impact_monthly, 0))}/mois</span>
           </div>
@@ -6025,33 +6026,33 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
       </div>
 
       {/* ══ Détail charges fixes ══ */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="bg-white rounded-ui shadow-sm border p-4">
         <details>
-          <summary className="font-bold text-gray-700 cursor-pointer hover:text-blue-600">
+          <summary className="font-bold text-gray-700 cursor-pointer hover:text-[rgb(var(--c-info))]">
              Charges fixes validées - {fmt(analysis.avgFixed)}/mois
           </summary>
-          <p className="text-xs text-gray-400 mt-2 mb-3">Montants réels validés. Cliquer sur un montant pour modifier.</p>
+          <p className="text-ui-sm text-gray-400 mt-2 mb-3">Montants réels validés. Cliquer sur un montant pour modifier.</p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {analysis.fixedDetail.map((c) => {
               const dbKey = chargesFixes[c.name]?.key || null
               return (
-                <div key={c.name} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                <div key={c.name} className="flex items-center gap-2 p-2 bg-gray-50 rounded-ui-sm">
                   <span>{c.icon}</span>
-                  <div className="flex-1 text-xs text-gray-700">{c.name}</div>
+                  <div className="flex-1 text-ui-sm text-gray-700">{c.name}</div>
                   <input type="number" value={c.monthly} 
                     onChange={e => {
                       const val = +e.target.value
                       setChargesFixes(prev => ({ ...prev, [c.name]: { ...prev[c.name], montant: val } }))
                       if (dbKey) saveConfig(dbKey, val)
                     }}
-                    className="w-20 text-right font-mono text-sm font-bold text-red-600 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none px-1 py-0.5" />
+                    className="w-20 text-right font-mono text-ui font-bold text-[rgb(var(--c-danger))] bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-[rgb(var(--c-info)/0.3)] focus:outline-none px-1 py-0.5" />
                 </div>
               )
             })}
           </div>
-          <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200 flex justify-between items-center">
-            <span className="font-bold text-red-800">Total charges fixes mensuelles</span>
-            <span className="font-mono text-xl font-bold text-red-700">{fmt(analysis.avgFixed)}</span>
+          <div className="mt-3 p-3 bg-[rgb(var(--c-danger-bg))] rounded-ui-sm border border-[rgb(var(--c-danger)/0.3)] flex justify-between items-center">
+            <span className="font-bold text-[rgb(var(--c-danger))]">Total charges fixes mensuelles</span>
+            <span className="font-mono text-xl font-bold text-[rgb(var(--c-danger))]">{fmt(analysis.avgFixed)}</span>
           </div>
         </details>
       </div>
@@ -6154,44 +6155,44 @@ function ClientSearchForMatch({ clients: clientsProp, invoices: invoicesProp, un
 
   return (
     <div>
-      <p className="text-sm text-gray-700 mb-2">Sélectionnez le client : <span className="text-xs text-gray-400">({clients.length} clients chargés)</span></p>
+      <p className="text-ui text-gray-700 mb-2">Sélectionnez le client : <span className="text-ui-sm text-gray-400">({clients.length} clients chargés)</span></p>
 
-      {!loaded && <div className="text-center py-4 text-gray-400 text-sm"> Chargement des clients...</div>}
+      {!loaded && <div className="text-center py-4 text-gray-400 text-ui"> Chargement des clients...</div>}
 
       {bankWords.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
-          <span className="text-xs text-gray-400">Mots détectés :</span>
+          <span className="text-ui-sm text-gray-400">Mots détectés :</span>
           {bankWords.slice(0, 8).map((w, i) => (
             <button key={i} onClick={() => setSearch(w)}
-              className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded hover:bg-blue-100 cursor-pointer">{w}</button>
+              className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1.5 py-0.5 rounded hover:bg-[rgb(var(--c-info-bg))] cursor-pointer">{w}</button>
           ))}
         </div>
       )}
 
       <input type="text" value={search} onChange={e => setSearch(e.target.value)}
         placeholder=" Rechercher un client (nom, mot-clé)..."
-        className="w-full border-2 border-blue-300 rounded-lg px-3 py-2 text-sm mb-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" autoFocus />
+        className="w-full border-2 border-[rgb(var(--c-info)/0.3)] rounded-ui-sm px-3 py-2 text-ui mb-2 focus:border-[rgb(var(--c-info)/0.3)] focus:ring-1 focus:ring-[rgb(var(--c-info)/0.3)]" autoFocus />
 
       <div className="max-h-64 overflow-y-auto space-y-1">
         {scoredClients.length === 0 ? (
           <div className="text-center py-6 text-gray-400">
-            <p className="text-sm">{search ? `Aucun client trouvé pour "${search}"` : 'Aucun client trouvé'}</p>
-            <p className="text-xs mt-1">Tapez un nom ou un mot du libellé bancaire</p>
+            <p className="text-ui">{search ? `Aucun client trouvé pour "${search}"` : 'Aucun client trouvé'}</p>
+            <p className="text-ui-sm mt-1">Tapez un nom ou un mot du libellé bancaire</p>
           </div>
         ) : (
           scoredClients.map(c => (
             <button key={c.id} onClick={() => onSelect(c.id)}
-              className={`w-full text-left p-2.5 border rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-sm
-                ${c.score >= 20 ? 'border-blue-200 bg-blue-50/50' : ''}`}>
+              className={`w-full text-left p-2.5 border rounded-ui-sm hover:bg-[rgb(var(--c-info-bg))] hover:border-[rgb(var(--c-info)/0.3)] transition-colors text-ui
+                ${c.score >= 20 ? 'border-[rgb(var(--c-info)/0.3)] bg-[rgb(var(--c-info-bg))]' : ''}`}>
               <div className="flex items-center justify-between">
                 <span className="font-medium">{c.name}</span>
                 <div className="flex gap-1">
-                  {c.score >= 20 && !search && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded"> suggestion</span>}
-                  {c.unpaidCount > 0 && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">{c.unpaidCount} en attente</span>}
-                  {c.unpaidCount === 0 && c.allInvCount > 0 && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{c.allInvCount} fact.</span>}
+                  {c.score >= 20 && !search && <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1.5 py-0.5 rounded"> suggestion</span>}
+                  {c.unpaidCount > 0 && <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-1.5 py-0.5 rounded">{c.unpaidCount} en attente</span>}
+                  {c.unpaidCount === 0 && c.allInvCount > 0 && <span className="text-ui-sm bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{c.allInvCount} fact.</span>}
                 </div>
               </div>
-              {c.city && <span className="text-xs text-gray-400">{c.city}</span>}
+              {c.city && <span className="text-ui-sm text-gray-400">{c.city}</span>}
             </button>
           ))
         )}
@@ -6277,12 +6278,12 @@ function MealGuestModal({ transactionId, transaction, clients, associates = [], 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
-        <div className="flex items-center justify-between p-4 border-b bg-amber-50 rounded-t-xl">
+      <div className="bg-white rounded-ui shadow-md w-full max-w-lg">
+        <div className="flex items-center justify-between p-4 border-b bg-[rgb(var(--c-warning-bg))] rounded-t-xl">
           <div>
-            <h3 className="font-bold text-amber-800"> Registre repas professionnel</h3>
+            <h3 className="font-bold text-[rgb(var(--c-warning))]"> Registre repas professionnel</h3>
             {transaction && (
-              <p className="text-xs text-amber-600 mt-0.5">
+              <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-0.5">
                 {new Date(transaction.date).toLocaleDateString('fr-FR')} - {transaction.description?.substring(0, 50)} - <b>{fmt(transaction.debit)}</b>
               </p>
             )}
@@ -6297,12 +6298,12 @@ function MealGuestModal({ transactionId, transaction, clients, associates = [], 
             {/* Repas pour qui (associés ; une ancienne valeur en base reste affichée) */}
             {(associates.length > 0 || mealFor) && (
               <div>
-                <label className="text-xs text-gray-600 font-medium">Repas pour</label>
+                <label className="text-ui-sm text-gray-600 font-medium">Repas pour</label>
                 <div className="flex gap-2 mt-1">
                   {[...associates.map(a => ({ v: a.slug, l: a.firstName })),
                     ...(mealFor && !associates.some(a => a.slug === mealFor) ? [{ v: mealFor, l: capitalize(mealFor) }] : [])
                   ].map(o => (
-                    <button key={o.v} onClick={() => setMealFor(o.v)} className={`flex-1 py-2 rounded-lg text-sm font-medium border ${mealFor === o.v ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}>{o.l}</button>
+                    <button key={o.v} onClick={() => setMealFor(o.v)} className={`flex-1 py-2 rounded-ui-sm text-ui font-medium border ${mealFor === o.v ? 'bg-[rgb(var(--c-info))] text-white' : 'bg-white text-gray-600'}`}>{o.l}</button>
                   ))}
                 </div>
               </div>
@@ -6310,31 +6311,31 @@ function MealGuestModal({ transactionId, transaction, clients, associates = [], 
 
             {/* Nb convives */}
             <div>
-              <label className="text-xs text-gray-600 font-medium">Nombre de convives</label>
-              <input type="number" min="1" max="20" value={nbConvives} onChange={e => setNbConvives(parseInt(e.target.value) || 1)} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+              <label className="text-ui-sm text-gray-600 font-medium">Nombre de convives</label>
+              <input type="number" min="1" max="20" value={nbConvives} onChange={e => setNbConvives(parseInt(e.target.value) || 1)} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" />
             </div>
 
             {/* Motif */}
             <div>
-              <label className="text-xs text-gray-600 font-medium">Motif du repas</label>
-              <input type="text" value={motif} onChange={e => setMotif(e.target.value)} placeholder="Réunion commerciale, prospection, partenariat..." className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+              <label className="text-ui-sm text-gray-600 font-medium">Motif du repas</label>
+              <input type="text" value={motif} onChange={e => setMotif(e.target.value)} placeholder="Réunion commerciale, prospection, partenariat..." className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" />
             </div>
 
             {/* Invités */}
             <div>
               <div className="flex items-center justify-between">
-                <label className="text-xs text-gray-600 font-medium">Invités ({guests.length})</label>
-                <button onClick={addGuest} className="text-xs text-blue-600 hover:text-blue-800 font-medium">+ Ajouter un invité</button>
+                <label className="text-ui-sm text-gray-600 font-medium">Invités ({guests.length})</label>
+                <button onClick={addGuest} className="text-ui-sm text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))] font-medium">+ Ajouter un invité</button>
               </div>
               <div className="space-y-2 mt-2">
                 {guests.map((g, idx) => (
                   <div key={idx} className="flex gap-1.5 items-center">
                     <input type="text" value={g.name} onChange={e => updateGuest(idx, 'name', e.target.value)}
-                      placeholder="Nom Prénom" className="flex-1 border rounded px-2 py-1.5 text-sm" />
+                      placeholder="Nom Prénom" className="flex-1 border rounded px-2 py-1.5 text-ui" />
                     <div className="relative flex-1">
                       <input type="text" value={g.company}
                         onChange={e => { updateGuest(idx, 'company', e.target.value); updateGuest(idx, 'client_id', '') }}
-                        placeholder="Entreprise" className="w-full border rounded px-2 py-1.5 text-sm"
+                        placeholder="Entreprise" className="w-full border rounded px-2 py-1.5 text-ui"
                         list={`modal-guest-cli-${idx}`} />
                       <datalist id={`modal-guest-cli-${idx}`}>
                         {(clients || []).filter(c => g.company && c.name.toUpperCase().includes(g.company.toUpperCase())).slice(0, 10).map(c => (
@@ -6344,13 +6345,13 @@ function MealGuestModal({ transactionId, transaction, clients, associates = [], 
                     </div>
                     {g.company && !(clients || []).find(c => c.name.toUpperCase() === g.company.toUpperCase()) && (
                       <button onClick={() => { setProspectInit({ name: g.company, contact_name: g.name }); setShowProspect(true) }}
-                        className="text-xs text-emerald-600 hover:text-emerald-800 whitespace-nowrap" title="Créer comme prospect">+</button>
+                        className="text-ui-sm text-[rgb(var(--c-success))] hover:text-[rgb(var(--c-success))] whitespace-nowrap" title="Créer comme prospect">+</button>
                     )}
-                    <button onClick={() => removeGuest(idx)} className="text-red-400 hover:text-red-600">Retirer</button>
+                    <button onClick={() => removeGuest(idx)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]">Retirer</button>
                   </div>
                 ))}
                 {guests.length === 0 && (
-                  <p className="text-xs text-gray-400 italic py-2">Aucun invité ajouté - vous pouvez en ajouter maintenant ou plus tard</p>
+                  <p className="text-ui-sm text-gray-400 italic py-2">Aucun invité ajouté - vous pouvez en ajouter maintenant ou plus tard</p>
                 )}
               </div>
             </div>
@@ -6358,9 +6359,9 @@ function MealGuestModal({ transactionId, transaction, clients, associates = [], 
         )}
 
         <div className="flex gap-2 p-4 border-t bg-gray-50 rounded-b-xl">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100">Annuler</button>
+          <button onClick={onClose} className="px-4 py-2 border rounded-ui-sm text-ui text-gray-600 hover:bg-gray-100">Annuler</button>
           <div className="flex-1" />
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50">
             {saving ? '...' : ' Enregistrer'}
           </button>
         </div>
@@ -6445,70 +6446,70 @@ function ProspectCreateModal({ initial, onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-4 border-b bg-emerald-50 rounded-t-xl">
-          <h3 className="font-bold text-emerald-800"> Créer un prospect</h3>
+      <div className="bg-white rounded-ui shadow-md w-full max-w-md">
+        <div className="flex items-center justify-between p-4 border-b bg-[rgb(var(--c-success-bg))] rounded-t-xl">
+          <h3 className="font-bold text-[rgb(var(--c-success))]"> Créer un prospect</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">Fermer</button>
         </div>
 
         <div className="p-4 space-y-3">
           <div>
-            <label className="text-xs text-gray-600 font-medium">Nom de l'entreprise *</label>
+            <label className="text-ui-sm text-gray-600 font-medium">Nom de l'entreprise *</label>
             <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full border rounded-lg px-3 py-2 text-sm mt-1" autoFocus />
+              className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-600">SIRET</label>
+              <label className="text-ui-sm text-gray-600">SIRET</label>
               <input type="text" value={form.siret} onChange={e => setForm(f => ({ ...f, siret: e.target.value }))}
-                placeholder="XXX XXX XXX XXXXX" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                placeholder="XXX XXX XXX XXXXX" className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" />
             </div>
             <div>
-              <label className="text-xs text-gray-600">Téléphone</label>
+              <label className="text-ui-sm text-gray-600">Téléphone</label>
               <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-600">Adresse</label>
+            <label className="text-ui-sm text-gray-600">Adresse</label>
             <input type="text" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-              className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+              className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-600">Code postal</label>
+              <label className="text-ui-sm text-gray-600">Code postal</label>
               <input type="text" value={form.postal_code} onChange={e => setForm(f => ({ ...f, postal_code: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" />
             </div>
             <div>
-              <label className="text-xs text-gray-600">Ville</label>
+              <label className="text-ui-sm text-gray-600">Ville</label>
               <input type="text" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-600">Nom du contact</label>
+              <label className="text-ui-sm text-gray-600">Nom du contact</label>
               <input type="text" value={form.contact_name} onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" />
             </div>
             <div>
-              <label className="text-xs text-gray-600">Email</label>
+              <label className="text-ui-sm text-gray-600">Email</label>
               <input type="email" value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-600">Notes</label>
+            <label className="text-ui-sm text-gray-600">Notes</label>
             <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Contexte, origine du contact..." className="w-full border rounded-lg px-3 py-2 text-sm mt-1" rows={2} />
+              placeholder="Contexte, origine du contact..." className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" rows={2} />
           </div>
         </div>
 
         <div className="flex gap-2 p-4 border-t bg-gray-50 rounded-b-xl">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100">Annuler</button>
+          <button onClick={onClose} className="px-4 py-2 border rounded-ui-sm text-ui text-gray-600 hover:bg-gray-100">Annuler</button>
           <div className="flex-1" />
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-success))] disabled:opacity-50">
             {saving ? '...' : ' Créer le prospect'}
           </button>
         </div>

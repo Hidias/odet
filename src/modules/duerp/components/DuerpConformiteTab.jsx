@@ -243,10 +243,10 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
   // RENDU
   // ═══════════════════════════════════════════════════════════
 
-  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-amber-600" /></div>
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[rgb(var(--c-warning))]" /></div>
 
-  const scoreColor = conformityScore >= 80 ? 'text-green-600' : conformityScore >= 50 ? 'text-amber-600' : 'text-red-600'
-  const scoreBg = conformityScore >= 80 ? 'from-green-50 to-emerald-50 border-green-200' : conformityScore >= 50 ? 'from-amber-50 to-yellow-50 border-amber-200' : 'from-red-50 to-orange-50 border-red-200'
+  const scoreColor = conformityScore >= 80 ? 'text-[rgb(var(--c-success))]' : conformityScore >= 50 ? 'text-[rgb(var(--c-warning))]' : 'text-[rgb(var(--c-danger))]'
+  const scoreBg = conformityScore >= 80 ? 'from-green-50 to-emerald-50 border-[rgb(var(--c-success)/0.3)]' : conformityScore >= 50 ? 'from-amber-50 to-yellow-50 border-[rgb(var(--c-warning)/0.3)]' : 'from-red-50 to-orange-50 border-[rgb(var(--c-danger)/0.3)]'
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'
   const daysUntil = (d) => d ? Math.ceil((new Date(d) - new Date()) / (1000*60*60*24)) : null
@@ -254,7 +254,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
   return (
     <div className="space-y-4">
       {/* ═══ SOUS-NAVIGATION ═══ */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-gray-100 rounded-ui p-1">
         {[
           { id: 'dashboard', label: 'Tableau de bord', count: null },
           { id: 'equipements', label: 'Équipements', count: equipements.length },
@@ -262,12 +262,12 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
           { id: 'verifications', label: 'Vérifications', count: verifications.length },
         ].map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition ${
-              subTab === t.id ? 'bg-white shadow text-amber-700' : 'text-gray-500 hover:text-gray-700'
+            className={`flex-1 py-2.5 px-3 rounded-ui-sm text-ui font-medium transition ${
+              subTab === t.id ? 'bg-white shadow text-[rgb(var(--c-warning))]' : 'text-gray-500 hover:text-gray-700'
             }`}>
             {t.label}
-            {t.count !== null && <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${
-              subTab === t.id ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-500'}`}>{t.count}</span>}
+            {t.count !== null && <span className={`ml-1 text-ui-sm px-1.5 py-0.5 rounded-full ${
+              subTab === t.id ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-gray-200 text-gray-500'}`}>{t.count}</span>}
           </button>
         ))}
       </div>
@@ -278,7 +278,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
       {subTab === 'dashboard' && (
         <div className="space-y-4">
           {/* Score + KPIs */}
-          <div className={`bg-gradient-to-r ${scoreBg} rounded-2xl border p-6`}>
+          <div className={`bg-gradient-to-r ${scoreBg} rounded-ui-lg border p-6`}>
             <div className="flex flex-col sm:flex-row items-center gap-6">
               {/* Score circulaire */}
               <div className="relative w-32 h-32 flex-shrink-0">
@@ -291,27 +291,27 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className={`text-3xl font-bold ${scoreColor}`}>{conformityScore}%</span>
-                  <span className="text-[10px] text-gray-500 font-medium">CONFORMITÉ</span>
+                  <span className="text-ui-sm text-gray-500 font-medium">CONFORMITÉ</span>
                 </div>
               </div>
 
               {/* KPIs */}
               <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
-                <div className="bg-white/70 rounded-xl p-3 text-center">
-                  <div className="text-2xl font-bold text-green-600">{stats.eqConf}</div>
-                  <div className="text-[10px] text-gray-500">Équip. conformes</div>
+                <div className="bg-white/70 rounded-ui p-3 text-center">
+                  <div className="text-2xl font-bold text-[rgb(var(--c-success))]">{stats.eqConf}</div>
+                  <div className="text-ui-sm text-gray-500">Équip. conformes</div>
                 </div>
-                <div className="bg-white/70 rounded-xl p-3 text-center">
-                  <div className="text-2xl font-bold text-red-600">{stats.eqPerime + stats.eqWarn}</div>
-                  <div className="text-[10px] text-gray-500">À vérifier / périmés</div>
+                <div className="bg-white/70 rounded-ui p-3 text-center">
+                  <div className="text-2xl font-bold text-[rgb(var(--c-danger))]">{stats.eqPerime + stats.eqWarn}</div>
+                  <div className="text-ui-sm text-gray-500">À vérifier / périmés</div>
                 </div>
-                <div className="bg-white/70 rounded-xl p-3 text-center">
-                  <div className="text-2xl font-bold text-emerald-600">{stats.habValide}</div>
-                  <div className="text-[10px] text-gray-500">Habilitations valides</div>
+                <div className="bg-white/70 rounded-ui p-3 text-center">
+                  <div className="text-2xl font-bold text-[rgb(var(--c-success))]">{stats.habValide}</div>
+                  <div className="text-ui-sm text-gray-500">Habilitations valides</div>
                 </div>
-                <div className="bg-white/70 rounded-xl p-3 text-center">
-                  <div className="text-2xl font-bold text-orange-600">{stats.habBientot + stats.habExpiree}</div>
-                  <div className="text-[10px] text-gray-500">À renouveler</div>
+                <div className="bg-white/70 rounded-ui p-3 text-center">
+                  <div className="text-2xl font-bold text-[rgb(var(--c-warning))]">{stats.habBientot + stats.habExpiree}</div>
+                  <div className="text-ui-sm text-gray-500">À renouveler</div>
                 </div>
               </div>
             </div>
@@ -321,8 +321,8 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
           {obligations.alertes.length > 0 && (
             <div className="space-y-2">
               {obligations.alertes.map((a, i) => (
-                <div key={i} className={`flex items-start gap-2 rounded-lg p-3 text-sm ${
-                  a.type === 'warning' ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-blue-50 border border-blue-200 text-blue-800'
+                <div key={i} className={`flex items-start gap-2 rounded-ui-sm p-3 text-ui ${
+                  a.type === 'warning' ? 'bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))]'
                 }`}>
                   {a.type === 'warning' ? <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" /> : <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />}
                   <span>{a.message}</span>
@@ -348,22 +348,22 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
             if (urgents.length === 0) return null
             return (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <h4 className="font-semibold text-sm text-red-800 mb-3 flex items-center gap-2">
+              <div className="bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] rounded-ui p-4">
+                <h4 className="font-semibold text-ui text-[rgb(var(--c-danger))] mb-3 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4" /> Actions urgentes ({urgents.length})
                 </h4>
                 <div className="space-y-2">
                   {urgents.slice(0, 8).map((u, i) => {
                     const days = daysUntil(u.date)
                     return (
-                      <div key={i} className="flex items-center gap-3 bg-white rounded-lg p-2.5 text-sm">
+                      <div key={i} className="flex items-center gap-3 bg-white rounded-ui-sm p-2.5 text-ui">
                         <span className="text-lg">{u.icon}</span>
                         <div className="flex-1 min-w-0">
                           <span className="font-medium text-gray-900">{u.label}</span>
                           {u.sub && <span className="text-gray-500 ml-1.5">- {u.sub}</span>}
                         </div>
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                          u.status === 'perime' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                        <span className={`text-ui-sm font-medium px-2 py-1 rounded-full ${
+                          u.status === 'perime' ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'
                         }`}>
                           {days !== null ? (days < 0 ? `Expiré ${Math.abs(days)}j` : `${days}j restants`) : 'À vérifier'}
                         </span>
@@ -378,8 +378,8 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
           {/* Obligations auto-détectées */}
           <div className="grid sm:grid-cols-2 gap-4">
             {/* Équipements requis */}
-            <div className="bg-white border rounded-xl p-4">
-              <h4 className="font-semibold text-sm text-gray-800 mb-3 flex items-center gap-2">
+            <div className="bg-white border rounded-ui p-4">
+              <h4 className="font-semibold text-ui text-gray-800 mb-3 flex items-center gap-2">
                  Équipements requis ({obligations.equipements.length})
               </h4>
               <div className="space-y-2">
@@ -389,19 +389,19 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                   const total = equipementsWithStatus.filter(e => e.type_id === obl.type_id).length
                   const ok = installed >= (obl.quantite_requise || 1)
                   return (
-                    <div key={i} className={`flex items-start gap-2 p-2.5 rounded-lg text-xs ${ok ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <div key={i} className={`flex items-start gap-2 p-2.5 rounded-ui-sm text-ui-sm ${ok ? 'bg-[rgb(var(--c-success-bg))]' : 'bg-[rgb(var(--c-danger-bg))]'}`}>
                       <span className="text-base mt-0.5">{type?.icon}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-gray-900">{type?.label}</span>
-                          {ok ? <CheckCircle className="w-3.5 h-3.5 text-green-600" /> : <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                          {ok ? <CheckCircle className="w-3.5 h-3.5 text-[rgb(var(--c-success))]" /> : <AlertTriangle className="w-3.5 h-3.5 text-[rgb(var(--c-danger))]" />}
                         </div>
                         <p className="text-gray-500 mt-0.5">{obl.raison}</p>
                         <p className="text-gray-400 mt-0.5">Installé(s) : {total} ({installed} conforme{installed > 1 ? 's' : ''}) / {obl.quantite_requise || '?'} requis</p>
                       </div>
                       {!ok && obl.quantite_requise > 0 && (
                         <button onClick={() => { setSubTab('equipements'); setEditEquip('new'); setEquipForm({ type_id: obl.type_id, label: type?.label }) }}
-                          className="text-[10px] px-2 py-1 bg-amber-600 text-white rounded-md hover:bg-amber-700 flex-shrink-0">
+                          className="text-ui-sm px-2 py-1 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] flex-shrink-0">
                           + Ajouter
                         </button>
                       )}
@@ -412,8 +412,8 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             </div>
 
             {/* Formations requises */}
-            <div className="bg-white border rounded-xl p-4">
-              <h4 className="font-semibold text-sm text-gray-800 mb-3 flex items-center gap-2">
+            <div className="bg-white border rounded-ui p-4">
+              <h4 className="font-semibold text-ui text-gray-800 mb-3 flex items-center gap-2">
                  Formations requises ({obligations.formations.length})
               </h4>
               <div className="space-y-2">
@@ -422,12 +422,12 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                   const valid = habilitations.filter(h => h.type_id === obl.type_id && getHabilitationStatus(h) === 'valide').length
                   const ok = obl.nb_personnes_requises ? valid >= obl.nb_personnes_requises : valid > 0
                   return (
-                    <div key={i} className={`flex items-start gap-2 p-2.5 rounded-lg text-xs ${ok ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <div key={i} className={`flex items-start gap-2 p-2.5 rounded-ui-sm text-ui-sm ${ok ? 'bg-[rgb(var(--c-success-bg))]' : 'bg-[rgb(var(--c-danger-bg))]'}`}>
                       <span className="text-base mt-0.5">{type?.icon}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-gray-900">{type?.short || type?.label}</span>
-                          {ok ? <CheckCircle className="w-3.5 h-3.5 text-green-600" /> : <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                          {ok ? <CheckCircle className="w-3.5 h-3.5 text-[rgb(var(--c-success))]" /> : <AlertTriangle className="w-3.5 h-3.5 text-[rgb(var(--c-danger))]" />}
                         </div>
                         <p className="text-gray-500 mt-0.5">{obl.raison}</p>
                         <p className="text-gray-400 mt-0.5">
@@ -438,12 +438,12 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                       <div className="flex flex-col gap-1 flex-shrink-0">
                         {!ok && (
                           <button onClick={() => { setSubTab('personnel'); setEditHab('new'); setHabForm({ type_id: obl.type_id }) }}
-                            className="text-[10px] px-2 py-1 bg-amber-600 text-white rounded-md hover:bg-amber-700">
+                            className="text-ui-sm px-2 py-1 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))]">
                             + Ajouter
                           </button>
                         )}
                         {type?.access_formation && (
-                          <span className="text-[9px] text-amber-600 font-bold text-center">
+                          <span className="text-ui-sm text-[rgb(var(--c-warning))] font-bold text-center">
                             {orgName()}
                           </span>
                         )}
@@ -453,14 +453,14 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                 })}
               </div>
               {/* Proposition de formation par l'organisme */}
-              <div className="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-xl p-4">
+              <div className="mt-4 bg-gray-50 border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0"></div>
+                  <div className="w-10 h-10 bg-[rgb(var(--c-warning))] rounded-full flex items-center justify-center text-white text-lg flex-shrink-0"></div>
                   <div className="flex-1">
-                    <p className="font-bold text-sm text-amber-900">Besoin de former vos équipes ?</p>
-                    <p className="text-xs text-amber-700">{orgName()} : SST, incendie, habilitation électrique, conduite d'engins</p>
+                    <p className="font-bold text-ui text-[rgb(var(--c-warning))]">Besoin de former vos équipes ?</p>
+                    <p className="text-ui-sm text-[rgb(var(--c-warning))]">{orgName()} : SST, incendie, habilitation électrique, conduite d'engins</p>
                   </div>
-                  <a href={`tel:${orgPhone().replace(/\s/g, '')}`} className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-700">
+                  <a href={`tel:${orgPhone().replace(/\s/g, '')}`} className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui-sm font-medium hover:bg-[rgb(var(--c-warning))]">
                     <Phone className="w-3.5 h-3.5" /> Nous contacter
                   </a>
                 </div>
@@ -480,10 +480,10 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             <div className="relative flex-1 min-w-[200px]">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input value={searchEquip} onChange={e => setSearchEquip(e.target.value)} placeholder="Rechercher..."
-                className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+                className="w-full pl-9 pr-3 py-2 border rounded-ui-sm text-ui" />
             </div>
             <button onClick={() => { setEditEquip('new'); setEquipForm({}) }}
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center gap-2">
+              className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center gap-2">
               <Plus className="w-4 h-4" /> Ajouter un équipement
             </button>
           </div>
@@ -496,11 +496,11 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             if (catEquips.length === 0 && searchEquip) return null
             return (
               <div key={catId}>
-                <h4 className="font-semibold text-sm text-gray-700 mb-2 flex items-center gap-2">
+                <h4 className="font-semibold text-ui text-gray-700 mb-2 flex items-center gap-2">
                   {cat.icon} {cat.label} ({catEquips.length})
                 </h4>
                 {catEquips.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic ml-6 mb-3">Aucun équipement enregistré</p>
+                  <p className="text-ui-sm text-gray-400 italic ml-6 mb-3">Aucun équipement enregistré</p>
                 ) : (
                   <div className="space-y-2 mb-4">
                     {catEquips.map(eq => {
@@ -509,45 +509,45 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                       const days = daysUntil(eq.expiry_date)
                       const nextDays = daysUntil(eq.next_check_date)
                       return (
-                        <div key={eq.id} className={`bg-white border rounded-xl p-3 flex items-start gap-3 ring-1 ${st.ring} ring-opacity-30`}>
+                        <div key={eq.id} className={`bg-white border rounded-ui p-3 flex items-start gap-3 ring-1 ${st.ring} ring-opacity-30`}>
                           <span className="text-2xl mt-1">{type?.icon || ''}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm text-gray-900">{eq.label || type?.label}</span>
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${st.color}`}>
+                              <span className="font-semibold text-ui text-gray-900">{eq.label || type?.label}</span>
+                              <span className={`text-ui-sm px-2 py-0.5 rounded-full font-medium ${st.color}`}>
                                 {st.icon} {st.label}
                               </span>
                               {eq.status && eq.status !== eq.auto_status && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200" title="Statut saisi manuellement (écrasé par date)">
+                                <span className="text-ui-sm px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200" title="Statut saisi manuellement (écrasé par date)">
                                    saisi : {EQUIPMENT_STATUS[eq.status]?.label || eq.status}
                                 </span>
                               )}
                             </div>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-gray-500">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-ui-sm text-gray-500">
                               {eq.emplacement && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{eq.emplacement}</span>}
                               {eq.marque && <span>{eq.marque}{eq.modele ? ' ' + eq.modele : ''}</span>}
                               {eq.numero_serie && <span className="text-gray-400">N° {eq.numero_serie}</span>}
                               {eq.capacite && <span>{eq.capacite}</span>}
                             </div>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-ui-sm">
                               {eq.install_date && <span className="text-gray-400">Installé : {formatDate(eq.install_date)}</span>}
                               {eq.expiry_date && (
-                                <span className={days !== null && days < 30 ? 'text-red-600 font-medium' : 'text-gray-400'}>
+                                <span className={days !== null && days < 30 ? 'text-[rgb(var(--c-danger))] font-medium' : 'text-gray-400'}>
                                   Péremption : {formatDate(eq.expiry_date)}{days !== null && days <= 90 ? ` (${days < 0 ? 'EXPIRÉ' : days + 'j'})` : ''}
                                 </span>
                               )}
                               {eq.last_check_date && <span className="text-gray-400">Dernier ctrl : {formatDate(eq.last_check_date)}{eq.last_check_by ? ` par ${eq.last_check_by}` : ''}</span>}
                               {eq.next_check_date && (
-                                <span className={nextDays !== null && nextDays < 0 ? 'text-red-600 font-medium' : nextDays !== null && nextDays < 30 ? 'text-amber-600 font-medium' : 'text-gray-400'}>
+                                <span className={nextDays !== null && nextDays < 0 ? 'text-[rgb(var(--c-danger))] font-medium' : nextDays !== null && nextDays < 30 ? 'text-[rgb(var(--c-warning))] font-medium' : 'text-gray-400'}>
                                   Prochain ctrl : {formatDate(eq.next_check_date)}{nextDays !== null && nextDays <= 30 ? ` (${nextDays < 0 ? 'EN RETARD' : nextDays + 'j'})` : ''}
                                 </span>
                               )}
                             </div>
-                            {eq.notes && <p className="text-xs text-gray-400 italic mt-1">{eq.notes}</p>}
+                            {eq.notes && <p className="text-ui-sm text-gray-400 italic mt-1">{eq.notes}</p>}
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
-                            <button onClick={() => { setEditEquip(eq.id); setEquipForm(eq) }} className="p-1.5 hover:bg-gray-100 rounded-lg"><Edit className="w-4 h-4 text-gray-400" /></button>
-                            <button onClick={() => deleteEquipement(eq.id)} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                            <button onClick={() => { setEditEquip(eq.id); setEquipForm(eq) }} className="p-1.5 hover:bg-gray-100 rounded-ui-sm"><Edit className="w-4 h-4 text-gray-400" /></button>
+                            <button onClick={() => deleteEquipement(eq.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm"><Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" /></button>
                           </div>
                         </div>
                       )
@@ -561,19 +561,19 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
           {/* ═══ MODALE AJOUT/EDIT ÉQUIPEMENT ═══ */}
           {editEquip && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setEditEquip(null) } }}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-red-50 to-amber-50">
+              <div className="bg-white rounded-ui-lg shadow-md w-full max-w-xl max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50">
                   <h3 className="font-bold text-gray-900"> {editEquip === 'new' ? 'Ajouter' : 'Modifier'} un équipement</h3>
-                  <button onClick={() => setEditEquip(null)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+                  <button onClick={() => setEditEquip(null)} className="p-2 hover:bg-gray-100 rounded-ui-sm"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="p-5 space-y-4">
                   {/* Type */}
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Type *</label>
+                    <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Type *</label>
                     <select value={equipForm.type_id || ''} onChange={e => {
                       const t = EQUIPMENT_TYPES.find(x => x.id === e.target.value)
                       setEquipForm(f => ({ ...f, type_id: e.target.value, label: t?.label || '', category: t?.category || 'incendie' }))
-                    }} className="w-full border rounded-lg px-3 py-2 text-sm">
+                    }} className="w-full border rounded-ui-sm px-3 py-2 text-ui">
                       <option value="">Sélectionner...</option>
                       {Object.entries(EQUIPMENT_CATEGORIES).map(([cId, c]) => (
                         <optgroup key={cId} label={`${c.icon} ${c.label}`}>
@@ -588,36 +588,36 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                   {/* Label + emplacement + quantité */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Libellé personnalisé</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Libellé personnalisé</label>
                       <input value={equipForm.label || ''} onChange={e => setEquipForm(f => ({ ...f, label: e.target.value }))}
-                        placeholder="Ex: Extincteur hall accueil" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        placeholder="Ex: Extincteur hall accueil" className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Emplacement</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Emplacement</label>
                       <input value={equipForm.emplacement || ''} onChange={e => setEquipForm(f => ({ ...f, emplacement: e.target.value }))}
-                        placeholder="Ex: Hall d'entrée" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        placeholder="Ex: Hall d'entrée" className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                   </div>
 
                   {/* Quantité (nouveau seulement) */}
                   {editEquip === 'new' && (
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Quantité à créer</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Quantité à créer</label>
                       <input type="number" min="1" max="50"
                         value={equipForm.quantite || 1}
                         onChange={e => setEquipForm(f => ({ ...f, quantite: Math.max(1, parseInt(e.target.value) || 1) }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                       {(equipForm.quantite || 1) > 1 && (
-                        <p className="text-xs text-amber-600 mt-1"> {equipForm.quantite} équipements identiques seront créés</p>
+                        <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1"> {equipForm.quantite} équipements identiques seront créés</p>
                       )}
                     </div>
                   )}
 
                   {/* Unité de travail */}
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Unité de travail</label>
+                    <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Unité de travail</label>
                     <select value={equipForm.unit_id || ''} onChange={e => setEquipForm(f => ({ ...f, unit_id: e.target.value || null }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm">
+                      className="w-full border rounded-ui-sm px-3 py-2 text-ui">
                       <option value="">Aucune (général)</option>
                       {units.map(u => <option key={u.id} value={u.id}>{u.code} - {u.name}</option>)}
                     </select>
@@ -626,62 +626,62 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                   {/* Marque / Modèle / N° série / Capacité */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Marque</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Marque</label>
                       <input value={equipForm.marque || ''} onChange={e => setEquipForm(f => ({ ...f, marque: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Modèle</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Modèle</label>
                       <input value={equipForm.modele || ''} onChange={e => setEquipForm(f => ({ ...f, modele: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">N° série</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">N° série</label>
                       <input value={equipForm.numero_serie || ''} onChange={e => setEquipForm(f => ({ ...f, numero_serie: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Capacité</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Capacité</label>
                       <input value={equipForm.capacite || ''} onChange={e => setEquipForm(f => ({ ...f, capacite: e.target.value }))}
-                        placeholder="6L, 2kg..." className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        placeholder="6L, 2kg..." className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                   </div>
 
                   {/* Dates */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Installation</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Installation</label>
                       <input type="date" value={equipForm.install_date || ''} onChange={e => setEquipForm(f => ({ ...f, install_date: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Péremption</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Péremption</label>
                       <input type="date" value={equipForm.expiry_date || ''} onChange={e => setEquipForm(f => ({ ...f, expiry_date: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Dernier contrôle</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Dernier contrôle</label>
                       <input type="date" value={equipForm.last_check_date || ''} onChange={e => setEquipForm(f => ({ ...f, last_check_date: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Prochain contrôle</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Prochain contrôle</label>
                       <input type="date" value={equipForm.next_check_date || ''} onChange={e => setEquipForm(f => ({ ...f, next_check_date: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                   </div>
 
                   {/* Vérificateur + statut */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Organisme vérificateur</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Organisme vérificateur</label>
                       <input value={equipForm.last_check_by || ''} onChange={e => setEquipForm(f => ({ ...f, last_check_by: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Statut</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Statut</label>
                       <select value={equipForm.status || 'conforme'} onChange={e => setEquipForm(f => ({ ...f, status: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm">
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui">
                         {Object.entries(EQUIPMENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
                       </select>
                     </div>
@@ -689,9 +689,9 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
                   {/* Notes */}
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Notes</label>
+                    <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Notes</label>
                     <textarea value={equipForm.notes || ''} onChange={e => setEquipForm(f => ({ ...f, notes: e.target.value }))}
-                      rows={2} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                      rows={2} className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                   </div>
 
                   {/* Réglementation du type */}
@@ -699,19 +699,19 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                     const type = EQUIPMENT_TYPES.find(t => t.id === equipForm.type_id)
                     if (!type) return null
                     return (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+                      <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui-sm text-[rgb(var(--c-info))]">
                         <p className="font-medium"> {type.reglementation}</p>
-                        <p className="text-blue-600 mt-1">{type.notes}</p>
-                        {type.periodicite_check && <p className="text-blue-600"> Contrôle tous les {type.periodicite_check} mois</p>}
-                        {type.duree_vie_max && <p className="text-blue-600"> Durée de vie max : {type.duree_vie_max} ans</p>}
+                        <p className="text-[rgb(var(--c-info))] mt-1">{type.notes}</p>
+                        {type.periodicite_check && <p className="text-[rgb(var(--c-info))]"> Contrôle tous les {type.periodicite_check} mois</p>}
+                        {type.duree_vie_max && <p className="text-[rgb(var(--c-info))]"> Durée de vie max : {type.duree_vie_max} ans</p>}
                       </div>
                     )
                   })()}
                 </div>
 
                 <div className="flex gap-2 px-5 py-4 border-t bg-gray-50">
-                  <button onClick={() => setEditEquip(null)} className="flex-1 px-4 py-2.5 border rounded-lg text-sm hover:bg-gray-50">Annuler</button>
-                  <button onClick={saveEquipement} className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center justify-center gap-2">
+                  <button onClick={() => setEditEquip(null)} className="flex-1 px-4 py-2.5 border rounded-ui-sm text-ui hover:bg-gray-50">Annuler</button>
+                  <button onClick={saveEquipement} className="flex-1 px-4 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center justify-center gap-2">
                     <Save className="w-4 h-4" /> Enregistrer
                   </button>
                 </div>
@@ -731,10 +731,10 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             <div className="relative flex-1 min-w-[200px]">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input value={searchHab} onChange={e => setSearchHab(e.target.value)} placeholder="Rechercher une personne..."
-                className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+                className="w-full pl-9 pr-3 py-2 border rounded-ui-sm text-ui" />
             </div>
             <button onClick={() => { setEditHab('new'); setHabForm({}) }}
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center gap-2">
+              className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center gap-2">
               <Plus className="w-4 h-4" /> Ajouter une habilitation
             </button>
           </div>
@@ -752,27 +752,27 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
             })
 
             if (Object.keys(byPerson).length === 0) {
-              return <p className="text-center text-gray-400 py-8 text-sm">Aucune habilitation enregistrée</p>
+              return <p className="text-center text-gray-400 py-8 text-ui">Aucune habilitation enregistrée</p>
             }
 
             return Object.entries(byPerson).sort(([a], [b]) => a.localeCompare(b)).map(([name, info]) => (
-              <div key={name} className="bg-white border rounded-xl overflow-hidden">
+              <div key={name} className="bg-white border rounded-ui overflow-hidden">
                 <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b">
-                  <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-amber-700 font-bold text-sm">
+                  <div className="w-8 h-8 bg-[rgb(var(--c-warning-bg))] rounded-full flex items-center justify-center text-[rgb(var(--c-warning))] font-bold text-ui">
                     {name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <span className="font-semibold text-sm text-gray-900">{name}</span>
-                    {info.function && <span className="text-xs text-gray-500 ml-2">- {info.function}</span>}
+                    <span className="font-semibold text-ui text-gray-900">{name}</span>
+                    {info.function && <span className="text-ui-sm text-gray-500 ml-2">- {info.function}</span>}
                   </div>
                   <div className="ml-auto flex items-center gap-1.5">
                     {info.habs.map(h => {
                       const status = getHabilitationStatus(h)
                       const type = HABILITATION_TYPES.find(t => t.id === h.type_id)
                       return (
-                        <span key={h.id} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                          status === 'valide' ? 'bg-green-100 text-green-700' :
-                          status === 'bientot' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                        <span key={h.id} className={`text-ui-sm px-2 py-0.5 rounded-full font-medium ${
+                          status === 'valide' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                          status === 'bientot' ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                         }`}>{type?.short || h.type_id}</span>
                       )
                     })}
@@ -788,13 +788,13 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                         <span className="text-lg">{type?.icon || ''}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm text-gray-900">{type?.label || h.type_id}</span>
-                            {h.niveau && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">{h.niveau}</span>}
+                            <span className="font-medium text-ui text-gray-900">{type?.label || h.type_id}</span>
+                            {h.niveau && <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1.5 py-0.5 rounded">{h.niveau}</span>}
                           </div>
-                          <div className="flex flex-wrap gap-x-3 text-xs text-gray-500 mt-0.5">
+                          <div className="flex flex-wrap gap-x-3 text-ui-sm text-gray-500 mt-0.5">
                             {h.obtained_date && <span>Obtenue : {formatDate(h.obtained_date)}</span>}
                             {h.expiry_date && (
-                              <span className={status === 'expiree' ? 'text-red-600 font-medium' : status === 'bientot' ? 'text-amber-600 font-medium' : ''}>
+                              <span className={status === 'expiree' ? 'text-[rgb(var(--c-danger))] font-medium' : status === 'bientot' ? 'text-[rgb(var(--c-warning))] font-medium' : ''}>
                                 Expire : {formatDate(h.expiry_date)}
                                 {days !== null && days <= 90 ? ` (${days < 0 ? 'EXPIRÉE' : days + 'j'})` : ''}
                               </span>
@@ -804,14 +804,14 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                           </div>
                         </div>
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          status === 'valide' ? 'bg-green-500' : status === 'bientot' ? 'bg-amber-500' : 'bg-red-500'
+                          status === 'valide' ? 'bg-[rgb(var(--c-success))]' : status === 'bientot' ? 'bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-danger))]'
                         }`} />
                         <div className="flex gap-1 flex-shrink-0">
-                          <button onClick={() => { setEditHab(h.id); setHabForm(h) }} className="p-1.5 hover:bg-gray-100 rounded-lg">
+                          <button onClick={() => { setEditHab(h.id); setHabForm(h) }} className="p-1.5 hover:bg-gray-100 rounded-ui-sm">
                             <Edit className="w-3.5 h-3.5 text-gray-400" />
                           </button>
-                          <button onClick={() => deleteHabilitation(h.id)} className="p-1.5 hover:bg-red-50 rounded-lg">
-                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          <button onClick={() => deleteHabilitation(h.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm">
+                            <Trash2 className="w-3.5 h-3.5 text-[rgb(var(--c-danger))]" />
                           </button>
                         </div>
                       </div>
@@ -825,34 +825,34 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
           {/* ═══ MODALE AJOUT/EDIT HABILITATION ═══ */}
           {editHab && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setEditHab(null) } }}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-emerald-50 to-amber-50">
+              <div className="bg-white rounded-ui-lg shadow-md w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50">
                   <h3 className="font-bold text-gray-900"> {editHab === 'new' ? 'Ajouter' : 'Modifier'} une habilitation</h3>
-                  <button onClick={() => setEditHab(null)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+                  <button onClick={() => setEditHab(null)} className="p-2 hover:bg-gray-100 rounded-ui-sm"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="p-5 space-y-4">
                   {/* Personne */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Nom complet *</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Nom complet *</label>
                       <input value={habForm.person_name || ''} onChange={e => setHabForm(f => ({ ...f, person_name: e.target.value }))}
-                        placeholder="Jean DUPONT" className="w-full border rounded-lg px-3 py-2 text-sm" list="existing-persons" />
+                        placeholder="Jean DUPONT" className="w-full border rounded-ui-sm px-3 py-2 text-ui" list="existing-persons" />
                       <datalist id="existing-persons">
                         {[...new Set(habilitations.map(h => h.person_name))].map(n => <option key={n} value={n} />)}
                       </datalist>
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Fonction</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Fonction</label>
                       <input value={habForm.person_function || ''} onChange={e => setHabForm(f => ({ ...f, person_function: e.target.value }))}
-                        placeholder="Chef d'atelier" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        placeholder="Chef d'atelier" className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                   </div>
 
                   {/* Type habilitation */}
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Type d'habilitation *</label>
+                    <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Type d'habilitation *</label>
                     <select value={habForm.type_id || ''} onChange={e => setHabForm(f => ({ ...f, type_id: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm">
+                      className="w-full border rounded-ui-sm px-3 py-2 text-ui">
                       <option value="">Sélectionner...</option>
                       {HABILITATION_TYPES.map(t => (
                         <option key={t.id} value={t.id}>{t.icon} {t.label} ({t.duree_validite} mois)</option>
@@ -862,27 +862,27 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
                   {/* Niveau */}
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Niveau / Catégorie</label>
+                    <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Niveau / Catégorie</label>
                     <input value={habForm.niveau || ''} onChange={e => setHabForm(f => ({ ...f, niveau: e.target.value }))}
-                      placeholder="B0, B1V, BR, Cat 3..." className="w-full border rounded-lg px-3 py-2 text-sm" />
+                      placeholder="B0, B1V, BR, Cat 3..." className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                   </div>
 
                   {/* Dates */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Date d'obtention</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Date d'obtention</label>
                       <input type="date" value={habForm.obtained_date || ''} onChange={e => setHabForm(f => ({ ...f, obtained_date: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Date d'expiration</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Date d'expiration</label>
                       <input type="date" value={habForm.expiry_date || ''} onChange={e => setHabForm(f => ({ ...f, expiry_date: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                       {habForm.obtained_date && habForm.type_id && !habForm.expiry_date && (() => {
                         const type = HABILITATION_TYPES.find(t => t.id === habForm.type_id)
                         if (!type?.duree_validite) return null
                         const d = new Date(habForm.obtained_date); d.setMonth(d.getMonth() + type.duree_validite)
-                        return <p className="text-[10px] text-amber-600 mt-1">Auto-calculée : {d.toLocaleDateString('fr-FR')} ({type.duree_validite} mois)</p>
+                        return <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">Auto-calculée : {d.toLocaleDateString('fr-FR')} ({type.duree_validite} mois)</p>
                       })()}
                     </div>
                   </div>
@@ -890,22 +890,22 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                   {/* Organisme + N° certificat */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Organisme de formation</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Organisme de formation</label>
                       <input value={habForm.organisme || ''} onChange={e => setHabForm(f => ({ ...f, organisme: e.target.value }))}
-                        placeholder={orgName()} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        placeholder={orgName()} className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">N° certificat</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">N° certificat</label>
                       <input value={habForm.certificate_ref || ''} onChange={e => setHabForm(f => ({ ...f, certificate_ref: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                   </div>
 
                   {/* Notes */}
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Notes</label>
+                    <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Notes</label>
                     <textarea value={habForm.notes || ''} onChange={e => setHabForm(f => ({ ...f, notes: e.target.value }))}
-                      rows={2} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                      rows={2} className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                   </div>
 
                   {/* Info réglementaire */}
@@ -913,12 +913,12 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                     const type = HABILITATION_TYPES.find(t => t.id === habForm.type_id)
                     if (!type) return null
                     return (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+                      <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui-sm text-[rgb(var(--c-info))]">
                         <p className="font-medium"> {type.reglementation}</p>
-                        <p className="text-blue-600 mt-1">{type.obligation}</p>
-                        <p className="text-blue-600"> Validité : {type.duree_validite} mois</p>
+                        <p className="text-[rgb(var(--c-info))] mt-1">{type.obligation}</p>
+                        <p className="text-[rgb(var(--c-info))]"> Validité : {type.duree_validite} mois</p>
                         {type.access_formation && (
-                          <p className="mt-2 text-amber-700 font-bold">Formation disponible chez {orgName()}, réf. {type.access_ref}</p>
+                          <p className="mt-2 text-[rgb(var(--c-warning))] font-bold">Formation disponible chez {orgName()}, réf. {type.access_ref}</p>
                         )}
                       </div>
                     )
@@ -926,8 +926,8 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                 </div>
 
                 <div className="flex gap-2 px-5 py-4 border-t bg-gray-50">
-                  <button onClick={() => setEditHab(null)} className="flex-1 px-4 py-2.5 border rounded-lg text-sm hover:bg-gray-50">Annuler</button>
-                  <button onClick={saveHabilitation} className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center justify-center gap-2">
+                  <button onClick={() => setEditHab(null)} className="flex-1 px-4 py-2.5 border rounded-ui-sm text-ui hover:bg-gray-50">Annuler</button>
+                  <button onClick={saveHabilitation} className="flex-1 px-4 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center justify-center gap-2">
                     <Save className="w-4 h-4" /> Enregistrer
                   </button>
                 </div>
@@ -944,19 +944,19 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => { setEditVerif('new'); setVerifForm({}) }}
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center gap-2">
+              className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center gap-2">
               <Plus className="w-4 h-4" /> Enregistrer une vérification
             </button>
           </div>
 
           {/* Résumé des périodicités */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h4 className="text-sm font-semibold text-blue-800 mb-2"> Périodicités réglementaires</h4>
+          <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui p-4">
+            <h4 className="text-ui font-semibold text-[rgb(var(--c-info))] mb-2"> Périodicités réglementaires</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {VERIFICATION_TYPES.filter(v => v.id !== 'autre').map(v => {
                 const last = verifications.find(ver => ver.type === v.id)
                 return (
-                  <div key={v.id} className="bg-white rounded-lg p-2.5 text-xs">
+                  <div key={v.id} className="bg-white rounded-ui-sm p-2.5 text-ui-sm">
                     <div className="flex items-center gap-1.5">
                       <span>{v.icon}</span>
                       <span className="font-medium text-gray-900">{v.label}</span>
@@ -966,7 +966,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                       {last ? (
                         <span className="ml-2">• Dernier : {formatDate(last.date_realisation)}</span>
                       ) : (
-                        <span className="ml-2 text-red-500 font-medium">• Aucun enregistré</span>
+                        <span className="ml-2 text-[rgb(var(--c-danger))] font-medium">• Aucun enregistré</span>
                       )}
                     </div>
                   </div>
@@ -977,33 +977,33 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
           {/* Historique */}
           {verifications.length === 0 ? (
-            <p className="text-center text-gray-400 py-8 text-sm">Aucune vérification enregistrée</p>
+            <p className="text-center text-gray-400 py-8 text-ui">Aucune vérification enregistrée</p>
           ) : (
             <div className="space-y-2">
               {verifications.map(v => {
                 const vType = VERIFICATION_TYPES.find(t => t.id === v.type)
                 return (
-                  <div key={v.id} className={`bg-white border rounded-xl p-3 flex items-start gap-3 ${v.conforme ? '' : 'border-red-300 bg-red-50'}`}>
+                  <div key={v.id} className={`bg-white border rounded-ui p-3 flex items-start gap-3 ${v.conforme ? '' : 'border-[rgb(var(--c-danger)/0.3)] bg-[rgb(var(--c-danger-bg))]'}`}>
                     <span className="text-xl">{vType?.icon || ''}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm text-gray-900">{v.label || vType?.label}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${v.conforme ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        <span className="font-medium text-ui text-gray-900">{v.label || vType?.label}</span>
+                        <span className={`text-ui-sm px-2 py-0.5 rounded-full font-medium ${v.conforme ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'}`}>
                           {v.conforme ? ' Conforme' : ' Non conforme'}
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-x-3 text-xs text-gray-500 mt-1">
+                      <div className="flex flex-wrap gap-x-3 text-ui-sm text-gray-500 mt-1">
                         <span> {formatDate(v.date_realisation)}</span>
                         {v.realise_par && <span> {v.realise_par}</span>}
                         {v.organisme && <span> {v.organisme}</span>}
                         {v.nb_participants && <span> {v.nb_participants} participants</span>}
-                        {v.prochain_prevu && <span className="text-amber-600">Prochain : {formatDate(v.prochain_prevu)}</span>}
+                        {v.prochain_prevu && <span className="text-[rgb(var(--c-warning))]">Prochain : {formatDate(v.prochain_prevu)}</span>}
                       </div>
-                      {v.observations && <p className="text-xs text-gray-400 italic mt-1">{v.observations}</p>}
+                      {v.observations && <p className="text-ui-sm text-gray-400 italic mt-1">{v.observations}</p>}
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      <button onClick={() => { setEditVerif(v.id); setVerifForm(v) }} className="p-1.5 hover:bg-gray-100 rounded-lg"><Edit className="w-3.5 h-3.5 text-gray-400" /></button>
-                      <button onClick={() => deleteVerification(v.id)} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                      <button onClick={() => { setEditVerif(v.id); setVerifForm(v) }} className="p-1.5 hover:bg-gray-100 rounded-ui-sm"><Edit className="w-3.5 h-3.5 text-gray-400" /></button>
+                      <button onClick={() => deleteVerification(v.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm"><Trash2 className="w-3.5 h-3.5 text-[rgb(var(--c-danger))]" /></button>
                     </div>
                   </div>
                 )
@@ -1014,70 +1014,70 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
           {/* ═══ MODALE AJOUT/EDIT VÉRIFICATION ═══ */}
           {editVerif && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setEditVerif(null) } }}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-blue-50 to-amber-50">
+              <div className="bg-white rounded-ui-lg shadow-md w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50">
                   <h3 className="font-bold text-gray-900"> {editVerif === 'new' ? 'Enregistrer' : 'Modifier'} une vérification</h3>
-                  <button onClick={() => setEditVerif(null)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+                  <button onClick={() => setEditVerif(null)} className="p-2 hover:bg-gray-100 rounded-ui-sm"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="p-5 space-y-4">
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Type de vérification *</label>
+                    <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Type de vérification *</label>
                     <select value={verifForm.type || ''} onChange={e => {
                       const vt = VERIFICATION_TYPES.find(v => v.id === e.target.value)
                       setVerifForm(f => ({ ...f, type: e.target.value, label: vt?.label || '' }))
-                    }} className="w-full border rounded-lg px-3 py-2 text-sm">
+                    }} className="w-full border rounded-ui-sm px-3 py-2 text-ui">
                       <option value="">Sélectionner...</option>
                       {VERIFICATION_TYPES.map(v => <option key={v.id} value={v.id}>{v.icon} {v.label} ({v.periodicite})</option>)}
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Date de réalisation *</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Date de réalisation *</label>
                       <input type="date" value={verifForm.date_realisation || ''} onChange={e => setVerifForm(f => ({ ...f, date_realisation: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Prochain prévu</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Prochain prévu</label>
                       <input type="date" value={verifForm.prochain_prevu || ''} onChange={e => setVerifForm(f => ({ ...f, prochain_prevu: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Réalisé par</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Réalisé par</label>
                       <input value={verifForm.realise_par || ''} onChange={e => setVerifForm(f => ({ ...f, realise_par: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Organisme</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Organisme</label>
                       <input value={verifForm.organisme || ''} onChange={e => setVerifForm(f => ({ ...f, organisme: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Nb participants</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Nb participants</label>
                       <input type="number" value={verifForm.nb_participants || ''} onChange={e => setVerifForm(f => ({ ...f, nb_participants: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Résultat</label>
+                      <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Résultat</label>
                       <select value={verifForm.conforme !== false ? 'true' : 'false'} onChange={e => setVerifForm(f => ({ ...f, conforme: e.target.value === 'true' }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm">
+                        className="w-full border rounded-ui-sm px-3 py-2 text-ui">
                         <option value="true"> Conforme</option>
                         <option value="false"> Non conforme</option>
                       </select>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Observations</label>
+                    <label className="text-ui-sm font-medium text-gray-600 mb-1 block">Observations</label>
                     <textarea value={verifForm.observations || ''} onChange={e => setVerifForm(f => ({ ...f, observations: e.target.value }))}
-                      rows={3} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                      rows={3} className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                   </div>
                 </div>
                 <div className="flex gap-2 px-5 py-4 border-t bg-gray-50">
-                  <button onClick={() => setEditVerif(null)} className="flex-1 px-4 py-2.5 border rounded-lg text-sm hover:bg-gray-50">Annuler</button>
-                  <button onClick={saveVerification} className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center justify-center gap-2">
+                  <button onClick={() => setEditVerif(null)} className="flex-1 px-4 py-2.5 border rounded-ui-sm text-ui hover:bg-gray-50">Annuler</button>
+                  <button onClick={saveVerification} className="flex-1 px-4 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center justify-center gap-2">
                     <Save className="w-4 h-4" /> Enregistrer
                   </button>
                 </div>

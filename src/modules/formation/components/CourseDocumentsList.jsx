@@ -262,7 +262,7 @@ export default function CourseDocumentsList() {
       {/* Header */}
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-2">Documents de formations</h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-ui text-gray-600">
           Gérez les ressources pédagogiques pour toutes vos formations (Qualiopi - Indicateur 19)
         </p>
       </div>
@@ -275,35 +275,35 @@ export default function CourseDocumentsList() {
           placeholder="Rechercher une formation..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-[rgb(var(--c-info)/0.3)] focus:border-transparent"
         />
       </div>
 
       {/* Stats globales */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-blue-50 rounded-lg p-4">
-          <div className="text-2xl font-bold text-blue-600">
+        <div className="bg-[rgb(var(--c-info-bg))] rounded-ui-sm p-4">
+          <div className="text-2xl font-bold text-[rgb(var(--c-info))]">
             {Object.keys(documents).length}
           </div>
-          <div className="text-sm text-blue-800">
+          <div className="text-ui text-[rgb(var(--c-info))]">
             Formations avec documents
           </div>
         </div>
-        <div className="bg-green-50 rounded-lg p-4">
-          <div className="text-2xl font-bold text-green-600">
+        <div className="bg-[rgb(var(--c-success-bg))] rounded-ui-sm p-4">
+          <div className="text-2xl font-bold text-[rgb(var(--c-success))]">
             {Object.values(documents).reduce((acc, docs) => 
               acc + Object.keys(docs).length, 0
             )}
           </div>
-          <div className="text-sm text-green-800">
+          <div className="text-ui text-[rgb(var(--c-success))]">
             Documents uploadés
           </div>
         </div>
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="bg-gray-50 rounded-ui-sm p-4">
           <div className="text-2xl font-bold text-gray-600">
             {filteredCourses.length}
           </div>
-          <div className="text-sm text-gray-800">
+          <div className="text-ui text-gray-800">
             Formations totales
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function CourseDocumentsList() {
             const docsCount = Object.keys(courseDocs).length
 
             return (
-              <div key={course.id} className="border rounded-lg bg-white shadow-sm">
+              <div key={course.id} className="border rounded-ui-sm bg-white shadow-sm">
                 {/* En-tête formation */}
                 <button
                   onClick={() => toggleCourse(course.id)}
@@ -338,16 +338,16 @@ export default function CourseDocumentsList() {
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-900">{course.title}</h4>
                       {course.reference && (
-                        <p className="text-sm text-gray-500">Réf: {course.reference}</p>
+                        <p className="text-ui text-gray-500">Réf: {course.reference}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
                       {docsCount > 0 ? (
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                        <span className="px-3 py-1 bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] rounded-full text-ui font-medium">
                           {docsCount} document{docsCount > 1 ? 's' : ''}
                         </span>
                       ) : (
-                        <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-sm">
+                        <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-ui">
                           Aucun document
                         </span>
                       )}
@@ -364,22 +364,22 @@ export default function CourseDocumentsList() {
                       const isUploading = uploading[uploadKey]
 
                       return (
-                        <div key={type} className="bg-gray-50 rounded-lg p-4">
+                        <div key={type} className="bg-gray-50 rounded-ui-sm p-4">
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-xl">{config.icon}</span>
                             <div className="flex-1">
-                              <h5 className="font-medium text-gray-900 text-sm">{config.label}</h5>
-                              <p className="text-xs text-gray-500">{config.description}</p>
+                              <h5 className="font-medium text-gray-900 text-ui">{config.label}</h5>
+                              <p className="text-ui-sm text-gray-500">{config.description}</p>
                             </div>
                           </div>
 
                           {doc ? (
                             <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200">
                               <div className="flex items-center gap-2 flex-1">
-                                <FileText className="w-5 h-5 text-red-600" />
+                                <FileText className="w-5 h-5 text-[rgb(var(--c-danger))]" />
                                 <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-900">{doc.file_name}</p>
-                                  <p className="text-xs text-gray-500">
+                                  <p className="text-ui font-medium text-gray-900">{doc.file_name}</p>
+                                  <p className="text-ui-sm text-gray-500">
                                     {formatFileSize(doc.file_size)} • {new Date(doc.created_at).toLocaleDateString('fr-FR')}
                                   </p>
                                 </div>
@@ -387,14 +387,14 @@ export default function CourseDocumentsList() {
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => downloadDocument(doc)}
-                                  className="px-3 py-1.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-1"
+                                  className="px-3 py-1.5 text-ui-sm bg-[rgb(var(--c-info))] text-white rounded hover:bg-[rgb(var(--c-info))] flex items-center gap-1"
                                 >
                                   <Download className="w-3 h-3" />
                                   Télécharger
                                 </button>
                                 <button
                                   onClick={() => deleteDocument(course.id, type)}
-                                  className="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 flex items-center gap-1"
+                                  className="px-3 py-1.5 text-ui-sm bg-[rgb(var(--c-danger))] text-white rounded hover:bg-[rgb(var(--c-danger))] flex items-center gap-1"
                                 >
                                   <Trash2 className="w-3 h-3" />
                                   Supprimer
@@ -414,7 +414,7 @@ export default function CourseDocumentsList() {
                                   }}
                                   disabled={isUploading}
                                 />
-                                <span className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50">
+                                <span className="inline-flex items-center gap-2 px-3 py-1.5 text-ui-sm bg-[rgb(var(--c-info))] text-white rounded hover:bg-[rgb(var(--c-info))] disabled:opacity-50">
                                   {isUploading ? (
                                     <>
                                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
@@ -442,14 +442,14 @@ export default function CourseDocumentsList() {
       </div>
 
       {/* Note Qualiopi */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4">
         <div className="flex gap-3">
-          <div className="text-blue-600">ℹ</div>
+          <div className="text-[rgb(var(--c-info))]">ℹ</div>
           <div className="flex-1">
-            <h5 className="font-semibold text-blue-900 mb-1">
+            <h5 className="font-semibold text-[rgb(var(--c-info))] mb-1">
               Conformité Qualiopi - Indicateur 19
             </h5>
-            <ul className="text-sm text-blue-800 space-y-1">
+            <ul className="text-ui text-[rgb(var(--c-info))] space-y-1">
               <li>• Les documents sont tracés pour l'audit</li>
               <li>• Le "Document stagiaire" sera accessible via QR code (activation dans la session)</li>
               <li>• Les téléchargements sont enregistrés automatiquement</li>

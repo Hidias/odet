@@ -62,7 +62,7 @@ export default function PpFichiers({ fichiers, fichiersSansAccuse, format, reloa
   return (
     <div className="space-y-4">
       {fichiersSansAccuse.length > 0 && (
-        <div className="card border-red-200 bg-red-50 text-red-900 flex gap-2 items-start">
+        <div className="card border-[rgb(var(--c-danger)/0.3)] bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] flex gap-2 items-start">
           <AlertTriangle className="w-5 h-5 flex-none mt-0.5" aria-hidden="true" />
           <div className="text-ui">{fichiersSansAccuse.length} fichier{fichiersSansAccuse.length > 1 ? 's' : ''} sans accusé depuis plus de {alerte} jours. L'avez-vous déposé sur le portail ? Déposez son accusé, ou marquez-le « non déposé » pour que ses stagiaires reviennent dans « À déclarer ».</div>
         </div>
@@ -79,8 +79,8 @@ export default function PpFichiers({ fichiers, fichiersSansAccuse, format, reloa
         {resultat && (
           <div className="space-y-2">
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-ui bg-green-50 text-green-800 p-2"><div className="font-display text-2xl font-bold">{resultat.succes}</div><div className="text-ui-sm">acceptée{resultat.succes > 1 ? 's' : ''}</div></div>
-              <div className="rounded-ui bg-red-50 text-red-800 p-2"><div className="font-display text-2xl font-bold">{resultat.echecs}</div><div className="text-ui-sm">rejetée{resultat.echecs > 1 ? 's' : ''}</div></div>
+              <div className="rounded-ui bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] p-2"><div className="font-display text-2xl font-bold">{resultat.succes}</div><div className="text-ui-sm">acceptée{resultat.succes > 1 ? 's' : ''}</div></div>
+              <div className="rounded-ui bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] p-2"><div className="font-display text-2xl font-bold">{resultat.echecs}</div><div className="text-ui-sm">rejetée{resultat.echecs > 1 ? 's' : ''}</div></div>
               <div className="rounded-ui bg-gray-100 text-gray-700 p-2"><div className="font-display text-2xl font-bold">{resultat.inconnus}</div><div className="text-ui-sm">inconnue{resultat.inconnus > 1 ? 's' : ''}</div></div>
             </div>
             <p className="text-ui-sm text-gray-700">{resultat.lignes} ligne{resultat.lignes > 1 ? 's' : ''} lue{resultat.lignes > 1 ? 's' : ''}. {resultat.numeros_effaces} numéro{resultat.numeros_effaces > 1 ? 's' : ''} effacé{resultat.numeros_effaces > 1 ? 's' : ''}.{resultat.inconnus > 0 ? ' Lignes inconnues : identifiants qui ne viennent pas de cet outil.' : ''}</p>

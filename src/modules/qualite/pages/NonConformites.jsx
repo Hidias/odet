@@ -280,23 +280,23 @@ export default function NonConformites() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-red-500" />
+            <AlertTriangle className="w-6 h-6 text-[rgb(var(--c-danger))]" />
             Qualité & Réclamations
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Gestion des NC et réclamations - Indicateurs Qualiopi 31-32</p>
+          <p className="text-ui text-gray-500 mt-1">Gestion des NC et réclamations - Indicateurs Qualiopi 31-32</p>
         </div>
       </div>
       
       {/* Onglets */}
       <div className="flex gap-2 border-b">
         <button onClick={() => setActiveTab('nc')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'nc' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500'}`}>
+          className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'nc' ? 'border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))]' : 'border-transparent text-gray-500'}`}>
           <AlertTriangle className="w-4 h-4" />
           Non-conformités
           {statsNC.open > 0 && <span className="badge badge-red">{statsNC.open}</span>}
         </button>
         <button onClick={() => setActiveTab('reclamations')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'reclamations' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500'}`}>
+          className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'reclamations' ? 'border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'border-transparent text-gray-500'}`}>
           <MessageSquare className="w-4 h-4" />
           Réclamations
           {statsRecl.enRetardAR > 0 && <span className="badge badge-red">{statsRecl.enRetardAR}</span>}
@@ -308,10 +308,10 @@ export default function NonConformites() {
         <>
           {/* Stats NC */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="card p-4 text-center"><p className="text-2xl font-bold text-gray-900">{statsNC.total}</p><p className="text-sm text-gray-500">Total</p></div>
-            <div className="card p-4 text-center bg-red-50"><p className="text-2xl font-bold text-red-600">{statsNC.open}</p><p className="text-sm text-red-600">Ouvertes</p></div>
-            <div className="card p-4 text-center bg-yellow-50"><p className="text-2xl font-bold text-yellow-600">{statsNC.inProgress}</p><p className="text-sm text-yellow-600">En cours</p></div>
-            <div className="card p-4 text-center bg-green-50"><p className="text-2xl font-bold text-green-600">{statsNC.closed}</p><p className="text-sm text-green-600">Clôturées</p></div>
+            <div className="card p-4 text-center"><p className="text-2xl font-bold text-gray-900">{statsNC.total}</p><p className="text-ui text-gray-500">Total</p></div>
+            <div className="card p-4 text-center bg-[rgb(var(--c-danger-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-danger))]">{statsNC.open}</p><p className="text-ui text-[rgb(var(--c-danger))]">Ouvertes</p></div>
+            <div className="card p-4 text-center bg-[rgb(var(--c-warning-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{statsNC.inProgress}</p><p className="text-ui text-[rgb(var(--c-warning))]">En cours</p></div>
+            <div className="card p-4 text-center bg-[rgb(var(--c-success-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-success))]">{statsNC.closed}</p><p className="text-ui text-[rgb(var(--c-success))]">Clôturées</p></div>
           </div>
           
           {/* Filtres NC */}
@@ -359,8 +359,8 @@ export default function NonConformites() {
                             <span className={`badge ${severity.class}`}>{severity.label}</span>
                             <span className={`badge ${status.class}`}>{status.label}</span>
                           </div>
-                          {nc.description && <p className="text-sm text-gray-600 mb-2">{nc.description.substring(0, 100)}...</p>}
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                          {nc.description && <p className="text-ui text-gray-600 mb-2">{nc.description.substring(0, 100)}...</p>}
+                          <div className="flex items-center gap-4 text-ui-sm text-gray-500">
                             <span><Calendar className="w-3 h-3 inline mr-1" />{format(new Date(nc.created_at), 'dd/MM/yyyy', { locale: fr })}</span>
                             {session && <span>Session: {session.reference}</span>}
                             {nc.critere_qualiopi && <span>Indicateur Q{nc.critere_qualiopi}</span>}
@@ -368,7 +368,7 @@ export default function NonConformites() {
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => { setEditingNC(nc); setFormDataNC(nc); setShowFormNC(true) }} className="btn btn-sm btn-secondary"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => handleDeleteNC(nc.id)} className="btn btn-sm btn-secondary text-red-600"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDeleteNC(nc.id)} className="btn btn-sm btn-secondary text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
                     </div>
@@ -385,15 +385,15 @@ export default function NonConformites() {
         <>
           {/* Stats Réclamations */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="card p-4 text-center"><p className="text-2xl font-bold text-gray-900">{statsRecl.total}</p><p className="text-sm text-gray-500">Total</p></div>
-            <div className="card p-4 text-center bg-red-50"><p className="text-2xl font-bold text-red-600">{statsRecl.open}</p><p className="text-sm text-red-600">Ouvertes</p></div>
-            <div className="card p-4 text-center bg-orange-50"><p className="text-2xl font-bold text-orange-600">{statsRecl.enRetardAR}</p><p className="text-sm text-orange-600">AR en retard</p></div>
-            <div className="card p-4 text-center bg-yellow-50"><p className="text-2xl font-bold text-yellow-600">{statsRecl.enRetardCloture}</p><p className="text-sm text-yellow-600">Clôture en retard</p></div>
-            <div className="card p-4 text-center bg-green-50"><p className="text-2xl font-bold text-green-600">{statsRecl.closed}</p><p className="text-sm text-green-600">Clôturées</p></div>
+            <div className="card p-4 text-center"><p className="text-2xl font-bold text-gray-900">{statsRecl.total}</p><p className="text-ui text-gray-500">Total</p></div>
+            <div className="card p-4 text-center bg-[rgb(var(--c-danger-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-danger))]">{statsRecl.open}</p><p className="text-ui text-[rgb(var(--c-danger))]">Ouvertes</p></div>
+            <div className="card p-4 text-center bg-[rgb(var(--c-warning-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{statsRecl.enRetardAR}</p><p className="text-ui text-[rgb(var(--c-warning))]">AR en retard</p></div>
+            <div className="card p-4 text-center bg-[rgb(var(--c-warning-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{statsRecl.enRetardCloture}</p><p className="text-ui text-[rgb(var(--c-warning))]">Clôture en retard</p></div>
+            <div className="card p-4 text-center bg-[rgb(var(--c-success-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-success))]">{statsRecl.closed}</p><p className="text-ui text-[rgb(var(--c-success))]">Clôturées</p></div>
           </div>
           
           {/* Délais de référence */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+          <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-info))]">
             <strong>Délais Qualiopi :</strong> Accusé réception sous 48h • Clôture sous 5 jours ouvrés
           </div>
           
@@ -434,39 +434,39 @@ export default function NonConformites() {
                   const delais = getDelaiStatus(recl)
                   
                   return (
-                    <div key={recl.id} className={`p-4 hover:bg-gray-50 ${delais?.clotureEnRetard ? 'bg-red-50' : delais?.arEnRetard ? 'bg-orange-50' : ''}`}>
+                    <div key={recl.id} className={`p-4 hover:bg-gray-50 ${delais?.clotureEnRetard ? 'bg-[rgb(var(--c-danger-bg))]' : delais?.arEnRetard ? 'bg-[rgb(var(--c-warning-bg))]' : ''}`}>
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-mono bg-gray-200 px-1.5 py-0.5 rounded">{recl.reference}</span>
+                            <span className="text-ui-sm font-mono bg-gray-200 px-1.5 py-0.5 rounded">{recl.reference}</span>
                             <span className="font-medium">{recl.subject}</span>
                             <span className={`badge ${status.class}`}>{status.label}</span>
                             {delais?.arEnRetard && <span className="badge badge-orange">AR en retard!</span>}
                             {delais?.clotureEnRetard && <span className="badge badge-red">Clôture en retard!</span>}
                           </div>
-                          {recl.description && <p className="text-sm text-gray-600 mb-2">{recl.description.substring(0, 100)}...</p>}
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                          {recl.description && <p className="text-ui text-gray-600 mb-2">{recl.description.substring(0, 100)}...</p>}
+                          <div className="flex items-center gap-4 text-ui-sm text-gray-500">
                             <span><SourceIcon className="w-3 h-3 inline mr-1" />{source.label}</span>
                             <span><CanalIcon className="w-3 h-3 inline mr-1" />{canal.label}</span>
                             <span><Calendar className="w-3 h-3 inline mr-1" />{format(new Date(recl.date_reception || recl.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}</span>
                             {delais && <span className="text-gray-400">{delais.joursOuvres}j ouvrés</span>}
                           </div>
                           {/* Timeline dates */}
-                          <div className="flex items-center gap-3 mt-2 text-xs">
-                            <span className={recl.date_accuse ? 'text-green-600' : 'text-gray-400'}>
+                          <div className="flex items-center gap-3 mt-2 text-ui-sm">
+                            <span className={recl.date_accuse ? 'text-[rgb(var(--c-success))]' : 'text-gray-400'}>
                               AR: {recl.date_accuse ? format(new Date(recl.date_accuse), 'dd/MM HH:mm') : '-'}
                             </span>
-                            <span className={recl.date_resolution ? 'text-green-600' : 'text-gray-400'}>
+                            <span className={recl.date_resolution ? 'text-[rgb(var(--c-success))]' : 'text-gray-400'}>
                               Résolution: {recl.date_resolution ? format(new Date(recl.date_resolution), 'dd/MM') : '-'}
                             </span>
-                            <span className={recl.date_cloture ? 'text-green-600' : 'text-gray-400'}>
+                            <span className={recl.date_cloture ? 'text-[rgb(var(--c-success))]' : 'text-gray-400'}>
                               Clôture: {recl.date_cloture ? format(new Date(recl.date_cloture), 'dd/MM') : '-'}
                             </span>
                           </div>
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => { setEditingRecl(recl); setFormDataRecl(recl); setShowFormRecl(true) }} className="btn btn-sm btn-secondary"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => handleDeleteRecl(recl.id)} className="btn btn-sm btn-secondary text-red-600"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDeleteRecl(recl.id)} className="btn btn-sm btn-secondary text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
                     </div>
@@ -481,66 +481,66 @@ export default function NonConformites() {
       {/* ===== MODAL NC ===== */}
       {showFormNC && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b flex items-center justify-between bg-gray-50">
               <h2 className="font-bold text-lg">{editingNC ? 'Modifier la NC' : 'Nouvelle NC'}</h2>
-              <button onClick={resetFormNC} className="p-2 hover:bg-gray-200 rounded-lg"><X className="w-5 h-5" /></button>
+              <button onClick={resetFormNC} className="p-2 hover:bg-gray-200 rounded-ui-sm"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleSubmitNC} className="p-4 overflow-y-auto flex-1 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Source *</label>
+                  <label className="block text-ui font-medium mb-1">Source *</label>
                   <select value={formDataNC.source} onChange={e => setFormDataNC({...formDataNC, source: e.target.value})} className="input w-full">
                     {Object.entries(ncSourceLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Gravité</label>
+                  <label className="block text-ui font-medium mb-1">Gravité</label>
                   <select value={formDataNC.severity} onChange={e => setFormDataNC({...formDataNC, severity: e.target.value})} className="input w-full">
                     {Object.entries(severityLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Titre *</label>
+                <label className="block text-ui font-medium mb-1">Titre *</label>
                 <input type="text" value={formDataNC.title} onChange={e => setFormDataNC({...formDataNC, title: e.target.value})} className="input w-full" required />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
+                <label className="block text-ui font-medium mb-1">Description</label>
                 <textarea value={formDataNC.description} onChange={e => setFormDataNC({...formDataNC, description: e.target.value})} className="input w-full h-20" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Session liée</label>
+                  <label className="block text-ui font-medium mb-1">Session liée</label>
                   <SearchSelect value={formDataNC.session_id} onChange={v => setFormDataNC({...formDataNC, session_id: v})}
                     options={sessions.map(s => ({ value: s.id, label: s.reference, hint: [s.courses?.title, s.start_date].filter(Boolean).join(' · ') }))}
                     emptyLabel="Aucune" searchPlaceholder="Référence de session..." aria-label="Session" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Indicateur Qualiopi</label>
+                  <label className="block text-ui font-medium mb-1">Indicateur Qualiopi</label>
                   <input type="text" value={formDataNC.critere_qualiopi} onChange={e => setFormDataNC({...formDataNC, critere_qualiopi: e.target.value})} className="input w-full" placeholder="ex: 31" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Analyse des causes</label>
+                <label className="block text-ui font-medium mb-1">Analyse des causes</label>
                 <textarea value={formDataNC.cause_analysis} onChange={e => setFormDataNC({...formDataNC, cause_analysis: e.target.value})} className="input w-full h-16" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Action corrective</label>
+                <label className="block text-ui font-medium mb-1">Action corrective</label>
                 <textarea value={formDataNC.corrective_action} onChange={e => setFormDataNC({...formDataNC, corrective_action: e.target.value})} className="input w-full h-16" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Responsable action</label>
+                  <label className="block text-ui font-medium mb-1">Responsable action</label>
                   <input type="text" value={formDataNC.action_responsible} onChange={e => setFormDataNC({...formDataNC, action_responsible: e.target.value})} className="input w-full" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Échéance</label>
+                  <label className="block text-ui font-medium mb-1">Échéance</label>
                   <input type="date" value={formDataNC.action_deadline} onChange={e => setFormDataNC({...formDataNC, action_deadline: e.target.value})} className="input w-full" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Statut</label>
+                <label className="block text-ui font-medium mb-1">Statut</label>
                 <select value={formDataNC.status} onChange={e => setFormDataNC({...formDataNC, status: e.target.value})} className="input w-full">
                   {Object.entries(ncStatusLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
@@ -557,66 +557,66 @@ export default function NonConformites() {
       {/* ===== MODAL RÉCLAMATION ===== */}
       {showFormRecl && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b flex items-center justify-between bg-gray-50">
               <h2 className="font-bold text-lg">{editingRecl ? 'Modifier la réclamation' : 'Nouvelle réclamation'}</h2>
-              <button onClick={resetFormRecl} className="p-2 hover:bg-gray-200 rounded-lg"><X className="w-5 h-5" /></button>
+              <button onClick={resetFormRecl} className="p-2 hover:bg-gray-200 rounded-ui-sm"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleSubmitRecl} className="p-4 overflow-y-auto flex-1 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Source *</label>
+                  <label className="block text-ui font-medium mb-1">Source *</label>
                   <select value={formDataRecl.source} onChange={e => setFormDataRecl({...formDataRecl, source: e.target.value})} className="input w-full">
                     {Object.entries(reclSourceLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Canal *</label>
+                  <label className="block text-ui font-medium mb-1">Canal *</label>
                   <select value={formDataRecl.canal} onChange={e => setFormDataRecl({...formDataRecl, canal: e.target.value})} className="input w-full">
                     {Object.entries(reclCanalLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Sujet *</label>
+                <label className="block text-ui font-medium mb-1">Sujet *</label>
                 <input type="text" value={formDataRecl.subject} onChange={e => setFormDataRecl({...formDataRecl, subject: e.target.value})} className="input w-full" required />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
+                <label className="block text-ui font-medium mb-1">Description</label>
                 <textarea value={formDataRecl.description} onChange={e => setFormDataRecl({...formDataRecl, description: e.target.value})} className="input w-full h-20" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Session liée</label>
+                  <label className="block text-ui font-medium mb-1">Session liée</label>
                   <SearchSelect value={formDataRecl.session_id} onChange={v => setFormDataRecl({...formDataRecl, session_id: v})}
                     options={sessions.map(s => ({ value: s.id, label: s.reference, hint: [s.courses?.title, s.start_date].filter(Boolean).join(' · ') }))}
                     emptyLabel="Aucune" searchPlaceholder="Référence de session..." aria-label="Session" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Responsable</label>
+                  <label className="block text-ui font-medium mb-1">Responsable</label>
                   <select value={formDataRecl.responsable} onChange={e => setFormDataRecl({...formDataRecl, responsable: e.target.value})} className="input w-full">
                     {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Analyse des causes</label>
+                <label className="block text-ui font-medium mb-1">Analyse des causes</label>
                 <textarea value={formDataRecl.cause_analysis} onChange={e => setFormDataRecl({...formDataRecl, cause_analysis: e.target.value})} className="input w-full h-16" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Solution proposée</label>
+                <label className="block text-ui font-medium mb-1">Solution proposée</label>
                 <textarea value={formDataRecl.solution_proposed} onChange={e => setFormDataRecl({...formDataRecl, solution_proposed: e.target.value})} className="input w-full h-16" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Action réalisée</label>
+                <label className="block text-ui font-medium mb-1">Action réalisée</label>
                 <textarea value={formDataRecl.action_taken} onChange={e => setFormDataRecl({...formDataRecl, action_taken: e.target.value})} className="input w-full h-16" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Statut</label>
+                <label className="block text-ui font-medium mb-1">Statut</label>
                 <select value={formDataRecl.status} onChange={e => setFormDataRecl({...formDataRecl, status: e.target.value})} className="input w-full">
                   {Object.entries(reclStatusLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Le passage à "AR envoyé" enregistre automatiquement la date d'accusé réception</p>
+                <p className="text-ui-sm text-gray-500 mt-1">Le passage à "AR envoyé" enregistre automatiquement la date d'accusé réception</p>
               </div>
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={resetFormRecl} className="btn btn-secondary">Annuler</button>

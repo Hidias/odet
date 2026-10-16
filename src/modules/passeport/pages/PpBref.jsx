@@ -36,7 +36,7 @@ export default function PpBref({ format, inscriptions, aDeclarer, aCorriger }) {
         <ChevronRight className="w-5 h-5 flex-none" aria-hidden="true" />
       </Link>
       {aCorriger.length > 0 && (
-        <Link to="a-corriger" className="card flex items-center gap-3 border-red-200 bg-red-50 text-red-900">
+        <Link to="a-corriger" className="card flex items-center gap-3 border-[rgb(var(--c-danger)/0.3)] bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]">
           <span className="flex-1 text-ui">{aCorriger.length} déclaration{aCorriger.length > 1 ? 's' : ''} rejetée{aCorriger.length > 1 ? 's' : ''} par le portail, à corriger.</span>
           <ChevronRight className="w-5 h-5" aria-hidden="true" />
         </Link>
