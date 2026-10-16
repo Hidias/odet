@@ -850,7 +850,7 @@ export default function EnrichissementRapide() {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="page-title flex items-center gap-2">
               <Zap className="w-6 h-6 text-[rgb(var(--c-warning))]" />
               Mini-Lusha
               <span className="text-ui font-normal text-gray-400 ml-2">Enrichissement intelligent</span>

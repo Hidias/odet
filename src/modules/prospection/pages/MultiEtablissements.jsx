@@ -123,7 +123,7 @@ export default function MultiEtablissements() {
       <div className="max-w-6xl mx-auto">
         
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="page-title mb-2">
              Entreprises Multi-Établissements
           </h1>
           <p className="text-gray-600">

@@ -775,7 +775,7 @@ export default function Mailing() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mailing</h1>
+          <h1 className="page-title">Mailing</h1>
           <p className="text-ui text-gray-500 mt-1">Campagnes d&apos;emails de prospection</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

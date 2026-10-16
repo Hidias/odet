@@ -236,7 +236,7 @@ export default function Documents() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
+          <h1 className="page-title">Documents</h1>
           <p className="text-gray-500 mt-1">Fichiers uploadés et documents vierges</p>
         </div>
         {activeTab === 'uploaded' && (

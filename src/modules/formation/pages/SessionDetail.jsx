@@ -2787,7 +2787,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <div>
               <Link to="/sessions" className="text-ui text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-2"><ArrowLeft className="w-4 h-4" />Retour</Link>
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold text-gray-900">{session.reference}</h1>
+                <h1 className="page-title">{session.reference}</h1>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]"><Briefcase className="w-3 h-3" />Sous-traitance</span>
                 <span className={`badge ${statusLabels[session.status]?.class}`}>{statusLabels[session.status]?.label}</span>
                 {session.subcontract_invoiced && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]"><Check className="w-3 h-3" />Facturée</span>}

@@ -433,7 +433,7 @@ export default function ProfilStagiaires() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <Users className="w-7 h-7 text-primary-600" />
             Profil des Stagiaires
           </h1>

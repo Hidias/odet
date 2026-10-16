@@ -970,7 +970,7 @@ export default function Indicateurs() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <BarChart3 className="w-7 h-7 text-primary" />
             Indicateurs de Résultats
           </h1>

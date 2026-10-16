@@ -841,7 +841,7 @@ export default function QualiteEditables() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Documents Qualité</h1>
+        <h1 className="page-title">Documents Qualité</h1>
         <p className="text-gray-500">Procédures, documents remis aux stagiaires et aux clients, gouvernance et pilotage : modèles à adapter, versions validées</p>
       </div>
       

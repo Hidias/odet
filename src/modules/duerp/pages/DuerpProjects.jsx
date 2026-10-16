@@ -506,7 +506,7 @@ export default function DuerpProjects() {
       {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <Shield className="w-7 h-7 text-[rgb(var(--c-warning))]" />
             DUERP - Documents Uniques
           </h1>

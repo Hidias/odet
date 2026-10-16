@@ -157,7 +157,7 @@ export default function DocumentsVierges() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Documents vierges</h1>
+        <h1 className="page-title">Documents vierges</h1>
         <p className="text-gray-500">Téléchargez les documents vierges et kits terrain pour vos formations</p>
       </div>
 

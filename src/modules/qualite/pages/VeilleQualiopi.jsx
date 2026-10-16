@@ -252,7 +252,7 @@ export default function VeilleQualiopi() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Veille Qualiopi</h1>
+          <h1 className="page-title">Veille Qualiopi</h1>
           <p className="text-ui text-gray-500 mt-1">Suivi des veilles légale, métiers et pédagogique</p>
         </div>
         <button onClick={() => openModal()} className="btn btn-primary flex items-center gap-2">

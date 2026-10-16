@@ -838,7 +838,7 @@ export default function DuerpDetail() {
         </Link>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 truncate">
+            <h1 className="page-title flex items-center gap-2 truncate">
               <Shield className="w-6 h-6 text-[rgb(var(--c-warning))] shrink-0" />
               {project.company_name}
             </h1>

@@ -175,7 +175,7 @@ ${form.message}`,
           <div className="w-16 h-16 bg-[rgb(var(--c-success-bg))] rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-[rgb(var(--c-success))]" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Réclamation enregistrée</h1>
+          <h1 className="page-title mb-2">Réclamation enregistrée</h1>
           <p className="text-gray-600 mb-6">
             Votre demande a bien été prise en compte. Un premier retour vous sera transmis sous 48 heures ouvrées.
           </p>
