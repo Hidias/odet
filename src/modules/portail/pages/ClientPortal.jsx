@@ -162,7 +162,7 @@ export default function ClientPortal() {
               value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
               autoFocus
             />
-            {error && <p className="text-sm text-red-600 flex items-center gap-1.5"><AlertCircle className="w-4 h-4" />{error}</p>}
+            {error && <p className="text-sm text-[rgb(var(--c-danger))] flex items-center gap-1.5"><AlertCircle className="w-4 h-4" />{error}</p>}
             <button type="submit" className="btn btn-primary w-full justify-center" disabled={checking || code.length < 4}>
               {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Accéder'}
             </button>
@@ -177,7 +177,7 @@ export default function ClientPortal() {
     const key = `${s.id}:${kind}`
     return (
       <button onClick={() => download(s, kind)} disabled={disabled || !!busy || !orgReady}
-        className="flex items-center gap-2 px-3 py-2 rounded-ui-md border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 hover:text-primary-700 disabled:opacity-40 disabled:cursor-not-allowed">
+        className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 hover:text-primary-700 disabled:opacity-40 disabled:cursor-not-allowed">
         {busy === key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}
         {label}
         {!busy && !disabled && <Download className="w-3.5 h-3.5 ml-auto text-gray-400" />}
@@ -207,7 +207,7 @@ export default function ClientPortal() {
         {nb > 0 && (
           <ul className="mt-3 flex flex-wrap gap-1.5">
             {(s.session_trainees || []).map(st => (
-              <li key={st.trainee_id} className={`text-xs px-2 py-1 rounded-full ${st.absent ? 'bg-gray-100 text-gray-400 line-through' : ['acquis', 'acquired'].includes(st.result) ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+              <li key={st.trainee_id} className={`text-xs px-2 py-1 rounded-full ${st.absent ? 'bg-gray-100 text-gray-400 line-through' : ['acquis', 'acquired'].includes(st.result) ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-100 text-gray-700'}`}>
                 {(st.trainees?.last_name || '').toUpperCase()} {st.trainees?.first_name}
               </li>
             ))}
@@ -236,7 +236,7 @@ export default function ClientPortal() {
         <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5"><LogOut className="w-4 h-4" />Quitter</button>
       </div>
 
-      {error && <p className="mb-4 text-sm text-red-600 flex items-center gap-1.5"><AlertCircle className="w-4 h-4" />{error}</p>}
+      {error && <p className="mb-4 text-sm text-[rgb(var(--c-danger))] flex items-center gap-1.5"><AlertCircle className="w-4 h-4" />{error}</p>}
 
       {upcoming.length > 0 && (
         <section className="mb-6">
