@@ -28,10 +28,12 @@ export function buildFicheSuiviPDF(ORG, { session = {}, sequences = [], evaluati
   })
 
   const trainer = [session.trainers?.first_name, session.trainers?.last_name].filter(Boolean).join(' ')
-  const dates = fr(session.start_date) + (session.end_date && session.end_date !== session.start_date ? ` au ${fr(session.end_date)}` : '')
+  // L'intitulé complet de la formation est déjà dans le sous-titre : les cartes restent sur une ligne chacune
+  const several = session.end_date && session.end_date !== session.start_date
+  const dates = session.start_date ? (several ? `Du ${fr(session.start_date)} au ${fr(session.end_date)}` : `Le ${fr(session.start_date)}`) : ''
   f.cards([
-    { label: 'Session', lines: [session.courses?.title || '', dates ? `Du ${dates}` : '', [session.location_name, session.location_city].filter(Boolean).join(', ')] },
-    { label: 'Encadrement', lines: [trainer ? `Formateur : ${trainer}` : '', `${trainees.length} stagiaire${trainees.length > 1 ? 's' : ''}`, session.reference ? `Référence ${session.reference}` : ''] },
+    { label: 'Session', lines: [dates, [session.location_name, session.location_city].filter(Boolean).join(', '), session.reference ? `Référence ${session.reference}` : ''] },
+    { label: 'Encadrement', lines: [trainer ? `Formateur : ${trainer}` : '', `${trainees.length} stagiaire${trainees.length > 1 ? 's' : ''}`] },
   ])
 
   // 1. Séquences
