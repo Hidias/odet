@@ -185,10 +185,12 @@ export function computeCoverage(sequences, evaluations, trainees) {
     for (const t of trainees) {
       const st = effectiveStatus(s, idx.get(`${s.id}|${t.id}`))
       if (st.key !== 'a_revoir') continue
+      // Reprise : une séquence suivante, sur une compétence commune, notée « acquis » POUR CE STAGIAIRE
+      // (une note de groupe ne suffit pas à lever un « à revoir » individuel)
       const later = sequences.slice(i + 1).some((s2) => {
         const shared = (s2.competences || []).some((c) => (s.competences || []).includes(c))
         if (!shared && (s.competences || []).length) return false
-        return effectiveStatus(s2, idx.get(`${s2.id}|${t.id}`)).key === 'acquis'
+        return idx.get(`${s2.id}|${t.id}`)?.status === 'acquis'
       })
       if (!later) pending.push({ trainee: t, sequence: s, remark: idx.get(`${s.id}|${t.id}`)?.remark || s.group_remark || '' })
     }
