@@ -86,11 +86,11 @@ function MiniBarChart({ data, height = 80, color = '#3B82F6' }) {
   )
 }
 
-function ProgressBar({ value, max = 100, color = 'bg-blue-500', label, showValue = true }) {
+function ProgressBar({ value, max = 100, color = 'bg-gray-800', label, showValue = true }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0
   return (
     <div className="space-y-1">
-      {label && <div className="flex justify-between text-xs"><span className="text-gray-600">{label}</span>{showValue && <span className="font-medium text-gray-900">{pct}%</span>}</div>}
+      {label && <div className="flex justify-between text-ui-sm"><span className="text-gray-600">{label}</span>{showValue && <span className="font-medium text-gray-900">{pct}%</span>}</div>}
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
       </div>
@@ -639,11 +639,11 @@ export default function Dashboard() {
   const renderWidget = (wid) => {
     switch (wid) {
       case 'sessions_today':
-        return sessionsToday.length === 0 ? <p className="text-gray-400 text-sm py-4 text-center">Aucune session aujourd'hui</p> : (
+        return sessionsToday.length === 0 ? <p className="text-gray-400 text-ui py-4 text-center">Aucune session aujourd'hui</p> : (
           <div className="space-y-2">{sessionsToday.map(s => (
-            <Link key={s.id} to={`/sessions/${s.id}`} className="block p-3 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-colors">
-              <p className="font-medium text-gray-900 truncate text-sm">{s.courses?.title || 'Formation'}</p>
-              <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+            <Link key={s.id} to={`/sessions/${s.id}`} className="block p-3 rounded-ui-sm bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors">
+              <p className="font-medium text-gray-900 truncate text-ui">{s.courses?.title || 'Formation'}</p>
+              <div className="flex items-center gap-3 mt-1 text-ui-sm text-gray-500">
                 <span>{s.clients?.name}</span>
                 <span className="flex items-center gap-1"><Users className="w-3 h-3" />{s.session_trainees?.length || 0}</span>
                 {(s.location_name || s.location_city) && <span className="truncate">{s.location_name || s.location_city}</span>}
@@ -653,15 +653,15 @@ export default function Dashboard() {
         )
       
       case 'sessions_upcoming':
-        return sessionsUpcoming.length === 0 ? <p className="text-gray-400 text-sm py-4 text-center">Aucune session dans les 7 prochains jours</p> : (
+        return sessionsUpcoming.length === 0 ? <p className="text-gray-400 text-ui py-4 text-center">Aucune session dans les 7 prochains jours</p> : (
           <div className="space-y-2 max-h-64 overflow-y-auto">{sessionsUpcoming.map(s => {
             const d = differenceInDays(new Date(s.start_date), today)
             return (
-              <Link key={s.id} to={`/sessions/${s.id}`} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 border border-gray-100 transition-colors">
-                <div className="flex-1 min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{s.courses?.title}</p><p className="text-xs text-gray-500 truncate">{s.clients?.name}</p></div>
+              <Link key={s.id} to={`/sessions/${s.id}`} className="flex items-center justify-between p-2.5 rounded-ui-sm hover:bg-gray-50 border border-gray-100 transition-colors">
+                <div className="flex-1 min-w-0"><p className="text-ui font-medium text-gray-900 truncate">{s.courses?.title}</p><p className="text-ui-sm text-gray-500 truncate">{s.clients?.name}</p></div>
                 <div className="text-right ml-2 flex-shrink-0">
-                  <span className={`badge text-xs ${d <= 2 ? 'badge-red' : d <= 5 ? 'badge-yellow' : 'badge-blue'}`}>J-{d}</span>
-                  <p className="text-xs text-gray-400 mt-0.5">{format(new Date(s.start_date), 'd MMM', { locale: fr })}</p>
+                  <span className={`badge text-ui-sm ${d <= 2 ? 'badge-red' : d <= 5 ? 'badge-yellow' : 'badge-blue'}`}>J-{d}</span>
+                  <p className="text-ui-sm text-gray-400 mt-0.5">{format(new Date(s.start_date), 'd MMM', { locale: fr })}</p>
                 </div>
               </Link>
             )
@@ -673,78 +673,78 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-3">
             <ProgressBar 
               value={qualityStats.satisfaction ? parseFloat(qualityStats.satisfaction) / 5 * 100 : 0} 
-              color="bg-green-500" 
+              color="bg-[rgb(var(--c-success))]" 
               label={`Satisfaction: ${qualityStats.satisfaction || '-'}/5`} 
               showValue={false} 
             />
             <ProgressBar 
               value={qualityStats.presence ?? 0} 
-              color="bg-blue-500" 
+              color="bg-gray-800" 
               label={`Présence: ${qualityStats.presence != null ? qualityStats.presence + '%' : '-'}`} 
               showValue={false} 
             />
             <ProgressBar 
               value={qualityStats.success ?? 0} 
-              color="bg-emerald-500" 
+              color="bg-[rgb(var(--c-success))]" 
               label={`Réussite: ${qualityStats.success != null ? qualityStats.success + '%' : '-'}`} 
               showValue={false} 
             />
             <ProgressBar 
               value={qualityStats.recommendation ?? 0} 
-              color="bg-amber-500" 
+              color="bg-[rgb(var(--c-warning))]" 
               label={`Recommandation: ${qualityStats.recommendation != null ? qualityStats.recommendation + '%' : '-'}`} 
               showValue={false} 
             />
             <div className="col-span-2 pt-2 border-t flex items-center justify-between">
-              <span className="text-xs text-gray-500">
+              <span className="text-ui-sm text-gray-500">
                 Sessions: <b>{completedSessions.length}</b> • Formés: <b>{personnesFormees}</b> • Évals: <b>{qualityStats.nbEvals}</b>
               </span>
               <div className="flex items-center gap-2">
-                {!qualityStats.hasEvalData && <span className="text-xs text-amber-500 italic">En attente d'évals</span>}
-                <Link to="/indicateurs" className="text-xs text-primary-600 hover:underline flex items-center gap-1">Détails <ArrowRight className="w-3 h-3" /></Link>
+                {!qualityStats.hasEvalData && <span className="text-ui-sm text-[rgb(var(--c-warning))] italic">En attente d'évals</span>}
+                <Link to="/indicateurs" className="text-ui-sm text-accent-700 hover:underline flex items-center gap-1">Détails <ArrowRight className="w-3 h-3" /></Link>
               </div>
             </div>
           </div>
         )
 
       case 'attendance_incomplete':
-        return incompleteAttendance.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-1" /><p className="text-sm text-gray-500">Tout est à jour</p></div> : (
+        return incompleteAttendance.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Tout est à jour</p></div> : (
           <div className="space-y-2 max-h-48 overflow-y-auto">{incompleteAttendance.slice(0, 8).map(s => {
             const total = (s.session_trainees || []).length
             const missing = (s.session_trainees || []).filter(st => st.presence_complete !== true && st.early_departure !== true).length
             return (
-              <Link key={s.id} to={`/sessions/${s.id}`} className="flex items-center justify-between p-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-100 text-sm transition-colors">
+              <Link key={s.id} to={`/sessions/${s.id}`} className="flex items-center justify-between p-2 rounded-ui-sm bg-[rgb(var(--c-danger-bg))] hover:bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.25)] text-ui transition-colors">
                 <span className="truncate font-medium text-gray-800">{s.courses?.title}</span>
-                <span className="badge badge-red text-xs flex-shrink-0 ml-2">{missing}/{total}</span>
+                <span className="badge badge-red text-ui-sm flex-shrink-0 ml-2">{missing}/{total}</span>
               </Link>
             )
           })}</div>
         )
 
       case 'evaluations_pending':
-        return evaluationsPending.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-1" /><p className="text-sm text-gray-500">Toutes complètes</p></div> : (
+        return evaluationsPending.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Toutes complètes</p></div> : (
           <div className="space-y-2 max-h-48 overflow-y-auto">{evaluationsPending.slice(0, 8).map(s => {
             const { done, total } = getEvalCount(s)
             return (
-              <Link key={s.id} to={`/sessions/${s.id}`} className="flex items-center justify-between p-2 rounded-lg bg-orange-50 hover:bg-orange-100 border border-orange-100 text-sm transition-colors">
+              <Link key={s.id} to={`/sessions/${s.id}`} className="flex items-center justify-between p-2 rounded-ui-sm bg-[rgb(var(--c-warning-bg))] hover:bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.25)] text-ui transition-colors">
                 <span className="truncate font-medium text-gray-800">{s.courses?.title}</span>
-                <span className="badge badge-yellow text-xs flex-shrink-0 ml-2">{done}/{total}</span>
+                <span className="badge badge-yellow text-ui-sm flex-shrink-0 ml-2">{done}/{total}</span>
               </Link>
             )
           })}</div>
         )
 
       case 'certif_expiring':
-        return certifExpiring.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-1" /><p className="text-sm text-gray-500">Aucun recyclage à prévoir</p></div> : (
+        return certifExpiring.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Aucun recyclage à prévoir</p></div> : (
           <div className="space-y-2 max-h-48 overflow-y-auto">{certifExpiring.slice(0, 8).map(cert => {
             const d = differenceInDays(cert.expiry, today)
             return (
-              <div key={cert.id} className="flex items-center justify-between p-2 rounded-lg bg-purple-50 border border-purple-100 text-sm">
+              <div key={cert.id} className="flex items-center justify-between p-2 rounded-ui-sm bg-gray-50 border border-gray-200 text-ui">
                 <div className="flex-1 min-w-0">
                   <span className="truncate font-medium text-gray-800 block">{cert.trainee ? `${cert.trainee.first_name} ${cert.trainee.last_name}` : 'Stagiaire'}</span>
-                  <span className="text-xs text-gray-400">{cert.formation_type === 'mac' ? 'MAC SST' : 'SST Initial'}</span>
+                  <span className="text-ui-sm text-gray-400">{cert.formation_type === 'mac' ? 'MAC SST' : 'SST Initial'}</span>
                 </div>
-                <span className={`badge text-xs flex-shrink-0 ml-2 ${d <= 30 ? 'badge-red' : 'badge-yellow'}`}>J-{d}</span>
+                <span className={`badge text-ui-sm flex-shrink-0 ml-2 ${d <= 30 ? 'badge-red' : 'badge-yellow'}`}>J-{d}</span>
               </div>
             )
           })}</div>
@@ -753,22 +753,22 @@ export default function Dashboard() {
       case 'positioning_pending':
         return (
           <div className="text-center py-2">
-            <p className="text-3xl font-bold text-teal-600">{positioningPending}</p>
-            <p className="text-sm text-gray-500 mt-1">tests en attente</p>
-            {positioningPending > 0 && <Link to="/tests-positionnement" className="text-xs text-primary-600 hover:underline mt-2 inline-block">Voir →</Link>}
+            <p className="text-3xl font-bold text-gray-900">{positioningPending}</p>
+            <p className="text-ui text-gray-500 mt-1">tests en attente</p>
+            {positioningPending > 0 && <Link to="/tests-positionnement" className="text-ui-sm text-accent-700 hover:underline mt-2 inline-block">Voir →</Link>}
           </div>
         )
 
       case 'documents_missing':
-        return documentsMissing.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-1" /><p className="text-sm text-gray-500">Tous générés</p></div> : (
+        return documentsMissing.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Tous générés</p></div> : (
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {documentsMissing.slice(0, 8).map((d, i) => (
-              <Link key={i} to={`/sessions/${d.session.id}`} className="flex items-center justify-between p-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-100 text-sm transition-colors">
+              <Link key={i} to={`/sessions/${d.session.id}`} className="flex items-center justify-between p-2 rounded-ui-sm bg-[rgb(var(--c-danger-bg))] hover:bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.25)] text-ui transition-colors">
                 <span className="truncate text-gray-800">{d.session.courses?.title}</span>
-                <span className="badge badge-red text-xs flex-shrink-0 ml-2">{d.type}</span>
+                <span className="badge badge-red text-ui-sm flex-shrink-0 ml-2">{d.type}</span>
               </Link>
             ))}
-            {documentsMissing.length > 8 && <p className="text-xs text-gray-400 text-center">+ {documentsMissing.length - 8} autres</p>}
+            {documentsMissing.length > 8 && <p className="text-ui-sm text-gray-400 text-center">+ {documentsMissing.length - 8} autres</p>}
           </div>
         )
 
@@ -782,33 +782,33 @@ export default function Dashboard() {
                 { l: 'Signé', c: quotesPipeline.signed.length, a: quotesPipeline.totalSigned, cl: 'green' },
                 { l: 'Refusé', c: quotesPipeline.refused.length, a: 0, cl: 'red' },
               ].map(s => (
-                <div key={s.l} className={`text-center p-2 rounded-lg bg-${s.cl}-50 border border-${s.cl}-100`}>
+                <div key={s.l} className="text-center p-2 rounded-ui-sm bg-gray-50 border border-gray-200">
                   <p className="text-lg font-bold text-gray-900">{s.c}</p>
-                  <p className="text-xs text-gray-500">{s.l}</p>
-                  {s.a > 0 && <p className="text-xs font-medium text-gray-700 mt-0.5">{s.a.toLocaleString('fr-FR')}€</p>}
+                  <p className="text-ui-sm text-gray-500">{s.l}</p>
+                  {s.a > 0 && <p className="text-ui-sm font-medium text-gray-700 mt-0.5">{s.a.toLocaleString('fr-FR')}€</p>}
                 </div>
               ))}
             </div>
             {/* Alerte relance devis > 7j */}
             {quotesRelance.length > 0 && (
-              <div className="bg-orange-50 border border-orange-300 rounded-lg px-3 py-2">
-                <p className="text-xs font-bold text-orange-800 mb-1"> {quotesRelance.length} devis en attente de réponse (&gt;7j)</p>
+              <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.25)] rounded-ui-sm px-3 py-2">
+                <p className="text-ui-sm font-bold text-[rgb(var(--c-warning))] mb-1"> {quotesRelance.length} devis en attente de réponse (&gt;7j)</p>
                 {quotesRelance.slice(0, 3).map(q => (
-                  <div key={q.id} className="flex items-center justify-between text-xs py-0.5">
-                    <span className="text-orange-700 truncate">
+                  <div key={q.id} className="flex items-center justify-between text-ui-sm py-0.5">
+                    <span className="text-[rgb(var(--c-warning))] truncate">
                       <span className="font-medium">{q.clients?.name || '?'}</span>
-                      <span className="text-orange-500 ml-1">- {q.daysSinceSent}j</span>
-                      {q.total_ht > 0 && <span className="text-orange-600 ml-1">({q.total_ht.toLocaleString('fr-FR')}€)</span>}
+                      <span className="text-[rgb(var(--c-warning))] ml-1">- {q.daysSinceSent}j</span>
+                      {q.total_ht > 0 && <span className="text-[rgb(var(--c-warning))] ml-1">({q.total_ht.toLocaleString('fr-FR')}€)</span>}
                     </span>
-                    <Link to="/devis" className="text-orange-600 hover:text-orange-800 font-medium underline ml-2 whitespace-nowrap">Relancer</Link>
+                    <Link to="/devis" className="text-[rgb(var(--c-warning))] hover:text-[rgb(var(--c-warning))] font-medium underline ml-2 whitespace-nowrap">Relancer</Link>
                   </div>
                 ))}
-                {quotesRelance.length > 3 && <p className="text-[10px] text-orange-500 mt-1">+{quotesRelance.length - 3} autre(s)</p>}
+                {quotesRelance.length > 3 && <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">+{quotesRelance.length - 3} autre(s)</p>}
               </div>
             )}
             <div className="flex items-center justify-between pt-2 border-t">
-              <span className="text-xs text-gray-500">Pipeline: <b>{(quotesPipeline.totalDraft + quotesPipeline.totalSent).toLocaleString('fr-FR')}€</b></span>
-              <Link to="/devis" className="text-xs text-primary-600 hover:underline flex items-center gap-1">Gérer <ArrowRight className="w-3 h-3" /></Link>
+              <span className="text-ui-sm text-gray-500">Pipeline: <b>{(quotesPipeline.totalDraft + quotesPipeline.totalSent).toLocaleString('fr-FR')}€</b></span>
+              <Link to="/devis" className="text-ui-sm text-accent-700 hover:underline flex items-center gap-1">Gérer <ArrowRight className="w-3 h-3" /></Link>
             </div>
           </div>
         )
@@ -818,87 +818,87 @@ export default function Dashboard() {
         return (
           <div className="space-y-3">
             <div className="flex items-end justify-between">
-              <div><p className="text-3xl font-bold text-gray-900">{monthlyCA.current.toLocaleString('fr-FR')}€</p><p className="text-xs text-gray-500">HT ce mois</p></div>
-              {evo !== 0 && <span className={`text-sm font-medium ${evo > 0 ? 'text-green-600' : 'text-red-600'}`}>{evo > 0 ? '+' : ''}{evo}%</span>}
+              <div><p className="text-3xl font-bold text-gray-900">{monthlyCA.current.toLocaleString('fr-FR')}€</p><p className="text-ui-sm text-gray-500">HT ce mois</p></div>
+              {evo !== 0 && <span className={`text-ui font-medium ${evo > 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>{evo > 0 ? '+' : ''}{evo}%</span>}
             </div>
-            <div className="pt-2 border-t"><p className="text-xs text-gray-500">Mois précédent: <b>{monthlyCA.previous.toLocaleString('fr-FR')}€</b></p></div>
+            <div className="pt-2 border-t"><p className="text-ui-sm text-gray-500">Mois précédent: <b>{monthlyCA.previous.toLocaleString('fr-FR')}€</b></p></div>
           </div>
         )
 
       case 'rdv_week':
-        return dashData.rdvsAPrendre.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-1" /><p className="text-sm text-gray-500">Pas de RDV en attente</p></div> : (
+        return dashData.rdvsAPrendre.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Pas de RDV en attente</p></div> : (
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {dashData.rdvsAPrendre.slice(0, 8).map(r => (
-              <div key={r.id} className="p-2 rounded-lg bg-blue-50 border border-blue-100 text-sm">
+              <div key={r.id} className="p-2 rounded-ui-sm bg-gray-50 border border-gray-200 text-ui">
                 <p className="font-medium text-gray-900 truncate">{r.clients?.name || 'Client'}</p>
-                {r.next_action && <p className="text-xs text-gray-500 truncate">{r.next_action}</p>}
+                {r.next_action && <p className="text-ui-sm text-gray-500 truncate">{r.next_action}</p>}
               </div>
             ))}
-            <Link to="/prospection" className="text-xs text-primary-600 hover:underline inline-flex items-center gap-1">Voir tous <ArrowRight className="w-3 h-3" /></Link>
+            <Link to="/prospection" className="text-ui-sm text-accent-700 hover:underline inline-flex items-center gap-1">Voir tous <ArrowRight className="w-3 h-3" /></Link>
           </div>
         )
 
       case 'hot_prospects':
-        return dashData.callbacksToday.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-1" /><p className="text-sm text-gray-500">Aucun rappel</p></div> : (
+        return dashData.callbacksToday.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Aucun rappel</p></div> : (
           <div className="space-y-2 max-h-56 overflow-y-auto">
             {dashData.callbacksToday.slice(0, 8).map(cb => {
               const isT = cb.callback_date === format(today, 'yyyy-MM-dd')
               return (
-                <div key={cb.id} className={`p-2 rounded-lg border text-sm ${isT ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100'}`}>
-                  <div className="flex items-center gap-2"><span className={`text-xs font-medium ${isT ? 'text-orange-600' : 'text-gray-500'}`}>{isT ? "Aujourd'hui" : format(new Date(cb.callback_date), 'EEE d', { locale: fr })} {cb.callback_time}</span></div>
+                <div key={cb.id} className={`p-2 rounded-ui-sm border text-ui ${isT ? 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.25)]' : 'bg-white border-gray-100'}`}>
+                  <div className="flex items-center gap-2"><span className={`text-ui-sm font-medium ${isT ? 'text-[rgb(var(--c-warning))]' : 'text-gray-500'}`}>{isT ? "Aujourd'hui" : format(new Date(cb.callback_date), 'EEE d', { locale: fr })} {cb.callback_time}</span></div>
                   <p className="font-medium text-gray-900 truncate">{cb.clients?.name || 'Prospect'}</p>
-                  {cb.contact_name && <p className="text-xs text-gray-500">{cb.contact_name}</p>}
+                  {cb.contact_name && <p className="text-ui-sm text-gray-500">{cb.contact_name}</p>}
                 </div>
               )
             })}
-            <Link to="/prospection-massive" className="text-xs text-primary-600 hover:underline inline-flex items-center gap-1">Phoning <ArrowRight className="w-3 h-3" /></Link>
+            <Link to="/prospection-massive" className="text-ui-sm text-accent-700 hover:underline inline-flex items-center gap-1">Phoning <ArrowRight className="w-3 h-3" /></Link>
           </div>
         )
 
       case 'new_clients':
-        return <div className="text-center py-2"><p className="text-3xl font-bold text-green-600">{newClientsThisMonth.length}</p><p className="text-sm text-gray-500 mt-1">ce mois</p><p className="text-xs text-gray-400 mt-1">Total: {clients.length}</p></div>
+        return <div className="text-center py-2"><p className="text-3xl font-bold text-[rgb(var(--c-success))]">{newClientsThisMonth.length}</p><p className="text-ui text-gray-500 mt-1">ce mois</p><p className="text-ui-sm text-gray-400 mt-1">Total: {clients.length}</p></div>
 
       case 'conversion_rate':
-        return <div className="text-center py-2"><p className="text-3xl font-bold text-blue-600">{conversionRate}%</p><p className="text-sm text-gray-500 mt-1">devis → signé</p><p className="text-xs text-gray-400 mt-1">{dashData.quotes.filter(d => d.status === 'signed' || d.status === 'accepted').length}/{dashData.quotes.length}</p></div>
+        return <div className="text-center py-2"><p className="text-3xl font-bold text-gray-900">{conversionRate}%</p><p className="text-ui text-gray-500 mt-1">devis → signé</p><p className="text-ui-sm text-gray-400 mt-1">{dashData.quotes.filter(d => d.status === 'signed' || d.status === 'accepted').length}/{dashData.quotes.length}</p></div>
 
       case 'top_courses':
-        return topCourses.length === 0 ? <p className="text-gray-400 text-sm py-4 text-center">Pas de données</p> : (
+        return topCourses.length === 0 ? <p className="text-gray-400 text-ui py-4 text-center">Pas de données</p> : (
           <div className="space-y-2">{topCourses.map((c, i) => (
-            <div key={c.id} className="flex items-center gap-3 text-sm">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>{i + 1}</span>
-              <div className="flex-1 min-w-0"><p className="truncate font-medium text-gray-800">{c.title}</p><p className="text-xs text-gray-400">{c.count} sessions • {c.trainees} stagiaires</p></div>
+            <div key={c.id} className="flex items-center gap-3 text-ui">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-ui-sm font-bold ${i === 0 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-gray-100 text-gray-500'}`}>{i + 1}</span>
+              <div className="flex-1 min-w-0"><p className="truncate font-medium text-gray-800">{c.title}</p><p className="text-ui-sm text-gray-400">{c.count} sessions • {c.trainees} stagiaires</p></div>
             </div>
           ))}</div>
         )
 
       case 'reclamations_open':
-        return dashData.reclamations.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-1" /><p className="text-sm text-gray-500">Aucune réclamation</p></div> : (
+        return dashData.reclamations.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Aucune réclamation</p></div> : (
           <div className="space-y-2 max-h-48 overflow-y-auto">{dashData.reclamations.map(r => (
-            <div key={r.id} onClick={() => navigate('/non-conformites')} className="p-2.5 rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 cursor-pointer transition-colors">
-              <div className="flex items-center gap-2 mb-0.5"><span className="px-1.5 py-0.5 rounded text-xs font-bold bg-red-500 text-white">RÉCL.</span><span className="font-medium text-sm truncate text-gray-900">{r.subject}</span></div>
-              <p className="text-xs text-gray-500">{r.date_reception ? format(new Date(r.date_reception), 'dd/MM/yyyy', { locale: fr }) : format(new Date(r.created_at), 'dd/MM/yyyy', { locale: fr })}</p>
+            <div key={r.id} onClick={() => navigate('/non-conformites')} className="p-2.5 rounded-ui-sm bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.25)] hover:bg-[rgb(var(--c-danger-bg))] cursor-pointer transition-colors">
+              <div className="flex items-center gap-2 mb-0.5"><span className="px-1.5 py-0.5 rounded text-ui-sm font-bold bg-[rgb(var(--c-danger))] text-white">RÉCL.</span><span className="font-medium text-ui truncate text-gray-900">{r.subject}</span></div>
+              <p className="text-ui-sm text-gray-500">{r.date_reception ? format(new Date(r.date_reception), 'dd/MM/yyyy', { locale: fr }) : format(new Date(r.created_at), 'dd/MM/yyyy', { locale: fr })}</p>
             </div>
           ))}</div>
         )
 
       case 'non_conformites':
-        return dashData.nonConformites.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-1" /><p className="text-sm text-gray-500">Aucune NC</p></div> : (
+        return dashData.nonConformites.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Aucune NC</p></div> : (
           <div className="space-y-2 max-h-48 overflow-y-auto">{dashData.nonConformites.slice(0, 6).map(nc => (
-            <Link key={nc.id} to="/non-conformites" className="block p-2 rounded-lg bg-orange-50 border border-orange-100 hover:bg-orange-100 text-sm transition-colors">
+            <Link key={nc.id} to="/non-conformites" className="block p-2 rounded-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.25)] hover:bg-[rgb(var(--c-warning-bg))] text-ui transition-colors">
               <p className="font-medium text-gray-800 truncate">{nc.title}</p>
-              <span className={`badge text-xs mt-1 ${nc.status === 'open' ? 'badge-red' : 'badge-yellow'}`}>{nc.status === 'open' ? 'Ouverte' : 'En cours'}</span>
+              <span className={`badge text-ui-sm mt-1 ${nc.status === 'open' ? 'badge-red' : 'badge-yellow'}`}>{nc.status === 'open' ? 'Ouverte' : 'En cours'}</span>
             </Link>
           ))}</div>
         )
 
       case 'auto_reminders':
-        return autoReminders.length === 0 ? <div className="text-center py-4"><CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" /><p className="text-sm text-gray-500">Tout est en ordre !</p></div> : (
+        return autoReminders.length === 0 ? <div className="text-center py-4"><CheckCircle className="w-8 h-8 text-[rgb(var(--c-success))] mx-auto mb-2" /><p className="text-ui text-gray-500">Tout est en ordre !</p></div> : (
           <div className="space-y-2 max-h-64 overflow-y-auto">{autoReminders.map((r, i) => {
             const I = r.icon
-            const bg = { error: 'bg-red-50 border-red-200', warning: 'bg-orange-50 border-orange-200', info: 'bg-blue-50 border-blue-200' }
-            const ic = { error: 'text-red-500', warning: 'text-orange-500', info: 'text-blue-500' }
+            const bg = { error: 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.25)]', warning: 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.25)]', info: 'bg-gray-50 border-gray-200' }
+            const ic = { error: 'text-[rgb(var(--c-danger))]', warning: 'text-[rgb(var(--c-warning))]', info: 'text-gray-500' }
             return (
-              <Link key={i} to={r.link} className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-sm hover:opacity-80 transition-opacity ${bg[r.type]}`}>
+              <Link key={i} to={r.link} className={`flex items-start gap-2.5 p-2.5 rounded-ui-sm border text-ui hover:opacity-80 transition-opacity ${bg[r.type]}`}>
                 <I className={`w-4 h-4 mt-0.5 flex-shrink-0 ${ic[r.type]}`} /><span className="text-gray-800">{r.text}</span>
               </Link>
             )
@@ -906,11 +906,11 @@ export default function Dashboard() {
         )
 
       case 'recent_messages':
-        return dashData.notifications.length === 0 ? <p className="text-gray-400 text-sm py-4 text-center">Aucun message</p> : (
+        return dashData.notifications.length === 0 ? <p className="text-gray-400 text-ui py-4 text-center">Aucun message</p> : (
           <div className="space-y-2 max-h-48 overflow-y-auto">{dashData.notifications.slice(0, 8).map(n => (
-            <div key={n.id} className={`p-2 rounded-lg border text-sm ${n.read_at ? 'bg-white border-gray-100' : 'bg-blue-50 border-blue-100'}`}>
+            <div key={n.id} className={`p-2 rounded-ui-sm border text-ui ${n.read_at ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-200'}`}>
               <p className={`truncate ${n.read_at ? 'text-gray-600' : 'font-medium text-gray-900'}`}>{n.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{format(new Date(n.created_at), 'd MMM HH:mm', { locale: fr })}</p>
+              <p className="text-ui-sm text-gray-400 mt-0.5">{format(new Date(n.created_at), 'd MMM HH:mm', { locale: fr })}</p>
             </div>
           ))}</div>
         )
@@ -918,32 +918,32 @@ export default function Dashboard() {
       case 'qualiopi_audit':
         return !qualiopiAudit ? (
           <div className="text-center py-3 space-y-2">
-            <p className="text-sm font-medium text-gray-700">Certification Qualiopi non renseignée</p>
-            <p className="text-xs text-gray-400">Renseignez la date du certificat et l'organisme certificateur dans {(modules || []).includes('certification') ? 'Certification' : 'Paramètres'}.</p>
-            <Link to="/qualiopi" className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline">Checklist <ArrowRight className="w-3 h-3" /></Link>
+            <p className="text-ui font-medium text-gray-700">Certification Qualiopi non renseignée</p>
+            <p className="text-ui-sm text-gray-400">Renseignez la date du certificat et l'organisme certificateur dans {(modules || []).includes('certification') ? 'Certification' : 'Paramètres'}.</p>
+            <Link to="/qualiopi" className="inline-flex items-center gap-1 text-ui-sm text-accent-700 hover:underline">Checklist <ArrowRight className="w-3 h-3" /></Link>
           </div>
         ) : (
           <div className="text-center space-y-3">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] text-ui-sm font-medium">
               <CheckCircle className="w-3.5 h-3.5" /> Certifié depuis le {format(qualiopiAudit.initialDate, 'd MMM yyyy', { locale: fr })}
             </div>
-            <p className={`text-4xl font-bold ${qualiopiAudit.daysLeft <= 30 ? 'text-orange-600' : qualiopiAudit.daysLeft <= 90 ? 'text-amber-600' : 'text-emerald-600'}`}>
+            <p className={`text-4xl font-bold ${qualiopiAudit.daysLeft <= 30 ? 'text-[rgb(var(--c-warning))]' : qualiopiAudit.daysLeft <= 90 ? 'text-[rgb(var(--c-warning))]' : 'text-[rgb(var(--c-success))]'}`}>
               J-{qualiopiAudit.daysLeft}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-ui text-gray-500">
               {qualiopiAudit.label} : {format(qualiopiAudit.date, 'd MMMM yyyy', { locale: fr })}
             </p>
-            {qualiopiAudit.certifier && <p className="text-xs text-gray-400">{qualiopiAudit.certifier}</p>}
-            <Link to="/qualiopi" className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline">Checklist <ArrowRight className="w-3 h-3" /></Link>
+            {qualiopiAudit.certifier && <p className="text-ui-sm text-gray-400">{qualiopiAudit.certifier}</p>}
+            <Link to="/qualiopi" className="inline-flex items-center gap-1 text-ui-sm text-accent-700 hover:underline">Checklist <ArrowRight className="w-3 h-3" /></Link>
           </div>
         )
 
       case 'bpf_status':
         return (
           <div className="text-center py-2 space-y-2">
-            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mx-auto"><FileText className="w-5 h-5 text-purple-600" /></div>
-            <p className="text-sm font-medium text-gray-700">BPF à générer</p>
-            <p className="text-xs text-gray-400">NDA : {organization?.nda || "en cours d'attribution"}</p>
+            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto"><FileText className="w-5 h-5 text-gray-900" /></div>
+            <p className="text-ui font-medium text-gray-700">BPF à générer</p>
+            <p className="text-ui-sm text-gray-400">NDA : {organization?.nda || "en cours d'attribution"}</p>
           </div>
         )
 
@@ -952,8 +952,8 @@ export default function Dashboard() {
           <div>
             <MiniBarChart data={revenue12m} height={80} color="#10B981" />
             <div className="flex justify-between items-center mt-2 pt-2 border-t">
-              <span className="text-xs text-gray-500">Total: <b>{revenue12m.reduce((s, d) => s + d.value, 0).toLocaleString('fr-FR')}€</b></span>
-              <span className="text-xs text-gray-400">Moy: {Math.round(revenue12m.reduce((s, d) => s + d.value, 0) / 12).toLocaleString('fr-FR')}€/mois</span>
+              <span className="text-ui-sm text-gray-500">Total: <b>{revenue12m.reduce((s, d) => s + d.value, 0).toLocaleString('fr-FR')}€</b></span>
+              <span className="text-ui-sm text-gray-400">Moy: {Math.round(revenue12m.reduce((s, d) => s + d.value, 0) / 12).toLocaleString('fr-FR')}€/mois</span>
             </div>
           </div>
         )
@@ -961,10 +961,10 @@ export default function Dashboard() {
       case 'theme_distribution':
         const thColors = ['bg-blue-500', 'bg-amber-500', 'bg-emerald-500', 'bg-purple-500', 'bg-red-500', 'bg-teal-500']
         const totalTh = themeDistribution.reduce((s, t) => s + t.count, 0) || 1
-        return themeDistribution.length === 0 ? <p className="text-gray-400 text-sm py-4 text-center">Pas de données</p> : (
+        return themeDistribution.length === 0 ? <p className="text-gray-400 text-ui py-4 text-center">Pas de données</p> : (
           <div className="space-y-2">{themeDistribution.slice(0, 6).map((t, i) => (
             <div key={t.name} className="space-y-1">
-              <div className="flex justify-between text-xs"><span className="text-gray-700 truncate">{t.name}</span><span className="text-gray-500 ml-2 flex-shrink-0">{t.count} ({Math.round(t.count / totalTh * 100)}%)</span></div>
+              <div className="flex justify-between text-ui-sm"><span className="text-gray-700 truncate">{t.name}</span><span className="text-gray-500 ml-2 flex-shrink-0">{t.count} ({Math.round(t.count / totalTh * 100)}%)</span></div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${thColors[i % thColors.length]}`} style={{ width: `${(t.count / totalTh) * 100}%` }} /></div>
             </div>
           ))}</div>
@@ -973,22 +973,22 @@ export default function Dashboard() {
       case 'hours_realized':
         return (
           <div className="text-center space-y-3">
-            <div><p className="text-3xl font-bold text-teal-600">{hoursRealized}h</p><p className="text-sm text-gray-500">réalisées</p></div>
-            <ProgressBar value={hoursRealized} max={500} color="bg-teal-500" label="Objectif: 500h" />
+            <div><p className="text-3xl font-bold text-gray-900">{hoursRealized}h</p><p className="text-ui text-gray-500">réalisées</p></div>
+            <ProgressBar value={hoursRealized} max={500} color="bg-gray-800" label="Objectif: 500h" />
           </div>
         )
 
       case 'trainee_stats':
         return (
           <div className="grid grid-cols-2 gap-3">
-            <div className="text-center p-2 bg-purple-50 rounded-lg"><p className="text-2xl font-bold text-purple-600">{trainees.length}</p><p className="text-xs text-gray-500">Inscrits</p></div>
-            <div className="text-center p-2 bg-green-50 rounded-lg"><p className="text-2xl font-bold text-green-600">{personnesFormees}</p><p className="text-xs text-gray-500">Formés</p></div>
-            <div className="text-center p-2 bg-blue-50 rounded-lg"><p className="text-2xl font-bold text-blue-600">{sessionsInProgress.reduce((s, se) => s + (se.session_trainees?.length || 0), 0)}</p><p className="text-xs text-gray-500">En formation</p></div>
-            <div className="text-center p-2 bg-amber-50 rounded-lg"><p className="text-2xl font-bold text-amber-600">{certifExpiring.length}</p><p className="text-xs text-gray-500">SST à recycler</p></div>
+            <div className="text-center p-2 bg-gray-50 rounded-ui-sm"><p className="text-2xl font-bold text-gray-900">{trainees.length}</p><p className="text-ui-sm text-gray-500">Inscrits</p></div>
+            <div className="text-center p-2 bg-[rgb(var(--c-success-bg))] rounded-ui-sm"><p className="text-2xl font-bold text-[rgb(var(--c-success))]">{personnesFormees}</p><p className="text-ui-sm text-gray-500">Formés</p></div>
+            <div className="text-center p-2 bg-gray-50 rounded-ui-sm"><p className="text-2xl font-bold text-gray-900">{sessionsInProgress.reduce((s, se) => s + (se.session_trainees?.length || 0), 0)}</p><p className="text-ui-sm text-gray-500">En formation</p></div>
+            <div className="text-center p-2 bg-[rgb(var(--c-warning-bg))] rounded-ui-sm"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{certifExpiring.length}</p><p className="text-ui-sm text-gray-500">SST à recycler</p></div>
           </div>
         )
 
-      default: return <p className="text-gray-400 text-sm text-center py-4">Widget inconnu</p>
+      default: return <p className="text-gray-400 text-ui text-center py-4">Widget inconnu</p>
     }
   }
 
@@ -997,7 +997,7 @@ export default function Dashboard() {
   // ═══════════════════════════════════════════════════════════
   if (loading || !configLoaded) return (
     <div className="flex items-center justify-center h-64">
-      <div className="text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div><p className="text-sm text-gray-500 mt-3">Chargement...</p></div>
+      <div className="text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-500 mx-auto"></div><p className="text-ui text-gray-500 mt-3">Chargement...</p></div>
     </div>
   )
   
@@ -1006,40 +1006,40 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-500 mt-1">{format(today, "EEEE d MMMM yyyy", { locale: fr })}</p>
+      <div className="flex items-end justify-between flex-wrap gap-4">
+        <div className="grid gap-1 min-w-0">
+          <span className="eyebrow first-letter:uppercase">{format(today, "EEEE d MMMM yyyy", { locale: fr })}</span>
+          <h1 className="page-title leading-tight">Tableau de bord</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => { setLoading(true); loadData() }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 transition-colors" title="Rafraîchir"><RefreshCw className="w-5 h-5" /></button>
-          <button onClick={() => setShowSettings(true)} className="btn btn-secondary flex items-center gap-2"><Settings className="w-4 h-4" />Personnaliser</button>
+          <button onClick={() => { setLoading(true); loadData() }} className="btn btn-ghost btn-icon" title="Rafraîchir" aria-label="Rafraîchir"><RefreshCw className="w-5 h-5" /></button>
+          <button onClick={() => setShowSettings(true)} className="btn btn-secondary"><Settings className="w-4 h-4" />Personnaliser</button>
         </div>
       </div>
       
       {/* ═══ Aujourd'hui : faire signer les stagiaires ═══ */}
       {sessionsToday.filter(s => s.session_type !== 'subcontract').length > 0 && (
-        <div className="rounded-2xl border border-primary-200 bg-primary-50 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <PenLine className="w-5 h-5 text-primary-600" />
-            <h3 className="font-semibold text-primary-900">Aujourd'hui - émargement</h3>
+        <div className="surface overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b hairline">
+            <PenLine className="w-5 h-5 text-accent-600" />
+            <h2 className="section-title">Aujourd'hui, émargement</h2>
           </div>
-          <div className="space-y-2">
+          <div className="divide-y divide-gray-100">
             {sessionsToday.filter(s => s.session_type !== 'subcontract').map(s => (
-              <div key={s.id} className="bg-white rounded-xl p-3 flex items-center justify-between gap-3 flex-wrap">
+              <div key={s.id} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900 truncate">{s.courses?.title || 'Formation'}</p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                  <div className="flex items-center gap-3 text-ui-sm text-gray-500 mt-0.5">
                     <span className="truncate">{s.clients?.name}</span>
                     <span className="flex items-center gap-1"><Users className="w-3 h-3" />{s.session_trainees?.length || 0}</span>
                     {s.start_time && <span>{String(s.start_time).substring(0, 5)} - {String(s.end_time || '').substring(0, 5)}</span>}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Link to={`/sessions/${s.id}`} className="px-3 py-2 rounded-lg text-sm text-gray-600 border border-gray-200 hover:bg-gray-50">
+                  <Link to={`/sessions/${s.id}`} className="btn btn-secondary">
                     La session
                   </Link>
-                  <Link to={`/signature/${s.id}`} className="px-4 py-2 rounded-lg text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 flex items-center gap-1.5">
+                  <Link to={`/signature/${s.id}`} className="btn btn-primary">
                     <PenLine className="w-4 h-4" />Faire signer
                   </Link>
                 </div>
@@ -1052,16 +1052,15 @@ export default function Dashboard() {
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { to: '/clients', icon: Building2, value: clients.length, label: 'Clients', bg: 'bg-blue-500' },
-          { to: '/sessions', icon: Calendar, value: sessions.length, label: 'Sessions', bg: 'bg-green-500' },
-          { to: '/stagiaires', icon: Users, value: personnesFormees, label: 'Formés', bg: 'bg-purple-500' },
-          { to: '/sessions', icon: CheckCircle, value: completedSessions.length, label: 'Réalisées', bg: 'bg-orange-500' },
+          { to: '/clients', icon: Building2, value: clients.length, label: 'Clients' },
+          { to: '/sessions', icon: Calendar, value: sessions.length, label: 'Sessions' },
+          { to: '/stagiaires', icon: Users, value: personnesFormees, label: 'Personnes formées' },
+          { to: '/sessions', icon: CheckCircle, value: completedSessions.length, label: 'Sessions réalisées' },
         ].map(s => (
-          <Link key={s.label} to={s.to} className="card hover:shadow-md transition-shadow p-4">
-            <div className="flex items-center gap-3">
-              <div className={`${s.bg} p-2.5 rounded-lg`}><s.icon className="w-5 h-5 text-white" /></div>
-              <div><p className="text-2xl font-bold text-gray-900">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
-            </div>
+          <Link key={s.label} to={s.to} className="surface p-4 hover:border-gray-300 transition-colors grid gap-1">
+            <span className="flex items-center gap-2 text-ui-sm text-gray-500"><s.icon className="w-4 h-4 text-gray-400" aria-hidden="true" />{s.label}</span>
+            <span className="font-display font-semibold text-gray-900 tabular-nums" style={{ fontSize: 'calc(var(--text-ui) * 1.9)', lineHeight: 1.1 }}>{s.value}</span>
+            <span className="block h-0.5 w-5 bg-highlight-500" aria-hidden="true" />
           </Link>
         ))}
       </div>
@@ -1077,7 +1076,7 @@ export default function Dashboard() {
           return (
             <div
               key={config.widget_id}
-              className={`card group ${SIZE_CLASSES[config.size] || 'col-span-1'} ${dragIdx === idx ? 'opacity-50 ring-2 ring-primary-300' : ''}`}
+              className={`card group ${SIZE_CLASSES[config.size] || 'col-span-1'} ${dragIdx === idx ? 'opacity-50 ring-2 ring-accent-300' : ''}`}
               draggable
               onDragStart={() => handleDragStart(idx)}
               onDragOver={(e) => handleDragOver(e, idx)}
@@ -1086,12 +1085,12 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 cursor-grab active:cursor-grabbing">
                   <GripVertical className="w-3.5 h-3.5 text-gray-300 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" />
-                  <Icon className={`w-4 h-4 text-${reg.color}-500`} />
-                  <h3 className="text-sm font-semibold text-gray-700">{reg.label}</h3>
+                  <Icon className="w-4 h-4 text-gray-400" />
+                  <h3 className="text-ui font-semibold text-gray-700">{reg.label}</h3>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  <button onClick={() => cycleSize(config.widget_id)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 text-xs font-mono [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Changer taille">{config.size.toUpperCase()}</button>
-                  <button onClick={() => toggleWidget(config.widget_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-300 hover:text-red-500 transition-colors" title="Retirer ce widget"><X className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => cycleSize(config.widget_id)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 text-ui-sm font-mono [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Changer taille">{config.size.toUpperCase()}</button>
+                  <button onClick={() => toggleWidget(config.widget_id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm text-gray-300 hover:text-[rgb(var(--c-danger))] transition-colors" title="Retirer ce widget"><X className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
               {renderWidget(config.widget_id)}
@@ -1107,11 +1106,11 @@ export default function Dashboard() {
         return (
           <div className="card bg-gray-50 border-dashed border-2 border-gray-200">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-500 flex items-center gap-2">
+              <h3 className="text-ui font-semibold text-gray-500 flex items-center gap-2">
                 <EyeOff className="w-4 h-4" />
                 {hiddenWidgets.length} widget{hiddenWidgets.length > 1 ? 's' : ''} masqué{hiddenWidgets.length > 1 ? 's' : ''}
               </h3>
-              <button onClick={() => setShowSettings(true)} className="text-xs text-primary-600 hover:underline">Gérer tout</button>
+              <button onClick={() => setShowSettings(true)} className="text-ui-sm text-accent-700 hover:underline">Gérer tout</button>
             </div>
             <div className="flex flex-wrap gap-2">
               {hiddenWidgets.map(c => {
@@ -1120,8 +1119,8 @@ export default function Dashboard() {
                 const WIcon = reg.icon
                 return (
                   <button key={c.widget_id} onClick={() => toggleWidget(c.widget_id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-primary-300 hover:bg-primary-50 text-sm text-gray-600 hover:text-primary-700 transition-colors">
-                    <WIcon className="w-3.5 h-3.5" />{reg.label}<span className="text-primary-500 font-bold ml-0.5">+</span>
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-ui-sm bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-ui text-gray-600 hover:text-gray-900 transition-colors">
+                    <WIcon className="w-3.5 h-3.5" />{reg.label}<span className="text-accent-600 font-bold ml-0.5">+</span>
                   </button>
                 )
               })}
@@ -1140,12 +1139,12 @@ export default function Dashboard() {
       
       {/* Actions rapides */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Actions rapides</h2>
+        <h2 className="section-title mb-3">Actions rapides</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Link to="/sessions" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-colors"><Calendar className="w-5 h-5 text-primary-600" /><span className="text-sm font-medium text-gray-700">Nouvelle session</span></Link>
-          <Link to="/clients" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-colors"><Building2 className="w-5 h-5 text-primary-600" /><span className="text-sm font-medium text-gray-700">Nouveau client</span></Link>
-          <Link to="/stagiaires" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-colors"><Users className="w-5 h-5 text-primary-600" /><span className="text-sm font-medium text-gray-700">Nouveau stagiaire</span></Link>
-          <Link to="/non-conformites" className="flex items-center gap-3 p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-colors"><AlertTriangle className="w-5 h-5 text-orange-600" /><span className="text-sm font-medium text-gray-700">Non-conformités</span></Link>
+          <Link to="/sessions" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Calendar className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouvelle session</span></Link>
+          <Link to="/clients" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Building2 className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau client</span></Link>
+          <Link to="/stagiaires" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Users className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau stagiaire</span></Link>
+          <Link to="/non-conformites" className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><AlertTriangle className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Non-conformités</span></Link>
         </div>
       </div>
       
@@ -1157,28 +1156,28 @@ export default function Dashboard() {
       {/* Settings modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl my-8">
+          <div className="bg-white rounded-ui shadow-2xl w-full max-w-2xl my-8">
             <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white rounded-t-xl z-10">
-              <div><h2 className="text-xl font-bold text-gray-900">Configurer le tableau de bord</h2><p className="text-sm text-gray-500 mt-0.5">Activez, désactivez et réordonnez vos widgets</p></div>
-              <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+              <div><h2 className="text-xl font-bold text-gray-900">Configurer le tableau de bord</h2><p className="text-ui text-gray-500 mt-0.5">Activez, désactivez et réordonnez vos widgets</p></div>
+              <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 rounded-ui-sm"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-6">
               {Object.entries(CATEGORIES).map(([catId, cat]) => {
                 const catWidgets = widgetConfigs.filter(c => WIDGET_REGISTRY[c.widget_id]?.category === catId)
                 return (
                   <div key={catId}>
-                    <h3 className="text-sm font-bold text-gray-700 mb-3">{cat.label}</h3>
+                    <h3 className="text-ui font-bold text-gray-700 mb-3">{cat.label}</h3>
                     <div className="space-y-1.5">
                       {catWidgets.map(w => {
                         const reg = WIDGET_REGISTRY[w.widget_id]
                         if (!reg) return null
                         return (
-                          <div key={w.widget_id} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${w.visible ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
-                            <button onClick={() => toggleWidget(w.widget_id)} className={`p-1 rounded ${w.visible ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}>{w.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
+                          <div key={w.widget_id} className={`flex items-center gap-3 p-3 rounded-ui-sm border transition-colors ${w.visible ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
+                            <button onClick={() => toggleWidget(w.widget_id)} className={`p-1 rounded ${w.visible ? 'text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]' : 'text-gray-400 hover:bg-gray-100'}`}>{w.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
                             <reg.icon className="w-4 h-4 text-gray-400" />
-                            <span className="flex-1 text-sm font-medium text-gray-800">{reg.label}</span>
+                            <span className="flex-1 text-ui font-medium text-gray-800">{reg.label}</span>
                             <div className="flex items-center gap-1">
-                              <button onClick={() => cycleSize(w.widget_id)} className="px-2 py-0.5 text-xs rounded bg-gray-100 hover:bg-gray-200 text-gray-600 font-mono">{w.size.toUpperCase()}</button>
+                              <button onClick={() => cycleSize(w.widget_id)} className="px-2 py-0.5 text-ui-sm rounded bg-gray-100 hover:bg-gray-200 text-gray-600 font-mono">{w.size.toUpperCase()}</button>
                               <button onClick={() => moveWidget(w.widget_id, -1)} className="p-1 hover:bg-gray-100 rounded text-gray-400"><ChevronUp className="w-3.5 h-3.5" /></button>
                               <button onClick={() => moveWidget(w.widget_id, 1)} className="p-1 hover:bg-gray-100 rounded text-gray-400"><ChevronDown className="w-3.5 h-3.5" /></button>
                             </div>
@@ -1197,7 +1196,7 @@ export default function Dashboard() {
                 await supabase.from('dashboard_widget_configs').delete().eq('user_id', user.id)
                 await loadWidgetConfigs()
                 toast.success('Configuration réinitialisée')
-              }} className="text-sm text-red-600 hover:text-red-700 hover:underline">Réinitialiser</button>
+              }} className="text-ui text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] hover:underline">Réinitialiser</button>
               <button onClick={() => setShowSettings(false)} className="btn btn-primary">Fermer</button>
             </div>
           </div>
