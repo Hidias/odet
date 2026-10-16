@@ -580,7 +580,7 @@ export default function Sessions() {
       <div className="space-y-4">
         {sessionsLoading ? (
           <div className="card p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
           </div>
         ) : groupedSessions.length === 0 ? (
           <div className="card p-8 text-center text-gray-500">
@@ -752,7 +752,7 @@ export default function Sessions() {
                         session.status === 'cancelled' ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' :
                         'bg-gray-100 text-gray-600'
                       }`}>
-                        {session.subcontract_invoiced ? ' Fact.' : statusLabels[session.status]?.label || session.status}
+                        {session.subcontract_invoiced ? 'Fact.' : statusLabels[session.status]?.label || session.status}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -777,11 +777,9 @@ export default function Sessions() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <span className="text-ui font-mono text-gray-500">{session.reference}</span>
-                      <span className={`badge ${statusLabels[session.status]?.class || 'badge-gray'}`}>
-                        {statusLabels[session.status]?.label || session.status}
-                      </span>
+                      <StatusBadge kind="session" status={session.status} />
                       {session.is_intra && (
-                        <span className="badge bg-gray-100 text-gray-800">Intra</span>
+                        <span className="text-ui-sm text-gray-500">Intra</span>
                       )}
                     </div>
                     
@@ -1240,7 +1238,7 @@ export default function Sessions() {
                     type="checkbox"
                     checked={formData.is_intra}
                     onChange={(e) => setFormData({ ...formData, is_intra: e.target.checked })}
-                    className="w-5 h-5 rounded border-gray-300 text-accent-600 focus:ring-accent-500"
+                    className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                   <div>
                     <span className="font-medium">Formation Intra-entreprise</span>
@@ -1331,7 +1329,7 @@ export default function Sessions() {
                           type="checkbox"
                           checked={formData.trainee_ids.includes(trainee.id)}
                           onChange={() => toggleTrainee(trainee.id)}
-                          className="rounded border-gray-300 text-accent-600"
+                          className="rounded border-gray-300 text-primary-600"
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-ui font-medium truncate">

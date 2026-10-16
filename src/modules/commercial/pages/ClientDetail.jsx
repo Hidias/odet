@@ -837,8 +837,8 @@ export default function ClientDetail() {
   // ═══════════════════════════════════════════════════════════
   const statusInfo = STATUS_OPTIONS.find(s => s.value === client?.status) || STATUS_OPTIONS[0]
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-600" /></div>
-  if (!client) return <div className="p-6"><Link to="/clients" className="text-accent-600 hover:underline flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> Retour</Link><p className="mt-4 text-gray-500">Client introuvable</p></div>
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>
+  if (!client) return <div className="p-6"><Link to="/clients" className="text-primary-600 hover:underline flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> Retour</Link><p className="mt-4 text-gray-500">Client introuvable</p></div>
 
   const timeline = getMergedTimeline()
   const upcomingSessions = formations.filter(f => f.status === 'planned' || f.status === 'in_progress' || f.status === 'draft')
@@ -886,7 +886,7 @@ export default function ClientDetail() {
             </button>
           </div>
           {!editing ? (
-            <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-accent-600 text-white rounded-ui-sm hover:bg-accent-700 text-ui">
+            <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 text-ui">
               <Edit className="w-4 h-4" /> <span className="hidden sm:inline">Modifier</span>
             </button>
           ) : (
@@ -960,7 +960,7 @@ export default function ClientDetail() {
         <div className="bg-gray-50/50 px-4 sm:px-6 py-4 border-b">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-accent-600 rounded-ui-sm flex items-center justify-center shadow-sm flex-shrink-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-600 rounded-ui-sm flex items-center justify-center shadow-sm flex-shrink-0">
                 <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div className="min-w-0 flex-1">
@@ -1099,7 +1099,7 @@ export default function ClientDetail() {
                               <div className="min-w-0 flex-1">
                                 <span className="font-medium text-gray-900 truncate block">
                                   {source.isClients ? (
-                                    <Link to={`/clients/${item.id}`} className="text-accent-600 hover:underline">{item.name}</Link>
+                                    <Link to={`/clients/${item.id}`} className="text-primary-600 hover:underline">{item.name}</Link>
                                   ) : item.name}
                                 </span>
                                 <span className="text-gray-400">{item.city || item.postal_code || ''}{item.siren ? ` · ${item.siren}` : ''}</span>
@@ -1146,14 +1146,14 @@ export default function ClientDetail() {
                 <div className="flex gap-2">
                   <input value={editForm.siret || ''} onChange={e => setEditForm({ ...editForm, siret: e.target.value })} className="flex-1 px-3 py-2 border rounded-ui-sm text-ui" placeholder="SIRET" />
                   <button onClick={autoDetectOpco} disabled={detectingOpco || !(editForm.siret || '').replace(/\s/g, '')}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-accent-600 text-white rounded-ui-sm hover:bg-accent-700 text-ui disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 text-ui disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     title="Détecter OPCO et enrichir l'adresse">
                     {detectingOpco ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Détecter
                   </button>
                 </div>
               </div>
               <div><label className="text-ui-sm font-medium text-gray-500 mb-1 flex items-center justify-between">N° TVA intracommunautaire
-                  {pappersUrl(editForm.siret) && <a href={pappersUrl(editForm.siret)} target="_blank" rel="noopener noreferrer" className="text-ui-sm font-semibold text-accent-600 hover:underline">Voir sur Pappers</a>}
+                  {pappersUrl(editForm.siret) && <a href={pappersUrl(editForm.siret)} target="_blank" rel="noopener noreferrer" className="text-ui-sm font-semibold text-primary-600 hover:underline">Voir sur Pappers</a>}
                 </label>
                 <div className="flex gap-2">
                   <input value={editForm.vat_exempt ? '' : (editForm.tva || '')} disabled={!!editForm.vat_exempt} onChange={e => setEditForm({ ...editForm, tva: e.target.value.toUpperCase() })} className="flex-1 min-w-0 px-3 py-2 border rounded-ui-sm text-ui font-mono disabled:bg-gray-50" placeholder={editForm.vat_exempt ? 'Non assujetti' : 'FR00000000000'} />
@@ -1275,11 +1275,11 @@ export default function ClientDetail() {
               )}
               {client.contact_phone && (
                 <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-gray-400 shrink-0" />
-                  <a href={'tel:' + client.contact_phone} className="text-accent-600 hover:underline">{client.contact_phone}</a></div>
+                  <a href={'tel:' + client.contact_phone} className="text-primary-600 hover:underline">{client.contact_phone}</a></div>
               )}
               {client.contact_email && (
                 <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-gray-400 shrink-0" />
-                  <a href={'mailto:' + client.contact_email} className="text-accent-600 hover:underline truncate">{client.contact_email}</a></div>
+                  <a href={'mailto:' + client.contact_email} className="text-primary-600 hover:underline truncate">{client.contact_email}</a></div>
               )}
               {/* Badge + toggle do_not_mail */}
               <div className="flex items-center gap-2">
@@ -1297,7 +1297,7 @@ export default function ClientDetail() {
               </div>
               {client.website && (
                 <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-gray-400 shrink-0" />
-                  <a href={client.website.startsWith('http') ? client.website : 'https://' + client.website} target="_blank" rel="noreferrer" className="text-accent-600 hover:underline truncate">{client.website}</a></div>
+                  <a href={client.website.startsWith('http') ? client.website : 'https://' + client.website} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline truncate">{client.website}</a></div>
               )}
               {client.notes && (
                 <div className="col-span-full mt-2 bg-gray-50 rounded-ui-sm p-3 text-gray-600"><p className="whitespace-pre-wrap">{client.notes}</p></div>
@@ -1352,7 +1352,7 @@ export default function ClientDetail() {
           )}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center text-ui">
             <div>
-              <span className="text-xl font-bold text-accent-600">{contacts.length}</span>
+              <span className="text-xl font-bold text-primary-600">{contacts.length}</span>
               <p className="text-gray-500 text-ui-sm mt-0.5">Contacts</p>
             </div>
             <div>
@@ -1430,7 +1430,7 @@ export default function ClientDetail() {
             <button onClick={() => setSections(s => ({ ...s, contacts: !s.contacts }))}
               className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 rounded-t-xl">
               <div className="flex items-center gap-2">
-                <User className="w-5 h-5 text-accent-600" />
+                <User className="w-5 h-5 text-primary-600" />
                 <h2 className="font-semibold text-gray-900">Contacts</h2>
                 <span className="text-ui-sm bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{contacts.length}</span>
               </div>
@@ -1460,15 +1460,15 @@ export default function ClientDetail() {
                           </span>
                         )}
                       </div>
-                      {c.role && <p className="text-ui-sm text-accent-600 font-medium mt-0.5">{c.role}</p>}
+                      {c.role && <p className="text-ui-sm text-primary-600 font-medium mt-0.5">{c.role}</p>}
                       <div className="flex flex-col gap-0.5 mt-1">
-                        {c.email && <a href={'mailto:' + c.email} className="text-ui-sm text-gray-500 hover:text-accent-600 truncate"> {c.email}</a>}
-                        {c.phone && <a href={'tel:' + c.phone} className="text-ui-sm text-gray-500 hover:text-accent-600"> {c.phone}</a>}
+                        {c.email && <a href={'mailto:' + c.email} className="text-ui-sm text-gray-500 hover:text-primary-600 truncate"> {c.email}</a>}
+                        {c.phone && <a href={'tel:' + c.phone} className="text-ui-sm text-gray-500 hover:text-primary-600"> {c.phone}</a>}
                       </div>
                     </div>
                     <div className="flex gap-0.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0 ml-2">
-                      {vcardAllowed && <button onClick={() => exportContactVCard(c)} className="p-1.5 text-gray-400 hover:text-accent-600 rounded hover:bg-white" title="Enregistrer sur le téléphone (vCard)"><Smartphone className="w-3.5 h-3.5" /></button>}
-                      <button onClick={() => openEditContact(c)} className="p-1.5 text-gray-400 hover:text-accent-600 rounded hover:bg-white" title="Modifier"><Edit className="w-3.5 h-3.5" /></button>
+                      {vcardAllowed && <button onClick={() => exportContactVCard(c)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Enregistrer sur le téléphone (vCard)"><Smartphone className="w-3.5 h-3.5" /></button>}
+                      <button onClick={() => openEditContact(c)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Modifier"><Edit className="w-3.5 h-3.5" /></button>
                       <button onClick={() => deleteContact(c.id)} className="p-1.5 text-gray-400 hover:text-[rgb(var(--c-danger))] rounded hover:bg-white" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
@@ -1484,7 +1484,7 @@ export default function ClientDetail() {
                 )}
 
                 <button onClick={() => { setEditingContact(null); setContactForm({ name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false }); setShowContactForm(true) }}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-accent-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-primary-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
                   <Plus className="w-4 h-4" /> Ajouter un contact
                 </button>
               </div>
@@ -1494,7 +1494,7 @@ export default function ClientDetail() {
           {/* ──── Accès entreprise : lien + code pour consulter les documents ──── */}
           <div className="bg-white rounded-ui border border-gray-200">
             <div className="flex items-center gap-2 px-5 py-3.5">
-              <KeyRound className="w-5 h-5 text-accent-600" />
+              <KeyRound className="w-5 h-5 text-primary-600" />
               <h2 className="font-semibold text-gray-900">Accès entreprise</h2>
               {portalAccess && (
                 <span className={`text-ui-sm px-2 py-0.5 rounded-full ${portalAccess.is_active ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-100 text-gray-500'}`}>
@@ -1507,7 +1507,7 @@ export default function ClientDetail() {
                 <>
                   <p className="text-ui-sm text-gray-500 mb-3">Donne au client un lien et un code pour consulter ses sessions et télécharger ses documents (convention, convocations, émargement, attestations, certificats).</p>
                   <button onClick={createPortalAccess} disabled={portalBusy}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-accent-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-primary-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
                     {portalBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Créer l'accès
                   </button>
                 </>
@@ -1515,14 +1515,14 @@ export default function ClientDetail() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-ui-sm">
                     <span className="text-ui-sm text-gray-500 w-10 shrink-0">Lien</span>
-                    <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="text-ui-sm text-accent-600 truncate flex-1 hover:underline">{portalUrl}</a>
-                    <button onClick={() => copyText(portalUrl, 'Lien')} className="p-1.5 text-gray-400 hover:text-accent-600 rounded hover:bg-white" title="Copier le lien"><Copy className="w-3.5 h-3.5" /></button>
+                    <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="text-ui-sm text-primary-600 truncate flex-1 hover:underline">{portalUrl}</a>
+                    <button onClick={() => copyText(portalUrl, 'Lien')} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Copier le lien"><Copy className="w-3.5 h-3.5" /></button>
                   </div>
                   <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-ui-sm">
                     <span className="text-ui-sm text-gray-500 w-10 shrink-0">Code</span>
                     <span className="font-mono text-base tracking-[0.3em] text-gray-900 flex-1">{portalAccess.access_code}</span>
-                    <button onClick={() => copyText(portalAccess.access_code, 'Code')} className="p-1.5 text-gray-400 hover:text-accent-600 rounded hover:bg-white" title="Copier le code"><Copy className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => updatePortalAccess({ access_code: newCode(), attempts: 0, locked_until: null }, 'Nouveau code généré')} disabled={portalBusy} className="p-1.5 text-gray-400 hover:text-accent-600 rounded hover:bg-white" title="Générer un nouveau code"><RefreshCw className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => copyText(portalAccess.access_code, 'Code')} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Copier le code"><Copy className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => updatePortalAccess({ access_code: newCode(), attempts: 0, locked_until: null }, 'Nouveau code généré')} disabled={portalBusy} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Générer un nouveau code"><RefreshCw className="w-3.5 h-3.5" /></button>
                   </div>
                   <div className="flex items-center justify-between text-ui-sm text-gray-400 pt-1">
                     <span>{portalAccess.last_access_at ? `Dernier accès le ${format(new Date(portalAccess.last_access_at), 'd MMM yyyy à HH:mm', { locale: fr })}` : 'Jamais consulté'}{portalAccess.locked_until && new Date(portalAccess.locked_until) > new Date() ? ' (verrouillé après 5 échecs)' : ''}</span>
@@ -1732,7 +1732,7 @@ export default function ClientDetail() {
                           {teamFirstNames().map(name => (
                             <button key={name} onClick={() => setInteractionForm(f => ({ ...f, author: name }))}
                               className={'px-3 py-1.5 rounded-ui-sm text-ui-sm font-medium border transition-all ' +
-                                (interactionForm.author === name ? 'bg-accent-600 text-white border-accent-600' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300')}>
+                                (interactionForm.author === name ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300')}>
                               {name}
                             </button>
                           ))}
@@ -1774,7 +1774,7 @@ export default function ClientDetail() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {item.link ? (
-                                  <Link to={item.link} className="font-medium text-ui text-accent-700 hover:underline">{item.title}</Link>
+                                  <Link to={item.link} className="font-medium text-ui text-primary-700 hover:underline">{item.title}</Link>
                                 ) : (
                                   <span className="font-medium text-ui text-gray-900">{item.title}</span>
                                 )}
@@ -1941,7 +1941,7 @@ export default function ClientDetail() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={closeContactForm} className="px-4 py-2 border rounded-ui-sm text-ui hover:bg-gray-50">Annuler</button>
-              <button onClick={saveContact} className="flex items-center gap-2 px-4 py-2 bg-accent-600 text-white rounded-ui-sm text-ui hover:bg-accent-700">
+              <button onClick={saveContact} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-ui-sm text-ui hover:bg-primary-700">
                 <Save className="w-4 h-4" /> {editingContact ? 'Enregistrer' : 'Ajouter'}
               </button>
             </div>

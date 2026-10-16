@@ -2745,8 +2745,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
     toast.success('Lien copié !')
   }
   
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-600"></div></div>
-  if (!session) return <div className="text-center py-12"><p className="text-gray-500">Session non trouvée</p><Link to="/sessions" className="text-accent-600 hover:underline mt-2 inline-block">Retour</Link></div>
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>
+  if (!session) return <div className="text-center py-12"><p className="text-gray-500">Session non trouvée</p><Link to="/sessions" className="text-primary-600 hover:underline mt-2 inline-block">Retour</Link></div>
   
   const sessionTrainees = session.session_trainees?.map(st => ({ 
     ...st.trainees, 
@@ -4212,7 +4212,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td colSpan="4" className="py-2 px-3 text-right font-semibold">Total coûts supplémentaires</td>
-                    <td className="py-2 px-3 text-right font-bold text-accent-600">{calculateTotalCosts().toFixed(2)} €</td>
+                    <td className="py-2 px-3 text-right font-bold text-primary-600">{calculateTotalCosts().toFixed(2)} €</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -4442,7 +4442,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           ) : (
                             <button
                               onClick={() => handleGenerateFundingInvoice(funding)}
-                              className="text-ui-sm text-accent-600 hover:text-primary-800 flex items-center justify-center gap-1"
+                              className="text-ui-sm text-primary-600 hover:text-primary-800 flex items-center justify-center gap-1"
                             >
                               <FileText className="w-3 h-3" /> Facturer
                             </button>
@@ -4465,8 +4465,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td colSpan="2" className="py-2 px-3 text-right font-semibold">Total financements</td>
-                    <td className="py-2 px-3 text-right font-bold text-accent-600">{getFundingTotal().toFixed(2)} €</td>
-                    <td className="py-2 px-3 text-center font-bold text-accent-600">{getFundingCoverage()}%</td>
+                    <td className="py-2 px-3 text-right font-bold text-primary-600">{getFundingTotal().toFixed(2)} €</td>
+                    <td className="py-2 px-3 text-center font-bold text-primary-600">{getFundingCoverage()}%</td>
                     <td colSpan="4"></td>
                   </tr>
                 </tfoot>
@@ -4559,14 +4559,14 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <button
                           type="button"
                           onClick={() => setFundingForm({ ...fundingForm, use_percentage: false })}
-                          className={`text-ui-sm px-3 py-1 rounded-full ${!fundingForm.use_percentage ? 'bg-accent-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+                          className={`text-ui-sm px-3 py-1 rounded-full ${!fundingForm.use_percentage ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}`}
                         >
                           Montant HT
                         </button>
                         <button
                           type="button"
                           onClick={() => setFundingForm({ ...fundingForm, use_percentage: true })}
-                          className={`text-ui-sm px-3 py-1 rounded-full ${fundingForm.use_percentage ? 'bg-accent-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+                          className={`text-ui-sm px-3 py-1 rounded-full ${fundingForm.use_percentage ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}`}
                         >
                           Pourcentage
                         </button>
@@ -4872,7 +4872,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <div className="text-center py-8 text-gray-500">
               <HelpCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
               <p>Aucune question configurée pour cette formation.</p>
-              <Link to="/tests-positionnement" className="text-accent-600 hover:underline mt-2 inline-block">
+              <Link to="/tests-positionnement" className="text-primary-600 hover:underline mt-2 inline-block">
                 Configurer les questions →
               </Link>
             </div>
@@ -5029,9 +5029,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {/* QR Code Unifié - Portail Stagiaire */}
           <div className="card">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <QrCode className="w-5 h-5 text-accent-600" />
+              <QrCode className="w-5 h-5 text-primary-600" />
                QR Code Stagiaires
-              <span className="text-ui-sm bg-primary-100 text-accent-700 px-2 py-1 rounded ml-2">Ind. 8, 11, 30</span>
+              <span className="text-ui-sm bg-primary-100 text-primary-700 px-2 py-1 rounded ml-2">Ind. 8, 11, 30</span>
             </h3>
             
             <div className="grid md:grid-cols-2 gap-6">
@@ -5088,7 +5088,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {/* QR Code formateur - signature sur son téléphone */}
           <div className="card">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Smartphone className="w-5 h-5 text-accent-600" />
+              <Smartphone className="w-5 h-5 text-primary-600" />
                QR Code formateur - faire signer sur le téléphone
             </h3>
 
@@ -5133,7 +5133,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       onClick={() => handleSignatureMode(m.value)}
                       className={`px-3 py-1.5 rounded-ui-sm text-ui-sm border ${
                         (session.signature_mode || 'auto') === m.value
-                          ? 'bg-accent-600 text-white border-accent-600 font-medium'
+                          ? 'bg-primary-600 text-white border-primary-600 font-medium'
                           : 'border-gray-200 text-gray-600 hover:border-primary-300'}`}
                     >
                       {m.label}
@@ -5575,7 +5575,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="bg-white rounded-ui-sm shadow-md max-w-md w-full mx-4">
             <div className="p-4 border-b">
               <h3 className="text-lg font-semibold flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-accent-600" />
+                <UserPlus className="w-5 h-5 text-primary-600" />
                 Créer un nouveau stagiaire
               </h3>
               <p className="text-ui text-gray-500 mt-1">Sera automatiquement ajouté à cette session</p>

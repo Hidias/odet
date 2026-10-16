@@ -1044,7 +1044,7 @@ export default function Quotes() {
             <p className="text-ui text-gray-500 mt-1">{filteredQuotes.length} devis</p>
           </div>
           <button onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-accent-600 text-white rounded-ui-sm hover:bg-accent-700 transition-colors font-medium">
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 transition-colors font-medium">
             <Plus size={18} /> Nouveau devis
           </button>
         </div>
@@ -1053,10 +1053,10 @@ export default function Quotes() {
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" placeholder="Référence, client, ville, SIRET, objet..."
               value={search} onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-accent-500" />
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500" />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2.5 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-accent-500">
+            className="px-4 py-2.5 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500">
             <option value="">Tous les statuts</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => (
               <option key={k} value={k}>{v.icon} {v.label}</option>
@@ -1273,7 +1273,7 @@ export default function Quotes() {
               </button>
             )}
             <button onClick={() => openEdit(q)}
-              className="flex items-center gap-2 px-4 py-2 bg-accent-600 text-white rounded-ui-sm hover:bg-accent-700 text-ui">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 text-ui">
               <Edit2 size={15} /> Modifier
             </button>
             <div className="relative" ref={actionMenuId === 'view' ? actionMenuRef : null}>
@@ -1513,7 +1513,7 @@ export default function Quotes() {
             <button onClick={() => setMode('list')}
               className="px-4 py-2 border border-gray-200 rounded-ui-sm hover:bg-gray-50 transition-colors">Annuler</button>
             <button onClick={saveQuote} disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-accent-600 text-white rounded-ui-sm hover:bg-accent-700 transition-colors disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 transition-colors disabled:opacity-50">
               <Save size={16} /> {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           </div>
@@ -1545,7 +1545,7 @@ export default function Quotes() {
                   <label className="block text-ui font-medium text-gray-700 mb-1">Contact</label>
                   <select value={currentQuote.contact_id || ''}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, contact_id: e.target.value || null }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-accent-500">
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500">
                     <option value="">- Aucun -</option>
                     {contacts.map(c => (
                       <option key={c.id} value={c.id}>
@@ -1572,20 +1572,20 @@ export default function Quotes() {
                   <input type="text" value={currentQuote.object}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, object: e.target.value }))}
                     placeholder="Ex : Formation SST en intra"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-accent-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
                   <label className="block text-ui font-medium text-gray-700 mb-1">Réf. client</label>
                   <input type="text" value={currentQuote.client_reference}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, client_reference: e.target.value }))}
                     placeholder="Optionnel"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-accent-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
                   <label className="block text-ui font-medium text-gray-700 mb-1">Votre interlocuteur</label>
                   <select value={currentQuote.created_by}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, created_by: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-accent-500">
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500">
                     {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
@@ -1726,7 +1726,7 @@ export default function Quotes() {
                   <Plus size={14} /> Matériel
                 </PickerMenu>
                 <button onClick={addItem}
-                  className="text-ui px-3 py-1.5 bg-primary-50 text-accent-600 rounded-ui-sm hover:bg-primary-100 transition-colors flex items-center gap-1">
+                  className="text-ui px-3 py-1.5 bg-primary-50 text-primary-600 rounded-ui-sm hover:bg-primary-100 transition-colors flex items-center gap-1">
                   <Plus size={14} /> Ligne libre
                 </button>
               </div>
@@ -1757,7 +1757,7 @@ export default function Quotes() {
                   ) : (
                     <div className="text-ui-sm text-gray-400 italic">TVA non applicable (art. 261 CGI)</div>
                   )}
-                  <div className="flex justify-between text-base font-bold border-t pt-2 text-accent-700">
+                  <div className="flex justify-between text-base font-bold border-t pt-2 text-primary-700">
                     <span>Total TTC</span><span>{money(totals.totalTtc)}</span>
                   </div>
                 </div>
@@ -1771,7 +1771,7 @@ export default function Quotes() {
                 <textarea value={currentQuote.notes}
                   onChange={(e) => setCurrentQuote(prev => ({ ...prev, notes: e.target.value }))}
                   rows={3} placeholder="Notes visibles sur le devis (ex: 5% remise BNI)"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui resize-none focus:ring-2 focus:ring-accent-500" />
+                  className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui resize-none focus:ring-2 focus:ring-primary-500" />
               </div>
               <div className="bg-white rounded-ui border border-gray-200 p-4">
                 <h2 className="font-semibold text-gray-900 mb-2 flex items-center gap-2"><Pen size={16} /> Signature client</h2>
@@ -1809,7 +1809,7 @@ export default function Quotes() {
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
-                <Mail className="inline w-5 h-5 mr-2 text-accent-600" />
+                <Mail className="inline w-5 h-5 mr-2 text-primary-600" />
                 Envoyer le devis {quote.reference}
               </h2>
               <p className="text-ui text-gray-500">{client?.name}</p>
@@ -1824,7 +1824,7 @@ export default function Quotes() {
             {steps.map((s, i) => (
               <div key={s.num} className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-ui font-bold transition-colors ${
-                  sendStep === s.num ? 'bg-accent-600 text-white' : 
+                  sendStep === s.num ? 'bg-primary-600 text-white' : 
                   sendStep > s.num ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-200 text-gray-500'
                 }`}>
                   {sendStep > s.num ? <Check size={16} /> : s.num}
@@ -1856,7 +1856,7 @@ export default function Quotes() {
                     <h3 className="text-ui font-semibold text-gray-700 flex items-center gap-2">
                       <Paperclip size={16} /> Pièces jointes
                     </h3>
-                    <label className="px-3 py-1.5 bg-primary-50 text-accent-700 border border-primary-200 rounded-ui-sm text-ui-sm font-medium cursor-pointer hover:bg-primary-100 transition-colors">
+                    <label className="px-3 py-1.5 bg-primary-50 text-primary-700 border border-primary-200 rounded-ui-sm text-ui-sm font-medium cursor-pointer hover:bg-primary-100 transition-colors">
                       + Ajouter un fichier
                       <input type="file" className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                         onChange={async (e) => {
@@ -2067,7 +2067,7 @@ export default function Quotes() {
               {sendStep === 1 && (
                 <button
                   onClick={() => { setSendStep(2); if (!sendEmail.body) generateEmailText() }}
-                  className="px-6 py-2.5 bg-accent-600 text-white rounded-ui-sm text-ui font-medium hover:bg-accent-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-2.5 bg-primary-600 text-white rounded-ui-sm text-ui font-medium hover:bg-primary-700 transition-colors flex items-center gap-2"
                 >
                   PDF OK, continuer <ChevronDown size={14} className="-rotate-90" />
                 </button>
@@ -2080,7 +2080,7 @@ export default function Quotes() {
                     if (!sendEmail.body) return toast.error('Générez ou rédigez le texte')
                     setSendStep(3)
                   }}
-                  className="px-6 py-2.5 bg-accent-600 text-white rounded-ui-sm text-ui font-medium hover:bg-accent-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-2.5 bg-primary-600 text-white rounded-ui-sm text-ui font-medium hover:bg-primary-700 transition-colors flex items-center gap-2"
                 >
                   Continuer <ChevronDown size={14} className="-rotate-90" />
                 </button>
