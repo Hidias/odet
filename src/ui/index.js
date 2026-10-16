@@ -1,0 +1,15 @@
+// Composants communs de l'interface (système de design). Liste et usage : page « Système de design »
+// (route /design-systeme) et claude/odet-design-systeme.md dans le projet.
+export { Button } from './Button'
+export { Field, Input, Select, Textarea } from './Field'
+export { Card, CardHeader, CardBody } from './Card'
+export { StatusBadge, STATUS, statusLabel } from './StatusBadge'
+export { Tabs } from './Tabs'
+export { PageHeader } from './PageHeader'
+export { EmptyState, Spinner } from './EmptyState'
+export { Banner } from './Banner'
+export { Sheet } from './Sheet'
+export { ConfirmInline, ConfirmProvider, useConfirm } from './Confirm'
+export { ActionBar } from './ActionBar'
+export { DataTable } from './DataTable'
+export { default as SearchSelect } from './SearchSelect'

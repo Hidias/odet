@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '../core/store'
 import { supabase } from '../core/supabase'
-import { useBranding, brandLogo } from '../core/branding/BrandingProvider'
+import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
 import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS } from '../core/branding/presets'
 import { visibleSections, SETTINGS_ITEMS, pageTitleFor, sectionIdFor } from '../core/modules/registry'
@@ -125,6 +125,7 @@ export default function Layout() {
   }
 
   const logo = brandLogo(branding, prefs.nav !== 'light')
+  const icon = appIcon(branding)
   const navIsDark = prefs.nav !== 'light'
   const navText = navIsDark ? 'text-nav-fg' : 'text-gray-900'
   const navMuted = navIsDark ? 'text-nav-fg/60' : 'text-gray-500'
@@ -137,7 +138,9 @@ export default function Layout() {
   // ─── Blocs communs ─────────────────────────────────────────
   const Brand = ({ compact = false }) => (
     <div className={`flex items-center gap-3 ${compact ? '' : 'px-2'}`}>
-      {logo ? (
+      {icon ? (
+        <img src={icon} alt={branding.app_name || 'Logo'} className={`${compact ? 'h-7 w-7' : 'h-9 w-9'} rounded-ui-sm object-cover flex-none`} />
+      ) : logo ? (
         <div className={`${navIsDark ? 'bg-white' : ''} rounded-ui-sm p-1 flex items-center justify-center`}>
           <img src={logo} alt={branding.org_name || 'Logo'} className={compact ? 'h-7 w-auto' : 'h-9 w-auto max-w-[140px] object-contain'} />
         </div>
@@ -224,9 +227,9 @@ export default function Layout() {
   const Rail = () => (
     <>
       <div className="w-16 bg-nav flex flex-col items-center py-3 gap-1.5 flex-none">
-        <div className="bg-white rounded-ui-sm p-1 mb-2 flex items-center justify-center w-11 h-11">
+        {icon ? <img src={icon} alt="" className="w-11 h-11 rounded-ui-sm object-cover mb-2" /> : <div className="bg-white rounded-ui-sm p-1 mb-2 flex items-center justify-center w-11 h-11">
           {logo ? <img src={logo} alt="" className="max-h-9 max-w-9 object-contain" /> : <span className="font-display font-bold">{(branding.app_name || 'O').slice(0, 1)}</span>}
-        </div>
+        </div>}
         {sections.map((s) => {
           const Icon = s.items[0]?.icon
           const on = railSection === s.id
