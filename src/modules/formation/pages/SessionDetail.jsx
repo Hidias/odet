@@ -3199,7 +3199,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {[
             { id: 'overview', label: 'Stagiaires' },
             { id: 'presence', label: 'Présence' },
-            ...(suiviFormatifOn ? [{ id: 'suivi_formatif', label: 'Suivi formatif' }] : []),
+            ...(suiviFormatifOn && (session?.courses?.formative_enabled || formativeSummary?.sequences?.length > 0) ? [{ id: 'suivi_formatif', label: 'Suivi formatif' }] : []),
             { id: 'objectifs', label: 'Validation objectifs' },
             { id: 'suivi', label: 'Évaluations' },
             { id: 'materiel', label: 'Matériel' },
@@ -6166,7 +6166,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       )}
 
       {/* TAB: Suivi formatif (module optionnel) */}
-      {activeTab === 'suivi_formatif' && suiviFormatifOn && session?.id && (
+      {activeTab === 'suivi_formatif' && suiviFormatifOn && session?.id && (session?.courses?.formative_enabled || formativeSummary?.sequences?.length > 0) && (
         <SuiviFormatifTab sessionId={session.id} sessionStatus={session.status} />
       )}
 
