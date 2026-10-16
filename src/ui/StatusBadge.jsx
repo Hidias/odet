@@ -54,3 +54,23 @@ export function statusLabel(kind, status) {
 }
 
 export default StatusBadge
+
+// Anciennes couleurs nommées (gray, green, red, yellow, orange, blue…) vers les couleurs de sens.
+// Pour les écrans repris : remplace les classes construites à la volée (bg-${color}-100), que Tailwind peut ne pas générer.
+const LEGACY = {
+  gray: 'muted', slate: 'muted', green: 'success', emerald: 'success', lime: 'success', red: 'danger', rose: 'danger',
+  yellow: 'warning', amber: 'warning', orange: 'warning', blue: 'info', sky: 'info', indigo: 'info', cyan: 'info',
+}
+function tokenOf(color) { return LEGACY[color] || 'muted' }
+export function toneColor(color) {
+  const t = tokenOf(color)
+  return t === 'muted' ? 'rgb(var(--c-muted))' : `rgb(var(--c-${t}))`
+}
+export function toneStyle(color, { bg = true, text = true, border = false } = {}) {
+  const t = tokenOf(color)
+  const style = {}
+  if (bg) style.background = t === 'muted' ? 'rgb(243 244 246)' : `rgb(var(--c-${t}-bg))`
+  if (text) style.color = toneColor(color)
+  if (border) style.borderColor = t === 'muted' ? 'rgb(var(--c-line))' : `rgb(var(--c-${t}) / 0.3)`
+  return style
+}
