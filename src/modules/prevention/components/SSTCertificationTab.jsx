@@ -6,12 +6,15 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import SSTCertificationModal from './SSTCertificationModal'
 import { generateSSTCertificationPDF } from '../pdf/generateSSTCertificationPDF'
+import { archiveSstGrid, openArchive, archivePathOf } from '../../suivi/lib/archive'
+import FormativeSummary, { useFormativeSummary } from '../../suivi/components/FormativeSummary'
 
 export default function SSTCertificationTab({ session, sessionTrainees, trainer }) {
   const [certifications, setCertifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [selectedTrainee, setSelectedTrainee] = useState(null)
+  const formativeSummary = useFormativeSummary(session?.id)
 
   useEffect(() => {
     if (session && sessionTrainees.length > 0) {
@@ -59,12 +62,30 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
     }
 
     try {
-      await generateSSTCertificationPDF(cert, trainee, session, trainer)
+      const out = await generateSSTCertificationPDF(cert, trainee, session, trainer)
       toast.success('PDF généré avec succès')
+      await archiveGrid(cert, out)
     } catch (error) {
       console.error('Erreur génération PDF:', error)
       toast.error('Erreur lors de la génération du PDF')
     }
+  }
+
+  // Archive la grille générée (bucket privé, conservation au moins 24 mois). Un échec n'empêche pas le téléchargement.
+  const archiveGrid = async (cert, out, { quiet = false } = {}) => {
+    if (!out?.bytes) return
+    try {
+      await archiveSstGrid(cert, out.bytes, out.fileName)
+      if (!quiet) toast.success('Grille archivée')
+      await loadCertifications()
+    } catch (e) {
+      console.warn('Archivage de la grille SST impossible :', e)
+      toast.error('Grille téléchargée, mais pas archivée : ' + (e.message || 'erreur'))
+    }
+  }
+
+  const handleOpenArchive = async (cert) => {
+    try { await openArchive(cert.pdf_url) } catch (e) { toast.error(e.message || 'Ouverture impossible') }
   }
 
   const handleGenerateAllPDFs = async () => {
@@ -83,7 +104,8 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
     for (const trainee of certifiedTrainees) {
       const cert = getCertification(trainee.id)
       try {
-        await generateSSTCertificationPDF(cert, trainee, session, trainer)
+        const out = await generateSSTCertificationPDF(cert, trainee, session, trainer)
+        await archiveGrid(cert, out, { quiet: true })
       } catch (error) {
         console.error(`Erreur pour ${trainee.first_name} ${trainee.last_name}:`, error)
       }
@@ -204,6 +226,7 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
                       {!cert && (
                         <p className="text-sm text-gray-500">Non évalué</p>
                       )}
+                      <FormativeSummary summary={formativeSummary} traineeId={trainee.id} className="mt-0.5" />
                     </div>
 
                     {/* Badge statut */}
@@ -238,6 +261,15 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
                       >
                         <Download className="w-4 h-4" />
                         PDF
+                      </button>
+                    )}
+                    {cert && archivePathOf(cert.pdf_url) && (
+                      <button
+                        onClick={() => handleOpenArchive(cert)}
+                        className="btn btn-secondary btn-sm"
+                        title="Grille archivée (conservée pour un contrôle)"
+                      >
+                        Archivée
                       </button>
                     )}
                   </div>

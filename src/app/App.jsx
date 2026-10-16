@@ -62,6 +62,8 @@ const SocialMedia = lazy(() => import('../modules/social/pages/SocialMedia'))
 const EspaceComptable = lazy(() => import('../modules/finance/pages/EspaceComptable'))
 // ─── Signature sur le téléphone du formateur ───
 const SignatureFormateur = lazy(() => import('../modules/formation/pages/SignatureFormateur'))
+// ─── Suivi formatif sur le téléphone du formateur ───
+const SuiviTelephone = lazy(() => import('../modules/suivi/pages/SuiviTelephone'))
 
 // Pages publiques
 const TraineePortal = lazy(() => import('../modules/portail/pages/TraineePortal'))
@@ -198,6 +200,13 @@ export default function App() {
           <Route path="/signature/:sessionId" element={
             <PrivateRoute>
               <SignatureFormateur />
+            </PrivateRoute>
+          } />
+
+          {/* ─── Suivi formatif plein écran (téléphone du formateur) ─── */}
+          <Route path="/suivi/:sessionId" element={
+            <PrivateRoute>
+              <SuiviTelephone />
             </PrivateRoute>
           } />
 

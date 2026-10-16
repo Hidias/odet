@@ -20,6 +20,8 @@ import { supabase } from '../../../core/supabase'
 import { buildStorageFileName } from '../../../core/storageUtils'
 import SessionDocumentAccess from '../components/SessionDocumentAccess'
 import SSTCertificationTab from '../../prevention/components/SSTCertificationTab'
+import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
+import FormativeSummary, { useFormativeSummary } from '../../suivi/components/FormativeSummary'
 import DateTimePickerModal from '../../../ui/DateTimePickerModal'
 import SessionChecklist from '../components/SessionChecklist'
 import SessionNeedsAnalysis from '../components/SessionNeedsAnalysis'
@@ -107,6 +109,8 @@ export default function SessionDetail() {
   } = useDataStore()
   
   const { user } = useAuthStore()
+  const suiviFormatifOn = (useAuthStore((st) => st.modules) || []).includes('suivi_formatif')
+  const formativeSummary = useFormativeSummary(id)
   
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -3195,6 +3199,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {[
             { id: 'overview', label: 'Stagiaires' },
             { id: 'presence', label: 'Présence' },
+            ...(suiviFormatifOn ? [{ id: 'suivi_formatif', label: 'Suivi formatif' }] : []),
             { id: 'objectifs', label: 'Validation objectifs' },
             { id: 'suivi', label: 'Évaluations' },
             { id: 'materiel', label: 'Matériel' },
@@ -3585,6 +3590,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <tr key={trainee.id} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-2">
                             <div className="font-medium">{trainee.first_name} {trainee.last_name?.toUpperCase()}</div>
+                            <FormativeSummary summary={formativeSummary} traineeId={trainee.id} className="mt-0.5 max-w-[260px]" />
                           </td>
                           {getObjectivesList().map((obj, idx) => {
                             const objData = objectivesData.find(o => o.trainee_id === trainee.id && o.objective_index === idx)
@@ -6157,6 +6163,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB: Suivi formatif (module optionnel) */}
+      {activeTab === 'suivi_formatif' && suiviFormatifOn && session?.id && (
+        <SuiviFormatifTab sessionId={session.id} sessionStatus={session.status} />
       )}
 
       {/* TAB: Certification SST */}
