@@ -279,6 +279,10 @@ create policy formative_sheets_creer on public.formative_sheets for insert to au
 
 grant select, insert, update, delete on public.course_sequences, public.session_sequences, public.formative_evaluations to authenticated;
 grant select, insert on public.formative_sheets to authenticated;
+-- Supabase donne par défaut tous les droits sur les nouvelles tables : on retire ceux qui ne passent pas par les
+-- règles (TRUNCATE vide une table sans les consulter) et, pour les fiches archivées, la modification et la suppression.
+revoke truncate, references, trigger on public.course_sequences, public.session_sequences, public.formative_evaluations, public.formative_sheets from authenticated;
+revoke update, delete on public.formative_sheets from authenticated;
 
 -- ── 5. Fonctions ──
 

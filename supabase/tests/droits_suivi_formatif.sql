@@ -30,6 +30,15 @@ exception when others then
   return 'refus (' || sqlstate || ')';
 end $f$;
 
+-- Tente de vider une table avec les droits de l'utilisateur simulé (doit être refusé)
+create or replace function pg_temp.sf_vider(p_table text)
+returns boolean
+language plpgsql as $f$
+begin
+  execute format('truncate table public.%I', p_table);
+  return true;
+end $f$;
+
 do $test$
 declare
   u_sa uuid := gen_random_uuid();  u_ges uuid := gen_random_uuid(); u_for uuid := gen_random_uuid();
@@ -148,6 +157,8 @@ begin
       ('C', u_for, 'chemin d''archive hors session refusé', format('select public.sf_register_sheet(%L, %L, ''fiche.pdf'', ''x'', null)', v_s1, v_s2 || '/suivi/fiche.pdf'), 'refus'),
       ('C', u_ges, 'fiche archivée non modifiable', format('with x as (update public.formative_sheets set file_name = ''x'' where session_id = %L returning 1) select count(*) from x', v_s1), 'refus'),
       ('C', u_sa, 'fiche archivée non supprimable', format('with x as (delete from public.formative_sheets where session_id = %L returning 1) select count(*) from x', v_s1), 'refus'),
+      ('C', u_sa, 'personne ne vide le registre des fiches (TRUNCATE)', 'with x as (select 1) select count(*) from x where pg_temp.sf_vider(''formative_sheets'')', 'refus'),
+      ('C', u_ges, 'personne ne vide les saisies (TRUNCATE)', 'with x as (select 1) select count(*) from x where pg_temp.sf_vider(''formative_evaluations'')', 'refus'),
       ('C', u_for, 'archive de sa session : dépôt permis', format('select case when public.sf_archive_can(%L, true) then 1 else 0 end', v_s1 || '/suivi/a.pdf'), '=1'),
       ('C', u_for, 'archive d''une autre session : dépôt refusé', format('select case when public.sf_archive_can(%L, true) then 1 else 0 end', v_s2 || '/suivi/a.pdf'), '=0'),
       ('C', u_for, 'grille SST de sa session : dépôt permis', format('select case when public.sf_archive_can(%L, true) then 1 else 0 end', v_s1 || '/certification-sst/g.pdf'), '=1'),
