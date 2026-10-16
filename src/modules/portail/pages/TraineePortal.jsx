@@ -10,6 +10,7 @@ import {
 import { format, parseISO, isToday, eachDayOfInterval } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import TraineeDocuments from '../../formation/components/TraineeDocuments'
+import { Banner } from '../../../ui/Banner'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
 import QuizEngine from '../../formation/quiz/QuizEngine'
 import PasseportPortalBlock from '../../passeport/components/PasseportPortalBlock'
@@ -86,7 +87,7 @@ const AttendanceCompletePage = ({ session, trainee, onContinue }) => {
     <div className="text-center py-6 portal-card-enter">
       <div className="relative mx-auto mb-6 w-24 h-24">
         <div className="absolute inset-0 rounded-full bg-primary-900 opacity-10 animate-ping" style={{ animationDuration: '2s' }} />
-        <div className="relative w-24 h-24 rounded-full bg-primary-900 flex items-center justify-center shadow-xl">
+        <div className="relative w-24 h-24 rounded-full bg-primary-900 flex items-center justify-center shadow-sm">
           <CheckCircle className="w-12 h-12 text-white check-pop" />
         </div>
       </div>
@@ -190,7 +191,7 @@ function HubCard({ icon: Icon, title, subtitle, status, tone = 'neutral', onClic
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <div className="font-display font-semibold text-gray-900">{title}</div>
-          {badge && <span className="text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent-500 text-accent-fg">{badge}</span>}
+          {badge && <span className="text-ui-sm font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent-500 text-accent-fg">{badge}</span>}
         </div>
         {subtitle && <div className="text-ui-sm text-gray-500 truncate">{subtitle}</div>}
         {status && <div className={`text-ui-sm font-medium mt-0.5 ${tone === 'done' ? 'text-[rgb(var(--c-success))]' : tone === 'locked' ? 'text-gray-400' : 'text-gray-700'}`}>{status}</div>}
@@ -210,6 +211,8 @@ export default function TraineePortal() {
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  // Message d'erreur affiché dans l'écran (remplace les alertes du navigateur)
+  const [portalError, setPortalError] = useState(null)
   const [error, setError] = useState(null)
 
   const [session, setSession] = useState(null)
@@ -551,7 +554,7 @@ export default function TraineePortal() {
       }
     } catch (err) {
       console.error('Erreur :', err)
-      alert("Erreur lors de l'enregistrement. Veuillez réessayer.")
+      setPortalError("Erreur lors de l'enregistrement. Veuillez réessayer.")
     } finally {
       setSubmitting(false)
     }
@@ -565,13 +568,13 @@ export default function TraineePortal() {
       const { data, error } = await supabase.rpc('portal_quiz_questions', { p_token: token, p_trainee_id: trainee.id, p_purpose: mode })
       if (error) throw error
       if (!data || data.length === 0) {
-        alert("Aucune question n'est disponible pour cette formation.")
+        setPortalError("Aucune question n'est disponible pour cette formation.")
         return
       }
       setQuiz({ mode, questions: data })
     } catch (err) {
       console.error('Quiz :', err)
-      alert('Impossible de charger le quiz.')
+      setPortalError('Impossible de charger le quiz.')
     } finally {
       setSubmitting(false)
     }
@@ -635,7 +638,7 @@ export default function TraineePortal() {
       const { data, error } = await supabase.rpc('portal_sign_halfday', { p_token: token, p_trainee_id: selectedTrainee.id, p_period: period, p_signature: image })
       if (error) throw error
       if (!data?.ok) {
-        alert(data?.error || "La signature n'a pas pu être enregistrée")
+        setPortalError(data?.error || "La signature n'a pas pu être enregistrée")
         setSigningBusy(false)
         return
       }
@@ -650,7 +653,7 @@ export default function TraineePortal() {
       }
     } catch (err) {
       console.error('Erreur émargement :', err)
-      alert("Erreur lors de l'enregistrement de votre signature. Prévenez votre formateur.")
+      setPortalError("Erreur lors de l'enregistrement de votre signature. Prévenez votre formateur.")
     } finally {
       setSigningBusy(false)
     }
@@ -682,7 +685,7 @@ export default function TraineePortal() {
       else setCurrentStep('thank_you_website')
     } catch (err) {
       console.error('Erreur :', err)
-      alert("Erreur lors de l'enregistrement. Veuillez réessayer.")
+      setPortalError("Erreur lors de l'enregistrement. Veuillez réessayer.")
     } finally {
       setSubmitting(false)
     }
@@ -754,7 +757,7 @@ export default function TraineePortal() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'rgb(var(--ground))' }}>
         <style>{portalStyles}</style>
-        <div className="bg-white rounded-ui-lg shadow-xl p-8 max-w-md text-center portal-card-enter">
+        <div className="bg-white rounded-ui-lg shadow-sm p-8 max-w-md text-center portal-card-enter">
           <div className="w-16 h-16 rounded-full bg-[rgb(var(--c-danger-bg))] flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-[rgb(var(--c-danger))]" />
           </div>
@@ -782,10 +785,15 @@ export default function TraineePortal() {
     <div className="min-h-screen py-4 px-3 sm:py-6 sm:px-4" style={{ background: 'rgb(var(--ground))' }}>
       <style>{portalStyles}</style>
       <div className="max-w-lg mx-auto">
+        {portalError && (
+          <div className="fixed inset-x-0 bottom-0 z-50 p-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+            <div className="max-w-lg mx-auto bg-white" style={{ borderRadius: 'var(--radius-ui)', boxShadow: 'var(--shadow-pop)' }}>
+              <Banner tone="danger" title={portalError} onClose={() => setPortalError(null)} />
+            </div>
+          </div>
+        )}
         {/* En-tête aux couleurs de l'organisme */}
         <div className="bg-nav text-nav-fg rounded-t-ui-lg p-5 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-accent-500/20 -translate-y-1/2 translate-x-1/3" />
-          <div className="absolute bottom-0 left-10 w-24 h-24 rounded-full bg-white/5 translate-y-1/2" />
           <div className="relative">
             <div className="flex items-center gap-3">
               {logo ? (
@@ -796,7 +804,7 @@ export default function TraineePortal() {
                 </div>
               )}
               <div className="min-w-0">
-                <div className="text-[11px] uppercase tracking-wider opacity-70 font-semibold">{orgName}</div>
+                <div className="text-ui-sm uppercase tracking-wider opacity-70 font-semibold">{orgName}</div>
                 <h1 className="font-display text-lg font-bold leading-tight truncate">{session.courses?.title}</h1>
               </div>
             </div>
@@ -818,7 +826,7 @@ export default function TraineePortal() {
             </div>
             {selectedTrainee && (
               <div className="mt-3 inline-flex items-center gap-2 text-ui bg-white/10 rounded-full pl-1 pr-3 py-1">
-                <span className="w-6 h-6 rounded-full bg-accent-500 text-accent-fg text-[11px] font-bold flex items-center justify-center">
+                <span className="w-6 h-6 rounded-full bg-accent-500 text-accent-fg text-ui-sm font-bold flex items-center justify-center">
                   {(selectedTrainee.first_name || '?').slice(0, 1)}{(selectedTrainee.last_name || '').slice(0, 1)}
                 </span>
                 {selectedTrainee.first_name} {selectedTrainee.last_name}
