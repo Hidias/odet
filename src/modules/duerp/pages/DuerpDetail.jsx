@@ -902,7 +902,7 @@ export default function DuerpDetail() {
             <h3 className="font-semibold text-gray-900">Informations du projet</h3>
             <div className="flex gap-2">
               {editingProject ? (<>
-                <button onClick={saveProjectInfo} className="px-3 py-1.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
+                <button onClick={saveProjectInfo} className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
                   <Save className="w-3.5 h-3.5" /> Enregistrer
                 </button>
                 <button onClick={() => setEditingProject(null)} className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-ui-sm text-ui">Annuler</button>
@@ -1010,7 +1010,7 @@ export default function DuerpDetail() {
           <div className="flex items-center justify-between mb-4">
             <p className="text-ui text-gray-500">Regroupez les postes par exposition homogène aux risques.</p>
             <button onClick={() => { setEditingUnit('new'); setUnitForm({ code: `UT${units.length + 1}` }) }}
-              className="flex items-center gap-1 px-3 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-warning))]">
+              className="flex items-center gap-1 btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))]">
               <Plus className="w-4 h-4" /> Ajouter
             </button>
           </div>
@@ -1049,7 +1049,7 @@ export default function DuerpDetail() {
                 <button onClick={() => { setEditingUnit(null); setUnitForm({}) }}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-ui-sm text-ui">Annuler</button>
                 <button onClick={saveUnit}
-                  className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
+                  className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
                   <Save className="w-4 h-4" /> Enregistrer
                 </button>
               </div>
@@ -1249,7 +1249,7 @@ export default function DuerpDetail() {
             </select>
             <div className="flex gap-1">
               <button onClick={() => setShowTemplateLibrary(true)}
-                className="flex items-center gap-1 px-3 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-warning))]">
+                className="flex items-center gap-1 btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))]">
                 <Plus className="w-4 h-4" /> INRS
               </button>
               <button onClick={addFreeRisk}
@@ -1523,7 +1523,7 @@ export default function DuerpDetail() {
                             <div className="flex gap-2">
                               <button onClick={() => setEditingRisk(null)} className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-ui-sm text-ui">Fermer</button>
                               <button onClick={() => saveRisk(risks.find(x => x.id === r.id))}
-                                className="px-4 py-1.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
+                                className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
                                 <Save className="w-3.5 h-3.5" /> Enregistrer
                               </button>
                             </div>
@@ -1578,7 +1578,7 @@ export default function DuerpDetail() {
                               {t.consequences && <p className="text-ui-sm text-[rgb(var(--c-danger))] line-clamp-1 mt-0.5">→ {t.consequences}</p>}
                             </div>
                             <button onClick={() => addRiskFromTemplate(t)}
-                              className="ml-3 px-3 py-1.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui-sm hover:bg-[rgb(var(--c-warning))] shrink-0">
+                              className="ml-3 btn btn-secondary text-ui-sm hover:bg-[rgb(var(--c-warning))] shrink-0">
                               + Ajouter
                             </button>
                           </div>
@@ -1705,7 +1705,7 @@ export default function DuerpDetail() {
               ))}
             </div>
             <button onClick={() => { setEditingAction('new'); setActionForm({ statut: 'a_faire', priorite: 'moyenne', type_action: 'prevention' }) }}
-              className="flex items-center gap-1 px-3 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-warning))]">
+              className="flex items-center gap-1 btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))]">
               <Plus className="w-4 h-4" /> Nouvelle action
             </button>
           </div>
@@ -1799,7 +1799,7 @@ export default function DuerpDetail() {
                 <button onClick={() => { setEditingAction(null); setActionForm({}) }}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-ui-sm text-ui">Annuler</button>
                 <button onClick={saveAction}
-                  className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
+                  className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
                   <Save className="w-4 h-4" /> Enregistrer
                 </button>
               </div>
@@ -2128,7 +2128,7 @@ export default function DuerpDetail() {
                     toast.success('Excel généré et téléchargé')
                   } catch (err) { console.error(err); toast.error('Erreur génération Excel') }
                 }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-success))]">
+                  className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))]">
                   <Download className="w-4 h-4" /> Excel
                 </button>
               </div>

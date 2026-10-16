@@ -750,7 +750,7 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
               <button
                 onClick={handleSavePayment}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-success))] disabled:opacity-50"
+                className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))] disabled:opacity-50"
               >
                 {saving ? ' Enregistrement...' : ' Enregistrer l\'encaissement'}
               </button>
@@ -1403,7 +1403,7 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
                     <button
                       onClick={() => saveNote(tx.id, tx.date)}
                       disabled={saving}
-                      className="px-3 py-1 bg-[rgb(var(--c-success))] text-white rounded text-ui hover:bg-[rgb(var(--c-success))] disabled:opacity-50"
+                      className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-success))] disabled:opacity-50"
                     >Enregistrer</button>
                     <button
                       onClick={() => setEditingId(null)}

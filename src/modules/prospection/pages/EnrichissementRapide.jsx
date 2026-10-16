@@ -1528,7 +1528,7 @@ export default function EnrichissementRapide() {
             <div className="p-5 border-t flex gap-3">
               <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-ui-sm hover:bg-gray-200 text-ui font-medium">Fermer</button>
               <button onClick={() => { setShowEditModal(false); handleSave() }}
-                className="flex-1 px-4 py-2.5 bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))] text-ui font-medium flex items-center justify-center gap-2">
+                className="flex-1 btn btn-secondary text-ui font-medium flex items-center justify-center gap-2">
                 <Save className="w-4 h-4" /> Sauvegarder
               </button>
             </div>

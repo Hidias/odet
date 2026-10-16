@@ -314,3 +314,6 @@ html[data-lists='cards'] .dt-cards { display: block; }
   html[data-bottom-nav='1'] .action-bar { bottom: calc(60px + env(safe-area-inset-bottom)); }
 }
 
+/* Onglets : défilement sans barre visible */
+.tabs-scroll { scrollbar-width: none; }
+.tabs-scroll::-webkit-scrollbar { display: none; }

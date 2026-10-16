@@ -1421,7 +1421,7 @@ export default function Sessions() {
                       type="button"
                       onClick={parseImportText}
                       disabled={importParsing || importText.trim().length < 20}
-                      className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] text-ui font-medium disabled:opacity-50 flex items-center gap-2"
+                      className="btn btn-secondary text-ui font-medium disabled:opacity-50 flex items-center gap-2"
                     >
                       {importParsing ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyse en cours...</> : <><Search className="w-4 h-4" /> Analyser le planning</>}
                     </button>
@@ -1579,7 +1579,7 @@ export default function Sessions() {
               {importResult && (
                 <button type="button" onClick={handleImportCreate}
                   disabled={importChecked.length === 0 || !formData.client_id}
-                  className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] text-ui font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                  className="btn btn-secondary text-ui font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                   <Plus className="w-4 h-4" />
                   {!formData.client_id ? 'Sélectionnez un client' : `Créer ${importChecked.length} session${importChecked.length > 1 ? 's' : ''}`}
                 </button>

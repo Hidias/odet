@@ -513,7 +513,7 @@ export default function DuerpProjects() {
           <p className="text-gray-500 text-ui mt-1">Évaluation des Risques Professionnels</p>
         </div>
         <button onClick={() => { resetCreateForm(); setShowCreate(true) }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] transition font-medium shadow-sm">
+          className="flex items-center gap-2 btn btn-secondary transition font-medium shadow-sm">
           <Plus className="w-5 h-5" /> Nouveau DUERP
         </button>
       </div>
@@ -567,7 +567,7 @@ export default function DuerpProjects() {
           <h3 className="text-lg font-medium text-gray-600 mb-2">Aucun projet DUERP</h3>
           <p className="text-gray-400 mb-6">Créez votre premier Document Unique d'Évaluation des Risques Professionnels</p>
           <button onClick={() => { resetCreateForm(); setShowCreate(true) }}
-            className="px-6 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] transition">
+            className="btn btn-secondary transition">
             <Plus className="w-4 h-4 inline mr-2" /> Créer un DUERP
           </button>
         </div>
@@ -925,12 +925,12 @@ export default function DuerpProjects() {
                   setCreateStep(createStep + 1)
                 }}
                   disabled={createStep === 2 && !selectedSectors.length}
-                  className="px-6 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] disabled:opacity-50 text-ui font-medium flex items-center gap-1">
+                  className="btn btn-secondary disabled:opacity-50 text-ui font-medium flex items-center gap-1">
                   Suivant <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button onClick={createProject} disabled={creating}
-                  className="px-6 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] disabled:opacity-50 text-ui font-medium flex items-center gap-2">
+                  className="btn btn-secondary disabled:opacity-50 text-ui font-medium flex items-center gap-2">
                   {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Créer le DUERP
                 </button>

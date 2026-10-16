@@ -223,7 +223,7 @@ export default function MultiEtablissements() {
                                     {etab.city} ({etab.departement})
                                   </span>
                                   {etab.is_siege && (
-                                    <span className="px-2 py-0.5 bg-[rgb(var(--c-info))] text-white rounded text-ui-sm font-medium">
+                                    <span className="btn btn-secondary text-ui-sm font-medium">
                                       SIÈGE
                                     </span>
                                   )}

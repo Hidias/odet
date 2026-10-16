@@ -401,7 +401,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                       </div>
                       {!ok && obl.quantite_requise > 0 && (
                         <button onClick={() => { setSubTab('equipements'); setEditEquip('new'); setEquipForm({ type_id: obl.type_id, label: type?.label }) }}
-                          className="text-ui-sm px-2 py-1 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] flex-shrink-0">
+                          className="text-ui-sm btn btn-secondary flex-shrink-0">
                           + Ajouter
                         </button>
                       )}
@@ -438,7 +438,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                       <div className="flex flex-col gap-1 flex-shrink-0">
                         {!ok && (
                           <button onClick={() => { setSubTab('personnel'); setEditHab('new'); setHabForm({ type_id: obl.type_id }) }}
-                            className="text-ui-sm px-2 py-1 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))]">
+                            className="text-ui-sm btn btn-secondary hover:bg-[rgb(var(--c-warning))]">
                             + Ajouter
                           </button>
                         )}
@@ -460,7 +460,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                     <p className="font-bold text-ui text-[rgb(var(--c-warning))]">Besoin de former vos équipes ?</p>
                     <p className="text-ui-sm text-[rgb(var(--c-warning))]">{orgName()} : SST, incendie, habilitation électrique, conduite d'engins</p>
                   </div>
-                  <a href={`tel:${orgPhone().replace(/\s/g, '')}`} className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui-sm font-medium hover:bg-[rgb(var(--c-warning))]">
+                  <a href={`tel:${orgPhone().replace(/\s/g, '')}`} className="flex items-center gap-1.5 btn btn-secondary text-ui-sm font-medium hover:bg-[rgb(var(--c-warning))]">
                     <Phone className="w-3.5 h-3.5" /> Nous contacter
                   </a>
                 </div>
@@ -483,7 +483,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                 className="w-full pl-9 pr-3 py-2 border rounded-ui-sm text-ui" />
             </div>
             <button onClick={() => { setEditEquip('new'); setEquipForm({}) }}
-              className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center gap-2">
+              className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center gap-2">
               <Plus className="w-4 h-4" /> Ajouter un équipement
             </button>
           </div>
@@ -711,7 +711,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
                 <div className="flex gap-2 px-5 py-4 border-t bg-gray-50">
                   <button onClick={() => setEditEquip(null)} className="flex-1 px-4 py-2.5 border rounded-ui-sm text-ui hover:bg-gray-50">Annuler</button>
-                  <button onClick={saveEquipement} className="flex-1 px-4 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center justify-center gap-2">
+                  <button onClick={saveEquipement} className="flex-1 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center justify-center gap-2">
                     <Save className="w-4 h-4" /> Enregistrer
                   </button>
                 </div>
@@ -734,7 +734,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                 className="w-full pl-9 pr-3 py-2 border rounded-ui-sm text-ui" />
             </div>
             <button onClick={() => { setEditHab('new'); setHabForm({}) }}
-              className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center gap-2">
+              className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center gap-2">
               <Plus className="w-4 h-4" /> Ajouter une habilitation
             </button>
           </div>
@@ -927,7 +927,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
                 <div className="flex gap-2 px-5 py-4 border-t bg-gray-50">
                   <button onClick={() => setEditHab(null)} className="flex-1 px-4 py-2.5 border rounded-ui-sm text-ui hover:bg-gray-50">Annuler</button>
-                  <button onClick={saveHabilitation} className="flex-1 px-4 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center justify-center gap-2">
+                  <button onClick={saveHabilitation} className="flex-1 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center justify-center gap-2">
                     <Save className="w-4 h-4" /> Enregistrer
                   </button>
                 </div>
@@ -944,7 +944,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => { setEditVerif('new'); setVerifForm({}) }}
-              className="px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center gap-2">
+              className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center gap-2">
               <Plus className="w-4 h-4" /> Enregistrer une vérification
             </button>
           </div>
@@ -1077,7 +1077,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                 </div>
                 <div className="flex gap-2 px-5 py-4 border-t bg-gray-50">
                   <button onClick={() => setEditVerif(null)} className="flex-1 px-4 py-2.5 border rounded-ui-sm text-ui hover:bg-gray-50">Annuler</button>
-                  <button onClick={saveVerification} className="flex-1 px-4 py-2.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center justify-center gap-2">
+                  <button onClick={saveVerification} className="flex-1 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] flex items-center justify-center gap-2">
                     <Save className="w-4 h-4" /> Enregistrer
                   </button>
                 </div>

@@ -625,7 +625,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
               className="w-full border rounded-ui-sm px-3 py-2 text-ui font-mono" placeholder="contact@exemple.fr&#10;rh@entreprise.bzh" />
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowImport(false)} className="px-4 py-2 text-ui text-gray-600">Annuler</button>
-              <button onClick={applyImport} className="px-4 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui">Ajouter à la sélection</button>
+              <button onClick={applyImport} className="btn btn-secondary text-ui">Ajouter à la sélection</button>
             </div>
           </div>
         </div>

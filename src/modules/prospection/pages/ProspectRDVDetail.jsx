@@ -696,7 +696,7 @@ export default function ProspectRDVDetail() {
           {/* Compte-rendu */}
           {formData.client_id && (
             <button onClick={() => setShowCompteRendu(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[rgb(var(--c-success))] text-white rounded-ui hover:bg-[rgb(var(--c-success))] text-ui font-medium">
+              className="w-full flex items-center justify-center gap-2 btn btn-secondary text-ui font-medium">
               <Mail className="w-4 h-4" /> Générer Compte-Rendu
             </button>
           )}

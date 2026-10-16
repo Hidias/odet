@@ -3110,7 +3110,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="border-t border-[rgb(var(--c-info)/0.3)] pt-3">
             {!session.convention_signed ? (
               <div>
-                <label className="btn btn-primary btn-sm w-full flex items-center justify-center gap-2 cursor-pointer">
+                <label className="btn btn-secondary btn-sm w-full flex items-center justify-center gap-2 cursor-pointer">
                   <input
                     type="file"
                     accept="application/pdf"
@@ -3205,7 +3205,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <h3 className="font-semibold">Stagiaires ({sessionTrainees.length})</h3>
             <div className="flex gap-2">
               <button onClick={() => setShowAddTrainee(true)} className="btn btn-secondary flex items-center gap-2"><UserPlus className="w-4 h-4" />Ajouter existant</button>
-              <button onClick={() => { setNewTraineeForm({ ...newTraineeForm, client_id: session?.client_id || '' }); setShowNewTraineeModal(true) }} className="btn btn-primary flex items-center gap-2"><Plus className="w-4 h-4" />Créer nouveau</button>
+              <button onClick={() => { setNewTraineeForm({ ...newTraineeForm, client_id: session?.client_id || '' }); setShowNewTraineeModal(true) }} className="btn btn-secondary flex items-center gap-2"><Plus className="w-4 h-4" />Créer nouveau</button>
             </div>
           </div>
           {sessionTrainees.length === 0 ? <p className="text-gray-500 text-center py-8">Aucun stagiaire</p> : (

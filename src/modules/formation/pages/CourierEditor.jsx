@@ -363,7 +363,7 @@ export default function CourierEditor() {
             <Download className="w-4 h-4" /> Télécharger PDF
           </button>
           <button onClick={handleSave} disabled={!body.trim() || saving}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))] disabled:opacity-40 font-medium text-ui transition-colors">
+            className="flex-1 flex items-center justify-center gap-2 btn btn-secondary disabled:opacity-40 font-medium text-ui transition-colors">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Sauvegarder
           </button>

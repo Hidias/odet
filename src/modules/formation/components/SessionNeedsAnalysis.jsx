@@ -432,7 +432,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
 
           <button
             onClick={() => setShowForm(!showForm)}
-            className="btn btn-sm btn-primary flex items-center gap-1"
+            className="btn btn-sm btn-secondary flex items-center gap-1"
           >
             <FileCheck className="w-4 h-4" />
             {showForm ? 'Masquer' : analysis ? 'Modifier' : 'Remplir'}

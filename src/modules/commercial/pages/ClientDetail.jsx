@@ -892,7 +892,7 @@ export default function ClientDetail() {
           ) : (
             <>
               <button onClick={() => { setEditing(false); setEditForm(client) }} className="px-3 sm:px-4 py-2 border border-gray-300 rounded-ui-sm text-ui hover:bg-gray-50">Annuler</button>
-              <button onClick={saveClient} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))] text-ui">
+              <button onClick={saveClient} className="flex items-center gap-2 px-3 sm:btn btn-secondary text-ui">
                 <Save className="w-4 h-4" /> <span className="hidden sm:inline">Enregistrer</span><span className="sm:hidden">OK</span>
               </button>
             </>
@@ -1057,7 +1057,7 @@ export default function ClientDetail() {
                       <>
                         {importable.length > 0 && (
                           <button onClick={importFromProspection}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] text-ui-sm font-medium transition-colors">
+                            className="flex items-center gap-1.5 btn btn-secondary text-ui-sm font-medium transition-colors">
                             <Save className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Importer & lier tout</span><span className="sm:hidden">Importer</span>
                           </button>
                         )}
@@ -1405,17 +1405,17 @@ export default function ClientDetail() {
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => navigate(`/devis?client_id=${id}`)}
-          className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] text-ui font-medium shadow-sm transition-colors">
+          className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
           <FileText className="w-4 h-4" /> Nouveau devis
         </button>
         <button
           onClick={() => navigate('/prospection/nouveau?client_id=' + id)}
-          className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] text-ui font-medium shadow-sm transition-colors">
+          className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
           <Calendar className="w-4 h-4" /> Nouveau RDV
         </button>
         <button
           onClick={() => navigate('/sessions', { state: { openNew: true, client_id: id } })}
-          className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))] text-ui font-medium shadow-sm transition-colors">
+          className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
           <GraduationCap className="w-4 h-4" /> Créer une session
         </button>
       </div>
@@ -1694,7 +1694,7 @@ export default function ClientDetail() {
                     <div className="flex items-center justify-end gap-2 pt-1">
                       <button onClick={() => setShowEmailForm(false)} className="px-3 py-1.5 text-ui text-gray-500 hover:text-gray-700">Annuler</button>
                       <button onClick={sendClientEmail} disabled={emailSending || !emailForm.to || !emailForm.subject || !emailForm.body}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-[rgb(var(--c-success))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-success))] shadow-sm disabled:opacity-50">
+                        className="flex items-center gap-1.5 btn btn-secondary text-ui hover:bg-[rgb(var(--c-success))] shadow-sm disabled:opacity-50">
                         {emailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Envoyer
                       </button>
                     </div>
@@ -1740,7 +1740,7 @@ export default function ClientDetail() {
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => setShowInteractionForm(false)} className="px-3 py-1.5 text-ui text-gray-500 hover:text-gray-700">Annuler</button>
-                        <button onClick={saveInteraction} className="flex items-center gap-1.5 px-4 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-info))] shadow-sm">
+                        <button onClick={saveInteraction} className="flex items-center gap-1.5 btn btn-secondary text-ui hover:bg-[rgb(var(--c-info))] shadow-sm">
                           <Send className="w-3.5 h-3.5" /> Enregistrer
                         </button>
                       </div>

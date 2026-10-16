@@ -338,7 +338,7 @@ export default function SessionChecklist({ session }) {
       <div className="flex gap-3">
         <button
           onClick={() => handlePrint(false)}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 btn btn-secondary transition-colors"
         >
           <FileCheck className="w-5 h-5" />
           <span> Imprimer fiche (état actuel)</span>

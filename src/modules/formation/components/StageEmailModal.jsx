@@ -819,7 +819,7 @@ export default function StageEmailModal({ session, onClose }) {
                 </button>
                 <button
                   onClick={handleSend}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))] text-ui font-medium"
+                  className="flex-1 flex items-center justify-center gap-2 btn btn-secondary text-ui font-medium"
                 >
                   <Send className="w-4 h-4" />
                   Confirmer et envoyer à {selectedCount} stagiaire{selectedCount > 1 ? 's' : ''}

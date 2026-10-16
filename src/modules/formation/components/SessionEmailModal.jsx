@@ -127,7 +127,7 @@ function MiniSignaturePad({ onValidate, onCancel }) {
             <button
               onClick={validate}
               disabled={!hasDrawn}
-              className="px-5 py-2 bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Valider
             </button>
@@ -1348,7 +1348,7 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                       </p>
                       <button
                         onClick={() => setShowSignaturePad(true)}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-[rgb(var(--c-info))] text-white text-ui-sm font-semibold rounded hover:bg-[rgb(var(--c-info))]"
+                        className="flex items-center gap-1.5 btn btn-secondary text-ui-sm font-semibold rounded hover:bg-[rgb(var(--c-info))]"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                         Signer maintenant

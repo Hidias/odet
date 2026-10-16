@@ -374,7 +374,7 @@ export default function ProspectionTerrain() {
 
             {/* Bouton générer */}
             <button onClick={() => handleGenerate()} disabled={loading || !cityLat}
-              className="flex items-center gap-2 px-4 py-2 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50 transition-colors">
+              className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50 transition-colors">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
               {loading ? 'Génération...' : 'Générer'}
             </button>
@@ -488,7 +488,7 @@ export default function ProspectionTerrain() {
                   <span className="font-bold text-lg text-gray-900 tracking-wide">{selectedProspect.phone}</span>
                 </div>
                 <a href={`tel:${selectedProspect.phone}`}
-                  className="px-3 py-1.5 bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui-sm font-medium hover:bg-[rgb(var(--c-warning))] transition-colors">
+                  className="btn btn-secondary text-ui-sm font-medium hover:bg-[rgb(var(--c-warning))] transition-colors">
                   Appeler
                 </a>
               </div>
