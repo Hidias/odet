@@ -296,3 +296,21 @@ html[data-lists='cards'] .dt-cards { display: block; }
   .animate-fadeIn, .animate-spin { animation: none; }
 }
 
+/* Barre de navigation en bas (téléphone) */
+.bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  background: #fff; border-top: 1px solid rgb(var(--c-line));
+  padding: 4px max(4px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+}
+.bottom-nav-item {
+  display: grid; justify-items: center; align-content: center; gap: 2px; min-height: 52px;
+  font-size: 11px; font-weight: 500; color: #6b7280; position: relative;
+}
+.bottom-nav-item.is-active { color: rgb(var(--c-accent-600)); font-weight: 600; }
+.bottom-nav-item.is-active::before { content: ""; position: absolute; top: -4px; left: 30%; right: 30%; height: 2px; background: rgb(var(--c-accent-500)); }
+@media (max-width: 1023px) {
+  main.has-bottom-nav { padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important; }
+  html[data-bottom-nav='1'] .action-bar { bottom: calc(60px + env(safe-area-inset-bottom)); }
+}
+

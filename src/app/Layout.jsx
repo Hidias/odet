@@ -2,7 +2,7 @@ import toast from 'react-hot-toast'
 import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  Menu, X, Bell, Check, LogOut, ChevronDown, Search, Settings, Sliders, SlidersHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
+  Menu, X, Bell, Check, LogOut, ChevronDown, Search, Settings, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -65,6 +65,25 @@ export default function Layout() {
   const fieldAllowed = !fieldOnly || location.pathname.startsWith('/interventions') || location.pathname === '/mot-de-passe'
   const activeSectionId = useMemo(() => sectionIdFor(location.pathname) || sections[0]?.id, [location.pathname, sections])
   const pageTitle = useMemo(() => pageTitleFor(location.pathname), [location.pathname])
+
+  // Barre de navigation en bas sur téléphone : les 4 destinations principales disponibles pour ce rôle et ces modules, puis « Plus » (menu complet)
+  const bottomItems = useMemo(() => {
+    if (fieldOnly) return []
+    const available = new Set(sections.flatMap((s) => s.items.map((i) => i.to)))
+    return [
+      { to: '/', icon: LayoutDashboard, label: 'Accueil' },
+      { to: '/sessions', icon: Calendar, label: 'Sessions' },
+      { to: '/interventions', icon: MapPin, label: 'Journée' },
+      { to: '/clients', icon: Building2, label: 'Clients' },
+    ].filter((i) => available.has(i.to)).slice(0, 4)
+  }, [sections, fieldOnly])
+  const showBottomNav = bottomItems.length > 0
+  useEffect(() => {
+    const el = document.documentElement
+    if (showBottomNav) el.dataset.bottomNav = '1'
+    else delete el.dataset.bottomNav
+    return () => { delete el.dataset.bottomNav }
+  }, [showBottomNav])
 
   const [openSections, setOpenSections] = useState({})
   useEffect(() => {
@@ -376,6 +395,21 @@ export default function Layout() {
         )}
       </aside>
 
+      {showBottomNav && (
+        <nav aria-label="Navigation principale" className="bottom-nav lg:hidden">
+          {bottomItems.map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `bottom-nav-item ${isActive ? 'is-active' : ''}`}>
+              <item.icon className="w-[22px] h-[22px]" aria-hidden="true" />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+          <button type="button" onClick={() => setDrawerOpen(true)} className={`bottom-nav-item ${drawerOpen ? 'is-active' : ''}`} aria-label="Plus de rubriques">
+            <MoreHorizontal className="w-[22px] h-[22px]" aria-hidden="true" />
+            <span>Plus</span>
+          </button>
+        </nav>
+      )}
+
       {/* Tiroir mobile */}
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
@@ -398,7 +432,10 @@ export default function Layout() {
             <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Menu" className="lg:hidden p-2 -ml-2 rounded-ui-sm text-gray-700 hover:bg-gray-100">
               <Menu className="w-5 h-5" />
             </button>
-            <div className="lg:hidden"><Brand compact /></div>
+            <div className="lg:hidden flex items-center gap-2 min-w-0">
+              <Brand compact />
+              {pageTitle && <span className="font-display font-semibold text-gray-900 truncate">{pageTitle}</span>}
+            </div>
             <h1 className="hidden lg:block font-display font-semibold text-gray-900 truncate" style={{ fontSize: 'calc(var(--text-ui) * 1.15)' }}>{pageTitle}</h1>
             <div className="flex-1" />
             {!fieldOnly && <button type="button" title="Recherche (bientôt)" className="hidden md:flex items-center gap-2 h-9 px-3 rounded-ui-sm border border-gray-200 text-gray-400 text-ui-sm w-64 bg-white">
@@ -463,7 +500,7 @@ export default function Layout() {
 
         {(showNotifications || showUserMenu || showDisplay) && <div className="fixed inset-0 z-10" onClick={closeMenus} />}
 
-        <main className="max-w-7xl mx-auto" style={{ padding: 'var(--space-4) var(--page-px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+        <main className={`max-w-7xl mx-auto ${showBottomNav ? 'has-bottom-nav' : ''}`} style={{ padding: 'var(--space-4) var(--page-px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
           {branding?.demo_mode && (
             <div className="mb-4 rounded-ui px-3 py-2 text-ui-sm flex items-center gap-2" style={{ background: 'rgb(var(--c-warning-bg))', color: 'rgb(var(--c-warning))' }}>
               <span className="font-semibold">Mode démonstration</span>
