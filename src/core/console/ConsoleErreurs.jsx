@@ -51,7 +51,7 @@ function etat(e) {
 
 function texteClaude(e) {
   return [
-    `Erreur odet (${SOURCES[e.source] || e.source}), ${e.occurrences} occurrence(s), ${(e.users || []).length} personne(s)`,
+    `Erreur odet (${SOURCES[e.source] || e.source}), ${e.occurrences} occurrence(s), ${(e.people || []).length} personne(s)`,
     `Message : ${e.message}`,
     `Page : ${e.page || 'inconnue'}`,
     `Version : ${e.app_version || 'inconnue'} · Navigateur : ${navigateur(e.user_agent) || 'inconnu'}`,
@@ -89,7 +89,7 @@ function Detail({ e, onClose, onStatus, busy }) {
           <div className="min-w-0"><dt className="text-ui-sm muted">Page</dt><dd className="font-medium break-words">{e.page || '-'}</dd></div>
           <div><dt className="text-ui-sm muted">Version</dt><dd className="font-medium">{e.app_version || '-'}</dd></div>
           <div><dt className="text-ui-sm muted">Navigateur</dt><dd className="font-medium">{navigateur(e.user_agent) || '-'}</dd></div>
-          <div className="min-w-0"><dt className="text-ui-sm muted">Personnes ({(e.users || []).length})</dt><dd className="font-medium break-words">{(e.users || []).join(', ') || 'non connectées'}</dd></div>
+          <div className="min-w-0"><dt className="text-ui-sm muted">Personnes ({(e.people || []).length})</dt><dd className="font-medium break-words">{(e.people || []).join(', ') || 'non connectées'}</dd></div>
         </dl>
         {e.stack && <pre className="text-[12px] leading-relaxed bg-gray-900 text-gray-100 p-3 overflow-x-auto max-h-72 rounded-ui">{e.stack}</pre>}
         {(e.recent || []).length > 0 && (
@@ -100,7 +100,7 @@ function Detail({ e, onClose, onStatus, busy }) {
                 <div key={i} className="flex flex-wrap gap-x-3 gap-y-0.5 py-1.5 text-ui-sm">
                   <span className="text-gray-900 tabular-nums">{dateHeure(r.at)}</span>
                   {r.page && <span className="muted break-all">{r.page}</span>}
-                  {r.user && <span className="muted">{r.user}</span>}
+                  {r.user_id && <span className="muted">{e.nameOf(r.user_id)}</span>}
                   {r.version && <span className="muted">v{r.version}</span>}
                 </div>
               ))}
@@ -130,7 +130,15 @@ export default function ConsoleErreurs() {
     setError(null)
     const { data, error: e } = await supabase.from('error_logs').select('*').order('last_seen', { ascending: false }).limit(500)
     if (e) { setError(e.message); setRows([]); return }
-    setRows(data || [])
+    // Le suivi ne stocke que des identifiants de compte : les noms sont lus dans les profils, à l'affichage
+    const ids = [...new Set((data || []).flatMap((r) => [...(r.user_ids || []), ...(r.recent || []).map((x) => x.user_id)]).filter(Boolean))]
+    const names = {}
+    if (ids.length) {
+      const { data: profs } = await supabase.from('profiles').select('id, display_name, first_name, last_name').in('id', ids)
+      for (const p of profs || []) names[p.id] = p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Compte sans nom'
+    }
+    const nameOf = (id) => names[id] || 'Compte supprimé'
+    setRows((data || []).map((r) => ({ ...r, nameOf, people: (r.user_ids || []).map(nameOf) })))
   }
   useEffect(() => { if (isSuperadmin) load() }, [isSuperadmin])
 
@@ -155,7 +163,7 @@ export default function ConsoleErreurs() {
       && (!source || e.source === source)
       && (!version || e.app_version === version)
       && new Date(e.last_seen).getTime() >= since
-      && (!needle || [e.message, e.page, ...(e.users || [])].some((v) => String(v || '').toLowerCase().includes(needle))))
+      && (!needle || [e.message, e.page, ...(e.people || [])].some((v) => String(v || '').toLowerCase().includes(needle))))
   }, [rows, statut, source, periode, version, q])
 
   const selected = (rows || []).find((e) => e.id === selId) || null
@@ -163,7 +171,7 @@ export default function ConsoleErreurs() {
   async function setStatus(e, status) {
     setBusy(true)
     const patch = status === 'resolved'
-      ? { status, resolved_at: new Date().toISOString(), resolved_by: user?.email || null }
+      ? { status, resolved_at: new Date().toISOString(), resolved_by: user?.id || null }
       : { status, resolved_at: null, resolved_by: null }
     const { error: err } = await supabase.from('error_logs').update(patch).eq('id', e.id)
     setBusy(false)
@@ -264,7 +272,7 @@ export default function ConsoleErreurs() {
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap"><span className="badge badge-neutral">{SOURCES[e.source] || e.source}</span></td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{e.occurrences}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{(e.users || []).length}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{(e.people || []).length}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">{ilYa(e.last_seen)}</td>
                       <td className="px-3 py-2.5"><span className={`badge ${st.cls}`}>{st.label}</span></td>
                       <td className="px-3 py-2.5 text-right">
@@ -288,7 +296,7 @@ export default function ConsoleErreurs() {
                   <div className="text-ui-sm muted flex flex-wrap gap-x-3">
                     <span>{SOURCES[e.source] || e.source}</span>
                     {e.page && <span className="break-all">{e.page}</span>}
-                    <span>{e.occurrences} fois · {(e.users || []).length} pers.</span>
+                    <span>{e.occurrences} fois · {(e.people || []).length} pers.</span>
                   </div>
                   <div className="flex gap-2 pt-1">
                     {e.status === 'open' && <button type="button" disabled={busy} onClick={() => setStatus(e, 'resolved')} className="btn btn-primary btn-sm">Traitée</button>}

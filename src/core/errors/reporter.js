@@ -5,6 +5,8 @@
 import { supabase } from '../supabase'
 import { APP_VERSION } from '../version'
 import { CHUNK_ERROR } from './chunkReload'
+// Règle commune aux routes /api : aucune donnée personnelle dans le suivi des erreurs
+import { redact } from '../../../api/_lib/redact.js'
 
 const IGNORED = [
   CHUNK_ERROR,
@@ -51,8 +53,8 @@ export function reportError(err, extra = {}) {
     const componentStack = extra.componentStack ? `\n\nComposants :${String(extra.componentStack).slice(0, 2000)}` : ''
     supabase.rpc('log_error', {
       p_source: currentSource(),
-      p_message: message,
-      p_stack: (stack + componentStack) || null,
+      p_message: redact(message),
+      p_stack: redact(stack + componentStack) || null,
       p_page: currentPage(),
       p_user_agent: navigator.userAgent,
       p_app_version: APP_VERSION,

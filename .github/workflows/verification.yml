@@ -1,7 +1,7 @@
 # Vérification automatique : à chaque envoi sur une branche et à chaque pull request,
 # l'application est construite et les tests sont lancés. Une croix rouge = ne pas fusionner.
 # La règle « la vérification doit être verte pour fusionner dans main » se règle dans
-# Settings > Branches (voir docs/environnement-test.md).
+# Settings > Branches (voir docs/verification-et-preversions.md).
 
 name: Vérification
 

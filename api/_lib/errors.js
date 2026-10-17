@@ -1,9 +1,15 @@
 // api/_lib/errors.js : erreurs des routes /api enregistrées dans le suivi des erreurs (table error_logs).
 // withErrorLog enveloppe une route sans changer son comportement : la réponse est la même,
 // une exception continue d'être levée. Seules s'ajoutent l'enregistrement des réponses 5xx et des exceptions.
+// Aucune donnée personnelle n'est journalisée : messages et piles masqués (redact.js), la personne
+// n'est connue que par son identifiant de compte, jamais par son email.
+// L'import de ce fichier installe aussi le masquage de tous les journaux console de la route.
 // Import : import { withErrorLog } from './_lib/errors.js'
 
 import { createClient } from '@supabase/supabase-js'
+import { redact, installConsoleRedaction } from './redact.js'
+
+installConsoleRedaction()
 
 let admin = null
 function adminClient() {
@@ -29,13 +35,12 @@ export async function logApiError(route, err, req) {
     if (!client) return
     const call = client.rpc('log_error', {
       p_source: 'api',
-      p_message: messageOf(err).slice(0, 1000),
-      p_stack: err instanceof Error ? (err.stack || null) : null,
+      p_message: redact(messageOf(err)).slice(0, 1000),
+      p_stack: err instanceof Error ? (redact(err.stack || '') || null) : null,
       p_page: `${req?.method || ''} /api/${route}`.trim(),
       p_user_agent: `node ${process.version}`,
       p_app_version: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) || null,
       p_user_id: req?.user?.id || null,
-      p_user_email: req?.user?.email || null,
     })
     await Promise.race([call, new Promise((resolve) => setTimeout(resolve, 3000))])
   } catch { /* le suivi ne doit jamais faire échouer la route */ }

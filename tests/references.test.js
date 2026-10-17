@@ -1,6 +1,6 @@
 // Références des factures, avoirs et devis.
 // Les références de session (préfixe doc_prefix) sont générées en base par un déclencheur :
-// elles sont contrôlées sur odet-test, voir docs/environnement-test.md.
+// elles se vérifient en transaction annulée sur la production (docs/verification-et-preversions.md).
 import { describe, it, expect } from 'vitest'
 import { nextInvoiceReference, nextQuoteReference, invoicePrefix } from '../src/modules/commercial/lib/references.js'
 

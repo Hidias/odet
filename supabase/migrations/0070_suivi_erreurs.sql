@@ -5,6 +5,13 @@
 -- avec un plafond de nouvelles erreurs par minute. Lecture et traitement : super administrateur seulement.
 -- Purge automatique des erreurs plus vues depuis 90 jours, faite par log_error au plus une fois par heure.
 -- Notification « Nouvelle erreur » réservée au super administrateur (metadata.audience = 'superadmin').
+-- ORDRE D'APPLICATION : après les migrations 0080 à 0087 du chantier 2 (0082 supprime toutes les règles de la
+-- table notifications et 0085 retire à anon l'exécution des fonctions publiques ; appliquée avant, 0070 perdrait
+-- sa règle sur les notifications et l'accès des portails à log_error).
+-- Aucune donnée personnelle (règle du chantier F, écart 14) : la personne n'est connue que par
+-- l'identifiant de son compte (jamais son email) ; emails, téléphones, IBAN, numéros de sécurité sociale
+-- et jetons sont masqués dans le message, la pile et la page par error_redact, même si l'appelant
+-- (navigateur ou serveur) ne l'a pas déjà fait.
 
 create table if not exists public.error_logs (
   id uuid primary key default gen_random_uuid(),
@@ -16,8 +23,7 @@ create table if not exists public.error_logs (
   user_agent text,
   app_version text,
   user_id uuid,
-  user_email text,
-  users text[] not null default '{}',
+  user_ids uuid[] not null default '{}',
   occurrences integer not null default 1,
   recent jsonb not null default '[]'::jsonb,
   status text not null default 'open' check (status in ('open', 'resolved', 'ignored')),
@@ -31,7 +37,8 @@ create index if not exists error_logs_last_seen_idx on public.error_logs (last_s
 create index if not exists error_logs_status_idx on public.error_logs (status);
 
 comment on table public.error_logs is 'Erreurs de l''application regroupées par empreinte. Écriture par log_error, lecture super administrateur.';
-comment on column public.error_logs.recent is 'Dernières occurrences (10 au plus) : date, page, navigateur, version, personne.';
+comment on column public.error_logs.recent is 'Dernières occurrences (10 au plus) : date, page, navigateur, version, identifiant du compte.';
+comment on column public.error_logs.user_ids is 'Comptes touchés (20 au plus), par identifiant : jamais d''email.';
 
 -- Date de la dernière purge (une seule ligne)
 create table if not exists public.error_logs_purge (
@@ -54,6 +61,23 @@ revoke all on public.error_logs from anon;
 revoke insert on public.error_logs from authenticated;
 grant select, update, delete on public.error_logs to authenticated;
 revoke all on public.error_logs_purge from anon, authenticated;
+
+-- Masquage des données personnelles (même règle que api/_lib/redact.js)
+create or replace function public.error_redact(p text)
+returns text
+language sql
+immutable
+set search_path to 'public'
+as $function$
+  select regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(
+    p,
+    'eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}', '[jeton]', 'g'),
+    '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', '[email]', 'g'),
+    '[A-Z]{2}[0-9]{2}( ?[A-Z0-9]{4}){3,7}( ?[A-Z0-9]{1,3})?', '[IBAN]', 'g'),
+    '[12][ .]?[0-9]{2}[ .]?[0-9]{2}[ .]?([0-9]{2}|2A|2B)[ .]?[0-9]{3}[ .]?[0-9]{3}([ .]?[0-9]{2})?', '[NIR]', 'g'),
+    '(\+33[ .-]?|0)[1-9]([ .-]?[0-9]{2}){4}', '[téléphone]', 'g'),
+    '([?&](code|state|jeton|t|token|access_token)=)[^&[:space:]"'']+', '\1[masqué]', 'gi')
+$function$;
 
 -- Empreinte : origine + message sans les parties variables (nombres, identifiants)
 -- + premier emplacement de la pile sans numéros de ligne ni suffixe de fichier de build.
@@ -87,8 +111,7 @@ create or replace function public.log_error(
   p_page text default null,
   p_user_agent text default null,
   p_app_version text default null,
-  p_user_id uuid default null,
-  p_user_email text default null
+  p_user_id uuid default null
 )
 returns uuid
 language plpgsql
@@ -97,23 +120,21 @@ set search_path to 'public'
 as $function$
 declare
   v_source text := case when p_source in ('app', 'portail', 'entreprise', 'api') then p_source else 'app' end;
-  v_message text := left(coalesce(nullif(trim(p_message), ''), 'Erreur sans message'), 1000);
-  v_stack text := left(p_stack, 8000);
-  v_page text := left(p_page, 500);
+  v_message text := left(public.error_redact(coalesce(nullif(trim(p_message), ''), 'Erreur sans message')), 1000);
+  v_stack text := left(public.error_redact(p_stack), 8000);
+  v_page text := left(public.error_redact(p_page), 500);
   v_ua text := left(p_user_agent, 300);
   v_version text := left(p_app_version, 40);
   v_uid uuid := auth.uid();
-  v_email text := left(auth.jwt() ->> 'email', 200);
   v_fp text;
   v_row public.error_logs%rowtype;
   v_recent jsonb;
   v_id uuid;
 begin
-  -- Seul le serveur (clé service_role) peut déclarer la personne concernée ;
+  -- Seul le serveur (clé service_role) peut déclarer le compte concerné ;
   -- un navigateur est identifié par sa propre session, jamais par ce qu'il envoie.
   if coalesce(auth.jwt() ->> 'role', '') = 'service_role' then
     v_uid := coalesce(p_user_id, v_uid);
-    v_email := coalesce(left(p_user_email, 200), v_email);
   end if;
 
   -- Purge des erreurs plus vues depuis 90 jours, au plus une fois par heure
@@ -123,7 +144,7 @@ begin
   end if;
 
   v_fp := public.error_fingerprint(v_source, v_message, v_stack);
-  v_recent := jsonb_build_object('at', now(), 'page', v_page, 'ua', v_ua, 'version', v_version, 'user', v_email);
+  v_recent := jsonb_build_object('at', now(), 'page', v_page, 'ua', v_ua, 'version', v_version, 'user_id', v_uid);
 
   select * into v_row from public.error_logs where fingerprint = v_fp for update;
 
@@ -135,8 +156,7 @@ begin
       user_agent = coalesce(v_ua, user_agent),
       app_version = coalesce(v_version, app_version),
       user_id = coalesce(v_uid, user_id),
-      user_email = coalesce(v_email, user_email),
-      users = case when v_email is null or v_email = any(users) or cardinality(users) >= 20 then users else users || v_email end,
+      user_ids = case when v_uid is null or v_uid = any(user_ids) or cardinality(user_ids) >= 20 then user_ids else user_ids || v_uid end,
       recent = (select coalesce(jsonb_agg(e), '[]'::jsonb) from (select e from jsonb_array_elements(jsonb_build_array(v_recent) || recent) with ordinality as t(e, n) order by n limit 10) x),
       -- Une erreur traitée qui revient est rouverte ; une erreur ignorée l'est seulement dans une nouvelle version
       status = case
@@ -160,9 +180,9 @@ begin
     return null;
   end if;
 
-  insert into public.error_logs (fingerprint, source, message, stack, page, user_agent, app_version, user_id, user_email, users, recent)
-  values (v_fp, v_source, v_message, v_stack, v_page, v_ua, v_version, v_uid, v_email,
-          case when v_email is null then '{}'::text[] else array[v_email] end, jsonb_build_array(v_recent))
+  insert into public.error_logs (fingerprint, source, message, stack, page, user_agent, app_version, user_id, user_ids, recent)
+  values (v_fp, v_source, v_message, v_stack, v_page, v_ua, v_version, v_uid,
+          case when v_uid is null then '{}'::uuid[] else array[v_uid] end, jsonb_build_array(v_recent))
   on conflict (fingerprint) do update set occurrences = public.error_logs.occurrences + 1, last_seen = now()
   returning id into v_id;
 
@@ -174,16 +194,18 @@ begin
 end;
 $function$;
 
-revoke all on function public.log_error(text, text, text, text, text, text, uuid, text) from public;
-grant execute on function public.log_error(text, text, text, text, text, text, uuid, text) to anon, authenticated, service_role;
+revoke all on function public.log_error(text, text, text, text, text, text, uuid) from public;
+grant execute on function public.log_error(text, text, text, text, text, text, uuid) to anon, authenticated, service_role;
+revoke all on function public.error_redact(text) from public, anon;
+grant execute on function public.error_redact(text) to authenticated, service_role;
 revoke all on function public.error_fingerprint(text, text, text) from public, anon;
 grant execute on function public.error_fingerprint(text, text, text) to authenticated, service_role;
 
--- Notifications réservées au super administrateur : invisibles pour les autres comptes connectés.
--- Remplace la politique ouverte d'origine (même portée pour toutes les autres notifications).
-drop policy if exists notifications_auth_all on public.notifications;
-create policy notifications_auth_all on public.notifications for all to authenticated
-  using (coalesce(metadata ->> 'audience', '') <> 'superadmin' or public.is_superadmin())
-  with check (true);
+-- Notifications réservées au super administrateur (metadata.audience = 'superadmin') : invisibles pour les
+-- autres comptes. Règle RESTRICTIVE, qui s'ajoute aux règles existantes sans en élargir aucune : elle reste
+-- juste avec les règles actuelles comme avec celles du chantier 2 (0082).
+drop policy if exists notifications_audience_superadmin on public.notifications;
+create policy notifications_audience_superadmin on public.notifications as restrictive for select to authenticated
+  using (coalesce(metadata ->> 'audience', '') <> 'superadmin' or public.is_superadmin());
 
 insert into public.schema_migrations (version) values ('0070_suivi_erreurs') on conflict (version) do nothing;
