@@ -213,7 +213,9 @@ declare
     'save_evaluation', 'save_positioning_test_answers', 'portal_quiz_questions', 'portal_quiz_check',
     'portal_quiz_finish', 'portal_quiz_summary', 'portal_documents', 'portal_log_download',
     'public_reclamation_session', 'public_reclamation_submit', 'client_portal_data', 'client_portal_org',
-    'published_quality_doc', 'referent_handicap_info', 'quality_demo_names_active'
+    'published_quality_doc', 'referent_handicap_info', 'quality_demo_names_active',
+    -- suivi des erreurs (0070, chantier 1) : les portails publics enregistrent leurs erreurs
+    'log_error'
   ];
   internal text[] := array[
     'cron_call_vercel', 'mailing_tick', 'signature_tick', 'signature_weekly_tick', 'social_tick',

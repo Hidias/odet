@@ -372,6 +372,22 @@ begin
     else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  suivi formatif : fonctions sf_* et règles inchangées (' || v_got || ')'); end if;
   end if;
 
+  -- Suivi des erreurs (0070, chantier 1, appliquée après le chantier 2) : accès gardés
+  if to_regprocedure('public.log_error(text, text, text, text, text, text, uuid)') is not null then
+    v_total := v_total + 3;
+    if has_function_privilege('anon', 'public.log_error(text, text, text, text, text, text, uuid)', 'EXECUTE') then
+      v_lines := v_lines || 'OK      base  log_error appelable par les portails (anon)'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  log_error appelable par les portails (anon)'::text; end if;
+    if exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'notifications'
+               and policyname = 'notifications_audience_superadmin' and permissive = 'RESTRICTIVE') then
+      v_lines := v_lines || 'OK      base  règle restrictive des notifications du chantier 1 présente'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  règle restrictive des notifications du chantier 1 présente'::text; end if;
+    if not has_table_privilege('anon', 'public.error_logs', 'SELECT')
+       and not has_table_privilege('authenticated', 'public.error_logs', 'INSERT') then
+      v_lines := v_lines || 'OK      base  error_logs : aucune lecture anon, aucune écriture directe'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  error_logs : aucune lecture anon, aucune écriture directe'::text; end if;
+  end if;
+
   -- Passeport de prévention (si le module est installé) : pp_nir réservée au serveur
   if to_regclass('public.pp_nir') is not null then
     v_total := v_total + 2;

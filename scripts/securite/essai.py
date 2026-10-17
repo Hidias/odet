@@ -37,6 +37,11 @@ create temp table essai_sf_avant as
 for f in mig:
     parts.append(f"\n-- ===== {f.name} =====\n")
     parts.append(f.read_text(encoding='utf-8'))
+# Migration 0070 du chantier 1 (suivi des erreurs) : prévue APRÈS 0080 à 0087 ; jouée ici dans le même ordre
+c1 = root / 'supabase' / 'migrations' / '0070_suivi_erreurs.sql'
+if c1.exists():
+    parts.append(f"\n-- ===== {c1.name} (chantier 1, appliquée après le chantier 2) =====\n")
+    parts.append(c1.read_text(encoding='utf-8'))
 parts.append(f"\n-- ===== {tests.name} =====\n")
 parts.append(tests.read_text(encoding='utf-8'))
 
