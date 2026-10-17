@@ -2522,7 +2522,12 @@ begin
       ('lec', 'ne lit aucun devis', 'select count(*) from public.quotes', 'vide'),
       ('com', 'lit les devis', 'select count(*) from public.quotes', 'non_vide'),
       -- Prospection
-      ('com', 'lit la base prospects', 'select count(*) from public.prospection_massive', 'non_vide'),
+      -- Base prospects : lisible par le commercial si le module Prospection est actif ; module coupé = seul le super administrateur lit
+      ('com', case when exists (select 1 from public.org_modules m where m.key = 'prospection' and m.enabled)
+                   then 'lit la base prospects (module actif)' else 'ne lit pas la base prospects (module coupé)' end,
+              'select count(*) from public.prospection_massive',
+              case when exists (select 1 from public.org_modules m where m.key = 'prospection' and m.enabled) then 'non_vide' else 'vide' end),
+      ('sa', 'lit la base prospects (module actif ou coupé)', 'select count(*) from public.prospection_massive', 'non_vide'),
       ('for', 'ne lit pas la base prospects', 'select count(*) from public.prospection_massive', 'vide'),
       ('cpt', 'ne lit pas la base prospects', 'select count(*) from public.prospection_massive', 'vide'),
       ('lec', 'ne lit pas la base prospects', 'select count(*) from public.prospection_massive', 'vide'),
