@@ -149,6 +149,9 @@ t('completude_tracking', sel=roles(INT), ins=roles(INT), upd=roles(INT), dele=ro
 t('signature_alerts_sent', sel=roles(MGR))
 # Serveur seulement : toutes les règles retirées, aucune remise (_encryption_keys : traité par 0080)
 NO_POLICY = ['email_sync_cursors', 'mailing_reply_cursors']
+# user_feedback (0260, post-it) : serveur seulement par /api/retours ; aucune règle, aucun droit pour anon
+# ni authenticated, posés par 0260 elle-même (non listée ici : 0082 passe avant 0260 sur une base neuve).
+# Contrôlé par droits_chantier2.sql.
 
 # Catalogue, formateurs, banque de questions
 for n in ['courses', 'training_themes', 'course_equipment', 'equipment_catalog', 'programme_versions',

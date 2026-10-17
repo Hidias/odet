@@ -1,4 +1,5 @@
 import { getAdminClient } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 // Espace entreprise (sans compte) : signature du formateur pour la feuille d'émargement.
 // Le bucket trainer-signatures est privé (chantier 2) : le navigateur d'un visiteur ne peut plus lire
@@ -16,7 +17,7 @@ function pathFrom(url) {
   return path && !path.includes('..') ? path : null
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
   const { token, code, session_id: sessionId } = req.body || {}
   if (!token || !code || !sessionId) return res.status(400).json({ error: 'Paramètres manquants' })
@@ -42,3 +43,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erreur serveur' })
   }
 }
+
+export default withErrorLog(handler, 'portail-signature')

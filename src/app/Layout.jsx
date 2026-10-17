@@ -8,6 +8,8 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '../core/store'
 import { RouteErrorBoundary } from '../core/errors/ErrorBoundary'
+import PostIt from '../core/feedback/PostIt'
+import WelcomeSheet from '../core/feedback/WelcomeSheet'
 import { supabase } from '../core/supabase'
 import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
@@ -511,6 +513,9 @@ export default function Layout() {
           {fieldAllowed ? <RouteErrorBoundary><Outlet /></RouteErrorBoundary> : <Navigate to="/interventions" replace />}
         </main>
       </div>
+
+      <PostIt userId={user?.id} pageTitle={pageTitle} />
+      <WelcomeSheet user={user} profile={profile} userRole={userRole} />
     </div>
   )
 }

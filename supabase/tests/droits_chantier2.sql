@@ -233,6 +233,10 @@ begin
       ('stg', 'ne lit pas le suivi formatif', 'select count(*) from public.formative_evaluations', 'vide'),
       ('ext', 'ne lit pas les séquences', 'select count(*) from public.session_sequences', 'vide'),
       ('off', 'compte désactivé : pas de suivi formatif', 'select count(*) from public.formative_evaluations', 'vide'),
+      -- Retours du post-it (0260) : serveur seulement, même le super administrateur ne lit rien en direct
+      ('sa', 'ne lit pas les retours en direct', 'select count(*) from public.user_feedback', 'refus'),
+      ('lec', 'n''écrit pas de retour en direct', 'with x as (insert into public.user_feedback (author_id, message) values (''' || u_lec || ''', ''Essai'') returning 1) select count(*) from x', 'refus'),
+      ('anon', 'ne lit pas les retours', 'select count(*) from public.user_feedback', 'refus'),
       ('anon', 'ne lit pas le suivi formatif', 'select count(*) from public.formative_evaluations', 'refus'),
       ('ent', 'n''appelle pas une fonction du personnel', 'select count(*) from (select public.client_contact_sync_primary(''' || v_client || ''')) x', 'refus')
     ) t(who, label, sql, expect)
@@ -386,6 +390,18 @@ begin
        and not has_table_privilege('authenticated', 'public.error_logs', 'INSERT') then
       v_lines := v_lines || 'OK      base  error_logs : aucune lecture anon, aucune écriture directe'::text;
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  error_logs : aucune lecture anon, aucune écriture directe'::text; end if;
+  end if;
+
+  -- Retours du post-it (0260) : table serveur seulement (RLS active, aucune règle, aucun droit anon ni authenticated)
+  if to_regclass('public.user_feedback') is not null then
+    v_total := v_total + 1;
+    if (select relrowsecurity from pg_class where oid = 'public.user_feedback'::regclass)
+       and not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'user_feedback')
+       and not exists (select 1 from aclexplode(coalesce((select relacl from pg_class where oid = 'public.user_feedback'::regclass),
+                                                         acldefault('r', (select relowner from pg_class where oid = 'public.user_feedback'::regclass)))) a
+                       where a.grantee in ('anon'::regrole, 'authenticated'::regrole)) then
+      v_lines := v_lines || 'OK      base  user_feedback : serveur seulement (aucune règle, aucun droit des comptes)'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  user_feedback : serveur seulement (aucune règle, aucun droit des comptes)'::text; end if;
   end if;
 
   -- Passeport de prévention (si le module est installé) : pp_nir réservée au serveur
