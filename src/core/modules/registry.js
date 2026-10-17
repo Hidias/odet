@@ -103,7 +103,8 @@ export const NAV_SECTIONS = [
 ]
 
 export const SETTINGS_ITEMS = [
-  { to: '/parametres', icon: Settings, label: 'Paramètres', roles: ADMINS },
+  // Paramètres : super administrateur seulement (décision du 17/10 ; l'administrateur y aura accès avec la licence totale, C1b)
+  { to: '/parametres', icon: Settings, label: 'Paramètres', roles: ['superadmin'] },
   { to: '/console', icon: Sliders, label: 'Console', roles: ['superadmin'] },
 ]
 

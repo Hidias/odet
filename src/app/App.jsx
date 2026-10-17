@@ -115,6 +115,15 @@ function PrivateRoute({ children }) {
   return children
 }
 
+// Pages réservées au super administrateur (Paramètres, Console, assistant de configuration).
+// Les autres comptes reviennent au tableau de bord. La base garde ses propres règles (chantier 2).
+function SuperadminRoute({ children }) {
+  const { userRole, loading } = useAuthStore()
+  if (loading) return <PageLoader />
+  if (userRole !== 'superadmin') return <Navigate to="/" replace />
+  return children
+}
+
 // Route réservée au comptable (et aux admins qui veulent y accéder)
 function ComptableRoute({ children }) {
   const { user, loading } = useAuthStore()
@@ -193,7 +202,7 @@ export default function App() {
           {/* Assistant de configuration : plein écran, hors menu */}
           <Route path="/setup" element={
             <PrivateRoute>
-              <SetupWizard />
+              <SuperadminRoute><SetupWizard /></SuperadminRoute>
             </PrivateRoute>
           } />
 
@@ -253,8 +262,8 @@ export default function App() {
             <Route path="passeport/*" element={<Passeport />} />
             <Route path="veille-qualiopi" element={<VeilleQualiopi />} />
             <Route path="audit-logs" element={<AuditLogs />} />
-            <Route path="parametres" element={<Settings />} />
-            <Route path="console" element={<Console />} />
+            <Route path="parametres" element={<SuperadminRoute><Settings /></SuperadminRoute>} />
+            <Route path="console" element={<SuperadminRoute><Console /></SuperadminRoute>} />
             <Route path="design-systeme" element={<DesignReference />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />

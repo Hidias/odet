@@ -1,4 +1,4 @@
-import { requireRole, ADMIN_ROLES } from './_lib/auth.js'
+import { requireRole } from './_lib/auth.js'
 
 // Gestion des comptes par un administrateur de l'organisme :
 //  - invite : crée le compte et envoie l'invitation (l'utilisateur choisit son mot de passe)
@@ -8,7 +8,8 @@ import { requireRole, ADMIN_ROLES } from './_lib/auth.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
-  const ctx = await requireRole(req, res, ADMIN_ROLES)
+  // Gestion des comptes : super administrateur seulement (décision du 17/10)
+  const ctx = await requireRole(req, res, ['superadmin'])
   if (!ctx) return
   const { admin, profile } = ctx
   const { action, email, role, user_id, display_name, first_name, last_name } = req.body || {}
