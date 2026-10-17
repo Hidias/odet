@@ -1,6 +1,6 @@
 // Totaux des factures, avoirs et devis.
-// Les tests « bug connu » (it.fails) décrivent un comportement actuel jugé faux : ils passent tant que le
-// bug existe et deviennent rouges le jour où il est corrigé, pour penser à les transformer en tests normaux.
+// Calcul unique (src/core/billing/totals.js) : les deux anciens « bugs connus » (taux 0 % compté à 20 %,
+// écart d'un centime avec le Factur-X) sont corrigés et testés comme des cas normaux.
 import { describe, it, expect } from 'vitest'
 import { calcInvoiceTotals } from '../src/modules/commercial/pdf/invoiceGenerator.js'
 import { calcItemTotal, calcTotals } from '../src/modules/commercial/lib/quoteTotals.js'
@@ -62,12 +62,24 @@ describe('Facture : calcInvoiceTotals', () => {
     expect(avoirPartiel.totalTtc).toBeGreaterThan(0)
   })
 
-  it.fails('bug connu : une ligne à 0 % de TVA est comptée à 20 %', () => {
+  it('une ligne à 0 % de TVA reste à 0 % (pas remplacée par 20 %)', () => {
     const t = calcInvoiceTotals([ligne(1, 100, 0)], 0, true)
     expect(t.totalTva).toBe(0)
+    expect(t.totalTtc).toBe(100)
   })
 
-  it.fails('bug connu : montants non arrondis au centime (HT + TVA affichés différent du TTC)', () => {
+  it('taux absent : 20 % par défaut', () => {
+    const t = calcInvoiceTotals([{ quantity: 1, unit_price_ht: 100 }], 0, true)
+    expect(t.totalTva).toBe(20)
+  })
+
+  it('lignes à 20 % et à 0 % sur la même facture', () => {
+    const t = calcInvoiceTotals([ligne(1, 100, 20), ligne(1, 50, 0)], 0, true)
+    expect(t.totalTva).toBe(20)
+    expect(t.totalTtc).toBe(170)
+  })
+
+  it('montants arrondis au centime : HT net + TVA = TTC', () => {
     // 2 x 33,33 € HT, remise 5 %, TVA 20 % : le PDF affiche HT 63,33 + TVA 12,67 = 76,00 mais TTC 75,99
     const t = calcInvoiceTotals([ligne(1, 33.33), ligne(1, 33.33)], 5, true)
     expect(cents(cents(t.netHt) + cents(t.totalTva))).toBe(cents(t.totalTtc))
@@ -91,17 +103,24 @@ describe('Facture : cohérence avec Factur-X (computeTotals)', () => {
     })
   }
 
-  it.fails('bug connu : écart d\'un centime entre la facture enregistrée et le Factur-X', () => {
+  it('aucun écart d\'un centime entre la facture enregistrée et le Factur-X', () => {
     const items = [ligne(1, 33.33), ligne(1, 33.33)]
     const pdf = calcInvoiceTotals(items, 5, true)
     const fx = computeTotals({ discount_percent: 5, amount_paid: 0 }, items, true)
-    expect(cents(pdf.totalTtc)).toBe(fx.grandTotal) // 75,99 contre 76,00
+    expect(pdf.totalTtc).toBe(fx.grandTotal)
+    expect(pdf.totalTtc).toBe(76)
   })
 
   it('Factur-X : reste dû = TTC - déjà payé', () => {
     const fx = computeTotals({ discount_percent: 0, amount_paid: 500 }, [ligne(2, 650)], true)
     expect(fx.grandTotal).toBe(1560)
     expect(fx.due).toBe(1060)
+  })
+
+  it('Factur-X : ligne à 0 % en catégorie E, ligne à 20 % en catégorie S', () => {
+    const fx = computeTotals({ discount_percent: 0 }, [ligne(1, 100, 20), ligne(1, 50, 0)], true)
+    expect(fx.taxTotal).toBe(20)
+    expect(fx.breakdown.map((g) => g.cat).sort()).toEqual(['E', 'S'])
   })
 
   it('Factur-X non assujetti : catégorie E, aucune taxe', () => {
@@ -136,7 +155,7 @@ describe('Devis : calcTotals', () => {
     expect(calcTotals(items, 7.5, 20, true).totalTtc).toBeCloseTo(calcInvoiceTotals(items, 7.5, true).totalTtc, 6)
   })
 
-  it.fails('bug connu : un devis à 0 % de TVA est calculé à 20 %', () => {
+  it('un devis à 0 % de TVA reste à 0 %', () => {
     const t = calcTotals([ligne(1, 100)], 0, 0, true)
     expect(t.totalTva).toBe(0)
   })

@@ -5,6 +5,7 @@ import { supabase } from '../../../core/supabase'
 import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { profileName } from '../../../core/org/currentOrg'
 import { DEFAULT_OPERATION_LABELS, todayIso } from './schedule'
+import { computeDocumentTotals, lineTotal } from '../../../core/billing/totals'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 // Listes : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
@@ -280,10 +281,9 @@ async function nextRef(table, prefix) {
   return `${prefix}-${ds}-${String(seq).padStart(5, '0')}`
 }
 function totals(lines, tvaRate) {
-  const ht = lines.reduce((s, l) => s + Number(l.quantity || 0) * Number(l.unit_price_ht || 0), 0)
-  const tva = lines.reduce((s, l) => s + Number(l.quantity || 0) * Number(l.unit_price_ht || 0) * (Number(l.tva_rate ?? tvaRate) / 100), 0)
-  const r = (n) => Math.round(n * 100) / 100
-  return { ht: r(ht), tva: r(tva), ttc: r(ht + tva) }
+  // Même calcul que les factures (src/core/billing/totals.js)
+  const t = computeDocumentTotals(lines.map((l) => ({ ...l, tva_rate: l.tva_rate ?? tvaRate })))
+  return { ht: t.taxBasis, tva: t.taxTotal, ttc: t.grandTotal }
 }
 async function currentUserName() {
   const { data: { user } } = await supabase.auth.getUser()
@@ -317,7 +317,7 @@ export async function createInvoiceDraft(visit, parts, settings) {
     total_ht: t.ht, total_discount: 0, total_net_ht: t.ht, total_tva: t.tva, total_ttc: t.ttc, amount_paid: 0, amount_due: t.ttc,
     created_by: await currentUserName(),
   }).select().single())
-  must(await supabase.from('invoice_items').insert(lines.map((l, i) => ({ ...l, invoice_id: inv.id, position: i, total_ht: Math.round(l.quantity * l.unit_price_ht * 100) / 100 }))))
+  must(await supabase.from('invoice_items').insert(lines.map((l, i) => ({ ...l, invoice_id: inv.id, position: i, total_ht: lineTotal(l) }))))
   await updateVisit(visit.id, { invoice_id: inv.id })
   return inv
 }

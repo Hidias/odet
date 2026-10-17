@@ -7,6 +7,7 @@ import { supabase } from '../../../core/supabase'
 import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { useDataStore } from '../../../core/store'
 import { generateFacturXPDF, calcInvoiceTotals } from '../pdf/invoiceGenerator'
+import { parseRate } from '../../../core/billing/totals'
 import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -766,7 +767,7 @@ export default function Invoices() {
       const toIns = items.filter(it => it.description_title).map((it, i) => ({
         invoice_id: iid, position: i, code: it.code || '', description_title: it.description_title,
         description_detail: it.description_detail || '', quantity: parseFloat(it.quantity) || 1, unit: it.unit || 'unité',
-        unit_price_ht: parseFloat(it.unit_price_ht) || 0, tva_rate: parseFloat(it.tva_rate) || 20,
+        unit_price_ht: parseFloat(it.unit_price_ht) || 0, tva_rate: parseRate(it.tva_rate),
         total_ht: calcItemTotal(it), course_id: it.course_id || null,
       }))
       if (toIns.length > 0) { const { error: ie } = await supabase.from('invoice_items').insert(toIns); if (ie) throw ie }

@@ -19,6 +19,7 @@ import { money } from '../../../core/utils'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
 import { calcItemTotal, calcTotals } from '../lib/quoteTotals'
+import { parseRate } from '../../../core/billing/totals'
 import { quoteDay, nextQuoteReference } from '../lib/references'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useRelanceIA } from '../lib/useRelanceIA'
@@ -366,7 +367,7 @@ export default function Quotes() {
       payment_terms: currentQuote.payment_terms, payment_deadline: currentQuote.payment_deadline || null,
       discount_percent: parseFloat(currentQuote.discount_percent) || 0,
       discount_label: currentQuote.discount_label || '',
-      tva_rate: parseFloat(currentQuote.tva_rate) || 20, tva_applicable: currentQuote.tva_applicable,
+      tva_rate: parseRate(currentQuote.tva_rate), tva_applicable: currentQuote.tva_applicable,
       total_ht: totals.totalHt, total_tva: totals.totalTva, total_ttc: totals.totalTtc,
       notes: currentQuote.notes || '', created_by: currentQuote.created_by,
       signature_base64: currentQuote.signature_base64 || null,
@@ -388,7 +389,7 @@ export default function Quotes() {
         quote_id: quoteId, position: i, code: it.code || '',
         description_title: it.description_title, description_detail: it.description_detail || '',
         quantity: parseFloat(it.quantity) || 1, unit: it.unit || 'unité',
-        unit_price_ht: parseFloat(it.unit_price_ht) || 0, tva_rate: parseFloat(it.tva_rate) || 20,
+        unit_price_ht: parseFloat(it.unit_price_ht) || 0, tva_rate: parseRate(it.tva_rate),
         total_ht: calcItemTotal(it), course_id: it.course_id || null
       }))
       if (itemsToInsert.length > 0) {

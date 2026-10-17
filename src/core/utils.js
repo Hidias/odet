@@ -31,8 +31,9 @@ export const fmtDateLong = (d) => {
 /**
  * Calculer le total HT d'une ligne de devis/facture
  */
+// Total HT d'une ligne, arrondi au centime (même règle que src/core/billing/totals.js)
 export const calcLineTotal = (item) =>
-  (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price_ht) || 0)
+  Math.round((((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price_ht) || 0)) + Number.EPSILON) * 100) / 100
 
 /**
  * Tronquer un texte avec "..."

@@ -1,14 +1,17 @@
-// Totaux d'un devis.
-// Code sorti tel quel de pages/Quotes.jsx pour pouvoir être testé (tests/totaux.test.js).
+// Totaux d'un devis : même calcul que les factures (src/core/billing/totals.js).
+// Le devis porte un taux de TVA unique (quotes.tva_rate), appliqué à toutes ses lignes ; 0 % est respecté.
+
+import { computeDocumentTotals, lineTotal, parseRate } from '../../../core/billing/totals'
 
 export function calcItemTotal(item) {
-  return parseFloat(item.quantity || 0) * parseFloat(item.unit_price_ht || 0)
+  return lineTotal(item)
 }
 
 export function calcTotals(itemsList, discountPercent, tvaRate, tvaApplicable) {
-  const subtotalHt = itemsList.reduce((sum, item) => sum + calcItemTotal(item), 0)
-  const discountAmount = subtotalHt * (parseFloat(discountPercent || 0) / 100)
-  const totalHt = subtotalHt - discountAmount
-  const totalTva = tvaApplicable ? totalHt * (parseFloat(tvaRate || 20) / 100) : 0
-  return { subtotalHt, discountAmount, totalHt, totalTva, totalTtc: totalHt + totalTva }
+  const rate = parseRate(tvaRate)
+  const t = computeDocumentTotals((itemsList || []).map((it) => ({ ...it, tva_rate: rate })), {
+    discountPercent,
+    vatApplicable: !!tvaApplicable,
+  })
+  return { subtotalHt: t.lineTotal, discountAmount: t.allowanceTotal, totalHt: t.taxBasis, totalTva: t.taxTotal, totalTtc: t.grandTotal }
 }
