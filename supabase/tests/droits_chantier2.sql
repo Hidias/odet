@@ -353,20 +353,21 @@ begin
   -- (photographie prise par le script d'essai avant 0080, table temporaire essai_sf_avant)
   if to_regclass('pg_temp.essai_sf_avant') is not null then
     v_total := v_total + 1;
-    if not exists (
+    select string_agg(x.kind || ' ' || x.name, ', ') into v_got from (
       select * from essai_sf_avant
       except
-      select 'fonction', p.oid::regprocedure::text,
-             md5(concat_ws('|', pg_get_functiondef(p.oid), p.prosecdef::text, p.proconfig::text,
-                 (select string_agg(a.grantee::regrole::text || ':' || a.privilege_type, ',' order by a.grantee::regrole::text, a.privilege_type)
-                  from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a)))
-      from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'sf\_%' or p.proname = 'save_formative_batch')
-      union all
-      select 'règle', tablename || '.' || policyname, md5(concat_ws('|', permissive, roles::text, cmd, qual, with_check))
-      from pg_policies where schemaname = 'public'
-        and tablename in ('course_sequences', 'session_sequences', 'formative_evaluations', 'formative_sheets')) then
+      (select 'fonction', p.oid::regprocedure::text,
+              md5(concat_ws('|', pg_get_functiondef(p.oid), p.prosecdef::text, p.proconfig::text,
+                  (select string_agg(a.grantee::regrole::text || ':' || a.privilege_type, ',' order by a.grantee::regrole::text, a.privilege_type)
+                   from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a)))
+       from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'sf\_%' or p.proname = 'save_formative_batch')
+       union all
+       select 'règle', tablename || '.' || policyname, md5(concat_ws('|', permissive, roles::text, cmd, qual, with_check))
+       from pg_policies where schemaname = 'public'
+         and tablename in ('course_sequences', 'session_sequences', 'formative_evaluations', 'formative_sheets'))) x;
+    if v_got is null then
       v_lines := v_lines || 'OK      base  suivi formatif : fonctions sf_* et règles inchangées'::text;
-    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  suivi formatif : fonctions sf_* et règles inchangées'::text; end if;
+    else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  suivi formatif : fonctions sf_* et règles inchangées (' || v_got || ')'); end if;
   end if;
 
   -- Passeport de prévention (si le module est installé) : pp_nir réservée au serveur
