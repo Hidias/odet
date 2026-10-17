@@ -59,7 +59,8 @@ export async function getOrg(supabase) {
     qualiopi: !!o.qualiopi_certified,
     brand_nav: o.brand_nav || (o.brand_primary || '#1C2024'),
     brand_highlight: o.brand_highlight || '#D9A62E',
-    app_url: (process.env.APP_URL || '').replace(/\/$/, ''),
+    // En préversion, les liens des emails pointent vers la préversion elle-même, pas vers la production
+    app_url: (isTestEnvironment() && process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : (process.env.APP_URL || '')).replace(/\/$/, ''),
   }
   orgCache = { at: Date.now(), value: org }
   return org
@@ -87,6 +88,48 @@ export async function getSender(supabase, email) {
     email: email || p?.email || org.email,
     isOrg: !p,
   }
+}
+
+// ---- Environnement de test ---------------------------------------------------
+/**
+ * Environnement de test : préversion Vercel (VERCEL_ENV=preview) ou EMAIL_MODE=test.
+ * La préversion est protégée même si EMAIL_MODE a été oubliée. En production, rien ne change.
+ */
+export function isTestEnvironment() {
+  return String(process.env.EMAIL_MODE || '').toLowerCase() === 'test' || process.env.VERCEL_ENV === 'preview'
+}
+
+/**
+ * En test, tout envoi part vers EMAIL_TEST_TO (objet préfixé [TEST], copies supprimées).
+ * Les destinataires d'origine sont rappelés en tête du message. Sans EMAIL_TEST_TO, l'envoi est refusé.
+ */
+export function applyTestRedirect(mailOptions) {
+  if (!isTestEnvironment()) return mailOptions
+  const target = String(process.env.EMAIL_TEST_TO || '').trim()
+  if (!target) throw new Error('Environnement de test sans EMAIL_TEST_TO : envoi refusé')
+  const list = (v) => (Array.isArray(v) ? v : v ? [v] : []).map((x) => (typeof x === 'string' ? x : x?.address || '')).filter(Boolean)
+  const original = { to: list(mailOptions.to), cc: list(mailOptions.cc), bcc: list(mailOptions.bcc) }
+  const summary = [original.to.length ? `à : ${original.to.join(', ')}` : '', original.cc.length ? `cc : ${original.cc.join(', ')}` : '', original.bcc.length ? `cci : ${original.bcc.join(', ')}` : ''].filter(Boolean).join(' / ')
+  const banner = `<div style="font-family:Arial,sans-serif;font-size:12px;background:#fdecec;color:#b42318;padding:8px 12px;border-radius:6px;margin-bottom:12px;">Environnement de test : cet email aurait été envoyé ${summary || 'sans destinataire'}.</div>`
+  return {
+    ...mailOptions,
+    to: target,
+    cc: undefined,
+    bcc: undefined,
+    subject: `[TEST] ${mailOptions.subject || ''}`,
+    html: mailOptions.html ? banner + mailOptions.html : undefined,
+    text: mailOptions.text ? `Environnement de test : destinataires d'origine ${summary}\n\n${mailOptions.text}` : mailOptions.text,
+  }
+}
+
+/**
+ * Protège un transporteur nodemailer créé directement (hors createTransporter) :
+ * en test, chaque envoi est redirigé. En production, l'envoi est inchangé.
+ */
+export function guardTransport(transporter) {
+  const rawSend = transporter.sendMail.bind(transporter)
+  transporter.sendMail = async (options) => rawSend(applyTestRedirect(options))
+  return transporter
 }
 
 // ---- Transport SMTP ----------------------------------------------------------
@@ -128,9 +171,9 @@ export function createTransporter(emailConfig, smtpPassword, supabase) {
     maxConnections: 1,
     maxMessages: 1,
   })
-  // La redirection démo s'applique à chaque envoi, quel que soit l'appelant
+  // Redirection à chaque envoi, quel que soit l'appelant : environnement de test d'abord, sinon mode démo
   const rawSend = transporter.sendMail.bind(transporter)
-  transporter.sendMail = async (options) => rawSend(await applyMailSink(options, supabase))
+  transporter.sendMail = async (options) => rawSend(isTestEnvironment() ? applyTestRedirect(options) : await applyMailSink(options, supabase))
   return transporter
 }
 
@@ -182,7 +225,7 @@ export async function sendWithRetry(transporter, mailOptions, maxRetries = 3) {
       try { transporter.close() } catch {}
       const isConnLimit = error?.responseCode === 421 || /concurrent|4\.3\.2|too many/i.test(error?.message || '')
       if (isConnLimit) break
-      if (/MAIL_SINK/.test(error?.message || '')) break
+      if (/MAIL_SINK|EMAIL_TEST_TO/.test(error?.message || '')) break
       if (attempt < maxRetries) await sleep(attempt * 2000)
     }
   }

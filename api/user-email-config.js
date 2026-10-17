@@ -5,6 +5,7 @@
 import nodemailer from 'nodemailer'
 import { getSupabaseAdmin, encrypt } from './_lib/mailer.js'
 import { requireRole, OFFICE_WRITE } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -28,7 +29,7 @@ function smtpSettings(body, existing) {
   }
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Personnel qui envoie des emails : les rôles externes et « lecture » (dont les techniciens de terrain) n'ont pas de boîte
   const ctx = await requireRole(req, res, OFFICE_WRITE)
   if (!ctx) return
@@ -108,3 +109,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'user-email-config')

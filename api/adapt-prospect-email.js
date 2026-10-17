@@ -1,9 +1,10 @@
 import { requireRole, getAdminClient, SALES } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/adapt-prospect-email.js
 // Adapte un email de prospection avec IA selon le secteur et contexte du prospect
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -71,3 +72,5 @@ ${currentBody}`
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'adapt-prospect-email')

@@ -1,9 +1,10 @@
 import { requireRole, SALES } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-quote-email.js
 // Génère le texte email d'envoi de devis via l'API Anthropic (Claude)
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -110,3 +111,5 @@ Reponds UNIQUEMENT au format JSON suivant, sans backticks ni markdown :
     return res.status(500).json({ error: error.message || 'Erreur serveur' })
   }
 }
+
+export default withErrorLog(handler, 'generate-quote-email')

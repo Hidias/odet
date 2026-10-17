@@ -1,10 +1,11 @@
 import { requireRole, SALES } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock } from './_lib/orgProfile.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-relance-email.js
 // Génère un email de relance de devis personnalisé via Claude
 // Prend en compte : contexte client, âge du devis, historique de relances, formations concernées
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -163,3 +164,5 @@ FORMAT DE RÉPONSE — JSON strict, sans backticks ni markdown :
     return res.status(500).json({ error: error.message || 'Erreur serveur' })
   }
 }
+
+export default withErrorLog(handler, 'generate-relance-email')

@@ -5,6 +5,7 @@
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, wrapEmailHTML, decrypt } from './_lib/mailer.js'
 import { saveToSentFolder } from './_lib/save-to-sent.js'
 import { requireRole, BILLING } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -20,7 +21,7 @@ async function pickMailer(userId) {
   return m
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, BILLING)
   if (!ctx) return
   req.user = ctx.user
@@ -101,3 +102,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message || 'Erreur lors de l\'envoi' })
   }
 }
+
+export default withErrorLog(handler, 'send-invoice-email')

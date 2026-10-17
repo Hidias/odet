@@ -23,6 +23,7 @@ import { createClient } from '@supabase/supabase-js'
 import * as cheerio from 'cheerio'
 import { requireCronOrRole, SALES } from './_lib/auth.js'
 import { safeFetch } from './_lib/safeFetch.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Clé serveur : la table prospection_massive est protégée (RLS, accès connecté uniquement)
@@ -344,7 +345,7 @@ async function scrapeWebsite(siteUrl) {
 // HANDLER PRINCIPAL
 // ============================================================================
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end()
   // Tâche planifiée (CRON_SECRET) ou enrichissement manuel depuis l'écran d'import (prospection)
   if (!(await requireCronOrRole(req, res, SALES))) return
@@ -501,3 +502,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'enrich-prospects')

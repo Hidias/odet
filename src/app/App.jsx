@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from '../core/store'
 import { BrandingProvider, useBranding } from '../core/branding/BrandingProvider'
 import { authModeFromUrl } from '../core/auth/SetPassword'
+import { PageErrorBoundary, RouteErrorBoundary } from '../core/errors/ErrorBoundary'
 
 // ─── Chargement immédiat (pages critiques) ───────────────────
 import Layout from './Layout'
@@ -27,6 +28,7 @@ const SetupWizard = lazy(() => import('../core/setup/SetupWizard'))
 const SetPassword = lazy(() => import('../core/auth/SetPassword'))
 const Console = lazy(() => import('../core/console/Console'))
 const DesignReference = lazy(() => import('../ui/DesignReference'))
+const ConsoleErreurs = lazy(() => import('../core/console/ConsoleErreurs'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
 const Indicateurs = lazy(() => import('../modules/qualite/pages/Indicateurs'))
@@ -146,7 +148,9 @@ export default function App() {
   if (authMode) {
     return (
       <BrandingProvider>
-        <Suspense fallback={<PageLoader />}><SetPassword mode={authMode} /></Suspense>
+        <PageErrorBoundary>
+          <Suspense fallback={<PageLoader />}><SetPassword mode={authMode} /></Suspense>
+        </PageErrorBoundary>
       </BrandingProvider>
     )
   }
@@ -173,6 +177,7 @@ export default function App() {
         }}
       />
 
+      <RouteErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Routes publiques */}
@@ -256,6 +261,7 @@ export default function App() {
             <Route path="parametres" element={<Settings />} />
             <Route path="console" element={<Console />} />
             <Route path="design-systeme" element={<DesignReference />} />
+            <Route path="console/erreurs" element={<ConsoleErreurs />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />
           </Route>
@@ -264,6 +270,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      </RouteErrorBoundary>
     </HashRouter>
     </BrandingProvider>
   )

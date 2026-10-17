@@ -1,9 +1,10 @@
 import { requireRole, getAdminClient, MANAGERS } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock } from './_lib/orgProfile.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-document.js
 // Génère ou reformule du texte pour les courriers officiels via Claude
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, [...MANAGERS, 'formateur', 'commercial'])
   if (!ctx) return
   req.user = ctx.user
@@ -96,3 +97,5 @@ Renvoie uniquement le texte enrichi.`
     })
   }
 }
+
+export default withErrorLog(handler, 'generate-document')

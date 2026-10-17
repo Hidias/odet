@@ -1,4 +1,5 @@
 import { requireRole, SALES } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 /**
  * ============================================================================
  * API - OFFRES D'EMPLOI (France Travail) — Détection recrutement actif
@@ -37,7 +38,7 @@ async function getAccessToken() {
   return (await resp.json()).access_token
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -116,3 +117,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message })
   }
 }
+
+export default withErrorLog(handler, 'offres-emploi')

@@ -9,6 +9,7 @@
 
 import { getSupabaseAdmin, getMailer, getMailerByEmail, sendWithRetry, getOrg, getSender, wrapEmailHTML } from './_lib/mailer.js'
 import { requireRole, SALES, ADMINS } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -115,7 +116,7 @@ async function markSendError(sendId, message) {
   }
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const internal = req.internal === true
   if (!internal) {
     const ctx = await requireRole(req, res, SALES)
@@ -200,3 +201,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message || 'Erreur lors de l\'envoi' })
   }
 }
+
+export default withErrorLog(handler, 'send-mailing-single')

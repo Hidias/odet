@@ -7,6 +7,7 @@
 import { PDFDocument, PDFName, PDFString, PDFNumber, AFRelationship } from 'pdf-lib'
 import { getSupabaseAdmin, getOrg } from './_lib/mailer.js'
 import { requireRole, BILLING } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 export const config = {
   api: { bodyParser: { sizeLimit: '20mb' } },
@@ -681,7 +682,7 @@ export async function embedAndMakePDFA3(pdfBuffer, xmlString, invoice, seller) {
 
 // --- Route ---------------------------------------------------------------------
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, BILLING)
   if (!ctx) return
   req.user = ctx.user
@@ -731,3 +732,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message || 'Erreur interne' })
   }
 }
+
+export default withErrorLog(handler, 'generate-facturx')

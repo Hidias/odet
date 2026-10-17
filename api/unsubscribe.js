@@ -17,6 +17,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { getOrg, decrypt, createTransporter } from './_lib/mailer.js'
+import { withErrorLog } from './_lib/errors.js'
 
 export const config = { maxDuration: 15 }
 
@@ -180,7 +181,7 @@ async function unsubscribeByToken(org, token) {
 }
 
 // ─── Handler principal ────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+async function handler(req, res) {
   const org = await orgForPage()
   const token = String(req.query?.token || '')
 
@@ -222,3 +223,5 @@ export default async function handler(req, res) {
     return res.status(500).send(errorPage(org, 'Une erreur est survenue. Contactez-nous directement.'))
   }
 }
+
+export default withErrorLog(handler, 'unsubscribe')

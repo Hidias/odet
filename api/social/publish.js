@@ -6,6 +6,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { requireCronOrRole, SALES } from '../_lib/auth.js'
+import { isTestEnvironment } from '../_lib/mailer.js'
+import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -389,7 +391,7 @@ async function publishGMB(content, mediaUrl, token) {
 }
 
 // ── Handler principal ───────────────────────────────────
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Publication manuelle (commercial et au-dessus) ou appel de cron-publish (CRON_SECRET)
   const ctx = await requireCronOrRole(req, res, SALES)
   if (!ctx) return
@@ -397,6 +399,11 @@ export default async function handler(req, res) {
   req.profile = ctx.profile || null
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Environnement de test : rien n'est publié sur les vrais comptes (les jetons viennent d'une copie de la production)
+  if (isTestEnvironment()) {
+    return res.status(200).json({ success: false, simulation: true, error: 'Environnement de test : publication simulée, rien n\'a été publié' })
   }
 
   try {
@@ -489,3 +496,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message })
   }
 }
+
+export default withErrorLog(handler, 'social/publish')

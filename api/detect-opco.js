@@ -1,4 +1,5 @@
 import { requireRole, SALES } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/detect-opco.js
 // Détection OPCO + enrichissement adresse via multi-sources
 // Table IDCC→OPCO mise à jour avec nouvelles conventions 2024-2025
@@ -114,7 +115,7 @@ function normalizeOpcoName(raw) {
   return raw // retourne tel quel si pas reconnu
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -235,3 +236,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erreur: ' + err.message })
   }
 }
+
+export default withErrorLog(handler, 'detect-opco')

@@ -1,4 +1,5 @@
 import { requireRole, SALES } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 /**
  * ============================================================================
  * API - LA BONNE BOÎTE v2 (France Travail) — Signal recrutement
@@ -133,7 +134,7 @@ async function queryBonneBoite(token, latitude, longitude, romeCodes, distance =
   })
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -192,3 +193,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message })
   }
 }
+
+export default withErrorLog(handler, 'bonne-boite')

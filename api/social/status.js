@@ -5,13 +5,14 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { requireRole, SALES } from '../_lib/auth.js'
+import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   if (req.method !== 'GET') {
@@ -59,3 +60,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message })
   }
 }
+
+export default withErrorLog(handler, 'social/status')

@@ -4,6 +4,7 @@
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, decrypt } from './_lib/mailer.js'
 import { saveToSentFolder } from './_lib/save-to-sent.js'
 import { requireRole, SALES } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 // Augmenter la limite du body parser Vercel (défaut 4.5MB)
 export const config = {
@@ -25,7 +26,7 @@ const supabase = getSupabaseAdmin()
 
 // Signatures importées depuis _lib/mailer.js
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -189,3 +190,5 @@ export default async function handler(req, res) {
     })
   }
 }
+
+export default withErrorLog(handler, 'send-quote-email')

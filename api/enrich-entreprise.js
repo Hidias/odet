@@ -1,4 +1,5 @@
 import { requireRole, SALES } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 /**
  * ============================================================================
  * API - ENRICHISSEMENT ENTREPRISE (API Recherche Entreprises + email patterns)
@@ -92,7 +93,7 @@ function pickBestDirigeant(dirigeants) {
   return dirigeants[0]
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -175,3 +176,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message })
   }
 }
+
+export default withErrorLog(handler, 'enrich-entreprise')

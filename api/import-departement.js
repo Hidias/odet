@@ -13,6 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { requireCronOrRole, SALES } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Clé serveur : la table prospection_massive est protégée (RLS, accès connecté uniquement)
@@ -219,7 +220,7 @@ async function insertProspects(supabase, prospects) {
   return { inserted, duplicates }
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     // Prospection (import manuel) ou tâche planifiée (secret CRON_SECRET, appel de import-auto-cron)
     const ctx = await requireCronOrRole(req, res, SALES)
@@ -282,3 +283,5 @@ export default async function handler(req, res) {
     })
   }
 }
+
+export default withErrorLog(handler, 'import-departement')

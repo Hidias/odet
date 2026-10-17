@@ -1,4 +1,5 @@
 import { requireRole, OFFICE_WRITE } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/ai-proxy.js
 // Proxy serveur vers l'API Anthropic.
 // Les modules front (budget, réseaux sociaux) passent par ici au lieu d'appeler
@@ -49,7 +50,7 @@ function originAllowed(req) {
   return !!host && ownHosts(req).includes(host)
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Appelants : réseaux sociaux (commercial), budget (comptable), emails stagiaires (formateur, gestion)
   const ctx = await requireRole(req, res, OFFICE_WRITE)
   if (!ctx) return
@@ -100,3 +101,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'ai-proxy')

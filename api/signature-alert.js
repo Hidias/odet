@@ -14,6 +14,7 @@
 import { getSupabaseAdmin } from './_lib/mailer.js'
 import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { internalRecipients, internalMailer, appUrl } from './_lib/internal.js'
+import { withErrorLog } from './_lib/errors.js'
 
 export const config = { maxDuration: 60 }
 
@@ -62,7 +63,7 @@ function buildHTML(session, { APP_URL, color, signature }) {
   </div>`
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Tâche planifiée (CRON_SECRET) ou lancement manuel par un administrateur
   if (!(await requireCronOrRole(req, res, ADMINS))) return
 
@@ -118,3 +119,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message })
   }
 }
+
+export default withErrorLog(handler, 'signature-alert')

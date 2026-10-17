@@ -1,6 +1,7 @@
 import { requireRole, ADMINS } from './_lib/auth.js'
 import { internalMailer } from './_lib/internal.js'
 import { sendWithRetry } from './_lib/mailer.js'
+import { withErrorLog } from './_lib/errors.js'
 
 // Rang hiérarchique : superadmin > admin > tous les autres rôles
 const RANK = { superadmin: 3, admin: 2 }
@@ -16,7 +17,7 @@ const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 //  - set_role, set_active : via la table profiles (RLS : admins)
 //  - delete : supprime le compte Auth (super admin uniquement)
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
   const ctx = await requireRole(req, res, ADMINS)
   if (!ctx) return
@@ -112,3 +113,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message })
   }
 }
+
+export default withErrorLog(handler, 'admin-users')

@@ -4,6 +4,7 @@
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML } from './_lib/mailer.js'
 import { requireRole, SALES, isSafeStoragePath } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -11,7 +12,7 @@ const supabase = getSupabaseAdmin()
 
 
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -175,3 +176,5 @@ export default async function handler(req, res) {
     })
   }
 }
+
+export default withErrorLog(handler, 'send-email-rdv')

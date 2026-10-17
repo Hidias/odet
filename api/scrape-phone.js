@@ -1,12 +1,13 @@
 import { requireRole, SALES } from './_lib/auth.js'
 import { safeFetch } from './_lib/safeFetch.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/scrape-phone.js
 // Scrape un site web pour extraire le numéro de téléphone français
 // Adresses publiques http/https uniquement (IP privées/locales refusées, 3 redirections au plus)
 
 export const config = { maxDuration: 10 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -120,3 +121,5 @@ export default async function handler(req, res) {
     })
   }
 }
+
+export default withErrorLog(handler, 'scrape-phone')

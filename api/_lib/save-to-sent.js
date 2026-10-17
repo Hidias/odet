@@ -5,6 +5,7 @@
 
 import { ImapFlow } from 'imapflow'
 import MailComposer from 'nodemailer/lib/mail-composer/index.js'
+import { isTestEnvironment } from './mailer.js'
 
 /**
  * Détermine le host IMAP à partir du host SMTP
@@ -25,6 +26,8 @@ export function getImapHost(emailConfig) {
  * @param {Object} mailOptions - les options passées à nodemailer (from, to, subject, html, attachments...)
  */
 export async function saveToSentFolder(emailConfig, smtpPassword, mailOptions) {
+  // Environnement de test : rien n'est écrit dans les vraies boîtes mail
+  if (isTestEnvironment()) return
   let client = null
   try {
     const imapHost = getImapHost(emailConfig)

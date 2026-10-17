@@ -3,6 +3,7 @@ import { getAdminClient, requireRole } from './_lib/auth.js'
 import {
   normaliserNir, ecartsNir, finNir, statutInscription, construireFichier, identifiants, nomFichier,
 } from '../src/modules/passeport/lib/rules.js'
+import { withErrorLog } from './_lib/errors.js'
 
 // Module Passeport de prévention : seule porte d'accès au numéro de sécurité sociale.
 //
@@ -224,7 +225,7 @@ async function demoMode(admin) {
   return !!data?.demo_mode
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
   const body = req.body || {}
   const action = body.action
@@ -370,3 +371,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e?.code === 'NO_KEY' ? 'Chiffrement non configuré sur le serveur' : 'Erreur du serveur Passeport' })
   }
 }
+
+export default withErrorLog(handler, 'passeport')

@@ -1,12 +1,13 @@
 import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { getOrg, getSupabaseAdmin } from './_lib/mailer.js'
 import { appUrl } from './_lib/internal.js'
+import { withErrorLog } from './_lib/errors.js'
 /**
  * Import automatique des entreprises de la zone de prospection, chaque nuit à 2 h (vercel.json).
  * Départements : Paramètres > Identité, « Zone d'intervention ». Zone vide : rien n'est importé.
  */
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Tâche planifiée (CRON_SECRET) ou lancement manuel par un administrateur
   if (!(await requireCronOrRole(req, res, ADMINS))) return
   
@@ -76,3 +77,5 @@ export default async function handler(req, res) {
     stats
   })
 }
+
+export default withErrorLog(handler, 'import-auto-cron')

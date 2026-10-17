@@ -1,9 +1,10 @@
 import { requireRole, getAdminClient, SALES } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-prospect-summary.js
 // Génère un résumé IA du prospect : scrape le site web si dispo + analyse NAF/nom
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, SALES)
   if (!ctx) return
   req.user = ctx.user
@@ -131,3 +132,5 @@ IMPORTANT :
     })
   }
 }
+
+export default withErrorLog(handler, 'generate-prospect-summary')
