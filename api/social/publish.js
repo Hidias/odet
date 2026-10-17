@@ -190,7 +190,7 @@ function buildAltText(content) {
   const firstLine = (content || '')
     .split('\n')
     .map(s => s.trim())
-    .find(Boolean) || 'Visuel Access Formation'
+    .find(Boolean) || 'Visuel'
   return firstLine.slice(0, 120)
 }
 
@@ -349,9 +349,14 @@ async function publishGMB(content, mediaUrl, token) {
   }
 
   // Ajouter le CTA
-  postBody.callToAction = {
-    actionType: 'LEARN_MORE',
-    url: 'https://www.accessformation.pro',
+  // Bouton « En savoir plus » vers le site de l'organisme (Paramètres), seulement s'il est renseigné
+  const { data: orgRow } = await supabase.from('organization_settings').select('website').limit(1).maybeSingle()
+  const site = String(orgRow?.website || '').trim()
+  if (site) {
+    postBody.callToAction = {
+      actionType: 'LEARN_MORE',
+      url: /^https?:\/\//.test(site) ? site : `https://${site}`,
+    }
   }
 
   // ⚠️ L'endpoint Local Posts est sur mybusiness.googleapis.com/v4

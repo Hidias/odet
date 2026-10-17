@@ -1,4 +1,5 @@
-import { requireUser } from './_lib/auth.js'
+import { requireUser, getAdminClient } from './_lib/auth.js'
+import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/adapt-prospect-email.js
 // Adapte un email de prospection avec IA selon le secteur et contexte du prospect
@@ -21,7 +22,12 @@ async function handler(req, res) {
       return res.status(400).json({ error: 'Corps du mail requis' })
     }
 
-    const prompt = `Tu es Marine, assistante commerciale chez Access Formation (organisme de formation sante securite, Concarneau).
+    const org = await loadOrgProfile(getAdminClient())
+    const sender = senderFromProfile(req.profile)
+    const prompt = `Tu es ${sender ? `${sender}, ` : ''}chargé(e) de relation commerciale chez ${org.name || "l'organisme de formation"}.
+
+${orgIdentityBlock(org)}
+
 Adapte ce mail de prospection pour ${prospectName || 'cette entreprise'}${sector ? ' (secteur : ' + sector + ')' : ''}.
 ${formations ? 'Formations evoquees pendant l\'appel : ' + formations : ''}
 ${contactName ? 'Contact : ' + contactName + (contactFunction ? ' (' + contactFunction + ')' : '') : ''}
@@ -32,7 +38,7 @@ REGLES :
 - Garde le vouvoiement
 - Personnalise l'introduction selon le contexte (secteur, contact, formations evoquees)
 - Mets en avant les formations les plus pertinentes pour ce secteur en premier dans la liste
-- Ne change PAS la conclusion ni les infos sur Qualiopi/OPCO
+- Ne change PAS la conclusion ni les informations sur la certification et le financement
 - Reponds UNIQUEMENT avec le HTML du body, sans signature, sans balise html/body
 - Maximum 300 mots
 

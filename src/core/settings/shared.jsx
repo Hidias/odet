@@ -79,6 +79,13 @@ export function ModulesSection({ onChanged, compact = false }) {
     await load()
     if (onChanged) await onChanged()
   }
+  // Réglages propres à un module (org_modules.settings)
+  const setOption = async (m, key, value) => {
+    const settings = { ...(m.settings || {}), [key]: value }
+    const { error } = await supabase.from('org_modules').update({ settings, updated_at: new Date().toISOString() }).eq('key', m.key)
+    if (error) return toast.error(error.message)
+    await load()
+  }
   return (
     <>
       {!compact && (
@@ -89,12 +96,18 @@ export function ModulesSection({ onChanged, compact = false }) {
       )}
       <div className="divide-y divide-gray-100">
         {modules.map((m) => (
-          <div key={m.key} className="py-3 flex items-center justify-between gap-4">
+          <div key={m.key} className="py-3 flex items-center justify-between gap-4 flex-wrap">
             <div>
               <div className="text-ui font-medium">{m.label}</div>
               {m.description ? <div className="text-ui-sm text-gray-500">{m.description}</div> : <div className="text-ui-sm text-gray-400">{m.key}</div>}
             </div>
             <Toggle checked={m.enabled} onChange={() => toggle(m)} />
+            {!compact && m.key === 'prospection' && m.enabled && (
+              <div className="basis-full pl-4 border-l-2 border-gray-100">
+                <Toggle checked={m.settings?.auto_import === true} onChange={(v) => setOption(m, 'auto_import', v)}
+                  label="Import automatique de nuit" hint="Chaque nuit, ajoute à la base prospects les entreprises des départements de la zone d'intervention (Paramètres > Identité), depuis le répertoire public des entreprises" />
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -63,19 +63,19 @@ export default function MultiEtablissements() {
     const configs = {
       'call_all': {
         icon: <CheckCircle className="w-4 h-4" />,
-        color: 'bg-green-100 text-green-800',
+        color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]',
         text: 'Appeler tous les établissements',
         detail: 'Villes/départements différents = contacts probablement différents'
       },
       'call_siege_only': {
         icon: <AlertTriangle className="w-4 h-4" />,
-        color: 'bg-orange-100 text-orange-800',
+        color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]',
         text: 'Appeler le siège uniquement',
         detail: 'Même ville = probablement le même contact gère tous les établissements'
       },
       'verify_first': {
         icon: <HelpCircle className="w-4 h-4" />,
-        color: 'bg-blue-100 text-blue-800',
+        color: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]',
         text: 'Vérifier avant d\'appeler',
         detail: '2 établissements proches = demander si contacts différents au 1er appel'
       }
@@ -84,12 +84,12 @@ export default function MultiEtablissements() {
     const config = configs[recommendation] || configs['verify_first']
     
     return (
-      <div className={`p-3 rounded-lg ${config.color}`}>
+      <div className={`p-3 rounded-ui-sm ${config.color}`}>
         <div className="flex items-center gap-2 mb-1">
           {config.icon}
           <span className="font-medium">{config.text}</span>
         </div>
-        <p className="text-xs opacity-75">{config.detail}</p>
+        <p className="text-ui-sm opacity-75">{config.detail}</p>
       </div>
     )
   }
@@ -123,7 +123,7 @@ export default function MultiEtablissements() {
       <div className="max-w-6xl mx-auto">
         
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="page-title mb-2">
              Entreprises Multi-Établissements
           </h1>
           <p className="text-gray-600">
@@ -131,27 +131,27 @@ export default function MultiEtablissements() {
           </p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <div className="bg-white p-4 rounded-ui-sm shadow mb-6">
           <h2 className="font-semibold mb-3"> Comment utiliser cette page ?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-ui">
             <div className="flex items-start gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-[rgb(var(--c-success))] flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-green-900">Appeler tous</p>
+                <p className="font-medium text-[rgb(var(--c-success))]">Appeler tous</p>
                 <p className="text-gray-600">Villes différentes = contacts différents → Appelle chaque établissement</p>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-[rgb(var(--c-warning))] flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-orange-900">Siège uniquement</p>
+                <p className="font-medium text-[rgb(var(--c-warning))]">Siège uniquement</p>
                 <p className="text-gray-600">Même ville = même contact → Appelle le siège, évite les doublons</p>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <HelpCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <HelpCircle className="w-5 h-5 text-[rgb(var(--c-info))] flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-blue-900">Vérifier d'abord</p>
+                <p className="font-medium text-[rgb(var(--c-info))]">Vérifier d'abord</p>
                 <p className="text-gray-600">Incertain → Demande au 1er appel si contacts différents</p>
               </div>
             </div>
@@ -164,7 +164,7 @@ export default function MultiEtablissements() {
             const etablissements = groupe.etablissements || []
             
             return (
-              <div key={groupe.siren} className="bg-white rounded-lg shadow overflow-hidden">
+              <div key={groupe.siren} className="bg-white rounded-ui-sm shadow overflow-hidden">
                 
                 <div 
                   className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -175,12 +175,12 @@ export default function MultiEtablissements() {
                       <div className="flex items-center gap-3 mb-2">
                         <Building2 className="w-5 h-5 text-gray-400" />
                         <h3 className="font-semibold text-lg text-gray-900">{groupe.name}</h3>
-                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm">
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-ui">
                           {groupe.nb_etablissements} établissements
                         </span>
                       </div>
                       
-                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                      <div className="flex items-center gap-4 text-ui text-gray-600 mb-3">
                         <div className="flex items-center gap-1">
                           <MapPin className="w-4 h-4" />
                           {groupe.departements_list}
@@ -210,9 +210,9 @@ export default function MultiEtablissements() {
                         {etablissements.map((etab, index) => (
                           <div 
                             key={etab.id}
-                            className={`p-3 rounded-lg ${
+                            className={`p-3 rounded-ui-sm ${
                               etab.is_siege 
-                                ? 'bg-blue-50 border-2 border-blue-200' 
+                                ? 'bg-[rgb(var(--c-info-bg))] border-2 border-[rgb(var(--c-info)/0.3)]' 
                                 : 'bg-white border border-gray-200'
                             }`}
                           >
@@ -223,32 +223,32 @@ export default function MultiEtablissements() {
                                     {etab.city} ({etab.departement})
                                   </span>
                                   {etab.is_siege && (
-                                    <span className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs font-medium">
+                                    <span className="btn btn-secondary text-ui-sm font-medium">
                                       SIÈGE
                                     </span>
                                   )}
                                 </div>
                                 
-                                <div className="text-sm text-gray-600 space-y-1">
+                                <div className="text-ui text-gray-600 space-y-1">
                                   <p>SIRET: {etab.siret}</p>
                                   <p>{etab.address}</p>
                                   <p>Effectif: {etab.effectif_label || 'Non renseigné'}</p>
                                   
                                   <div className="flex gap-4 mt-2">
                                     {etab.phone && (
-                                      <div className="flex items-center gap-1 text-green-600">
+                                      <div className="flex items-center gap-1 text-[rgb(var(--c-success))]">
                                         <Phone className="w-3 h-3" />
                                         {etab.phone}
                                       </div>
                                     )}
                                     {!etab.phone && (
-                                      <span className="text-gray-400 text-xs">Téléphone non enrichi</span>
+                                      <span className="text-gray-400 text-ui-sm">Téléphone non enrichi</span>
                                     )}
                                   </div>
                                 </div>
                               </div>
                               
-                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700">
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-ui font-medium text-gray-700">
                                 {index + 1}
                               </div>
                             </div>
@@ -265,7 +265,7 @@ export default function MultiEtablissements() {
         </div>
 
         {groupes.length === 0 && (
-          <div className="bg-white p-8 rounded-lg shadow text-center">
+          <div className="bg-white p-8 rounded-ui-sm shadow text-center">
             <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">Aucune entreprise multi-établissements trouvée</p>
           </div>

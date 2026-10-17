@@ -6,6 +6,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { requireCronOrUser } from '../_lib/auth.js'
+import { appUrl } from '../_lib/internal.js'
 import { isTestEnvironment } from '../_lib/mailer.js'
 import { withErrorLog } from '../_lib/errors.js'
 
@@ -14,13 +15,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
+// Adresse de l'application : variable APP_URL, sinon l'hôte de la requête (calculée dans le handler)
+const ENV_APP_URL = String(process.env.APP_URL || '').replace(/\/$/, '')
 
 async function handler(req, res) {
+  const APP_URL = ENV_APP_URL || appUrl(req)
   if (!(await requireCronOrUser(req, res))) return
 
-  // Environnement de test : aucune publication programmée n'est envoyée
-  if (isTestEnvironment()) return res.status(200).json({ message: 'Environnement de test : publication désactivée', count: 0 })
+  // Préversion : aucune publication programmée n'est envoyée
+  if (isTestEnvironment()) return res.status(200).json({ message: 'Préversion : publication désactivée', count: 0 })
 
   try {
     const now = new Date().toISOString()

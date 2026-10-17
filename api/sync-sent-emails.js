@@ -1,5 +1,5 @@
 // api/sync-sent-emails.js
-// CRON: Lit les dossiers "Envoyés" IMAP des 3 comptes IONOS
+// CRON : lit le dossier « Envoyés » IMAP de chaque compte d'envoi configuré
 // → Match destinataire avec contacts clients → insert dans timeline
 // → Pas de match → notification pour association manuelle
 
@@ -7,6 +7,8 @@ import { ImapFlow } from 'imapflow'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { requireCronOrUser } from './_lib/auth.js'
+import { getImapHost } from './_lib/save-to-sent.js'
+import { loadTeam, findProfileByEmail, profileFirstName, loadInternalMatcher } from './_lib/team.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const supabase = createClient(
@@ -25,22 +27,9 @@ function decrypt(encryptedText) {
   return decrypted
 }
 
-// Convertir SMTP host → IMAP host
-function getImapHost(smtpHost) {
-  // Exchange IONOS : exchange.ionos.eu (IMAP port 993 SSL)
-  if (smtpHost?.includes('exchange')) return 'exchange.ionos.eu'
-  // Mail Basic IONOS : imap.ionos.fr
-  return 'imap.ionos.fr'
-}
-
-// Nom expéditeur à partir de l'adresse
-function getSenderName(email) {
-  const map = {
-    'hicham.saidi@accessformation.pro': 'Hicham',
-    'maxime.langlais@accessformation.pro': 'Maxime',
-    'entreprise@accessformation.pro': 'Marine',
-  }
-  return map[email] || email.split('@')[0]
+// Nom de l'expéditeur : prénom du profil qui possède l'adresse, sinon la partie avant @
+function getSenderName(team, email) {
+  return profileFirstName(findProfileByEmail(team, email)) || String(email || '').split('@')[0]
 }
 
 // Extraire les adresses email d'un champ To/Cc
@@ -137,10 +126,10 @@ async function isDuplicate(messageId, fromEmail, toEmail, subject, sentDate) {
 }
 
 // Traiter un compte email
-async function syncAccount(emailConfig, cursor) {
+async function syncAccount(emailConfig, cursor, ctx) {
   const password = decrypt(emailConfig.smtp_password_encrypted)
-  const imapHost = getImapHost(emailConfig.smtp_host)
-  const senderName = getSenderName(emailConfig.email)
+  const imapHost = getImapHost(emailConfig)
+  const senderName = getSenderName(ctx.team, emailConfig.email)
 
   const client = new ImapFlow({
     host: imapHost,
@@ -188,27 +177,48 @@ async function syncAccount(emailConfig, cursor) {
 
     console.log(`[${emailConfig.email}] Dossier: ${sentFolder}, dernier UID: ${cursor.last_uid}`)
 
+    // 1. Lecture IMAP seule : on récupère au plus 50 nouveaux messages, sans interrompre une commande en cours
+    //    (interrompre une boucle fetch laissait la connexion bloquée : le curseur n'avançait plus et les mêmes
+    //    emails étaient retraités, avec une notification à chaque passage).
     const lock = await client.getMailboxLock(sentFolder)
-
+    const collected = []
+    let startUid = null
     try {
-      // Lire les messages plus récents que le dernier UID
-      const searchQuery = cursor.last_uid > 0 ? `${cursor.last_uid + 1}:*` : '*'
-      let maxUid = cursor.last_uid
+      // Compte nouvellement suivi : on part du dernier message existant. Sans cela, tout l'historique
+      // du dossier Envoyés serait importé et produirait une notification par ancien destinataire.
+      if (!cursor.last_uid) {
+        startUid = Math.max(0, Number(client.mailbox?.uidNext || 1) - 1)
+      }
+      const newUids = startUid === null ? await client.search({ uid: `${cursor.last_uid + 1}:*` }, { uid: true }) : []
+      const batch = (newUids || []).filter(u => u > cursor.last_uid).sort((a, b) => a - b).slice(0, 50)
+      if (batch.length > 0) {
+        for await (const msg of client.fetch(batch.join(','), { uid: true, envelope: true }, { uid: true })) {
+          collected.push({ uid: msg.uid, envelope: msg.envelope })
+        }
+      }
+    } finally {
+      lock.release()
+    }
+    await client.logout()
 
-      // Limiter à 50 messages par run pour rester dans les limites Vercel
-      let count = 0
-      for await (const msg of client.fetch(searchQuery, {
-        uid: true,
-        envelope: true,
-        bodyStructure: true,
-        headers: ['message-id'],
-        source: { maxBytes: 0 }, // pas le body complet
-      })) {
-        if (count >= 50) break
-        if (msg.uid <= cursor.last_uid) continue // IMAP peut renvoyer le dernier UID
+    if (startUid !== null) {
+      await supabase.from('email_sync_cursors')
+        .update({ last_uid: startUid, last_synced_at: new Date().toISOString() })
+        .eq('email', emailConfig.email)
+      return { synced: 0, initialised: true, startUid }
+    }
 
-        count++
-        if (msg.uid > maxUid) maxUid = msg.uid
+    // 2. Traitement en base, message par message, le curseur avançant au fur et à mesure
+    let maxUid = cursor.last_uid
+    collected.sort((a, b) => a.uid - b.uid)
+    {
+      for (const msg of collected) {
+        // Curseur avancé avant le traitement : un message qui ferait échouer le traitement n'est jamais
+        // retraité en boucle (pas de notification répétée)
+        maxUid = msg.uid
+        await supabase.from('email_sync_cursors')
+          .update({ last_uid: maxUid, last_synced_at: new Date().toISOString() })
+          .eq('email', emailConfig.email)
 
         const envelope = msg.envelope
         if (!envelope) continue
@@ -220,19 +230,8 @@ async function syncAccount(emailConfig, cursor) {
         const sentDate = envelope.date
         const messageId = envelope.messageId
 
-        // Ignorer les emails internes et les adresses personnelles connues
-        const IGNORED_RECIPIENTS = [
-          '@accessformation.pro',
-          'hichamsaidi@msn.com',
-          'hichamsaidi@hotmail.com',
-          'hichamsaidi@gmail.com',
-          'maxime.langlais@gmail.com',
-        ]
-        const externalRecipients = allRecipients.filter(e => 
-          !IGNORED_RECIPIENTS.some(ignored => 
-            ignored.startsWith('@') ? e.endsWith(ignored) : e === ignored
-          )
-        )
+        // Ignorer les adresses internes (équipe, domaine de l'organisme, adresses à ignorer de Paramètres)
+        const externalRecipients = allRecipients.filter(e => !ctx.isInternal(e))
         if (externalRecipients.length === 0) {
           skipped++
           continue
@@ -264,19 +263,21 @@ async function syncAccount(emailConfig, cursor) {
             })
             matched++
           } else {
-            // ❌ Pas de match → notification (sauf si déjà une notif non-lue pour ce destinataire)
+            // Pas de match → une seule notification par destinataire sur 30 jours, lue ou non
+            // (avant : une nouvelle notification dès que la précédente était lue)
+            const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
             const { data: existingNotif } = await supabase
               .from('notifications')
               .select('id')
               .eq('type', 'email_sync')
-              .is('read_at', null)
+              .gte('created_at', since)
               .contains('metadata', { to_email: toEmail })
               .limit(1)
 
             if (!existingNotif?.length) {
               await supabase.from('notifications').insert({
                 type: 'email_sync',
-                title: `📧 Email non associé`,
+                title: 'Email non associé',
                 message: `${senderName} → ${toEmail} : "${subject.substring(0, 80)}"`,
                 link: `/clients?email_to_link=${encodeURIComponent(toEmail)}&subject=${encodeURIComponent(subject.substring(0, 80))}&from=${encodeURIComponent(emailConfig.email)}&date=${sentDate ? new Date(sentDate).toISOString() : ''}&message_id=${encodeURIComponent(messageId || '')}`,
                 metadata: {
@@ -295,19 +296,12 @@ async function syncAccount(emailConfig, cursor) {
           }
           synced++
         }
-      }
 
-      // Mettre à jour le curseur
-      if (maxUid > cursor.last_uid) {
-        await supabase.from('email_sync_cursors')
-          .update({ last_uid: maxUid, last_synced_at: new Date().toISOString() })
-          .eq('email', emailConfig.email)
       }
-    } finally {
-      lock.release()
     }
-
-    await client.logout()
+    await supabase.from('email_sync_cursors')
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq('email', emailConfig.email)
   } catch (err) {
     console.error(`[${emailConfig.email}] Erreur IMAP:`, err.message)
     try { await client.logout() } catch (e) {}
@@ -338,6 +332,7 @@ async function handler(req, res) {
       .select('*')
 
     const results = {}
+    const ctx = { team: await loadTeam(supabase), isInternal: await loadInternalMatcher(supabase) }
 
     for (const config of configs) {
       // Trouver le curseur correspondant
@@ -353,7 +348,7 @@ async function handler(req, res) {
       }
 
       console.log(`Sync ${config.email}...`)
-      results[config.email] = await syncAccount(config, cursor)
+      results[config.email] = await syncAccount(config, cursor, ctx)
       console.log(`  →`, JSON.stringify(results[config.email]))
     }
 

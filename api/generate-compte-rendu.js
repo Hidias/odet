@@ -1,4 +1,5 @@
-import { requireUser } from './_lib/auth.js'
+import { requireUser, getAdminClient } from './_lib/auth.js'
+import { loadOrgProfile, orgIdentityBlock, addressRule } from './_lib/orgProfile.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/generate-compte-rendu.js
 // Génère le compte-rendu via l'API Claude (côté serveur pour éviter CORS)
@@ -42,21 +43,26 @@ OBJETS:
 MAIL:
 [corps du mail complet]`
 
-    const PROMPT_SYSTEM = `Tu es "AF Compte-rendu", assistant de rédaction de mails post-RDV pour Access Formation.
+    const org = await loadOrgProfile(getAdminClient())
+    const tu = org.tutoiement
+    const PROMPT_SYSTEM = `Tu es l'assistant de rédaction des emails de compte rendu après un rendez-vous commercial${org.name ? ` pour ${org.name}` : ''}.
+
+${orgIdentityBlock(org)}
 
 RÈGLES :
 - Ton : pro, humain, chaleureux
+${addressRule(org)}
 - Phrase imposée : "Voici le récapitulatif des éléments abordés :"
 - Pas de "Merci pour nos échanges", pas de "Si je reformule"
-- Ne jamais écrire "Access Formation" dans le corps
+- Ne jamais écrire le nom de l'organisme dans le corps
 - Liens URL en clair (pas de markdown)
 - Ne pas inventer d'info absente
 
 STRUCTURE MAIL :
 1) Intro complète avec remerciement
 2) "Voici le récapitulatif..." (5-9 puces)
-3) "Prochaines étapes :" (De mon côté / De ton côté)
-4) Clôture style Hicham : "Encore merci pour le temps accordé et pour ta confiance."
+3) "Prochaines étapes :" (De mon côté / ${tu ? 'De ton côté' : 'De votre côté'})
+4) Clôture : "Encore merci pour le temps accordé et pour ${tu ? 'ta' : 'votre'} confiance."
 
 GÉNÈRE 3 OBJETS puis 1 MAIL COMPLET (sans signature)`
 

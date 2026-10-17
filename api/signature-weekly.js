@@ -10,15 +10,13 @@
 //   POST /api/signature-weekly?dry=1  → simulation, renvoie le contenu sans l'envoyer
 // ─────────────────────────────────────────────────────────────────────────────
 
-import nodemailer from 'nodemailer'
-import { getSupabaseAdmin, decrypt, guardTransport } from './_lib/mailer.js'
+import { getSupabaseAdmin } from './_lib/mailer.js'
 import { requireCronOrUser } from './_lib/auth.js'
+import { internalRecipients, internalMailer, greeting, appUrl } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
 
 export const config = { maxDuration: 60 }
 
-const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
-const RECIPIENT = 'hicham.saidi@accessformation.pro'
 
 const esc = (s) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
 const fmtDate = (d) => {
@@ -27,7 +25,7 @@ const fmtDate = (d) => {
   return `${j}/${m}/${y}`
 }
 
-function buildHTML(groupes) {
+function buildHTML(groupes, { APP_URL, hello, color, signature }) {
   const nbSessions = groupes.reduce((n, g) => n + (g.sessions?.length || 0), 0)
 
   const blocs = groupes.map(g => {
@@ -38,7 +36,7 @@ function buildHTML(groupes) {
           <span style="color:#9ca3af;font-size:12px;">${esc(s.reference || '')} — ${fmtDate(s.start_date)}${s.end_date !== s.start_date ? ' au ' + fmtDate(s.end_date) : ''}</span>
         </td>
         <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:right;white-space:nowrap;">
-          <a href="${APP_URL}/#/signature/${s.session_id}" style="color:#0F2D35;font-weight:bold;text-decoration:none;">Faire signer</a>
+          <a href="${APP_URL}/#/signature/${s.session_id}" style="color:${color};font-weight:bold;text-decoration:none;">Faire signer</a>
         </td>
       </tr>`).join('')
 
@@ -56,7 +54,7 @@ function buildHTML(groupes) {
 
   return `
   <div style="font-family:Arial,sans-serif;color:#111827;max-width:640px;">
-    <p style="font-size:15px;">Bonjour Hicham,</p>
+    <p style="font-size:15px;">${esc(hello)}</p>
     <p style="font-size:15px;line-height:1.6;">
       ${nbSessions} session${nbSessions > 1 ? 's' : ''} terminée${nbSessions > 1 ? 's' : ''}
       ${nbSessions > 1 ? 'comportent' : 'comporte'} encore des signatures manquantes,
@@ -64,11 +62,11 @@ function buildHTML(groupes) {
     </p>
     ${blocs}
     <p style="font-size:13px;color:#6b7280;line-height:1.6;">
-      Les signatures peuvent être régularisées depuis ton compte, sans limite de temps :
-      ouvre la session, bouton « Faire signer », puis choisis la demi-journée concernée.
+      Les signatures peuvent être régularisées depuis l'application, sans limite de temps :
+      ouvrir la session, bouton « Faire signer », puis choisir la demi-journée concernée.
       L'heure réelle de signature est conservée en base.
     </p>
-    <p style="font-size:12px;color:#9ca3af;margin-top:24px;">Access Campus — récap du lundi</p>
+    <p style="font-size:12px;color:#9ca3af;margin-top:24px;">${esc(signature)}</p>
   </div>`
 }
 
@@ -85,35 +83,22 @@ async function handler(req, res) {
     const groupes = Array.isArray(data) ? data : []
     if (groupes.length === 0) return res.status(200).json({ ok: true, envoye: false, raison: 'rien à signaler' })
 
-    const html = buildHTML(groupes)
-    if (dry) return res.status(200).json({ ok: true, envoye: false, entreprises: groupes.length, html })
-
-    const { data: configs } = await supabase
-      .from('user_email_configs')
-      .select('*')
-      .eq('is_active', true)
-
-    if (!configs || configs.length === 0) throw new Error('Aucune configuration email active')
-
-    const cfg =
-      configs.find(c => c.email === RECIPIENT) ||
-      configs.find(c => c.email === 'contact@accessformation.pro') ||
-      configs[0]
-
-    const transporter = guardTransport(nodemailer.createTransport({
-      host: cfg.smtp_host,
-      port: cfg.smtp_port,
-      secure: cfg.smtp_secure,
-      auth: { user: cfg.email, pass: decrypt(cfg.smtp_password_encrypted) },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
-    }))
+    const recipients = await internalRecipients(supabase)
+    if (!recipients.length) throw new Error('Aucun destinataire : ajoutez un dirigeant dans Paramètres > Utilisateurs ou l\'email de l\'organisme')
+    const mailer = await internalMailer(supabase, recipients.map(r => r.email))
+    if (mailer.error) throw new Error(mailer.error)
+    const { transporter, org } = mailer
+    const html = buildHTML(groupes, {
+      APP_URL: appUrl(req),
+      hello: greeting(recipients),
+      color: org.brand_nav,
+      signature: `${org.app_name || org.name || ''} : récapitulatif du lundi`,
+    })
+    if (dry) { transporter.close(); return res.status(200).json({ ok: true, envoye: false, entreprises: groupes.length, html }) }
 
     await transporter.sendMail({
-      from: `"Access Campus" <${cfg.email}>`,
-      to: RECIPIENT,
+      from: mailer.from,
+      to: recipients.map(r => r.email).join(', '),
       subject: `Signatures manquantes — ${groupes.length} entreprise${groupes.length > 1 ? 's' : ''} à relancer`,
       html,
     })

@@ -20,11 +20,11 @@ import {
 
 function Section({ title, count, hint, children }) {
   return (
-    <section className="bg-white border border-gray-200 rounded-xl">
+    <section className="bg-white border border-gray-200 rounded-ui">
       <header className="flex items-baseline gap-2 px-4 pt-4 pb-2 flex-wrap">
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-        <span className="text-xs text-gray-500">{count} à trier</span>
-        {hint && <p className="w-full text-xs text-gray-500">{hint}</p>}
+        <h3 className="text-ui font-semibold text-gray-900">{title}</h3>
+        <span className="text-ui-sm text-gray-500">{count} à trier</span>
+        {hint && <p className="w-full text-ui-sm text-gray-500">{hint}</p>}
       </header>
       <div className="px-4 pb-3">{children}</div>
     </section>
@@ -124,12 +124,12 @@ export default function TriSuiviCommercial({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 text-ui border border-gray-300 rounded-ui-sm hover:bg-gray-50">
           <ArrowLeft className="w-4 h-4" /> Retour au suivi
         </button>
         <div>
           <h2 className="text-base font-semibold text-gray-900">Tri de départ</h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-ui text-gray-500">
             {total === 0 ? 'Tout est trié.' : `${total} élément(s) à trier. Vous pouvez vous arrêter quand vous voulez : chaque décision est enregistrée.`}
           </p>
         </div>
@@ -143,17 +143,17 @@ export default function TriSuiviCommercial({
         >
           {transfers.length > 0 && (
             <div className="flex items-center gap-2 py-2 flex-wrap">
-              <button onClick={selectAllTransfers} className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
+              <button onClick={selectAllTransfers} className="px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">
                 Sélectionner les {transfers.length} transferts
               </button>
               {selected.size > 0 && (
                 <>
                   <button onClick={bulkSansSuite} disabled={bulkSaving}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-900 text-white rounded-lg disabled:opacity-50">
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-ui-sm bg-gray-900 text-white rounded-ui-sm disabled:opacity-50">
                     {bulkSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     Classer les {selected.size} sélectionnés « déjà traité »
                   </button>
-                  <button onClick={() => setSelected(new Set())} className="text-xs text-gray-500 underline">Tout désélectionner</button>
+                  <button onClick={() => setSelected(new Set())} className="text-ui-sm text-gray-500 underline">Tout désélectionner</button>
                 </>
               )}
             </div>
@@ -163,18 +163,18 @@ export default function TriSuiviCommercial({
               <div key={r.id} className="flex items-start gap-3 py-2.5 flex-wrap">
                 <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} className="mt-1" aria-label="Sélectionner" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-ui font-medium text-gray-900">
                     {r.clients?.name || 'Client inconnu'}
-                    <span className="text-xs font-normal text-gray-500">
+                    <span className="text-ui-sm font-normal text-gray-500">
                       {' '}· créé le {fmtDate(rdvRefDate(r))}
                       {(r.source || '').includes('transfer') ? ' · transfert' : r.source ? ` · ${r.source.replace('phoning_', 'phoning ')}` : ''}
                     </span>
                   </p>
-                  {(r.notes || r.notes_crm) && <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">{r.notes || r.notes_crm}</p>}
+                  {(r.notes || r.notes_crm) && <p className="text-ui-sm text-gray-600 line-clamp-2 whitespace-pre-line">{r.notes || r.notes_crm}</p>}
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <button onClick={() => setPlanRdv(r)} className="px-2.5 py-1.5 text-xs bg-gray-900 text-white rounded-lg hover:bg-gray-700">Planifier</button>
-                  <button onClick={() => setRappelRdv(r)} className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">C'est un rappel</button>
+                  <button onClick={() => setPlanRdv(r)} className="px-2.5 py-1.5 text-ui-sm bg-gray-900 text-white rounded-ui-sm hover:bg-gray-700">Planifier</button>
+                  <button onClick={() => setRappelRdv(r)} className="px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">C'est un rappel</button>
                   <SansSuiteInline rdv={r} author={author} onDone={onChanged} />
                   <button onClick={() => navigate(`/prospection/${r.id}`)} className="p-1.5 text-gray-400 hover:text-gray-700" aria-label="Ouvrir le RDV">
                     <ExternalLink className="w-4 h-4" />
@@ -192,18 +192,18 @@ export default function TriSuiviCommercial({
             {oldPasses.map(r => (
               <div key={r.id} className="flex items-center gap-3 py-2.5 flex-wrap">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-ui font-medium text-gray-900">{r.clients?.name || 'Client inconnu'}</p>
+                  <p className="text-ui-sm text-gray-500">
                     RDV du {fmtDate(r.rdv_date || rdvRefDate(r))}{r.conducted_by ? ` · ${r.conducted_by}` : ''}
                     {r.status === 'prevu' ? ' · encore marqué « planifié »' : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <button onClick={() => setSuiteRdv(r)} className="px-2.5 py-1.5 text-xs bg-gray-900 text-white rounded-lg hover:bg-gray-700">Donner la suite</button>
+                  <button onClick={() => setSuiteRdv(r)} className="px-2.5 py-1.5 text-ui-sm bg-gray-900 text-white rounded-ui-sm hover:bg-gray-700">Donner la suite</button>
                   {r.status === 'prevu' && (
-                    <button onClick={() => pasEuLieu(r)} className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">N'a pas eu lieu</button>
+                    <button onClick={() => pasEuLieu(r)} className="px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">N'a pas eu lieu</button>
                   )}
-                  <button onClick={() => keepRdv(r)} className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">Garder tel quel</button>
+                  <button onClick={() => keepRdv(r)} className="px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">Garder tel quel</button>
                   <button onClick={() => navigate(`/prospection/${r.id}`)} className="p-1.5 text-gray-400 hover:text-gray-700" aria-label="Ouvrir le RDV">
                     <ExternalLink className="w-4 h-4" />
                   </button>
@@ -240,7 +240,7 @@ export default function TriSuiviCommercial({
           <div className="flex gap-1.5 py-2 flex-wrap">
             {['all', ...callers()].map(c => (
               <button key={c} onClick={() => setCbCaller(c)}
-                className={`px-2.5 py-1 rounded-md text-xs border ${cbCaller === c ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-600 hover:border-gray-500'}`}>
+                className={`px-2.5 py-1 rounded-ui-sm text-ui-sm border ${cbCaller === c ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-600 hover:border-gray-500'}`}>
                 {c === 'all' ? 'Tous' : c} {c !== 'all' && callerCounts[c] ? `(${callerCounts[c]})` : ''}
               </button>
             ))}
@@ -249,22 +249,22 @@ export default function TriSuiviCommercial({
             {toDecide.map(cb => (
               <div key={cb.id} className="flex items-center gap-3 py-2.5 flex-wrap">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-ui font-medium text-gray-900">
                     {cb.clients?.name || 'Client inconnu'}
-                    <span className="text-xs font-normal text-gray-500"> · {cb.called_by || '-'}</span>
+                    <span className="text-ui-sm font-normal text-gray-500"> · {cb.called_by || '-'}</span>
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-ui-sm text-gray-500">
                     {cb.callback_date ? `Prévu le ${fmtDate(cb.callback_date)} · ${callbackLateDays(cb)} j de retard` : 'Rappel sans date'}
                     {cb.contact_name ? ` · ${cb.contact_name}` : ''}
                     {cb.callback_reason ? ` · ${cb.callback_reason}` : ''}
                   </p>
                 </div>
-                <button onClick={() => setMoveCb(cb)} className="px-2.5 py-1.5 text-xs bg-gray-900 text-white rounded-lg hover:bg-gray-700">
+                <button onClick={() => setMoveCb(cb)} className="px-2.5 py-1.5 text-ui-sm bg-gray-900 text-white rounded-ui-sm hover:bg-gray-700">
                   Décider
                 </button>
               </div>
             ))}
-            {toDecide.length === 0 && <p className="text-sm text-gray-500 py-2">Rien pour ce filtre.</p>}
+            {toDecide.length === 0 && <p className="text-ui text-gray-500 py-2">Rien pour ce filtre.</p>}
           </div>
         </Section>
       )}

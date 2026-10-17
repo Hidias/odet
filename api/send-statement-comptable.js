@@ -4,7 +4,8 @@
 // Le destinataire est lu dans les paramètres de l'organisme (helper partagé) : aucune adresse
 // en dur, et refus d'envoi si aucun comptable n'est configuré.
 
-import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML, getOrg, getSender } from './_lib/mailer.js'
+import { loadTeam, payerLabel } from './_lib/team.js'
 import { getComptableConfig } from './_lib/comptable.js'
 import { requireUser } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
@@ -61,8 +62,9 @@ async function handler(req, res) {
       return res.status(404).json({ error: 'Relevé introuvable' })
     }
 
-    // 3. Mailer (forcer hicham.saidi@)
-    const mailerResult = await getMailer(supabase, userId, { preferEmail: 'hicham.saidi@accessformation.pro' })
+    // 3. Compte d'envoi de l'utilisateur (adresse d'envoi par défaut de Paramètres si elle lui appartient)
+    const orgForMail = await getOrg(supabase)
+    const mailerResult = await getMailer(supabase, req.user?.id || userId, { preferEmail: orgForMail.email_default_sender })
     if (mailerResult.error) {
       return res.status(400).json({ error: mailerResult.error })
     }
@@ -132,16 +134,16 @@ async function handler(req, res) {
 
         <p style="color:#9ca3af;font-size:11px;margin-top:20px;">
           Le PDF original du relevé est joint à cet email.<br>
-          Généré automatiquement par Access Campus — Module Budget
+          Généré automatiquement par ${orgForMail.app_name || orgForMail.name} (module Budget)
         </p>
       </div>
-      ${buildSignatureHTML('Hicham')}
+      ${buildSignatureHTML(await getSender(supabase, fromEmail), orgForMail)}
     `
 
-    const subject = `[Access Formation] Relevé bancaire ${periodeLabel} — arrêté au ${fmtDateFR(st.period_end)}`
+    const subject = `[${orgForMail.name}] Relevé bancaire ${periodeLabel} — arrêté au ${fmtDateFR(st.period_end)}`
 
     const mailOptions = {
-      from: `"Access Formation" <${fromEmail}>`,
+      from: `"${(orgForMail.name || '').replace(/"/g, '')}" <${fromEmail}>`,
       to: comptable.to,
       ...(comptable.cc ? { cc: comptable.cc } : {}),
       ...(comptable.bcc ? { bcc: comptable.bcc } : {}),

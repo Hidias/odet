@@ -195,7 +195,8 @@ export async function generateSSTCertificationPDF(certification, trainee, sessio
     link.click()
     URL.revokeObjectURL(url)
     
-    return link.download
+    // Nom du fichier et contenu, pour l'archivage de la grille (suivi formatif, migration 0250)
+    return { fileName: link.download, bytes: pdfBytes }
     
   } catch (error) {
     console.error('Erreur lors de la génération du PDF:', error)

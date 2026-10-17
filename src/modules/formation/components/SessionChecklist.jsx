@@ -225,21 +225,21 @@ export default function SessionChecklist({ session }) {
     const itemData = checklistData[item.code] || {}
 
     return (
-      <div key={item.code} className="bg-gray-50 rounded-lg p-3 space-y-2">
+      <div key={item.code} className="bg-gray-50 rounded-ui-sm p-3 space-y-2">
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={itemData.is_checked || false}
             onChange={(e) => handleCheck(item.code, 'is_checked', e.target.checked)}
             disabled={saving}
-            className="w-4 h-4 text-blue-600 rounded"
+            className="w-4 h-4 text-[rgb(var(--c-info))] rounded"
           />
-          <label className="flex-1 font-medium text-sm">
+          <label className="flex-1 font-medium text-ui">
             {item.label}
-            {item.sst && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">SST</span>}
+            {item.sst && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-0.5 rounded">SST</span>}
           </label>
         </div>
-        <div className="ml-6 grid grid-cols-2 gap-2 text-xs">
+        <div className="ml-6 grid grid-cols-2 gap-2 text-ui-sm">
           <div>
             <label className="text-gray-600">Date réalisation</label>
             <input
@@ -264,7 +264,7 @@ export default function SessionChecklist({ session }) {
                 })
               }}
               disabled={saving}
-              className="w-full px-2 py-1 border rounded text-xs"
+              className="w-full px-2 py-1 border rounded text-ui-sm"
             />
           </div>
           <div>
@@ -288,7 +288,7 @@ export default function SessionChecklist({ session }) {
               }}
               disabled={saving}
               placeholder="Optionnel"
-              className="w-full px-2 py-1 border rounded text-xs"
+              className="w-full px-2 py-1 border rounded text-ui-sm"
             />
           </div>
         </div>
@@ -304,9 +304,9 @@ export default function SessionChecklist({ session }) {
 
     return (
       <div className="mb-6">
-        <h4 className="flex items-center justify-between bg-gray-100 px-4 py-2 rounded-t-lg border-l-4 border-blue-500">
+        <h4 className="flex items-center justify-between bg-gray-100 px-4 py-2 rounded-t-lg border-l-4 border-[rgb(var(--c-info)/0.3)]">
           <span className="font-semibold text-gray-900">{title}</span>
-          <span className={`text-sm ${unchecked === 0 ? 'text-green-600' : 'text-orange-600'}`}>
+          <span className={`text-ui ${unchecked === 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-warning))]'}`}>
             {filtered.length - unchecked}/{filtered.length} validés
           </span>
         </h4>
@@ -321,13 +321,13 @@ export default function SessionChecklist({ session }) {
     <div className="space-y-6">
       {/* Alerte J-3 */}
       {showAlert && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex gap-3">
-          <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-4 flex gap-3">
+          <AlertCircle className="w-5 h-5 text-[rgb(var(--c-warning))] flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h5 className="font-semibold text-orange-900">
+            <h5 className="font-semibold text-[rgb(var(--c-warning))]">
               Session dans {daysUntil} jour{daysUntil > 1 ? 's' : ''}
             </h5>
-            <p className="text-sm text-orange-800 mt-1">
+            <p className="text-ui text-[rgb(var(--c-warning))] mt-1">
               Il reste {uncheckedBefore} contrôle{uncheckedBefore > 1 ? 's' : ''} "Avant la formation" non validé{uncheckedBefore > 1 ? 's' : ''}
             </p>
           </div>
@@ -338,14 +338,14 @@ export default function SessionChecklist({ session }) {
       <div className="flex gap-3">
         <button
           onClick={() => handlePrint(false)}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 btn btn-secondary transition-colors"
         >
           <FileCheck className="w-5 h-5" />
           <span> Imprimer fiche (état actuel)</span>
         </button>
         <button
           onClick={() => handlePrint(true)}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white rounded-ui-sm hover:bg-gray-700 transition-colors"
         >
           <Printer className="w-5 h-5" />
           <span> Imprimer vierge</span>
@@ -358,7 +358,7 @@ export default function SessionChecklist({ session }) {
       {renderSection('APRÈS LA FORMATION', 'apres', CHECKLIST_ITEMS.apres)}
 
       {/* Note */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+      <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4 text-ui text-[rgb(var(--c-info))]">
         <strong> Note :</strong> Cette fiche de contrôle facilite le suivi et l'archivage papier pour la conformité Qualiopi.
         Les modifications sont sauvegardées automatiquement.
       </div>

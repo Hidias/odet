@@ -26,6 +26,11 @@ function hostOf(value) {
 // On autorise uniquement les requêtes venant de nos propres domaines.
 // Si aucune origine n'est fournie, on laisse passer pour ne casser aucun
 // appel légitime (le garde-fou modèle + le plafond de dépense couvrent le reste).
+// Domaine propre de l'instance : APP_URL et l'hôte qui reçoit la requête
+function ownHosts(req) {
+  return [process.env.APP_URL, req?.headers?.host ? `https://${req.headers.host}` : ''].map(hostOf).filter(Boolean)
+}
+
 function originAllowed(req) {
   const host = hostOf(req.headers.origin || '') || hostOf(req.headers.referer || '')
   if (!host) return true
@@ -33,8 +38,8 @@ function originAllowed(req) {
     host === 'localhost' ||
     host.startsWith('localhost:') ||
     host.startsWith('127.0.0.1') ||
-    host.endsWith('accessformation.pro') ||
-    host.endsWith('.vercel.app')
+    host.endsWith('.vercel.app') ||
+    ownHosts(req).includes(host)
   )
 }
 

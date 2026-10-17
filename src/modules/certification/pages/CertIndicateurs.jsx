@@ -24,7 +24,7 @@ function ProofForm({ number, onDone }) {
     setBusy(false)
   }
   return (
-    <div className="space-y-2 border border-gray-200 rounded-lg p-3">
+    <div className="space-y-2 border border-gray-200 rounded-ui-sm p-3">
       <label className="block"><span className="label">Titre</span><input className="input" value={p.label} onChange={(e) => setP({ ...p, label: e.target.value })} placeholder="Ex. : questionnaire donneur d'ordre retourné" /></label>
       <label className="block"><span className="label">Pour l'auditeur</span><textarea className="textarea" rows={2} value={p.note} onChange={(e) => setP({ ...p, note: e.target.value })} /></label>
       <div className="grid gap-2 sm:grid-cols-2">
@@ -79,7 +79,7 @@ function Detail({ ind, refCode, canWrite, onChanged, onBack }) {
       )}
 
       {ind.status === 'non_applicable' ? (
-        <div className="rounded-lg bg-gray-50 p-3 text-ui-sm space-y-2">
+        <div className="rounded-ui-sm bg-gray-50 p-3 text-ui-sm space-y-2">
           <div className="font-semibold">Non applicable</div>
           <div>{ind.naReason}</div>
           {canWrite && !ind.naAuto && <button type="button" className="btn btn-secondary btn-sm" onClick={resetNa}>Revenir à la règle automatique</button>}
@@ -92,14 +92,14 @@ function Detail({ ind, refCode, canWrite, onChanged, onBack }) {
             {!ind.items.length && <p className="text-ui-sm muted">Rien ne se calcule pour cet indicateur : preuves à ajouter à la main.</p>}
             {ind.items.map((it, i) => (
               <div key={i} className="flex items-start gap-3 py-2 border-b border-gray-100 text-ui">
-                {it.ok ? <Check className="w-4 h-4 mt-0.5 text-green-700 flex-none" /> : <X className="w-4 h-4 mt-0.5 text-accent-600 flex-none" />}
+                {it.ok ? <Check className="w-4 h-4 mt-0.5 text-[rgb(var(--c-success))] flex-none" /> : <X className="w-4 h-4 mt-0.5 text-accent-600 flex-none" />}
                 <span className="flex-1">{it.label}</span>
                 {it.link && <Link to={it.link} className="text-ui-sm font-semibold flex-none">Ouvrir</Link>}
               </div>
             ))}
           </div>
           {ind.missing.length > 0 && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-ui-sm space-y-1">
+            <div className="rounded-ui-sm border border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] p-3 text-ui-sm space-y-1">
               <div className="font-semibold">À préciser</div>
               {ind.missing.map((m, i) => <div key={i}>{m}</div>)}
               <div className="muted">Une preuve ajoutée ci-dessous lève ces points.</div>
@@ -225,7 +225,7 @@ export default function CertIndicateurs({ referential: refData, evaluated, setti
           </div>
           {refData.criteria.filter((c) => shown.some((i) => i.criterion === c.number)).map((c) => (
             <div key={c.number}>
-              <div className="px-4 pt-3 pb-1 text-xs font-semibold text-gray-500 uppercase">Critère {c.number} : {c.title}</div>
+              <div className="px-4 pt-3 pb-1 text-ui-sm font-semibold text-gray-500 uppercase">Critère {c.number} : {c.title}</div>
               {shown.filter((i) => i.criterion === c.number).map((i) => (
                 <button key={i.number} type="button" onClick={() => go(i.number)}
                   className={`w-full text-left flex items-center gap-3 min-h-[52px] px-4 py-2 border-b border-gray-100 hover:bg-gray-50 ${selected?.number === i.number ? 'bg-gray-50' : ''}`}>

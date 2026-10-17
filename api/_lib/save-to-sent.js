@@ -10,7 +10,7 @@ import { isTestEnvironment } from './mailer.js'
 /**
  * Détermine le host IMAP à partir du host SMTP
  */
-function getImapHost(emailConfig) {
+export function getImapHost(emailConfig) {
   if (emailConfig?.imap_host) return emailConfig.imap_host
   const smtpHost = emailConfig?.smtp_host || ''
   if (smtpHost.includes('exchange.ionos')) return 'exchange.ionos.eu'

@@ -92,7 +92,7 @@ export default function MaJournee({ technicians, isManager, isTechnician, profil
             return (
               <div key={v.id} className={`card space-y-3 ${current ? 'ring-2 ring-accent-500' : ''}`}>
                 <Link to={`/interventions/visite/${v.id}`} className="flex gap-3 items-start no-underline text-gray-900">
-                  <span className={`w-8 h-8 rounded-full flex-none flex items-center justify-center font-display font-semibold ${current ? 'bg-accent-500 text-accent-fg' : done ? 'bg-green-700 text-white' : 'bg-gray-100 text-gray-800'}`}>{i + 1}</span>
+                  <span className={`w-8 h-8 rounded-full flex-none flex items-center justify-center font-display font-semibold ${current ? 'bg-accent-500 text-accent-fg' : done ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100 text-gray-800'}`}>{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold">{v.clients?.name}</div>
                     <div className="text-ui-sm text-gray-500">{[v.sites?.city, v.sites?.name].filter(Boolean).join(', ')}</div>
@@ -102,7 +102,7 @@ export default function MaJournee({ technicians, isManager, isTechnician, profil
                 </Link>
                 {(current || done) && v.progress?.total > 0 && (
                   <div>
-                    <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden"><div className={`h-full ${done ? 'bg-green-700' : 'bg-accent-500'}`} style={{ width: `${Math.round((v.progress.done / v.progress.total) * 100)}%` }} /></div>
+                    <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden"><div className={`h-full ${done ? 'bg-[rgb(var(--c-success))]' : 'bg-accent-500'}`} style={{ width: `${Math.round((v.progress.done / v.progress.total) * 100)}%` }} /></div>
                     <div className="text-ui-sm text-gray-500 mt-1">{v.progress.done} appareils contrôlés sur {v.progress.total}</div>
                   </div>
                 )}
@@ -112,7 +112,7 @@ export default function MaJournee({ technicians, isManager, isTechnician, profil
                     {contacts[v.client_id] && <a className="btn btn-secondary flex-1" href={`tel:${String(contacts[v.client_id]).replace(/\s/g, '')}`}><Phone className="w-4 h-4" />Appeler</a>}
                   </div>
                 )}
-                {v.sites?.access_notes && !done && <div className="text-ui-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">Accès : {v.sites.access_notes}</div>}
+                {v.sites?.access_notes && !done && <div className="text-ui-sm text-gray-600 bg-gray-50 rounded-ui-sm px-3 py-2">Accès : {v.sites.access_notes}</div>}
               </div>
             )
           })}

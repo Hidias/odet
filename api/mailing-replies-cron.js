@@ -5,7 +5,7 @@
 // Règle stricte : un mail reçu n'est compté comme réponse QUE s'il répond
 // directement à un mail de campagne, c'est-à-dire si ses en-têtes techniques
 // « In-Reply-To » ou « References » contiennent l'identifiant du mail envoyé
-// (<mailing-{id}@accessformation.pro>).
+// (<mailing-{id}@domaine-de-l-expediteur>).
 //
 //   • Seuls les EN-TÊTES sont lus (jamais le contenu des mails)
 //   • Les réponses automatiques (absence, accusé…) sont ignorées
@@ -17,6 +17,7 @@ import { ImapFlow } from 'imapflow'
 import { createClient } from '@supabase/supabase-js'
 import { decrypt } from './_lib/mailer.js'
 import { requireCronOrUser } from './_lib/auth.js'
+import { getImapHost } from './_lib/save-to-sent.js'
 import { withErrorLog } from './_lib/errors.js'
 
 export const config = { maxDuration: 60 }
@@ -38,12 +39,8 @@ function getSupabase() {
 
 const MAX_MESSAGES_PER_ACCOUNT = 300
 const LOOKBACK_DAYS = 60
-const ID_RE = /<mailing-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@accessformation\.pro>/gi
+const ID_RE = /<mailing-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@[^>\s]+>/gi
 
-function getImapHost(smtpHost) {
-  if (smtpHost?.includes('exchange')) return 'exchange.ionos.eu'
-  return 'imap.ionos.fr'
-}
 
 function parseHeaders(buf) {
   const text = Buffer.isBuffer(buf) ? buf.toString('utf8') : String(buf || '')
@@ -69,7 +66,7 @@ function isAutoReply(h, subject) {
 
 async function syncAccount(config, cursor) {
   const client = new ImapFlow({
-    host: getImapHost(config.smtp_host),
+    host: getImapHost(config),
     port: 993,
     secure: true,
     auth: { user: config.email, pass: decrypt(config.smtp_password_encrypted) },

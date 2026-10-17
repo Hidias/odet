@@ -197,7 +197,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
           <Kpi value={s.a_remplacer} label="à remplacer" tone="warning" />
           <Kpi value={s.remplace} label="remplacés" tone="info" />
         </div>
-        {(s.absent + s.inaccessible) > 0 && <p className="text-ui-sm text-red-700">{s.absent + s.inaccessible} appareils absents ou inaccessibles : ils restent à vérifier.</p>}
+        {(s.absent + s.inaccessible) > 0 && <p className="text-ui-sm text-[rgb(var(--c-danger))]">{s.absent + s.inaccessible} appareils absents ou inaccessibles : ils restent à vérifier.</p>}
 
         <section className="card space-y-2">
           <h2 className="section-title">Pièces fournies</h2>
@@ -250,12 +250,12 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
           <div className="flex flex-wrap gap-2">
             {(visit.photos || []).map((p) => (
               <div key={p} className="relative">
-                {photoUrls[p] ? <img src={photoUrls[p]} alt="Photo de la visite" className="w-20 h-20 rounded-lg object-cover" /> : <div className="w-20 h-20 rounded-lg bg-gray-100" />}
+                {photoUrls[p] ? <img src={photoUrls[p]} alt="Photo de la visite" className="w-20 h-20 rounded-ui-sm object-cover" /> : <div className="w-20 h-20 rounded-ui-sm bg-gray-100" />}
                 <button type="button" className="absolute -top-2 -right-2 bg-white border border-gray-200 rounded-full w-7 h-7 flex items-center justify-center" aria-label="Retirer la photo"
                   onClick={async () => { const photos = visit.photos.filter((x) => x !== p); await updateVisit(visit.id, { photos }); setVisit((v) => ({ ...v, photos })) }}><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             ))}
-            <button type="button" className="w-20 h-20 rounded-lg border border-dashed border-gray-300 flex items-center justify-center" aria-label="Prendre une photo" onClick={() => { setPhotoTarget('visit'); fileRef.current?.click() }} disabled={busy}>
+            <button type="button" className="w-20 h-20 rounded-ui-sm border border-dashed border-gray-300 flex items-center justify-center" aria-label="Prendre une photo" onClick={() => { setPhotoTarget('visit'); fileRef.current?.click() }} disabled={busy}>
               {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-6 h-6 text-gray-600" />}
             </button>
           </div>
@@ -280,7 +280,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
           <input id="itv-signer" className="input" value={visit.signer_name || ''} onChange={(e) => setVisit((v) => ({ ...v, signer_name: e.target.value }))}
             onBlur={() => updateVisit(visit.id, { signer_name: visit.signer_name || null }).catch(() => {})} />
           {visit.client_signature
-            ? <div className="flex items-center gap-3"><img src={visit.client_signature} alt="Signature du client" className="h-20 border border-gray-200 rounded-lg bg-white" /><button type="button" className="btn btn-secondary btn-sm" onClick={() => setSigning(true)}>Refaire</button></div>
+            ? <div className="flex items-center gap-3"><img src={visit.client_signature} alt="Signature du client" className="h-20 border border-gray-200 rounded-ui-sm bg-white" /><button type="button" className="btn btn-secondary btn-sm" onClick={() => setSigning(true)}>Refaire</button></div>
             : <button type="button" className="btn btn-secondary w-full" style={{ height: 52 }} onClick={() => setSigning(true)}><PenLine className="w-5 h-5" />Faire signer le client</button>}
         </section>
 
@@ -314,12 +314,12 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
         const t = typesById[r.e.type_id] || r.e.itv_equipment_types || {}
         const needsDetail = r.result && r.result !== 'conforme'
         return (
-          <div key={r.id} id={`itv-eq-${r.e.id}`} className={`card space-y-2 ${needsDetail ? 'ring-1 ring-amber-500' : ''} ${highlight === r.e.id ? 'ring-2 ring-accent-500' : ''}`}>
+          <div key={r.id} id={`itv-eq-${r.e.id}`} className={`card space-y-2 ${needsDetail ? 'ring-1 ring-[rgb(var(--c-warning)/0.3)]' : ''} ${highlight === r.e.id ? 'ring-2 ring-accent-500' : ''}`}>
             <div className="flex gap-2 justify-between">
               <div className="min-w-0">
                 <div className="font-semibold">{t.name}{r.e.details?.Capacité ? ` ${r.e.details.Capacité}` : ''}</div>
                 <div className="text-ui-sm text-gray-500">{[r.e.location, r.e.label_code].filter(Boolean).join('. ')}</div>
-                {r.operation !== 'verification' && <div className="text-ui-sm font-semibold text-amber-800">{settings.operation_labels[r.operation] || r.operation}</div>}
+                {r.operation !== 'verification' && <div className="text-ui-sm font-semibold text-[rgb(var(--c-warning))]">{settings.operation_labels[r.operation] || r.operation}</div>}
                 {r.e.manufactured_year && <div className="text-ui-sm text-gray-500">Fabriqué en {r.e.manufactured_year}{r.e.brand ? `, ${r.e.brand}` : ''}</div>}
               </div>
               <ResultBadge result={r.result} />
@@ -329,14 +329,14 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
                 <div className="grid grid-cols-3 gap-2">
                   {MAIN.map((res) => (
                     <button key={res.code} type="button" onClick={() => patchItem(r, { result: res.code })}
-                      className={`rounded-lg border text-ui-sm font-semibold ${r.result === res.code ? (res.code === 'conforme' ? 'bg-green-700 border-green-700 text-white' : res.code === 'a_remplacer' ? 'bg-amber-700 border-amber-700 text-white' : 'bg-blue-700 border-blue-700 text-white') : 'bg-white border-gray-300 text-gray-900'}`}
+                      className={`rounded-ui-sm border text-ui-sm font-semibold ${r.result === res.code ? (res.code === 'conforme' ? 'bg-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)] text-white' : res.code === 'a_remplacer' ? 'bg-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)] text-white' : 'bg-[rgb(var(--c-info))] border-[rgb(var(--c-info)/0.3)] text-white') : 'bg-white border-gray-300 text-gray-900'}`}
                       style={{ height: 44 }} aria-pressed={r.result === res.code}>{res.label}</button>
                   ))}
                 </div>
                 <div className="flex gap-2">
                   {OTHER.map((res) => (
                     <button key={res.code} type="button" onClick={() => patchItem(r, { result: r.result === res.code ? null : res.code })}
-                      className={`btn btn-sm flex-1 ${r.result === res.code ? 'bg-red-700 text-white border-red-700' : 'btn-ghost'}`} aria-pressed={r.result === res.code}>{res.label}</button>
+                      className={`btn btn-sm flex-1 ${r.result === res.code ? 'bg-[rgb(var(--c-danger))] text-white border-[rgb(var(--c-danger)/0.3)]' : 'btn-ghost'}`} aria-pressed={r.result === res.code}>{res.label}</button>
                   ))}
                 </div>
               </>
@@ -359,7 +359,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
                 <button type="button" className="btn btn-secondary w-full" onClick={() => { setPhotoTarget(r); itemFileRef.current?.click() }} disabled={busy}>
                   <Camera className="w-4 h-4" />{r.photo_path ? 'Remplacer la photo' : 'Photo de l\'appareil'}
                 </button>
-                {r.photo_path && photoUrls[r.photo_path] && <img src={photoUrls[r.photo_path]} alt="Photo de l'appareil" className="h-24 rounded-lg object-cover" />}
+                {r.photo_path && photoUrls[r.photo_path] && <img src={photoUrls[r.photo_path]} alt="Photo de l'appareil" className="h-24 rounded-ui-sm object-cover" />}
               </div>
             )}
           </div>
@@ -495,7 +495,7 @@ function VisitDone({ visit, items, parts, equipmentById, settings, technician, i
         })}
       </div>
       {visit.client_signature && <div className="card"><div className="text-ui-sm text-gray-500 mb-1">Signé par {visit.signer_name || 'le client'}</div><img src={visit.client_signature} alt="Signature du client" className="h-16" /></div>}
-      {(visit.photos || []).length > 0 && <div className="flex gap-2 flex-wrap">{visit.photos.map((p) => photoUrls[p] && <img key={p} src={photoUrls[p]} alt="Photo de la visite" className="w-20 h-20 rounded-lg object-cover" />)}</div>}
+      {(visit.photos || []).length > 0 && <div className="flex gap-2 flex-wrap">{visit.photos.map((p) => photoUrls[p] && <img key={p} src={photoUrls[p]} alt="Photo de la visite" className="w-20 h-20 rounded-ui-sm object-cover" />)}</div>}
       <Link to="/interventions/journee" className="btn btn-ghost w-full">Retour à ma journée</Link>
     </div>
   )

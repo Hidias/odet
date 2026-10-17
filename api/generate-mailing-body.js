@@ -6,7 +6,7 @@ import { withErrorLog } from './_lib/errors.js'
 // Appelé depuis Mailing.jsx — l'user décrit ce qu'il veut, l'IA génère le HTML
 //
 // RÈGLES STRICTES :
-//   - Génère uniquement le body HTML (pas de signature, pas d'"Access Formation")
+//   - Génère uniquement le body HTML (pas de signature, pas de nom d'organisme)
 //   - L'utilisateur personnalise ensuite si besoin
 //   - La signature est injectée par send-mailing-single.js côté serveur
 // ─────────────────────────────────────────────────────────────────────────────

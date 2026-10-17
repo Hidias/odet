@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
-import { useAuthStore } from '../../../core/store'
+import { useAuthStore, useDataStore } from '../../../core/store'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx-js-style'
@@ -8,42 +8,129 @@ import {
   Calculator, AlertTriangle, CheckCircle, Clock, Lock, Unlock,
   Download, RefreshCw, Plus, X, ChevronDown, Search, Eye, EyeOff, LogOut, FileText
 } from 'lucide-react'
+import SearchSelect from '../../../ui/SearchSelect'
 
 // ════════════════════════════════════════════════════════════
-//  ESPACE COMPTABLE - Access Campus
+//  ESPACE COMPTABLE
 //  Balance âgée | Encaissements | Rapprochement | Clôtures | Export | FEC
 // ════
 
-// Constante fondation
-const COMPANY_START = new Date(2025, 3, 18) // 18 avril 2025 (date Kbis)
+// ════════════════════════════════════════════════════════════
+// EXERCICES COMPTABLES - calculés depuis organization_settings
+//   exercice_start_month : mois de début d'exercice (1 à 12, défaut 1)
+//   date_creation        : début du premier exercice
+// ════════════════════════════════════════════════════════════
 
-// Exercices comptables (1er exercice = 18/04/2025 → 30/06/2026 selon Kbis)
-function getExercices() {
-  const exos = []
-  // Premier exercice long
-  exos.push({ label: 'Ex. 1 - 18/04/2025 → 30/06/2026', start: new Date(2025, 3, 18), end: new Date(2026, 5, 30), filename: 'FEC94356386620260630.txt' })
-  // Exercices annuels suivants
-  let y = 2026
-  while (y < new Date().getFullYear() + 2) {
-    const start = new Date(y, 6, 1)  // 01 juillet
-    const end = new Date(y + 1, 5, 30) // 30 juin
-    exos.push({ label: `Ex. ${exos.length + 1} - 01/07/${y} → 30/06/${y + 1}`, start, end, filename: `FEC943563866${y + 1}0630.txt` })
-    y++
-  }
-  return exos
+const pad2 = (x) => String(x).padStart(2, '0')
+const fmtDMY = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`
+const fmtYMD = (d) => `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`
+
+/** Date SQL 'YYYY-MM-DD' en date locale (sans décalage UTC), sinon null */
+function parseLocalDate(v) {
+  const m = String(v || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return Number.isNaN(d.getTime()) ? null : d
 }
-const EXERCICES = getExercices()
+
+/** Mois de début d'exercice (1 à 12), défaut janvier */
+function exerciceStartMonth(org) {
+  const m = parseInt(org?.exercice_start_month, 10)
+  return m >= 1 && m <= 12 ? m : 1
+}
+
+/** Veille du 1er du mois de début d'exercice (1 à 12) de l'année donnée : dernier jour du mois précédent */
+const closingBefore = (year, startMonth) => new Date(year, startMonth - 1, 0)
+
+/** Libellé de la date de clôture standard : « 30 juin », « 31 décembre »... */
+function closingDayLabel(org) {
+  return closingBefore(2001, exerciceStartMonth(org)).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+}
+
+/** SIREN de l'organisme (repli : 9 premiers chiffres du SIRET), chaîne vide si inconnu */
+function orgSiren(org) {
+  const siren = String(org?.siren || '').replace(/\D/g, '')
+  if (siren.length === 9) return siren
+  const siret = String(org?.siret || '').replace(/\D/g, '')
+  return siret.length >= 9 ? siret.slice(0, 9) : ''
+}
+
+const monthsBetween = (a, b) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+const endOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999)
+
+/**
+ * Exercices comptables.
+ * - Premier exercice : de date_creation à la veille du début d'exercice de l'année suivante
+ *   (fin du mois précédant exercice_start_month) si cela fait moins de 24 mois, sinon à la
+ *   fin de la même année ; puis des exercices de 12 mois.
+ * - Sans date_creation : premier exercice = exercice standard qui contient la première
+ *   opération connue (ou la date du jour).
+ * Nom du fichier FEC (format légal) : SIREN + 'FEC' + AAAAMMJJ de clôture, null sans SIREN.
+ */
+function getExercices(org, firstActivityDate) {
+  const sm = exerciceStartMonth(org)
+  const siren = orgSiren(org)
+  const fileName = (end) => siren ? `${siren}FEC${fmtYMD(end)}.txt` : null
+  const exos = []
+
+  let start = parseLocalDate(org?.date_creation)
+  let end
+  if (start) {
+    end = closingBefore(start.getFullYear() + 1, sm)
+    if (monthsBetween(start, end) >= 24) {
+      const sameYear = closingBefore(start.getFullYear(), sm)
+      if (sameYear >= start) end = sameYear
+    }
+  } else {
+    const ref = firstActivityDate || new Date()
+    const y = (ref.getMonth() + 1) >= sm ? ref.getFullYear() : ref.getFullYear() - 1
+    start = new Date(y, sm - 1, 1)
+    end = closingBefore(y + 1, sm)
+  }
+  exos.push({ start, end: endOfDay(end) })
+
+  // Exercices de 12 mois jusqu'à celui qui commence l'an prochain inclus
+  const lastYear = new Date().getFullYear() + 2
+  for (let guard = 0; guard < 100; guard++) {
+    const prev = exos[exos.length - 1].end
+    const s2 = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 1)
+    if (s2.getFullYear() >= lastYear) break
+    exos.push({ start: s2, end: endOfDay(closingBefore(s2.getFullYear() + 1, sm)) })
+  }
+
+  return exos.map((e, idx) => ({
+    ...e,
+    label: `Ex. ${idx + 1} - ${fmtDMY(e.start)} → ${fmtDMY(e.end)}`,
+    filename: fileName(e.end),
+  }))
+}
+
+/** Libellé de la banque de l'organisme pour le journal et le compte 512000 */
+function bankLabel(org) {
+  const name = String(org?.bank_name || '').trim()
+  return name ? `Banque ${name}` : 'Banque'
+}
+
+/** IBAN formaté par groupes de 4, ou mention à renseigner */
+function formatIban(org) {
+  const iban = String(org?.iban || '').replace(/\s+/g, '').toUpperCase()
+  return iban ? iban.replace(/(.{4})/g, '$1 ').trim() : 'Non renseigné (Paramètres)'
+}
+
+/** Contexte comptable partagé par les onglets : organisme, exercices, début d'activité */
+const FiscalContext = React.createContext({ org: null, exercices: [], companyStart: new Date(new Date().getFullYear(), 0, 1), closingLabel: '' })
+const useFiscal = () => React.useContext(FiscalContext)
 
 // ════════════════════════════════════════════════════════════
 
 const TABS = [
-  { key: 'balance', label: ' Balance âgée' },
-  { key: 'encaissements', label: ' Encaissements' },
-  { key: 'rapprochement', label: ' Rapprochement' },
-  { key: 'annotations', label: ' Annotations' },
-  { key: 'clotures', label: ' Clôtures' },
-  { key: 'export', label: ' Export Excel' },
-  { key: 'fec', label: ' FEC DGFiP' },
+  { key: 'balance', label: 'Balance âgée' },
+  { key: 'encaissements', label: 'Encaissements' },
+  { key: 'rapprochement', label: 'Rapprochement' },
+  { key: 'annotations', label: 'Annotations' },
+  { key: 'clotures', label: 'Clôtures' },
+  { key: 'export', label: 'Export Excel' },
+  { key: 'fec', label: 'FEC DGFiP' },
 ]
 
 const fmt = (n) => {
@@ -88,15 +175,15 @@ const STATUS_LABELS = {
   credited: 'Annulée par avoir'
 }
 const STATUS_COLORS = {
-  paid: 'text-green-600 bg-green-50', overdue: 'text-red-600 bg-red-50',
-  partial: 'text-orange-600 bg-orange-50', sent: 'text-blue-600 bg-blue-50',
-  due: 'text-yellow-700 bg-yellow-50', draft: 'text-gray-500 bg-gray-50',
+  paid: 'text-[rgb(var(--c-success))] bg-[rgb(var(--c-success-bg))]', overdue: 'text-[rgb(var(--c-danger))] bg-[rgb(var(--c-danger-bg))]',
+  partial: 'text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))]', sent: 'text-[rgb(var(--c-info))] bg-[rgb(var(--c-info-bg))]',
+  due: 'text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))]', draft: 'text-gray-500 bg-gray-50',
   credited: 'text-gray-500 bg-gray-50'
 }
 
 function Badge({ status }) {
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[status] || 'text-gray-500 bg-gray-50'}`}>
+    <span className={`text-ui-sm font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[status] || 'text-gray-500 bg-gray-50'}`}>
       {STATUS_LABELS[status] || status}
     </span>
   )
@@ -118,11 +205,11 @@ function getAgingBucket(invoice) {
 }
 
 const AGING_BUCKETS = [
-  { key: 'not_due', label: 'Non échu', color: 'blue', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
-  { key: '0_30', label: '0-30 jours', color: 'yellow', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' },
-  { key: '31_60', label: '31-60 jours', color: 'orange', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' },
-  { key: '61_90', label: '61-90 jours', color: 'red', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700' },
-  { key: '90_plus', label: '+ 90 jours', color: 'red', bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800' },
+  { key: 'not_due', label: 'Non échu', color: 'blue', bg: 'bg-[rgb(var(--c-info-bg))]', border: 'border-[rgb(var(--c-info)/0.3)]', text: 'text-[rgb(var(--c-info))]' },
+  { key: '0_30', label: '0-30 jours', color: 'yellow', bg: 'bg-[rgb(var(--c-warning-bg))]', border: 'border-[rgb(var(--c-warning)/0.3)]', text: 'text-[rgb(var(--c-warning))]' },
+  { key: '31_60', label: '31-60 jours', color: 'orange', bg: 'bg-[rgb(var(--c-warning-bg))]', border: 'border-[rgb(var(--c-warning)/0.3)]', text: 'text-[rgb(var(--c-warning))]' },
+  { key: '61_90', label: '61-90 jours', color: 'red', bg: 'bg-[rgb(var(--c-danger-bg))]', border: 'border-[rgb(var(--c-danger)/0.3)]', text: 'text-[rgb(var(--c-danger))]' },
+  { key: '90_plus', label: '+ 90 jours', color: 'red', bg: 'bg-[rgb(var(--c-danger-bg))]', border: 'border-[rgb(var(--c-danger)/0.3)]', text: 'text-[rgb(var(--c-danger))]' },
 ]
 
 //  PostgREST plafonne toute requête à 1000 lignes sans plage explicite.
@@ -145,6 +232,9 @@ async function fetchAll(buildQuery, pageSize = 1000) {
 export default function EspaceComptable() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const organization = useDataStore(s => s.organization)
+  const fetchOrganization = useDataStore(s => s.fetchOrganization)
+  useEffect(() => { if (!organization) fetchOrganization() }, [organization, fetchOrganization])
 
   async function handleLogout() {
     await logout()
@@ -181,8 +271,8 @@ export default function EspaceComptable() {
       supabase
         .from('accounting_periods')
         .select('*')
-        .order('period_year', { ascending: false })
-        .order('period_month', { ascending: false }),
+        .order('year', { ascending: false })
+        .order('month', { ascending: false }),
     ])
     setInvoices(invAll)
     setPayments(payAll)
@@ -191,43 +281,63 @@ export default function EspaceComptable() {
     setLoading(false)
   }
 
+  // ─── Exercices et début d'activité, depuis les paramètres de l'organisme ──
+  const fiscal = useMemo(() => {
+    // Première opération connue (utile seulement si date_creation est vide)
+    let first = null
+    const consider = (v) => { const d = parseLocalDate(v); if (d && (!first || d < first)) first = d }
+    transactions.forEach(t => consider(t.date))
+    invoices.forEach(i => consider(i.invoice_date))
+    const exercices = getExercices(organization, first)
+    const s0 = exercices[0]?.start || new Date(new Date().getFullYear(), 0, 1)
+    return {
+      org: organization,
+      exercices,
+      companyStart: new Date(s0.getFullYear(), s0.getMonth(), 1), // 1er du mois de début d'activité
+      closingLabel: closingDayLabel(organization),
+    }
+  }, [organization, transactions, invoices])
+
   // ─── Vérifier si une date est dans une période clôturée ──
   const isDateLocked = useCallback((dateStr) => {
     if (!dateStr) return false
     const d = new Date(dateStr)
     const y = d.getFullYear(); const m = d.getMonth() + 1
-    return periods.some(p => p.locked_at && p.period_year === y && p.period_month === m)
+    return periods.some(p => p.locked_at && p.year === y && p.month === m)
   }, [periods])
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-400 mx-auto mb-4"></div>
           <p className="text-gray-500">Chargement de l'espace comptable...</p>
         </div>
       </div>
     )
   }
 
+  const orgDisplayName = organization?.name || organization?.legal_name || ''
+
   return (
+    <FiscalContext.Provider value={fiscal}>
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Calculator className="w-7 h-7 text-violet-600" />
+          <h1 className="page-title flex items-center gap-2">
+            <Calculator className="w-7 h-7 text-gray-800" />
             Espace Comptable
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Access Formation - {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-ui text-gray-500 mt-1">{orgDisplayName ? `${orgDisplayName} - ` : ''}{new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-400 hidden sm:block">{user?.email}</span>
-          <button onClick={loadAll} className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-colors">
+          <span className="text-ui text-gray-400 hidden sm:block">{user?.email}</span>
+          <button onClick={loadAll} className="flex items-center gap-2 px-3 py-2 border rounded-ui-sm text-ui hover:bg-gray-50 transition-colors">
             <RefreshCw className="w-4 h-4" />
             Actualiser
           </button>
-          <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors">
+          <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 border border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))] rounded-ui-sm text-ui hover:bg-[rgb(var(--c-danger-bg))] transition-colors">
             <LogOut className="w-4 h-4" />
             Déconnexion
           </button>
@@ -243,8 +353,8 @@ export default function EspaceComptable() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap shrink-0 transition ${
-              tab === t.key ? 'bg-violet-600 text-white shadow' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            className={`px-3 py-1.5 rounded-ui-sm text-ui font-medium whitespace-nowrap shrink-0 transition ${
+              tab === t.key ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
             }`}
           >
             {t.label}
@@ -261,6 +371,7 @@ export default function EspaceComptable() {
       {tab === 'export' && <ExportTab invoices={invoices} payments={payments} transactions={transactions} />}
       {tab === 'fec' && <FecTab invoices={invoices} payments={payments} transactions={transactions} />}
     </div>
+    </FiscalContext.Provider>
   )
 }
 
@@ -268,6 +379,7 @@ export default function EspaceComptable() {
 // KPI SUMMARY
 // ════════════════════════════════════════════════════════════
 function KPISummary({ invoices }) {
+  const { closingLabel } = useFiscal()
   const stats = useMemo(() => {
     const unpaid = invoices.filter(i => i.status !== 'paid' && i.status !== 'cancelled' && i.status !== 'credited' && i.status !== 'draft' && i.type !== 'credit_note')
     const totalDue = unpaid.reduce((s, i) => s + (parseFloat(i.amount_due) || 0), 0)
@@ -284,25 +396,25 @@ function KPISummary({ invoices }) {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div className="bg-white rounded-xl border p-4">
-        <p className="text-xs text-gray-500 font-medium">Créances totales</p>
+      <div className="bg-white rounded-ui border p-4">
+        <p className="text-ui-sm text-gray-500 font-medium">Créances totales</p>
         <p className="text-xl font-bold text-gray-900 mt-1">{fmt(stats.totalDue)}</p>
-        <p className="text-xs text-gray-400 mt-1">{stats.nbUnpaid} facture(s) non soldée(s)</p>
+        <p className="text-ui-sm text-gray-400 mt-1">{stats.nbUnpaid} facture(s) non soldée(s)</p>
       </div>
-      <div className="bg-white rounded-xl border p-4 border-red-100">
-        <p className="text-xs text-red-600 font-medium">En retard</p>
-        <p className="text-xl font-bold text-red-700 mt-1">{fmt(stats.totalOverdue)}</p>
-        <p className="text-xs text-red-400 mt-1">{stats.nbOverdue} facture(s)</p>
+      <div className="bg-white rounded-ui border p-4 border-[rgb(var(--c-danger)/0.3)]">
+        <p className="text-ui-sm text-[rgb(var(--c-danger))] font-medium">En retard</p>
+        <p className="text-xl font-bold text-[rgb(var(--c-danger))] mt-1">{fmt(stats.totalOverdue)}</p>
+        <p className="text-ui-sm text-[rgb(var(--c-danger))] mt-1">{stats.nbOverdue} facture(s)</p>
       </div>
-      <div className="bg-white rounded-xl border p-4 border-green-100">
-        <p className="text-xs text-green-600 font-medium">Encaissé (30j)</p>
-        <p className="text-xl font-bold text-green-700 mt-1">{fmt(stats.totalPaid30)}</p>
-        <p className="text-xs text-green-400 mt-1">Factures soldées</p>
+      <div className="bg-white rounded-ui border p-4 border-[rgb(var(--c-success)/0.3)]">
+        <p className="text-ui-sm text-[rgb(var(--c-success))] font-medium">Encaissé (30j)</p>
+        <p className="text-xl font-bold text-[rgb(var(--c-success))] mt-1">{fmt(stats.totalPaid30)}</p>
+        <p className="text-ui-sm text-[rgb(var(--c-success))] mt-1">Factures soldées</p>
       </div>
-      <div className="bg-white rounded-xl border p-4">
-        <p className="text-xs text-gray-500 font-medium">Exercice</p>
+      <div className="bg-white rounded-ui border p-4">
+        <p className="text-ui-sm text-gray-500 font-medium">Exercice</p>
         <p className="text-xl font-bold text-gray-900 mt-1">{new Date().getFullYear()}</p>
-        <p className="text-xs text-gray-400 mt-1">Clôture 30 juin</p>
+        <p className="text-ui-sm text-gray-400 mt-1">Clôture {closingLabel}</p>
       </div>
     </div>
   )
@@ -355,12 +467,12 @@ function BalanceAgeeTab({ invoices }) {
   return (
     <div className="space-y-4">
       {/* Résumé par tranche */}
-      <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white rounded-ui border p-4">
         <h3 className="font-semibold text-gray-700 mb-3">Répartition des créances</h3>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {AGING_BUCKETS.map(b => (
-            <div key={b.key} className={`${b.bg} border ${b.border} rounded-lg p-3 text-center`}>
-              <p className={`text-xs font-semibold ${b.text}`}>{b.label}</p>
+            <div key={b.key} className={`${b.bg} border ${b.border} rounded-ui-sm p-3 text-center`}>
+              <p className={`text-ui-sm font-semibold ${b.text}`}>{b.label}</p>
               <p className={`text-lg font-bold ${b.text} mt-1`}>{fmt(totals[b.key] || 0)}</p>
             </div>
           ))}
@@ -368,7 +480,7 @@ function BalanceAgeeTab({ invoices }) {
       </div>
 
       {/* Tableau par client */}
-      <div className="bg-white rounded-xl border">
+      <div className="bg-white rounded-ui border">
         <div className="p-4 border-b flex items-center gap-3">
           <h3 className="font-semibold text-gray-700 flex-1">Détail par client</h3>
           <div className="relative">
@@ -378,14 +490,14 @@ function BalanceAgeeTab({ invoices }) {
               placeholder="Rechercher..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="border rounded-lg pl-8 pr-3 py-2 text-sm w-48"
+              className="border rounded-ui-sm pl-8 pr-3 py-2 text-ui w-48"
             />
           </div>
         </div>
 
         {filtered.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
-            <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-400" />
+            <CheckCircle className="w-12 h-12 mx-auto mb-3 text-[rgb(var(--c-success))]" />
             <p className="font-medium">Aucune créance en cours</p>
           </div>
         ) : (
@@ -403,9 +515,9 @@ function BalanceAgeeTab({ invoices }) {
                   >
                     <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                     <span className="font-medium text-gray-900 flex-1">{client.name}</span>
-                    <span className="text-xs text-gray-500">{client.invoices.length} facture(s)</span>
+                    <span className="text-ui-sm text-gray-500">{client.invoices.length} facture(s)</span>
                     {worstBucket && (
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${worstBucket.bg} ${worstBucket.text}`}>
+                      <span className={`text-ui-sm font-medium px-2 py-0.5 rounded-full ${worstBucket.bg} ${worstBucket.text}`}>
                         {worstBucket.label}
                       </span>
                     )}
@@ -414,7 +526,7 @@ function BalanceAgeeTab({ invoices }) {
 
                   {isOpen && (
                     <div className="bg-gray-50 px-4 py-2">
-                      <table className="w-full text-xs">
+                      <table className="w-full text-ui-sm">
                         <thead>
                           <tr className="text-gray-500">
                             <th className="text-left py-1.5 font-medium">Référence</th>
@@ -437,7 +549,7 @@ function BalanceAgeeTab({ invoices }) {
                                 <td className="py-1.5 text-right font-bold">{fmt(parseFloat(inv.amount_due))}</td>
                                 <td className="py-1.5 text-center">
                                   {bucket && (
-                                    <span className={`font-medium px-2 py-0.5 rounded-full text-xs ${bucket.bg} ${bucket.text}`}>
+                                    <span className={`font-medium px-2 py-0.5 rounded-full text-ui-sm ${bucket.bg} ${bucket.text}`}>
                                       {bucket.label}
                                     </span>
                                   )}
@@ -463,6 +575,7 @@ function BalanceAgeeTab({ invoices }) {
 // ENCAISSEMENTS
 // ════════════════════════════════════════════════════════════
 function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
+  const { companyStart } = useFiscal()
   const [showForm, setShowForm] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [form, setForm] = useState({
@@ -483,9 +596,9 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
     const opts = [{ value: 'all', label: 'Tous les encaissements' }]
     const now = new Date(); let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
     const MN = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
-    while (cursor >= COMPANY_START) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
+    while (cursor >= companyStart) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
     return opts
-  }, [])
+  }, [companyStart])
   const recentPayments = useMemo(() => {
     if (historyMonth === 'all') return payments
     const [y, m] = historyMonth.split('-').map(Number)
@@ -539,12 +652,12 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
   return (
     <div className="space-y-4">
       {/* Saisie encaissement */}
-      <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white rounded-ui border p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-700">Saisir un encaissement</h3>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700"
+            className="flex items-center gap-2 px-3 py-2 bg-gray-700 text-white rounded-ui-sm text-ui hover:bg-gray-700"
           >
             <Plus className="w-4 h-4" />
             Nouvel encaissement
@@ -552,23 +665,16 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
         </div>
 
         {showForm && (
-          <div className="border rounded-lg p-4 bg-gray-50 space-y-4">
+          <div className="border rounded-ui-sm p-4 bg-gray-50 space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1.5">Facture concernée</label>
-              <select
+              <label className="text-ui font-medium text-gray-700 block mb-1.5">Facture concernée</label>
+              <SearchSelect
                 value={selectedInvoice?.id || ''}
-                onChange={e => setSelectedInvoice(unpaidInvoices.find(i => i.id === e.target.value) || null)}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="">- Sélectionner une facture -</option>
-                {unpaidInvoices.map(inv => (
-                  <option key={inv.id} value={inv.id}>
-                    {inv.reference} - {inv.clients?.name || '-'} - {fmt(parseFloat(inv.amount_due))} restant
-                  </option>
-                ))}
-              </select>
+                onChange={v => setSelectedInvoice(unpaidInvoices.find(i => i.id === v) || null)}
+                options={unpaidInvoices.map(inv => ({ value: inv.id, label: `${inv.reference} - ${inv.clients?.name || '-'}`, hint: `${fmt(parseFloat(inv.amount_due))} restant` }))}
+                emptyLabel="- Sélectionner une facture -" searchPlaceholder="Référence ou client..." aria-label="Facture" />
               {selectedInvoice && (
-                <div className="mt-2 text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded px-3 py-2">
+                <div className="mt-2 text-ui-sm text-gray-500 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded px-3 py-2">
                   Total TTC : {fmt(parseFloat(selectedInvoice.total_ttc))} •
                   Déjà payé : {fmt(parseFloat(selectedInvoice.amount_paid))} •
                   <strong> Restant dû : {fmt(parseFloat(selectedInvoice.amount_due))}</strong>
@@ -578,7 +684,7 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1.5">Montant encaissé (€)</label>
+                <label className="text-ui font-medium text-gray-700 block mb-1.5">Montant encaissé (€)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -586,29 +692,29 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
                   value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
                   placeholder={selectedInvoice ? String(parseFloat(selectedInvoice.amount_due).toFixed(2)) : '0.00'}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  className="w-full border rounded-ui-sm px-3 py-2 text-ui"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1.5">Date d'encaissement</label>
+                <label className="text-ui font-medium text-gray-700 block mb-1.5">Date d'encaissement</label>
                 <input
                   type="date"
                   value={form.payment_date}
                   onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  className="w-full border rounded-ui-sm px-3 py-2 text-ui"
                 />
                 {isDateLocked(form.payment_date) && (
-                  <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                  <p className="text-ui-sm text-[rgb(var(--c-danger))] mt-1 flex items-center gap-1">
                     <Lock className="w-3 h-3" /> Période clôturée
                   </p>
                 )}
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1.5">Mode de paiement</label>
+                <label className="text-ui font-medium text-gray-700 block mb-1.5">Mode de paiement</label>
                 <select
                   value={form.payment_method}
                   onChange={e => setForm(f => ({ ...f, payment_method: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  className="w-full border rounded-ui-sm px-3 py-2 text-ui"
                 >
                   <option value="virement bancaire">Virement bancaire</option>
                   <option value="chèque">Chèque</option>
@@ -618,25 +724,25 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1.5">Référence paiement</label>
+                <label className="text-ui font-medium text-gray-700 block mb-1.5">Référence paiement</label>
                 <input
                   type="text"
                   value={form.payment_reference}
                   onChange={e => setForm(f => ({ ...f, payment_reference: e.target.value }))}
                   placeholder="ex: VIR-202606-001"
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  className="w-full border rounded-ui-sm px-3 py-2 text-ui"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1.5">Notes</label>
+              <label className="text-ui font-medium text-gray-700 block mb-1.5">Notes</label>
               <input
                 type="text"
                 value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 placeholder="Notes optionnelles..."
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border rounded-ui-sm px-3 py-2 text-ui"
               />
             </div>
 
@@ -644,13 +750,13 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
               <button
                 onClick={handleSavePayment}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))] disabled:opacity-50"
               >
                 {saving ? ' Enregistrement...' : ' Enregistrer l\'encaissement'}
               </button>
               <button
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 border rounded-ui-sm text-ui hover:bg-gray-50"
               >
                 Annuler
               </button>
@@ -660,42 +766,42 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
       </div>
 
       {/* Factures non soldées */}
-      <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white rounded-ui border p-4">
         <h3 className="font-semibold text-gray-700 mb-3">Factures en attente d'encaissement ({unpaidInvoices.length})</h3>
         {unpaidInvoices.length === 0 ? (
-          <p className="text-center py-6 text-gray-400 text-sm"> Toutes les factures sont soldées</p>
+          <p className="text-center py-6 text-gray-400 text-ui"> Toutes les factures sont soldées</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-ui">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-left px-3 py-2 text-xs text-gray-500 font-medium">Référence</th>
-                  <th className="text-left px-3 py-2 text-xs text-gray-500 font-medium">Client</th>
-                  <th className="text-center px-3 py-2 text-xs text-gray-500 font-medium">Date</th>
-                  <th className="text-center px-3 py-2 text-xs text-gray-500 font-medium">Échéance</th>
-                  <th className="text-right px-3 py-2 text-xs text-gray-500 font-medium">Total TTC</th>
-                  <th className="text-right px-3 py-2 text-xs text-gray-500 font-medium">Payé</th>
-                  <th className="text-right px-3 py-2 text-xs text-gray-500 font-medium">Restant</th>
-                  <th className="text-center px-3 py-2 text-xs text-gray-500 font-medium">Statut</th>
+                  <th className="text-left px-3 py-2 text-ui-sm text-gray-500 font-medium">Référence</th>
+                  <th className="text-left px-3 py-2 text-ui-sm text-gray-500 font-medium">Client</th>
+                  <th className="text-center px-3 py-2 text-ui-sm text-gray-500 font-medium">Date</th>
+                  <th className="text-center px-3 py-2 text-ui-sm text-gray-500 font-medium">Échéance</th>
+                  <th className="text-right px-3 py-2 text-ui-sm text-gray-500 font-medium">Total TTC</th>
+                  <th className="text-right px-3 py-2 text-ui-sm text-gray-500 font-medium">Payé</th>
+                  <th className="text-right px-3 py-2 text-ui-sm text-gray-500 font-medium">Restant</th>
+                  <th className="text-center px-3 py-2 text-ui-sm text-gray-500 font-medium">Statut</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {unpaidInvoices.map(inv => (
                   <tr key={inv.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 font-mono font-bold text-xs">{inv.reference}</td>
+                    <td className="px-3 py-2 font-mono font-bold text-ui-sm">{inv.reference}</td>
                     <td className="px-3 py-2 text-gray-700 truncate max-w-32">{inv.clients?.name || '-'}</td>
-                    <td className="px-3 py-2 text-center text-gray-500 text-xs">{new Date(inv.invoice_date).toLocaleDateString('fr-FR')}</td>
-                    <td className="px-3 py-2 text-center text-xs">
+                    <td className="px-3 py-2 text-center text-gray-500 text-ui-sm">{new Date(inv.invoice_date).toLocaleDateString('fr-FR')}</td>
+                    <td className="px-3 py-2 text-center text-ui-sm">
                       {inv.due_date ? (
-                        <span className={new Date(inv.due_date) < new Date() ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                        <span className={new Date(inv.due_date) < new Date() ? 'text-[rgb(var(--c-danger))] font-medium' : 'text-gray-500'}>
                           {new Date(inv.due_date).toLocaleDateString('fr-FR')}
                         </span>
                       ) : '-'}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs">{fmt(parseFloat(inv.total_ttc))}</td>
-                    <td className="px-3 py-2 text-right font-mono text-xs text-green-600">{fmt(parseFloat(inv.amount_paid))}</td>
-                    <td className="px-3 py-2 text-right font-mono text-xs font-bold">{fmt(parseFloat(inv.amount_due))}</td>
+                    <td className="px-3 py-2 text-right font-mono text-ui-sm">{fmt(parseFloat(inv.total_ttc))}</td>
+                    <td className="px-3 py-2 text-right font-mono text-ui-sm text-[rgb(var(--c-success))]">{fmt(parseFloat(inv.amount_paid))}</td>
+                    <td className="px-3 py-2 text-right font-mono text-ui-sm font-bold">{fmt(parseFloat(inv.amount_due))}</td>
                     <td className="px-3 py-2 text-center"><Badge status={inv.status} /></td>
                     <td className="px-3 py-2">
                       <button
@@ -705,7 +811,7 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
                           setShowForm(true)
                           window.scrollTo({ top: 0, behavior: 'smooth' })
                         }}
-                        className="text-xs text-violet-600 hover:text-violet-800 font-medium"
+                        className="text-ui-sm text-gray-800 hover:text-gray-800 font-medium"
                       >
                         Encaisser
                       </button>
@@ -719,37 +825,37 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
       </div>
 
       {/* Historique encaissements */}
-      <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white rounded-ui border p-4">
         <div className="flex items-center gap-3 mb-3">
           <h3 className="font-semibold text-gray-700 flex-1">Historique des encaissements</h3>
-          <select value={historyMonth} onChange={e => setHistoryMonth(e.target.value)} className="border rounded-lg px-3 py-1.5 text-sm">
+          <select value={historyMonth} onChange={e => setHistoryMonth(e.target.value)} className="border rounded-ui-sm px-3 py-1.5 text-ui">
             {paymentMonthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         {recentPayments.length === 0 ? (
-          <p className="text-center py-4 text-gray-400 text-sm">Aucun encaissement enregistré</p>
+          <p className="text-center py-4 text-gray-400 text-ui">Aucun encaissement enregistré</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-ui">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-left px-3 py-2 text-xs text-gray-500 font-medium">Date</th>
-                  <th className="text-left px-3 py-2 text-xs text-gray-500 font-medium">Facture</th>
-                  <th className="text-left px-3 py-2 text-xs text-gray-500 font-medium">Client</th>
-                  <th className="text-left px-3 py-2 text-xs text-gray-500 font-medium">Mode</th>
-                  <th className="text-left px-3 py-2 text-xs text-gray-500 font-medium">Référence</th>
-                  <th className="text-right px-3 py-2 text-xs text-gray-500 font-medium">Montant</th>
+                  <th className="text-left px-3 py-2 text-ui-sm text-gray-500 font-medium">Date</th>
+                  <th className="text-left px-3 py-2 text-ui-sm text-gray-500 font-medium">Facture</th>
+                  <th className="text-left px-3 py-2 text-ui-sm text-gray-500 font-medium">Client</th>
+                  <th className="text-left px-3 py-2 text-ui-sm text-gray-500 font-medium">Mode</th>
+                  <th className="text-left px-3 py-2 text-ui-sm text-gray-500 font-medium">Référence</th>
+                  <th className="text-right px-3 py-2 text-ui-sm text-gray-500 font-medium">Montant</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {recentPayments.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 text-gray-600 text-xs">{new Date(p.payment_date).toLocaleDateString('fr-FR')}</td>
-                    <td className="px-3 py-2 font-mono text-xs font-bold">{p.invoices?.reference || '-'}</td>
-                    <td className="px-3 py-2 text-gray-700 text-xs truncate max-w-32">{p.invoices?.clients?.name || '-'}</td>
-                    <td className="px-3 py-2 text-gray-500 text-xs capitalize">{p.payment_method}</td>
-                    <td className="px-3 py-2 text-gray-400 text-xs">{p.payment_reference || '-'}</td>
-                    <td className="px-3 py-2 text-right font-mono font-bold text-green-700 text-xs">{fmt(parseFloat(p.amount))}</td>
+                    <td className="px-3 py-2 text-gray-600 text-ui-sm">{new Date(p.payment_date).toLocaleDateString('fr-FR')}</td>
+                    <td className="px-3 py-2 font-mono text-ui-sm font-bold">{p.invoices?.reference || '-'}</td>
+                    <td className="px-3 py-2 text-gray-700 text-ui-sm truncate max-w-32">{p.invoices?.clients?.name || '-'}</td>
+                    <td className="px-3 py-2 text-gray-500 text-ui-sm capitalize">{p.payment_method}</td>
+                    <td className="px-3 py-2 text-gray-400 text-ui-sm">{p.payment_reference || '-'}</td>
+                    <td className="px-3 py-2 text-right font-mono font-bold text-[rgb(var(--c-success))] text-ui-sm">{fmt(parseFloat(p.amount))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -765,6 +871,7 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
 // RAPPROCHEMENT BANCAIRE
 // ════════════════════════════════════════════════════════════
 function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
+  const { companyStart } = useFiscal()
   const [selectedTx, setSelectedTx] = useState(null)
   const [linking, setLinking] = useState(false)
   const [unlinking, setUnlinking] = useState(null) // id en cours de déliage
@@ -777,9 +884,9 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
   const rapprochMonthOptions = useMemo(() => {
     const opts = [{ value: 'all', label: 'Tous les mois' }]; const now = new Date(); let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
     const MN = ['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
-    while (cursor >= COMPANY_START) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
+    while (cursor >= companyStart) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
     return opts
-  }, [])
+  }, [companyStart])
   const unmatched = useMemo(() => {
     let base = transactions.filter(tx => !tx.linked_invoice_id && !tx.is_personal && tx.credit > 0)
     if (unmatchedMonth !== 'all') { const [y, m] = unmatchedMonth.split('-').map(Number); base = base.filter(tx => { const d = new Date(tx.date); return d.getFullYear() === y && d.getMonth() + 1 === m }) }
@@ -969,29 +1076,29 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
       <div className="flex gap-2">
         <button
           onClick={() => setViewMode('unmatched')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+          className={`px-4 py-2 rounded-ui-sm text-ui font-medium transition ${
             viewMode === 'unmatched'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-gray-700 text-white'
               : 'border text-gray-600 hover:bg-gray-50'
           }`}
         >
            À rapprocher
           {unmatched.length > 0 && (
-            <span className="ml-2 bg-white/20 text-xs px-1.5 py-0.5 rounded-full">
+            <span className="ml-2 bg-white/20 text-ui-sm px-1.5 py-0.5 rounded-full">
               {unmatched.length}
             </span>
           )}
         </button>
         <button
           onClick={() => setViewMode('matched')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+          className={`px-4 py-2 rounded-ui-sm text-ui font-medium transition ${
             viewMode === 'matched'
-              ? 'bg-green-600 text-white'
+              ? 'bg-[rgb(var(--c-success))] text-white'
               : 'border text-gray-600 hover:bg-gray-50'
           }`}
         >
            Déjà rapprochés
-          <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${viewMode === 'matched' ? 'bg-white/20' : 'bg-gray-100'}`}>
+          <span className={`ml-2 text-ui-sm px-1.5 py-0.5 rounded-full ${viewMode === 'matched' ? 'bg-white/20' : 'bg-gray-100'}`}>
             {matched.length}
           </span>
         </button>
@@ -1001,12 +1108,12 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
       {viewMode === 'unmatched' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Transactions non rapprochées */}
-          <div className="bg-white rounded-xl border">
+          <div className="bg-white rounded-ui border">
             <div className="p-4 border-b">
               <h3 className="font-semibold text-gray-700">Transactions non rapprochées</h3>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-xs text-gray-400 flex-1">{unmatched.length} entrée(s) crédit sans facture liée</p>
-                <select value={unmatchedMonth} onChange={e => setUnmatchedMonth(e.target.value)} className="border rounded px-2 py-1 text-xs">
+                <p className="text-ui-sm text-gray-400 flex-1">{unmatched.length} entrée(s) crédit sans facture liée</p>
+                <select value={unmatchedMonth} onChange={e => setUnmatchedMonth(e.target.value)} className="border rounded px-2 py-1 text-ui-sm">
                   {rapprochMonthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
@@ -1023,16 +1130,16 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
                     key={tx.id}
                     onClick={() => setSelectedTx(selectedTx?.id === tx.id ? null : tx)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
-                      selectedTx?.id === tx.id ? 'bg-violet-50 border-l-4 border-violet-500' : ''
+                      selectedTx?.id === tx.id ? 'bg-gray-50 border-l-4 border-gray-400' : ''
                     }`}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{tx.description}</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-ui font-medium text-gray-900 truncate">{tx.description}</p>
+                      <p className="text-ui-sm text-gray-400">
                         {new Date(tx.date).toLocaleDateString('fr-FR')} • {tx.category_name || 'Non classé'}
                       </p>
                     </div>
-                    <span className="text-sm font-bold text-green-700 shrink-0">+{fmt(tx.credit)}</span>
+                    <span className="text-ui font-bold text-[rgb(var(--c-success))] shrink-0">+{fmt(tx.credit)}</span>
                   </button>
                 ))
               )}
@@ -1040,40 +1147,40 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
           </div>
 
           {/* Factures à lier - toutes statuts */}
-          <div className="bg-white rounded-xl border">
+          <div className="bg-white rounded-ui border">
             <div className="p-4 border-b space-y-2">
               <h3 className="font-semibold text-gray-700">Factures à rapprocher</h3>
               {selectedTx ? (
-                <p className="text-xs text-violet-600">Facture correspondant à <strong>{fmt(selectedTx.credit)}</strong> du {new Date(selectedTx.date).toLocaleDateString('fr-FR')} ?</p>
+                <p className="text-ui-sm text-gray-800">Facture correspondant à <strong>{fmt(selectedTx.credit)}</strong> du {new Date(selectedTx.date).toLocaleDateString('fr-FR')} ?</p>
               ) : (
-                <p className="text-xs text-gray-400">Sélectionnez d'abord une transaction à gauche</p>
+                <p className="text-ui-sm text-gray-400">Sélectionnez d'abord une transaction à gauche</p>
               )}
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-gray-400" />
-                <input type="text" placeholder="Référence, client, montant..." value={searchInvoice} onChange={e => setSearchInvoice(e.target.value)} className="w-full border rounded-lg pl-8 pr-3 py-2 text-xs" />
+                <input type="text" placeholder="Référence, client, montant..." value={searchInvoice} onChange={e => setSearchInvoice(e.target.value)} className="w-full border rounded-ui-sm pl-8 pr-3 py-2 text-ui-sm" />
               </div>
             </div>
             <div className="max-h-[440px] overflow-y-auto divide-y">
               {allInvoices.length === 0 ? (
-                <p className="text-center py-8 text-gray-400 text-sm">Aucune facture trouvée</p>
+                <p className="text-center py-8 text-gray-400 text-ui">Aucune facture trouvée</p>
               ) : (
                 allInvoices.map(inv => (
                   <div key={inv.id} className={`flex items-center gap-3 px-4 py-2.5 ${inv.status === 'paid' ? 'opacity-60' : ''}`}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-mono font-bold">{inv.reference}</p>
+                        <p className="text-ui font-mono font-bold">{inv.reference}</p>
                         <Badge status={inv.status} />
                       </div>
-                      <p className="text-xs text-gray-400">{inv.clients?.name || '-'} • {new Date(inv.invoice_date).toLocaleDateString('fr-FR')}</p>
+                      <p className="text-ui-sm text-gray-400">{inv.clients?.name || '-'} • {new Date(inv.invoice_date).toLocaleDateString('fr-FR')}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="text-xs font-medium text-gray-600 block">{fmt(parseFloat(inv.total_ttc))}</span>
+                      <span className="text-ui-sm font-medium text-gray-600 block">{fmt(parseFloat(inv.total_ttc))}</span>
                       {inv.status !== 'paid' && parseFloat(inv.amount_due) > 0.01 && Math.abs(parseFloat(inv.amount_due) - parseFloat(inv.total_ttc)) > 0.01 && (
-                        <span className="text-[10px] text-red-600">reste {fmt(parseFloat(inv.amount_due))}</span>
+                        <span className="text-ui-sm text-[rgb(var(--c-danger))]">reste {fmt(parseFloat(inv.amount_due))}</span>
                       )}
                     </div>
                     {selectedTx && (
-                      <button onClick={() => handleLink(inv.id)} disabled={linking} className="text-xs px-2.5 py-1.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 shrink-0">Lier</button>
+                      <button onClick={() => handleLink(inv.id)} disabled={linking} className="text-ui-sm px-2.5 py-1.5 bg-gray-700 text-white rounded-ui-sm hover:bg-gray-700 disabled:opacity-50 shrink-0">Lier</button>
                     )}
                   </div>
                 ))
@@ -1085,7 +1192,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
 
       {/* ─── Vue : déjà rapprochés ─── */}
       {viewMode === 'matched' && (
-        <div className="bg-white rounded-xl border">
+        <div className="bg-white rounded-ui border">
           <div className="p-4 border-b flex items-center gap-3">
             <h3 className="font-semibold text-gray-700 flex-1">
               Transactions rapprochées ({matched.length})
@@ -1097,44 +1204,44 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
                 placeholder="Rechercher..."
                 value={searchMatched}
                 onChange={e => setSearchMatched(e.target.value)}
-                className="border rounded-lg pl-8 pr-3 py-2 text-sm w-52"
+                className="border rounded-ui-sm pl-8 pr-3 py-2 text-ui w-52"
               />
             </div>
           </div>
 
           {matchedEnriched.length === 0 ? (
-            <p className="text-center py-8 text-gray-400 text-sm">Aucun rapprochement effectué</p>
+            <p className="text-center py-8 text-gray-400 text-ui">Aucun rapprochement effectué</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-ui">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="text-left px-3 py-2.5 text-xs text-gray-500 font-medium">Date tx</th>
-                    <th className="text-left px-3 py-2.5 text-xs text-gray-500 font-medium">Description</th>
-                    <th className="text-right px-3 py-2.5 text-xs text-gray-500 font-medium">Montant</th>
-                    <th className="text-left px-3 py-2.5 text-xs text-gray-500 font-medium">Facture liée</th>
-                    <th className="text-left px-3 py-2.5 text-xs text-gray-500 font-medium">Client</th>
-                    <th className="text-center px-3 py-2.5 text-xs text-gray-500 font-medium">Rapproché le</th>
+                    <th className="text-left px-3 py-2.5 text-ui-sm text-gray-500 font-medium">Date tx</th>
+                    <th className="text-left px-3 py-2.5 text-ui-sm text-gray-500 font-medium">Description</th>
+                    <th className="text-right px-3 py-2.5 text-ui-sm text-gray-500 font-medium">Montant</th>
+                    <th className="text-left px-3 py-2.5 text-ui-sm text-gray-500 font-medium">Facture liée</th>
+                    <th className="text-left px-3 py-2.5 text-ui-sm text-gray-500 font-medium">Client</th>
+                    <th className="text-center px-3 py-2.5 text-ui-sm text-gray-500 font-medium">Rapproché le</th>
                     <th className="px-3 py-2.5"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y max-h-[500px] overflow-y-auto">
                   {matchedEnriched.map(tx => (
                     <tr key={tx.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2.5 text-gray-600 text-xs whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-gray-600 text-ui-sm whitespace-nowrap">
                         {new Date(tx.date).toLocaleDateString('fr-FR')}
                       </td>
                       <td className="px-3 py-2.5 text-gray-900 truncate max-w-48">{tx.description}</td>
-                      <td className="px-3 py-2.5 text-right font-mono font-bold text-green-700 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-right font-mono font-bold text-[rgb(var(--c-success))] whitespace-nowrap">
                         {tx.credit > 0 ? `+${fmt(tx.credit)}` : `-${fmt(tx.debit)}`}
                       </td>
-                      <td className="px-3 py-2.5 font-mono font-bold text-xs whitespace-nowrap">
-                        {tx.invoice?.reference || <span className="text-orange-500"> Facture introuvable</span>}
+                      <td className="px-3 py-2.5 font-mono font-bold text-ui-sm whitespace-nowrap">
+                        {tx.invoice?.reference || <span className="text-[rgb(var(--c-warning))]"> Facture introuvable</span>}
                       </td>
-                      <td className="px-3 py-2.5 text-gray-500 text-xs truncate max-w-32">
+                      <td className="px-3 py-2.5 text-gray-500 text-ui-sm truncate max-w-32">
                         {tx.invoice?.clients?.name || '-'}
                       </td>
-                      <td className="px-3 py-2.5 text-center text-xs text-gray-400 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-center text-ui-sm text-gray-400 whitespace-nowrap">
                         {tx.reconciled_at
                           ? new Date(tx.reconciled_at).toLocaleDateString('fr-FR')
                           : '-'
@@ -1144,7 +1251,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
                         <button
                           onClick={() => setConfirmUnlink(tx)}
                           disabled={unlinking === tx.id}
-                          className="text-xs px-2.5 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 whitespace-nowrap"
+                          className="text-ui-sm px-2.5 py-1.5 border border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))] rounded-ui-sm hover:bg-[rgb(var(--c-danger-bg))] transition-colors disabled:opacity-50 whitespace-nowrap"
                         >
                           {unlinking === tx.id ? '' : ' Délier'}
                         </button>
@@ -1161,22 +1268,22 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
       {/* ─── Modal confirmation déliage ─── */}
       {confirmUnlink && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-md p-6">
             <h3 className="font-bold text-gray-900 text-lg mb-2">Confirmer le déliage</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-ui text-gray-600 mb-4">
               Vous allez supprimer le rapprochement entre :
             </p>
-            <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1 mb-4">
+            <div className="bg-gray-50 rounded-ui-sm p-3 text-ui space-y-1 mb-4">
               <p><span className="text-gray-500">Transaction :</span> <strong>{confirmUnlink.description}</strong></p>
-              <p><span className="text-gray-500">Montant :</span> <strong className="text-green-700">{fmt(confirmUnlink.credit || confirmUnlink.debit)}</strong></p>
+              <p><span className="text-gray-500">Montant :</span> <strong className="text-[rgb(var(--c-success))]">{fmt(confirmUnlink.credit || confirmUnlink.debit)}</strong></p>
               <p><span className="text-gray-500">Date :</span> {new Date(confirmUnlink.date).toLocaleDateString('fr-FR')}</p>
               <p><span className="text-gray-500">Facture liée :</span> <strong>{confirmUnlink.invoice?.reference || confirmUnlink.linked_invoice_id}</strong></p>
             </div>
-            <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg p-2 mb-4">
+            <p className="text-ui-sm text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-2 mb-4">
               Le paiement enregistré sur la facture pour ce virement sera aussi annulé, et la facture repassera « À régler » s'il ne reste pas d'autre paiement.
             </p>
             {isDateLocked(confirmUnlink.date) && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mb-4 flex items-center gap-2">
+              <div className="bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-danger))] mb-4 flex items-center gap-2">
                 <Lock className="w-4 h-4 shrink-0" />
                 Cette période est clôturée. Seul l'administrateur peut modifier ce rapprochement.
               </div>
@@ -1184,14 +1291,14 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setConfirmUnlink(null)}
-                className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 border rounded-ui-sm text-ui hover:bg-gray-50"
               >
                 Annuler
               </button>
               <button
                 onClick={() => handleUnlink(confirmUnlink)}
                 disabled={unlinking === confirmUnlink.id || isDateLocked(confirmUnlink.date)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 bg-[rgb(var(--c-danger))] text-white rounded-ui-sm text-ui hover:bg-[rgb(var(--c-danger))] disabled:opacity-50"
               >
                 {unlinking === confirmUnlink.id ? ' Suppression...' : 'Supprimer le rapprochement'}
               </button>
@@ -1207,6 +1314,7 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
 // ANNOTATIONS
 // ════════════════════════════════════════════════════════════
 function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
+  const { companyStart } = useFiscal()
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -1216,9 +1324,9 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
   const annoMonthOptions = useMemo(() => {
     const opts = [{ value: 'all', label: 'Tous les mois' }]; const now = new Date(); let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
     const MN = ['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
-    while (cursor >= COMPANY_START) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
+    while (cursor >= companyStart) { const y = cursor.getFullYear(); const m = cursor.getMonth() + 1; opts.push({ value: `${y}-${String(m).padStart(2,'0')}`, label: `${MN[m]} ${y}` }); cursor = new Date(y, m - 2, 1) }
     return opts
-  }, [])
+  }, [companyStart])
   const filtered = useMemo(() => {
     let base = transactions.filter(tx => !tx.is_personal)
     if (annoMonth !== 'all') { const [y, m] = annoMonth.split('-').map(Number); base = base.filter(tx => { const d = new Date(tx.date); return d.getFullYear() === y && d.getMonth() + 1 === m }) }
@@ -1244,10 +1352,10 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border">
+    <div className="bg-white rounded-ui border">
       <div className="p-4 border-b flex items-center gap-3">
         <h3 className="font-semibold text-gray-700 flex-1">Notes comptables sur les transactions</h3>
-        <select value={annoMonth} onChange={e => setAnnoMonth(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs mr-2">
+        <select value={annoMonth} onChange={e => setAnnoMonth(e.target.value)} className="border rounded-ui-sm px-2 py-1.5 text-ui-sm mr-2">
           {annoMonthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <div className="flex gap-1">
@@ -1255,8 +1363,8 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
             <button
               key={key}
               onClick={() => setFilter(key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                filter === key ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-gray-100'
+              className={`px-3 py-1.5 rounded-ui-sm text-ui-sm font-medium transition ${
+                filter === key ? 'bg-gray-700 text-white' : 'text-gray-500 hover:bg-gray-100'
               }`}
             >
               {label}
@@ -1267,19 +1375,19 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
 
       <div className="divide-y max-h-[600px] overflow-y-auto">
         {filtered.length === 0 ? (
-          <p className="text-center py-8 text-gray-400 text-sm">Aucune transaction</p>
+          <p className="text-center py-8 text-gray-400 text-ui">Aucune transaction</p>
         ) : (
           filtered.map(tx => (
             <div key={tx.id} className="flex items-start gap-3 px-4 py-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-900 truncate">{tx.description}</span>
-                  <span className="text-xs text-gray-400 shrink-0">{new Date(tx.date).toLocaleDateString('fr-FR')}</span>
+                  <span className="text-ui font-medium text-gray-900 truncate">{tx.description}</span>
+                  <span className="text-ui-sm text-gray-400 shrink-0">{new Date(tx.date).toLocaleDateString('fr-FR')}</span>
                   {tx.note_comptable && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full shrink-0"> annoté</span>
+                    <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-0.5 rounded-full shrink-0"> annoté</span>
                   )}
                 </div>
-                <p className="text-xs text-gray-400">{tx.category_name || 'Non classé'}</p>
+                <p className="text-ui-sm text-gray-400">{tx.category_name || 'Non classé'}</p>
 
                 {editingId === tx.id ? (
                   <div className="mt-2 flex gap-2">
@@ -1290,41 +1398,35 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
                       onKeyDown={e => e.key === 'Enter' && saveNote(tx.id, tx.date)}
                       placeholder="Note comptable..."
                       autoFocus
-                      className="flex-1 border rounded px-2 py-1 text-sm"
+                      className="flex-1 border rounded px-2 py-1 text-ui"
                     />
                     <button
                       onClick={() => saveNote(tx.id, tx.date)}
                       disabled={saving}
-                      className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
-                    >
-                      
-                    </button>
+                      className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-success))] disabled:opacity-50"
+                    >Enregistrer</button>
                     <button
                       onClick={() => setEditingId(null)}
-                      className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
-                    >
-                      
-                    </button>
+                      className="px-3 py-1 border rounded text-ui hover:bg-gray-50"
+                    >Annuler</button>
                   </div>
                 ) : (
                   tx.note_comptable && (
-                    <p className="text-xs text-blue-700 mt-1 italic">{tx.note_comptable}</p>
+                    <p className="text-ui-sm text-[rgb(var(--c-info))] mt-1 italic">{tx.note_comptable}</p>
                   )
                 )}
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-sm font-bold ${tx.credit > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                <span className={`text-ui font-bold ${tx.credit > 0 ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}`}>
                   {tx.credit > 0 ? `+${fmt(tx.credit)}` : `-${fmt(tx.debit)}`}
                 </span>
                 {editingId !== tx.id && (
                   <button
                     onClick={() => { setEditingId(tx.id); setEditValue(tx.note_comptable || '') }}
-                    className="text-xs text-gray-400 hover:text-violet-600 transition-colors p-1"
+                    className="text-ui-sm text-gray-400 hover:text-gray-800 transition-colors p-1"
                     title="Annoter"
-                  >
-                    
-                  </button>
+                  >Note</button>
                 )}
               </div>
             </div>
@@ -1339,6 +1441,7 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
 // CLÔTURES COMPTABLES
 // ════════════════════════════════════════════════════════════
 function CloturesTab({ periods, loadAll, user }) {
+  const { companyStart, closingLabel, org } = useFiscal()
   const [locking, setLocking] = useState(false)
   const [note, setNote] = useState('')
 
@@ -1348,40 +1451,42 @@ function CloturesTab({ periods, loadAll, user }) {
   // Générer les 24 derniers mois
   const months = useMemo(() => {
     const result = []; const now = new Date(); let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
-    while (cursor >= COMPANY_START) {
+    while (cursor >= companyStart) {
       const y = cursor.getFullYear(); const m = cursor.getMonth() + 1
-      const period = periods.find(p => p.period_year === y && p.period_month === m)
+      const period = periods.find(p => p.year === y && p.month === m)
       result.push({ year: y, month: m, label: `${String(m).padStart(2,'0')}/${y}`, period })
       cursor = new Date(y, m - 2, 1)
     }
     return result
-  }, [periods])
+  }, [periods, companyStart])
 
   async function toggleLock(item) {
     setLocking(true)
     try {
       if (item.period?.locked_at) {
         // Déverrouiller
-        await supabase
+        const { error } = await supabase
           .from('accounting_periods')
-          .update({ locked_at: null, locked_by: null })
+          .update({ locked: false, locked_at: null, locked_by: null })
           .eq('id', item.period.id)
+        if (error) throw error
         toast.success(`${MONTH_NAMES[item.month]} ${item.year} déverrouillé`)
       } else {
         // Verrouiller
+        // Colonnes réelles de accounting_periods : label, year, month, locked
         const payload = {
-          period_label: item.label,
-          period_year: item.year,
-          period_month: item.month,
+          label: item.label,
+          year: item.year,
+          month: item.month,
+          locked: true,
           locked_at: new Date().toISOString(),
           locked_by: user?.email || 'Comptable',
           notes: note || null,
         }
-        if (item.period) {
-          await supabase.from('accounting_periods').update(payload).eq('id', item.period.id)
-        } else {
-          await supabase.from('accounting_periods').insert([payload])
-        }
+        const { error } = item.period
+          ? await supabase.from('accounting_periods').update(payload).eq('id', item.period.id)
+          : await supabase.from('accounting_periods').insert([payload])
+        if (error) throw error
         toast.success(`${MONTH_NAMES[item.month]} ${item.year} clôturé`)
         setNote('')
       }
@@ -1394,13 +1499,13 @@ function CloturesTab({ periods, loadAll, user }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-        <strong>Clôture annuelle :</strong> Access Formation clôture son exercice comptable au <strong>30 juin</strong>.
+      <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-4 text-ui text-[rgb(var(--c-warning))]">
+        <strong>Clôture annuelle :</strong> {org?.name || org?.legal_name || "L'organisme"} clôture son exercice comptable au <strong>{closingLabel}</strong>.
         Une période clôturée bloque la saisie d'encaissements et d'annotations sur cette période.
         Les admins restent maîtres des données - seule la saisie depuis l'espace comptable est bloquée.
       </div>
 
-      <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white rounded-ui border p-4">
         <h3 className="font-semibold text-gray-700 mb-4">Gestion des périodes</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {months.map(item => {
@@ -1408,38 +1513,38 @@ function CloturesTab({ periods, loadAll, user }) {
             return (
               <div
                 key={item.label}
-                className={`border rounded-lg p-3 flex items-center justify-between gap-3 ${
+                className={`border rounded-ui-sm p-3 flex items-center justify-between gap-3 ${
                   isLocked ? 'bg-gray-50 border-gray-300' : 'bg-white'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   {isLocked
                     ? <Lock className="w-4 h-4 text-gray-500" />
-                    : <Unlock className="w-4 h-4 text-green-500" />
+                    : <Unlock className="w-4 h-4 text-[rgb(var(--c-success))]" />
                   }
                   <div>
-                    <p className={`text-sm font-medium ${isLocked ? 'text-gray-600' : 'text-gray-900'}`}>
+                    <p className={`text-ui font-medium ${isLocked ? 'text-gray-600' : 'text-gray-900'}`}>
                       {MONTH_NAMES[item.month]} {item.year}
                     </p>
                     {isLocked && item.period?.locked_by && (
-                      <p className="text-xs text-gray-400">{item.period.locked_by.split('@')[0]}</p>
+                      <p className="text-ui-sm text-gray-400">{item.period.locked_by.split('@')[0]}</p>
                     )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   {isLocked ? (
-                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">Clôturé</span>
+                    <span className="text-ui-sm bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">Clôturé</span>
                   ) : (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Ouvert</span>
+                    <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded-full font-medium">Ouvert</span>
                   )}
                   <button
                     onClick={() => toggleLock(item)}
                     disabled={locking}
-                    className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition disabled:opacity-50 ${
+                    className={`text-ui-sm px-2.5 py-1.5 rounded-ui-sm font-medium transition disabled:opacity-50 ${
                       isLocked
                         ? 'border border-gray-300 text-gray-600 hover:bg-gray-100'
-                        : 'bg-amber-500 text-white hover:bg-amber-600'
+                        : 'bg-[rgb(var(--c-warning))] text-white hover:bg-[rgb(var(--c-warning))]'
                     }`}
                   >
                     {isLocked ? 'Déverrouiller' : 'Clôturer'}
@@ -1458,15 +1563,16 @@ function CloturesTab({ periods, loadAll, user }) {
 // EXPORT EXCEL
 // ════════════════════════════════════════════════════════════
 function ExportTab({ invoices, payments, transactions }) {
+  const { companyStart, org } = useFiscal()
   const [exporting, setExporting] = useState(false)
   const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()))
 
   const years = useMemo(() => {
     const s = new Set()
-    invoices.forEach(i => { const y = new Date(i.invoice_date).getFullYear(); if (y >= COMPANY_START.getFullYear()) s.add(y) })
-    transactions.forEach(t => { const y = new Date(t.date).getFullYear(); if (y >= COMPANY_START.getFullYear()) s.add(y) })
+    invoices.forEach(i => { const y = new Date(i.invoice_date).getFullYear(); if (y >= companyStart.getFullYear()) s.add(y) })
+    transactions.forEach(t => { const y = new Date(t.date).getFullYear(); if (y >= companyStart.getFullYear()) s.add(y) })
     return [...s].sort((a, b) => b - a).map(String)
-  }, [invoices, transactions])
+  }, [invoices, transactions, companyStart])
 
   async function handleExport(type) {
     setExporting(true)
@@ -1531,7 +1637,8 @@ function ExportTab({ invoices, payments, transactions }) {
         XLSX.utils.book_append_sheet(wb, ws, 'Transactions')
       }
 
-      const filename = `Access_Formation_Compta_${filterYear}_${type}_${new Date().toISOString().split('T')[0]}.xlsx`
+      const orgSlug = String(org?.name || org?.legal_name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+      const filename = `${orgSlug ? orgSlug + '_' : ''}Compta_${filterYear}_${type}_${new Date().toISOString().split('T')[0]}.xlsx`
       XLSX.writeFile(wb, filename)
       toast.success(`Export ${filename} téléchargé`)
     } catch (e) {
@@ -1543,16 +1650,16 @@ function ExportTab({ invoices, payments, transactions }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl border p-6">
+      <div className="bg-white rounded-ui border p-6">
         <h3 className="font-semibold text-gray-700 mb-2">Export comptable Excel</h3>
-        <p className="text-sm text-gray-500 mb-6">Téléchargez les données comptables au format Excel (.xlsx) pour votre logiciel de comptabilité.</p>
+        <p className="text-ui text-gray-500 mb-6">Téléchargez les données comptables au format Excel (.xlsx) pour votre logiciel de comptabilité.</p>
 
         <div className="mb-6">
-          <label className="text-sm font-medium text-gray-700 block mb-2">Exercice comptable</label>
+          <label className="text-ui font-medium text-gray-700 block mb-2">Exercice comptable</label>
           <select
             value={filterYear}
             onChange={e => setFilterYear(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm w-40"
+            className="border rounded-ui-sm px-3 py-2 text-ui w-40"
           >
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -1560,23 +1667,23 @@ function ExportTab({ invoices, payments, transactions }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { type: 'all', label: 'Export complet', desc: 'Factures + encaissements + transactions', color: 'bg-violet-600 hover:bg-violet-700 text-white' },
-            { type: 'factures', label: 'Factures', desc: 'Liste des factures et avoirs', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
-            { type: 'paiements', label: 'Encaissements', desc: 'Journal des paiements reçus', color: 'bg-green-600 hover:bg-green-700 text-white' },
-            { type: 'transactions', label: 'Transactions', desc: 'Relevé bancaire avec annotations', color: 'bg-amber-500 hover:bg-amber-600 text-white' },
+            { type: 'all', label: 'Export complet', desc: 'Factures + encaissements + transactions', color: 'bg-gray-700 hover:bg-gray-700 text-white' },
+            { type: 'factures', label: 'Factures', desc: 'Liste des factures et avoirs', color: 'bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white' },
+            { type: 'paiements', label: 'Encaissements', desc: 'Journal des paiements reçus', color: 'bg-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success))] text-white' },
+            { type: 'transactions', label: 'Transactions', desc: 'Relevé bancaire avec annotations', color: 'bg-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning))] text-white' },
           ].map(btn => (
             <button
               key={btn.type}
               onClick={() => handleExport(btn.type)}
               disabled={exporting}
-              className={`${btn.color} rounded-xl p-4 text-left transition disabled:opacity-50`}
+              className={`${btn.color} rounded-ui p-4 text-left transition disabled:opacity-50`}
             >
               <div className="flex items-start gap-2">
                 <Download className="w-5 h-5 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-semibold text-sm">{btn.label}</p>
-                  <p className="text-xs opacity-80 mt-1">{btn.desc}</p>
-                  <p className="text-xs opacity-70 mt-1">Exercice {filterYear}</p>
+                  <p className="font-semibold text-ui">{btn.label}</p>
+                  <p className="text-ui-sm opacity-80 mt-1">{btn.desc}</p>
+                  <p className="text-ui-sm opacity-70 mt-1">Exercice {filterYear}</p>
                 </div>
               </div>
             </button>
@@ -1584,14 +1691,14 @@ function ExportTab({ invoices, payments, transactions }) {
         </div>
 
         {exporting && (
-          <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-violet-600"></div>
+          <div className="mt-4 flex items-center gap-2 text-ui text-gray-500">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
             Génération en cours...
           </div>
         )}
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+      <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4 text-ui text-[rgb(var(--c-info))]">
         <strong>Format :</strong> Les fichiers Excel exportés sont compatibles avec Sage, Ciel Compta, EBP et tous les logiciels comptables standard.
         L'export FEC normalisé DGFiP est disponible dans l'onglet <strong> FEC DGFiP</strong>.
       </div>
@@ -1602,7 +1709,7 @@ function ExportTab({ invoices, payments, transactions }) {
 // ════════════════════════════════════════════════════════════
 // FEC DGFIP - Fichier des Écritures Comptables
 // Format normalisé DGFiP - Art. L47 A LPF
-// Access Formation SARL - SIREN 943563866
+// Identité de l'organisme (SIREN, banque) : organization_settings
 // ════════════════════════════════════════════════════════════
 
 // Mapping catégories → comptes PCG
@@ -1654,10 +1761,9 @@ function sanitize(s) {
   return String(s).replace(/[|\n\r]/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 100)
 }
 
-function generateFEC(invoices, payments, transactions, exercice) {
+function generateFEC(invoices, payments, transactions, exercice, org) {
   const { start, end } = exercice
-  const SIREN = '943563866'
-  const RAISON_SOCIALE = 'ACCESS FORMATION'
+  const BANK_LIB = sanitize(bankLabel(org)) // JournalLib du journal BQ et CompteLib du 512000
   const lines = []
   let ecritureNum = 1
 
@@ -1750,10 +1856,10 @@ function generateFEC(invoices, payments, transactions, exercice) {
 
     // Débit banque
     lines.push([
-      'BQ', 'Banque CMB',
+      'BQ', BANK_LIB,
       `BQ${String(ecritureNum).padStart(6,'0')}`,
       dateStr,
-      '512000', 'Banque CMB CCM Concarneau',
+      '512000', BANK_LIB,
       '', '',
       payRef, dateStr,
       lib,
@@ -1763,7 +1869,7 @@ function generateFEC(invoices, payments, transactions, exercice) {
 
     // Crédit client
     lines.push([
-      'BQ', 'Banque CMB',
+      'BQ', BANK_LIB,
       `BQ${String(ecritureNum).padStart(6,'0')}`,
       dateStr,
       '411000', 'Clients',
@@ -1796,7 +1902,7 @@ function generateFEC(invoices, payments, transactions, exercice) {
     if (isDebit) {
       // Charge : Débit compte charge, Crédit banque
       lines.push([
-        'BQ', 'Banque CMB',
+        'BQ', BANK_LIB,
         `BQ${String(ecritureNum).padStart(6,'0')}`,
         dateStr,
         account.num, sanitize(account.lib),
@@ -1806,10 +1912,10 @@ function generateFEC(invoices, payments, transactions, exercice) {
         '', '', dateStr, '', ''
       ].join('|'))
       lines.push([
-        'BQ', 'Banque CMB',
+        'BQ', BANK_LIB,
         `BQ${String(ecritureNum).padStart(6,'0')}`,
         dateStr,
-        '512000', 'Banque CMB CCM Concarneau',
+        '512000', BANK_LIB,
         '', '',
         pieceRef, dateStr, lib,
         '0.00', fecAmt(amt),
@@ -1818,17 +1924,17 @@ function generateFEC(invoices, payments, transactions, exercice) {
     } else if (isCredit && !tx.linked_invoice_id) {
       // Encaissement non lié à une facture : Débit banque, Crédit compte
       lines.push([
-        'BQ', 'Banque CMB',
+        'BQ', BANK_LIB,
         `BQ${String(ecritureNum).padStart(6,'0')}`,
         dateStr,
-        '512000', 'Banque CMB CCM Concarneau',
+        '512000', BANK_LIB,
         '', '',
         pieceRef, dateStr, lib,
         fecAmt(amt), '0.00',
         '', '', dateStr, '', ''
       ].join('|'))
       lines.push([
-        'BQ', 'Banque CMB',
+        'BQ', BANK_LIB,
         `BQ${String(ecritureNum).padStart(6,'0')}`,
         dateStr,
         account.num, sanitize(account.lib),
@@ -1847,11 +1953,15 @@ function generateFEC(invoices, payments, transactions, exercice) {
 }
 
 function FecTab({ invoices, payments, transactions }) {
+  const { org, exercices, closingLabel } = useFiscal()
   const [selectedExo, setSelectedExo] = useState(0)
   const [generating, setGenerating] = useState(false)
   const [preview, setPreview] = useState(null)
 
-  const exercice = EXERCICES[selectedExo]
+  const exercice = exercices[selectedExo]
+  const siren = orgSiren(org)
+  const siret = String(org?.siret || '').replace(/\D/g, '')
+  const fecDisabled = !siren
 
   // Stats de l'exercice sélectionné
   const stats = useMemo(() => {
@@ -1864,12 +1974,13 @@ function FecTab({ invoices, payments, transactions }) {
     const totalVentes = invs.reduce((s, i) => s + (i.type === 'credit_note' ? -1 : 1) * (parseFloat(i.total_ttc) || 0), 0)
     const totalEncaisse = pays.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
     return { nbInvoices: invs.length, nbPayments: pays.length, nbTx: txs.length, totalVentes, totalEncaisse }
-  }, [invoices, payments, transactions, selectedExo])
+  }, [invoices, payments, transactions, exercice])
 
   async function handleGenerate() {
+    if (!exercice || !exercice.filename) { toast.error('Renseignez le SIREN dans Paramètres'); return }
     setGenerating(true)
     try {
-      const fecContent = generateFEC(invoices, payments, transactions, exercice)
+      const fecContent = generateFEC(invoices, payments, transactions, exercice, org)
       // Aperçu des 5 premières lignes (hors header)
       const lines = fecContent.split('\n')
       setPreview(lines.slice(1, 6))
@@ -1894,49 +2005,59 @@ function FecTab({ invoices, payments, transactions }) {
   return (
     <div className="space-y-4">
       {/* Info légale */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-        <h3 className="font-semibold text-amber-800 flex items-center gap-2 mb-1">
+      <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-4">
+        <h3 className="font-semibold text-[rgb(var(--c-warning))] flex items-center gap-2 mb-1">
           <FileText className="w-4 h-4" />
           Fichier des Écritures Comptables - Format DGFiP
         </h3>
-        <p className="text-sm text-amber-700">
+        <p className="text-ui text-[rgb(var(--c-warning))]">
           Obligatoire en cas de contrôle fiscal (art. L47 A LPF). Amende minimum <strong>5 000 €</strong> si non produit.
           Ce fichier au format texte pipe-séparé est compatible avec tous les logiciels comptables français (Sage, Ciel, EBP, ACD...).
         </p>
       </div>
 
       {/* Identité société */}
-      <div className="bg-white rounded-xl border p-4">
-        <h3 className="font-semibold text-gray-700 mb-3">Identification - ACCESS FORMATION</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-          <div><p className="text-xs text-gray-400">SIREN</p><p className="font-mono font-bold">943 563 866</p></div>
-          <div><p className="text-xs text-gray-400">SIRET</p><p className="font-mono font-bold">943 563 866 00012</p></div>
-          <div><p className="text-xs text-gray-400">Forme</p><p className="font-bold">SARL</p></div>
-          <div><p className="text-xs text-gray-400">Clôture</p><p className="font-bold">30 juin</p></div>
-          <div><p className="text-xs text-gray-400">Banque</p><p className="font-bold">CMB - CCM Concarneau</p></div>
-          <div className="col-span-3"><p className="text-xs text-gray-400">IBAN</p><p className="font-mono">FR76 1558 9297 0600 0890 6894 048</p></div>
-        </div>
+      <div className="bg-white rounded-ui border p-4">
+        <h3 className="font-semibold text-gray-700 mb-3">Identification{(org?.legal_name || org?.name) ? ` - ${String(org.legal_name || org.name).toUpperCase()}` : ''}</h3>
+        {!org ? (
+          <p className="text-ui text-gray-400">Chargement des paramètres de l'organisme...</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-ui">
+            <div><p className="text-ui-sm text-gray-400">SIREN</p><p className="font-mono font-bold">{siren ? siren.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') : 'Non renseigné'}</p></div>
+            <div><p className="text-ui-sm text-gray-400">SIRET</p><p className="font-mono font-bold">{siret.length === 14 ? siret.replace(/(\d{3})(\d{3})(\d{3})(\d{5})/, '$1 $2 $3 $4') : (siret || 'Non renseigné')}</p></div>
+            <div><p className="text-ui-sm text-gray-400">Forme</p><p className="font-bold">{org.forme_juridique || '-'}</p></div>
+            <div><p className="text-ui-sm text-gray-400">Clôture</p><p className="font-bold">{closingLabel}</p></div>
+            <div><p className="text-ui-sm text-gray-400">Banque</p><p className="font-bold">{org.bank_name || 'Non renseignée (Paramètres)'}</p></div>
+            <div className="col-span-3"><p className="text-ui-sm text-gray-400">IBAN</p><p className="font-mono">{formatIban(org)}</p></div>
+          </div>
+        )}
+        {org && fecDisabled && (
+          <div className="mt-3 flex items-center gap-2 text-ui bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))] rounded-ui-sm px-3 py-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            Renseignez le SIREN dans Paramètres : le nom légal du fichier FEC en dépend, l'export est désactivé.
+          </div>
+        )}
       </div>
 
       {/* Sélection exercice + stats */}
-      <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white rounded-ui border p-4">
         <h3 className="font-semibold text-gray-700 mb-3">Exercice comptable</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          {EXERCICES.map((exo, idx) => {
+          {exercices.map((exo, idx) => {
             const isCurrent = new Date() >= exo.start && new Date() <= exo.end
             return (
               <button
                 key={idx}
                 onClick={() => setSelectedExo(idx)}
-                className={`p-3 rounded-xl border-2 text-left transition ${
-                  selectedExo === idx ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-gray-300'
+                className={`p-3 rounded-ui border-2 text-left transition ${
+                  selectedExo === idx ? 'border-gray-400 bg-gray-50' : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold text-gray-900">{exo.label}</span>
-                  {isCurrent && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">En cours</span>}
+                  <span className="text-ui font-semibold text-gray-900">{exo.label}</span>
+                  {isCurrent && <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded-full font-medium">En cours</span>}
                 </div>
-                <p className="text-xs text-gray-400 font-mono">{exo.filename}</p>
+                <p className="text-ui-sm text-gray-400 font-mono">{exo.filename || 'SIREN manquant'}</p>
               </button>
             )
           })}
@@ -1952,10 +2073,10 @@ function FecTab({ invoices, payments, transactions }) {
               { label: 'CA total TTC', value: new Intl.NumberFormat('fr-FR', {style:'currency',currency:'EUR'}).format(stats.totalVentes || 0), unit: '' },
               { label: 'Encaissé', value: new Intl.NumberFormat('fr-FR', {style:'currency',currency:'EUR'}).format(stats.totalEncaisse || 0), unit: '' },
             ].map(s => (
-              <div key={s.label} className="bg-gray-50 rounded-lg p-3 text-center">
-                <p className="text-xs text-gray-500">{s.label}</p>
+              <div key={s.label} className="bg-gray-50 rounded-ui-sm p-3 text-center">
+                <p className="text-ui-sm text-gray-500">{s.label}</p>
                 <p className="font-bold text-gray-900 mt-1">{s.value}</p>
-                {s.unit && <p className="text-xs text-gray-400">{s.unit}</p>}
+                {s.unit && <p className="text-ui-sm text-gray-400">{s.unit}</p>}
               </div>
             ))}
           </div>
@@ -1963,37 +2084,37 @@ function FecTab({ invoices, payments, transactions }) {
 
         <button
           onClick={handleGenerate}
-          disabled={generating}
-          className="w-full flex items-center justify-center gap-3 py-3 bg-violet-600 text-white rounded-xl font-semibold hover:bg-violet-700 disabled:opacity-50 transition"
+          disabled={generating || fecDisabled || !exercice}
+          className="w-full flex items-center justify-center gap-3 py-3 bg-gray-700 text-white rounded-ui font-semibold hover:bg-gray-700 disabled:opacity-50 transition"
         >
           <Download className="w-5 h-5" />
-          {generating ? 'Génération en cours...' : `Générer et télécharger ${exercice?.filename || ''}`}
+          {generating ? 'Génération en cours...' : fecDisabled ? 'Export FEC indisponible : SIREN manquant' : `Générer et télécharger ${exercice?.filename || ''}`}
         </button>
       </div>
 
       {/* Aperçu */}
       {preview && (
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-ui border p-4">
           <h3 className="font-semibold text-gray-700 mb-2">Aperçu des premières lignes</h3>
-          <div className="bg-gray-900 rounded-lg p-3 overflow-x-auto">
-            <p className="text-gray-400 text-xs font-mono mb-1">JournalCode|JournalLib|EcritureNum|EcritureDate|CompteNum|...</p>
+          <div className="bg-gray-900 rounded-ui-sm p-3 overflow-x-auto">
+            <p className="text-gray-400 text-ui-sm font-mono mb-1">JournalCode|JournalLib|EcritureNum|EcritureDate|CompteNum|...</p>
             {preview.map((line, i) => (
-              <p key={i} className="text-green-400 text-xs font-mono whitespace-nowrap">{line.substring(0, 120)}{line.length > 120 ? '...' : ''}</p>
+              <p key={i} className="text-[rgb(var(--c-success))] text-ui-sm font-mono whitespace-nowrap">{line.substring(0, 120)}{line.length > 120 ? '...' : ''}</p>
             ))}
           </div>
-          <p className="text-xs text-gray-400 mt-2">Format : pipe-séparé | UTF-8 | 18 colonnes | Conforme DGFiP art. L47 A LPF</p>
+          <p className="text-ui-sm text-gray-400 mt-2">Format : pipe-séparé | UTF-8 | 18 colonnes | Conforme DGFiP art. L47 A LPF</p>
         </div>
       )}
 
       {/* Plan comptable utilisé */}
-      <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white rounded-ui border p-4">
         <h3 className="font-semibold text-gray-700 mb-3">Plan comptable utilisé</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-ui-sm">
           {[
             ['411000', 'Clients'],
             ['706000', 'Prestations de services'],
             ['445711', 'TVA collectée 20%'],
-            ['512000', 'Banque CMB CCM Concarneau'],
+            ['512000', bankLabel(org)],
             ['604000', 'Achats prestations (sous-traitance)'],
             ['616000', 'Primes assurance'],
             ['618500', 'Logiciels & abonnements'],
@@ -2010,12 +2131,12 @@ function FecTab({ invoices, payments, transactions }) {
             ['658000', 'Charges diverses'],
           ].map(([num, lib]) => (
             <div key={num} className="flex items-center gap-2">
-              <span className="font-mono text-violet-700 font-bold w-16 shrink-0">{num}</span>
+              <span className="font-mono text-gray-800 font-bold w-16 shrink-0">{num}</span>
               <span className="text-gray-600">{lib}</span>
             </div>
           ))}
         </div>
-        <p className="text-xs text-gray-400 mt-3">
+        <p className="text-ui-sm text-gray-400 mt-3">
           Ces comptes peuvent être remappés par votre comptable dans son logiciel sans modifier le FEC.
         </p>
       </div>

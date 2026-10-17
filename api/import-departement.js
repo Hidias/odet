@@ -12,7 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { requireUser } from './_lib/auth.js'
+import { requireCronOrUser } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -222,10 +222,11 @@ async function insertProspects(supabase, prospects) {
 
 async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
+    // Utilisateur connecté (import manuel) ou tâche planifiée (secret CRON_SECRET, appel de import-auto-cron)
+    const ctx = await requireCronOrUser(req, res)
+    if (!ctx) return
+    req.user = ctx.user || null
+    req.profile = ctx.profile || null
   }
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')

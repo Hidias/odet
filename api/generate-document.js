@@ -1,4 +1,5 @@
-import { requireUser } from './_lib/auth.js'
+import { requireUser, getAdminClient } from './_lib/auth.js'
+import { loadOrgProfile, orgIdentityBlock } from './_lib/orgProfile.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/generate-document.js
 // Génère ou reformule du texte pour les courriers officiels via Claude
@@ -18,15 +19,17 @@ async function handler(req, res) {
     const { action, docType, destinataire, objet, context, currentText } = req.body
 
     let prompt = ''
-    let systemPrompt = `Tu es l'assistant rédactionnel d'Access Formation, organisme de formation professionnelle à Concarneau (Bretagne).
+    const org = await loadOrgProfile(getAdminClient())
+    let systemPrompt = `Tu es l'assistant rédactionnel de ${org.name || "l'organisme"}, organisme de formation professionnelle.
 Tu rédiges des documents officiels professionnels en français.
+
+${orgIdentityBlock(org)}
 
 RÈGLES :
 - Ton : professionnel, clair, courtois
 - Pas de formules creuses ou trop longues
 - Phrases concises et bien structurées
-- Utilise "Access Formation" quand tu mentionnes l'organisme
-- Le dirigeant est Hicham SAIDI
+${org.name ? `- Utilise "${org.name}" quand tu mentionnes l'organisme` : ''}
 - Ne jamais inventer d'informations non fournies
 - Format : texte brut, pas de markdown, pas de puces sauf si pertinent
 - Commence directement par le contenu, sans "Voici..." ni préambule`

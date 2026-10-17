@@ -10,6 +10,7 @@ import {
   saveSettings, uploadDocument, removeDocument, signedUrl, downloadBlob, addMonths, frDate,
 } from '../lib/certData'
 import { buildNdaProgrammePDF, buildNdaIntervenantsPDF } from '../pdf/ndaPiecesPDF'
+import SearchSelect from '../../../ui/SearchSelect'
 
 const STATUS = [
   ['preparation', 'En préparation'], ['depose', 'Déposée'], ['complet', 'Dossier complet (accusé reçu)'], ['enregistre', 'Enregistrée'], ['refuse', 'Refusée'],
@@ -136,10 +137,9 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
           {canWrite && (
             <div className="grid gap-2 sm:grid-cols-2 pt-1">
               <label className="block"><span className="label">Session</span>
-                <select className="select" value={form.first_convention_session_id || ''} onChange={(e) => pickSession(e.target.value)}>
-                  <option value="">Saisie à la main</option>
-                  {sessions.map((s) => <option key={s.id} value={s.id}>{s.reference} {s.clients?.name ? `, ${s.clients.name}` : ''}</option>)}
-                </select>
+                <SearchSelect value={form.first_convention_session_id || ''} onChange={(v) => pickSession(v)}
+                  options={sessions.map((s) => ({ value: s.id, label: s.reference, hint: s.clients?.name || '' }))}
+                  emptyLabel="Saisie à la main" searchPlaceholder="Référence ou client..." aria-label="Session de la première convention" />
               </label>
               <DateField label="Date de signature" value={form.first_convention_date} onChange={(v) => { setForm({ ...form, first_convention_date: v }); save({ first_convention_date: v }) }} />
             </div>
@@ -190,7 +190,7 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
             <div key={p.kind} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100">
               <div className="flex-1 min-w-0">
                 <div className="text-ui">{p.label}</div>
-                <div className={`text-ui-sm ${p.ready ? 'text-green-800' : 'text-gray-500'}`}>
+                <div className={`text-ui-sm ${p.ready ? 'text-[rgb(var(--c-success))]' : 'text-gray-500'}`}>
                   {p.source === 'depose' ? 'Déposée' : p.source === 'session' ? 'Reprise de la session' : p.source === 'genere' ? 'Générée par l\'outil' : p.hint}
                 </div>
                 {p.docs.map((d) => (

@@ -100,7 +100,7 @@ function normalizePhone(raw) {
   if (/^(\d)\1{9}$/.test(phone)) return null
   if (phone === '0123456789') return null
   
-  // Formater : 02 98 12 34 56
+  // Formater : 01 23 45 67 89
   return phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5')
 }
 

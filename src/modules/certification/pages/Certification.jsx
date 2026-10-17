@@ -78,7 +78,7 @@ export default function Certification() {
       </div>
     )
   }
-  if (error) return <div className="card text-red-700">Impossible de charger le suivi : {error}</div>
+  if (error) return <div className="card text-[rgb(var(--c-danger))]">Impossible de charger le suivi : {error}</div>
   if (!settings) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
 
   const pieces = ndaPieceStates(documents, settings, evidence)

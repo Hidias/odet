@@ -33,7 +33,7 @@ export const appName = () => b().app_name || b().org_name || ''
 /** Initiales de l'entreprise (Paramètres > Documents), en majuscules ; déduites du nom court à défaut */
 export const orgDocPrefix = () => String(b().doc_prefix || b().app_short_name || b().org_name || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 5).toUpperCase()
 
-/** Code documentaire précédé des initiales de l'entreprise : docCode('PROG-SST') donne « GLD-PROG-SST » */
+/** Code documentaire précédé des initiales de l'entreprise : docCode('PROG-SST') donne « ABC-PROG-SST » pour les initiales ABC */
 export const docCode = (code) => [orgDocPrefix(), code].filter(Boolean).join('-')
 
 /** Ligne de contact pour les textes générés : « email | téléphone | site » (champs absents omis) */

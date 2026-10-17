@@ -1,14 +1,15 @@
+import toast from 'react-hot-toast'
 import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  Menu, X, Bell, Check, LogOut, ChevronDown, Search, Settings, Sliders, SlidersHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
+  Menu, X, Bell, Check, LogOut, ChevronDown, Search, Settings, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '../core/store'
 import { RouteErrorBoundary } from '../core/errors/ErrorBoundary'
 import { supabase } from '../core/supabase'
-import { useBranding, brandLogo } from '../core/branding/BrandingProvider'
+import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
 import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS } from '../core/branding/presets'
 import { visibleSections, SETTINGS_ITEMS, pageTitleFor, sectionIdFor } from '../core/modules/registry'
@@ -66,6 +67,25 @@ export default function Layout() {
   const activeSectionId = useMemo(() => sectionIdFor(location.pathname) || sections[0]?.id, [location.pathname, sections])
   const pageTitle = useMemo(() => pageTitleFor(location.pathname), [location.pathname])
 
+  // Barre de navigation en bas sur téléphone : les 4 destinations principales disponibles pour ce rôle et ces modules, puis « Plus » (menu complet)
+  const bottomItems = useMemo(() => {
+    if (fieldOnly) return []
+    const available = new Set(sections.flatMap((s) => s.items.map((i) => i.to)))
+    return [
+      { to: '/', icon: LayoutDashboard, label: 'Accueil' },
+      { to: '/sessions', icon: Calendar, label: 'Sessions' },
+      { to: '/interventions', icon: MapPin, label: 'Journée' },
+      { to: '/clients', icon: Building2, label: 'Clients' },
+    ].filter((i) => available.has(i.to)).slice(0, 4)
+  }, [sections, fieldOnly])
+  const showBottomNav = bottomItems.length > 0
+  useEffect(() => {
+    const el = document.documentElement
+    if (showBottomNav) el.dataset.bottomNav = '1'
+    else delete el.dataset.bottomNav
+    return () => { delete el.dataset.bottomNav }
+  }, [showBottomNav])
+
   const [openSections, setOpenSections] = useState({})
   useEffect(() => {
     if (activeSectionId) setOpenSections((prev) => ({ ...prev, [activeSectionId]: true }))
@@ -97,6 +117,21 @@ export default function Layout() {
     await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id)
     loadNotifications()
   }
+  // « Email non associé » : ne plus jamais signaler cette adresse (Paramètres > Banque et emails, adresses à ignorer)
+  const ignoreAddress = async (n) => {
+    const addr = String(n.metadata?.to_email || '').trim().toLowerCase()
+    if (!addr) return
+    const { data: org } = await supabase.from('organization_settings').select('id, email_sync_ignored').limit(1).maybeSingle()
+    if (!org?.id) return toast.error('Paramètres de l\'organisme introuvables')
+    const list = String(org.email_sync_ignored || '').split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)
+    if (!list.includes(addr)) list.push(addr)
+    const { error } = await supabase.from('organization_settings').update({ email_sync_ignored: list.join(', ') }).eq('id', org.id)
+    if (error) return toast.error(error.message)
+    const same = notifications.filter((x) => x.type === 'email_sync' && !x.read_at && String(x.metadata?.to_email || '').toLowerCase() === addr).map((x) => x.id)
+    if (same.length) await supabase.from('notifications').update({ read_at: new Date().toISOString() }).in('id', same)
+    toast.success(`${addr} ne sera plus signalée`)
+    loadNotifications()
+  }
   const markAllAsRead = async () => {
     const ids = notifications.filter((n) => !n.read_at).map((n) => n.id)
     if (ids.length === 0) return
@@ -110,6 +145,7 @@ export default function Layout() {
   }
 
   const logo = brandLogo(branding, prefs.nav !== 'light')
+  const icon = appIcon(branding)
   const navIsDark = prefs.nav !== 'light'
   const navText = navIsDark ? 'text-nav-fg' : 'text-gray-900'
   const navMuted = navIsDark ? 'text-nav-fg/60' : 'text-gray-500'
@@ -122,7 +158,9 @@ export default function Layout() {
   // ─── Blocs communs ─────────────────────────────────────────
   const Brand = ({ compact = false }) => (
     <div className={`flex items-center gap-3 ${compact ? '' : 'px-2'}`}>
-      {logo ? (
+      {icon ? (
+        <img src={icon} alt={branding.app_name || 'Logo'} className={`${compact ? 'h-7 w-7' : 'h-9 w-9'} rounded-ui-sm object-cover flex-none`} />
+      ) : logo ? (
         <div className={`${navIsDark ? 'bg-white' : ''} rounded-ui-sm p-1 flex items-center justify-center`}>
           <img src={logo} alt={branding.org_name || 'Logo'} className={compact ? 'h-7 w-auto' : 'h-9 w-auto max-w-[140px] object-contain'} />
         </div>
@@ -168,7 +206,7 @@ export default function Layout() {
               onClick={() => setOpenSections((prev) => ({ ...prev, [section.id]: !isOpen }))}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-ui-sm ${navHover}`}
             >
-              <span className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${isActiveSection ? (navIsDark ? 'text-nav-fg' : 'text-gray-900') : navMuted}`}>
+              <span className={`text-ui-sm font-semibold uppercase tracking-[0.12em] ${isActiveSection ? (navIsDark ? 'text-nav-fg' : 'text-gray-900') : navMuted}`}>
                 {section.label}
               </span>
               <ChevronDown className={`w-4 h-4 ${navMuted} transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -209,9 +247,9 @@ export default function Layout() {
   const Rail = () => (
     <>
       <div className="w-16 bg-nav flex flex-col items-center py-3 gap-1.5 flex-none">
-        <div className="bg-white rounded-ui-sm p-1 mb-2 flex items-center justify-center w-11 h-11">
+        {icon ? <img src={icon} alt="" className="w-11 h-11 rounded-ui-sm object-cover mb-2" /> : <div className="bg-white rounded-ui-sm p-1 mb-2 flex items-center justify-center w-11 h-11">
           {logo ? <img src={logo} alt="" className="max-h-9 max-w-9 object-contain" /> : <span className="font-display font-bold">{(branding.app_name || 'O').slice(0, 1)}</span>}
-        </div>
+        </div>}
         {sections.map((s) => {
           const Icon = s.items[0]?.icon
           const on = railSection === s.id
@@ -238,7 +276,7 @@ export default function Layout() {
         <button type="button" onClick={handleLogout} aria-label="Se déconnecter" className="w-11 h-11 rounded-ui-sm flex items-center justify-center text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg">
           <LogOut className="w-5 h-5" />
         </button>
-        <div className="w-9 h-9 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-[11px] uppercase mt-1" title={profile?.display_name || user?.email}>
+        <div className="w-9 h-9 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase mt-1" title={profile?.display_name || user?.email}>
           {initials(profile, user)}
         </div>
       </div>
@@ -275,14 +313,14 @@ export default function Layout() {
     </div>
   )
   const DisplayMenu = () => (
-    <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-xl z-50 p-3 animate-fadeIn">
+    <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-md z-50 p-3 animate-fadeIn">
       <div className="font-display font-semibold mb-2">Affichage</div>
       <div className="grid grid-cols-3 gap-2 mb-3">
         {Object.entries(UI_PRESETS).map(([key, p]) => (
           <button key={key} type="button" onClick={() => update({ preset: key })}
             className={`rounded-ui-sm border p-2 text-left ${prefs.preset === key ? 'border-accent-500 ring-2 ring-accent-500/20' : 'border-gray-200 hover:border-gray-300'}`}>
             <div className="text-ui font-semibold">{p.label}</div>
-            <div className="text-[11px] text-gray-500 leading-tight mt-0.5">{p.description}</div>
+            <div className="text-ui-sm text-gray-500 leading-tight mt-0.5">{p.description}</div>
           </button>
         ))}
       </div>
@@ -296,12 +334,12 @@ export default function Layout() {
         <Choice label="Listes" options={LISTS} value={prefs.lists} onChange={(v) => update({ lists: v })}
           render={(o) => ({ table: 'Tableaux', cards: 'Cartes' })[o]} />
       </div>
-      <div className="text-[11px] text-gray-400 mt-2">Réglages personnels, mémorisés sur votre compte.</div>
+      <div className="text-ui-sm text-gray-400 mt-2">Réglages personnels, mémorisés sur votre compte.</div>
     </div>
   )
 
   const NotificationsMenu = () => (
-    <div className="absolute right-0 top-11 w-[360px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-xl z-50 overflow-hidden animate-fadeIn">
+    <div className="absolute right-0 top-11 w-[360px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-md z-50 overflow-hidden animate-fadeIn">
       <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
         <span className="font-display font-semibold">Notifications</span>
         {unreadCount > 0 && (
@@ -316,18 +354,25 @@ export default function Layout() {
         ) : notifications.map((n) => {
           const Icon = NOTIF_ICONS[n.type] || Info
           return (
-            <button key={n.id} type="button"
+            <div key={n.id} className={`border-b border-gray-100 ${!n.read_at ? 'bg-accent-500/5' : ''}`}>
+            <button type="button"
               onClick={() => { markAsRead(n.id); if (n.link) navigate(n.link); setShowNotifications(false) }}
-              className={`w-full text-left px-3 py-2.5 border-b border-gray-100 hover:bg-gray-50 flex items-start gap-3 ${!n.read_at ? 'bg-accent-500/5' : ''}`}>
+              className="w-full text-left px-3 py-2.5 hover:bg-gray-50 flex items-start gap-3">
               <span className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-none ${!n.read_at ? 'bg-accent-500/10 text-accent-700' : 'bg-gray-100 text-gray-500'}`}>
                 <Icon className="w-4 h-4" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className={`block text-ui ${!n.read_at ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>{n.title}</span>
                 {n.message && <span className="block text-ui-sm text-gray-500 truncate">{n.message}</span>}
-                <span className="block text-[11px] text-gray-400 mt-0.5">{format(new Date(n.created_at), 'd MMM à HH:mm', { locale: fr })}</span>
+                <span className="block text-ui-sm text-gray-400 mt-0.5">{format(new Date(n.created_at), 'd MMM à HH:mm', { locale: fr })}</span>
               </span>
             </button>
+            {n.type === 'email_sync' && n.metadata?.to_email && (
+              <div className="px-3 pb-2 pl-[52px]">
+                <button type="button" onClick={() => ignoreAddress(n)} className="text-ui-sm text-gray-500 hover:text-gray-800 underline">Ne plus signaler cette adresse</button>
+              </div>
+            )}
+            </div>
           )
         })}
       </div>
@@ -351,6 +396,21 @@ export default function Layout() {
         )}
       </aside>
 
+      {showBottomNav && (
+        <nav aria-label="Navigation principale" className="bottom-nav lg:hidden">
+          {bottomItems.map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `bottom-nav-item ${isActive ? 'is-active' : ''}`}>
+              <item.icon className="w-[22px] h-[22px]" aria-hidden="true" />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+          <button type="button" onClick={() => setDrawerOpen(true)} className={`bottom-nav-item ${drawerOpen ? 'is-active' : ''}`} aria-label="Plus de rubriques">
+            <MoreHorizontal className="w-[22px] h-[22px]" aria-hidden="true" />
+            <span>Plus</span>
+          </button>
+        </nav>
+      )}
+
       {/* Tiroir mobile */}
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
@@ -373,7 +433,10 @@ export default function Layout() {
             <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Menu" className="lg:hidden p-2 -ml-2 rounded-ui-sm text-gray-700 hover:bg-gray-100">
               <Menu className="w-5 h-5" />
             </button>
-            <div className="lg:hidden"><Brand compact /></div>
+            <div className="lg:hidden flex items-center gap-2 min-w-0">
+              <Brand compact />
+              {pageTitle && <span className="font-display font-semibold text-gray-900 truncate">{pageTitle}</span>}
+            </div>
             <h1 className="hidden lg:block font-display font-semibold text-gray-900 truncate" style={{ fontSize: 'calc(var(--text-ui) * 1.15)' }}>{pageTitle}</h1>
             <div className="flex-1" />
             {!fieldOnly && <button type="button" title="Recherche (bientôt)" className="hidden md:flex items-center gap-2 h-9 px-3 rounded-ui-sm border border-gray-200 text-gray-400 text-ui-sm w-64 bg-white">
@@ -393,7 +456,7 @@ export default function Layout() {
                 className={`h-9 w-9 rounded-ui-sm flex items-center justify-center hover:bg-gray-100 relative ${showNotifications ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}>
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-accent-500 text-accent-fg text-[11px] rounded-full flex items-center justify-center font-semibold">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-accent-500 text-accent-fg text-ui-sm rounded-full flex items-center justify-center font-semibold">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -404,11 +467,11 @@ export default function Layout() {
             <div className="relative">
               <button type="button" onClick={() => { const v = !showUserMenu; closeMenus(); setShowUserMenu(v) }} aria-label="Compte"
                 className="h-9 pl-1 pr-2 rounded-ui-sm flex items-center gap-2 hover:bg-gray-100">
-                <span className="w-7 h-7 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-[11px] uppercase">{initials(profile, user)}</span>
+                <span className="w-7 h-7 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase">{initials(profile, user)}</span>
                 <ChevronDown className="w-4 h-4 text-gray-500 hidden sm:block" />
               </button>
               {showUserMenu && (
-                <div className="absolute right-0 top-11 w-64 bg-white rounded-ui border border-gray-200 shadow-xl z-50 overflow-hidden animate-fadeIn">
+                <div className="absolute right-0 top-11 w-64 bg-white rounded-ui border border-gray-200 shadow-md z-50 overflow-hidden animate-fadeIn">
                   <div className="px-3 py-3 border-b border-gray-100">
                     <div className="text-ui font-semibold text-gray-900 truncate">{profile?.display_name || user?.email}</div>
                     <div className="text-ui-sm text-gray-500 truncate">{user?.email}</div>
@@ -438,7 +501,7 @@ export default function Layout() {
 
         {(showNotifications || showUserMenu || showDisplay) && <div className="fixed inset-0 z-10" onClick={closeMenus} />}
 
-        <main className="max-w-7xl mx-auto" style={{ padding: 'var(--space-4) var(--page-px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+        <main className={`max-w-7xl mx-auto ${showBottomNav ? 'has-bottom-nav' : ''}`} style={{ padding: 'var(--space-4) var(--page-px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
           {branding?.demo_mode && (
             <div className="mb-4 rounded-ui px-3 py-2 text-ui-sm flex items-center gap-2" style={{ background: 'rgb(var(--c-warning-bg))', color: 'rgb(var(--c-warning))' }}>
               <span className="font-semibold">Mode démonstration</span>

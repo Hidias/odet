@@ -20,12 +20,12 @@ import toast from 'react-hot-toast'
 
 // ─── Constantes ──────────────────────────────────────────────
 const CALL_RESULTS = [
-  { id: 'chaud',        label: ' Intéressé',      sublabel: 'Veut un RDV',  color: 'bg-green-100 border-green-400 text-green-700' },
-  { id: 'tiede',        label: ' Tiède',           sublabel: 'À rappeler',   color: 'bg-amber-100 border-amber-400 text-amber-700' },
-  { id: 'froid',        label: ' Pas intéressé',  sublabel: 'Archiver',     color: 'bg-blue-100 border-blue-400 text-blue-700' },
-  { id: 'no_answer',    label: ' Pas de réponse',  sublabel: 'Répondeur',    color: 'bg-gray-100 border-gray-300 text-gray-600' },
-  { id: 'blocked',      label: ' Barrage',         sublabel: 'Secrétariat',  color: 'bg-red-100 border-red-300 text-red-600' },
-  { id: 'wrong_number', label: ' Faux numéro',     sublabel: 'Supprimer',    color: 'bg-purple-100 border-purple-300 text-purple-600' },
+  { id: 'chaud',        label: 'Intéressé',      sublabel: 'Veut un RDV',  color: 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)] text-[rgb(var(--c-success))]' },
+  { id: 'tiede',        label: 'Tiède',           sublabel: 'À rappeler',   color: 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' },
+  { id: 'froid',        label: 'Pas intéressé',  sublabel: 'Archiver',     color: 'bg-[rgb(var(--c-info-bg))] border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))]' },
+  { id: 'no_answer',    label: 'Pas de réponse',  sublabel: 'Répondeur',    color: 'bg-gray-100 border-gray-300 text-gray-600' },
+  { id: 'blocked',      label: 'Barrage',         sublabel: 'Secrétariat',  color: 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))]' },
+  { id: 'wrong_number', label: 'Faux numéro',     sublabel: 'Supprimer',    color: 'bg-gray-100 border-gray-200 text-gray-800' },
 ]
 
 
@@ -218,14 +218,14 @@ export default function ProspectionTerrain() {
         if (existing?.length) clientId = existing[0].id
       }
       if (!clientId) {
-        const { data: nc } = await supabase
+        const { data: nc, error: ncError } = await supabase
           .from('clients')
           .insert({
             name: selectedProspect.name,
             city: selectedProspect.city,
-            phone: selectedProspect.phone,
+            contact_phone: selectedProspect.phone,
             email: selectedProspect.email,
-            siret: selectedProspect.id,
+            siret: selectedProspect.siret || null,
             siren: selectedProspect.siren,
             type: 'prospect',
             status: 'actif',
@@ -233,6 +233,7 @@ export default function ProspectionTerrain() {
           })
           .select('id')
           .single()
+        if (ncError) console.error('Création de la fiche client :', ncError.message)
         if (nc) clientId = nc.id
       }
 
@@ -296,10 +297,10 @@ export default function ProspectionTerrain() {
   }
 
   const getStatusBadge = (p) => {
-    if (p.prospection_status === 'a_rappeler') return { label: 'À rappeler', color: 'bg-amber-100 text-amber-700' }
-    if (p.prospection_status === 'rdv_pris') return { label: 'RDV pris', color: 'bg-green-100 text-green-700' }
+    if (p.prospection_status === 'a_rappeler') return { label: 'À rappeler', color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' }
+    if (p.prospection_status === 'rdv_pris') return { label: 'RDV pris', color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' }
     if (p.prospection_status === 'pas_interesse') return { label: 'Pas intéressé', color: 'bg-gray-100 text-gray-500' }
-    if (!p.contacted) return { label: 'Jamais contacté', color: 'bg-blue-50 text-blue-600' }
+    if (!p.contacted) return { label: 'Jamais contacté', color: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' }
     return { label: 'Contacté', color: 'bg-gray-100 text-gray-500' }
   }
 
@@ -320,7 +321,7 @@ export default function ProspectionTerrain() {
       <div className={`flex flex-col ${selectedProspect ? 'w-1/2' : 'w-full'} transition-all duration-200`}>
 
         {/* Header config */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-3 space-y-3">
+        <div className="bg-white border border-gray-200 rounded-ui p-4 mb-3 space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Champ ville */}
             <div className="relative flex-1 min-w-[180px]">
@@ -330,17 +331,17 @@ export default function ProspectionTerrain() {
                 value={city}
                 onChange={e => { setCity(e.target.value); setCityLat(null); setCityLng(null) }}
                 placeholder="Ville de départ..."
-                className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-orange-300 outline-none"
+                className="w-full border rounded-ui-sm pl-9 pr-3 py-2 text-ui focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] outline-none"
               />
-              {cityLoading && <Loader2 className="absolute right-3 top-2.5 w-4 h-4 animate-spin text-orange-400" />}
-              {cityLat && <Check className="absolute right-3 top-2.5 w-4 h-4 text-green-500" />}
+              {cityLoading && <Loader2 className="absolute right-3 top-2.5 w-4 h-4 animate-spin text-[rgb(var(--c-warning))]" />}
+              {cityLat && <Check className="absolute right-3 top-2.5 w-4 h-4 text-[rgb(var(--c-success))]" />}
               {citySuggestions.length > 0 && !cityLat && (
-                <div className="absolute z-20 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <div className="absolute z-20 w-full mt-1 bg-white border rounded-ui-sm shadow-md max-h-48 overflow-y-auto">
                   {citySuggestions.map(s => (
                     <button key={s.city} onClick={() => { setCity(s.city); setCityLat(s.lat); setCityLng(s.lng); setCitySuggestions([]) }}
-                      className="w-full text-left px-3 py-2 hover:bg-orange-50 border-b border-gray-50 last:border-0 transition-colors">
-                      <span className="text-sm font-medium">{s.city}</span>
-                      <span className="text-[10px] text-gray-400 ml-2">({s.departement}) · {s.count} prospects</span>
+                      className="w-full text-left px-3 py-2 hover:bg-[rgb(var(--c-warning-bg))] border-b border-gray-50 last:border-0 transition-colors">
+                      <span className="text-ui font-medium">{s.city}</span>
+                      <span className="text-ui-sm text-gray-400 ml-2">({s.departement}) · {s.count} prospects</span>
                     </button>
                   ))}
                 </div>
@@ -351,7 +352,7 @@ export default function ProspectionTerrain() {
             <div className="flex gap-1.5">
               {[15, 30, 60, 100].map(r => (
                 <button key={r} onClick={() => setRadius(r)}
-                  className={`px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors ${radius === r ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-600 border-gray-200 hover:border-orange-300'}`}>
+                  className={`px-2.5 py-2 rounded-ui-sm text-ui-sm font-medium border transition-colors ${radius === r ? 'bg-[rgb(var(--c-warning))] text-white border-[rgb(var(--c-warning)/0.3)]' : 'bg-white text-gray-600 border-gray-200 hover:border-[rgb(var(--c-warning)/0.3)]'}`}>
                   {r}km
                 </button>
               ))}
@@ -359,7 +360,7 @@ export default function ProspectionTerrain() {
 
             {/* Filtre statut */}
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-orange-300">
+              className="border rounded-ui-sm px-3 py-2 text-ui bg-white outline-none focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)]">
               <option value="all">Tous</option>
               <option value="new">Jamais contactés</option>
               <option value="callback">À rappeler</option>
@@ -367,13 +368,13 @@ export default function ProspectionTerrain() {
 
             {/* Caller */}
             <select value={callerName} onChange={e => setCallerName(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-orange-300">
+              className="border rounded-ui-sm px-3 py-2 text-ui bg-white outline-none focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)]">
               {teamFirstNames().map(c => <option key={c} value={c}>{c}</option>)}
             </select>
 
             {/* Bouton générer */}
             <button onClick={() => handleGenerate()} disabled={loading || !cityLat}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-colors">
+              className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50 transition-colors">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
               {loading ? 'Génération...' : 'Générer'}
             </button>
@@ -381,11 +382,11 @@ export default function ProspectionTerrain() {
 
           {/* Stats rapides */}
           {generated && (
-            <div className="flex gap-3 text-[11px] text-gray-500 border-t pt-2">
-              <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-orange-400" /> {city} · {radius}km</span>
+            <div className="flex gap-3 text-ui-sm text-gray-500 border-t pt-2">
+              <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-[rgb(var(--c-warning))]" /> {city} · {radius}km</span>
               <span className="font-semibold text-gray-700">{prospects.length} prospects</span>
-              <span className="text-amber-600">{prospects.filter(p => p.prospection_status === 'a_rappeler').length} à rappeler</span>
-              <span className="text-blue-600">{prospects.filter(p => !p.contacted).length} jamais contactés</span>
+              <span className="text-[rgb(var(--c-warning))]">{prospects.filter(p => p.prospection_status === 'a_rappeler').length} à rappeler</span>
+              <span className="text-[rgb(var(--c-info))]">{prospects.filter(p => !p.contacted).length} jamais contactés</span>
             </div>
           )}
         </div>
@@ -395,21 +396,21 @@ export default function ProspectionTerrain() {
           {!generated && !loading && (
             <div className="flex flex-col items-center justify-center h-64 text-gray-400">
               <Navigation className="w-10 h-10 mb-3 text-gray-300" />
-              <p className="text-sm font-medium">Configurez une zone et cliquez sur Générer</p>
-              <p className="text-xs mt-1">Prospects triés par pertinence - à rappeler en premier</p>
+              <p className="text-ui font-medium">Configurez une zone et cliquez sur Générer</p>
+              <p className="text-ui-sm mt-1">Prospects triés par pertinence - à rappeler en premier</p>
             </div>
           )}
           {loading && (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
-              <span className="ml-2 text-sm text-gray-500">Recherche en cours...</span>
+              <Loader2 className="w-6 h-6 animate-spin text-[rgb(var(--c-warning))]" />
+              <span className="ml-2 text-ui text-gray-500">Recherche en cours...</span>
             </div>
           )}
           {generated && prospects.length === 0 && (
             <div className="flex flex-col items-center justify-center h-64 text-gray-400">
               <Search className="w-10 h-10 mb-3 text-gray-300" />
-              <p className="text-sm font-medium">Aucun prospect dans cette zone</p>
-              <p className="text-xs mt-1">Essayez un rayon plus grand ou une autre ville</p>
+              <p className="text-ui font-medium">Aucun prospect dans cette zone</p>
+              <p className="text-ui-sm mt-1">Essayez un rayon plus grand ou une autre ville</p>
             </div>
           )}
           {prospects.map(p => {
@@ -419,19 +420,19 @@ export default function ProspectionTerrain() {
             return (
               <button key={p.id}
                 onClick={() => openProspect(p)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all ${
-                  isSelected ? 'border-orange-400 bg-orange-50 shadow-sm' :
-                  isCallbackPriority ? 'border-amber-200 bg-amber-50/50 hover:border-amber-300' :
-                  'border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/30'
+                className={`w-full text-left px-3 py-2.5 rounded-ui-sm border transition-all ${
+                  isSelected ? 'border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] shadow-sm' :
+                  isCallbackPriority ? 'border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] hover:border-[rgb(var(--c-warning)/0.3)]' :
+                  'border-gray-200 bg-white hover:border-[rgb(var(--c-warning)/0.3)] hover:bg-[rgb(var(--c-warning-bg))]'
                 }`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm text-gray-900 truncate">{p.name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${badge.color}`}>{badge.label}</span>
-                      {isCallbackPriority && <Flame className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+                      <span className="font-semibold text-ui text-gray-900 truncate">{p.name}</span>
+                      <span className={`text-ui-sm px-1.5 py-0.5 rounded-full font-medium ${badge.color}`}>{badge.label}</span>
+                      {isCallbackPriority && <Flame className="w-3 h-3 text-[rgb(var(--c-warning))] flex-shrink-0" />}
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 text-[11px] text-gray-500 flex-wrap">
+                    <div className="flex items-center gap-3 mt-0.5 text-ui-sm text-gray-500 flex-wrap">
                       <span className="flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" />{p.city} · {p.distance?.toFixed(1)}km</span>
                       {p.naf && <span>{getNafLabel(p.naf)}</span>}
                       {p.effectif && <span> {p.effectif}</span>}
@@ -439,7 +440,7 @@ export default function ProspectionTerrain() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {p.phone && <span className="text-[11px] font-medium text-gray-700">{p.phone}</span>}
+                    {p.phone && <span className="text-ui-sm font-medium text-gray-700">{p.phone}</span>}
                     <ChevronRight className="w-4 h-4 text-gray-300" />
                   </div>
                 </div>
@@ -451,13 +452,13 @@ export default function ProspectionTerrain() {
 
       {/* ── Panneau droit : détail prospect + log appel ── */}
       {selectedProspect && (
-        <div className="w-1/2 bg-white border border-gray-200 rounded-xl flex flex-col overflow-hidden">
+        <div className="w-1/2 bg-white border border-gray-200 rounded-ui flex flex-col overflow-hidden">
 
           {/* Header */}
           <div className="flex items-start justify-between p-4 border-b bg-gray-50">
             <div>
-              <h3 className="font-bold text-gray-900 text-sm">{selectedProspect.name}</h3>
-              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 flex-wrap">
+              <h3 className="font-bold text-gray-900 text-ui">{selectedProspect.name}</h3>
+              <div className="flex items-center gap-2 mt-0.5 text-ui-sm text-gray-500 flex-wrap">
                 <span className="flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" />{selectedProspect.city} · {selectedProspect.distance?.toFixed(1)}km</span>
                 {selectedProspect.naf && <span>{getNafLabel(selectedProspect.naf)}</span>}
                 {selectedProspect.effectif && <span> {selectedProspect.effectif}</span>}
@@ -466,11 +467,11 @@ export default function ProspectionTerrain() {
             <div className="flex items-center gap-2">
               {selectedProspect.siret && !selectedProspect.siret.startsWith('MANUAL_') && (
                 <Link to={`/clients/${selectedProspect.id}`} target="_blank"
-                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors" title="Ouvrir la fiche">
+                  className="p-1.5 hover:bg-gray-200 rounded-ui-sm transition-colors" title="Ouvrir la fiche">
                   <ExternalLink className="w-4 h-4 text-gray-500" />
                 </Link>
               )}
-              <button onClick={() => setSelectedProspect(null)} className="p-1.5 hover:bg-gray-200 rounded-lg">
+              <button onClick={() => setSelectedProspect(null)} className="p-1.5 hover:bg-gray-200 rounded-ui-sm">
                 <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
@@ -481,13 +482,13 @@ export default function ProspectionTerrain() {
 
             {/* Téléphone en grand */}
             {selectedProspect.phone && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-center justify-between">
+              <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-orange-500" />
+                  <Phone className="w-4 h-4 text-[rgb(var(--c-warning))]" />
                   <span className="font-bold text-lg text-gray-900 tracking-wide">{selectedProspect.phone}</span>
                 </div>
                 <a href={`tel:${selectedProspect.phone}`}
-                  className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-medium hover:bg-orange-600 transition-colors">
+                  className="btn btn-secondary text-ui-sm font-medium hover:bg-[rgb(var(--c-warning))] transition-colors">
                   Appeler
                 </a>
               </div>
@@ -495,15 +496,15 @@ export default function ProspectionTerrain() {
 
             {/* Contact name */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Interlocuteur</label>
+              <label className="text-ui-sm font-semibold text-gray-500 uppercase tracking-wide">Interlocuteur</label>
               <input type="text" value={contactName} onChange={e => setContactName(e.target.value)}
                 placeholder="Nom du contact..."
-                className="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-300 outline-none" />
+                className="w-full mt-1 border rounded-ui-sm px-3 py-2 text-ui focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] outline-none" />
             </div>
 
             {/* Infos enrichies */}
             {(selectedProspect.dirigeant || selectedProspect.email || selectedProspect.enrichment_notes) && (
-              <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-xs text-gray-600">
+              <div className="bg-gray-50 rounded-ui-sm p-3 space-y-1 text-ui-sm text-gray-600">
                 {selectedProspect.dirigeant && <p> Dirigeant : <strong>{selectedProspect.dirigeant}</strong></p>}
                 {selectedProspect.email && <p> {selectedProspect.email}</p>}
                 {selectedProspect.enrichment_notes && <p className="text-gray-400 italic">{selectedProspect.enrichment_notes}</p>}
@@ -512,7 +513,7 @@ export default function ProspectionTerrain() {
 
             {/* Résultat appel */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Résultat de l'appel</label>
+              <label className="text-ui-sm font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Résultat de l'appel</label>
               <div className="grid grid-cols-2 gap-2">
                 {CALL_RESULTS.map(r => (
                   <button key={r.id} onClick={() => {
@@ -524,9 +525,9 @@ export default function ProspectionTerrain() {
                       setNeedsCallback(false)
                     }
                   }}
-                    className={`p-2.5 rounded-lg border-2 text-left transition-colors ${callResult === r.id ? r.color + ' border-current' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
-                    <p className="text-xs font-semibold">{r.label}</p>
-                    <p className="text-[10px] opacity-70">{r.sublabel}</p>
+                    className={`p-2.5 rounded-ui-sm border-2 text-left transition-colors ${callResult === r.id ? r.color + ' border-current' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                    <p className="text-ui-sm font-semibold">{r.label}</p>
+                    <p className="text-ui-sm opacity-70">{r.sublabel}</p>
                   </button>
                 ))}
               </div>
@@ -534,21 +535,21 @@ export default function ProspectionTerrain() {
 
             {/* Notes */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Notes</label>
+              <label className="text-ui-sm font-semibold text-gray-500 uppercase tracking-wide">Notes</label>
               <textarea value={callNotes} onChange={e => setCallNotes(e.target.value)}
                 placeholder="Notes sur l'échange..." rows={3}
-                className="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-300 outline-none resize-none" />
+                className="w-full mt-1 border rounded-ui-sm px-3 py-2 text-ui focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] outline-none resize-none" />
             </div>
 
             {/* Rappel */}
             {needsCallback && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-                <p className="text-xs font-semibold text-amber-700"> Programmer un rappel</p>
+              <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-3 space-y-2">
+                <p className="text-ui-sm font-semibold text-[rgb(var(--c-warning))]"> Programmer un rappel</p>
                 <div className="grid grid-cols-2 gap-2">
                   <input type="date" value={callbackDate} onChange={e => setCallbackDate(e.target.value)}
-                    className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-300 outline-none" />
+                    className="border rounded-ui-sm px-3 py-2 text-ui focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] outline-none" />
                   <input type="time" value={callbackTime} onChange={e => setCallbackTime(e.target.value)}
-                    className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-300 outline-none" />
+                    className="border rounded-ui-sm px-3 py-2 text-ui focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] outline-none" />
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
                   {[
@@ -558,7 +559,7 @@ export default function ProspectionTerrain() {
                     { l: '+1 sem', d: 7 },
                   ].map(q => (
                     <button key={q.l} onClick={() => setCallbackDate(q.getDate ? q.getDate() : nextWorkday(q.d))}
-                      className="px-2 py-1 text-[10px] bg-white border border-amber-200 hover:bg-amber-50 rounded-full">{q.l}</button>
+                      className="px-2 py-1 text-ui-sm bg-white border border-[rgb(var(--c-warning)/0.3)] hover:bg-[rgb(var(--c-warning-bg))] rounded-full">{q.l}</button>
                   ))}
                 </div>
               </div>
@@ -567,7 +568,7 @@ export default function ProspectionTerrain() {
             {/* Toggle rappel si non auto */}
             {!needsCallback && callResult && (
               <button onClick={() => { setNeedsCallback(true); setCallbackDate(nextWorkday(3)) }}
-                className="text-xs text-gray-400 hover:text-amber-600 flex items-center gap-1 transition-colors">
+                className="text-ui-sm text-gray-400 hover:text-[rgb(var(--c-warning))] flex items-center gap-1 transition-colors">
                 <Clock className="w-3 h-3" /> + Ajouter un rappel
               </button>
             )}
@@ -576,11 +577,11 @@ export default function ProspectionTerrain() {
           {/* Footer actions */}
           <div className="p-4 border-t bg-gray-50 flex gap-2">
             <button onClick={() => setSelectedProspect(null)}
-              className="flex-1 py-2.5 text-sm border rounded-lg hover:bg-gray-100 font-medium text-gray-600">
+              className="flex-1 py-2.5 text-ui border rounded-ui-sm hover:bg-gray-100 font-medium text-gray-600">
               Annuler
             </button>
             <button onClick={handleSaveCall} disabled={saving || !callResult}
-              className="flex-1 py-2.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
+              className="flex-1 py-2.5 text-ui bg-[rgb(var(--c-warning))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-warning))] font-medium shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>

@@ -2,11 +2,12 @@ import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
-import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, User, Eye, Users, Upload, FileSpreadsheet, FileText, RefreshCw, CheckCircle, AlertCircle, Archive, MoreVertical, Smartphone } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, User, Eye, Users, Upload, FileSpreadsheet, FileText, RefreshCw, CheckCircle, AlertCircle, Archive, MoreVertical, Smartphone, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SirenConflictModal from '../components/SirenConflictModal'
 import { useSirenCheck } from '../lib/useSirenCheck'
 import { canExportVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
+import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
 
 // Formatage nom entreprise (majuscules)
 const formatCompanyName = (value) => {
@@ -50,10 +51,10 @@ const enrichProspectWithAPI = async (name, city) => {
         phone: siege.telephone || '',
         email: siege.email || '',
         website: siege.site_internet || '',
-        tva: company.numero_tva_intra || '',
+        tva: tvaFromSiren(company.siren || siege.siret),
         legal_form: company.forme_juridique || '',
         activity: company.activite_principale || '',
-        naf_code: company.section_activite_principale || '',
+        naf_code: company.activite_principale || '',
         employees: company.tranche_effectif_salarie || '',
         created_date: company.date_creation || ''
       }
@@ -286,19 +287,19 @@ const parseProspectText = (text) => {
 }
 
 // Modal de confirmation
-const ConfirmModal = ({ show, onConfirm, onCancel, message, description, confirmLabel = 'Confirmer', confirmColor = 'bg-red-600 hover:bg-red-700' }) => {
+const ConfirmModal = ({ show, onConfirm, onCancel, message, description, confirmLabel = 'Confirmer', confirmColor = 'bg-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger))]' }) => {
   if (!show) return null
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm mx-4">
+      <div className="relative bg-white rounded-ui shadow-md p-6 max-w-sm mx-4">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-accent-100 rounded-full flex items-center justify-center">
             <span className="text-accent-600 font-bold text-lg">C</span>
           </div>
           <div>
             <p className="text-gray-900 font-medium">{message}</p>
-            {description && <p className="text-sm text-gray-500 mt-1">{description}</p>}
+            {description && <p className="text-ui text-gray-500 mt-1">{description}</p>}
           </div>
         </div>
         <div className="flex justify-end gap-2">
@@ -314,6 +315,8 @@ export default function Clients() {
   const { clients, fetchClients, createClient, updateClient, deleteClient } = useDataStore()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  // Entreprises (tous les professionnels) ou particuliers : deux listes séparées
+  const [clientKind, setClientKind] = useState('pro')
   const [sortField, setSortField] = useState('name')
   const [sortDir, setSortDir] = useState('asc')
   const [showForm, setShowForm] = useState(false)
@@ -331,7 +334,7 @@ export default function Clients() {
   const [enriching, setEnriching] = useState(false)
   const fileInputRef = useRef(null)
   const [form, setForm] = useState({
-    name: '', siret: '', address: '', postal_code: '', city: '', tva: '', email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise'
+    name: '', siret: '', address: '', postal_code: '', city: '', tva: '', vat_exempt: false, email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise'
   })
 
   const [autoFilled, setAutoFilled] = useState(false)
@@ -357,7 +360,7 @@ export default function Clients() {
           address: addrParts.join(' ') || f.address,
           postal_code: siege.code_postal || f.postal_code,
           city: (siege.libelle_commune || f.city || '').toUpperCase(),
-          tva: company.numero_tva_intra || f.tva,
+          tva: f.vat_exempt ? '' : (tvaFromSiren(company.siren || clean) || f.tva),
           phone: siege.telephone || f.phone,
           email: siege.email || f.email,
         }))
@@ -421,7 +424,9 @@ export default function Clients() {
     }
   }
 
-  const filtered = clients.filter(c => {
+  const isParticulier = (c) => c.client_type === 'particulier'
+  const kindClients = clients.filter(c => clientKind === 'particulier' ? isParticulier(c) : !isParticulier(c))
+  const filtered = kindClients.filter(c => {
     const searchFields = `${c.name || ''} ${c.siret || ''} ${c.contact_name || ''} ${c.address || ''} ${c.email || ''} ${c.contact_email || ''}`.toLowerCase()
     const matchSearch = !search || searchFields.includes(search.toLowerCase())
     const matchStatus = filterStatus === 'all' ? c.status !== 'archive' : c.status === filterStatus
@@ -444,6 +449,7 @@ export default function Clients() {
         postal_code: client.postal_code || '',
         city: client.city || '',
         tva: client.tva || '',
+        vat_exempt: !!client.vat_exempt,
         email: client.contact_email || client.email || '',
         phone: client.contact_phone || client.phone || '',
         contact_name: client.contact_name || '',
@@ -454,7 +460,7 @@ export default function Clients() {
       })
       setSelectedClient(client)
     } else {
-      setForm({ name: '', siret: '', address: '', postal_code: '', city: '', tva: '', email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise' })
+      setForm({ name: '', siret: '', address: '', postal_code: '', city: '', tva: '', vat_exempt: false, email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise' })
       setAutoFilled(false)
       setSelectedClient(null)
     }
@@ -475,7 +481,8 @@ export default function Clients() {
       name: formatCompanyName(formData.name),
       contact_email: formData.email,
       contact_phone: formData.phone,
-      tva: formData.tva || null,
+      tva: formData.vat_exempt ? null : (formData.tva || null),
+      vat_exempt: !!formData.vat_exempt,
       postal_code: formData.postal_code || null,
       city: formData.city ? formData.city.toUpperCase() : null,
     })
@@ -493,7 +500,8 @@ export default function Clients() {
         name: formatCompanyName(form.name),
         contact_email: form.email,
         contact_phone: form.phone,
-        tva: form.tva || null,
+        tva: form.vat_exempt ? null : (form.tva || null),
+        vat_exempt: !!form.vat_exempt,
         postal_code: form.postal_code || null,
         city: form.city ? form.city.toUpperCase() : null,
       })
@@ -780,8 +788,8 @@ export default function Clients() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-          <p className="text-gray-600 text-sm mt-1">{filtered.length} client{filtered.length > 1 ? 's' : ''}</p>
+          <h1 className="page-title">Clients</h1>
+          <p className="text-gray-600 text-ui mt-1">{filtered.length} client{filtered.length > 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
           {vcardAllowed && (
@@ -823,6 +831,19 @@ export default function Clients() {
         </div>
       </div>
       
+      <div className="flex gap-1 mb-3 border-b border-gray-200" role="tablist" aria-label="Type de client">
+        {[
+          { key: 'pro', label: 'Entreprises', count: clients.filter(c => !isParticulier(c) && c.status !== 'archive').length },
+          { key: 'particulier', label: 'Particuliers', count: clients.filter(c => isParticulier(c) && c.status !== 'archive').length },
+        ].map(tab => (
+          <button key={tab.key} type="button" role="tab" aria-selected={clientKind === tab.key}
+            onClick={() => { setClientKind(tab.key); setFilterStatus('all') }}
+            className={'px-4 py-2.5 -mb-px text-ui font-semibold border-b-2 transition-colors ' + (clientKind === tab.key ? 'border-accent-600 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-800')}>
+            {tab.label} <span className="ml-1 text-ui-sm font-medium text-gray-400">{tab.count}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="card mb-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex-1 relative">
@@ -835,30 +856,30 @@ export default function Clients() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex bg-gray-100 rounded-lg p-1 gap-0.5">
+          <div className="flex bg-gray-100 rounded-ui-sm p-1 gap-0.5">
             {[
-              { key: 'all', label: 'Tous', count: clients.filter(c => c.status !== 'archive').length },
-              { key: 'actif', label: ' Actif', count: clients.filter(c => c.status === 'actif').length, cls: 'text-green-700' },
-              { key: 'en_discussion', label: ' Discussion', count: clients.filter(c => c.status === 'en_discussion').length, cls: 'text-blue-700' },
-              { key: 'prospect', label: ' Prospect', count: clients.filter(c => c.status === 'prospect').length, cls: 'text-orange-700' },
-              { key: 'a_completer', label: ' À compléter', count: clients.filter(c => c.status === 'a_completer').length, cls: 'text-purple-700' },
-              { key: 'archive', label: ' Archivé', count: clients.filter(c => c.status === 'archive').length, cls: 'text-gray-500' },
+              { key: 'all', label: 'Tous', count: kindClients.filter(c => c.status !== 'archive').length },
+              { key: 'actif', label: 'Actif', count: kindClients.filter(c => c.status === 'actif').length, cls: 'text-[rgb(var(--c-success))]' },
+              { key: 'en_discussion', label: 'Discussion', count: kindClients.filter(c => c.status === 'en_discussion').length, cls: 'text-[rgb(var(--c-info))]' },
+              { key: 'prospect', label: 'Prospect', count: kindClients.filter(c => c.status === 'prospect').length, cls: 'text-[rgb(var(--c-warning))]' },
+              { key: 'a_completer', label: 'À compléter', count: kindClients.filter(c => c.status === 'a_completer').length, cls: 'text-gray-800' },
+              { key: 'archive', label: 'Archivé', count: kindClients.filter(c => c.status === 'archive').length, cls: 'text-gray-500' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setFilterStatus(tab.key)}
-                className={'px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ' + (filterStatus === tab.key ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900')}>
-                {tab.label} <span className="text-xs opacity-60">{tab.count}</span>
+                className={'px-3 py-1.5 rounded-ui-sm text-ui font-medium transition-colors whitespace-nowrap ' + (filterStatus === tab.key ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900')}>
+                {tab.label} <span className="text-ui-sm opacity-60">{tab.count}</span>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 mb-2">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</p>
+      <p className="text-ui-sm text-gray-400 mb-2">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</p>
 
-      <div className="bg-white rounded-xl border border-gray-200">
+      <div className="bg-white rounded-ui border border-gray-200">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wider rounded-t-xl [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
+            <tr className="bg-gray-50 border-b text-ui-sm text-gray-500 uppercase tracking-wider rounded-t-xl [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
               {[
                 { key: 'name', label: 'Entreprise', cls: 'pl-4 pr-2 py-3 text-left' },
                 { key: 'city', label: 'Ville', cls: 'px-2 py-3 text-left hidden lg:table-cell' },
@@ -878,59 +899,59 @@ export default function Clients() {
           <tbody className="divide-y divide-gray-100">
             {filtered.map(client => {
               const statusMap = {
-                actif: { label: 'Actif', cls: 'bg-green-100 text-green-700' },
-                en_discussion: { label: 'Discussion', cls: 'bg-blue-100 text-blue-700' },
-                prospect: { label: 'Prospect', cls: 'bg-orange-100 text-orange-700' },
-                a_completer: { label: 'À compléter', cls: 'bg-purple-100 text-purple-700' },
+                actif: { label: 'Actif', cls: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
+                en_discussion: { label: 'Discussion', cls: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' },
+                prospect: { label: 'Prospect', cls: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
+                a_completer: { label: 'À compléter', cls: 'bg-gray-100 text-gray-800' },
                 archive: { label: 'Archivé', cls: 'bg-gray-100 text-gray-500' },
               }
               const st = statusMap[client.status] || statusMap.prospect
               return (
                 <tr key={client.id} className="hover:bg-gray-50 transition-colors group">
                   <td className="pl-4 pr-2 py-3">
-                    <Link to={`/clients/${client.id}`} className="font-medium text-gray-900 hover:text-primary-600 hover:underline text-sm">
+                    <Link to={`/clients/${client.id}`} className="font-medium text-gray-900 hover:text-accent-600 hover:underline text-ui">
                       {client.name}
                     </Link>
-                    {client.siren && <span className="text-[10px] text-gray-400 ml-2 font-mono">{client.siren}</span>}
+                    {client.siren && <span className="text-ui-sm text-gray-400 ml-2 font-mono">{client.siren}</span>}
                   </td>
-                  <td className="px-2 py-3 text-sm text-gray-600 hidden lg:table-cell">
+                  <td className="px-2 py-3 text-ui text-gray-600 hidden lg:table-cell">
                     {client.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-400" />{client.city}</span>}
                   </td>
                   <td className="px-2 py-3">
-                    <span className={'px-2 py-0.5 rounded-full text-xs font-medium ' + st.cls}>{st.label}</span>
+                    <span className={'px-2 py-0.5 rounded-full text-ui-sm font-medium ' + st.cls}>{st.label}</span>
                   </td>
-                  <td className="px-2 py-3 text-sm text-gray-600 hidden md:table-cell truncate max-w-[200px]">
+                  <td className="px-2 py-3 text-ui text-gray-600 hidden md:table-cell truncate max-w-[200px]">
                     {client.contact_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400 flex-shrink-0" /><span className="truncate">{client.contact_email}</span></span>}
                   </td>
-                  <td className="px-2 py-3 text-sm text-gray-600 hidden md:table-cell whitespace-nowrap">
+                  <td className="px-2 py-3 text-ui text-gray-600 hidden md:table-cell whitespace-nowrap">
                     {client.contact_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{client.contact_phone}</span>}
                   </td>
-                  <td className="px-2 py-3 text-xs text-gray-400 hidden xl:table-cell whitespace-nowrap">
+                  <td className="px-2 py-3 text-ui-sm text-gray-400 hidden xl:table-cell whitespace-nowrap">
                     {client.updated_at && new Date(client.updated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                   </td>
                   <td className="px-4 py-3">
                     <div className="relative">
                       <button onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === client.id ? null : client.id) }}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       {actionMenuId === client.id && (
-                        <div ref={actionMenuRef} className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[180px]">
+                        <div ref={actionMenuRef} className="absolute right-0 top-8 bg-white border border-gray-200 rounded-ui-sm shadow-md py-1 z-50 min-w-[180px]">
                           <Link to={`/clients/${client.id}`}
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full">
+                            className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full">
                             <Eye className="w-4 h-4 text-gray-400" /> Voir la fiche
                           </Link>
                           <button onClick={() => { setActionMenuId(null); openForm(client) }}
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left">
+                            className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full text-left">
                             <Edit className="w-4 h-4 text-gray-400" /> Modifier
                           </button>
                           <div className="border-t border-gray-100 my-1" />
                           <button onClick={() => { setActionMenuId(null); setConfirmArchive(client) }}
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-amber-50 w-full text-left">
-                            <Archive className="w-4 h-4 text-amber-500" /> {client.status === 'archive' ? 'Restaurer' : 'Archiver'}
+                            className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-[rgb(var(--c-warning-bg))] w-full text-left">
+                            <Archive className="w-4 h-4 text-[rgb(var(--c-warning))]" /> {client.status === 'archive' ? 'Restaurer' : 'Archiver'}
                           </button>
                           <button onClick={() => { setActionMenuId(null); setConfirmDelete(client) }}
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left">
+                            className="flex items-center gap-2 px-4 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] w-full text-left">
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </button>
                         </div>
@@ -955,7 +976,7 @@ export default function Clients() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowPreview(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-2xl">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">{selectedClient.name}</h2>
                 <button onClick={() => setShowPreview(false)}><X className="w-5 h-5" /></button>
@@ -963,26 +984,26 @@ export default function Clients() {
               <div className="p-6 space-y-4">
                 {selectedClient.siret && (
                   <div>
-                    <label className="text-sm font-medium text-gray-700">SIRET</label>
+                    <label className="text-ui font-medium text-gray-700">SIRET</label>
                     <p className="text-gray-900 font-mono">{selectedClient.siret}</p>
                   </div>
                 )}
                 {selectedClient.address && (
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Adresse</label>
+                    <label className="text-ui font-medium text-gray-700">Adresse</label>
                     <p className="text-gray-900">{selectedClient.address}</p>
                   </div>
                 )}
                 {(selectedClient.contact_email || selectedClient.contact_phone) && (
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Contact</label>
+                    <label className="text-ui font-medium text-gray-700">Contact</label>
                     {selectedClient.contact_email && <p className="text-gray-900">{selectedClient.contact_email}</p>}
                     {selectedClient.contact_phone && <p className="text-gray-900">{selectedClient.contact_phone}</p>}
                   </div>
                 )}
                 {selectedClient.notes && (
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Notes</label>
+                    <label className="text-ui font-medium text-gray-700">Notes</label>
                     <p className="text-gray-900 whitespace-pre-wrap">{selectedClient.notes}</p>
                   </div>
                 )}
@@ -1000,19 +1021,19 @@ export default function Clients() {
                     }} />
                   </div>
                   {contacts.length === 0 ? (
-                    <p className="text-gray-500 text-sm">Aucun contact</p>
+                    <p className="text-gray-500 text-ui">Aucun contact</p>
                   ) : (
                     <div className="space-y-2">
                       {contacts.map(c => (
-                        <div key={c.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div key={c.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-ui-sm">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <p className="font-medium text-gray-900">{c.name}</p>
-                              {c.is_primary && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">Principal</span>}
+                              {c.is_primary && <span className="px-2 py-0.5 bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] text-ui-sm rounded">Principal</span>}
                             </div>
-                            {c.role && <p className="text-sm text-gray-600">{c.role}</p>}
-                            {c.email && <p className="text-sm text-gray-600">{c.email}</p>}
-                            {c.phone && <p className="text-sm text-gray-600">{c.phone}</p>}
+                            {c.role && <p className="text-ui text-gray-600">{c.role}</p>}
+                            {c.email && <p className="text-ui text-gray-600">{c.email}</p>}
+                            {c.phone && <p className="text-ui text-gray-600">{c.phone}</p>}
                           </div>
                           <div className="flex gap-1">
                             <ContactForm 
@@ -1037,7 +1058,7 @@ export default function Clients() {
                                 setContacts(data || [])
                                 toast.success('Contact supprimé')
                               }}
-                              className="p-1.5 text-gray-400 hover:text-red-600"
+                              className="p-1.5 text-gray-400 hover:text-[rgb(var(--c-danger))]"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1058,32 +1079,40 @@ export default function Clients() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowForm(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-2xl">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">{selectedClient ? 'Modifier' : 'Nouveau'} client</h2>
                 <button onClick={() => setShowForm(false)}><X className="w-5 h-5" /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="label">Nom de l'entreprise *</label>
+                  <label className="label">{form.client_type === 'particulier' ? 'Nom et prénom *' : "Nom de l'entreprise *"}</label>
                   <input className="input" value={form.name} onChange={(e) => setForm({...form, name: formatCompanyName(e.target.value)})} />
                 </div>
                 
+                {form.client_type !== 'particulier' && (
                 <div>
-                  <label className="label flex items-center justify-between">
+                  <label className="label flex items-center justify-between gap-2">
                     SIRET
-                    {siretEnriching && <span className="text-xs text-blue-500 font-normal flex items-center gap-1"><span className="animate-spin inline-block"></span> Recherche INSEE...</span>}
-                    {autoFilled && !siretEnriching && <span className="text-xs text-green-600 font-normal"> Pré-rempli auto</span>}
+                    <span className="flex items-center gap-3">
+                      {siretEnriching && <span className="text-ui-sm text-[rgb(var(--c-info))] font-normal flex items-center gap-1"><span className="animate-spin inline-block"></span> Recherche INSEE...</span>}
+                      {autoFilled && !siretEnriching && <span className="text-ui-sm text-[rgb(var(--c-success))] font-normal"> Pré-rempli auto</span>}
+                      {pappersUrl(form.siret) && (
+                        <a href={pappersUrl(form.siret)} target="_blank" rel="noopener noreferrer" className="text-ui-sm font-semibold text-accent-600 hover:underline">Voir sur Pappers</a>
+                      )}
+                    </span>
                   </label>
                   <input className="input font-mono" value={form.siret}
                     onChange={(e) => {
                       const val = e.target.value
-                      setForm({...form, siret: val})
+                      const computed = tvaFromSiren(val)
+                      setForm({...form, siret: val, tva: form.vat_exempt ? '' : (computed || form.tva)})
                       if (val.replace(/\s/g, '').length === 14) enrichBySiret(val)
                     }}
                     placeholder="14 chiffres → pré-remplissage auto"
                   />
                 </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
@@ -1096,7 +1125,7 @@ export default function Clients() {
                   </div>
                   <div>
                     <label className="label">Ville</label>
-                    <input className="input" value={form.city} onChange={(e) => setForm({...form, city: e.target.value.toUpperCase()})} placeholder="QUIMPER" />
+                    <input className="input" value={form.city} onChange={(e) => setForm({...form, city: e.target.value.toUpperCase()})} placeholder="VILLE" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -1109,11 +1138,21 @@ export default function Clients() {
                     <input type="email" className="input" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
                   </div>
                 </div>
+                {form.client_type !== 'particulier' && (
                 <div>
                   <label className="label">N° TVA intracommunautaire</label>
-                  <input className="input font-mono" value={form.tva} onChange={(e) => setForm({...form, tva: e.target.value.toUpperCase()})} placeholder="FR00000000000" />
+                  <input className="input font-mono disabled:bg-gray-50 disabled:text-gray-400" value={form.vat_exempt ? '' : form.tva} disabled={form.vat_exempt}
+                    onChange={(e) => setForm({...form, tva: e.target.value.toUpperCase()})} placeholder={form.vat_exempt ? 'Non assujetti' : 'FR00000000000'} />
+                  <p className="text-ui-sm text-gray-400 mt-1">Calculé depuis le SIREN pour une entreprise française. Saisie libre pour un client étranger.</p>
+                  <label className="flex items-center gap-2 mt-2 text-ui text-gray-700 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4" checked={!!form.vat_exempt}
+                      onChange={(e) => setForm({...form, vat_exempt: e.target.checked, tva: e.target.checked ? '' : (tvaFromSiren(form.siret) || form.tva)})} />
+                    Non assujetti à la TVA (aucun numéro sur les factures)
+                  </label>
                 </div>
+                )}
                 
+                {form.client_type !== 'particulier' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label">Contact principal</label>
@@ -1124,19 +1163,20 @@ export default function Clients() {
                     <input className="input" placeholder="Ex: Directeur" value={form.contact_function} onChange={(e) => setForm({...form, contact_function: e.target.value})} />
                   </div>
                 </div>
+                )}
                 
                 <div className="border-t pt-4">
                   <h4 className="font-medium text-gray-700 mb-3">Statut</h4>
                   <div className="flex gap-2 flex-wrap">
                     {[
-                      { value: 'prospect', label: ' Prospect', active: 'bg-orange-500 text-white', inactive: 'bg-orange-50 text-orange-700 hover:bg-orange-100' },
-                      { value: 'en_discussion', label: ' En discussion', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                      { value: 'actif', label: ' Actif', active: 'bg-green-500 text-white', inactive: 'bg-green-50 text-green-700 hover:bg-green-100' },
-                      { value: 'a_completer', label: ' À compléter', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-                      { value: 'archive', label: ' Archivé', active: 'bg-gray-500 text-white', inactive: 'bg-gray-50 text-gray-500 hover:bg-gray-100' }
+                      { value: 'prospect', label: 'Prospect', active: 'bg-[rgb(var(--c-warning))] text-white', inactive: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))]' },
+                      { value: 'en_discussion', label: 'En discussion', active: 'bg-[rgb(var(--c-info))] text-white', inactive: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))]' },
+                      { value: 'actif', label: 'Actif', active: 'bg-[rgb(var(--c-success))] text-white', inactive: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]' },
+                      { value: 'a_completer', label: 'À compléter', active: 'bg-gray-700 text-white', inactive: 'bg-gray-50 text-gray-800 hover:bg-gray-100' },
+                      { value: 'archive', label: 'Archivé', active: 'bg-gray-500 text-white', inactive: 'bg-gray-50 text-gray-500 hover:bg-gray-100' }
                     ].map(s => (
                       <button key={s.value} type="button" onClick={() => setForm({...form, status: s.value})}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.status === s.value ? s.active : s.inactive}`}>
+                        className={`px-3 py-1.5 rounded-full text-ui font-medium transition-colors ${form.status === s.value ? s.active : s.inactive}`}>
                         {s.label}
                       </button>
                     ))}
@@ -1144,16 +1184,19 @@ export default function Clients() {
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-3">Type de client <span className="text-xs text-gray-400 font-normal">(pour le BPF)</span></h4>
+                  <h4 className="font-medium text-gray-700 mb-3">Type de client <span className="text-ui-sm text-gray-400 font-normal">(pour le BPF)</span></h4>
                   <div className="flex gap-2 flex-wrap">
                     {[
-                      { value: 'entreprise', label: ' Entreprise', active: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                      { value: 'organisme_formation', label: ' Organisme de formation', active: 'bg-purple-500 text-white', inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-                      { value: 'public', label: ' Établissement public', active: 'bg-teal-500 text-white', inactive: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
-                      { value: 'opco', label: ' OPCO', active: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                      { value: 'entreprise', label: 'Entreprise', active: 'bg-[rgb(var(--c-info))] text-white', inactive: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))]' },
+                      { value: 'organisme_formation', label: 'Organisme de formation', active: 'bg-gray-700 text-white', inactive: 'bg-gray-50 text-gray-800 hover:bg-gray-100' },
+                      { value: 'public', label: 'Établissement public', active: 'bg-gray-700 text-white', inactive: 'bg-gray-50 text-gray-800 hover:bg-gray-100' },
+                      { value: 'opco', label: 'OPCO', active: 'bg-[rgb(var(--c-warning))] text-white', inactive: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))]' },
+                      { value: 'particulier', label: 'Particulier', active: 'bg-gray-700 text-white', inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
                     ].map(s => (
-                      <button key={s.value} type="button" onClick={() => setForm({...form, client_type: s.value})}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.client_type === s.value ? s.active : s.inactive}`}>
+                      <button key={s.value} type="button" onClick={() => setForm(s.value === 'particulier'
+                        ? {...form, client_type: s.value, vat_exempt: true, tva: '', siret: ''}
+                        : {...form, client_type: s.value, vat_exempt: form.client_type === 'particulier' ? false : form.vat_exempt})}
+                        className={`px-3 py-1.5 rounded-full text-ui font-medium transition-colors ${form.client_type === s.value ? s.active : s.inactive}`}>
                         {s.label}
                       </button>
                     ))}
@@ -1179,13 +1222,13 @@ export default function Clients() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => !enriching && setShowTextImport(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
-              <div className="flex items-center justify-between p-4 border-b bg-purple-50">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-3xl max-h-[90vh] overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                 <div className="flex items-center gap-3">
-                  <FileText className="w-6 h-6 text-purple-600" />
+                  <FileText className="w-6 h-6 text-gray-800" />
                   <div>
                     <h2 className="text-lg font-semibold">Import prospects en masse</h2>
-                    <p className="text-sm text-gray-600">Pappers, Infogreffe +  Enrichissement auto </p>
+                    <p className="text-ui text-gray-600">Pappers, Infogreffe +  Enrichissement auto </p>
                   </div>
                 </div>
                 {!enriching && <button onClick={() => setShowTextImport(false)}><X className="w-5 h-5" /></button>}
@@ -1194,7 +1237,7 @@ export default function Clients() {
               <div className="p-4">
                 <label className="label mb-2">Collez ici les données d'entreprises</label>
                 <textarea 
-                  className="input w-full font-mono text-sm"
+                  className="input w-full font-mono text-ui"
                   rows={20}
                   value={textImportValue}
                   onChange={(e) => setTextImportValue(e.target.value)}
@@ -1204,7 +1247,7 @@ export default function Clients() {
               </div>
               
               <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-                <p className="text-sm text-gray-600">
+                <p className="text-ui text-gray-600">
                   {enriching ? ' Enrichissement automatique en cours...' : ' API Gratuite • SIRET, Tel, Email, Site web'}
                 </p>
                 <div className="flex gap-2">
@@ -1222,7 +1265,7 @@ export default function Clients() {
                   >
                     {enriching ? (
                       <>
-                        <span className="animate-spin"></span> Enrichissement...
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Enrichissement...
                       </>
                     ) : (
                       <>
@@ -1242,13 +1285,13 @@ export default function Clients() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => !importing && setImportPreview(null)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-              <div className="flex items-center justify-between p-4 border-b bg-blue-50">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b bg-[rgb(var(--c-info-bg))]">
                 <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="w-6 h-6 text-blue-600" />
+                  <FileSpreadsheet className="w-6 h-6 text-[rgb(var(--c-info))]" />
                   <div>
                     <h2 className="text-lg font-semibold">Prévisualisation import</h2>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-ui text-gray-600">
                       {importPreview.length} prospect(s) • 
                       {' '}{importPreview.filter(p => p.enriched).length} enrichi(s)  • 
                       {' '}{importPreview.filter(p => !p.enriched).length} non enrichi(s) 
@@ -1259,7 +1302,7 @@ export default function Clients() {
               </div>
               
               <div className="p-4 overflow-y-auto max-h-[60vh]">
-                <table className="w-full text-sm">
+                <table className="w-full text-ui">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
                       <th className="text-center py-2 px-2 font-medium w-10">
@@ -1285,9 +1328,9 @@ export default function Clients() {
                                      clients.find(c => c.name?.toUpperCase() === societe.name?.toUpperCase())
                       return (
                         <tr key={idx} className={
-                          exists ? 'bg-yellow-50' : 
-                          societe.enriched ? 'bg-green-50' : 
-                          'bg-red-50'
+                          exists ? 'bg-[rgb(var(--c-warning-bg))]' : 
+                          societe.enriched ? 'bg-[rgb(var(--c-success-bg))]' : 
+                          'bg-[rgb(var(--c-danger-bg))]'
                         }>
                           <td className="py-2 px-2 text-center">
                             <input 
@@ -1299,27 +1342,27 @@ export default function Clients() {
                           </td>
                           <td className="py-2 px-3">
                             <div className="font-medium">{societe.name}</div>
-                            {societe.city && <div className="text-xs text-gray-500">{societe.postal_code} {societe.city}</div>}
-                            {societe.website && <div className="text-xs text-blue-600"> {societe.website}</div>}
-                            {exists && <span className="text-xs text-yellow-600"> Existe déjà</span>}
+                            {societe.city && <div className="text-ui-sm text-gray-500">{societe.postal_code} {societe.city}</div>}
+                            {societe.website && <div className="text-ui-sm text-[rgb(var(--c-info))]"> {societe.website}</div>}
+                            {exists && <span className="text-ui-sm text-[rgb(var(--c-warning))]"> Existe déjà</span>}
                           </td>
-                          <td className="py-2 px-3 text-gray-600 font-mono text-xs">{societe.siret || '-'}</td>
-                          <td className="py-2 px-3 text-xs">
+                          <td className="py-2 px-3 text-gray-600 font-mono text-ui-sm">{societe.siret || '-'}</td>
+                          <td className="py-2 px-3 text-ui-sm">
                             {societe.phone && <div className="text-gray-600"> {societe.phone}</div>}
                             {societe.email && <div className="text-gray-600"> {societe.email}</div>}
                             {!societe.phone && !societe.email && <span className="text-gray-400">-</span>}
                           </td>
                           <td className="py-2 px-3 text-center">
                             {societe.enriching ? (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                              <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-ui-sm">
                                 <span className="animate-spin inline-block"></span>
                               </span>
                             ) : societe.enriched ? (
-                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium inline-flex items-center gap-1">
+                              <span className="px-2 py-1 bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] rounded text-ui-sm font-medium inline-flex items-center gap-1">
                                 <CheckCircle className="w-3 h-3" /> Enrichi
                               </span>
                             ) : (
-                              <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium inline-flex items-center gap-1">
+                              <span className="px-2 py-1 bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] rounded text-ui-sm font-medium inline-flex items-center gap-1">
                                 <AlertCircle className="w-3 h-3" /> Non enrichi
                               </span>
                             )}
@@ -1328,7 +1371,7 @@ export default function Clients() {
                             {!societe.enriched && !societe.enriching && !exists && (
                               <button
                                 onClick={() => retryEnrichment(idx)}
-                                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                className="p-1 text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded"
                                 title="Réessayer enrichissement"
                               >
                                 <RefreshCw className="w-4 h-4" />
@@ -1343,7 +1386,7 @@ export default function Clients() {
               </div>
               
               <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-                <div className="text-sm">
+                <div className="text-ui">
                   <p className="text-gray-600">
                      Enrichis : Sélectionnés par défaut (SIRET trouvé)
                   </p>
@@ -1366,7 +1409,7 @@ export default function Clients() {
                   >
                     {importing ? (
                       <>
-                        <span className="animate-spin"></span> Import en cours...
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Import en cours...
                       </>
                     ) : (
                       <>
@@ -1385,7 +1428,7 @@ export default function Clients() {
         message={confirmArchive?.status === 'archive' ? `Restaurer ${confirmArchive?.name} ?` : `Archiver ${confirmArchive?.name} ?`}
         description={confirmArchive?.status === 'archive' ? 'Le client réapparaîtra dans la liste.' : 'Le client sera masqué de la liste principale.'}
         confirmLabel={confirmArchive?.status === 'archive' ? 'Restaurer' : 'Archiver'}
-        confirmColor={confirmArchive?.status === 'archive' ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-600 hover:bg-amber-700'}
+        confirmColor={confirmArchive?.status === 'archive' ? 'bg-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning))]'}
         onConfirm={handleArchive} onCancel={() => setConfirmArchive(null)} />
       <ConfirmModal show={!!confirmDelete}
         message={`Supprimer ${confirmDelete?.name} ?`}
@@ -1456,19 +1499,19 @@ function ContactForm({ onAdd, onEdit, contact = null, buttonLabel = '+ Ajouter' 
     setShow(false)
   }
   
-  if (!show) return <button onClick={openForm} className="text-sm text-primary hover:underline">{buttonLabel}</button>
+  if (!show) return <button onClick={openForm} className="text-ui text-primary hover:underline">{buttonLabel}</button>
   
   return (
     <div className="fixed inset-0 z-[55] flex items-center justify-center">
       <div className="fixed inset-0 bg-black/30" onClick={() => setShow(false)} />
-      <div className="relative bg-white rounded-lg shadow-lg p-4 w-80">
+      <div className="relative bg-white rounded-ui-sm shadow-md p-4 w-80">
         <h4 className="font-medium mb-3">{contact ? 'Modifier' : 'Nouveau'} contact</h4>
         <div className="space-y-2">
-          <input type="text" placeholder="Nom *" className="input text-sm" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
-          <input type="text" placeholder="Fonction" className="input text-sm" value={form.role} onChange={e => setForm({...form, role: e.target.value})} />
-          <input type="email" placeholder="Email" className="input text-sm" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
-          <input type="tel" placeholder="Téléphone" className="input text-sm" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_primary} onChange={e => setForm({...form, is_primary: e.target.checked})} />Contact principal</label>
+          <input type="text" placeholder="Nom *" className="input text-ui" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+          <input type="text" placeholder="Fonction" className="input text-ui" value={form.role} onChange={e => setForm({...form, role: e.target.value})} />
+          <input type="email" placeholder="Email" className="input text-ui" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
+          <input type="tel" placeholder="Téléphone" className="input text-ui" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
+          <label className="flex items-center gap-2 text-ui"><input type="checkbox" checked={form.is_primary} onChange={e => setForm({...form, is_primary: e.target.checked})} />Contact principal</label>
         </div>
         <div className="flex justify-end gap-2 mt-3">
           <button onClick={() => setShow(false)} className="btn btn-secondary btn-sm">Annuler</button>

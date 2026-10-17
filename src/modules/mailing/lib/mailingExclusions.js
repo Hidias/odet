@@ -112,8 +112,8 @@ export function getExclusionReason(row, excl, opts = {}) {
   if (cat === 'desabonne') return 'desabonne'
   if (cat) return 'bloque'
 
-  // Client « ne pas mailer »
-  if (row.source === 'clients' && row.do_not_mail) return 'ne_pas_mailer'
+  // Client « ne pas mailer » ; un particulier n'est jamais destinataire d'une campagne commerciale
+  if (row.source === 'clients' && (row.do_not_mail || row.client_type === 'particulier')) return 'ne_pas_mailer'
 
   // Adresse invalide
   const st = excl.statusByEmail.get(email)
@@ -230,7 +230,7 @@ export function getAudienceExclusion(a, excl, opts = {}) {
   const nb = nameBlocks.find(b => names.some(n => n.includes(b.value)))
   if (nb) return nb.category === 'desabonne' ? 'desabonne' : 'bloque'
 
-  if (a.do_not_mail) return 'ne_pas_mailer'
+  if (a.do_not_mail || (a.types_client || []).includes('particulier')) return 'ne_pas_mailer'
   if (a.email_status === 'invalide') return 'invalide'
 
   const types = a.types_client || []

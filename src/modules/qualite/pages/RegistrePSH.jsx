@@ -10,6 +10,7 @@ import {
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import SearchSelect from '../../../ui/SearchSelect'
 
 // ===== LABELS & ICÔNES =====
 const sourceLabels = {
@@ -28,19 +29,19 @@ const canalLabels = {
 
 const decisionLabels = {
   a_analyser: { label: 'À analyser',  class: 'bg-gray-100 text-gray-700' },
-  adapte:     { label: 'Adaptée',     class: 'bg-green-100 text-green-700' },
-  partiel:    { label: 'Partielle',   class: 'bg-blue-100 text-blue-700' },
-  oriente:    { label: 'Orientée',    class: 'bg-purple-100 text-purple-700' },
-  refuse:     { label: 'Refusée',     class: 'bg-red-100 text-red-700' },
+  adapte:     { label: 'Adaptée',     class: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
+  partiel:    { label: 'Partielle',   class: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' },
+  oriente:    { label: 'Orientée',    class: 'bg-gray-100 text-gray-800' },
+  refuse:     { label: 'Refusée',     class: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' },
 }
 
 const statusLabels = {
-  open:            { label: 'Ouverte',       class: 'bg-red-100 text-red-700' },
-  in_review:       { label: 'En analyse',    class: 'bg-yellow-100 text-yellow-700' },
-  awaiting_info:   { label: 'Info manquante',class: 'bg-orange-100 text-orange-700' },
-  decided:         { label: 'Décidée',       class: 'bg-blue-100 text-blue-700' },
-  implemented:     { label: 'Mise en œuvre', class: 'bg-purple-100 text-purple-700' },
-  closed:          { label: 'Clôturé',       class: 'bg-green-100 text-green-700' },
+  open:            { label: 'Ouverte',       class: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' },
+  in_review:       { label: 'En analyse',    class: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
+  awaiting_info:   { label: 'Info manquante',class: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
+  decided:         { label: 'Décidée',       class: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' },
+  implemented:     { label: 'Mise en œuvre', class: 'bg-gray-100 text-gray-800' },
+  closed:          { label: 'Clôturé',       class: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
 }
 
 // ===== ÉTAT FORMULAIRE PAR DÉFAUT =====
@@ -187,18 +188,18 @@ export default function RegistrePSH() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Users className="w-6 h-6 text-indigo-600" />
+          <h1 className="page-title flex items-center gap-2">
+            <Users className="w-6 h-6 text-[rgb(var(--c-info))]" />
             Registre PSH
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-ui text-gray-500 mt-1">
             Personnes en Situation de Handicap - Indicateur Qualiopi 26
           </p>
         </div>
       </div>
 
       {/* Bandeau RGPD */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-700 flex items-start gap-2">
+      <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-info))] flex items-start gap-2">
         <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
         <span>
           <strong>RGPD :</strong> On enregistre uniquement un <em>besoin fonctionnel</em> (ex : "supports agrandis", "temps majoré"). 
@@ -210,20 +211,20 @@ export default function RegistrePSH() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card p-4 text-center">
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-          <p className="text-sm text-gray-500">Total</p>
-          {stats.testCount > 0 && <p className="text-xs text-gray-400 mt-1">dont {stats.testCount} cas test</p>}
+          <p className="text-ui text-gray-500">Total</p>
+          {stats.testCount > 0 && <p className="text-ui-sm text-gray-400 mt-1">dont {stats.testCount} cas test</p>}
         </div>
-        <div className="card p-4 text-center bg-red-50">
-          <p className="text-2xl font-bold text-red-600">{stats.open}</p>
-          <p className="text-sm text-red-600">En cours</p>
+        <div className="card p-4 text-center bg-[rgb(var(--c-danger-bg))]">
+          <p className="text-2xl font-bold text-[rgb(var(--c-danger))]">{stats.open}</p>
+          <p className="text-ui text-[rgb(var(--c-danger))]">En cours</p>
         </div>
-        <div className="card p-4 text-center bg-blue-50">
-          <p className="text-2xl font-bold text-blue-600">{stats.decided}</p>
-          <p className="text-sm text-blue-600">Décidées</p>
+        <div className="card p-4 text-center bg-[rgb(var(--c-info-bg))]">
+          <p className="text-2xl font-bold text-[rgb(var(--c-info))]">{stats.decided}</p>
+          <p className="text-ui text-[rgb(var(--c-info))]">Décidées</p>
         </div>
-        <div className="card p-4 text-center bg-green-50">
-          <p className="text-2xl font-bold text-green-600">{stats.closed}</p>
-          <p className="text-sm text-green-600">Clôturées</p>
+        <div className="card p-4 text-center bg-[rgb(var(--c-success-bg))]">
+          <p className="text-2xl font-bold text-[rgb(var(--c-success))]">{stats.closed}</p>
+          <p className="text-ui text-[rgb(var(--c-success))]">Clôturées</p>
         </div>
       </div>
 
@@ -281,33 +282,33 @@ export default function RegistrePSH() {
                     <div className="flex-1">
                       {/* Ligne 1 : réf + badges */}
                       <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className="text-xs font-mono bg-gray-200 px-1.5 py-0.5 rounded">
+                        <span className="text-ui-sm font-mono bg-gray-200 px-1.5 py-0.5 rounded">
                           {req.reference}
                         </span>
                         {req.is_test && (
-                          <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium">
+                          <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded font-medium">
                             CAS TEST
                           </span>
                         )}
-                        <span className={`text-xs px-2 py-0.5 rounded ${status.class}`}>{status.label}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded ${decision.class}`}>{decision.label}</span>
+                        <span className={`text-ui-sm px-2 py-0.5 rounded ${status.class}`}>{status.label}</span>
+                        <span className={`text-ui-sm px-2 py-0.5 rounded ${decision.class}`}>{decision.label}</span>
                       </div>
 
                       {/* Ligne 2 : besoin fonctionnel */}
-                      <p className="text-sm font-medium text-gray-800 mb-1">
+                      <p className="text-ui font-medium text-gray-800 mb-1">
                         {req.besoin_fonctionnel}
                       </p>
 
                       {/* Ligne 3 : actions prévues (si elles existent) */}
                       {req.actions_prevues && (
-                        <p className="text-xs text-gray-500 mb-1 italic">
+                        <p className="text-ui-sm text-gray-500 mb-1 italic">
                           Actions : {req.actions_prevues.replace(/\n/g, ' • ').substring(0, 120)}
                           {req.actions_prevues.length > 120 && '…'}
                         </p>
                       )}
 
                       {/* Ligne 4 : métadonnées */}
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                      <div className="flex flex-wrap items-center gap-4 text-ui-sm text-gray-500">
                         <span><SourceIcon className="w-3 h-3 inline mr-1" />{source.label}</span>
                         <span><CanalIcon  className="w-3 h-3 inline mr-1" />{canal.label}</span>
                         <span>
@@ -319,11 +320,11 @@ export default function RegistrePSH() {
                       </div>
 
                       {/* Ligne 5 : timeline décision / clôture */}
-                      <div className="flex items-center gap-3 mt-1.5 text-xs">
-                        <span className={req.date_decision ? 'text-green-600' : 'text-gray-400'}>
+                      <div className="flex items-center gap-3 mt-1.5 text-ui-sm">
+                        <span className={req.date_decision ? 'text-[rgb(var(--c-success))]' : 'text-gray-400'}>
                           Décision : {req.date_decision ? format(new Date(req.date_decision), 'dd/MM/yyyy') : '-'}
                         </span>
-                        <span className={req.date_cloture ? 'text-green-600' : 'text-gray-400'}>
+                        <span className={req.date_cloture ? 'text-[rgb(var(--c-success))]' : 'text-gray-400'}>
                           Clôture : {req.date_cloture ? format(new Date(req.date_cloture), 'dd/MM/yyyy') : '-'}
                         </span>
                       </div>
@@ -334,7 +335,7 @@ export default function RegistrePSH() {
                       <button onClick={() => openEdit(req)} className="btn btn-sm btn-secondary">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleDelete(req.id)} className="btn btn-sm btn-secondary text-red-600">
+                      <button onClick={() => handleDelete(req.id)} className="btn btn-sm btn-secondary text-[rgb(var(--c-danger))]">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -349,7 +350,7 @@ export default function RegistrePSH() {
       {/* ===== MODAL FORMULAIRE ===== */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header modal */}
             <div className="p-4 border-b flex items-center justify-between bg-gray-50">
               <div>
@@ -357,10 +358,10 @@ export default function RegistrePSH() {
                   {editing ? 'Modifier la demande PSH' : 'Nouvelle demande PSH'}
                 </h2>
                 {editing && (
-                  <p className="text-sm text-gray-500">{editing.reference}</p>
+                  <p className="text-ui text-gray-500">{editing.reference}</p>
                 )}
               </div>
-              <button onClick={resetForm} className="p-2 hover:bg-gray-200 rounded-lg">
+              <button onClick={resetForm} className="p-2 hover:bg-gray-200 rounded-ui-sm">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -369,7 +370,7 @@ export default function RegistrePSH() {
             <form onSubmit={handleSubmit} className="p-4 overflow-y-auto flex-1 space-y-4">
 
               {/* Cas test (checkbox) */}
-              <div className="flex items-center gap-2 p-2 bg-yellow-50 rounded-lg">
+              <div className="flex items-center gap-2 p-2 bg-[rgb(var(--c-warning-bg))] rounded-ui-sm">
                 <input
                   type="checkbox"
                   id="is_test"
@@ -377,7 +378,7 @@ export default function RegistrePSH() {
                   onChange={e => setFormData({ ...formData, is_test: e.target.checked })}
                   className="w-4 h-4 accent-yellow-600"
                 />
-                <label htmlFor="is_test" className="text-sm text-yellow-800">
+                <label htmlFor="is_test" className="text-ui text-[rgb(var(--c-warning))]">
                   Cas test (ne pollue pas les stats réelles)
                 </label>
               </div>
@@ -385,13 +386,13 @@ export default function RegistrePSH() {
               {/* Contexte : source + canal */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Source *</label>
+                  <label className="block text-ui font-medium mb-1">Source *</label>
                   <select value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })} className="input w-full">
                     {Object.entries(sourceLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Canal *</label>
+                  <label className="block text-ui font-medium mb-1">Canal *</label>
                   <select value={formData.canal} onChange={e => setFormData({ ...formData, canal: e.target.value })} className="input w-full">
                     {Object.entries(canalLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
@@ -400,16 +401,15 @@ export default function RegistrePSH() {
 
               {/* Session liée */}
               <div>
-                <label className="block text-sm font-medium mb-1">Session liée</label>
-                <select value={formData.session_id} onChange={e => setFormData({ ...formData, session_id: e.target.value })} className="input w-full">
-                  <option value="">Aucune</option>
-                  {sessions.map(s => <option key={s.id} value={s.id}>{s.reference} - {s.courses?.title || ''}</option>)}
-                </select>
+                <label className="block text-ui font-medium mb-1">Session liée</label>
+                <SearchSelect value={formData.session_id} onChange={v => setFormData({ ...formData, session_id: v })}
+                  options={sessions.map(s => ({ value: s.id, label: s.reference, hint: s.courses?.title || '' }))}
+                  emptyLabel="Aucune" searchPlaceholder="Référence ou formation..." aria-label="Session" />
               </div>
 
               {/* Besoin fonctionnel */}
               <div>
-                <label className="block text-sm font-medium mb-1">Besoin fonctionnel *</label>
+                <label className="block text-ui font-medium mb-1">Besoin fonctionnel *</label>
                 <input
                   type="text"
                   value={formData.besoin_fonctionnel}
@@ -418,7 +418,7 @@ export default function RegistrePSH() {
                   placeholder="ex : supports agrandis, temps majoré…"
                   required
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-ui-sm text-gray-400 mt-1">
                   Décrivez le besoin fonctionnel uniquement - pas de données médicales.
                 </p>
               </div>
@@ -426,7 +426,7 @@ export default function RegistrePSH() {
               {/* Impact + contraintes (optionnels) */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Impact apprentissage</label>
+                  <label className="block text-ui font-medium mb-1">Impact apprentissage</label>
                   <textarea
                     value={formData.impact_apprentissage}
                     onChange={e => setFormData({ ...formData, impact_apprentissage: e.target.value })}
@@ -435,7 +435,7 @@ export default function RegistrePSH() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Contraintes sécurité</label>
+                  <label className="block text-ui font-medium mb-1">Contraintes sécurité</label>
                   <textarea
                     value={formData.contraintes_securite}
                     onChange={e => setFormData({ ...formData, contraintes_securite: e.target.value })}
@@ -448,13 +448,13 @@ export default function RegistrePSH() {
               {/* Décision */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Décision</label>
+                  <label className="block text-ui font-medium mb-1">Décision</label>
                   <select value={formData.decision} onChange={e => setFormData({ ...formData, decision: e.target.value })} className="input w-full">
                     {Object.entries(decisionLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Responsable</label>
+                  <label className="block text-ui font-medium mb-1">Responsable</label>
                   <select value={formData.responsable} onChange={e => setFormData({ ...formData, responsable: e.target.value })} className="input w-full">
                     {[...new Set([orgReferentHandicap(), ...teamNames()].filter(Boolean))].map((n) => (
                       <option key={n} value={n}>{n}{n === orgReferentHandicap() ? ', référent handicap' : ''}</option>
@@ -466,13 +466,13 @@ export default function RegistrePSH() {
               {/* Justification (obligatoire si refuse ou oriente) */}
               {(formData.decision === 'refuse' || formData.decision === 'oriente') && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Justification de la décision <span className="text-red-500">*</span>
+                  <label className="block text-ui font-medium mb-1">
+                    Justification de la décision <span className="text-[rgb(var(--c-danger))]">*</span>
                   </label>
                   <textarea
                     value={formData.justification_decision}
                     onChange={e => setFormData({ ...formData, justification_decision: e.target.value })}
-                    className="input w-full h-16 border-orange-300 focus:ring-orange-400"
+                    className="input w-full h-16 border-[rgb(var(--c-warning)/0.3)] focus:ring-[rgb(var(--c-warning)/0.3)]"
                     placeholder="Obligatoire pour un refus ou une orientation…"
                   />
                 </div>
@@ -480,7 +480,7 @@ export default function RegistrePSH() {
 
               {/* Actions prévues */}
               <div>
-                <label className="block text-sm font-medium mb-1">Actions prévues</label>
+                <label className="block text-ui font-medium mb-1">Actions prévues</label>
                 <textarea
                   value={formData.actions_prevues}
                   onChange={e => setFormData({ ...formData, actions_prevues: e.target.value })}
@@ -491,7 +491,7 @@ export default function RegistrePSH() {
 
               {/* Date mise en œuvre */}
               <div>
-                <label className="block text-sm font-medium mb-1">Date mise en œuvre prévue</label>
+                <label className="block text-ui font-medium mb-1">Date mise en œuvre prévue</label>
                 <input
                   type="date"
                   value={formData.date_mise_en_oeuvre}
@@ -502,11 +502,11 @@ export default function RegistrePSH() {
 
               {/* Statut */}
               <div>
-                <label className="block text-sm font-medium mb-1">Statut</label>
+                <label className="block text-ui font-medium mb-1">Statut</label>
                 <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="input w-full">
                   {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-ui-sm text-gray-500 mt-1">
                   "Décidée" → date_decision auto • "Clôturé" → date_cloture auto
                 </p>
               </div>

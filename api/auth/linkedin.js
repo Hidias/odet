@@ -7,6 +7,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
+import { appUrl } from '../_lib/internal.js'
 import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
@@ -17,10 +18,12 @@ const supabase = createClient(
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET
 const LINKEDIN_ORG_ID = process.env.LINKEDIN_ORG_ID // ex: "12345678" (numéro dans l'URL de la page)
-const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
-const REDIRECT_URI = `${APP_URL}/api/auth/linkedin`
+// Adresse de l'application : variable APP_URL, sinon l'hôte de la requête (calculée dans le handler)
+const ENV_APP_URL = String(process.env.APP_URL || '').replace(/\/$/, '')
 
 async function handler(req, res) {
+  const APP_URL = ENV_APP_URL || appUrl(req)
+  const REDIRECT_URI = `${APP_URL}/api/auth/linkedin`
   try {
     const { code, action, error: oauthError, error_description } = req.query
 
@@ -85,7 +88,8 @@ async function handler(req, res) {
 
     // ── Étape 3 : Construire l'org URN depuis la variable d'env ─
     const orgUrn = `urn:li:organization:${LINKEDIN_ORG_ID}`
-    const orgName = 'Access Formation'
+    const { data: orgRow } = await supabase.from('organization_settings').select('name').limit(1).maybeSingle()
+    const orgName = orgRow?.name || 'Page entreprise'
 
     console.log('[linkedin] Org URN (from env):', orgUrn)
 

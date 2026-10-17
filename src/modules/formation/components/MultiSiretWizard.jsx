@@ -3,6 +3,7 @@ import { X, Plus, Trash2, Building2, Users, FileCheck, ChevronRight, ChevronLeft
 import { supabase } from '../../../core/supabase'
 import { useDataStore as useStore } from '../../../core/store'
 import toast from 'react-hot-toast'
+import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
 const FUNDING_TYPES = [
   { value: 'none', label: 'Aucun (pas de mention)' },
@@ -506,16 +507,16 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
       <div className="relative min-h-full flex items-start justify-center p-4 pt-8">
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white rounded-ui shadow-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
             <div>
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-purple-600" />
+                <Building2 className="w-5 h-5 text-gray-800" />
                 Session multi-SIRET
               </h2>
-              <p className="text-sm text-gray-500">Créer plusieurs sessions pour des entreprises d'un même groupe</p>
+              <p className="text-ui text-gray-500">Créer plusieurs sessions pour des entreprises d'un même groupe</p>
             </div>
             <button onClick={onClose}><X className="w-5 h-5" /></button>
           </div>
@@ -529,9 +530,9 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
             ].map((s, i) => (
               <div key={s.n} className="flex items-center gap-2">
                 {i > 0 && <ChevronRight className="w-4 h-4 text-gray-300" />}
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  step === s.n ? 'bg-purple-100 text-purple-700' : 
-                  step > s.n ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-ui font-medium transition-colors ${
+                  step === s.n ? 'bg-gray-100 text-gray-800' : 
+                  step > s.n ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-100 text-gray-400'
                 }`}>
                   <s.icon className="w-4 h-4" />
                   {s.label}
@@ -548,12 +549,9 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <label className="label">Formation *</label>
-                    <select className="input" value={common.course_id} onChange={e => setCommon({...common, course_id: e.target.value})}>
-                      <option value="">Sélectionner...</option>
-                      {courses.filter(c => c.is_active !== false).map(c => (
-                        <option key={c.id} value={c.id}>{c.code ? `[${c.code}] ` : ''}{c.title}</option>
-                      ))}
-                    </select>
+                    <SearchSelect value={common.course_id} onChange={v => setCommon({...common, course_id: v})}
+                      options={courseOptions(courses.filter(c => c.is_active !== false))}
+                      emptyLabel="Sélectionner..." searchPlaceholder="Rechercher une formation..." aria-label="Formation" />
                   </div>
                   
                   <div>
@@ -575,7 +573,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                   
                   <div>
                     <label className="label">Lieu</label>
-                    <input type="text" className="input" value={common.location} onChange={e => setCommon({...common, location: e.target.value})} placeholder="Ex : Intersport Quimper" />
+                    <input type="text" className="input" value={common.location} onChange={e => setCommon({...common, location: e.target.value})} placeholder="Ex : magasin principal du client" />
                   </div>
                   <div>
                     <label className="label">Formateur</label>
@@ -600,38 +598,38 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                 </div>
                 
                 {/* Tarification inter */}
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
-                  <p className="font-medium text-green-800 text-sm flex items-center gap-2">
+                <div className="p-4 bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm space-y-3">
+                  <p className="font-medium text-[rgb(var(--c-success))] text-ui flex items-center gap-2">
                     <Euro className="w-4 h-4" /> Tarification de la session
                   </p>
                   <div className="flex gap-2 mb-3">
                     <button
                       type="button"
                       onClick={() => setCommon({...common, price_mode: 'global'})}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 transition-colors ${
+                      className={`flex-1 py-2 px-3 rounded-ui-sm text-ui font-medium border-2 transition-colors ${
                         common.price_mode === 'global' 
-                          ? 'border-green-500 bg-green-100 text-green-800' 
+                          ? 'border-[rgb(var(--c-success)/0.3)] bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' 
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
                     >
                        Prix global session
-                      <span className="block text-xs font-normal mt-0.5 opacity-75">Réparti entre les entreprises</span>
+                      <span className="block text-ui-sm font-normal mt-0.5 opacity-75">Réparti entre les entreprises</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setCommon({...common, price_mode: 'per_trainee'})}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 transition-colors ${
+                      className={`flex-1 py-2 px-3 rounded-ui-sm text-ui font-medium border-2 transition-colors ${
                         common.price_mode === 'per_trainee' 
-                          ? 'border-green-500 bg-green-100 text-green-800' 
+                          ? 'border-[rgb(var(--c-success)/0.3)] bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' 
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
                     >
                        Prix par stagiaire
-                      <span className="block text-xs font-normal mt-0.5 opacity-75">Multiplié par le nombre</span>
+                      <span className="block text-ui-sm font-normal mt-0.5 opacity-75">Multiplié par le nombre</span>
                     </button>
                   </div>
                   <div>
-                    <label className="label text-xs">
+                    <label className="label text-ui-sm">
                       {common.price_mode === 'global' ? 'Prix total de la session HT (€)' : 'Prix par stagiaire HT (€)'}
                     </label>
                     <div className="relative">
@@ -644,10 +642,10 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                         onChange={e => setCommon({...common, price_amount: e.target.value})}
                         placeholder={common.price_mode === 'global' ? 'Ex: 600' : 'Ex: 120'}
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€ HT</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-ui">€ HT</span>
                     </div>
                     {common.price_amount && groups.length > 0 && (
-                      <p className="text-xs text-green-700 mt-1.5">
+                      <p className="text-ui-sm text-[rgb(var(--c-success))] mt-1.5">
                         {(() => {
                           const amount = parseFloat(common.price_amount) || 0
                           const totalTraineesCount = groups.reduce((sum, g) => sum + g.trainees.length, 0)
@@ -665,40 +663,40 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                 </div>
                 
                 {/* Signataire par défaut */}
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
-                  <p className="font-medium text-amber-800 text-sm"> Signataire des conventions par défaut</p>
-                  <p className="text-xs text-amber-700 -mt-2">Utilisé pour les entreprises sans signataire propre (modifiable par entreprise à l'étape suivante).</p>
+                <div className="p-4 bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm space-y-3">
+                  <p className="font-medium text-[rgb(var(--c-warning))] text-ui"> Signataire des conventions par défaut</p>
+                  <p className="text-ui-sm text-[rgb(var(--c-warning))] -mt-2">Utilisé pour les entreprises sans signataire propre (modifiable par entreprise à l'étape suivante).</p>
                   <div className="grid md:grid-cols-2 gap-3">
                     <div>
-                      <label className="label text-xs">Nom du signataire</label>
+                      <label className="label text-ui-sm">Nom du signataire</label>
                       <input type="text" className="input" value={common.signatory_name} onChange={e => setCommon({...common, signatory_name: e.target.value})} placeholder="Ex: Frédéric LE REGENT" />
                     </div>
                     <div>
-                      <label className="label text-xs">Fonction</label>
+                      <label className="label text-ui-sm">Fonction</label>
                       <input type="text" className="input" value={common.signatory_role} onChange={e => setCommon({...common, signatory_role: e.target.value})} placeholder="Ex: Dirigeant" />
                     </div>
                   </div>
                 </div>
                 
                 {/* Contact par défaut */}
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
-                  <p className="font-medium text-blue-800 text-sm"> Contact opérationnel par défaut (convocations)</p>
-                  <p className="text-xs text-blue-700 -mt-2">Ajouté aux entreprises sans contact propre (modifiable par entreprise à l'étape suivante).</p>
+                <div className="p-4 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm space-y-3">
+                  <p className="font-medium text-[rgb(var(--c-info))] text-ui"> Contact opérationnel par défaut (convocations)</p>
+                  <p className="text-ui-sm text-[rgb(var(--c-info))] -mt-2">Ajouté aux entreprises sans contact propre (modifiable par entreprise à l'étape suivante).</p>
                   <div className="grid md:grid-cols-2 gap-3">
                     <div>
-                      <label className="label text-xs">Nom du contact</label>
+                      <label className="label text-ui-sm">Nom du contact</label>
                       <input type="text" className="input" value={common.contact_name} onChange={e => setCommon({...common, contact_name: e.target.value})} placeholder="Ex: Aénor POUCH LEDUC" />
                     </div>
                     <div>
-                      <label className="label text-xs">Fonction</label>
+                      <label className="label text-ui-sm">Fonction</label>
                       <input type="text" className="input" value={common.contact_role} onChange={e => setCommon({...common, contact_role: e.target.value})} placeholder="Ex: Responsable RH" />
                     </div>
                     <div>
-                      <label className="label text-xs">Email</label>
+                      <label className="label text-ui-sm">Email</label>
                       <input type="email" className="input" value={common.contact_email} onChange={e => setCommon({...common, contact_email: e.target.value})} placeholder="email@example.com" />
                     </div>
                     <div>
-                      <label className="label text-xs">Téléphone</label>
+                      <label className="label text-ui-sm">Téléphone</label>
                       <input type="tel" className="input" value={common.contact_phone} onChange={e => setCommon({...common, contact_phone: e.target.value})} placeholder="06 00 00 00 00" />
                     </div>
                   </div>
@@ -710,20 +708,20 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
             {step === 2 && (
               <div className="space-y-6">
                 {groups.map((group, gi) => (
-                  <div key={group.id} className="border-2 border-gray-200 rounded-xl overflow-hidden">
+                  <div key={group.id} className="border-2 border-gray-200 rounded-ui overflow-hidden">
                     {/* Group header */}
                     <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Building2 className="w-5 h-5 text-purple-600" />
+                        <Building2 className="w-5 h-5 text-gray-800" />
                         <span className="font-semibold text-gray-700">Entreprise {gi + 1}</span>
                         {group.matched_client && (
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded-full flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" /> Client existant
                           </span>
                         )}
                       </div>
                       {groups.length > 1 && (
-                        <button onClick={() => removeGroup(gi)} className="text-red-500 hover:text-red-700 p-1">
+                        <button onClick={() => removeGroup(gi)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] p-1">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
@@ -733,50 +731,50 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                       {/* Company info */}
                       <div className="grid md:grid-cols-3 gap-3">
                         <div>
-                          <label className="label text-xs">SIRET *</label>
+                          <label className="label text-ui-sm">SIRET *</label>
                           <input
                             type="text"
-                            className={`input ${group.matched_client ? 'border-green-400 bg-green-50' : ''}`}
+                            className={`input ${group.matched_client ? 'border-[rgb(var(--c-success)/0.3)] bg-[rgb(var(--c-success-bg))]' : ''}`}
                             value={group.siret}
                             onChange={e => handleSiretChange(gi, e.target.value)}
                             placeholder="323 970 764 000 29"
                           />
                         </div>
                         <div>
-                          <label className="label text-xs">Raison sociale *</label>
+                          <label className="label text-ui-sm">Raison sociale *</label>
                           <input
                             type="text"
-                            className={`input ${group.matched_client ? 'bg-green-50' : ''}`}
+                            className={`input ${group.matched_client ? 'bg-[rgb(var(--c-success-bg))]' : ''}`}
                             value={group.company_name}
                             onChange={e => { const u = [...groups]; u[gi].company_name = e.target.value; setGroups(u) }}
                             placeholder="SAS KERA SPORT"
                           />
                         </div>
                         <div>
-                          <label className="label text-xs">Ville</label>
+                          <label className="label text-ui-sm">Ville</label>
                           <input
                             type="text"
-                            className={`input ${group.matched_client ? 'bg-green-50' : ''}`}
+                            className={`input ${group.matched_client ? 'bg-[rgb(var(--c-success-bg))]' : ''}`}
                             value={group.city}
                             onChange={e => { const u = [...groups]; u[gi].city = e.target.value; setGroups(u) }}
-                            placeholder="CONCARNEAU"
+                            placeholder="VILLE"
                           />
                         </div>
                         <div className="md:col-span-2">
-                          <label className="label text-xs">Adresse</label>
+                          <label className="label text-ui-sm">Adresse</label>
                           <input
                             type="text"
-                            className={`input ${group.matched_client ? 'bg-green-50' : ''}`}
+                            className={`input ${group.matched_client ? 'bg-[rgb(var(--c-success-bg))]' : ''}`}
                             value={group.address}
                             onChange={e => { const u = [...groups]; u[gi].address = e.target.value; setGroups(u) }}
                             placeholder="ZA KERAMPERU, 3 RUE RENE MADEC"
                           />
                         </div>
                         <div>
-                          <label className="label text-xs">Code postal</label>
+                          <label className="label text-ui-sm">Code postal</label>
                           <input
                             type="text"
-                            className={`input ${group.matched_client ? 'bg-green-50' : ''}`}
+                            className={`input ${group.matched_client ? 'bg-[rgb(var(--c-success-bg))]' : ''}`}
                             value={group.postal_code}
                             onChange={e => { const u = [...groups]; u[gi].postal_code = e.target.value; setGroups(u) }}
                             placeholder="29000"
@@ -786,11 +784,11 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
 
                       {/* Signataire & contact propres à cette entreprise */}
                       <div className="grid md:grid-cols-2 gap-3">
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
-                          <p className="text-xs font-medium text-amber-800"> Signataire de la convention</p>
+                        <div className="p-3 bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm space-y-2">
+                          <p className="text-ui-sm font-medium text-[rgb(var(--c-warning))]"> Signataire de la convention</p>
                           {group.client_contacts?.length > 0 && (
                             <select
-                              className="input text-sm py-1"
+                              className="input text-ui py-1"
                               value=""
                               onChange={e => pickSignatoryFromContact(gi, e.target.value)}
                             >
@@ -803,14 +801,14 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                           <div className="grid grid-cols-2 gap-2">
                             <input
                               type="text"
-                              className="input text-sm py-1"
+                              className="input text-ui py-1"
                               value={group.signatory_name}
                               onChange={e => updateGroupField(gi, 'signatory_name', e.target.value)}
                               placeholder={common.signatory_name ? `Par défaut : ${common.signatory_name}` : 'Nom du signataire'}
                             />
                             <input
                               type="text"
-                              className="input text-sm py-1"
+                              className="input text-ui py-1"
                               value={group.signatory_role}
                               onChange={e => updateGroupField(gi, 'signatory_role', e.target.value)}
                               placeholder={common.signatory_role ? `Par défaut : ${common.signatory_role}` : 'Fonction'}
@@ -818,11 +816,11 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                           </div>
                         </div>
 
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
-                          <p className="text-xs font-medium text-blue-800"> Contact convocations</p>
+                        <div className="p-3 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm space-y-2">
+                          <p className="text-ui-sm font-medium text-[rgb(var(--c-info))]"> Contact convocations</p>
                           {group.client_contacts?.length > 0 && (
                             <select
-                              className="input text-sm py-1"
+                              className="input text-ui py-1"
                               value={group.contact_id}
                               onChange={e => updateGroupField(gi, 'contact_id', e.target.value)}
                             >
@@ -836,28 +834,28 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                             <div className="grid grid-cols-2 gap-2">
                               <input
                                 type="text"
-                                className="input text-sm py-1"
+                                className="input text-ui py-1"
                                 value={group.contact_name}
                                 onChange={e => updateGroupField(gi, 'contact_name', e.target.value)}
                                 placeholder={common.contact_name ? `Par défaut : ${common.contact_name}` : 'Nom du contact'}
                               />
                               <input
                                 type="text"
-                                className="input text-sm py-1"
+                                className="input text-ui py-1"
                                 value={group.contact_role}
                                 onChange={e => updateGroupField(gi, 'contact_role', e.target.value)}
                                 placeholder="Fonction"
                               />
                               <input
                                 type="email"
-                                className="input text-sm py-1"
+                                className="input text-ui py-1"
                                 value={group.contact_email}
                                 onChange={e => updateGroupField(gi, 'contact_email', e.target.value)}
                                 placeholder="Email"
                               />
                               <input
                                 type="tel"
-                                className="input text-sm py-1"
+                                className="input text-ui py-1"
                                 value={group.contact_phone}
                                 onChange={e => updateGroupField(gi, 'contact_phone', e.target.value)}
                                 placeholder="Téléphone"
@@ -870,34 +868,34 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                       {/* Trainees */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <label className="label text-xs flex items-center gap-1">
+                          <label className="label text-ui-sm flex items-center gap-1">
                             <Users className="w-4 h-4" /> Stagiaires ({group.trainees.length})
                           </label>
-                          <button onClick={() => addTrainee(gi)} className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1">
+                          <button onClick={() => addTrainee(gi)} className="text-ui-sm text-gray-800 hover:text-gray-800 flex items-center gap-1">
                             <Plus className="w-3 h-3" /> Ajouter
                           </button>
                         </div>
                         
                         <div className="space-y-2">
                           {group.trainees.map((t, ti) => (
-                            <div key={t.id} className={`flex items-start gap-2 p-2 rounded-lg ${t.matched_trainee ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                            <div key={t.id} className={`flex items-start gap-2 p-2 rounded-ui-sm ${t.matched_trainee ? 'bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)]' : 'bg-gray-50'}`}>
                               <div className="grid grid-cols-2 md:grid-cols-6 gap-2 flex-1">
                                 <input
                                   type="text"
-                                  className="input text-sm py-1"
+                                  className="input text-ui py-1"
                                   value={t.last_name}
                                   onChange={e => handleTraineeNameChange(gi, ti, 'last_name', e.target.value)}
                                   placeholder="NOM *"
                                 />
                                 <input
                                   type="text"
-                                  className="input text-sm py-1"
+                                  className="input text-ui py-1"
                                   value={t.first_name}
                                   onChange={e => handleTraineeNameChange(gi, ti, 'first_name', e.target.value)}
                                   placeholder="Prénom *"
                                 />
                                 <select
-                                  className="input text-sm py-1"
+                                  className="input text-ui py-1"
                                   value={t.gender || ''}
                                   onChange={e => { const u = [...groups]; u[gi].trainees[ti].gender = e.target.value; setGroups(u) }}
                                   title="Genre"
@@ -909,29 +907,29 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                                 </select>
                                 <input
                                   type="date"
-                                  className="input text-sm py-1"
+                                  className="input text-ui py-1"
                                   value={t.birth_date}
                                   onChange={e => { const u = [...groups]; u[gi].trainees[ti].birth_date = e.target.value; setGroups(u) }}
                                   title="Date de naissance"
                                 />
                                 <input
                                   type="text"
-                                  className="input text-sm py-1"
+                                  className="input text-ui py-1"
                                   value={t.birth_place}
                                   onChange={e => { const u = [...groups]; u[gi].trainees[ti].birth_place = e.target.value; setGroups(u) }}
                                   placeholder="Lieu naissance"
                                 />
                                 <input
                                   type="text"
-                                  className="input text-sm py-1"
+                                  className="input text-ui py-1"
                                   value={t.social_security_number}
                                   onChange={e => { const u = [...groups]; u[gi].trainees[ti].social_security_number = e.target.value; setGroups(u) }}
                                   placeholder="N° SS"
                                 />
                               </div>
-                              {t.matched_trainee && <CheckCircle className="w-4 h-4 text-green-600 mt-2 shrink-0" title="Stagiaire existant" />}
+                              {t.matched_trainee && <CheckCircle className="w-4 h-4 text-[rgb(var(--c-success))] mt-2 shrink-0" title="Stagiaire existant" />}
                               {group.trainees.length > 1 && (
-                                <button onClick={() => removeTrainee(gi, ti)} className="text-red-400 hover:text-red-600 mt-2 shrink-0">
+                                <button onClick={() => removeTrainee(gi, ti)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] mt-2 shrink-0">
                                   <X className="w-4 h-4" />
                                 </button>
                               )}
@@ -943,7 +941,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                   </div>
                 ))}
                 
-                <button onClick={addGroup} className="w-full py-3 border-2 border-dashed border-purple-300 rounded-xl text-purple-600 hover:bg-purple-50 flex items-center justify-center gap-2 transition-colors">
+                <button onClick={addGroup} className="w-full py-3 border-2 border-dashed border-gray-200 rounded-ui text-gray-800 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors">
                   <Plus className="w-5 h-5" /> Ajouter une entreprise
                 </button>
               </div>
@@ -952,37 +950,37 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
             {/* ═══════════════════ STEP 3: Récapitulatif ═══════════════════ */}
             {step === 3 && !creating && creationLog.length === 0 && (
               <div className="space-y-4">
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-purple-800 mb-2">Formation</h3>
-                  <p className="text-sm">{selectedCourse?.title || '-'}</p>
-                  <p className="text-sm text-gray-600">{common.start_date} → {common.end_date} | {common.start_time} - {common.end_time}</p>
-                  {common.location && <p className="text-sm text-gray-600"> {common.location}</p>}
+                <div className="bg-gray-50 p-4 rounded-ui-sm">
+                  <h3 className="font-semibold text-gray-800 mb-2">Formation</h3>
+                  <p className="text-ui">{selectedCourse?.title || '-'}</p>
+                  <p className="text-ui text-gray-600">{common.start_date} → {common.end_date} | {common.start_time} - {common.end_time}</p>
+                  {common.location && <p className="text-ui text-gray-600"> {common.location}</p>}
                 </div>
                 
                 <h3 className="font-semibold">Ce qui va être créé :</h3>
                 
                 {groups.map((group, gi) => (
-                  <div key={group.id} className="border rounded-lg p-4">
+                  <div key={group.id} className="border rounded-ui-sm p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Building2 className="w-4 h-4 text-purple-600" />
+                      <Building2 className="w-4 h-4 text-gray-800" />
                       <span className="font-medium">{group.company_name}</span>
-                      <span className="text-xs text-gray-500">SIRET: {group.siret}</span>
+                      <span className="text-ui-sm text-gray-500">SIRET: {group.siret}</span>
                       {group.matched_client ? (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Client existant</span>
+                        <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded-full">Client existant</span>
                       ) : (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Nouveau client</span>
+                        <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-0.5 rounded-full">Nouveau client</span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 mb-2">→ 1 convention + 1 session + {group.trainees.length} convocation{group.trainees.length > 1 ? 's' : ''}</p>
+                    <p className="text-ui text-gray-500 mb-2">→ 1 convention + 1 session + {group.trainees.length} convocation{group.trainees.length > 1 ? 's' : ''}</p>
                     {(() => {
                       const s = effectiveSignatory(group)
                       const c = effectiveContact(group)
                       return (
                         <>
-                          <p className={`text-sm mb-1 ${s.name ? 'text-gray-600' : 'text-amber-700'}`}>
+                          <p className={`text-ui mb-1 ${s.name ? 'text-gray-600' : 'text-[rgb(var(--c-warning))]'}`}>
                              Signataire : {s.name ? `${s.name}${s.role ? ` (${s.role})` : ''}` : 'non renseigné'}
                           </p>
-                          <p className="text-sm text-gray-600 mb-2">
+                          <p className="text-ui text-gray-600 mb-2">
                              Contact : {c.name || 'aucun'}
                           </p>
                         </>
@@ -996,14 +994,14 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                         : amount
                       const groupTotal = Math.round(perHead * group.trainees.length * 100) / 100
                       return (
-                        <p className="text-sm font-medium text-green-700 mb-2">
+                        <p className="text-ui font-medium text-[rgb(var(--c-success))] mb-2">
                            {groupTotal.toFixed(2)}€ HT ({group.trainees.length} × {perHead.toFixed(2)}€/stagiaire)
                         </p>
                       )
                     })()}
                     <div className="flex flex-wrap gap-1">
                       {group.trainees.map(t => (
-                        <span key={t.id} className={`text-xs px-2 py-1 rounded-full ${t.matched_trainee ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                        <span key={t.id} className={`text-ui-sm px-2 py-1 rounded-full ${t.matched_trainee ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-100 text-gray-700'}`}>
                           {t.first_name} {t.last_name}
                           {t.matched_trainee ? ' ' : ' (nouveau)'}
                         </span>
@@ -1012,8 +1010,8 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                   </div>
                 ))}
                 
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-sm text-amber-800 font-medium">
+                <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-3">
+                  <p className="text-ui text-[rgb(var(--c-warning))] font-medium">
                     Résumé : {groups.length} session{groups.length > 1 ? 's' : ''} • {groups.length} convention{groups.length > 1 ? 's' : ''} • {totalTrainees} stagiaire{totalTrainees > 1 ? 's' : ''}
                     {common.price_amount && (() => {
                       const amount = parseFloat(common.price_amount) || 0
@@ -1029,14 +1027,14 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
             {(creating || creationLog.length > 0) && step === 3 && (
               <div className="space-y-2">
                 {creating && (
-                  <div className="flex items-center gap-2 text-purple-700 mb-4">
+                  <div className="flex items-center gap-2 text-gray-800 mb-4">
                     <Loader2 className="w-5 h-5 animate-spin" />
                     <span className="font-medium">Création en cours...</span>
                   </div>
                 )}
-                <div className="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm max-h-80 overflow-y-auto">
+                <div className="bg-gray-900 text-[rgb(var(--c-success))] rounded-ui-sm p-4 font-mono text-ui max-h-80 overflow-y-auto">
                   {creationLog.map((entry, i) => (
-                    <div key={i} className={entry.ok ? '' : 'text-red-400'}>
+                    <div key={i} className={entry.ok ? '' : 'text-[rgb(var(--c-danger))]'}>
                       {entry.msg}
                     </div>
                   ))}
@@ -1067,7 +1065,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                     Suivant <ChevronRight className="w-4 h-4" />
                   </button>
                 ) : (
-                  <button onClick={handleCreate} className="btn bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-1">
+                  <button onClick={handleCreate} className="btn bg-gray-700 text-white hover:bg-gray-700 flex items-center gap-1">
                     <CheckCircle className="w-4 h-4" /> Créer {groups.length} sessions
                   </button>
                 )}

@@ -91,7 +91,7 @@ export default function VeilleQualiopi() {
 
   const handleSave = async () => {
     if (!form.sujet.trim()) {
-      toast.error('Campus a besoin d\'un sujet')
+      toast.error('Sujet obligatoire')
       return
     }
 
@@ -118,7 +118,7 @@ export default function VeilleQualiopi() {
         console.error('Erreur modification:', error)
         toast.error('Erreur lors de la modification')
       } else {
-        toast.success('Campus a enregistré les modifications')
+        toast.success('Modifications enregistrées')
         fetchVeilles()
         closeModal()
       }
@@ -131,7 +131,7 @@ export default function VeilleQualiopi() {
         console.error('Erreur création:', error)
         toast.error('Erreur lors de la création')
       } else {
-        toast.success('Campus a créé l\'entrée de veille')
+        toast.success('Entrée de veille créée')
         fetchVeilles()
         closeModal()
       }
@@ -139,7 +139,7 @@ export default function VeilleQualiopi() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Campus vous demande confirmation : supprimer cette entrée ?')) return
+    if (!confirm('Supprimer cette entrée ?')) return
     
     const { error } = await supabase
       .from('veille_qualiopi')
@@ -252,8 +252,8 @@ export default function VeilleQualiopi() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Veille Qualiopi</h1>
-          <p className="text-sm text-gray-500 mt-1">Suivi des veilles légale, métiers et pédagogique</p>
+          <h1 className="page-title">Veille Qualiopi</h1>
+          <p className="text-ui text-gray-500 mt-1">Suivi des veilles légale, métiers et pédagogique</p>
         </div>
         <button onClick={() => openModal()} className="btn btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
@@ -271,7 +271,7 @@ export default function VeilleQualiopi() {
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-ui-sm font-medium transition-all ${
                 isActive 
                   ? `bg-${config.color}-100 text-${config.color}-700 ring-2 ring-${config.color}-500` 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -285,7 +285,7 @@ export default function VeilleQualiopi() {
               <span className="hidden sm:inline">{config.label.split(' ')[1]}</span>
               <span className="sm:hidden">{config.label.split(' ')[1].substring(0, 3)}</span>
               {stats.aTraiter > 0 && (
-                <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                <span className="bg-[rgb(var(--c-danger))] text-white text-ui-sm px-1.5 py-0.5 rounded-full">
                   {stats.aTraiter}
                 </span>
               )}
@@ -295,7 +295,7 @@ export default function VeilleQualiopi() {
       </div>
 
       {/* Description du type */}
-      <div className={`p-4 rounded-lg border-l-4`} style={{ 
+      <div className={`p-4 rounded-ui-sm border-l-4`} style={{ 
         backgroundColor: TypeConfig.color === 'blue' ? '#eff6ff' : TypeConfig.color === 'green' ? '#f0fdf4' : '#faf5ff',
         borderColor: TypeConfig.color === 'blue' ? '#3b82f6' : TypeConfig.color === 'green' ? '#22c55e' : '#a855f7'
       }}>
@@ -305,7 +305,7 @@ export default function VeilleQualiopi() {
           }} />
           <div>
             <h3 className="font-semibold text-gray-900">{TypeConfig.label}</h3>
-            <p className="text-sm text-gray-600 mt-1">{TypeConfig.description}</p>
+            <p className="text-ui text-gray-600 mt-1">{TypeConfig.description}</p>
           </div>
         </div>
       </div>
@@ -351,7 +351,7 @@ export default function VeilleQualiopi() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium`}
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-ui-sm font-medium`}
                         style={{ 
                           backgroundColor: StatutConfig.color === 'red' ? '#fef2f2' : StatutConfig.color === 'yellow' ? '#fefce8' : StatutConfig.color === 'green' ? '#f0fdf4' : '#f3f4f6',
                           color: StatutConfig.color === 'red' ? '#dc2626' : StatutConfig.color === 'yellow' ? '#ca8a04' : StatutConfig.color === 'green' ? '#16a34a' : '#6b7280'
@@ -361,7 +361,7 @@ export default function VeilleQualiopi() {
                         {StatutConfig.label}
                       </span>
                       {veille.impact && (
-                        <span className={`px-2 py-0.5 rounded text-xs`}
+                        <span className={`px-2 py-0.5 rounded text-ui-sm`}
                           style={{ 
                             backgroundColor: ImpactConfig.color === 'red' ? '#fef2f2' : ImpactConfig.color === 'yellow' ? '#fefce8' : '#f3f4f6',
                             color: ImpactConfig.color === 'red' ? '#dc2626' : ImpactConfig.color === 'yellow' ? '#ca8a04' : '#6b7280'
@@ -370,7 +370,7 @@ export default function VeilleQualiopi() {
                           Impact {ImpactConfig.label.toLowerCase()}
                         </span>
                       )}
-                      <span className="text-xs text-gray-500">
+                      <span className="text-ui-sm text-gray-500">
                         {format(new Date(veille.date), 'd MMM yyyy', { locale: fr })}
                       </span>
                     </div>
@@ -378,18 +378,18 @@ export default function VeilleQualiopi() {
                     <h3 className="font-semibold text-gray-900 mb-1">{veille.sujet}</h3>
                     
                     {veille.source && (
-                      <p className="text-sm text-gray-500 flex items-center gap-1">
+                      <p className="text-ui text-gray-500 flex items-center gap-1">
                         <ExternalLink className="w-3 h-3" />
                         Source : {veille.source}
                       </p>
                     )}
                     
                     {veille.description && (
-                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">{veille.description}</p>
+                      <p className="text-ui text-gray-600 mt-2 line-clamp-2">{veille.description}</p>
                     )}
                     
                     {veille.action_menee && (
-                      <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
+                      <div className="mt-2 p-2 bg-[rgb(var(--c-success-bg))] rounded text-ui text-[rgb(var(--c-success))]">
                         <strong>Action :</strong> {veille.action_menee}
                       </div>
                     )}
@@ -402,8 +402,8 @@ export default function VeilleQualiopi() {
                     <button onClick={() => openModal(veille)} className="p-2 hover:bg-gray-100 rounded" title="Modifier">
                       <Edit className="w-4 h-4 text-gray-500" />
                     </button>
-                    <button onClick={() => handleDelete(veille.id)} className="p-2 hover:bg-red-50 rounded" title="Supprimer">
-                      <Trash2 className="w-4 h-4 text-red-500" />
+                    <button onClick={() => handleDelete(veille.id)} className="p-2 hover:bg-[rgb(var(--c-danger-bg))] rounded" title="Supprimer">
+                      <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                     </button>
                   </div>
                 </div>
@@ -414,14 +414,14 @@ export default function VeilleQualiopi() {
                     {veille.statut === 'a_traiter' && (
                       <button 
                         onClick={() => updateStatut(veille.id, 'en_cours')}
-                        className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"
+                        className="text-ui-sm px-2 py-1 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded hover:bg-[rgb(var(--c-warning-bg))]"
                       >
                         Marquer en cours
                       </button>
                     )}
                     <button 
                       onClick={() => updateStatut(veille.id, 'traite')}
-                      className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                      className="text-ui-sm px-2 py-1 bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] rounded hover:bg-[rgb(var(--c-success-bg))]"
                     >
                       Marquer traité
                     </button>
@@ -436,7 +436,7 @@ export default function VeilleQualiopi() {
       {/* MODAL: Création/Édition */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-ui shadow-md max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b bg-primary-500 text-white rounded-t-xl">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 {editingId ? <Edit className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
@@ -576,7 +576,7 @@ export default function VeilleQualiopi() {
       {/* MODAL: Preview */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-ui shadow-md max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b flex items-center justify-between">
               <h2 className="text-lg font-semibold">{showPreview.sujet}</h2>
               <button onClick={() => setShowPreview(null)} className="p-2 hover:bg-gray-100 rounded">
@@ -585,7 +585,7 @@ export default function VeilleQualiopi() {
             </div>
             
             <div className="p-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-ui">
                 <div>
                   <span className="text-gray-500">Type :</span>
                   <span className="ml-2 font-medium">{VEILLE_TYPES[showPreview.type]?.label}</span>
@@ -606,35 +606,35 @@ export default function VeilleQualiopi() {
               
               {showPreview.source && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500 mb-1">Source</h4>
+                  <h4 className="text-ui font-medium text-gray-500 mb-1">Source</h4>
                   <p>{showPreview.source}</p>
                 </div>
               )}
               
               {showPreview.description && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500 mb-1">Description</h4>
+                  <h4 className="text-ui font-medium text-gray-500 mb-1">Description</h4>
                   <p className="whitespace-pre-wrap">{showPreview.description}</p>
                 </div>
               )}
               
               {showPreview.action_menee && (
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <h4 className="text-sm font-medium text-green-700 mb-1">Action menée</h4>
-                  <p className="text-green-800 whitespace-pre-wrap">{showPreview.action_menee}</p>
+                <div className="p-3 bg-[rgb(var(--c-success-bg))] rounded-ui-sm">
+                  <h4 className="text-ui font-medium text-[rgb(var(--c-success))] mb-1">Action menée</h4>
+                  <p className="text-[rgb(var(--c-success))] whitespace-pre-wrap">{showPreview.action_menee}</p>
                 </div>
               )}
               
               {showPreview.responsable && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500 mb-1">Responsable</h4>
+                  <h4 className="text-ui font-medium text-gray-500 mb-1">Responsable</h4>
                   <p>{showPreview.responsable}</p>
                 </div>
               )}
               
               {showPreview.date_traitement && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500 mb-1">Date de traitement</h4>
+                  <h4 className="text-ui font-medium text-gray-500 mb-1">Date de traitement</h4>
                   <p>{format(new Date(showPreview.date_traitement), 'd MMMM yyyy', { locale: fr })}</p>
                 </div>
               )}

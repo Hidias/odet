@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
+import { appUrl } from '../_lib/internal.js'
 import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
@@ -14,10 +15,12 @@ const supabase = createClient(
 
 const META_APP_ID = process.env.META_APP_ID
 const META_APP_SECRET = process.env.META_APP_SECRET
-const APP_URL = process.env.APP_URL || 'https://app.accessformation.pro'
-const REDIRECT_URI = `${APP_URL}/api/auth/meta`
+// Adresse de l'application : variable APP_URL, sinon l'hôte de la requête (calculée dans le handler)
+const ENV_APP_URL = String(process.env.APP_URL || '').replace(/\/$/, '')
 
 async function handler(req, res) {
+  const APP_URL = ENV_APP_URL || appUrl(req)
+  const REDIRECT_URI = `${APP_URL}/api/auth/meta`
   try {
     const { code, action, error: oauthError } = req.query
 
@@ -105,7 +108,7 @@ async function handler(req, res) {
       return res.redirect(`${APP_URL}/#/social?meta=error&reason=no_pages`)
     }
 
-    // Prendre la première page (ou celle d'Access Formation si trouvée)
+    // Prendre la première page (ou celle qui porte le nom de l'organisme si elle existe)
     const page = pagesData.data.find(p => p.name?.toLowerCase().includes('access')) || pagesData.data[0]
     const pageAccessToken = page.access_token
     const pageId = page.id

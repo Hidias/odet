@@ -17,18 +17,18 @@ import { fr } from 'date-fns/locale'
 // ═══════════════════════════════════════════════════════════
 const STATUS_CONFIG = {
   brouillon:       { label: 'Brouillon',       emoji: '', color: 'bg-gray-100 text-gray-700',   dot: 'bg-gray-400' },
-  en_cours:        { label: 'En cours',         emoji: '', color: 'bg-blue-100 text-blue-700',   dot: 'bg-blue-500' },
-  visite_terrain:  { label: 'Visite terrain',   emoji: '', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
-  finalisation:    { label: 'Finalisation',     emoji: '', color: 'bg-purple-100 text-purple-700', dot: 'bg-purple-500' },
-  termine:         { label: 'Terminé',          emoji: '', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+  en_cours:        { label: 'En cours',         emoji: '', color: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]',   dot: 'bg-[rgb(var(--c-info))]' },
+  visite_terrain:  { label: 'Visite terrain',   emoji: '', color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', dot: 'bg-[rgb(var(--c-warning))]' },
+  finalisation:    { label: 'Finalisation',     emoji: '', color: 'bg-gray-100 text-gray-800', dot: 'bg-gray-700' },
+  termine:         { label: 'Terminé',          emoji: '', color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]', dot: 'bg-[rgb(var(--c-success))]' },
   archive:         { label: 'Archivé',          emoji: '', color: 'bg-stone-100 text-stone-600', dot: 'bg-stone-400' },
 }
 
 const COTATION_COLORS = {
-  faible:   { range: [1, 4],   label: 'Faible',    color: 'bg-green-500',  text: 'text-green-700' },
-  moyen:    { range: [5, 8],   label: 'Moyen',     color: 'bg-yellow-500', text: 'text-yellow-700' },
-  eleve:    { range: [9, 12],  label: 'Élevé',     color: 'bg-orange-500', text: 'text-orange-700' },
-  critique: { range: [13, 16], label: 'Critique',  color: 'bg-red-500',    text: 'text-red-700' },
+  faible:   { range: [1, 4],   label: 'Faible',    color: 'bg-[rgb(var(--c-success))]',  text: 'text-[rgb(var(--c-success))]' },
+  moyen:    { range: [5, 8],   label: 'Moyen',     color: 'bg-[rgb(var(--c-warning))]', text: 'text-[rgb(var(--c-warning))]' },
+  eleve:    { range: [9, 12],  label: 'Élevé',     color: 'bg-[rgb(var(--c-warning))]', text: 'text-[rgb(var(--c-warning))]' },
+  critique: { range: [13, 16], label: 'Critique',  color: 'bg-[rgb(var(--c-danger))]',    text: 'text-[rgb(var(--c-danger))]' },
 }
 
 const getRiskLevel = (score) => {
@@ -506,14 +506,14 @@ export default function DuerpProjects() {
       {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Shield className="w-7 h-7 text-amber-600" />
+          <h1 className="page-title flex items-center gap-2">
+            <Shield className="w-7 h-7 text-[rgb(var(--c-warning))]" />
             DUERP - Documents Uniques
           </h1>
-          <p className="text-gray-500 text-sm mt-1">Évaluation des Risques Professionnels</p>
+          <p className="text-gray-500 text-ui mt-1">Évaluation des Risques Professionnels</p>
         </div>
         <button onClick={() => { resetCreateForm(); setShowCreate(true) }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition font-medium shadow-sm">
+          className="flex items-center gap-2 btn btn-secondary transition font-medium shadow-sm">
           <Plus className="w-5 h-5" /> Nouveau DUERP
         </button>
       </div>
@@ -522,15 +522,15 @@ export default function DuerpProjects() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Total', value: stats.total, icon: '', color: 'border-gray-300' },
-          { label: 'En cours', value: stats.en_cours, icon: '', color: 'border-blue-400' },
-          { label: 'Terminés', value: stats.termines, icon: '', color: 'border-green-400' },
+          { label: 'En cours', value: stats.en_cours, icon: '', color: 'border-[rgb(var(--c-info)/0.3)]' },
+          { label: 'Terminés', value: stats.termines, icon: '', color: 'border-[rgb(var(--c-success)/0.3)]' },
           { label: 'Brouillons', value: stats.brouillons, icon: '', color: 'border-gray-400' },
         ].map(s => (
-          <div key={s.label} className={`bg-white rounded-xl border-l-4 ${s.color} p-4 shadow-sm`}>
+          <div key={s.label} className={`bg-white rounded-ui border-l-4 ${s.color} p-4 shadow-sm`}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-                <p className="text-xs text-gray-500">{s.label}</p>
+                <p className="text-ui-sm text-gray-500">{s.label}</p>
               </div>
               <span className="text-2xl">{s.icon}</span>
             </div>
@@ -544,16 +544,16 @@ export default function DuerpProjects() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
             placeholder="Rechercher entreprise, référence, ville..."
-            className="w-full pl-10 pr-3 py-2 border rounded-lg text-sm" />
+            className="w-full pl-10 pr-3 py-2 border rounded-ui-sm text-ui" />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border rounded-lg text-sm">
+          className="px-3 py-2 border rounded-ui-sm text-ui">
           <option value="">Tous les statuts</option>
           {Object.entries(STATUS_CONFIG).filter(([k]) => k !== 'archive').map(([k, v]) => (
             <option key={k} value={k}>{v.emoji} {v.label}</option>
           ))}
         </select>
-        <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
+        <label className="flex items-center gap-2 text-ui text-gray-500 cursor-pointer">
           <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)}
             className="rounded" />
           Archivés
@@ -562,12 +562,12 @@ export default function DuerpProjects() {
 
       {/* LISTE PROJETS */}
       {filteredProjects.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border p-12 text-center">
+        <div className="bg-white rounded-ui shadow-sm border p-12 text-center">
           <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-600 mb-2">Aucun projet DUERP</h3>
           <p className="text-gray-400 mb-6">Créez votre premier Document Unique d'Évaluation des Risques Professionnels</p>
           <button onClick={() => { resetCreateForm(); setShowCreate(true) }}
-            className="px-6 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition">
+            className="btn btn-secondary transition">
             <Plus className="w-4 h-4 inline mr-2" /> Créer un DUERP
           </button>
         </div>
@@ -581,29 +581,29 @@ export default function DuerpProjects() {
             const sectorLabels = (p.sector_template || '').split(',').map(code => sectors.find(s => s.sector_code === code.trim())?.sector_label).filter(Boolean)
 
             return (
-              <div key={p.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition group relative">
+              <div key={p.id} className="bg-white rounded-ui shadow-sm border hover:shadow-md transition group relative">
                 <Link to={`/duerp/${p.id}`} className="block p-4">
                   <div className="flex items-start justify-between">
                     {/* Gauche */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-1">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${st.color}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-ui-sm font-medium ${st.color}`}>
                           {st.emoji} {st.label}
                         </span>
-                        <span className="text-xs text-gray-400 font-mono">{p.reference}</span>
-                        {p.version > 1 && <span className="text-xs bg-blue-50 text-blue-600 px-1.5 rounded">v{p.version}</span>}
+                        <span className="text-ui-sm text-gray-400 font-mono">{p.reference}</span>
+                        {p.version > 1 && <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1.5 rounded">v{p.version}</span>}
                       </div>
                       
                       <h3 className="font-semibold text-gray-900 truncate">{p.company_name}</h3>
                       
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-gray-500">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-ui-sm text-gray-500">
                         {p.city && (
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" /> {p.postal_code} {p.city}
                           </span>
                         )}
                         {p.siret && <span className="font-mono">{p.siret}</span>}
-                        {sectorLabels.length > 0 && <span className="text-amber-600">{sectorLabels.join(' + ')}</span>}
+                        {sectorLabels.length > 0 && <span className="text-[rgb(var(--c-warning))]">{sectorLabels.join(' + ')}</span>}
                         {p.effectif && <span> {p.effectif}</span>}
                       </div>
                     </div>
@@ -616,7 +616,7 @@ export default function DuerpProjects() {
                           <AlertTriangle className="w-3.5 h-3.5 text-gray-400" />
                           <span className="text-lg font-bold text-gray-700">{rc.total}</span>
                         </div>
-                        <p className="text-[10px] text-gray-400">risques</p>
+                        <p className="text-ui-sm text-gray-400">risques</p>
                         {rc.max > 0 && (
                           <div className={`w-full h-1 rounded mt-0.5 ${maxLevel.color}`} />
                         )}
@@ -630,21 +630,21 @@ export default function DuerpProjects() {
                             {ac.total > 0 ? `${ac.done}/${ac.total}` : '-'}
                           </span>
                         </div>
-                        <p className="text-[10px] text-gray-400">actions</p>
+                        <p className="text-ui-sm text-gray-400">actions</p>
                       </div>
 
                       {/* Date */}
                       <div className="text-center hidden md:block">
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                        <div className="flex items-center gap-1 text-ui-sm text-gray-400">
                           <Calendar className="w-3 h-3" />
                           {p.updated_at ? format(new Date(p.updated_at), 'dd/MM/yy', { locale: fr }) : '-'}
                         </div>
-                        <p className="text-[10px] text-gray-400">modifié</p>
+                        <p className="text-ui-sm text-gray-400">modifié</p>
                       </div>
 
                       {/* Menu contextuel */}
                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu(contextMenu === p.id ? null : p.id) }}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition">
+                        className="p-1.5 rounded-ui-sm hover:bg-gray-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition">
                         <MoreVertical className="w-4 h-4 text-gray-400" />
                       </button>
                     </div>
@@ -653,21 +653,21 @@ export default function DuerpProjects() {
 
                 {/* Menu contextuel */}
                 {contextMenu === p.id && (
-                  <div className="absolute right-4 top-14 bg-white rounded-lg shadow-xl border py-1 z-20 min-w-[160px]"
+                  <div className="absolute right-4 top-14 bg-white rounded-ui-sm shadow-md border py-1 z-20 min-w-[160px]"
                     onClick={() => setContextMenu(null)}>
                     <button onClick={() => duplicateProject(p)}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50">
+                      className="w-full flex items-center gap-2 px-4 py-2 text-ui hover:bg-gray-50">
                       <Copy className="w-4 h-4" /> Dupliquer
                     </button>
                     {p.status !== 'archive' && (
                       <button onClick={() => archiveProject(p.id)}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50">
+                        className="w-full flex items-center gap-2 px-4 py-2 text-ui hover:bg-gray-50">
                         <Archive className="w-4 h-4" /> Archiver
                       </button>
                     )}
                     <hr className="my-1" />
                     <button onClick={() => deleteProject(p.id)}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                      className="w-full flex items-center gap-2 px-4 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
                       <Trash2 className="w-4 h-4" /> Supprimer
                     </button>
                   </div>
@@ -684,20 +684,20 @@ export default function DuerpProjects() {
       {showCreate && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) resetCreateForm() }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-ui-lg shadow-md w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-amber-50 to-orange-50">
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Nouveau DUERP</h2>
                 <div className="flex items-center gap-2 mt-1">
                   {[1, 2, 3].map(step => (
                     <div key={step} className="flex items-center gap-1">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                        ${createStep >= step ? 'bg-amber-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-ui-sm font-bold
+                        ${createStep >= step ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-gray-200 text-gray-500'}`}>
                         {step}
                       </div>
-                      <span className={`text-xs ${createStep >= step ? 'text-amber-700' : 'text-gray-400'}`}>
+                      <span className={`text-ui-sm ${createStep >= step ? 'text-[rgb(var(--c-warning))]' : 'text-gray-400'}`}>
                         {step === 1 ? 'Entreprise' : step === 2 ? 'Secteur' : 'Validation'}
                       </span>
                       {step < 3 && <ChevronDown className="w-3 h-3 text-gray-300 rotate-[-90deg]" />}
@@ -705,7 +705,7 @@ export default function DuerpProjects() {
                   ))}
                 </div>
               </div>
-              <button onClick={resetCreateForm} className="p-2 hover:bg-white/80 rounded-lg">
+              <button onClick={resetCreateForm} className="p-2 hover:bg-white/80 rounded-ui-sm">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -716,74 +716,74 @@ export default function DuerpProjects() {
               {/* ÉTAPE 1 : Sélection entreprise */}
               {createStep === 1 && (
                 <div className="space-y-4">
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-ui text-gray-600 mb-4">
                     Sélectionnez un client existant ou recherchez une entreprise par nom/SIRET.
                   </p>
                   
                   {/* Clients existants */}
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    <label className="text-ui font-medium text-gray-700 mb-2 block">
                       <Building2 className="w-4 h-4 inline mr-1" /> Clients existants
                     </label>
                     <input value={clientSearch} onChange={e => setClientSearch(e.target.value)}
                       placeholder="Filtrer vos clients..."
-                      className="w-full px-3 py-2 border rounded-lg text-sm mb-2" />
+                      className="w-full px-3 py-2 border rounded-ui-sm text-ui mb-2" />
                     <div className="max-h-40 overflow-y-auto space-y-1">
                       {filteredClients.map(c => (
                         <button key={c.id} onClick={() => selectExistingClient(c)}
-                          className="w-full text-left p-2.5 rounded-lg hover:bg-amber-50 border border-transparent hover:border-amber-200 transition flex items-center justify-between">
+                          className="w-full text-left p-2.5 rounded-ui-sm hover:bg-[rgb(var(--c-warning-bg))] border border-transparent hover:border-[rgb(var(--c-warning)/0.3)] transition flex items-center justify-between">
                           <div>
-                            <span className="font-medium text-sm">{c.name}</span>
-                            <span className="text-xs text-gray-400 ml-2">{c.city}</span>
+                            <span className="font-medium text-ui">{c.name}</span>
+                            <span className="text-ui-sm text-gray-400 ml-2">{c.city}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            {c.siret && <span className="text-xs text-gray-400 font-mono">{c.siret}</span>}
-                            <ArrowRight className="w-4 h-4 text-amber-500" />
+                            {c.siret && <span className="text-ui-sm text-gray-400 font-mono">{c.siret}</span>}
+                            <ArrowRight className="w-4 h-4 text-[rgb(var(--c-warning))]" />
                           </div>
                         </button>
                       ))}
                       {filteredClients.length === 0 && clientSearch && (
-                        <p className="text-xs text-gray-400 text-center py-2">Aucun client trouvé</p>
+                        <p className="text-ui-sm text-gray-400 text-center py-2">Aucun client trouvé</p>
                       )}
                     </div>
                   </div>
 
                   <div className="relative py-3">
                     <hr />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-xs text-gray-400">
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-ui-sm text-gray-400">
                       ou recherche externe
                     </span>
                   </div>
 
                   {/* Recherche API */}
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    <label className="text-ui font-medium text-gray-700 mb-2 block">
                       <Search className="w-4 h-4 inline mr-1" /> Recherche entreprise (API gouv)
                     </label>
                     <div className="flex gap-2">
                       <input value={apiSearch} onChange={e => setApiSearch(e.target.value)}
                         placeholder="Nom ou SIRET de l'entreprise..."
-                        className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        className="flex-1 px-3 py-2 border rounded-ui-sm text-ui"
                         onKeyDown={e => e.key === 'Enter' && doApiSearch()} />
                       <button onClick={doApiSearch} disabled={apiSearching || apiSearch.length < 2}
-                        className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm hover:bg-gray-700 disabled:opacity-50 flex items-center gap-1">
+                        className="px-4 py-2 bg-gray-800 text-white rounded-ui-sm text-ui hover:bg-gray-700 disabled:opacity-50 flex items-center gap-1">
                         {apiSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                         Chercher
                       </button>
                     </div>
                     {apiResults.length > 0 && (
-                      <div className="mt-2 max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
+                      <div className="mt-2 max-h-48 overflow-y-auto space-y-1 border rounded-ui-sm p-2">
                         {apiResults.map((r, i) => (
                           <button key={i} onClick={() => selectApiResult(r)}
-                            className="w-full text-left p-2.5 rounded-lg hover:bg-blue-50 border border-transparent hover:border-blue-200 transition">
+                            className="w-full text-left p-2.5 rounded-ui-sm hover:bg-[rgb(var(--c-info-bg))] border border-transparent hover:border-[rgb(var(--c-info)/0.3)] transition">
                             <div className="flex items-center justify-between">
-                              <span className="font-medium text-sm">{r.name}</span>
-                              <ArrowRight className="w-4 h-4 text-blue-500" />
+                              <span className="font-medium text-ui">{r.name}</span>
+                              <ArrowRight className="w-4 h-4 text-[rgb(var(--c-info))]" />
                             </div>
-                            <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
+                            <div className="flex flex-wrap gap-2 mt-1 text-ui-sm text-gray-500">
                               {r.siret && <span className="font-mono">{r.siret}</span>}
                               {r.city && <span>{r.postal_code} {r.city}</span>}
-                              {r.naf_code && <span className="text-amber-600">NAF {r.naf_code}</span>}
+                              {r.naf_code && <span className="text-[rgb(var(--c-warning))]">NAF {r.naf_code}</span>}
                               {r.effectif && <span> {getEffectifLabel(r.effectif)}</span>}
                             </div>
                           </button>
@@ -798,23 +798,23 @@ export default function DuerpProjects() {
               {createStep === 2 && (
                 <div className="space-y-4">
                   {/* Résumé entreprise */}
-                  <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="bg-gray-50 rounded-ui-sm p-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-sm">{newProject.company_name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="font-semibold text-ui">{newProject.company_name}</p>
+                        <p className="text-ui-sm text-gray-500">
                           {[newProject.postal_code, newProject.city].filter(Boolean).join(' ')}
                           {newProject.siret && <span className="ml-2 font-mono">SIRET {newProject.siret}</span>}
                         </p>
                       </div>
-                      <button onClick={() => setCreateStep(1)} className="text-xs text-amber-600 hover:underline">Modifier</button>
+                      <button onClick={() => setCreateStep(1)} className="text-ui-sm text-[rgb(var(--c-warning))] hover:underline">Modifier</button>
                     </div>
                   </div>
 
-                  <p className="text-sm text-gray-600">
+                  <p className="text-ui text-gray-600">
                     Sélectionnez un ou plusieurs secteurs d'activité pour pré-remplir les risques et unités.
                     {newProject.naf_code && (
-                      <span className="ml-1 text-amber-600 font-medium">
+                      <span className="ml-1 text-[rgb(var(--c-warning))] font-medium">
                         (NAF détecté : {newProject.naf_code} - {newProject.naf_label})
                       </span>
                     )}
@@ -826,20 +826,20 @@ export default function DuerpProjects() {
                       const isSelected = selectedSectors.some(sel => sel.sector_code === s.sector_code)
                       return (
                         <button key={s.sector_code} onClick={() => toggleSector(s)}
-                          className={`text-left p-3 rounded-lg border-2 transition
-                            ${isSelected ? 'border-amber-500 bg-amber-50' :
-                              isAutoDetected ? 'border-amber-300 bg-amber-50/50' :
+                          className={`text-left p-3 rounded-ui-sm border-2 transition
+                            ${isSelected ? 'border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))]' :
+                              isAutoDetected ? 'border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))]' :
                               'border-gray-200 hover:border-gray-300'}`}>
                           <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">{s.sector_label}</span>
+                            <span className="font-medium text-ui">{s.sector_label}</span>
                             {isAutoDetected && !isSelected && (
-                              <span className="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full">Suggéré</span>
+                              <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded-full">Suggéré</span>
                             )}
-                            {isSelected && <CheckCircle className="w-5 h-5 text-amber-600" />}
+                            {isSelected && <CheckCircle className="w-5 h-5 text-[rgb(var(--c-warning))]" />}
                           </div>
-                          <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>
+                          <p className="text-ui-sm text-gray-500 mt-0.5">{s.description}</p>
                           <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-[10px] text-gray-400">
+                            <span className="text-ui-sm text-gray-400">
                               {(s.default_units || []).length} unités • {(s.default_risk_codes || []).length} catégories de risques
                             </span>
                           </div>
@@ -848,11 +848,11 @@ export default function DuerpProjects() {
                     })}
                   </div>
                   {selectedSectors.length > 0 && (
-                    <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                      <p className="text-sm text-amber-800 font-medium">
+                    <div className="mt-3 p-3 bg-[rgb(var(--c-warning-bg))] rounded-ui-sm border border-[rgb(var(--c-warning)/0.3)]">
+                      <p className="text-ui text-[rgb(var(--c-warning))] font-medium">
                         {selectedSectors.length} secteur(s) : {selectedSectors.map(s => s.sector_label).join(' + ')}
                       </p>
-                      <p className="text-xs text-amber-600 mt-1">
+                      <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">
                         {(() => { const seen = new Set(); selectedSectors.forEach(s => (s.default_units || []).forEach(u => seen.add(u.code))); return seen.size })()} unités • {[...new Set(selectedSectors.flatMap(s => s.default_risk_codes || []))].length} catégories de risques (fusionnés)
                       </p>
                     </div>
@@ -863,44 +863,44 @@ export default function DuerpProjects() {
               {/* ÉTAPE 3 : Validation / infos complémentaires */}
               {createStep === 3 && (
                 <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
+                  <div className="bg-gray-50 rounded-ui p-4 border border-[rgb(var(--c-warning)/0.3)]">
                     <h3 className="font-bold text-gray-900 mb-2">{newProject.company_name}</h3>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-2 gap-2 text-ui">
                       <div><span className="text-gray-500">SIRET :</span> <span className="font-mono">{newProject.siret || '-'}</span></div>
                       <div><span className="text-gray-500">NAF :</span> {newProject.naf_code || '-'}</div>
                       <div><span className="text-gray-500">Ville :</span> {newProject.postal_code} {newProject.city || '-'}</div>
                       <div><span className="text-gray-500">Effectif :</span> {newProject.effectif || '-'}</div>
-                      <div className="col-span-2"><span className="text-gray-500">Secteur(s) :</span> <span className="text-amber-700 font-medium">{selectedSectors.map(s => s.sector_label).join(' + ')}</span></div>
+                      <div className="col-span-2"><span className="text-gray-500">Secteur(s) :</span> <span className="text-[rgb(var(--c-warning))] font-medium">{selectedSectors.map(s => s.sector_label).join(' + ')}</span></div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500">Contact sur site</label>
+                      <label className="text-ui-sm text-gray-500">Contact sur site</label>
                       <input value={newProject.contact_name || ''} onChange={e => setNewProject({ ...newProject, contact_name: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Nom du contact" />
+                        className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Nom du contact" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500">Fonction</label>
+                      <label className="text-ui-sm text-gray-500">Fonction</label>
                       <input value={newProject.contact_function || ''} onChange={e => setNewProject({ ...newProject, contact_function: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Directeur, RH..." />
+                        className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Directeur, RH..." />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500">Date de visite prévue</label>
+                      <label className="text-ui-sm text-gray-500">Date de visite prévue</label>
                       <input type="date" value={newProject.date_visite || ''}
                         onChange={e => setNewProject({ ...newProject, date_visite: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg text-sm" />
+                        className="w-full px-3 py-2 border rounded-ui-sm text-ui" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500">Effectif (préciser)</label>
+                      <label className="text-ui-sm text-gray-500">Effectif (préciser)</label>
                       <input value={newProject.effectif || ''} onChange={e => setNewProject({ ...newProject, effectif: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ex: 12 salariés" />
+                        className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Ex: 12 salariés" />
                     </div>
                   </div>
 
-                  <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
+                  <div className="bg-[rgb(var(--c-info-bg))] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-info))]">
                     <p className="font-medium mb-1">Ce qui sera créé automatiquement :</p>
-                    <ul className="text-xs space-y-0.5 ml-4 list-disc">
+                    <ul className="text-ui-sm space-y-0.5 ml-4 list-disc">
                       <li>{(() => { const seen = new Set(); selectedSectors.forEach(s => (s.default_units || []).forEach(u => seen.add(u.code))); return seen.size })() } unités de travail pré-configurées</li>
                       <li>Risques types des secteurs « {selectedSectors.map(s => s.sector_label).join(' + ')} » pré-chargés</li>
                       <li>Grille de cotation F×G avec maîtrise → risque résiduel</li>
@@ -914,7 +914,7 @@ export default function DuerpProjects() {
             {/* Footer */}
             <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
               <button onClick={() => createStep > 1 ? setCreateStep(createStep - 1) : resetCreateForm()}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg text-sm">
+                className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-ui-sm text-ui">
                 {createStep === 1 ? 'Annuler' : '← Retour'}
               </button>
               
@@ -925,12 +925,12 @@ export default function DuerpProjects() {
                   setCreateStep(createStep + 1)
                 }}
                   disabled={createStep === 2 && !selectedSectors.length}
-                  className="px-6 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 text-sm font-medium flex items-center gap-1">
+                  className="btn btn-secondary disabled:opacity-50 text-ui font-medium flex items-center gap-1">
                   Suivant <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button onClick={createProject} disabled={creating}
-                  className="px-6 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2">
+                  className="btn btn-secondary disabled:opacity-50 text-ui font-medium flex items-center gap-2">
                   {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Créer le DUERP
                 </button>
@@ -950,15 +950,15 @@ export default function DuerpProjects() {
       {/* ════════════════════════════════════════════════════════════════ */}
       {showRattachement && rattachementData && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-ui-lg shadow-md w-full max-w-2xl max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-5 border-b">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Rattachement des risques types</h2>
-                <p className="text-sm text-gray-500 mt-0.5">{rattachementData.orphanRisks.length} risques pré-chargés depuis les templates - à affecter aux unités ou à supprimer</p>
+                <p className="text-ui text-gray-500 mt-0.5">{rattachementData.orphanRisks.length} risques pré-chargés depuis les templates - à affecter aux unités ou à supprimer</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">Étape obligatoire</span>
+                <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-2 py-1 rounded-full font-medium">Étape obligatoire</span>
               </div>
             </div>
 
@@ -966,13 +966,13 @@ export default function DuerpProjects() {
             <div className="flex-1 overflow-y-auto p-5 space-y-2">
               {/* Actions rapides */}
               <div className="flex gap-2 mb-3 flex-wrap">
-                <span className="text-xs font-medium text-gray-500 self-center">Tout affecter à :</span>
+                <span className="text-ui-sm font-medium text-gray-500 self-center">Tout affecter à :</span>
                 {rattachementData.units.map(u => (
                   <button key={u.id} onClick={() => {
                     const all = {}
                     rattachementData.orphanRisks.forEach(r => { all[r.id] = u.id })
                     setRattachAssignments(all)
-                  }} className="text-xs px-2.5 py-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-100 transition">
+                  }} className="text-ui-sm px-2.5 py-1 bg-gray-50 text-gray-800 border border-gray-200 rounded-ui-sm hover:bg-gray-100 transition">
                     {u.name}
                   </button>
                 ))}
@@ -980,21 +980,21 @@ export default function DuerpProjects() {
                   const all = {}
                   rattachementData.orphanRisks.forEach(r => { all[r.id] = '__skip' })
                   setRattachAssignments(all)
-                }} className="text-xs px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition">
+                }} className="text-ui-sm px-2.5 py-1 bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] border border-[rgb(var(--c-danger)/0.3)] rounded-ui-sm hover:bg-[rgb(var(--c-danger-bg))] transition">
                   Tout supprimer
                 </button>
               </div>
 
               {rattachementData.orphanRisks.map(risk => (
-                <div key={risk.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${rattachAssignments[risk.id] === '__skip' ? 'opacity-40 bg-red-50 border-red-200' : rattachAssignments[risk.id] ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                <div key={risk.id} className={`flex items-center gap-3 p-3 rounded-ui border transition ${rattachAssignments[risk.id] === '__skip' ? 'opacity-40 bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)]' : rattachAssignments[risk.id] ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]' : 'bg-gray-50 border-gray-200'}`}>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{risk.danger}</p>
-                    {risk.situation && <p className="text-xs text-gray-400 truncate">{risk.situation}</p>}
+                    <p className="text-ui font-medium text-gray-900 truncate">{risk.danger}</p>
+                    {risk.situation && <p className="text-ui-sm text-gray-400 truncate">{risk.situation}</p>}
                   </div>
                   <select
                     value={rattachAssignments[risk.id] || ''}
                     onChange={e => setRattachAssignments(prev => ({ ...prev, [risk.id]: e.target.value }))}
-                    className="text-xs border rounded-lg px-2 py-1.5 bg-white min-w-[160px] focus:ring-1 focus:ring-teal-400"
+                    className="text-ui-sm border rounded-ui-sm px-2 py-1.5 bg-white min-w-[160px] focus:ring-1 focus:ring-gray-400"
                   >
                     <option value="">- Affecter à... -</option>
                     {rattachementData.units.map(u => (
@@ -1008,17 +1008,17 @@ export default function DuerpProjects() {
 
             {/* Footer */}
             <div className="p-5 border-t flex items-center justify-between gap-3">
-              <div className="text-xs text-gray-400">
+              <div className="text-ui-sm text-gray-400">
                 {Object.values(rattachAssignments).filter(v => v && v !== '__skip').length} affecté(s) · {Object.values(rattachAssignments).filter(v => v === '__skip').length} à supprimer · {Object.values(rattachAssignments).filter(v => !v).length} en attente
               </div>
               <div className="flex gap-3">
                 <Link to={`/duerp/${rattachementData.projectId}`}
                   onClick={() => { setShowRattachement(false); setRattachementData(null) }}
-                  className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition">
+                  className="px-4 py-2 text-ui text-gray-500 hover:bg-gray-100 rounded-ui-sm transition">
                   Passer - gérer dans le projet
                 </Link>
                 <button onClick={saveRattachement} disabled={rattachSaving}
-                  className="px-6 py-2.5 bg-teal-600 text-white rounded-xl text-sm font-medium hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2">
+                  className="px-6 py-2.5 bg-gray-700 text-white rounded-ui text-ui font-medium hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2">
                   {rattachSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Enregistrer et ouvrir le projet
                 </button>

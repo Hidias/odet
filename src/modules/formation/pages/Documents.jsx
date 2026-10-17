@@ -10,6 +10,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { downloadDocument, setOrganization } from '../pdf/pdfGenerator'
 import CourierEditor from './CourierEditor'
+import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
 const categories = [
   { id: 'all', name: 'Tous' },
@@ -235,7 +236,7 @@ export default function Documents() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
+          <h1 className="page-title">Documents</h1>
           <p className="text-gray-500 mt-1">Fichiers uploadés et documents vierges</p>
         </div>
         {activeTab === 'uploaded' && (
@@ -248,7 +249,7 @@ export default function Documents() {
           </button>
         )}
         {activeTab === 'editeur' && (
-          <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">
+          <div className="flex items-center gap-2 text-ui text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))] px-3 py-1.5 rounded-ui-sm">
             <Sparkles className="w-4 h-4" />
             Assistant IA intégré
           </div>
@@ -267,7 +268,7 @@ export default function Documents() {
         <nav className="flex gap-4">
           <button
             onClick={() => setActiveTab('uploaded')}
-            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
               activeTab === 'uploaded' 
                 ? 'border-primary-500 text-primary-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -276,12 +277,12 @@ export default function Documents() {
             <div className="flex items-center gap-2">
               <FolderOpen className="w-4 h-4" />
               Fichiers uploadés
-              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{uploadedFiles.length}</span>
+              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-ui-sm">{uploadedFiles.length}</span>
             </div>
           </button>
           <button
             onClick={() => setActiveTab('vierges')}
-            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
               activeTab === 'vierges' 
                 ? 'border-primary-500 text-primary-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -294,7 +295,7 @@ export default function Documents() {
           </button>
           <button
             onClick={() => setActiveTab('editeur')}
-            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
               activeTab === 'editeur' 
                 ? 'border-primary-500 text-primary-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -317,7 +318,7 @@ export default function Documents() {
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+            className={`border-2 border-dashed rounded-ui p-8 text-center transition-colors ${
               dragActive 
                 ? 'border-primary-500 bg-primary-50' 
                 : 'border-gray-300 hover:border-gray-400'
@@ -327,10 +328,10 @@ export default function Documents() {
             <p className="text-gray-600 mb-2">
               Glissez-déposez vos fichiers ici
             </p>
-            <p className="text-sm text-gray-400">
+            <p className="text-ui text-gray-400">
               ou cliquez sur le bouton "Téléverser"
             </p>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-ui-sm text-gray-400 mt-2">
               Formats acceptés : PDF, Word, Excel, PowerPoint, Images
             </p>
           </div>
@@ -352,7 +353,7 @@ export default function Documents() {
                 <button
                   key={cat.id}
                   onClick={() => setCategoryFilter(cat.id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap shrink-0 transition-colors ${
+                  className={`px-3 py-1.5 rounded-ui-sm text-ui whitespace-nowrap shrink-0 transition-colors ${
                     categoryFilter === cat.id
                       ? 'bg-primary-600 text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -384,12 +385,12 @@ export default function Documents() {
                     <div key={file.id} className="p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-gray-100 rounded-ui-sm flex items-center justify-center flex-shrink-0">
                             <FileIcon className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="min-w-0">
                             <p className="font-medium text-gray-900 truncate">{file.name}</p>
-                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <div className="flex items-center gap-2 text-ui text-gray-500">
                               <span className="capitalize">{file.category || 'Autre'}</span>
                               <span>•</span>
                               <span>{formatFileSize(file.file_size)}</span>
@@ -404,14 +405,14 @@ export default function Documents() {
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-400 hidden sm:block">
+                          <span className="text-ui text-gray-400 hidden sm:block">
                             {file.created_at && format(new Date(file.created_at), 'd MMM yyyy', { locale: fr })}
                           </span>
                           <a
                             href={file.file_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 hover:bg-gray-100 rounded-lg"
+                            className="p-2 hover:bg-gray-100 rounded-ui-sm"
                             title="Voir"
                           >
                             <Eye className="w-4 h-4 text-gray-400" />
@@ -419,17 +420,17 @@ export default function Documents() {
                           <a
                             href={file.file_url}
                         download={file.filename}
-                        className="p-2 hover:bg-gray-100 rounded-lg"
+                        className="p-2 hover:bg-gray-100 rounded-ui-sm"
                         title="Télécharger"
                       >
                         <Download className="w-4 h-4 text-gray-400" />
                       </a>
                       <button
                         onClick={() => handleDelete(file)}
-                        className="p-2 hover:bg-red-50 rounded-lg"
+                        className="p-2 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm"
                         title="Supprimer"
                       >
-                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                       </button>
                     </div>
                   </div>
@@ -448,7 +449,7 @@ export default function Documents() {
           {/* Documents administratifs */}
           <div className="card">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg bg-blue-500">
+              <div className="p-2 rounded-ui-sm bg-[rgb(var(--c-info))]">
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <h2 className="font-semibold">Documents administratifs</h2>
@@ -458,11 +459,11 @@ export default function Documents() {
                 <button
                   key={doc.id}
                   onClick={() => handleDownloadVierge(doc.id)}
-                  className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center justify-between p-3 rounded-ui-sm border hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">{doc.label}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Q{doc.qualiopi}</span>
+                    <span className="text-ui">{doc.label}</span>
+                    <span className="text-ui-sm px-1.5 py-0.5 rounded bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]">Q{doc.qualiopi}</span>
                   </div>
                   <Download className="w-4 h-4 text-gray-400" />
                 </button>
@@ -473,7 +474,7 @@ export default function Documents() {
           {/* Documents formation */}
           <div className="card">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg bg-green-500">
+              <div className="p-2 rounded-ui-sm bg-[rgb(var(--c-success))]">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <h2 className="font-semibold">Documents formation</h2>
@@ -483,11 +484,11 @@ export default function Documents() {
                 <button
                   key={doc.id}
                   onClick={() => handleDownloadVierge(doc.id)}
-                  className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center justify-between p-3 rounded-ui-sm border hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">{doc.label}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">Q{doc.qualiopi}</span>
+                    <span className="text-ui">{doc.label}</span>
+                    <span className="text-ui-sm px-1.5 py-0.5 rounded bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]">Q{doc.qualiopi}</span>
                   </div>
                   <Download className="w-4 h-4 text-gray-400" />
                 </button>
@@ -498,32 +499,32 @@ export default function Documents() {
           {/* Tests de positionnement par thème */}
           <div className="card">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg bg-purple-500">
+              <div className="p-2 rounded-ui-sm bg-gray-700">
                 <ClipboardList className="w-5 h-5 text-white" />
               </div>
               <h2 className="font-semibold">Tests de positionnement</h2>
             </div>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-ui-sm text-gray-500 mb-3">
               Tests par thème de formation
             </p>
             <div className="space-y-2">
               {themes.length === 0 ? (
-                <p className="text-sm text-gray-500 p-3">Chargement des thèmes...</p>
+                <p className="text-ui text-gray-500 p-3">Chargement des thèmes...</p>
               ) : (
                 themes.map(theme => (
                   <button
                     key={theme.id}
                     onClick={() => handleDownloadThemeTest(theme)}
                     disabled={loadingTheme === theme.id}
-                    className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    className="w-full flex items-center justify-between p-3 rounded-ui-sm border hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-3 h-3 rounded-full" 
                         style={{ backgroundColor: getThemeColor(theme.name) }}
                       />
-                      <span className="text-sm">Test {theme.name}</span>
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">Q8</span>
+                      <span className="text-ui">Test {theme.name}</span>
+                      <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-800">Q8</span>
                     </div>
                     {loadingTheme === theme.id ? (
                       <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
@@ -543,7 +544,7 @@ export default function Documents() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={resetUploadForm} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md animate-fadeIn">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-md animate-fadeIn">
               <div className="flex items-center justify-between p-4 border-b border-gray-200">
                 <h2 className="text-lg font-semibold">Téléverser un fichier</h2>
                 <button onClick={resetUploadForm} className="p-1 hover:bg-gray-100 rounded">
@@ -554,11 +555,11 @@ export default function Documents() {
               <div className="p-4 space-y-4">
                 {/* Fichier sélectionné */}
                 {selectedFile && (
-                  <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-3">
+                  <div className="p-3 bg-gray-50 rounded-ui-sm flex items-center gap-3">
                     <Paperclip className="w-5 h-5 text-gray-400" />
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">{selectedFile.name}</p>
-                      <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
+                      <p className="font-medium text-ui truncate">{selectedFile.name}</p>
+                      <p className="text-ui-sm text-gray-500">{formatFileSize(selectedFile.size)}</p>
                     </div>
                     <button 
                       onClick={() => setSelectedFile(null)}
@@ -597,30 +598,20 @@ export default function Documents() {
                 
                 <div>
                   <label className="label">Lier à une session (optionnel)</label>
-                  <select
+                  <SearchSelect
                     value={uploadForm.session_id}
-                    onChange={(e) => setUploadForm({ ...uploadForm, session_id: e.target.value })}
-                    className="input"
-                  >
-                    <option value="">-- Aucune --</option>
-                    {sessions.map(s => (
-                      <option key={s.id} value={s.id}>{s.reference} - {s.courses?.title}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setUploadForm({ ...uploadForm, session_id: v })}
+                    options={sessions.map(s => ({ value: s.id, label: s.reference, hint: s.courses?.title || '' }))}
+                    emptyLabel="-- Aucune --" searchPlaceholder="Référence ou formation..." aria-label="Session" />
                 </div>
                 
                 <div>
                   <label className="label">Lier à une formation (optionnel)</label>
-                  <select
+                  <SearchSelect
                     value={uploadForm.course_id}
-                    onChange={(e) => setUploadForm({ ...uploadForm, course_id: e.target.value })}
-                    className="input"
-                  >
-                    <option value="">-- Aucune --</option>
-                    {courses.map(c => (
-                      <option key={c.id} value={c.id}>{c.code} - {c.title}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setUploadForm({ ...uploadForm, course_id: v })}
+                    options={courseOptions(courses)}
+                    emptyLabel="-- Aucune --" searchPlaceholder="Rechercher une formation..." aria-label="Formation" />
                 </div>
                 
                 <div>

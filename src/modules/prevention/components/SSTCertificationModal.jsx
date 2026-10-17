@@ -157,14 +157,14 @@ export default function SSTCertificationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-ui shadow-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
               Grille de certification SST - {formationType === 'FI' ? 'Formation Initiale' : 'MAC'}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-ui text-gray-600 mt-1">
               {trainee.first_name} {trainee.last_name} • Session du {format(new Date(session.start_date), 'dd/MM/yyyy', { locale: fr })} au {format(new Date(session.end_date), 'dd/MM/yyyy', { locale: fr })}
             </p>
           </div>
@@ -175,15 +175,15 @@ export default function SSTCertificationModal({
 
         {/* Type de formation */}
         <div className="px-6 py-4 bg-gray-50 border-b">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-ui font-medium text-gray-700 mb-2">
             Type de formation
           </label>
           <div className="flex gap-4">
             <button
               onClick={() => setFormationType('FI')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-ui-sm font-medium transition-colors ${
                 formationType === 'FI'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[rgb(var(--c-info))] text-white'
                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -191,9 +191,9 @@ export default function SSTCertificationModal({
             </button>
             <button
               onClick={() => setFormationType('MAC')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-ui-sm font-medium transition-colors ${
                 formationType === 'MAC'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[rgb(var(--c-info))] text-white'
                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -211,9 +211,9 @@ export default function SSTCertificationModal({
               return (
                 <div 
                   key={comp.code} 
-                  className={`border-2 rounded-xl p-5 transition-all ${
+                  className={`border-2 rounded-ui p-5 transition-all ${
                     isAcquise 
-                      ? 'border-green-300 bg-green-50' 
+                      ? 'border-[rgb(var(--c-success)/0.3)] bg-[rgb(var(--c-success-bg))]' 
                       : 'border-gray-300 bg-white'
                   }`}
                 >
@@ -222,21 +222,21 @@ export default function SSTCertificationModal({
                     <div className="flex-shrink-0">
                       <span className={`inline-flex items-center justify-center w-12 h-12 rounded-full font-bold text-lg ${
                         isAcquise 
-                          ? 'bg-green-600 text-white' 
-                          : 'bg-blue-100 text-blue-700'
+                          ? 'bg-[rgb(var(--c-success))] text-white' 
+                          : 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]'
                       }`}>
                         {comp.code}
                       </span>
                     </div>
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-900 mb-1">{comp.titre}</h4>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-ui-sm text-gray-500">
                         Épreuve {comp.epreuve} • {comp.indicateurs.length} indicateur{comp.indicateurs.length > 1 ? 's' : ''}
                       </p>
                     </div>
                     {isAcquise && (
                       <div className="flex-shrink-0">
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-600 text-white text-sm font-medium">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[rgb(var(--c-success))] text-white text-ui font-medium">
                           <CheckCircle className="w-4 h-4" />
                           Acquise
                         </span>
@@ -252,12 +252,12 @@ export default function SSTCertificationModal({
                       return (
                         <div 
                           key={ind.id}
-                          className="flex items-start gap-3 p-3 rounded-lg bg-white border border-gray-200 hover:border-gray-300 transition-colors"
+                          className="flex items-start gap-3 p-3 rounded-ui-sm bg-white border border-gray-200 hover:border-gray-300 transition-colors"
                         >
                           <div className="flex-1">
-                            <p className="text-sm text-gray-800">
+                            <p className="text-ui text-gray-800">
                               {ind.incontournable && (
-                                <span className="inline-block px-2 py-0.5 mr-2 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
+                                <span className="inline-block px-2 py-0.5 mr-2 text-ui-sm font-medium bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded">
                                   Incontournable
                                 </span>
                               )}
@@ -267,11 +267,11 @@ export default function SSTCertificationModal({
                           <div className="flex-shrink-0">
                             <button
                               onClick={() => toggleIndicateur(ind.id)}
-                              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all min-w-[130px] ${
+                              className={`px-4 py-2 rounded-ui-sm font-medium text-ui transition-all min-w-[130px] ${
                                 value === true
-                                  ? 'bg-green-600 text-white hover:bg-green-700'
+                                  ? 'bg-[rgb(var(--c-success))] text-white hover:bg-[rgb(var(--c-success))]'
                                   : value === false
-                                  ? 'bg-red-600 text-white hover:bg-red-700'
+                                  ? 'bg-[rgb(var(--c-danger))] text-white hover:bg-[rgb(var(--c-danger))]'
                                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                               }`}
                             >
@@ -290,18 +290,18 @@ export default function SSTCertificationModal({
 
         {/* Résultat */}
         <div className="px-6 py-4 border-t bg-gray-50">
-          <div className={`p-4 rounded-lg ${certifie ? 'bg-green-100 border-2 border-green-600' : 'bg-red-100 border-2 border-red-600'}`}>
+          <div className={`p-4 rounded-ui-sm ${certifie ? 'bg-[rgb(var(--c-success-bg))] border-2 border-[rgb(var(--c-success)/0.3)]' : 'bg-[rgb(var(--c-danger-bg))] border-2 border-[rgb(var(--c-danger)/0.3)]'}`}>
             <div className="flex items-center gap-3">
               {certifie ? (
-                <CheckCircle className="w-8 h-8 text-green-600" />
+                <CheckCircle className="w-8 h-8 text-[rgb(var(--c-success))]" />
               ) : (
-                <AlertCircle className="w-8 h-8 text-red-600" />
+                <AlertCircle className="w-8 h-8 text-[rgb(var(--c-danger))]" />
               )}
               <div>
                 <p className="font-bold text-lg">
                   {certifie ? ' CANDIDAT CERTIFIÉ' : ' CANDIDAT NON CERTIFIÉ'}
                 </p>
-                <p className="text-sm">
+                <p className="text-ui">
                   {nbCompetencesAcquises}/{nbCompetencesRequises} compétences acquises
                   {certifie ? ' (validation automatique)' : ` (minimum ${nbCompetencesRequises} requis)`}
                 </p>

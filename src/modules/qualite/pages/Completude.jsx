@@ -1,5 +1,8 @@
+import { toneStyle } from '../../../ui/StatusBadge'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
+import { useAuthStore } from '../../../core/store'
+import { loadNirEtat } from '../../passeport/lib/ppData'
 import { 
   AlertCircle, CheckCircle, User, Calendar, FileText, Star, 
   Target, BookOpen, Users, Shield, Filter, Download, 
@@ -10,6 +13,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { buildCompletudePDF } from '../pdf/completudePDF'
+import SearchSelect from '../../../ui/SearchSelect'
 
 const PRIORITIES = {
   bloquant: { label: 'Bloquant', color: 'red', icon: '' },
@@ -29,6 +33,8 @@ const CATEGORIES = {
 }
 
 export default function Completude() {
+  const { modules: ppModules } = useAuthStore()
+  const passeportOn = (ppModules || []).includes('passeport')
   const [loading, setLoading] = useState(true)
   const [issues, setIssues] = useState([])
   const [expandedCategories, setExpandedCategories] = useState(Object.keys(CATEGORIES))
@@ -62,6 +68,12 @@ export default function Completude() {
         .from('trainees')
         .select('id, first_name, last_name, birth_date, csp, job_title, gender, social_security_number, refused_ssn')
       
+      // Module Passeport de prévention actif : le numéro est chiffré à part (présence seulement, jamais le numéro)
+      let nirPresents = null
+      if (passeportOn && trainees?.length) {
+        try { nirPresents = await loadNirEtat(trainees.map((t) => t.id)) } catch { nirPresents = null }
+      }
+
       trainees?.forEach(t => {
         if (!t.birth_date) {
           allIssues.push({
@@ -107,7 +119,7 @@ export default function Completude() {
             since: null
           })
         }
-        if (!t.refused_ssn && !t.social_security_number) {
+        if (!t.refused_ssn && !(nirPresents ? nirPresents[t.id] : t.social_security_number)) {
           allIssues.push({
             category: 'stagiaires',
             priority: 'bloquant',
@@ -395,10 +407,18 @@ export default function Completude() {
       })
 
       // 9. FORMATEURS
-      const { data: trainers, error: trainersError } = await supabase
-        .from('trainers')
-        .select('id, first_name, last_name, trainer_certificates(id), trainer_interviews(interview_date), trainer_trainings(training_date)')
-      if (trainersError) console.error('Complétude formateurs :', trainersError.message)
+      // Lectures séparées : ces tables n'ont pas de clé étrangère déclarée vers trainers,
+      // une jointure imbriquée échouait et la rubrique Formateurs restait vide
+      const [trR, certR, itvR, trnR] = await Promise.all([
+        supabase.from('trainers').select('id, first_name, last_name'),
+        supabase.from('trainer_certificates').select('id, trainer_id'),
+        supabase.from('trainer_interviews').select('trainer_id, interview_date'),
+        supabase.from('trainer_trainings').select('trainer_id, training_date'),
+      ])
+      ;[trR, certR, itvR, trnR].forEach(r => { if (r.error) console.error('Complétude formateurs :', r.error.message) })
+      const byTrainer = (rows) => (rows || []).reduce((m, x) => { (m[x.trainer_id] ||= []).push(x); return m }, {})
+      const certs = byTrainer(certR.data), itvs = byTrainer(itvR.data), trns = byTrainer(trnR.data)
+      const trainers = (trR.data || []).map(t => ({ ...t, trainer_certificates: certs[t.id] || [], trainer_interviews: itvs[t.id] || [], trainer_trainings: trns[t.id] || [] }))
       
       const oneYearAgo = new Date()
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
@@ -611,7 +631,7 @@ export default function Completude() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[rgb(var(--c-info))]" />
       </div>
     )
   }
@@ -622,8 +642,8 @@ export default function Completude() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Complétude</h1>
-            <p className="text-sm text-gray-600">Suivi des éléments manquants</p>
+            <h1 className="page-title">Complétude</h1>
+            <p className="text-ui text-gray-600">Suivi des éléments manquants</p>
           </div>
           <div className="flex gap-2">
             <button onClick={loadData} disabled={loading} className="btn btn-secondary">
@@ -642,26 +662,26 @@ export default function Completude() {
         </div>
 
         {/* BARRE DE PROGRESSION */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="bg-white rounded-ui-sm shadow-sm border p-6">
           <div className="flex items-center justify-between mb-3">
             <div>
               <div className="text-3xl font-bold text-gray-900">{completionRate}%</div>
-              <div className="text-sm text-gray-600">Taux de complétude global</div>
+              <div className="text-ui text-gray-600">Taux de complétude global</div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-red-600">{stats.total}</div>
-              <div className="text-sm text-gray-600">éléments manquants</div>
+              <div className="text-2xl font-bold text-[rgb(var(--c-danger))]">{stats.total}</div>
+              <div className="text-ui text-gray-600">éléments manquants</div>
             </div>
           </div>
           
           <div className="w-full bg-gray-200 rounded-full h-4 mb-4">
             <div 
-              className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all"
+              className="bg-gray-50 h-4 rounded-full transition-all"
               style={{ width: `${completionRate}%` }}
             />
           </div>
           
-          <div className="flex gap-4 text-sm">
+          <div className="flex gap-4 text-ui">
             <div className="flex items-center gap-2">
               <span className="text-2xl"></span>
               <span className="font-semibold">{stats.bloquant}</span>
@@ -682,7 +702,7 @@ export default function Completude() {
       </div>
 
       {/* FILTRES */}
-      <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+      <div className="bg-white rounded-ui-sm shadow-sm border p-4 mb-6">
         <div className="flex items-center gap-4">
           <Filter className="w-5 h-5 text-gray-400" />
           
@@ -709,19 +729,14 @@ export default function Completude() {
           </select>
           
           {clients.length > 0 && (
-            <select 
-              value={filterClient}
-              onChange={(e) => setFilterClient(e.target.value)}
-              className="input"
-            >
-              <option value="all">Tous clients</option>
-              {clients.map(client => (
-                <option key={client} value={client}>{client}</option>
-              ))}
-            </select>
+            <SearchSelect
+              value={filterClient === 'all' ? '' : filterClient}
+              onChange={(v) => setFilterClient(v || 'all')}
+              options={clients.map(client => ({ value: client, label: client }))}
+              emptyLabel="Tous clients" searchPlaceholder="Rechercher un client..." aria-label="Filtrer par client" />
           )}
           
-          <div className="ml-auto text-sm text-gray-600">
+          <div className="ml-auto text-ui text-gray-600">
             {filteredIssues.length} résultat(s)
           </div>
         </div>
@@ -737,18 +752,18 @@ export default function Completude() {
           const isExpanded = expandedCategories.includes(catKey)
           
           return (
-            <div key={catKey} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div key={catKey} className="bg-white rounded-ui-sm shadow-sm border overflow-hidden">
               <button
                 onClick={() => toggleCategory(catKey)}
                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg bg-${category.color}-100`}>
-                    <Icon className={`w-5 h-5 text-${category.color}-600`} />
+                  <div className={`p-2 rounded-ui-sm`} style={toneStyle(category.color, { text: false })}>
+                    <Icon className={`w-5 h-5`} style={toneStyle(category.color, { bg: false })} />
                   </div>
                   <div className="text-left">
                     <h3 className="font-semibold text-gray-900">{category.label}</h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-ui text-gray-600">
                       {catIssues.length} élément(s) manquant(s)
                     </p>
                   </div>
@@ -756,17 +771,17 @@ export default function Completude() {
                 <div className="flex items-center gap-3">
                   <div className="flex gap-2">
                     {catIssues.filter(i => i.priority === 'bloquant').length > 0 && (
-                      <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded">
+                      <span className="px-2 py-1 bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] text-ui-sm rounded">
                          {catIssues.filter(i => i.priority === 'bloquant').length}
                       </span>
                     )}
                     {catIssues.filter(i => i.priority === 'important').length > 0 && (
-                      <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">
+                      <span className="px-2 py-1 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui-sm rounded">
                          {catIssues.filter(i => i.priority === 'important').length}
                       </span>
                     )}
                     {catIssues.filter(i => i.priority === 'mineur').length > 0 && (
-                      <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded">
+                      <span className="px-2 py-1 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui-sm rounded">
                          {catIssues.filter(i => i.priority === 'mineur').length}
                       </span>
                     )}
@@ -782,14 +797,14 @@ export default function Completude() {
                   <table className="w-full min-w-[700px]">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priorité</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Élément</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Détail</th>
+                        <th className="px-6 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Priorité</th>
+                        <th className="px-6 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Élément</th>
+                        <th className="px-6 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Détail</th>
                         {catIssues.some(i => i.client) && (
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                          <th className="px-6 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Client</th>
                         )}
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Depuis</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                        <th className="px-6 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Depuis</th>
+                        <th className="px-6 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -800,28 +815,28 @@ export default function Completude() {
                               {PRIORITIES[issue.priority].icon}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                          <td className="px-6 py-4 text-ui font-medium text-gray-900">
                             {issue.element}
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
+                          <td className="px-6 py-4 text-ui text-gray-600">
                             {issue.detail}
                           </td>
                           {catIssues.some(i => i.client) && (
-                            <td className="px-6 py-4 text-sm text-gray-600">
+                            <td className="px-6 py-4 text-ui text-gray-600">
                               {issue.client || '-'}
                             </td>
                           )}
-                          <td className="px-6 py-4 text-sm text-gray-600">
+                          <td className="px-6 py-4 text-ui text-gray-600">
                             {issue.since ? format(new Date(issue.since), 'dd/MM/yyyy') : '-'}
                           </td>
                           <td className="px-6 py-4">
                             <a
                               href={`#${issue.link}`}
-                              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                              className="inline-flex items-center gap-1 text-ui text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))]"
                               title="Corriger"
                             >
                               <ExternalLink className="w-4 h-4" />
-                              <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <span className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                 Corriger
                               </span>
                             </a>
@@ -838,8 +853,8 @@ export default function Completude() {
       </div>
 
       {filteredIssues.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg shadow-sm border">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+        <div className="text-center py-12 bg-white rounded-ui-sm shadow-sm border">
+          <CheckCircle className="w-16 h-16 text-[rgb(var(--c-success))] mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             Aucun élément manquant !
           </h3>

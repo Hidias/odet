@@ -4,12 +4,12 @@
 // En cas d'échec de lecture, on renvoie un profil vide plutôt que l'identité d'un autre organisme.
 
 export async function loadOrgProfile(admin) {
-  const profile = { name: '', legalName: '', city: '', region: '', phone: '', email: '', website: '', qualiopi: false, caces: false, nda: '', zone: [], catalogue: [], stats: null }
+  const profile = { name: '', legalName: '', city: '', region: '', phone: '', email: '', website: '', qualiopi: false, caces: false, nda: '', dirigeant: '', dirigeantTitle: '', activity: '', tutoiement: false, presentation: '', zone: [], catalogue: [], stats: null }
   if (!admin) return profile
   try {
     const { data: o } = await admin
       .from('organization_settings')
-      .select('name, legal_name, city, region, phone, email, website, qualiopi_certified, caces_activity, nda, zone_departements, created_at')
+      .select('name, legal_name, city, region, phone, email, website, qualiopi_certified, caces_activity, nda, zone_departements, created_at, dirigeant_name, dirigeant_title, activity_kind, ai_profile')
       .limit(1)
       .maybeSingle()
     if (o) {
@@ -24,6 +24,11 @@ export async function loadOrgProfile(admin) {
         qualiopi: !!o.qualiopi_certified,
         caces: !!o.caces_activity,
         nda: o.nda || '',
+        dirigeant: o.dirigeant_name || '',
+        dirigeantTitle: o.dirigeant_title || '',
+        activity: o.activity_kind || '',
+        tutoiement: !!(o.ai_profile && o.ai_profile.tutoiement),
+        presentation: String((o.ai_profile && o.ai_profile.presentation) || '').trim(),
         zone: Array.isArray(o.zone_departements) ? o.zone_departements : [],
         statsSince: String(o.created_at || '').slice(0, 10),
       })
@@ -104,6 +109,7 @@ export function orgIdentityBlock(org) {
   const lines = [
     `- Nom : ${org.name || 'organisme de formation'}${org.legalName && org.legalName !== org.name ? ` (${org.legalName})` : ''}`,
     org.city ? `- Implantation : ${org.city}${org.region ? ` (${org.region})` : ''}` : '',
+    org.dirigeant ? `- Dirigeant : ${org.dirigeant}${org.dirigeantTitle ? `, ${org.dirigeantTitle}` : ''}` : '',
     org.qualiopi ? '- Certifié Qualiopi' : '',
     org.phone || org.email ? `- Contact : ${[org.phone, org.email].filter(Boolean).join(' | ')}` : '',
     org.zone.length ? `- Zone d'intervention : départements ${org.zone.join(', ')}` : '',
@@ -119,10 +125,18 @@ export function orgIdentityBlock(org) {
   const cat = org.catalogue.length
     ? `\n\nCATALOGUE (ne cite que ces formations, avec leurs intitulés exacts) :\n${org.catalogue.map((c) => `- ${c}`).join('\n')}`
     : ''
-  return `IDENTITÉ DE L'ORGANISME :\n${lines.join('\n')}${cat}${figBlock}
+  const pres = org.presentation ? `\n\nPRÉSENTATION (fournie par l'organisme, à reprendre sans l'enrichir) :\n${org.presentation}` : ''
+  return `IDENTITÉ DE L'ORGANISME :\n${lines.join('\n')}${pres}${cat}${figBlock}
 
 RÈGLES DE RÉDACTION :
 - N'invente aucun chiffre, aucune certification${org.qualiopi ? '' : ' (l\'organisme n\'est pas certifié Qualiopi : ne le mentionne pas)'} ni aucune formation absente du catalogue.
 ${org.caces ? '- L\'organisme délivre des CACES : tu peux employer ce terme pour les formations du catalogue qui y préparent.' : '- L\'organisme ne délivre pas de CACES : pour la conduite de chariots ou de gerbeurs, écris « formation à la conduite en vue de la délivrance de l\'autorisation de conduite », jamais « CACES ».'}
 - Pas de tiret long ni d'emoji.`
+}
+
+// Formule d'adresse des emails commerciaux (Paramètres > Identité : « Tutoyer les contacts »)
+export function addressRule(org) {
+  return org?.tutoiement
+    ? '- Tutoie le destinataire (formules : « ton », « ta », « tes »).'
+    : '- Vouvoie le destinataire.'
 }

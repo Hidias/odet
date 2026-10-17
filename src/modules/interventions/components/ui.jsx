@@ -23,7 +23,7 @@ export function DueBadge({ date, short = false }) {
 }
 
 export function Kpi({ value, label, tone = null }) {
-  const color = tone === 'danger' ? 'text-red-700' : tone === 'warning' ? 'text-amber-800' : tone === 'success' ? 'text-green-800' : tone === 'info' ? 'text-blue-800' : 'text-gray-900'
+  const color = tone === 'danger' ? 'text-[rgb(var(--c-danger))]' : tone === 'warning' ? 'text-[rgb(var(--c-warning))]' : tone === 'success' ? 'text-[rgb(var(--c-success))]' : tone === 'info' ? 'text-[rgb(var(--c-info))]' : 'text-gray-900'
   return (
     <div className="card flex flex-col" style={{ padding: 'var(--space-3)' }}>
       <span className={`font-display font-semibold text-xl ${color}`}>{value}</span>
@@ -107,19 +107,19 @@ function ScanModal({ onClose, onCode }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Scanner une étiquette">
-      <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-3" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+      <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-ui-lg p-4 space-y-3" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <div className="flex items-center justify-between">
           <h2 className="section-title">Scanner une étiquette</h2>
           <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Fermer"><X className="w-5 h-5" /></button>
         </div>
         {camera !== 'unsupported' && camera !== 'denied' && (
-          <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-square">
+          <div className="relative rounded-ui overflow-hidden bg-gray-900 aspect-square">
             <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-            <div className="absolute inset-10 border-2 border-white/80 rounded-xl pointer-events-none" />
+            <div className="absolute inset-10 border-2 border-white/80 rounded-ui pointer-events-none" />
           </div>
         )}
         {(camera === 'unsupported' || camera === 'denied') && (
-          <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-ui-sm text-gray-700 flex gap-2">
+          <div className="rounded-ui bg-gray-50 border border-gray-200 p-3 text-ui-sm text-gray-700 flex gap-2">
             <Camera className="w-5 h-5 flex-none text-gray-500" />
             <span>{camera === 'denied' ? 'Accès à la caméra refusé.' : 'Ce navigateur ne lit pas les QR codes.'} Ouvrez l'appareil photo du téléphone et visez l'étiquette : la fiche s'ouvre directement. Ou tapez le code ci-dessous.</span>
           </div>
@@ -139,7 +139,7 @@ export function Sheet({ title, onClose, children, footer, wide = false }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={title}
       onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}>
-      <div className={`bg-white w-full ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'} rounded-t-2xl sm:rounded-2xl flex flex-col max-h-[92vh]`}>
+      <div className={`bg-white w-full ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'} rounded-t-2xl sm:rounded-ui-lg flex flex-col max-h-[92vh]`}>
         <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-gray-100">
           <h2 className="section-title">{title}</h2>
           <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Fermer"><X className="w-5 h-5" /></button>
