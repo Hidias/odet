@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { LiberationSans_Regular } from '../../../core/pdf/fonts/LiberationSans-Regular.js'
 import { LiberationSans_Bold } from '../../../core/pdf/fonts/LiberationSans-Bold.js'
 import { buildORG } from '../../../core/org/orgUtils'
+import { computeDocumentTotals, round2 } from '../../../core/billing/totals'
 import { renderCommercialDoc, itemRow, fmtMoney, fmtEuro, fmtRate, issuerLines, recipientLines, companyLegalLine, bankRows } from './commercialLayout'
 
 // Facture et avoir sur la mise en page commune des documents.
@@ -71,43 +72,23 @@ async function loadLogo(L) {
 // ============================================================
 // CALCULS PARTAGES
 // ============================================================
+// Totaux : calcul unique de src/core/billing/totals.js (arrondi au centime par ligne puis par taux,
+// taux de 0 % respecté), même résultat que le Factur-X.
 export function calcInvoiceTotals(items, discountPercent, tvaApplicable) {
-  var subtotalHt = items.reduce(function (s, it) {
-    return s + (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price_ht) || 0)
-  }, 0)
-
-  var dp = parseFloat(discountPercent) || 0
-  var da = subtotalHt * dp / 100
-  var netHt = subtotalHt - da
-
+  var t = computeDocumentTotals(items || [], { discountPercent: discountPercent, vatApplicable: tvaApplicable !== false })
   var tvaByRate = {}
-  items.forEach(function (it) {
-    var rate = parseFloat(it.tva_rate) || 20
-    var lht = (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price_ht) || 0)
-    if (!tvaByRate[rate]) tvaByRate[rate] = { base: 0, tva: 0 }
-    tvaByRate[rate].base += lht
+  t.breakdown.forEach(function (g) {
+    var k = String(g.rate)
+    if (!tvaByRate[k]) tvaByRate[k] = { base: 0, tva: 0 }
+    tvaByRate[k].base = round2(tvaByRate[k].base + g.base)
+    tvaByRate[k].tva = round2(tvaByRate[k].tva + g.tax)
   })
-
-  if (dp > 0) {
-    Object.keys(tvaByRate).forEach(function (r) {
-      tvaByRate[r].base -= tvaByRate[r].base * dp / 100
-    })
-  }
-
-  var totalTva = 0
-  if (tvaApplicable !== false) {
-    Object.keys(tvaByRate).forEach(function (r) {
-      tvaByRate[r].tva = tvaByRate[r].base * parseFloat(r) / 100
-      totalTva += tvaByRate[r].tva
-    })
-  }
-
   return {
-    subtotalHt: subtotalHt,
-    discountAmt: da,
-    netHt: netHt,
-    totalTva: totalTva,
-    totalTtc: netHt + totalTva,
+    subtotalHt: t.lineTotal,
+    discountAmt: t.allowanceTotal,
+    netHt: t.taxBasis,
+    totalTva: t.taxTotal,
+    totalTtc: t.grandTotal,
     tvaByRate: tvaByRate
   }
 }
