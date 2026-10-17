@@ -12,11 +12,15 @@ async function resolveAccess(authUser) {
   const email = authUser?.email?.toLowerCase()
   if (!email) return null
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', authUser.id)
     .maybeSingle()
+  // Lecture refusée ou échouée (jeton pas encore posé, réseau) : ce n'est pas un refus d'accès.
+  // Depuis le chantier 2, un visiteur sans jeton ne lit plus les profils : sans cette garde,
+  // une lecture partie trop tôt pendant la connexion déconnectait le compte.
+  if (profileError) return { transient: true }
 
   if (profile && profile.is_active === false) return null
   if (profile?.role) return { role: profile.role, profile }
@@ -57,7 +61,16 @@ export const useAuthStore = create((set, get) => ({
       set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
       return false
     }
-    const access = await resolveAccess(session.user)
+    let access = await resolveAccess(session.user)
+    for (let i = 0; access?.transient && i < 2; i++) {
+      await new Promise((r) => setTimeout(r, 400))
+      access = await resolveAccess(session.user)
+    }
+    if (access?.transient) {
+      // Pas de déconnexion sur une erreur passagère : le compte reste connecté, l'écran demande de recharger
+      set({ error: 'Connexion momentanément impossible : rechargez la page.' })
+      return false
+    }
     if (!access) {
       await supabase.auth.signOut()
       set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
@@ -98,9 +111,12 @@ export const useAuthStore = create((set, get) => ({
           return
         }
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-          if (!get().user || get().user.id !== session?.user?.id) {
-            await get().applySession(session)
-          }
+          // Pendant login(), c'est login() qui applique la session (évite deux applications concurrentes).
+          // Appel différé : la bibliothèque déconseille d'interroger la base dans ce rappel.
+          if (get().loggingIn) return
+          setTimeout(() => {
+            if (!get().user || get().user.id !== session?.user?.id) get().applySession(session)
+          }, 0)
         }
       })
     } catch (error) {
@@ -109,13 +125,18 @@ export const useAuthStore = create((set, get) => ({
   },
 
   login: async (email, password) => {
-    set({ loading: true, error: null })
+    set({ loading: true, error: null, loggingIn: true })
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      set({ loading: false, error: error.message })
+      set({ loading: false, error: error.message, loggingIn: false })
       return { error: error.message }
     }
     const ok = await get().applySession(data.session)
+    set({ loggingIn: false })
+    if (!ok && get().error) {
+      set({ loading: false })
+      return { error: get().error }
+    }
     if (!ok) {
       set({ loading: false, error: 'Ce compte n\'a pas accès à cette instance' })
       return { error: 'Ce compte n\'a pas accès à cette instance' }
@@ -127,6 +148,9 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     await supabase.auth.signOut()
     set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
+    // Les données chargées restent en mémoire : un rechargement complet évite que le compte suivant
+    // les voie dans le même onglet avant que la base ne les filtre.
+    try { window.location.replace(`${window.location.pathname}#/login`); window.location.reload() } catch { /* hors navigateur */ }
   },
 
   refreshModules: async () => {
