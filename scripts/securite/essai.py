@@ -133,3 +133,22 @@ assert not re.search(r'^\s*commit\s*;', text2, re.I | re.M)
 out2 = root / 'supabase' / 'tests' / 'essai_retour_chantier2_transaction_annulee.sql'
 out2.write_text(text2, encoding='utf-8')
 print(f"{out2.relative_to(root)} : {len(text2)} caractères")
+
+# Fichier d'application (lundi) : les migrations seules, en un seul envoi dans l'éditeur SQL.
+# Exécuté dans une seule transaction implicite : si une instruction échoue, rien n'est appliqué.
+p3 = ["""-- FICHIER GÉNÉRÉ par scripts/securite/essai.py : ne pas modifier à la main.
+-- APPLICATION RÉELLE du chantier 2 : migrations 0080 à 0087 en un seul envoi (éditeur SQL de Supabase).
+-- Une seule transaction implicite : si une instruction échoue, rien n'est appliqué.
+-- À n'exécuter qu'avec l'accord écrit de Hicham, selon la procédure de odet-chantier2-securite.md § 7.
+-- Retour arrière : supabase/rollback/0080-0087_securite_retour.sql
+select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '180s', true);
+"""]
+for f in mig:
+    p3.append(f"\n-- ===== {f.name} =====\n")
+    p3.append(f.read_text(encoding='utf-8'))
+text3 = "".join(p3)
+assert not re.search(r'^\s*commit\s*;', text3, re.I | re.M)
+out3 = root / 'supabase' / 'application' / 'chantier2_0080-0087.sql'
+out3.parent.mkdir(exist_ok=True)
+out3.write_text(text3, encoding='utf-8')
+print(f"{out3.relative_to(root)} : {len(text3)} caractères")
