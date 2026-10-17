@@ -245,11 +245,14 @@ t('budget_transactions', module=FIN_MOD, sel=f"({roles(FIN)} and {private_ok})",
   dele=f"({roles(FIN)} and {private_ok})")
 
 # Qualité (registres coupés avec le module ; documents qualité toujours lisibles)
-for n in ['non_conformites', 'non_conformities', 'reclamations', 'psh_requests', 'quality_alerts', 'veille_qualiopi',
+for n in ['non_conformites', 'non_conformities', 'reclamations', 'quality_alerts', 'veille_qualiopi',
           'veille_sources', 'processes', 'process_categories', 'process_connections', 'process_responsibles',
           'process_steps', 'process_versions', 'audits_internes', 'rgpd_traitements', 'bpf_declarations',
           'qualiopi_indicators']:
     t(n, module='qualite', sel=roles(STAFF), ins=roles(EDIT), upd=roles(MGR), dele=roles(MGR))
+# Registre PSH (handicap, donnée de santé) : direction et référent handicap seulement (ajout du chantier F, 17/10)
+HANDI = "(select app.can_see_disability())"
+t('psh_requests', module='qualite', sel=HANDI, ins=HANDI, upd=HANDI, dele=HANDI)
 for n in ['quality_documents', 'qualiopi_documents']:
     t(n, sel=roles(INT), ins=roles(MGR), upd=roles(MGR), dele=roles(MGR))
 t('quality_doc_versions', sel=roles(INT), ins=roles(['superadmin', 'admin', 'direction']))
@@ -309,7 +312,7 @@ def build():
 --   * les rôles sont lus par app.role(), évaluée une fois par requête ;
 --   * un module désactivé rend ses tables inaccessibles, sauf au super administrateur en lecture ;
 --   * anon ne lit et n'écrit plus aucune table : les portails passent par des fonctions à jeton.
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 @@GRP@@
 -- Aucune table pour anon ; les nouvelles tables non plus
@@ -406,25 +409,39 @@ $f$;
         out.append(f"select pg_temp.regles({arr}, {lit(module)},\n"
                    f"  {lit(sel)},\n  {lit(ins)},\n  {lit(upd)},\n  {lit(dele)});")
     # Passeport de prévention (module passeport, chantier 16) : tables pp_* créées par 0190.
-    # Ligne de matrice validée le 14/10 : SA·AD et DIR·GES lisent, créent, modifient, suppriment ;
-    # tous les autres : aucun accès ; pp_nir : serveur seulement (aucune règle).
-    # Les noms exacts ne sont connus qu'à l'application : la règle s'applique à toutes les tables pp_*.
+    # Ligne de matrice du 14/10 : SA·AD et DIR·GES ; tous les autres : aucun accès ; pp_nir : serveur seulement.
+    # On garde le modèle du Passeport (17/10) : lecture par pp_can_read(), écritures par ses fonctions
+    # contrôlées, sauf pp_course_settings (réglages par formation) écrit directement par pp_can().
+    # Seuls changements : une règle par action (pp_course_settings avait deux règles de lecture),
+    # appels en (select ...), et compte désactivé exclu.
     out.append("""
 -- pp_* : Passeport de prévention (module passeport) ; pp_nir : serveur seulement
 do $$
 declare r record;
 begin
+  if to_regprocedure('public.pp_can()') is null then
+    return;
+  end if;
   for r in select p.tablename, p.policyname from pg_policies p
            where p.schemaname = 'public' and p.tablename like 'pp\\_%' loop
     execute format('drop policy %I on public.%I', r.policyname, r.tablename);
   end loop;
   for r in select tablename from pg_tables where schemaname = 'public' and tablename like 'pp\\_%' loop
+    execute format('alter table public.%I enable row level security', r.tablename);
+    execute format('revoke all on table public.%I from anon', r.tablename);
     if r.tablename = 'pp_nir' then
-      execute 'alter table public.pp_nir enable row level security';
-      execute 'revoke all on table public.pp_nir from anon, authenticated';
-    else
-      perform pg_temp.regles(array[r.tablename], 'passeport',
-        '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))');
+      execute 'revoke all on table public.pp_nir from authenticated';
+      continue;
+    end if;
+    execute format('create policy %I on public.%I for select to authenticated using ((select public.pp_can_read()) and (select app.role()) is not null)',
+                   r.tablename || '_lire', r.tablename);
+    if r.tablename = 'pp_course_settings' then
+      execute format('create policy %I on public.%I for insert to authenticated with check ((select public.pp_can()) and (select app.role()) is not null)',
+                     r.tablename || '_creer', r.tablename);
+      execute format('create policy %I on public.%I for update to authenticated using ((select public.pp_can()) and (select app.role()) is not null) with check ((select public.pp_can()) and (select app.role()) is not null)',
+                     r.tablename || '_modifier', r.tablename);
+      execute format('create policy %I on public.%I for delete to authenticated using ((select public.pp_can()) and (select app.role()) is not null)',
+                     r.tablename || '_supprimer', r.tablename);
     end if;
   end loop;
 end $$;""")

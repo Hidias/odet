@@ -289,7 +289,7 @@ export default function CompteRenduModal({ rdv, client, analysisData: analysisDa
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-ui-sm max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b flex items-center justify-between bg-primary-600 text-white">
           <h2 className="text-xl font-bold flex items-center gap-2">
@@ -306,13 +306,13 @@ export default function CompteRenduModal({ rdv, client, analysisData: analysisDa
           {step === 'notes' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-ui font-medium text-gray-700 mb-2">
                    Notes de RDV (en vrac)
                 </label>
                 <textarea
                   value={notesCRM}
                   onChange={(e) => setNotesCRM(e.target.value)}
-                  className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  className="w-full h-64 px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500"
                   placeholder="Tape tes notes en vrac ici...
 Exemple :
 - Besoin formation nouveaux entrants
@@ -324,19 +324,19 @@ Exemple :
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-ui font-medium text-gray-700 mb-2">
                    Documents à joindre
                 </label>
                 
                 
                 {/* Upload de fichiers */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 mb-3">
+                <div className="border-2 border-dashed border-gray-300 rounded-ui-sm p-4 mb-3">
                   <label className="flex flex-col items-center cursor-pointer">
                     <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-600 text-center">
+                    <span className="text-ui text-gray-600 text-center">
                       Ajouter des fichiers (analyse PDF, INRS, brochures, devis...)
                       <br />
-                      <span className="text-xs text-gray-500">Max 10MB par fichier • PDF, Word, Excel, Images</span>
+                      <span className="text-ui-sm text-gray-500">Max 10MB par fichier • PDF, Word, Excel, Images</span>
                     </span>
                     <input
                       type="file"
@@ -351,13 +351,13 @@ Exemple :
                 {/* Liste des fichiers uploadés */}
                 {uploadedFiles.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-gray-700">Fichiers ajoutés :</p>
+                    <p className="text-ui-sm font-medium text-gray-700">Fichiers ajoutés :</p>
                     {uploadedFiles.map(file => (
-                      <div key={file.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                      <div key={file.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-ui-sm">
                         <div className="flex items-center gap-2">
                           <FileText className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm">{file.name}</span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-ui">{file.name}</span>
+                          <span className="text-ui-sm text-gray-500">
                             ({(file.size / 1024).toFixed(0)} KB)
                           </span>
                         </div>
@@ -366,7 +366,7 @@ Exemple :
                           className="p-1 hover:bg-gray-200 rounded"
                           title="Supprimer"
                         >
-                          <Trash2 className="w-4 h-4 text-red-600" />
+                          <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                         </button>
                       </div>
                     ))}
@@ -377,7 +377,7 @@ Exemple :
               <button
                 onClick={handleGenerate}
                 disabled={loading || !notesCRM.trim()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 disabled:opacity-50"
               >
                 {loading ? <Loader className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
                 Générer le compte-rendu
@@ -395,38 +395,38 @@ Exemple :
           {step === 'preview' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Destinataire</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Destinataire</label>
                 <input
                   type="email"
                   value={toEmail}
                   onChange={(e) => setToEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Objet</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Objet</label>
                 <input
                   type="text"
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Corps du mail</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Corps du mail</label>
                 <textarea
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
-                  className="w-full h-96 px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
+                  className="w-full h-96 px-3 py-2 border border-gray-300 rounded-ui-sm font-mono text-ui"
                 />
               </div>
 
               {uploadedFiles.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-blue-900 mb-2"> Pièces jointes ({uploadedFiles.length}) :</p>
-                  <ul className="text-sm text-blue-800 space-y-1">
+                <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3">
+                  <p className="text-ui font-medium text-[rgb(var(--c-info))] mb-2"> Pièces jointes ({uploadedFiles.length}) :</p>
+                  <ul className="text-ui text-[rgb(var(--c-info))] space-y-1">
                     {uploadedFiles.map(file => (
                       <li key={file.id}>• {file.name}</li>
                     ))}
@@ -437,14 +437,14 @@ Exemple :
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep('notes')}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-ui-sm hover:bg-gray-50"
                 >
                   ← Retour
                 </button>
                 <button
                   onClick={handleSend}
                   disabled={loading}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 btn btn-secondary disabled:opacity-50"
                 >
                   {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                   Envoyer
@@ -455,25 +455,25 @@ Exemple :
 
           {step === 'sending' && (
             <div className="flex flex-col items-center justify-center py-12">
-              <Loader className="w-12 h-12 text-green-600 animate-spin mb-4" />
+              <Loader className="w-12 h-12 text-[rgb(var(--c-success))] animate-spin mb-4" />
               <p className="text-gray-600">Envoi en cours...</p>
             </div>
           )}
 
           {step === 'sent' && (
             <div className="flex flex-col items-center justify-center py-12">
-              <CheckCircle className="w-16 h-16 text-green-600 mb-4" />
+              <CheckCircle className="w-16 h-16 text-[rgb(var(--c-success))] mb-4" />
               <p className="text-xl font-semibold text-gray-900 mb-2">Email envoyé !</p>
               <p className="text-gray-600">L'email apparaîtra dans vos messages envoyés</p>
             </div>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] rounded-ui-sm p-4 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-[rgb(var(--c-danger))] flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-red-800">Erreur</p>
-                <p className="text-sm text-red-700">{error}</p>
+                <p className="text-ui font-medium text-[rgb(var(--c-danger))]">Erreur</p>
+                <p className="text-ui text-[rgb(var(--c-danger))]">{error}</p>
               </div>
             </div>
           )}

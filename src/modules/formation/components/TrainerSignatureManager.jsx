@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Upload, Trash2, RotateCcw, Check, Pen, Image as ImageIcon, X } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import toast from 'react-hot-toast'
+import { readableUrl } from '../../../core/storageUtils'
 
 export default function TrainerSignatureManager({ trainer, onUpdate }) {
   const [mode, setMode] = useState('draw') // 'draw' ou 'upload'
@@ -9,6 +10,14 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
   const [hasDrawn, setHasDrawn] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [currentSignature, setCurrentSignature] = useState(trainer?.signature_url || null)
+  // Bucket privé : l'image s'affiche par un lien signé de courte durée
+  const [signatureSrc, setSignatureSrc] = useState(null)
+  useEffect(() => {
+    let alive = true
+    setSignatureSrc(null)
+    if (currentSignature) readableUrl(currentSignature).then((u) => { if (alive) setSignatureSrc(u) })
+    return () => { alive = false }
+  }, [currentSignature])
   
   const canvasRef = useRef(null)
   const ctxRef = useRef(null)
@@ -271,34 +280,34 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
     <div className="space-y-4">
       {/* Titre et description */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-ui font-medium text-gray-700 mb-1">
           Signature du formateur
         </label>
-        <p className="text-xs text-gray-500">
+        <p className="text-ui-sm text-gray-500">
           Cette signature apparaîtra sur les certificats SST
         </p>
       </div>
 
       {/* Aperçu signature actuelle */}
       {currentSignature && (
-        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+        <div className="bg-[rgb(var(--c-success-bg))] border-2 border-[rgb(var(--c-success)/0.3)] rounded-ui-sm p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-green-800 flex items-center gap-2">
+            <span className="text-ui font-medium text-[rgb(var(--c-success))] flex items-center gap-2">
               <Check className="w-4 h-4" />
               Signature enregistrée
             </span>
             <button
               onClick={deleteSignature}
               disabled={uploading}
-              className="text-red-600 hover:text-red-700 text-sm flex items-center gap-1 disabled:opacity-50"
+              className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] text-ui flex items-center gap-1 disabled:opacity-50"
             >
               <Trash2 className="w-4 h-4" />
               Supprimer
             </button>
           </div>
-          <div className="flex items-center justify-center bg-white rounded p-4 border border-green-200">
+          <div className="flex items-center justify-center bg-white rounded p-4 border border-[rgb(var(--c-success)/0.3)]">
             <img 
-              src={currentSignature} 
+              src={signatureSrc || undefined} 
               alt="Signature actuelle" 
               className="max-h-24 object-contain"
             />
@@ -310,9 +319,9 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
       <div className="flex gap-2 border-b border-gray-200">
         <button
           onClick={() => setMode('draw')}
-          className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 text-ui font-medium transition-colors flex items-center gap-2 ${
             mode === 'draw'
-              ? 'text-blue-600 border-b-2 border-blue-600'
+              ? 'text-[rgb(var(--c-info))] border-b-2 border-[rgb(var(--c-info)/0.3)]'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -321,9 +330,9 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
         </button>
         <button
           onClick={() => setMode('upload')}
-          className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 text-ui font-medium transition-colors flex items-center gap-2 ${
             mode === 'upload'
-              ? 'text-blue-600 border-b-2 border-blue-600'
+              ? 'text-[rgb(var(--c-info))] border-b-2 border-[rgb(var(--c-info)/0.3)]'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -336,7 +345,7 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
       {mode === 'draw' && (
         <div className="space-y-3">
           {/* Canvas */}
-          <div className="border-2 border-gray-300 rounded-lg bg-white">
+          <div className="border-2 border-gray-300 rounded-ui-sm bg-white">
             <canvas
               ref={canvasRef}
               onMouseDown={startDrawing}
@@ -381,8 +390,8 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
           </div>
 
           {/* Conseils */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-xs text-blue-800">
+          <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3">
+            <p className="text-ui-sm text-[rgb(var(--c-info))]">
               <strong> Conseil :</strong> Signez lentement pour un trait net. 
               Sur mobile, orientez l'écran en mode paysage pour plus d'espace.
             </p>
@@ -397,27 +406,27 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
             htmlFor="signature-file-upload"
             className={`
               flex flex-col items-center justify-center w-full h-40 
-              border-2 border-dashed rounded-lg cursor-pointer
+              border-2 border-dashed rounded-ui-sm cursor-pointer
               transition-colors
               ${uploading 
                 ? 'border-gray-300 bg-gray-50 cursor-not-allowed' 
-                : 'border-gray-300 hover:border-blue-500 bg-gray-50 hover:bg-blue-50'
+                : 'border-gray-300 hover:border-[rgb(var(--c-info)/0.3)] bg-gray-50 hover:bg-[rgb(var(--c-info-bg))]'
               }
             `}
           >
             <div className="flex flex-col items-center justify-center pt-5 pb-6">
               {uploading ? (
                 <>
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                  <p className="text-sm text-gray-600">Import en cours...</p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(var(--c-info)/0.3)] mb-2"></div>
+                  <p className="text-ui text-gray-600">Import en cours...</p>
                 </>
               ) : (
                 <>
                   <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-600">
-                    <span className="font-semibold text-blue-600">Cliquez pour importer</span> ou glissez-déposez
+                  <p className="text-ui text-gray-600">
+                    <span className="font-semibold text-[rgb(var(--c-info))]">Cliquez pour importer</span> ou glissez-déposez
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG (max. 2MB)</p>
+                  <p className="text-ui-sm text-gray-500 mt-1">PNG, JPG (max. 2MB)</p>
                 </>
               )}
             </div>
@@ -432,8 +441,8 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
           </label>
 
           {/* Conseils */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-xs text-blue-800">
+          <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3">
+            <p className="text-ui-sm text-[rgb(var(--c-info))]">
               <strong> Conseil :</strong> Utilisez une signature sur fond blanc transparent (PNG) 
               ou fond blanc uni. Dimensions recommandées : 400x150 pixels.
             </p>

@@ -1,3 +1,4 @@
+import { toneStyle } from '../../../ui/StatusBadge'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
@@ -23,12 +24,12 @@ import { publishedDocPDF } from '../../qualite/richdocs/published'
 
 const STATUS_CONFIG = {
   draft: { label: 'Brouillon', class: 'bg-gray-100 text-gray-700', icon: '' },
-  sent: { label: 'Envoyé', class: 'bg-blue-100 text-blue-700', icon: '' },
-  accepted: { label: 'Accepté', class: 'bg-green-100 text-green-700', icon: '' },
-  refused: { label: 'Refusé', class: 'bg-red-100 text-red-700', icon: '' },
-  expired: { label: 'Expiré', class: 'bg-orange-100 text-orange-700', icon: '' },
-  partial: { label: 'Partiellement accepté', class: 'bg-yellow-100 text-yellow-700', icon: '' },
-  invoiced: { label: 'Facturé', class: 'bg-purple-100 text-purple-700', icon: '' }
+  sent: { label: 'Envoyé', class: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', icon: '' },
+  accepted: { label: 'Accepté', class: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]', icon: '' },
+  refused: { label: 'Refusé', class: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]', icon: '' },
+  expired: { label: 'Expiré', class: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', icon: '' },
+  partial: { label: 'Partiellement accepté', class: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', icon: '' },
+  invoiced: { label: 'Facturé', class: 'bg-gray-100 text-gray-800', icon: '' }
 }
 
 const PAYMENT_METHODS = [
@@ -125,19 +126,19 @@ function SignaturePad({ value, onChange, onClear }) {
 
   return (
     <div>
-      <div className="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-white relative">
+      <div className="border-2 border-dashed border-gray-300 rounded-ui-sm overflow-hidden bg-white relative">
         <canvas ref={canvasRef} className="w-full cursor-crosshair"
           style={{ height: '120px', touchAction: 'none' }}
           onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
           onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw} />
         {!hasDrawn && !value && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <p className="text-gray-300 text-sm flex items-center gap-2"><Pen size={16} /> Signez ici</p>
+            <p className="text-gray-300 text-ui flex items-center gap-2"><Pen size={16} /> Signez ici</p>
           </div>
         )}
       </div>
       {(hasDrawn || value) && (
-        <button onClick={clearCanvas} className="mt-1 text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
+        <button onClick={clearCanvas} className="mt-1 text-ui-sm text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] flex items-center gap-1">
           <X size={12} /> Effacer la signature
         </button>
       )}
@@ -952,13 +953,13 @@ export default function Quotes() {
       {/* Modale relance IA - preview + édition avant envoi */}
       {previewData && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-ui-lg shadow-md w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">
                   {previewData.relanceNum === 1 ? '1ère' : previewData.relanceNum === 2 ? '2ème' : '3ème'} relance - {previewData.quote?.clients?.name || previewData.quote?.reference}
                 </h2>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="text-ui text-gray-500 mt-0.5">
                   {previewData.isFallback ? ' Généré sans IA (fallback)' : ` Généré par IA · ton ${previewData.tone || 'courtois'}`}
                 </p>
               </div>
@@ -969,52 +970,52 @@ export default function Quotes() {
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Destinataire</label>
-                <p className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">{previewData.clientEmail}</p>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Destinataire</label>
+                <p className="text-ui text-gray-600 bg-gray-50 px-3 py-2 rounded-ui-sm">{previewData.clientEmail}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Objet</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Objet</label>
                 <input
                   type="text"
                   value={relanceEdit.subject}
                   onChange={e => setRelanceEdit(prev => ({ ...prev, subject: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-300 focus:border-primary-400"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-300 focus:border-primary-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Corps du message</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Corps du message</label>
                 <textarea
                   value={relanceEdit.body}
                   onChange={e => setRelanceEdit(prev => ({ ...prev, body: e.target.value }))}
                   rows={12}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-sans focus:ring-2 focus:ring-primary-300 focus:border-primary-400"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui font-sans focus:ring-2 focus:ring-primary-300 focus:border-primary-400"
                 />
               </div>
 
-              <p className="text-xs text-gray-400">La signature sera ajoutée automatiquement depuis votre compte email.</p>
+              <p className="text-ui-sm text-gray-400">La signature sera ajoutée automatiquement depuis votre compte email.</p>
             </div>
 
             <div className="p-6 border-t border-gray-100 space-y-3">
               {!relanceConfirmed ? (
                 <div className="flex items-center justify-between gap-3">
-                  <button onClick={cancelPreview} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  <button onClick={cancelPreview} className="px-4 py-2 text-ui text-gray-600 hover:text-gray-800 border border-gray-200 rounded-ui-sm hover:bg-gray-50">
                     Annuler
                   </button>
                   <button
                     onClick={() => setRelanceConfirmed(true)}
-                    className="px-6 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 flex items-center gap-2"
+                    className="btn btn-secondary text-ui font-medium rounded-ui-sm hover:bg-[rgb(var(--c-warning))] flex items-center gap-2"
                   >
                     <Send size={15} /> Préparer l'envoi…
                   </button>
                 </div>
               ) : (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-3">
-                  <p className="text-sm font-semibold text-red-700"> Confirmer l'envoi vers <span className="underline">{previewData.clientEmail}</span> ?</p>
-                  <p className="text-xs text-red-600">L'email sera envoyé immédiatement et ne pourra pas être annulé.</p>
+                <div className="bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] rounded-ui-sm p-3 space-y-3">
+                  <p className="text-ui font-semibold text-[rgb(var(--c-danger))]"> Confirmer l'envoi vers <span className="underline">{previewData.clientEmail}</span> ?</p>
+                  <p className="text-ui-sm text-[rgb(var(--c-danger))]">L'email sera envoyé immédiatement et ne pourra pas être annulé.</p>
                   <div className="flex items-center justify-between gap-3">
-                    <button onClick={() => setRelanceConfirmed(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-50">
+                    <button onClick={() => setRelanceConfirmed(false)} className="px-4 py-2 text-ui text-gray-600 hover:text-gray-800 border border-gray-200 rounded-ui-sm hover:bg-gray-50">
                       ← Modifier
                     </button>
                     <button
@@ -1022,7 +1023,7 @@ export default function Quotes() {
                         const ok = await confirmSend(relanceEdit.subject, relanceEdit.body)
                         if (ok) { setRelanceConfirmed(false); loadAll() }
                       }}
-                      className="px-6 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 flex items-center gap-2"
+                      className="px-6 py-2 bg-[rgb(var(--c-danger))] text-white text-ui font-bold rounded-ui-sm hover:bg-[rgb(var(--c-danger))] flex items-center gap-2"
                     >
                       <Send size={15} /> OUI - Envoyer maintenant
                     </button>
@@ -1041,11 +1042,11 @@ export default function Quotes() {
       <div className="p-6 max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Devis</h1>
-            <p className="text-sm text-gray-500 mt-1">{filteredQuotes.length} devis</p>
+            <h1 className="page-title">Devis</h1>
+            <p className="text-ui text-gray-500 mt-1">{filteredQuotes.length} devis</p>
           </div>
           <button onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium">
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 transition-colors font-medium">
             <Plus size={18} /> Nouveau devis
           </button>
         </div>
@@ -1054,10 +1055,10 @@ export default function Quotes() {
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" placeholder="Référence, client, ville, SIRET, objet..."
               value={search} onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" />
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500" />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+            className="px-4 py-2.5 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500">
             <option value="">Tous les statuts</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => (
               <option key={k} value={k}>{v.icon} {v.label}</option>
@@ -1075,9 +1076,9 @@ export default function Quotes() {
             const ca = !s.status ? quotes.filter(q => q.status === 'sent' || q.status === 'accepted')
               .reduce((sum, q) => sum + (q.total_ttc || 0), 0) : null
             return (
-              <div key={i} className={`bg-white p-4 rounded-xl border border-${s.color}-100`}>
-                <p className="text-xs text-gray-500 mb-1">{s.label}</p>
-                <p className={`text-xl font-bold text-${s.color}-600`}>
+              <div key={i} className={`bg-white p-4 rounded-ui border`} style={toneStyle(s.color, { bg: false, text: false, border: true })}>
+                <p className="text-ui-sm text-gray-500 mb-1">{s.label}</p>
+                <p className={`text-xl font-bold`} style={toneStyle(s.color, { bg: false })}>
                   {s.status !== null ? count : money(ca)}
                 </p>
               </div>
@@ -1086,32 +1087,32 @@ export default function Quotes() {
         </div>
         {/* Bandeau relance devis > 7j */}
         {quotesRelance.length > 0 && (
-          <div className="bg-orange-50 border-2 border-orange-300 rounded-xl px-4 py-3 mb-4">
+          <div className="bg-[rgb(var(--c-warning-bg))] border-2 border-[rgb(var(--c-warning)/0.3)] rounded-ui px-4 py-3 mb-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-bold text-orange-800"> {quotesRelance.length} devis envoyé{quotesRelance.length > 1 ? 's' : ''} sans réponse depuis plus de 7 jours</h3>
-              <button onClick={() => setStatusFilter('sent')} className="text-xs text-orange-600 hover:text-orange-800 underline">Voir tous les envoyés</button>
+              <h3 className="text-ui font-bold text-[rgb(var(--c-warning))]"> {quotesRelance.length} devis envoyé{quotesRelance.length > 1 ? 's' : ''} sans réponse depuis plus de 7 jours</h3>
+              <button onClick={() => setStatusFilter('sent')} className="text-ui-sm text-[rgb(var(--c-warning))] hover:text-[rgb(var(--c-warning))] underline">Voir tous les envoyés</button>
             </div>
             <div className="space-y-1.5">
               {quotesRelance.slice(0, 5).map(q => (
-                <div key={q.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-orange-200">
+                <div key={q.id} className="flex items-center justify-between bg-white rounded-ui-sm px-3 py-2 border border-[rgb(var(--c-warning)/0.3)]">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-xs font-mono text-gray-400">{q.reference}</span>
-                    <span className="font-medium text-gray-900 text-sm truncate">{q.clients?.name || '?'}</span>
-                    <span className="text-sm font-semibold text-gray-700">{money(q.total_ht)} HT</span>
+                    <span className="text-ui-sm font-mono text-gray-400">{q.reference}</span>
+                    <span className="font-medium text-gray-900 text-ui truncate">{q.clients?.name || '?'}</span>
+                    <span className="text-ui font-semibold text-gray-700">{money(q.total_ht)} HT</span>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${q.daysSinceSent >= 15 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                    <span className={`text-ui-sm font-medium px-2 py-0.5 rounded-full ${q.daysSinceSent >= 15 ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>
                       {q.daysSinceSent}j
                     </span>
                     <button onClick={(e) => { e.stopPropagation(); relanceQuote(q, { senderName: q.created_by || currentUserName() }) }}
                       disabled={relanceGenerating === q.id}
-                      className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium flex items-center gap-1 disabled:opacity-60">
+                      className="text-ui-sm btn btn-secondary font-medium flex items-center gap-1 disabled:opacity-60">
                       {relanceGenerating === q.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Relancer
                     </button>
                   </div>
                 </div>
               ))}
-              {quotesRelance.length > 5 && <p className="text-xs text-orange-500 text-center">+{quotesRelance.length - 5} autre(s)</p>}
+              {quotesRelance.length > 5 && <p className="text-ui-sm text-[rgb(var(--c-warning))] text-center">+{quotesRelance.length - 5} autre(s)</p>}
             </div>
           </div>
         )}
@@ -1125,12 +1126,12 @@ export default function Quotes() {
         ) : (
           <div className="space-y-2">
             {filteredQuotes.map(q => (
-              <div key={q.id} onClick={() => openView(q)} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div key={q.id} onClick={() => openView(q)} className="bg-white rounded-ui border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
-                      <span className="text-sm font-mono text-gray-500">{q.reference}</span>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_CONFIG[q.status]?.class || 'bg-gray-100'}`}>
+                      <span className="text-ui font-mono text-gray-500">{q.reference}</span>
+                      <span className={`px-2 py-0.5 rounded text-ui-sm font-medium ${STATUS_CONFIG[q.status]?.class || 'bg-gray-100'}`}>
                         {STATUS_CONFIG[q.status]?.icon} {STATUS_CONFIG[q.status]?.label || q.status}
                       </span>
                       {(() => {
@@ -1138,12 +1139,12 @@ export default function Quotes() {
                         const sentDate = q.updated_at || q.quote_date || q.created_at
                         const days = sentDate ? Math.floor((Date.now() - new Date(sentDate).getTime()) / 86400000) : 0
                         if (days < 7) return null
-                        return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${days >= 15 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}> {days}j sans réponse</span>
+                        return <span className={`px-2 py-0.5 rounded-full text-ui-sm font-medium ${days >= 15 ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}> {days}j sans réponse</span>
                       })()}
                     </div>
                     <h3 className="font-semibold text-gray-900">{q.clients?.name || 'Client inconnu'}</h3>
-                    {q.object && <p className="text-sm text-gray-500 truncate mt-0.5">{q.object}</p>}
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                    {q.object && <p className="text-ui text-gray-500 truncate mt-0.5">{q.object}</p>}
+                    <div className="flex items-center gap-4 mt-2 text-ui-sm text-gray-400">
                       <span> {q.quote_date ? format(new Date(q.quote_date), 'dd MMM yyyy', { locale: fr }) : '-'}</span>
                       {q.validity_date && <span> Valide jusqu'au {format(new Date(q.validity_date), 'dd/MM/yyyy')}</span>}
                       <span> {q.created_by}</span>
@@ -1151,79 +1152,79 @@ export default function Quotes() {
                   </div>
                   <div className="text-right ml-4 flex-shrink-0">
                     <p className="text-lg font-bold text-gray-900">{money(q.total_ttc)}</p>
-                    <p className="text-xs text-gray-400">{money(q.total_ht)} HT</p>
+                    <p className="text-ui-sm text-gray-400">{money(q.total_ht)} HT</p>
                     <div className="relative mt-2 flex justify-end" ref={actionMenuId === q.id ? actionMenuRef : null}>
                       <button onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === q.id ? null : q.id) }}
                         className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
                         <MoreHorizontal size={18} />
                       </button>
                       {actionMenuId === q.id && (
-                        <div className="absolute right-0 top-8 z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-52 animate-in fade-in" onClick={e => e.stopPropagation()}>
+                        <div className="absolute right-0 top-8 z-50 bg-white rounded-ui-sm shadow-md border border-gray-200 py-1 w-52 animate-in fade-in" onClick={e => e.stopPropagation()}>
                           <button onClick={() => { setActionMenuId(null); downloadPDF(q) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                             <Download size={15} /> Télécharger PDF
                           </button>
                           <button onClick={() => { setActionMenuId(null); openEdit(q) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                             <Edit2 size={15} /> Modifier
                           </button>
                           <button onClick={() => { setActionMenuId(null); duplicateQuote(q) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                             <Copy size={15} /> Dupliquer
                           </button>
                           {(q.status === 'draft' || q.status === 'sent') && (
                             <button onClick={() => { setActionMenuId(null); q.status === 'sent' ? relanceQuote(q, { senderName: q.created_by || currentUserName() }) : openSendWizard(q) }}
                               disabled={relanceGenerating === q.id}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50 disabled:opacity-60">
+                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] disabled:opacity-60">
                               {relanceGenerating === q.id ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {q.status === 'sent' ? 'Relancer par email' : 'Envoyer par email'}
                             </button>
                           )}
                           {(q.status === 'draft' || q.status === 'sent') && (
                             <button onClick={() => { setActionMenuId(null); openView(q) }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))]">
                               <span></span> Acceptation partielle
                             </button>
                           )}
                           <div className="border-t border-gray-100 my-1" />
                           {q.status === 'draft' && (
                             <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'sent') }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50">
+                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))]">
                               <Send size={15} /> Marquer envoyé
                             </button>
                           )}
                           {(q.status === 'sent' || q.status === 'draft') && (
                             <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'accepted') }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50">
+                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]">
                               <Check size={15} /> Marquer accepté
                             </button>
                           )}
                           {(q.status === 'sent' || q.status === 'draft') && (
                             <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'refused') }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-700 hover:bg-red-50">
+                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
                               <X size={15} /> Marquer refusé
                             </button>
                           )}
                           {q.status === 'accepted' && (
                             <button onClick={() => { setActionMenuId(null); if (confirm('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-purple-700 hover:bg-purple-50">
+                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
                               <FileText size={15} /> Créer une facture
                             </button>
                           )}
                           {(q.status === 'accepted' || q.status === 'partial') && (
                             <button onClick={() => { setActionMenuId(null); openSessionWizard(q) }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50">
+                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]">
                               <GraduationCap size={15} /> Générer une session
                             </button>
                           )}
                           {q.status === 'sent' && (
                             <button onClick={() => { setActionMenuId(null); if (confirm('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-purple-700 hover:bg-purple-50">
+                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
                               <FileText size={15} /> Créer une facture
                             </button>
                           )}
                           <div className="border-t border-gray-100 my-1" />
                           <button onClick={() => { setActionMenuId(null); deleteQuote(q.id) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50">
+                            className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
                             <Trash2 size={15} /> Supprimer
                           </button>
                         </div>
@@ -1248,15 +1249,15 @@ export default function Quotes() {
       <div className="p-6 max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <button onClick={() => setMode('list')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <button onClick={() => setMode('list')} className="p-2 hover:bg-gray-100 rounded-ui-sm transition-colors">
               <ArrowLeft size={20} />
             </button>
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-gray-900">Devis {q.reference}</h1>
-                <span className={`px-2.5 py-1 rounded text-xs font-medium ${st.class}`}>{st.icon} {st.label}</span>
+                <span className={`px-2.5 py-1 rounded text-ui-sm font-medium ${st.class}`}>{st.icon} {st.label}</span>
               </div>
-              <p className="text-sm text-gray-500">
+              <p className="text-ui text-gray-500">
                 {q.quote_date && format(new Date(q.quote_date), 'dd MMMM yyyy', { locale: fr })}
                 {q.created_by && ` · par ${q.created_by}`}
               </p>
@@ -1264,83 +1265,83 @@ export default function Quotes() {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => downloadPDF(q)} disabled={generatingPdf}
-              className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 text-sm disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm hover:bg-[rgb(var(--c-warning-bg))] text-ui disabled:opacity-50">
               <Download size={15} /> PDF
             </button>
             {(q.status === 'partial' || (q.status === 'accepted' && items.some(it => it.accepted === true))) && (
               <button onClick={downloadPartialPDF} disabled={generatingPartialPdf}
-                className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-100 text-sm disabled:opacity-50">
+                className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm hover:bg-[rgb(var(--c-warning-bg))] text-ui disabled:opacity-50">
                 <Download size={15} /> PDF partiel
               </button>
             )}
             <button onClick={() => openEdit(q)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 text-ui">
               <Edit2 size={15} /> Modifier
             </button>
             <div className="relative" ref={actionMenuId === 'view' ? actionMenuRef : null}>
               <button onClick={() => setActionMenuId(actionMenuId === 'view' ? null : 'view')}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                className="p-2 hover:bg-gray-100 rounded-ui-sm transition-colors">
                 <MoreHorizontal size={20} />
               </button>
               {actionMenuId === 'view' && (
-                <div className="absolute right-0 top-10 z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-52">
+                <div className="absolute right-0 top-10 z-50 bg-white rounded-ui-sm shadow-md border border-gray-200 py-1 w-52">
                   <button onClick={() => { setActionMenuId(null); duplicateQuote(q) }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                     <Copy size={15} /> Dupliquer
                   </button>
                   {(q.status === 'draft' || q.status === 'sent') && (
                     <button onClick={() => { setActionMenuId(null); q.status === 'sent' ? relanceQuote(q, { senderName: q.created_by || currentUserName() }) : openSendWizard(q) }}
                       disabled={relanceGenerating === q.id}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50 disabled:opacity-60">
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] disabled:opacity-60">
                       {relanceGenerating === q.id ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {q.status === 'sent' ? 'Relancer' : 'Envoyer'} par email
                     </button>
                   )}
                   {(q.status === 'draft' || q.status === 'sent') && (
                     <button onClick={() => setActionMenuId(null)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))]">
                       <span></span> Acceptation partielle
                     </button>
                   )}
                   <div className="border-t border-gray-100 my-1" />
                   {q.status === 'draft' && (
                     <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'sent') }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50">
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))]">
                       <Send size={15} /> Marquer envoyé
                     </button>
                   )}
                   {(q.status === 'sent' || q.status === 'draft') && (
                     <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'accepted') }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50">
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]">
                       <Check size={15} /> Marquer accepté
                     </button>
                   )}
                   {(q.status === 'sent' || q.status === 'draft') && (
                     <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'refused') }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-700 hover:bg-red-50">
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
                       <X size={15} /> Marquer refusé
                     </button>
                   )}
                   {q.status === 'accepted' && (
                     <button onClick={() => { setActionMenuId(null); if (confirm('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-purple-700 hover:bg-purple-50">
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
                       <FileText size={15} /> Créer une facture
                     </button>
                   )}
                   {(q.status === 'accepted' || q.status === 'partial') && (
                     <button onClick={() => { setActionMenuId(null); openSessionWizard(q) }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50">
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]">
                       <GraduationCap size={15} /> Générer une session
                     </button>
                   )}
                   {q.status === 'sent' && (
                     <button onClick={() => { setActionMenuId(null); if (confirm('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-purple-700 hover:bg-purple-50">
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
                       <FileText size={15} /> Créer une facture
                     </button>
                   )}
                   <div className="border-t border-gray-100 my-1" />
                   <button onClick={() => { setActionMenuId(null); deleteQuote(q.id); setMode('list') }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50">
+                    className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
                     <Trash2 size={15} /> Supprimer
                   </button>
                 </div>
@@ -1353,17 +1354,17 @@ export default function Quotes() {
           <div className="lg:col-span-2 space-y-6">
             {/* Objet */}
             {q.object && (
-              <div className="bg-white rounded-xl border p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Objet</p>
+              <div className="bg-white rounded-ui border p-4">
+                <p className="text-ui-sm font-semibold text-gray-400 uppercase mb-1">Objet</p>
                 <p className="text-gray-900">{q.object}</p>
               </div>
             )}
 
             {/* Lignes */}
-            <div className="bg-white rounded-xl border overflow-hidden">
+            <div className="bg-white rounded-ui border overflow-hidden">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-50 text-xs text-gray-500 uppercase">
+                  <tr className="bg-gray-50 text-ui-sm text-gray-500 uppercase">
                     <th className="text-left px-4 py-3">Désignation</th>
                     <th className="text-center px-2 py-3 w-16">Qté</th>
                     <th className="text-center px-2 py-3 w-20">Unité</th>
@@ -1375,13 +1376,13 @@ export default function Quotes() {
                   {items.map((item, i) => (
                     <tr key={i} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900 text-sm">{item.description_title}</p>
-                        {item.description_detail && <p className="text-xs text-gray-500 mt-0.5 whitespace-pre-line">{item.description_detail}</p>}
+                        <p className="font-medium text-gray-900 text-ui">{item.description_title}</p>
+                        {item.description_detail && <p className="text-ui-sm text-gray-500 mt-0.5 whitespace-pre-line">{item.description_detail}</p>}
                       </td>
-                      <td className="text-center px-2 py-3 text-sm">{item.quantity}</td>
-                      <td className="text-center px-2 py-3 text-xs text-gray-500">{item.unit || '-'}</td>
-                      <td className="text-right px-2 py-3 text-sm">{money(item.unit_price_ht)}</td>
-                      <td className="text-right px-4 py-3 text-sm font-medium">{money((item.quantity || 0) * (item.unit_price_ht || 0))}</td>
+                      <td className="text-center px-2 py-3 text-ui">{item.quantity}</td>
+                      <td className="text-center px-2 py-3 text-ui-sm text-gray-500">{item.unit || '-'}</td>
+                      <td className="text-right px-2 py-3 text-ui">{money(item.unit_price_ht)}</td>
+                      <td className="text-right px-4 py-3 text-ui font-medium">{money((item.quantity || 0) * (item.unit_price_ht || 0))}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1390,29 +1391,29 @@ export default function Quotes() {
 
             {/* Panneau validation client ligne par ligne */}
             {(currentQuote.status === 'sent' || currentQuote.status === 'partial' || currentQuote.status === 'accepted') && items.length > 0 && (
-              <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
-                <div className="bg-amber-50 px-4 py-3 border-b border-amber-200">
-                  <h3 className="font-semibold text-amber-900 flex items-center gap-2"> Validation client ligne par ligne</h3>
-                  <p className="text-xs text-amber-700 mt-0.5">Enregistrez les décisions du client pour chaque ligne du devis</p>
+              <div className="bg-white rounded-ui border border-[rgb(var(--c-warning)/0.3)] overflow-hidden">
+                <div className="bg-[rgb(var(--c-warning-bg))] px-4 py-3 border-b border-[rgb(var(--c-warning)/0.3)]">
+                  <h3 className="font-semibold text-[rgb(var(--c-warning))] flex items-center gap-2"> Validation client ligne par ligne</h3>
+                  <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-0.5">Enregistrez les décisions du client pour chaque ligne du devis</p>
                 </div>
-                <div className="divide-y divide-amber-100">
+                <div className="divide-y divide-[rgb(var(--c-warning)/0.3)]">
                   {items.map(item => (
                     <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.description_title}</p>
-                        <p className="text-xs text-gray-400">{money((item.quantity || 0) * (item.unit_price_ht || 0))}</p>
+                        <p className="text-ui font-medium text-gray-900 truncate">{item.description_title}</p>
+                        <p className="text-ui-sm text-gray-400">{money((item.quantity || 0) * (item.unit_price_ht || 0))}</p>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <button onClick={() => toggleItemAccepted(item.id, item.accepted === true ? null : true)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${item.accepted === true ? 'bg-green-600 text-white border-green-600' : 'bg-white text-green-700 border-green-300 hover:bg-green-50'}`}>
+                          className={`px-2.5 py-1.5 rounded-ui-sm text-ui-sm font-medium border transition-colors ${item.accepted === true ? 'bg-[rgb(var(--c-success))] text-white border-[rgb(var(--c-success)/0.3)]' : 'bg-white text-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)] hover:bg-[rgb(var(--c-success-bg))]'}`}>
                            Accepté
                         </button>
                         <button onClick={() => toggleItemAccepted(item.id, item.accepted === false ? null : false)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${item.accepted === false ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-700 border-red-300 hover:bg-red-50'}`}>
+                          className={`px-2.5 py-1.5 rounded-ui-sm text-ui-sm font-medium border transition-colors ${item.accepted === false ? 'bg-[rgb(var(--c-danger))] text-white border-[rgb(var(--c-danger)/0.3)]' : 'bg-white text-[rgb(var(--c-danger))] border-[rgb(var(--c-danger)/0.3)] hover:bg-[rgb(var(--c-danger-bg))]'}`}>
                            Refusé
                         </button>
                         <button onClick={() => toggleItemAccepted(item.id, null)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${(item.accepted === null || item.accepted === undefined) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'}`}>
+                          className={`px-2.5 py-1.5 rounded-ui-sm text-ui-sm font-medium border transition-colors ${(item.accepted === null || item.accepted === undefined) ? 'bg-[rgb(var(--c-warning))] text-white border-[rgb(var(--c-warning)/0.3)]' : 'bg-white text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)] hover:bg-[rgb(var(--c-warning-bg))]'}`}>
                            En attente
                         </button>
                       </div>
@@ -1420,14 +1421,14 @@ export default function Quotes() {
                   ))}
                 </div>
                 {items.some(it => it.accepted === true) && (
-                  <div className="px-4 py-3 bg-amber-50 border-t border-amber-200 flex items-center gap-3 flex-wrap">
+                  <div className="px-4 py-3 bg-[rgb(var(--c-warning-bg))] border-t border-[rgb(var(--c-warning)/0.3)] flex items-center gap-3 flex-wrap">
                     <button onClick={downloadPartialPDF} disabled={generatingPartialPdf}
-                      className="flex items-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50">
+                      className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-warning))] disabled:opacity-50">
                       <Download size={14} /> Bon de commande partiel (PDF)
                     </button>
                     {items.some(it => it.accepted === true && it.course_id) && (
                       <button onClick={() => openSessionWizard(currentQuote)}
-                        className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">
+                        className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))]">
                         <GraduationCap size={14} /> Générer session(s)
                       </button>
                     )}
@@ -1437,12 +1438,12 @@ export default function Quotes() {
             )}
 
             {/* Totaux */}
-            <div className="bg-white rounded-xl border p-4">
+            <div className="bg-white rounded-ui border p-4">
               <div className="flex justify-end">
-                <div className="w-64 space-y-1.5 text-sm">
+                <div className="w-64 space-y-1.5 text-ui">
                   <div className="flex justify-between"><span className="text-gray-500">Total HT</span><span className="font-medium">{money(totals.totalHt)}</span></div>
                   {currentQuote.discount_percent > 0 && (
-                    <div className="flex justify-between text-red-600"><span>Remise {currentQuote.discount_percent}%{currentQuote.discount_label ? ` (${currentQuote.discount_label})` : ''}</span><span>-{money(totals.discountAmount)}</span></div>
+                    <div className="flex justify-between text-[rgb(var(--c-danger))]"><span>Remise {currentQuote.discount_percent}%{currentQuote.discount_label ? ` (${currentQuote.discount_label})` : ''}</span><span>-{money(totals.discountAmount)}</span></div>
                   )}
                   {currentQuote.tva_applicable !== false && (
                     <div className="flex justify-between"><span className="text-gray-500">TVA {currentQuote.tva_rate || 20}%</span><span>{money(totals.totalTva)}</span></div>
@@ -1455,17 +1456,17 @@ export default function Quotes() {
 
           {/* Sidebar infos */}
           <div className="space-y-4">
-            <div className="bg-white rounded-xl border p-4 space-y-3">
-              <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2"><Building2 size={15} /> Client</h3>
+            <div className="bg-white rounded-ui border p-4 space-y-3">
+              <h3 className="font-semibold text-gray-900 text-ui flex items-center gap-2"><Building2 size={15} /> Client</h3>
               <p className="font-medium text-gray-900">{q.clients?.name || '-'}</p>
-              {q.clients?.address && <p className="text-sm text-gray-500">{q.clients.address}</p>}
-              {q.clients?.siret && <p className="text-xs text-gray-400 font-mono">SIRET {q.clients.siret}</p>}
+              {q.clients?.address && <p className="text-ui text-gray-500">{q.clients.address}</p>}
+              {q.clients?.siret && <p className="text-ui-sm text-gray-400 font-mono">SIRET {q.clients.siret}</p>}
             </div>
-            <div className="bg-white rounded-xl border p-4 space-y-2">
-              <h3 className="font-semibold text-gray-900 text-sm">Détails</h3>
-              <div className="text-sm space-y-1.5">
+            <div className="bg-white rounded-ui border p-4 space-y-2">
+              <h3 className="font-semibold text-gray-900 text-ui">Détails</h3>
+              <div className="text-ui space-y-1.5">
                 {q.client_reference && <div className="flex justify-between"><span className="text-gray-500">Réf. client</span><span>{q.client_reference}</span></div>}
-                <div className="flex justify-between"><span className="text-gray-500">Paiement</span><span className="text-right text-xs">{q.payment_method || '-'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Paiement</span><span className="text-right text-ui-sm">{q.payment_method || '-'}</span></div>
                 {q.validity_date && <div className="flex justify-between"><span className="text-gray-500">Validité</span><span>{format(new Date(q.validity_date), 'dd/MM/yyyy')}</span></div>}
                 {q.payment_deadline && <div className="flex justify-between"><span className="text-gray-500">Échéance</span><span>{format(new Date(q.payment_deadline), 'dd/MM/yyyy')}</span></div>}
               </div>
@@ -1483,14 +1484,14 @@ export default function Quotes() {
       <div className="p-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <button onClick={() => setMode('list')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <button onClick={() => setMode('list')} className="p-2 hover:bg-gray-100 rounded-ui-sm transition-colors">
               <ArrowLeft size={20} />
             </button>
             <div>
               <h1 className="text-xl font-bold text-gray-900">
                 {mode === 'create' ? 'Nouveau devis' : `Devis ${currentQuote.reference}`}
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-ui text-gray-500">
                 {mode === 'create' ? currentQuote.reference : `Créé le ${currentQuote.created_at ? format(new Date(currentQuote.created_at), 'dd/MM/yyyy', { locale: fr }) : ''}`}
               </p>
             </div>
@@ -1500,21 +1501,21 @@ export default function Quotes() {
               <>
                 <select value={currentQuote.status}
                   onChange={(e) => setCurrentQuote(prev => ({ ...prev, status: e.target.value }))}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                  className="px-3 py-2 border border-gray-200 rounded-ui-sm text-ui">
                   {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                     <option key={k} value={k}>{v.icon} {v.label}</option>
                   ))}
                 </select>
                 <button onClick={downloadCurrentPDF} disabled={generatingPdf}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors text-sm disabled:opacity-50">
+                  className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm hover:bg-[rgb(var(--c-warning-bg))] transition-colors text-ui disabled:opacity-50">
                   <Download size={15} /> {generatingPdf ? 'Génération...' : 'PDF'}
                 </button>
               </>
             )}
             <button onClick={() => setMode('list')}
-              className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Annuler</button>
+              className="px-4 py-2 border border-gray-200 rounded-ui-sm hover:bg-gray-50 transition-colors">Annuler</button>
             <button onClick={saveQuote} disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 transition-colors disabled:opacity-50">
               <Save size={16} /> {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           </div>
@@ -1523,11 +1524,11 @@ export default function Quotes() {
         <div className="space-y-6">
           <div className="space-y-6">
             {/* Client + Contact */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-white rounded-ui border border-gray-200 p-5">
               <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><Building2 size={18} /> Client</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Client *</label>
                   <SearchSelect
                     value={currentQuote.client_id || ''}
                     onChange={v => handleClientChange(v)}
@@ -1543,10 +1544,10 @@ export default function Quotes() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Contact</label>
                   <select value={currentQuote.contact_id || ''}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, contact_id: e.target.value || null }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500">
                     <option value="">- Aucun -</option>
                     {contacts.map(c => (
                       <option key={c.id} value={c.id}>
@@ -1557,36 +1558,36 @@ export default function Quotes() {
                 </div>
               </div>
               {selectedClient && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                <div className="mt-3 p-3 bg-gray-50 rounded-ui-sm text-ui text-gray-600">
                   {selectedClient.address && <p>{selectedClient.address}</p>}
                   {(selectedClient.postal_code || selectedClient.city) && <p>{selectedClient.postal_code} {selectedClient.city}</p>}
-                  {selectedClient.siret && <p className="text-xs text-gray-400 mt-1">SIRET : {selectedClient.siret}</p>}
+                  {selectedClient.siret && <p className="text-ui-sm text-gray-400 mt-1">SIRET : {selectedClient.siret}</p>}
                 </div>
               )}
             </div>
 
             {/* Objet + Réf */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-white rounded-ui border border-gray-200 p-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Objet du devis</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Objet du devis</label>
                   <input type="text" value={currentQuote.object}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, object: e.target.value }))}
                     placeholder="Ex : Formation SST en intra"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Réf. client</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Réf. client</label>
                   <input type="text" value={currentQuote.client_reference}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, client_reference: e.target.value }))}
                     placeholder="Optionnel"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Votre interlocuteur</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Votre interlocuteur</label>
                   <select value={currentQuote.created_by}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, created_by: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500">
                     {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
@@ -1595,37 +1596,37 @@ export default function Quotes() {
 
 
             {/* Dates + Conditions + TVA - inline compact */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-white rounded-ui border border-gray-200 p-4">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Date devis</label>
+                  <label className="block text-ui-sm text-gray-500 mb-1">Date devis</label>
                   <input type="date" value={currentQuote.quote_date} onChange={(e) => handleDateChange(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
+                    className="w-full px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui" />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Validité</label>
+                  <label className="block text-ui-sm text-gray-500 mb-1">Validité</label>
                   <input type="date" value={currentQuote.validity_date}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, validity_date: e.target.value }))}
-                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
+                    className="w-full px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui" />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Moyen de règlement</label>
+                  <label className="block text-ui-sm text-gray-500 mb-1">Moyen de règlement</label>
                   <select value={currentQuote.payment_method}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, payment_method: e.target.value }))}
-                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm">
+                    className="w-full px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui">
                     {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Délai règlement</label>
+                  <label className="block text-ui-sm text-gray-500 mb-1">Délai règlement</label>
                   <select value={currentQuote.payment_terms}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, payment_terms: e.target.value }))}
-                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm">
+                    className="w-full px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui">
                     {PAYMENT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">TVA</label>
+                  <label className="block text-ui-sm text-gray-500 mb-1">TVA</label>
                   <div className="flex items-center gap-2">
                     <input type="checkbox" checked={currentQuote.tva_applicable}
                       onChange={(e) => setCurrentQuote(prev => ({ ...prev, tva_applicable: e.target.checked }))}
@@ -1633,24 +1634,24 @@ export default function Quotes() {
                     {currentQuote.tva_applicable && (
                       <input type="text" inputMode="decimal" value={currentQuote.tva_rate}
                         onChange={(e) => setCurrentQuote(prev => ({ ...prev, tva_rate: e.target.value }))}
-                        className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-center" />
+                        className="w-16 px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui text-center" />
                     )}
-                    {currentQuote.tva_applicable && <span className="text-xs text-gray-400">%</span>}
-                    {!currentQuote.tva_applicable && <span className="text-xs text-gray-400">Non applicable</span>}
+                    {currentQuote.tva_applicable && <span className="text-ui-sm text-gray-400">%</span>}
+                    {!currentQuote.tva_applicable && <span className="text-ui-sm text-gray-400">Non applicable</span>}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Remise</label>
+                  <label className="block text-ui-sm text-gray-500 mb-1">Remise</label>
                   <div className="flex items-center gap-1">
                     <input type="text" inputMode="decimal" value={currentQuote.discount_percent}
                       onChange={(e) => setCurrentQuote(prev => ({ ...prev, discount_percent: e.target.value }))}
-                      className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-center" />
-                    <span className="text-xs text-gray-400">%</span>
+                      className="w-16 px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui text-center" />
+                    <span className="text-ui-sm text-gray-400">%</span>
                     {parseFloat(currentQuote.discount_percent) > 0 && (
                       <input type="text" value={currentQuote.discount_label}
                         onChange={(e) => setCurrentQuote(prev => ({ ...prev, discount_label: e.target.value }))}
                         placeholder="Libellé"
-                        className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
+                        className="flex-1 px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui" />
                     )}
                   </div>
                 </div>
@@ -1658,49 +1659,49 @@ export default function Quotes() {
             </div>
 
             {/* Line items - compact */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-white rounded-ui border border-gray-200 p-5">
               <h2 className="font-semibold text-gray-900 mb-3">Lignes du devis</h2>
               <div className="space-y-2">
                 {items.map((item, idx) => (
-                  <div key={idx} className="border border-gray-100 rounded-lg p-3 bg-gray-50">
+                  <div key={idx} className="border border-gray-100 rounded-ui-sm p-3 bg-gray-50">
                     {/* Row 1: Code + Title + Description inline */}
                     <div className="flex items-start gap-2 mb-2">
                       <input type="text" value={item.code} onChange={(e) => updateItem(idx, 'code', e.target.value)}
-                        placeholder="Code" className="w-24 px-2 py-1.5 border border-gray-200 rounded text-xs font-mono flex-shrink-0" />
+                        placeholder="Code" className="w-24 px-2 py-1.5 border border-gray-200 rounded text-ui-sm font-mono flex-shrink-0" />
                       <input type="text" value={item.description_title} onChange={(e) => updateItem(idx, 'description_title', e.target.value)}
                         placeholder="Titre de la ligne *"
-                        className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-sm font-medium" />
+                        className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-ui font-medium" />
                       <button onClick={() => removeItem(idx)}
-                        className="p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 size={14} /></button>
+                        className="p-1.5 text-gray-300 hover:text-[rgb(var(--c-danger))] transition-colors flex-shrink-0"><Trash2 size={14} /></button>
                     </div>
                     {/* Row 2: Description (collapsible - shown if has content or on focus) */}
                     <input type="text" value={item.description_detail} onChange={(e) => updateItem(idx, 'description_detail', e.target.value)}
                       placeholder="Description détaillée (optionnel)"
-                      className="w-full px-2 py-1 border border-gray-200 rounded text-xs text-gray-600 mb-2" />
+                      className="w-full px-2 py-1 border border-gray-200 rounded text-ui-sm text-gray-600 mb-2" />
                     {/* Row 3: Qté + Unité + PU HT + TVA% + Total = tout sur une ligne */}
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1">
-                        <label className="text-[10px] text-gray-400 whitespace-nowrap">Qté</label>
+                        <label className="text-ui-sm text-gray-400 whitespace-nowrap">Qté</label>
                         <input type="text" inputMode="decimal" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                          className="w-14 px-2 py-1 border border-gray-200 rounded text-sm text-center" />
+                          className="w-14 px-2 py-1 border border-gray-200 rounded text-ui text-center" />
                       </div>
                       <div className="flex items-center gap-1">
-                        <label className="text-[10px] text-gray-400">Unité</label>
+                        <label className="text-ui-sm text-gray-400">Unité</label>
                         <input type="text" value={item.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)}
-                          className="w-16 px-2 py-1 border border-gray-200 rounded text-sm" />
+                          className="w-16 px-2 py-1 border border-gray-200 rounded text-ui" />
                       </div>
                       <div className="flex items-center gap-1">
-                        <label className="text-[10px] text-gray-400">PU HT</label>
+                        <label className="text-ui-sm text-gray-400">PU HT</label>
                         <input type="text" inputMode="decimal" value={item.unit_price_ht} onChange={(e) => updateItem(idx, 'unit_price_ht', e.target.value)}
-                          className="w-20 px-2 py-1 border border-gray-200 rounded text-sm text-right" />
+                          className="w-20 px-2 py-1 border border-gray-200 rounded text-ui text-right" />
                       </div>
                       <div className="flex items-center gap-1">
-                        <label className="text-[10px] text-gray-400">TVA%</label>
+                        <label className="text-ui-sm text-gray-400">TVA%</label>
                         <input type="text" inputMode="decimal" value={item.tva_rate} onChange={(e) => updateItem(idx, 'tva_rate', e.target.value)}
-                          className="w-14 px-2 py-1 border border-gray-200 rounded text-sm text-center" />
+                          className="w-14 px-2 py-1 border border-gray-200 rounded text-ui text-center" />
                       </div>
                       <div className="ml-auto text-right">
-                        <span className="text-sm font-semibold text-gray-900">{money(calcItemTotal(item))}</span>
+                        <span className="text-ui font-semibold text-gray-900">{money(calcItemTotal(item))}</span>
                       </div>
                     </div>
                   </div>
@@ -1709,7 +1710,7 @@ export default function Quotes() {
               {/* Add buttons - always at bottom after lines */}
               <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
                 <PickerMenu
-                  buttonClassName="text-sm px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1"
+                  buttonClassName="text-ui px-3 py-1.5 bg-gray-100 text-gray-600 rounded-ui-sm hover:bg-gray-200 transition-colors flex items-center gap-1"
                   searchPlaceholder="Rechercher une formation..."
                   emptyText="Aucune formation"
                   items={courses.map(c => ({ key: c.id, label: c.title, hint: [c.code, c.price_ht ? money(c.price_ht) : 'Prix à définir'].filter(Boolean).join(' · '), course: c }))}
@@ -1718,7 +1719,7 @@ export default function Quotes() {
                   <Plus size={14} /> Depuis formation
                 </PickerMenu>
                 <PickerMenu
-                  buttonClassName="text-sm px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors flex items-center gap-1"
+                  buttonClassName="text-ui px-3 py-1.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm hover:bg-[rgb(var(--c-warning-bg))] transition-colors flex items-center gap-1"
                   searchPlaceholder="Rechercher du matériel..."
                   emptyText="Aucun matériel"
                   items={predefinedMaterials.map((mat, i) => ({ key: i, label: mat.description_title, hint: [mat.code, mat.description_detail, money(mat.unit_price_ht)].filter(Boolean).join(' · '), mat }))}
@@ -1727,20 +1728,20 @@ export default function Quotes() {
                   <Plus size={14} /> Matériel
                 </PickerMenu>
                 <button onClick={addItem}
-                  className="text-sm px-3 py-1.5 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors flex items-center gap-1">
+                  className="text-ui px-3 py-1.5 bg-primary-50 text-primary-600 rounded-ui-sm hover:bg-primary-100 transition-colors flex items-center gap-1">
                   <Plus size={14} /> Ligne libre
                 </button>
               </div>
               {/* Totals */}
               <div className="mt-4 pt-4 border-t border-gray-200 flex justify-end">
-                <div className="w-72 space-y-1.5 text-sm">
+                <div className="w-72 space-y-1.5 text-ui">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Total HT</span>
                     <span className="font-medium">{money(totals.subtotalHt)}</span>
                   </div>
                   {parseFloat(currentQuote.discount_percent) > 0 && (
                     <>
-                      <div className="flex justify-between text-orange-600">
+                      <div className="flex justify-between text-[rgb(var(--c-warning))]">
                         <span>Remise {currentQuote.discount_percent}%{currentQuote.discount_label ? ` (${currentQuote.discount_label})` : ''}</span>
                         <span>-{money(totals.discountAmount)}</span>
                       </div>
@@ -1756,7 +1757,7 @@ export default function Quotes() {
                       <span>{money(totals.totalTva)}</span>
                     </div>
                   ) : (
-                    <div className="text-xs text-gray-400 italic">TVA non applicable (art. 261 CGI)</div>
+                    <div className="text-ui-sm text-gray-400 italic">TVA non applicable (art. 261 CGI)</div>
                   )}
                   <div className="flex justify-between text-base font-bold border-t pt-2 text-primary-700">
                     <span>Total TTC</span><span>{money(totals.totalTtc)}</span>
@@ -1767,16 +1768,16 @@ export default function Quotes() {
 
             {/* Notes + Signature - side by side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+              <div className="bg-white rounded-ui border border-gray-200 p-4">
+                <label className="block text-ui font-medium text-gray-700 mb-2">Notes</label>
                 <textarea value={currentQuote.notes}
                   onChange={(e) => setCurrentQuote(prev => ({ ...prev, notes: e.target.value }))}
                   rows={3} placeholder="Notes visibles sur le devis (ex: 5% remise BNI)"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-500" />
+                  className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui resize-none focus:ring-2 focus:ring-primary-500" />
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="bg-white rounded-ui border border-gray-200 p-4">
                 <h2 className="font-semibold text-gray-900 mb-2 flex items-center gap-2"><Pen size={16} /> Signature client</h2>
-                <p className="text-xs text-gray-400 mb-2">
+                <p className="text-ui-sm text-gray-400 mb-2">
                   Mention "Lu et approuvé, bon pour accord". Vide = zone de signature à imprimer.
                 </p>
                 <SignaturePad
@@ -1805,7 +1806,7 @@ export default function Quotes() {
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col mx-4">
+        <div className="bg-white rounded-ui-lg shadow-md w-full max-w-4xl max-h-[92vh] flex flex-col mx-4">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div>
@@ -1813,9 +1814,9 @@ export default function Quotes() {
                 <Mail className="inline w-5 h-5 mr-2 text-primary-600" />
                 Envoyer le devis {quote.reference}
               </h2>
-              <p className="text-sm text-gray-500">{client?.name}</p>
+              <p className="text-ui text-gray-500">{client?.name}</p>
             </div>
-            <button onClick={closeSendWizard} className="p-2 hover:bg-gray-100 rounded-lg">
+            <button onClick={closeSendWizard} className="p-2 hover:bg-gray-100 rounded-ui-sm">
               <X size={20} />
             </button>
           </div>
@@ -1824,13 +1825,13 @@ export default function Quotes() {
           <div className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-50 border-b">
             {steps.map((s, i) => (
               <div key={s.num} className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-ui font-bold transition-colors ${
                   sendStep === s.num ? 'bg-primary-600 text-white' : 
-                  sendStep > s.num ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+                  sendStep > s.num ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-200 text-gray-500'
                 }`}>
                   {sendStep > s.num ? <Check size={16} /> : s.num}
                 </div>
-                <span className={`text-sm ${sendStep === s.num ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                <span className={`text-ui ${sendStep === s.num ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
                   {s.label}
                 </span>
                 {i < steps.length - 1 && <div className="w-8 h-px bg-gray-300 mx-1" />}
@@ -1843,21 +1844,21 @@ export default function Quotes() {
             {/* STEP 1: Aperçu PDF */}
             {sendStep === 1 && (
               <div>
-                <p className="text-sm text-gray-600 mb-3">Vérifiez le devis avant envoi :</p>
+                <p className="text-ui text-gray-600 mb-3">Vérifiez le devis avant envoi :</p>
                 <iframe
                   src={pdfBlobUrl}
-                  className="w-full rounded-lg border border-gray-200"
+                  className="w-full rounded-ui-sm border border-gray-200"
                   style={{ height: '40vh' }}
                   title="Aperçu du devis"
                 />
 
                 {/* ─── Pièces jointes ─────────────────── */}
-                <div className="mt-4 bg-gray-50 rounded-xl p-4 border">
+                <div className="mt-4 bg-gray-50 rounded-ui p-4 border">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <h3 className="text-ui font-semibold text-gray-700 flex items-center gap-2">
                       <Paperclip size={16} /> Pièces jointes
                     </h3>
-                    <label className="px-3 py-1.5 bg-primary-50 text-primary-700 border border-primary-200 rounded-lg text-xs font-medium cursor-pointer hover:bg-primary-100 transition-colors">
+                    <label className="px-3 py-1.5 bg-primary-50 text-primary-700 border border-primary-200 rounded-ui-sm text-ui-sm font-medium cursor-pointer hover:bg-primary-100 transition-colors">
                       + Ajouter un fichier
                       <input type="file" className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                         onChange={async (e) => {
@@ -1883,30 +1884,30 @@ export default function Quotes() {
                   </div>
 
                   {/* Devis (toujours inclus) */}
-                  <div className="flex items-center gap-3 py-2 px-3 bg-white rounded-lg border border-gray-200 mb-2">
-                    <FileText size={16} className="text-orange-500 flex-shrink-0" />
-                    <span className="text-sm font-medium text-gray-800 flex-1">{quote.reference}.pdf</span>
-                    <span className="text-xs text-gray-400">Devis</span>
-                    <Check size={14} className="text-green-500" />
+                  <div className="flex items-center gap-3 py-2 px-3 bg-white rounded-ui-sm border border-gray-200 mb-2">
+                    <FileText size={16} className="text-[rgb(var(--c-warning))] flex-shrink-0" />
+                    <span className="text-ui font-medium text-gray-800 flex-1">{quote.reference}.pdf</span>
+                    <span className="text-ui-sm text-gray-400">Devis</span>
+                    <Check size={14} className="text-[rgb(var(--c-success))]" />
                   </div>
 
                   {/* Programmes auto-détectés + manuels */}
                   {sendAttachments.map((att, idx) => (
-                    <div key={idx} className={`flex items-center gap-3 py-2 px-3 rounded-lg border mb-2 ${
+                    <div key={idx} className={`flex items-center gap-3 py-2 px-3 rounded-ui-sm border mb-2 ${
                       att.enabled ? 'bg-white border-gray-200' : 'bg-gray-100 border-gray-200 opacity-60'
                     }`}>
-                      <FileText size={16} className={att.type === 'program' ? 'text-blue-500 flex-shrink-0' : 'text-purple-500 flex-shrink-0'} />
+                      <FileText size={16} className={att.type === 'program' ? 'text-[rgb(var(--c-info))] flex-shrink-0' : 'text-gray-800 flex-shrink-0'} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{att.filename}</p>
-                        {att.courseTitle && <p className="text-xs text-gray-400 truncate">{att.courseTitle}</p>}
+                        <p className="text-ui font-medium text-gray-800 truncate">{att.filename}</p>
+                        {att.courseTitle && <p className="text-ui-sm text-gray-400 truncate">{att.courseTitle}</p>}
                       </div>
-                      <span className="text-xs text-gray-400 flex-shrink-0">
+                      <span className="text-ui-sm text-gray-400 flex-shrink-0">
                         {att.kind === 'cgv' ? 'CGV' : att.type === 'program' ? 'Programme' : 'Manuel'}
                       </span>
                       <button
                         onClick={() => setSendAttachments(prev => prev.map((a, i) => i === idx ? { ...a, enabled: !a.enabled } : a))}
-                        className={`w-7 h-7 flex items-center justify-center rounded-md border transition-colors ${
-                          att.enabled ? 'bg-green-50 border-green-300 text-green-600' : 'bg-gray-100 border-gray-300 text-gray-400'
+                        className={`w-7 h-7 flex items-center justify-center rounded-ui-sm border transition-colors ${
+                          att.enabled ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)] text-[rgb(var(--c-success))]' : 'bg-gray-100 border-gray-300 text-gray-400'
                         }`}
                         title={att.enabled ? 'Désactiver' : 'Activer'}
                       >
@@ -1915,7 +1916,7 @@ export default function Quotes() {
                       {att.type === 'manual' && (
                         <button
                           onClick={() => setSendAttachments(prev => prev.filter((_, i) => i !== idx))}
-                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          className="w-7 h-7 flex items-center justify-center rounded-ui-sm text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] hover:text-[rgb(var(--c-danger))] transition-colors"
                           title="Supprimer"
                         >
                           <Trash2 size={14} />
@@ -1925,7 +1926,7 @@ export default function Quotes() {
                   ))}
 
                   {sendAttachments.length === 0 && (
-                    <p className="text-xs text-gray-400 mt-1">Aucun programme détecté. Ajoutez des fichiers manuellement si besoin.</p>
+                    <p className="text-ui-sm text-gray-400 mt-1">Aucun programme détecté. Ajoutez des fichiers manuellement si besoin.</p>
                   )}
                 </div>
               </div>
@@ -1936,18 +1937,18 @@ export default function Quotes() {
               <div className="space-y-4">
                 {/* Destinataire */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Destinataire</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Destinataire</label>
                   <div className="flex gap-2">
                     <input
                       type="email"
                       value={sendEmail.to}
                       onChange={(e) => setSendEmail(prev => ({ ...prev, to: e.target.value }))}
                       placeholder="email@entreprise.fr"
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-ui-sm text-ui"
                     />
                     {clientContacts && clientContacts.length > 0 && (
                       <select
-                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+                        className="px-3 py-2 border border-gray-200 rounded-ui-sm text-ui bg-white"
                         value=""
                         onChange={(e) => {
                           if (e.target.value) setSendEmail(prev => ({ ...prev, to: e.target.value }))
@@ -1969,29 +1970,29 @@ export default function Quotes() {
 
                 {/* Objet */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Objet</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Objet</label>
                   <input
                     type="text"
                     value={sendEmail.subject}
                     onChange={(e) => setSendEmail(prev => ({ ...prev, subject: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui"
                   />
                 </div>
 
                 {/* Corps */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Corps du message</label>
+                  <label className="block text-ui font-medium text-gray-700 mb-1">Corps du message</label>
                   <textarea
                     value={sendEmail.body}
                     onChange={(e) => setSendEmail(prev => ({ ...prev, body: e.target.value }))}
                     rows={10}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-sans"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui font-sans"
                   />
                 </div>
 
                 {/* Régénérer avec instructions */}
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <label className="block text-xs font-medium text-blue-700 mb-1">
+                <div className="bg-[rgb(var(--c-info-bg))] rounded-ui-sm p-3">
+                  <label className="block text-ui-sm font-medium text-[rgb(var(--c-info))] mb-1">
                     Instructions pour régénérer (optionnel)
                   </label>
                   <div className="flex gap-2">
@@ -2000,12 +2001,12 @@ export default function Quotes() {
                       value={sendEmail.customInstructions}
                       onChange={(e) => setSendEmail(prev => ({ ...prev, customInstructions: e.target.value }))}
                       placeholder="Ex: ton plus formel, mentionner une date limite..."
-                      className="flex-1 px-3 py-2 border border-blue-200 rounded-lg text-sm bg-white"
+                      className="flex-1 px-3 py-2 border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm text-ui bg-white"
                     />
                     <button
                       onClick={generateEmailText}
                       disabled={sendLoading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                      className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50 flex items-center gap-2"
                     >
                       {sendLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                       {sendEmail.body ? 'Régénérer' : 'Générer'}
@@ -2013,7 +2014,7 @@ export default function Quotes() {
                   </div>
                 </div>
 
-                <p className="text-xs text-gray-400">
+                <p className="text-ui-sm text-gray-400">
                   La signature sera ajoutée automatiquement selon votre compte email.
                 </p>
               </div>
@@ -2022,9 +2023,9 @@ export default function Quotes() {
             {/* STEP 3: Récap & envoi */}
             {sendStep === 3 && (
               <div className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-3">
-                  <h3 className="font-semibold text-green-900">Récapitulatif</h3>
-                  <div className="grid grid-cols-[120px_1fr] gap-y-2 text-sm">
+                <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui p-5 space-y-3">
+                  <h3 className="font-semibold text-[rgb(var(--c-success))]">Récapitulatif</h3>
+                  <div className="grid grid-cols-[120px_1fr] gap-y-2 text-ui">
                     <span className="text-gray-500">De :</span>
                     <span className="font-medium">{quote.created_by} ({orgName()})</span>
                     <span className="text-gray-500">À :</span>
@@ -2033,11 +2034,11 @@ export default function Quotes() {
                     <span className="font-medium">{sendEmail.subject}</span>
                     <span className="text-gray-500">Pièces jointes :</span>
                     <div className="space-y-1">
-                      <span className="flex items-center gap-1 text-orange-600">
+                      <span className="flex items-center gap-1 text-[rgb(var(--c-warning))]">
                         <FileText size={14} /> {quote.reference}.pdf
                       </span>
                       {sendAttachments.filter(a => a.enabled).map((att, i) => (
-                        <span key={i} className="flex items-center gap-1 text-blue-600">
+                        <span key={i} className="flex items-center gap-1 text-[rgb(var(--c-info))]">
                           <FileText size={14} /> {att.filename}
                         </span>
                       ))}
@@ -2045,12 +2046,12 @@ export default function Quotes() {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-xl p-5">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Aperçu du message :</h4>
-                  <div className="text-sm text-gray-600 whitespace-pre-wrap bg-white rounded-lg border p-4">
+                <div className="bg-gray-50 rounded-ui p-5">
+                  <h4 className="text-ui font-medium text-gray-700 mb-2">Aperçu du message :</h4>
+                  <div className="text-ui text-gray-600 whitespace-pre-wrap bg-white rounded-ui-sm border p-4">
                     {sendEmail.body}
                   </div>
-                  <p className="text-xs text-gray-400 mt-2 italic">+ signature automatique</p>
+                  <p className="text-ui-sm text-gray-400 mt-2 italic">+ signature automatique</p>
                 </div>
               </div>
             )}
@@ -2060,7 +2061,7 @@ export default function Quotes() {
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
             <button
               onClick={() => sendStep > 1 ? setSendStep(sendStep - 1) : closeSendWizard()}
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-ui font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-ui-sm transition-colors"
             >
               {sendStep === 1 ? 'Annuler' : '← Retour'}
             </button>
@@ -2068,7 +2069,7 @@ export default function Quotes() {
               {sendStep === 1 && (
                 <button
                   onClick={() => { setSendStep(2); if (!sendEmail.body) generateEmailText() }}
-                  className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-2.5 bg-primary-600 text-white rounded-ui-sm text-ui font-medium hover:bg-primary-700 transition-colors flex items-center gap-2"
                 >
                   PDF OK, continuer <ChevronDown size={14} className="-rotate-90" />
                 </button>
@@ -2081,7 +2082,7 @@ export default function Quotes() {
                     if (!sendEmail.body) return toast.error('Générez ou rédigez le texte')
                     setSendStep(3)
                   }}
-                  className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-2.5 bg-primary-600 text-white rounded-ui-sm text-ui font-medium hover:bg-primary-700 transition-colors flex items-center gap-2"
                 >
                   Continuer <ChevronDown size={14} className="-rotate-90" />
                 </button>
@@ -2090,7 +2091,7 @@ export default function Quotes() {
                 <button
                   onClick={handleSendQuoteEmail}
                   disabled={sendSending}
-                  className="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))] transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {sendSending ? (
                     <><Loader2 size={16} className="animate-spin" /> Envoi en cours...</>
@@ -2115,19 +2116,19 @@ export default function Quotes() {
 
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white rounded-ui-lg shadow-md w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
-          <div className="px-6 py-4 border-b bg-gradient-to-r from-emerald-50 to-green-50 flex items-center justify-between">
+          <div className="px-6 py-4 border-b bg-gray-50 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <GraduationCap size={22} className="text-emerald-600" />
+                <GraduationCap size={22} className="text-[rgb(var(--c-success))]" />
                 Générer des sessions
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-ui text-gray-500 mt-0.5">
                 Devis {quote.reference} - {client.name}
               </p>
             </div>
-            <button onClick={() => setSessionWizard(null)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <button onClick={() => setSessionWizard(null)} className="p-2 hover:bg-gray-100 rounded-ui-sm transition-colors">
               <X size={20} />
             </button>
           </div>
@@ -2140,30 +2141,30 @@ export default function Quotes() {
               const course = f.course
               return (
                 <div key={f.item.id}
-                  className={`border rounded-xl transition-all ${sel.selected ? 'border-emerald-300 bg-emerald-50/30 shadow-sm' : 'border-gray-200 bg-gray-50/50 opacity-60'}`}
+                  className={`border rounded-ui transition-all ${sel.selected ? 'border-[rgb(var(--c-success)/0.3)] bg-[rgb(var(--c-success-bg))] shadow-sm' : 'border-gray-200 bg-gray-50/50 opacity-60'}`}
                 >
                   {/* Formation header + checkbox */}
                   <div className="px-4 py-3 flex items-center gap-3 cursor-pointer"
                     onClick={() => updateSessionSelection(idx, 'selected', !sel.selected)}>
                     <input type="checkbox" checked={sel.selected} readOnly
-                      className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                      className="w-5 h-5 rounded border-gray-300 text-[rgb(var(--c-success))] focus:ring-[rgb(var(--c-success)/0.3)]" />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900">{course.title}</p>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                      <div className="flex items-center gap-3 text-ui-sm text-gray-500 mt-0.5">
                         <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{course.code}</span>
                         {course.duration_days && <span>{course.duration_days}j ({course.duration_hours}h)</span>}
                         <span className="flex items-center gap-1"><Users size={12} /> {sel.nbParticipants} stagiaire{sel.nbParticipants > 1 ? 's' : ''}</span>
-                        <span className="font-medium text-emerald-700">{money(sel.totalPriceHt)} HT</span>
+                        <span className="font-medium text-[rgb(var(--c-success))]">{money(sel.totalPriceHt)} HT</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Configuration (visible si sélectionné) */}
                   {sel.selected && (
-                    <div className="px-4 pb-4 pt-1 border-t border-emerald-200/50">
+                    <div className="px-4 pb-4 pt-1 border-t border-[rgb(var(--c-success)/0.3)]">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                          <label className="block text-ui-sm font-medium text-gray-600 mb-1">
                             <Calendar size={12} className="inline mr-1" />Date début *
                           </label>
                           <input type="date" value={sel.startDate}
@@ -2182,16 +2183,16 @@ export default function Quotes() {
                                 updateSessionSelection(idx, 'endDate', format(current, 'yyyy-MM-dd'))
                               }
                             }}
-                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-success)/0.3)]" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Date fin *</label>
+                          <label className="block text-ui-sm font-medium text-gray-600 mb-1">Date fin *</label>
                           <input type="date" value={sel.endDate}
                             onChange={(e) => updateSessionSelection(idx, 'endDate', e.target.value)}
-                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-success)/0.3)]" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Créneau</label>
+                          <label className="block text-ui-sm font-medium text-gray-600 mb-1">Créneau</label>
                           <div className="flex flex-wrap gap-1.5">
                             {[
                               { key: 'matin',    label: 'Matin',      start: '08:00', end: '12:00' },
@@ -2215,10 +2216,10 @@ export default function Quotes() {
                                     }
                                   }))
                                 }}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+                                className={`px-2.5 py-1 rounded-ui-sm text-ui-sm font-medium border transition-all ${
                                   sel.preset === p.key
-                                    ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-400'
+                                    ? 'bg-[rgb(var(--c-success))] text-white border-[rgb(var(--c-success)/0.3)]'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-[rgb(var(--c-success)/0.3)]'
                                 }`}
                               >
                                 {p.label}
@@ -2230,18 +2231,18 @@ export default function Quotes() {
                               <div className="flex-1">
                                 <input type="time" value={sel.startTime}
                                   onChange={(e) => updateSessionSelection(idx, 'startTime', e.target.value)}
-                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-success)/0.3)]" />
                               </div>
-                              <span className="self-center text-gray-400 text-sm">→</span>
+                              <span className="self-center text-gray-400 text-ui">→</span>
                               <div className="flex-1">
                                 <input type="time" value={sel.endTime}
                                   onChange={(e) => updateSessionSelection(idx, 'endTime', e.target.value)}
-                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-success)/0.3)]" />
                               </div>
                             </div>
                           )}
                           {sel.preset !== 'perso' && (
-                            <p className="text-[11px] text-gray-400 mt-1">{sel.startTime} → {sel.endTime}</p>
+                            <p className="text-ui-sm text-gray-400 mt-1">{sel.startTime} → {sel.endTime}</p>
                           )}
                           {/* Indicateur durée calculée */}
                           {sel.startDate && sel.endDate && sel.startTime && sel.endTime && (() => {
@@ -2256,7 +2257,7 @@ export default function Quotes() {
                             const hTotal = Math.round(hParJour * nbJours * 10) / 10
                             const isDemi = mins <= 270
                             return (
-                              <div className={`mt-1.5 px-2 py-1 rounded text-xs font-medium flex items-center gap-1.5 ${isDemi ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                              <div className={`mt-1.5 px-2 py-1 rounded text-ui-sm font-medium flex items-center gap-1.5 ${isDemi ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]'}`}>
                                 <span>{isDemi ? '' : ''}</span>
                                 <span>{nbJours === 1 ? '1 jour' : `${nbJours} jours`} - {hTotal}h au total ({hParJour}h/jour)</span>
                               </div>
@@ -2266,10 +2267,10 @@ export default function Quotes() {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Formateur</label>
+                          <label className="block text-ui-sm font-medium text-gray-600 mb-1">Formateur</label>
                           <select value={sel.trainerId}
                             onChange={(e) => updateSessionSelection(idx, 'trainerId', e.target.value)}
-                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500">
+                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-success)/0.3)]">
                             <option value="">- Choisir -</option>
                             {(storeTrainers || []).map(t => (
                               <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
@@ -2277,33 +2278,33 @@ export default function Quotes() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                          <label className="block text-ui-sm font-medium text-gray-600 mb-1">
                             <Users size={12} className="inline mr-1" />Stagiaires
                           </label>
                           <input type="number" min="1" max="20" value={sel.nbParticipants}
                             onChange={(e) => updateSessionSelection(idx, 'nbParticipants', parseInt(e.target.value) || 1)}
-                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-success)/0.3)]" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                          <label className="block text-ui-sm font-medium text-gray-600 mb-1">
                             <MapPin size={12} className="inline mr-1" />Lieu de formation
                           </label>
                           <input type="text" value={sel.location}
                             onChange={(e) => updateSessionSelection(idx, 'location', e.target.value)}
                             placeholder="Adresse complète du lieu..."
-                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-success)/0.3)]" />
                           <label className="flex items-center gap-1.5 mt-1 cursor-pointer">
                             <input type="checkbox" checked={sel.isIntra !== false}
                               onChange={(e) => updateSessionSelection(idx, 'isIntra', e.target.checked)}
-                              className="w-3 h-3 rounded text-emerald-600" />
-                            <span className="text-[11px] text-gray-500">Formation intra (chez le client)</span>
+                              className="w-3 h-3 rounded text-[rgb(var(--c-success))]" />
+                            <span className="text-ui-sm text-gray-500">Formation intra (chez le client)</span>
                           </label>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Prix HT session</label>
+                          <label className="block text-ui-sm font-medium text-gray-600 mb-1">Prix HT session</label>
                           <input type="number" step="0.01" value={sel.totalPriceHt}
                             onChange={(e) => updateSessionSelection(idx, 'totalPriceHt', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-ui-sm text-ui focus:ring-2 focus:ring-[rgb(var(--c-success)/0.3)]" />
                         </div>
                       </div>
                     </div>
@@ -2316,15 +2317,15 @@ export default function Quotes() {
           {/* Footer */}
           <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
             <button onClick={() => setSessionWizard(null)}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg text-sm transition-colors">
+              className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-ui-sm text-ui transition-colors">
               Annuler
             </button>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">
+              <span className="text-ui text-gray-500">
                 {selectedCount} formation{selectedCount > 1 ? 's' : ''} sélectionnée{selectedCount > 1 ? 's' : ''}
               </span>
               <button onClick={handleCreateSessions} disabled={sessionCreating || selectedCount === 0}
-                className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2">
+                className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))] transition-colors disabled:opacity-50 flex items-center gap-2">
                 {sessionCreating ? (
                   <><Loader2 size={16} className="animate-spin" /> Création...</>
                 ) : (

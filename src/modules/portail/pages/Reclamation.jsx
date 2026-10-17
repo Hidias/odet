@@ -123,16 +123,16 @@ export default function Reclamation() {
   // Page de confirmation
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-ui-lg shadow-md p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-[rgb(var(--c-success-bg))] rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-[rgb(var(--c-success))]" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Réclamation enregistrée</h1>
+          <h1 className="page-title mb-2">Réclamation enregistrée</h1>
           <p className="text-gray-600 mb-6">
             Votre demande a bien été prise en compte. Un premier retour vous sera transmis sous 48 heures ouvrées.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-ui text-gray-500">
             Pour toute question urgente : <a href={`mailto:${orgEmail()}`} className="text-primary-600 hover:underline">{orgEmail()}</a>
           </p>
         </div>
@@ -141,7 +141,7 @@ export default function Reclamation() {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-500 to-primary-700 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -151,16 +151,16 @@ export default function Reclamation() {
         </div>
         
         {/* Formulaire */}
-        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8">
+        <div className="bg-white rounded-ui-lg shadow-md p-6 md:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Numéro de session */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-ui font-medium text-gray-700 mb-2">
                 Numéro de session *
               </label>
               <div className="flex gap-2">
                 <div className="flex-1 flex">
-                  <span className="inline-flex items-center px-3 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-500 text-sm">
+                  <span className="inline-flex items-center px-3 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-500 text-ui">
                     SES-
                   </span>
                   <input
@@ -179,30 +179,30 @@ export default function Reclamation() {
                   type="button"
                   onClick={handleVerifySession}
                   disabled={verifying}
-                  className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 bg-primary-500 text-white rounded-ui-sm hover:bg-primary-600 disabled:opacity-50 flex items-center gap-2"
                 >
                   <Search className="w-4 h-4" />
                   {verifying ? 'Vérification...' : 'Vérifier'}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-ui-sm text-gray-500 mt-1">
                 Le numéro de session figure sur vos documents de formation (convocation, feuille d'émargement)
               </p>
               
               {sessionError && (
-                <p className="text-red-600 text-sm mt-2 flex items-center gap-1">
+                <p className="text-[rgb(var(--c-danger))] text-ui mt-2 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
                   {sessionError}
                 </p>
               )}
               
               {sessionInfo && (
-                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-700 font-medium flex items-center gap-2 mb-2">
+                <div className="mt-3 p-3 bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm">
+                  <p className="text-[rgb(var(--c-success))] font-medium flex items-center gap-2 mb-2">
                     <CheckCircle className="w-4 h-4" />
                     Session trouvée
                   </p>
-                  <div className="text-sm text-green-800 space-y-1">
+                  <div className="text-ui text-[rgb(var(--c-success))] space-y-1">
                     <p className="flex items-center gap-2">
                       <GraduationCap className="w-4 h-4" />
                       {sessionInfo.title}
@@ -219,7 +219,7 @@ export default function Reclamation() {
             
             {/* Nom */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-ui font-medium text-gray-700 mb-2">
                 Nom et prénom *
               </label>
               <input
@@ -227,14 +227,14 @@ export default function Reclamation() {
                 value={form.fullName}
                 onChange={(e) => setForm({...form, fullName: e.target.value})}
                 placeholder="Jean Dupont"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 required
               />
             </div>
             
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-ui font-medium text-gray-700 mb-2">
                 Adresse email *
               </label>
               <input
@@ -242,7 +242,7 @@ export default function Reclamation() {
                 value={form.email}
                 onChange={(e) => setForm({...form, email: e.target.value})}
                 placeholder="jean.dupont@example.com"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 required
               />
             </div>
@@ -250,7 +250,7 @@ export default function Reclamation() {
             {/* Téléphone et Entreprise */}
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-ui font-medium text-gray-700 mb-2">
                   Téléphone
                 </label>
                 <input
@@ -258,11 +258,11 @@ export default function Reclamation() {
                   value={form.phone}
                   onChange={(e) => setForm({...form, phone: e.target.value})}
                   placeholder="06 XX XX XX XX"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-ui font-medium text-gray-700 mb-2">
                   Entreprise
                 </label>
                 <input
@@ -270,14 +270,14 @@ export default function Reclamation() {
                   value={form.company}
                   onChange={(e) => setForm({...form, company: e.target.value})}
                   placeholder="Nom de votre entreprise"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
             </div>
             
             {/* Message */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-ui font-medium text-gray-700 mb-2">
                 Votre réclamation *
               </label>
               <textarea
@@ -285,7 +285,7 @@ export default function Reclamation() {
                 onChange={(e) => setForm({...form, message: e.target.value})}
                 rows={5}
                 placeholder="Décrivez votre réclamation de manière détaillée..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 required
               />
             </div>
@@ -303,7 +303,7 @@ export default function Reclamation() {
             
             {/* Erreur */}
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2">
+              <div className="p-3 bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] rounded-ui-sm text-[rgb(var(--c-danger))] text-ui flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 {error}
               </div>
@@ -313,13 +313,13 @@ export default function Reclamation() {
             <button
               type="submit"
               disabled={loading || !sessionInfo}
-              className="w-full py-3 px-4 bg-primary-500 text-white font-medium rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-3 px-4 bg-primary-500 text-white font-medium rounded-ui-sm hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
             >
               <Send className="w-5 h-5" />
               {loading ? 'Envoi en cours...' : 'Envoyer ma réclamation'}
             </button>
             
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-ui-sm text-gray-500 text-center">
               Un premier retour vous sera transmis sous 48 heures ouvrées.
               <br />
               Vous pouvez également nous contacter à{' '}
@@ -331,7 +331,7 @@ export default function Reclamation() {
         </div>
         
         {/* Footer */}
-        <p className="text-center text-white/60 text-sm mt-6">
+        <p className="text-center text-white/60 text-ui mt-6">
           © {new Date().getFullYear()} {branding.legal_name || branding.org_name} - Organisme de formation
         </p>
       </div>

@@ -131,22 +131,22 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-4">
-        <p className="text-sm text-gray-500">Chargement...</p>
+      <div className="bg-white rounded-ui-sm shadow p-4">
+        <p className="text-ui text-gray-500">Chargement...</p>
       </div>
     )
   }
 
   if (!document) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-4">
         <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="w-5 h-5 text-[rgb(var(--c-warning))] flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-yellow-900 mb-1">
+            <p className="text-ui font-medium text-[rgb(var(--c-warning))] mb-1">
               Document stagiaire non disponible
             </p>
-            <p className="text-xs text-yellow-700">
+            <p className="text-ui-sm text-[rgb(var(--c-warning))]">
               Ajoutez un document dans l'onglet "Documents de formations" pour le rendre accessible aux stagiaires
             </p>
           </div>
@@ -158,17 +158,17 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
   const isActive = access?.is_active || false
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 space-y-4">
+    <div className="bg-white rounded-ui-sm shadow p-4 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3 flex-1">
-          <div className="bg-red-100 rounded-lg p-2">
-            <FileText className="w-6 h-6 text-red-600" />
+          <div className="bg-[rgb(var(--c-danger-bg))] rounded-ui-sm p-2">
+            <FileText className="w-6 h-6 text-[rgb(var(--c-danger))]" />
           </div>
           <div>
             <h4 className="font-medium text-gray-900">Document stagiaire</h4>
-            <p className="text-sm text-gray-600">{document.file_name}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-ui text-gray-600">{document.file_name}</p>
+            <p className="text-ui-sm text-gray-500">
               {(document.file_size / 1024 / 1024).toFixed(1)} MB
             </p>
           </div>
@@ -193,16 +193,16 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
       </div>
 
       {/* Toggle accès */}
-      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-ui-sm">
         <div className="flex items-center gap-3">
           {isActive ? (
             <>
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-[rgb(var(--c-success))]" />
               <div>
-                <span className="text-sm font-medium text-green-700 block">
+                <span className="text-ui font-medium text-[rgb(var(--c-success))] block">
                   Accessible aux stagiaires
                 </span>
-                <span className="text-xs text-green-600">
+                <span className="text-ui-sm text-[rgb(var(--c-success))]">
                   Via QR code • Section "Documents"
                 </span>
               </div>
@@ -211,10 +211,10 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
             <>
               <XCircle className="w-5 h-5 text-gray-400" />
               <div>
-                <span className="text-sm font-medium text-gray-600 block">
+                <span className="text-ui font-medium text-gray-600 block">
                   Non accessible
                 </span>
-                <span className="text-xs text-gray-500">
+                <span className="text-ui-sm text-gray-500">
                   Activez pour rendre disponible
                 </span>
               </div>
@@ -225,8 +225,8 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
         <button
           onClick={toggleAccess}
           disabled={updating}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-            isActive ? 'bg-green-600' : 'bg-gray-300'
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--c-info)/0.3)] focus:ring-offset-2 ${
+            isActive ? 'bg-[rgb(var(--c-success))]' : 'bg-gray-300'
           } ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <span
@@ -240,12 +240,12 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
       {/* Statistiques (si activé) */}
       {isActive && (
         <div className="pt-4 border-t border-gray-200 space-y-3">
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center justify-between text-ui">
             <span className="text-gray-600 font-medium">Téléchargements :</span>
             <span className="text-gray-900 font-semibold">
               {stats.downloaded} / {stats.total} stagiaires
               {stats.total > 0 && (
-                <span className="ml-2 text-xs text-gray-500">
+                <span className="ml-2 text-ui-sm text-gray-500">
                   ({Math.round((stats.downloaded / stats.total) * 100)}%)
                 </span>
               )}
@@ -254,17 +254,17 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
           
           {/* Barre de progression */}
           <div className="relative">
-            <div className="overflow-hidden h-2 text-xs flex rounded-full bg-gray-200">
+            <div className="overflow-hidden h-2 text-ui-sm flex rounded-full bg-gray-200">
               <div
                 style={{ width: `${stats.total > 0 ? (stats.downloaded / stats.total) * 100 : 0}%` }}
-                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500 transition-all duration-300"
+                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[rgb(var(--c-success))] transition-all duration-300"
               />
             </div>
           </div>
 
           {/* Détails */}
           {stats.total > 0 && stats.downloaded === stats.total && (
-            <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 p-2 rounded">
+            <div className="flex items-center gap-2 text-ui-sm text-[rgb(var(--c-success))] bg-[rgb(var(--c-success-bg))] p-2 rounded">
               <CheckCircle className="w-4 h-4" />
               <span className="font-medium">Tous les stagiaires ont téléchargé le document ! </span>
             </div>
@@ -273,12 +273,12 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
       )}
 
       {/* Note d'aide */}
-      <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded border border-blue-100">
+      <div className="text-ui-sm text-gray-500 bg-[rgb(var(--c-info-bg))] p-3 rounded border border-[rgb(var(--c-info)/0.3)]">
         <div className="flex items-start gap-2">
-          <span className="text-blue-600"></span>
+          <span className="text-[rgb(var(--c-info))]"></span>
           <div>
-            <p className="font-medium text-blue-900 mb-1">Comment les stagiaires accèdent au document ?</p>
-            <ol className="list-decimal list-inside space-y-0.5 text-blue-800">
+            <p className="font-medium text-[rgb(var(--c-info))] mb-1">Comment les stagiaires accèdent au document ?</p>
+            <ol className="list-decimal list-inside space-y-0.5 text-[rgb(var(--c-info))]">
               <li>Ils scannent le QR code de la session</li>
               <li>Ils cliquent sur " Documents"</li>
               <li>Ils téléchargent le livret de formation</li>

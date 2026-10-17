@@ -4,7 +4,7 @@ import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store'
 import { supabase } from '../supabase'
-import { useBranding, brandLogo } from '../branding/BrandingProvider'
+import { useBranding, brandLogo, appIcon } from '../branding/BrandingProvider'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -40,7 +40,7 @@ export default function Login() {
     else toast.success('Si ce compte existe, un lien de réinitialisation vient de vous être envoyé')
   }
 
-  const logo = brandLogo(branding, false)
+  const logo = appIcon(branding) || brandLogo(branding, false)
   const title = branding.app_name || branding.org_name || ''
 
   return (

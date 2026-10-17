@@ -8,7 +8,7 @@
 --   * les rôles sont lus par app.role(), évaluée une fois par requête ;
 --   * un module désactivé rend ses tables inaccessibles, sauf au super administrateur en lecture ;
 --   * anon ne lit et n'écrit plus aucune table : les portails passent par des fonctions à jeton.
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 -- Groupes de rôles de la matrice : (select app.grp('mgr')) vaut vrai si le rôle effectif est dans le groupe.
 create or replace function app.grp(p_group text)
@@ -166,8 +166,8 @@ select pg_temp.regles(array['audit_logs'], null,
   null,
   null);
 
--- audits_internes, bpf_declarations, non_conformites, non_conformities, process_categories, process_connections, process_responsibles, process_steps, process_versions, processes, psh_requests, qualiopi_indicators, quality_alerts, reclamations, rgpd_traitements, veille_qualiopi, veille_sources (module qualite)
-select pg_temp.regles(array['audits_internes', 'bpf_declarations', 'non_conformites', 'non_conformities', 'process_categories', 'process_connections', 'process_responsibles', 'process_steps', 'process_versions', 'processes', 'psh_requests', 'qualiopi_indicators', 'quality_alerts', 'reclamations', 'rgpd_traitements', 'veille_qualiopi', 'veille_sources'], $r$qualite$r$,
+-- audits_internes, bpf_declarations, non_conformites, non_conformities, process_categories, process_connections, process_responsibles, process_steps, process_versions, processes, qualiopi_indicators, quality_alerts, reclamations, rgpd_traitements, veille_qualiopi, veille_sources (module qualite)
+select pg_temp.regles(array['audits_internes', 'bpf_declarations', 'non_conformites', 'non_conformities', 'process_categories', 'process_connections', 'process_responsibles', 'process_steps', 'process_versions', 'processes', 'qualiopi_indicators', 'quality_alerts', 'reclamations', 'rgpd_traitements', 'veille_qualiopi', 'veille_sources'], $r$qualite$r$,
   $r$(select app.grp('staff'))$r$,
   $r$(select app.grp('edit'))$r$,
   $r$(select app.grp('mgr'))$r$,
@@ -390,6 +390,13 @@ select pg_temp.regles(array['prospection_massive'], $r$prospection$r$,
   $r$(select app.grp('sales'))$r$,
   $r$(select app.grp('mgr'))$r$);
 
+-- psh_requests (module qualite)
+select pg_temp.regles(array['psh_requests'], $r$qualite$r$,
+  $r$(select app.can_see_disability())$r$,
+  $r$(select app.can_see_disability())$r$,
+  $r$(select app.can_see_disability())$r$,
+  $r$(select app.can_see_disability())$r$);
+
 -- quality_doc_versions
 select pg_temp.regles(array['quality_doc_versions'], null,
   $r$(select app.grp('int'))$r$,
@@ -506,17 +513,29 @@ select pg_temp.regles(array['user_planning_events'], null,
 do $$
 declare r record;
 begin
+  if to_regprocedure('public.pp_can()') is null then
+    return;
+  end if;
   for r in select p.tablename, p.policyname from pg_policies p
            where p.schemaname = 'public' and p.tablename like 'pp\_%' loop
     execute format('drop policy %I on public.%I', r.policyname, r.tablename);
   end loop;
   for r in select tablename from pg_tables where schemaname = 'public' and tablename like 'pp\_%' loop
+    execute format('alter table public.%I enable row level security', r.tablename);
+    execute format('revoke all on table public.%I from anon', r.tablename);
     if r.tablename = 'pp_nir' then
-      execute 'alter table public.pp_nir enable row level security';
-      execute 'revoke all on table public.pp_nir from anon, authenticated';
-    else
-      perform pg_temp.regles(array[r.tablename], 'passeport',
-        '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))');
+      execute 'revoke all on table public.pp_nir from authenticated';
+      continue;
+    end if;
+    execute format('create policy %I on public.%I for select to authenticated using ((select public.pp_can_read()) and (select app.role()) is not null)',
+                   r.tablename || '_lire', r.tablename);
+    if r.tablename = 'pp_course_settings' then
+      execute format('create policy %I on public.%I for insert to authenticated with check ((select public.pp_can()) and (select app.role()) is not null)',
+                     r.tablename || '_creer', r.tablename);
+      execute format('create policy %I on public.%I for update to authenticated using ((select public.pp_can()) and (select app.role()) is not null) with check ((select public.pp_can()) and (select app.role()) is not null)',
+                     r.tablename || '_modifier', r.tablename);
+      execute format('create policy %I on public.%I for delete to authenticated using ((select public.pp_can()) and (select app.role()) is not null)',
+                     r.tablename || '_supprimer', r.tablename);
     end if;
   end loop;
 end $$;

@@ -72,6 +72,11 @@ begin
   insert into public.trainees (first_name, last_name, social_security_number) values ('Essai', 'UN', '185057800608436')
   returning id into v_tr1;
   insert into public.trainees (first_name, last_name) values ('Essai', 'DEUX') returning id into v_tr2;
+  -- Handicap (0087) : écrit par l'ancien chemin, rangé par le déclencheur ; référent handicap = le commercial d'essai
+  update public.trainees set has_disability = true, disability_details = 'Essai besoin', disability_adaptations = 'Essai adaptation'
+  where id = v_tr1;
+  update public.quality_roles set profile_id = u_com where code = 'referent_handicap';
+  insert into public.psh_requests (besoin_fonctionnel) values ('Essai besoin PSH');
   insert into public.session_trainees (session_id, trainee_id) values (v_s1, v_tr1) returning id into v_st1;
   insert into public.session_trainees (session_id, trainee_id) values (v_s2, v_tr2);
   update public.session_trainees set access_code = v_code, access_code_attempts = 0, access_code_locked = false where id = v_st1;
@@ -197,6 +202,38 @@ begin
       ('anon', 'trouve la session pour une réclamation', 'select count(*) from (select public.public_reclamation_session(''' || coalesce(v_ref, 'X') || ''') r) x where r is not null', '=1'),
       ('anon', 'n''appelle pas une fonction du personnel', 'select count(*) from (select public.client_contact_sync_primary(''' || v_client || ''')) x', 'refus'),
       ('anon', 'ne lit aucun fichier du bucket documents', 'select count(*) from storage.objects where bucket_id = ''documents''', 'vide'),
+      -- Handicap (ajout du chantier F, 17/10) : direction et référent handicap seulement
+      ('dir', 'lit le handicap', 'select count(*) from public.trainee_disability where trainee_id = ''' || v_tr1 || '''', '=1'),
+      ('sa', 'lit le handicap', 'select count(*) from public.trainee_disability where trainee_id = ''' || v_tr1 || '''', '=1'),
+      ('com', 'référent handicap : lit le handicap', 'select count(*) from public.trainee_disability where trainee_id = ''' || v_tr1 || '''', '=1'),
+      ('ges', 'ne lit pas le handicap', 'select count(*) from public.trainee_disability', 'vide'),
+      ('for', 'ne lit pas le handicap', 'select count(*) from public.trainee_disability', 'vide'),
+      ('lec', 'ne lit pas le handicap', 'select count(*) from public.trainee_disability', 'vide'),
+      ('cpt', 'ne lit pas le handicap', 'select count(*) from public.trainee_disability', 'vide'),
+      ('off', 'compte désactivé : pas de handicap', 'select count(*) from public.trainee_disability', 'vide'),
+      ('anon', 'ne lit pas le handicap', 'select count(*) from public.trainee_disability', 'refus'),
+      ('ges', 'le handicap ne reste pas dans la fiche', 'select count(*) from public.trainees where id = ''' || v_tr1 || ''' and (has_disability or disability_details is not null or disability_adaptations is not null)', '=0'),
+      ('ges', 'compte des stagiaires concernés, sans identité', 'select public.disability_count(array[''' || v_tr1 || ''']::uuid[])', '=1'),
+      ('ges', 'fiche lue sans handicap', 'select count(*) from public.get_trainee_with_ssn(''' || v_tr1 || ''') where has_disability is null and disability_details is null', '=1'),
+      ('dir', 'fiche lue avec handicap', 'select count(*) from public.get_trainee_with_ssn(''' || v_tr1 || ''') where has_disability and disability_details = ''Essai besoin''', '=1'),
+      ('ges', 'enregistre la fiche (handicap non visible)', 'select count(*) from (select public.save_trainee_with_ssn(''' || v_tr1 || ''', ''Essai'', ''UN'')) x', '=1'),
+      ('dir', 'handicap conservé après enregistrement par la gestion', 'select count(*) from public.trainee_disability where trainee_id = ''' || v_tr1 || ''' and has_disability and details = ''Essai besoin''', '=1'),
+      ('dir', 'retire le handicap depuis la fiche', 'select count(*) from (select public.save_trainee_with_ssn(''' || v_tr1 || ''', ''Essai'', ''UN'', p_has_disability => false)) x', '=1'),
+      ('dir', 'handicap retiré', 'select count(*) from public.trainee_disability where trainee_id = ''' || v_tr1 || '''', '=0'),
+      ('dir', 'lit le registre PSH', 'select count(*) from public.psh_requests', 'non_vide'),
+      ('com', 'référent handicap : lit le registre PSH', 'select count(*) from public.psh_requests', 'non_vide'),
+      ('ges', 'ne lit pas le registre PSH', 'select count(*) from public.psh_requests', 'vide'),
+      ('for', 'ne lit pas le registre PSH', 'select count(*) from public.psh_requests', 'vide'),
+      ('ges', 'compte du registre PSH, sans contenu', 'select public.psh_request_count()', 'non_vide'),
+      -- Signatures des formateurs : bucket privé
+      ('anon', 'ne lit pas les signatures des formateurs', 'select count(*) from storage.objects where bucket_id = ''trainer-signatures''', 'vide'),
+      ('ent', 'ne lit pas les signatures des formateurs', 'select count(*) from storage.objects where bucket_id = ''trainer-signatures''', 'vide'),
+      -- Suivi formatif (0250, règles du module, non modifiées) : rien pour les rôles externes et les visiteurs
+      ('ent', 'ne lit pas le suivi formatif', 'select count(*) from public.formative_sheets', 'vide'),
+      ('stg', 'ne lit pas le suivi formatif', 'select count(*) from public.formative_evaluations', 'vide'),
+      ('ext', 'ne lit pas les séquences', 'select count(*) from public.session_sequences', 'vide'),
+      ('off', 'compte désactivé : pas de suivi formatif', 'select count(*) from public.formative_evaluations', 'vide'),
+      ('anon', 'ne lit pas le suivi formatif', 'select count(*) from public.formative_evaluations', 'refus'),
       ('ent', 'n''appelle pas une fonction du personnel', 'select count(*) from (select public.client_contact_sync_primary(''' || v_client || ''')) x', 'refus')
     ) t(who, label, sql, expect)
   loop
@@ -299,6 +336,39 @@ begin
     v_lines := v_lines || 'OK      base  une seule règle permissive par action et par table'::text;
   else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  une seule règle permissive par action et par table'::text; end if;
 
+  -- Ajouts du chantier F (17/10) : TRUNCATE, TRIGGER, REFERENCES retirés partout ; signatures privées
+  v_total := v_total + 2;
+  if not exists (select 1 from pg_class c, aclexplode(c.relacl) a
+                 where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'v', 'm')
+                   and a.grantee in ('anon'::regrole, 'authenticated'::regrole)
+                   and a.privilege_type in ('TRUNCATE', 'TRIGGER', 'REFERENCES')) then
+    v_lines := v_lines || 'OK      base  aucun TRUNCATE, TRIGGER ni REFERENCES pour anon et authenticated'::text;
+  else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  aucun TRUNCATE, TRIGGER ni REFERENCES pour anon et authenticated'::text; end if;
+  if exists (select 1 from storage.buckets where id = 'trainer-signatures' and not public)
+     or not exists (select 1 from storage.buckets where id = 'trainer-signatures') then
+    v_lines := v_lines || 'OK      base  bucket trainer-signatures privé'::text;
+  else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  bucket trainer-signatures privé'::text; end if;
+
+  -- Suivi formatif (0250) : fonctions et règles identiques à l'état d'avant les migrations
+  -- (photographie prise par le script d'essai avant 0080, table temporaire essai_sf_avant)
+  if to_regclass('pg_temp.essai_sf_avant') is not null then
+    v_total := v_total + 1;
+    if not exists (
+      select * from essai_sf_avant
+      except
+      select 'fonction', p.oid::regprocedure::text,
+             md5(concat_ws('|', pg_get_functiondef(p.oid), p.prosecdef::text, p.proconfig::text,
+                 (select string_agg(a.grantee::regrole::text || ':' || a.privilege_type, ',' order by a.grantee::regrole::text, a.privilege_type)
+                  from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a)))
+      from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'sf\_%' or p.proname = 'save_formative_batch')
+      union all
+      select 'règle', tablename || '.' || policyname, md5(concat_ws('|', permissive, roles::text, cmd, qual, with_check))
+      from pg_policies where schemaname = 'public'
+        and tablename in ('course_sequences', 'session_sequences', 'formative_evaluations', 'formative_sheets')) then
+      v_lines := v_lines || 'OK      base  suivi formatif : fonctions sf_* et règles inchangées'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  suivi formatif : fonctions sf_* et règles inchangées'::text; end if;
+  end if;
+
   -- Passeport de prévention (si le module est installé) : pp_nir réservée au serveur
   if to_regclass('public.pp_nir') is not null then
     v_total := v_total + 2;
@@ -307,9 +377,10 @@ begin
       v_lines := v_lines || 'OK      base  pp_nir : aucune règle, aucun droit pour les comptes connectés'::text;
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  pp_nir : aucune règle, aucun droit pour les comptes connectés'::text; end if;
     if not exists (select 1 from pg_policies where schemaname = 'public' and tablename like 'pp\_%'
-                   and (coalesce(qual, '') || coalesce(with_check, '')) not like '%app.grp(''mgr'')%') then
-      v_lines := v_lines || 'OK      base  tables pp_* réservées à la direction et à la gestion'::text;
-    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  tables pp_* réservées à la direction et à la gestion'::text; end if;
+                   and ((coalesce(qual, '') || coalesce(with_check, '')) not like '%pp_can%'
+                        or (coalesce(qual, '') || coalesce(with_check, '')) not like '%app.role()%')) then
+      v_lines := v_lines || 'OK      base  tables pp_* : règles du Passeport (direction et gestion), compte actif'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  tables pp_* : règles du Passeport (direction et gestion), compte actif'::text; end if;
   end if;
 
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',

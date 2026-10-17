@@ -448,14 +448,14 @@ export default function StageEmailModal({ session, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-ui-sm max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
 
         {/* Header */}
         <div className="p-4 border-b flex items-center justify-between bg-primary-600 text-white flex-shrink-0">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Mail className="w-5 h-5" />
             Envoyer documents aux stagiaires
-            {step === 'preview' && <span className="text-sm font-normal opacity-75 ml-1">- Prévisualisation</span>}
+            {step === 'preview' && <span className="text-ui font-normal opacity-75 ml-1">- Prévisualisation</span>}
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-primary-700 rounded">
             <X className="w-5 h-5" />
@@ -470,9 +470,9 @@ export default function StageEmailModal({ session, onClose }) {
             <div className="space-y-5">
 
               {/* Destinataires */}
-              <div className="bg-gray-50 border rounded-lg p-4">
+              <div className="bg-gray-50 border rounded-ui-sm p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-gray-700">
+                  <p className="text-ui font-semibold text-gray-700">
                     Destinataires - {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''} / {trainees.length}
                   </p>
                   <button
@@ -481,7 +481,7 @@ export default function StageEmailModal({ session, onClose }) {
                       const allSelected = trainees.filter(t => t.email).every(t => selectedIds.has(t.id))
                       setSelectedIds(allSelected ? new Set() : allWithEmail)
                     }}
-                    className="text-xs text-primary-600 hover:underline"
+                    className="text-ui-sm text-primary-600 hover:underline"
                   >
                     {trainees.filter(t => t.email).every(t => selectedIds.has(t.id)) ? 'Tout désélectionner' : 'Tout sélectionner'}
                   </button>
@@ -492,9 +492,9 @@ export default function StageEmailModal({ session, onClose }) {
                     return (
                       <label
                         key={t.id}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                        className={`flex items-center gap-3 px-3 py-2 rounded-ui-sm cursor-pointer transition-colors ${
                           !t.email ? 'opacity-50 cursor-not-allowed' :
-                          selectedIds.has(t.id) ? 'bg-green-50 border border-green-200' : 'bg-white border border-gray-200 hover:bg-gray-50'
+                          selectedIds.has(t.id) ? 'bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)]' : 'bg-white border border-gray-200 hover:bg-gray-50'
                         }`}
                       >
                         <input
@@ -507,15 +507,15 @@ export default function StageEmailModal({ session, onClose }) {
                           }}
                           className="w-4 h-4 rounded accent-green-600"
                         />
-                        <span className="text-sm font-medium text-gray-800">{t.first_name} {t.last_name}</span>
+                        <span className="text-ui font-medium text-gray-800">{t.first_name} {t.last_name}</span>
                         {hasSst && (
-                          <span className="flex items-center gap-0.5 text-xs text-green-700 bg-green-100 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
+                          <span className="flex items-center gap-0.5 text-ui-sm text-[rgb(var(--c-success))] bg-[rgb(var(--c-success-bg))] px-1.5 py-0.5 rounded font-medium flex-shrink-0">
                             <ShieldCheck className="w-3 h-3" /> SST
                           </span>
                         )}
                         {t.email
-                          ? <span className="text-xs text-gray-400 ml-auto truncate max-w-[180px]">{t.email}</span>
-                          : <span className="text-xs text-amber-600 italic ml-auto">pas d'email</span>
+                          ? <span className="text-ui-sm text-gray-400 ml-auto truncate max-w-[180px]">{t.email}</span>
+                          : <span className="text-ui-sm text-[rgb(var(--c-warning))] italic ml-auto">pas d'email</span>
                         }
                       </label>
                     )
@@ -525,34 +525,34 @@ export default function StageEmailModal({ session, onClose }) {
 
               {/* Objet */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Objet</label>
+                <label className="block text-ui font-medium text-gray-700 mb-1">Objet</label>
                 <input
                   type="text"
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
                 />
               </div>
 
               {/* Corps du mail */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-ui font-medium text-gray-700 mb-1">
                   Corps du mail
-                  <span className="ml-2 text-xs text-gray-400 font-normal">[Prénom] sera remplacé par le prénom de chaque stagiaire</span>
+                  <span className="ml-2 text-ui-sm text-gray-400 font-normal">[Prénom] sera remplacé par le prénom de chaque stagiaire</span>
                 </label>
                 <textarea
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
-                  className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono resize-none"
+                  className="w-full h-64 px-3 py-2 border border-gray-300 rounded-ui-sm text-ui font-mono resize-none"
                 />
               </div>
 
               {/* PJ auto-générées */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm font-semibold text-blue-800 mb-1.5 flex items-center gap-1.5">
+              <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3">
+                <p className="text-ui font-semibold text-[rgb(var(--c-info))] mb-1.5 flex items-center gap-1.5">
                   <FileText className="w-4 h-4" /> Pièces jointes générées automatiquement (par stagiaire)
                 </p>
-                <ul className="text-sm text-blue-700 space-y-0.5 ml-4 list-disc">
+                <ul className="text-ui text-[rgb(var(--c-info))] space-y-0.5 ml-4 list-disc">
                   <li>Certificat de réalisation - <em>Certificat_{ref}_[Nom].pdf</em></li>
                   <li>Attestation de présence - <em>Attestation_{ref}_[Nom].pdf</em></li>
                   <li>Évaluation à froid - <em>EvaluationFroid_{ref}_[Nom].pdf</em></li>
@@ -561,20 +561,20 @@ export default function StageEmailModal({ session, onClose }) {
               </div>
 
               {/* ── ZONE 1 : Certificats SST ── */}
-              <div className="border border-green-200 rounded-lg overflow-hidden">
-                <div className="bg-green-50 px-4 py-3 flex items-center justify-between">
+              <div className="border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm overflow-hidden">
+                <div className="bg-[rgb(var(--c-success-bg))] px-4 py-3 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
+                    <p className="text-ui font-semibold text-[rgb(var(--c-success))] flex items-center gap-1.5">
                       <ShieldCheck className="w-4 h-4" /> Certificats SST Forprev (par stagiaire)
                     </p>
-                    <p className="text-xs text-green-600 mt-0.5">
+                    <p className="text-ui-sm text-[rgb(var(--c-success))] mt-0.5">
                       Attribution automatique par nom - vérifiez et corrigez si nécessaire
                     </p>
                   </div>
                   {sstFiles.length > 0 && (
                     <button
                       onClick={() => { setSstFiles([]); setSstAttributions({}) }}
-                      className="text-xs text-red-500 hover:text-red-700 underline flex-shrink-0"
+                      className="text-ui-sm text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] underline flex-shrink-0"
                     >
                       Tout effacer
                     </button>
@@ -583,9 +583,9 @@ export default function StageEmailModal({ session, onClose }) {
 
                 <div className="p-3 space-y-2">
                   {/* Zone d'upload */}
-                  <label className="flex items-center justify-center gap-2 border-2 border-dashed border-green-300 rounded-lg p-3 cursor-pointer hover:border-green-400 hover:bg-green-50/40 transition-colors">
-                    <Upload className="w-4 h-4 text-green-500" />
-                    <span className="text-sm text-green-600">Choisir les certificats SST (PDF)</span>
+                  <label className="flex items-center justify-center gap-2 border-2 border-dashed border-[rgb(var(--c-success)/0.3)] rounded-ui-sm p-3 cursor-pointer hover:border-[rgb(var(--c-success)/0.3)] hover:bg-[rgb(var(--c-success-bg))] transition-colors">
+                    <Upload className="w-4 h-4 text-[rgb(var(--c-success))]" />
+                    <span className="text-ui text-[rgb(var(--c-success))]">Choisir les certificats SST (PDF)</span>
                     <input type="file" multiple onChange={handleSstUpload} className="hidden" accept=".pdf" />
                   </label>
 
@@ -600,20 +600,20 @@ export default function StageEmailModal({ session, onClose }) {
                         return (
                           <div
                             key={file.id}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
-                              isUnmatched ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-200'
+                            className={`flex items-center gap-2 px-3 py-2 rounded-ui-sm border text-ui ${
+                              isUnmatched ? 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)]' : 'bg-white border-gray-200'
                             }`}
                           >
                             {isUnmatched
-                              ? <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                              : <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              ? <AlertCircle className="w-4 h-4 text-[rgb(var(--c-warning))] flex-shrink-0" />
+                              : <CheckCircle className="w-4 h-4 text-[rgb(var(--c-success))] flex-shrink-0" />
                             }
-                            <span className="truncate flex-1 text-xs text-gray-700 min-w-0">{file.name}</span>
+                            <span className="truncate flex-1 text-ui-sm text-gray-700 min-w-0">{file.name}</span>
                             <select
                               value={attributedTraineeId}
                               onChange={(e) => handleSstFileAttribution(file.id, e.target.value || null)}
-                              className={`text-xs border rounded px-1.5 py-1 bg-white flex-shrink-0 max-w-[170px] ${
-                                isUnmatched ? 'border-amber-300 text-amber-700' : 'border-gray-300 text-gray-700'
+                              className={`text-ui-sm border rounded px-1.5 py-1 bg-white flex-shrink-0 max-w-[170px] ${
+                                isUnmatched ? 'border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'border-gray-300 text-gray-700'
                               }`}
                             >
                               <option value="">- Non attribué -</option>
@@ -622,7 +622,7 @@ export default function StageEmailModal({ session, onClose }) {
                               ))}
                             </select>
                             <button onClick={() => handleRemoveSstFile(file.id)} className="p-1 hover:bg-gray-100 rounded flex-shrink-0">
-                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                              <Trash2 className="w-3.5 h-3.5 text-[rgb(var(--c-danger))]" />
                             </button>
                           </div>
                         )
@@ -632,9 +632,9 @@ export default function StageEmailModal({ session, onClose }) {
 
                   {/* Avertissement fichiers non attribués */}
                   {unmatchedSstFiles.length > 0 && (
-                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                      <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-700">
+                    <div className="flex items-start gap-2 bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm px-3 py-2">
+                      <AlertCircle className="w-4 h-4 text-[rgb(var(--c-warning))] flex-shrink-0 mt-0.5" />
+                      <p className="text-ui-sm text-[rgb(var(--c-warning))]">
                         {unmatchedSstFiles.length} fichier{unmatchedSstFiles.length > 1 ? 's' : ''} non attribué{unmatchedSstFiles.length > 1 ? 's' : ''} - vérifiez les listes déroulantes ci-dessus.
                       </p>
                     </div>
@@ -643,28 +643,28 @@ export default function StageEmailModal({ session, onClose }) {
               </div>
 
               {/* ── ZONE 2 : Fichiers communs ── */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="border border-gray-200 rounded-ui-sm overflow-hidden">
                 <div className="bg-gray-50 px-4 py-3">
-                  <p className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                  <p className="text-ui font-semibold text-gray-700 flex items-center gap-1.5">
                     <FileText className="w-4 h-4" /> Fichiers communs
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">Envoyés à tous les stagiaires sélectionnés (notices, supports…)</p>
+                  <p className="text-ui-sm text-gray-500 mt-0.5">Envoyés à tous les stagiaires sélectionnés (notices, supports…)</p>
                 </div>
                 <div className="p-3 space-y-2">
-                  <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg p-3 cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
+                  <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-ui-sm p-3 cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
                     <Upload className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-500">Choisir des fichiers</span>
+                    <span className="text-ui text-gray-500">Choisir des fichiers</span>
                     <input type="file" multiple onChange={handleCommonUpload} className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
                   </label>
                   {commonFiles.length > 0 && (
-                    <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg">
+                    <div className="divide-y divide-gray-100 border border-gray-200 rounded-ui-sm">
                       {commonFiles.map(file => (
                         <div key={file.id} className="flex items-center gap-2 px-3 py-2">
                           <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-700 truncate flex-1">{file.name}</span>
-                          <span className="text-xs text-gray-400 flex-shrink-0">{formatSize(file.size)}</span>
+                          <span className="text-ui text-gray-700 truncate flex-1">{file.name}</span>
+                          <span className="text-ui-sm text-gray-400 flex-shrink-0">{formatSize(file.size)}</span>
                           <button onClick={() => setCommonFiles(prev => prev.filter(f => f.id !== file.id))} className="p-1 hover:bg-gray-100 rounded flex-shrink-0">
-                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            <Trash2 className="w-3.5 h-3.5 text-[rgb(var(--c-danger))]" />
                           </button>
                         </div>
                       ))}
@@ -677,11 +677,11 @@ export default function StageEmailModal({ session, onClose }) {
               {evalsLoaded && (() => {
                 const evalData = computeEvalData()
                 return (
-                  <div className="border border-purple-200 rounded-lg overflow-hidden">
-                    <div className="bg-purple-50 px-4 py-3 flex items-center justify-between">
+                  <div className="border border-gray-200 rounded-ui-sm overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-purple-800"> Compte rendu de formation</p>
-                        <p className="text-xs text-purple-600 mt-0.5">
+                        <p className="text-ui font-semibold text-gray-800"> Compte rendu de formation</p>
+                        <p className="text-ui-sm text-gray-800 mt-0.5">
                           {evals.length > 0
                             ? `${evals.length} éval${evals.length > 1 ? 's' : ''} - Score : ${evalData?.globalScore || '-'}/5 - Reco : ${evalData?.tauxReco !== null ? evalData.tauxReco + '%' : '-'}`
                             : 'Aucune évaluation à chaud disponible'}
@@ -689,19 +689,19 @@ export default function StageEmailModal({ session, onClose }) {
                       </div>
                       {evals.length > 0 && (
                         <button onClick={generateCompteRendu} disabled={crGenerating}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50">
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 text-white text-ui-sm font-semibold rounded-ui-sm hover:bg-gray-700 disabled:opacity-50">
                           {crGenerating ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <span></span>}
                           {crGenerating ? 'Génération…' : (compteRendu ? 'Regénérer' : "Générer avec l'IA")}
                         </button>
                       )}
                     </div>
-                    {crError && <div className="mx-4 mt-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">{crError}</div>}
+                    {crError && <div className="mx-4 mt-3 px-3 py-2 bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)] rounded text-ui-sm text-[rgb(var(--c-danger))]">{crError}</div>}
                     {evals.length > 0 && evalData?.comments.length > 0 && (
                       <div className="px-4 pt-3">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Commentaires</p>
+                        <p className="text-ui-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Commentaires</p>
                         <div className="space-y-1.5">
                           {evalData.comments.map((c, i) => (
-                            <p key={i} className="text-xs text-gray-600 italic bg-gray-50 border border-gray-200 rounded px-3 py-2">« {c} »</p>
+                            <p key={i} className="text-ui-sm text-gray-600 italic bg-gray-50 border border-gray-200 rounded px-3 py-2">« {c} »</p>
                           ))}
                         </div>
                       </div>
@@ -709,21 +709,21 @@ export default function StageEmailModal({ session, onClose }) {
                     {compteRendu && (
                       <div className="px-4 py-3">
                         <div className="flex items-center justify-between mb-1.5">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Texte généré</p>
+                          <p className="text-ui-sm font-semibold text-gray-500 uppercase tracking-wide">Texte généré</p>
                           <button
                             onClick={() => { setEmailBody(prev => prev + '\n\n--- Compte rendu de la formation ---\n' + compteRendu); toast.success('Compte rendu ajouté') }}
-                            className="text-xs text-purple-600 hover:text-purple-800 font-medium underline"
+                            className="text-ui-sm text-gray-800 hover:text-gray-800 font-medium underline"
                           >+ Ajouter au mail</button>
                         </div>
                         <textarea
                           value={compteRendu} onChange={e => setCompteRendu(e.target.value)}
-                          className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:ring-purple-300"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui bg-white resize-none focus:outline-none focus:ring-2 focus:ring-gray-200"
                           rows={Math.max(3, compteRendu.split('\n').length + 1)}
                         />
                       </div>
                     )}
                     {evals.length === 0 && (
-                      <p className="px-4 py-3 text-xs text-gray-500 italic">Les évaluations à chaud ne sont pas encore disponibles.</p>
+                      <p className="px-4 py-3 text-ui-sm text-gray-500 italic">Les évaluations à chaud ne sont pas encore disponibles.</p>
                     )}
                   </div>
                 )
@@ -733,7 +733,7 @@ export default function StageEmailModal({ session, onClose }) {
               <button
                 onClick={() => setStep('preview')}
                 disabled={selectedCount === 0}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
               >
                 <Eye className="w-5 h-5" />
                 Prévisualiser avant envoi - {selectedCount} stagiaire{selectedCount > 1 ? 's' : ''}
@@ -744,34 +744,34 @@ export default function StageEmailModal({ session, onClose }) {
           {/* ══════ PRÉVISUALISATION ══════ */}
           {step === 'preview' && (
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-                <p className="text-sm font-semibold text-blue-800"> Vérifiez les documents avant envoi</p>
-                <p className="text-xs text-blue-600 mt-0.5">Vous pouvez encore modifier les attributions SST depuis cette vue.</p>
+              <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm px-4 py-3">
+                <p className="text-ui font-semibold text-[rgb(var(--c-info))]"> Vérifiez les documents avant envoi</p>
+                <p className="text-ui-sm text-[rgb(var(--c-info))] mt-0.5">Vous pouvez encore modifier les attributions SST depuis cette vue.</p>
               </div>
 
               {/* Carte par stagiaire */}
               {selectedTrainees.map(t => {
                 const previewFiles = getTraineePreviewFiles(t)
                 return (
-                  <div key={t.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div key={t.id} className="border border-gray-200 rounded-ui-sm overflow-hidden">
                     {/* En-tête stagiaire */}
                     <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between">
                       <div className="min-w-0">
-                        <span className="text-sm font-semibold text-gray-800">{t.first_name} {t.last_name}</span>
-                        <span className="text-xs text-gray-500 ml-2">{t.email}</span>
+                        <span className="text-ui font-semibold text-gray-800">{t.first_name} {t.last_name}</span>
+                        <span className="text-ui-sm text-gray-500 ml-2">{t.email}</span>
                       </div>
-                      <span className="text-xs text-gray-400 flex-shrink-0 ml-2">{previewFiles.length} fichier{previewFiles.length > 1 ? 's' : ''}</span>
+                      <span className="text-ui-sm text-gray-400 flex-shrink-0 ml-2">{previewFiles.length} fichier{previewFiles.length > 1 ? 's' : ''}</span>
                     </div>
                     {/* Liste des fichiers */}
                     <div className="px-4 py-2 space-y-1">
                       {previewFiles.map((f, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs">
+                        <div key={i} className="flex items-center gap-2 text-ui-sm">
                           {f.type === 'sst'
-                            ? <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                            : <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${f.type === 'common' ? 'text-gray-400' : 'text-blue-400'}`} />
+                            ? <ShieldCheck className="w-3.5 h-3.5 text-[rgb(var(--c-success))] flex-shrink-0" />
+                            : <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${f.type === 'common' ? 'text-gray-400' : 'text-[rgb(var(--c-info))]'}`} />
                           }
-                          <span className={f.type === 'sst' ? 'text-green-700 font-medium' : 'text-gray-600'}>{f.label}</span>
-                          <span className={`ml-auto text-xs flex-shrink-0 ${f.type === 'sst' ? 'text-green-400' : f.type === 'common' ? 'text-gray-300' : 'text-gray-300'}`}>
+                          <span className={f.type === 'sst' ? 'text-[rgb(var(--c-success))] font-medium' : 'text-gray-600'}>{f.label}</span>
+                          <span className={`ml-auto text-ui-sm flex-shrink-0 ${f.type === 'sst' ? 'text-[rgb(var(--c-success))]' : f.type === 'common' ? 'text-gray-300' : 'text-gray-300'}`}>
                             {f.type === 'sst' ? 'SST' : f.type === 'common' ? 'commun' : 'auto'}
                           </span>
                         </div>
@@ -780,12 +780,12 @@ export default function StageEmailModal({ session, onClose }) {
                     {/* Correction attribution SST si des fichiers SST ont été chargés */}
                     {sstFiles.length > 0 && (
                       <div className="px-4 pb-3 flex items-center gap-2 border-t border-gray-100 pt-2">
-                        <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                        <span className="text-xs text-gray-500 flex-shrink-0">Certificat SST :</span>
+                        <ShieldCheck className="w-3.5 h-3.5 text-[rgb(var(--c-success))] flex-shrink-0" />
+                        <span className="text-ui-sm text-gray-500 flex-shrink-0">Certificat SST :</span>
                         <select
                           value={sstAttributions[t.id] || ''}
                           onChange={(e) => handleTraineeSstAttribution(t.id, e.target.value || null)}
-                          className="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white flex-1 min-w-0"
+                          className="text-ui-sm border border-gray-200 rounded px-1.5 py-1 bg-white flex-1 min-w-0"
                         >
                           <option value="">- Aucun -</option>
                           {sstFiles.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -798,13 +798,13 @@ export default function StageEmailModal({ session, onClose }) {
 
               {/* Avertissement fichiers SST non attribués */}
               {unmatchedSstFiles.length > 0 && (
-                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2 bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm px-4 py-3">
+                  <AlertCircle className="w-4 h-4 text-[rgb(var(--c-warning))] flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-amber-800">
+                    <p className="text-ui font-semibold text-[rgb(var(--c-warning))]">
                       {unmatchedSstFiles.length} fichier{unmatchedSstFiles.length > 1 ? 's' : ''} SST non attribué{unmatchedSstFiles.length > 1 ? 's' : ''}
                     </p>
-                    <p className="text-xs text-amber-700 mt-0.5">{unmatchedSstFiles.map(f => f.name).join(' · ')}</p>
+                    <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-0.5">{unmatchedSstFiles.map(f => f.name).join(' · ')}</p>
                   </div>
                 </div>
               )}
@@ -813,13 +813,13 @@ export default function StageEmailModal({ session, onClose }) {
               <div className="flex gap-3 pt-1">
                 <button
                   onClick={() => setStep('composition')}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-ui-sm hover:bg-gray-50 text-ui"
                 >
                   <ChevronLeft className="w-4 h-4" /> Retour
                 </button>
                 <button
                   onClick={handleSend}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                  className="flex-1 flex items-center justify-center gap-2 btn btn-secondary text-ui font-medium"
                 >
                   <Send className="w-4 h-4" />
                   Confirmer et envoyer à {selectedCount} stagiaire{selectedCount > 1 ? 's' : ''}
@@ -837,18 +837,18 @@ export default function StageEmailModal({ session, onClose }) {
               </div>
               <div className="space-y-2">
                 {results.map((r, i) => (
-                  <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${
-                    r.status === 'sent' ? 'bg-green-50' : r.status === 'error' ? 'bg-red-50' : 'bg-blue-50'
+                  <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-ui-sm text-ui ${
+                    r.status === 'sent' ? 'bg-[rgb(var(--c-success-bg))]' : r.status === 'error' ? 'bg-[rgb(var(--c-danger-bg))]' : 'bg-[rgb(var(--c-info-bg))]'
                   }`}>
-                    {r.status === 'sent' && <CheckCircle className="w-4 h-4 text-green-600" />}
-                    {r.status === 'error' && <AlertCircle className="w-4 h-4 text-red-600" />}
-                    {r.status === 'pending' && <Loader className="w-4 h-4 text-blue-600 animate-spin" />}
-                    <span className={`font-medium ${r.status === 'sent' ? 'text-green-800' : r.status === 'error' ? 'text-red-800' : 'text-blue-800'}`}>
+                    {r.status === 'sent' && <CheckCircle className="w-4 h-4 text-[rgb(var(--c-success))]" />}
+                    {r.status === 'error' && <AlertCircle className="w-4 h-4 text-[rgb(var(--c-danger))]" />}
+                    {r.status === 'pending' && <Loader className="w-4 h-4 text-[rgb(var(--c-info))] animate-spin" />}
+                    <span className={`font-medium ${r.status === 'sent' ? 'text-[rgb(var(--c-success))]' : r.status === 'error' ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-info))]'}`}>
                       {r.trainee.first_name} {r.trainee.last_name}
                     </span>
-                    {r.status === 'sent' && <span className="text-green-600 text-xs ml-auto">Envoyé </span>}
-                    {r.status === 'error' && <span className="text-red-600 text-xs ml-auto">{r.error}</span>}
-                    {r.status === 'pending' && <span className="text-blue-600 text-xs ml-auto">En attente...</span>}
+                    {r.status === 'sent' && <span className="text-[rgb(var(--c-success))] text-ui-sm ml-auto">Envoyé </span>}
+                    {r.status === 'error' && <span className="text-[rgb(var(--c-danger))] text-ui-sm ml-auto">{r.error}</span>}
+                    {r.status === 'pending' && <span className="text-[rgb(var(--c-info))] text-ui-sm ml-auto">En attente...</span>}
                   </div>
                 ))}
               </div>
@@ -859,23 +859,23 @@ export default function StageEmailModal({ session, onClose }) {
           {step === 'done' && (
             <div className="space-y-4">
               <div className="text-center py-4">
-                <CheckCircle className="w-14 h-14 text-green-600 mx-auto mb-3" />
+                <CheckCircle className="w-14 h-14 text-[rgb(var(--c-success))] mx-auto mb-3" />
                 <p className="text-lg font-semibold text-gray-900">Envoi terminé</p>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-ui text-gray-600 mt-1">
                   {results.filter(r => r.status === 'sent').length} email{results.filter(r => r.status === 'sent').length > 1 ? 's' : ''} envoyé{results.filter(r => r.status === 'sent').length > 1 ? 's' : ''} avec succès
                 </p>
               </div>
               <div className="space-y-2">
                 {results.map((r, i) => (
-                  <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${r.status === 'sent' ? 'bg-green-50' : 'bg-red-50'}`}>
-                    {r.status === 'sent' ? <CheckCircle className="w-4 h-4 text-green-600" /> : <AlertCircle className="w-4 h-4 text-red-600" />}
+                  <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-ui-sm text-ui ${r.status === 'sent' ? 'bg-[rgb(var(--c-success-bg))]' : 'bg-[rgb(var(--c-danger-bg))]'}`}>
+                    {r.status === 'sent' ? <CheckCircle className="w-4 h-4 text-[rgb(var(--c-success))]" /> : <AlertCircle className="w-4 h-4 text-[rgb(var(--c-danger))]" />}
                     <span className="font-medium">{r.trainee.first_name} {r.trainee.last_name}</span>
-                    {r.status === 'sent' && <span className="text-green-600 text-xs ml-auto">Envoyé </span>}
-                    {r.status === 'error' && <span className="text-red-600 text-xs ml-auto">{r.error}</span>}
+                    {r.status === 'sent' && <span className="text-[rgb(var(--c-success))] text-ui-sm ml-auto">Envoyé </span>}
+                    {r.status === 'error' && <span className="text-[rgb(var(--c-danger))] text-ui-sm ml-auto">{r.error}</span>}
                   </div>
                 ))}
               </div>
-              <button onClick={onClose} className="w-full mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+              <button onClick={onClose} className="w-full mt-4 px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700">
                 Fermer
               </button>
             </div>

@@ -46,7 +46,7 @@ export default function EquipmentForm({ equipment = null, clientId, siteId = nul
   return (
     <Sheet title={equipment ? `Appareil ${equipment.label_code}` : 'Ajouter un appareil'} onClose={onClose}
       footer={<>
-        {equipment && <button type="button" className="btn btn-ghost text-red-700 mr-auto" onClick={retire}>Retirer du parc</button>}
+        {equipment && <button type="button" className="btn btn-ghost text-[rgb(var(--c-danger))] mr-auto" onClick={retire}>Retirer du parc</button>}
         <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
         <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>Enregistrer</button>
       </>}>

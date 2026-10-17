@@ -1,3 +1,4 @@
+import { toneStyle } from '../../../ui/StatusBadge'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
@@ -334,10 +335,10 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-blue-600" />
+            <BookOpen className="w-5 h-5 text-[rgb(var(--c-info))]" />
             Développement des compétences
           </h3>
-          <p className="text-sm text-gray-600">Plan de formation et entretiens professionnels</p>
+          <p className="text-ui text-gray-600">Plan de formation et entretiens professionnels</p>
         </div>
         <button
           onClick={exportPDF}
@@ -354,7 +355,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
           onClick={() => setActiveTab('trainings')}
           className={`px-4 py-2 font-medium transition-colors border-b-2 ${
             activeTab === 'trainings'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))]'
               : 'border-transparent text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -367,7 +368,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
           onClick={() => setActiveTab('interviews')}
           className={`px-4 py-2 font-medium transition-colors border-b-2 ${
             activeTab === 'interviews'
-              ? 'border-green-500 text-green-600'
+              ? 'border-[rgb(var(--c-success)/0.3)] text-[rgb(var(--c-success))]'
               : 'border-transparent text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -394,14 +395,14 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
 
           {/* Form */}
           {showTrainingForm && (
-            <form onSubmit={saveTraining} className="bg-gray-50 rounded-lg p-4 space-y-4">
+            <form onSubmit={saveTraining} className="bg-gray-50 rounded-ui-sm p-4 space-y-4">
               <h4 className="font-medium">
                 {editingTraining ? 'Modifier la formation' : 'Nouvelle formation'}
               </h4>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Date *</label>
+                  <label className="block text-ui font-medium mb-1">Date *</label>
                   <input
                     type="date"
                     value={trainingForm.training_date}
@@ -412,7 +413,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Type *</label>
+                  <label className="block text-ui font-medium mb-1">Type *</label>
                   <select
                     value={trainingForm.training_type}
                     onChange={(e) => setTrainingForm({...trainingForm, training_type: e.target.value})}
@@ -428,7 +429,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Nom de la formation *</label>
+                  <label className="block text-ui font-medium mb-1">Nom de la formation *</label>
                   <input
                     type="text"
                     value={trainingForm.training_name}
@@ -440,7 +441,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Organisme</label>
+                  <label className="block text-ui font-medium mb-1">Organisme</label>
                   <input
                     type="text"
                     value={trainingForm.organizer}
@@ -452,7 +453,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Durée (jours)</label>
+                    <label className="block text-ui font-medium mb-1">Durée (jours)</label>
                     <input
                       type="number"
                       step="0.5"
@@ -463,7 +464,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">ou (heures)</label>
+                    <label className="block text-ui font-medium mb-1">ou (heures)</label>
                     <input
                       type="number"
                       step="0.5"
@@ -483,12 +484,12 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                       onChange={(e) => setTrainingForm({...trainingForm, certificate_obtained: e.target.checked})}
                       className="w-4 h-4 rounded"
                     />
-                    <span className="text-sm font-medium">Certificat obtenu</span>
+                    <span className="text-ui font-medium">Certificat obtenu</span>
                   </label>
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Notes</label>
+                  <label className="block text-ui font-medium mb-1">Notes</label>
                   <textarea
                     value={trainingForm.notes}
                     onChange={(e) => setTrainingForm({...trainingForm, notes: e.target.value})}
@@ -529,7 +530,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 const isPast = new Date(training.training_date) < new Date()
 
                 return (
-                  <div key={training.id} className="bg-white border rounded-lg p-4">
+                  <div key={training.id} className="bg-white border rounded-ui-sm p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -541,11 +542,11 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                               day: 'numeric' 
                             })}
                           </span>
-                          <span className={`text-xs px-2 py-0.5 rounded bg-${typeInfo.color}-100 text-${typeInfo.color}-700`}>
+                          <span className={`text-ui-sm px-2 py-0.5 rounded`} style={toneStyle(typeInfo.color)}>
                             {typeInfo.icon} {typeInfo.label}
                           </span>
                           {isPast && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                            <span className="text-ui-sm px-2 py-0.5 rounded bg-gray-100 text-gray-600">
                                Réalisée
                             </span>
                           )}
@@ -553,7 +554,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
 
                         <h4 className="font-semibold text-gray-900 mb-1">{training.training_name}</h4>
 
-                        <div className="text-sm text-gray-600 space-y-1">
+                        <div className="text-ui text-gray-600 space-y-1">
                           {training.organizer && (
                             <p>Organisme : {training.organizer}</p>
                           )}
@@ -563,13 +564,13 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                             </p>
                           )}
                           {training.certificate_obtained && (
-                            <p className="flex items-center gap-1 text-green-600">
+                            <p className="flex items-center gap-1 text-[rgb(var(--c-success))]">
                               <CheckCircle className="w-4 h-4" />
                               Certificat obtenu
                             </p>
                           )}
                           {training.notes && (
-                            <p className="text-xs text-gray-500 mt-2 italic">{training.notes}</p>
+                            <p className="text-ui-sm text-gray-500 mt-2 italic">{training.notes}</p>
                           )}
                         </div>
                       </div>
@@ -577,14 +578,14 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => editTraining(training)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="p-2 text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded transition-colors"
                           title="Modifier"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deleteTraining(training.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="p-2 text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded transition-colors"
                           title="Supprimer"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -615,14 +616,14 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
 
           {/* Form */}
           {showInterviewForm && (
-            <form onSubmit={saveInterview} className="bg-gray-50 rounded-lg p-4 space-y-4">
+            <form onSubmit={saveInterview} className="bg-gray-50 rounded-ui-sm p-4 space-y-4">
               <h4 className="font-medium">
                 {editingInterview ? 'Modifier l\'entretien' : 'Nouvel entretien professionnel'}
               </h4>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Date entretien *</label>
+                  <label className="block text-ui font-medium mb-1">Date entretien *</label>
                   <input
                     type="date"
                     value={interviewForm.interview_date}
@@ -633,7 +634,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Type *</label>
+                  <label className="block text-ui font-medium mb-1">Type *</label>
                   <select
                     value={interviewForm.interview_type}
                     onChange={(e) => setInterviewForm({...interviewForm, interview_type: e.target.value})}
@@ -647,7 +648,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Réalisé par *</label>
+                  <label className="block text-ui font-medium mb-1">Réalisé par *</label>
                   <input
                     type="text"
                     value={interviewForm.interviewer_name}
@@ -659,7 +660,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Thèmes abordés</label>
+                  <label className="block text-ui font-medium mb-1">Thèmes abordés</label>
                   <textarea
                     value={interviewForm.themes_discussed}
                     onChange={(e) => setInterviewForm({...interviewForm, themes_discussed: e.target.value})}
@@ -670,7 +671,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Besoins identifiés</label>
+                  <label className="block text-ui font-medium mb-1">Besoins identifiés</label>
                   <textarea
                     value={interviewForm.identified_needs}
                     onChange={(e) => setInterviewForm({...interviewForm, identified_needs: e.target.value})}
@@ -681,7 +682,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Actions prévues</label>
+                  <label className="block text-ui font-medium mb-1">Actions prévues</label>
                   <textarea
                     value={interviewForm.actions_planned}
                     onChange={(e) => setInterviewForm({...interviewForm, actions_planned: e.target.value})}
@@ -692,7 +693,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Prochain entretien</label>
+                  <label className="block text-ui font-medium mb-1">Prochain entretien</label>
                   <input
                     type="date"
                     value={interviewForm.next_interview_date}
@@ -702,7 +703,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Notes</label>
+                  <label className="block text-ui font-medium mb-1">Notes</label>
                   <textarea
                     value={interviewForm.notes}
                     onChange={(e) => setInterviewForm({...interviewForm, notes: e.target.value})}
@@ -742,7 +743,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                 const typeInfo = INTERVIEW_TYPES[interview.interview_type]
 
                 return (
-                  <div key={interview.id} className="bg-white border rounded-lg p-4">
+                  <div key={interview.id} className="bg-white border rounded-ui-sm p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -754,38 +755,38 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                               day: 'numeric' 
                             })}
                           </span>
-                          <span className={`text-xs px-2 py-0.5 rounded bg-${typeInfo.color}-100 text-${typeInfo.color}-700`}>
+                          <span className={`text-ui-sm px-2 py-0.5 rounded`} style={toneStyle(typeInfo.color)}>
                             {typeInfo.label}
                           </span>
                         </div>
 
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="text-ui text-gray-600 mb-2">
                           Réalisé par : <strong>{interview.interviewer_name}</strong>
                         </p>
 
                         {interview.themes_discussed && (
                           <div className="mb-2">
-                            <p className="text-xs font-medium text-gray-700 mb-1">Thèmes abordés :</p>
-                            <p className="text-sm text-gray-600">{interview.themes_discussed}</p>
+                            <p className="text-ui-sm font-medium text-gray-700 mb-1">Thèmes abordés :</p>
+                            <p className="text-ui text-gray-600">{interview.themes_discussed}</p>
                           </div>
                         )}
 
                         {interview.identified_needs && (
                           <div className="mb-2">
-                            <p className="text-xs font-medium text-gray-700 mb-1">Besoins identifiés :</p>
-                            <p className="text-sm text-gray-600">{interview.identified_needs}</p>
+                            <p className="text-ui-sm font-medium text-gray-700 mb-1">Besoins identifiés :</p>
+                            <p className="text-ui text-gray-600">{interview.identified_needs}</p>
                           </div>
                         )}
 
                         {interview.actions_planned && (
                           <div className="mb-2">
-                            <p className="text-xs font-medium text-gray-700 mb-1">Actions prévues :</p>
-                            <p className="text-sm text-gray-600">{interview.actions_planned}</p>
+                            <p className="text-ui-sm font-medium text-gray-700 mb-1">Actions prévues :</p>
+                            <p className="text-ui text-gray-600">{interview.actions_planned}</p>
                           </div>
                         )}
 
                         {interview.next_interview_date && (
-                          <p className="text-xs text-gray-500 mt-2">
+                          <p className="text-ui-sm text-gray-500 mt-2">
                             Prochain entretien : {new Date(interview.next_interview_date).toLocaleDateString('fr-FR')}
                           </p>
                         )}
@@ -794,14 +795,14 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => editInterview(interview)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="p-2 text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded transition-colors"
                           title="Modifier"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deleteInterview(interview.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="p-2 text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded transition-colors"
                           title="Supprimer"
                         >
                           <Trash2 className="w-4 h-4" />

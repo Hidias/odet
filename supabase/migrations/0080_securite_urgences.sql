@@ -11,7 +11,7 @@
 -- 0. Avant toute modification, l'état des droits est photographié dans app.etat_avant_chantier2
 --    (règles d'accès, définitions et droits des fonctions, droits sur les tables, buckets). Les scripts
 --    de retour arrière (supabase/rollback/) le relisent pour tout remettre exactement comme avant.
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 -- 0. Photographie de l'état avant le chantier 2 (une seule fois) --------------------------------------
 

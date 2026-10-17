@@ -36,7 +36,7 @@ export async function loadEvidence() {
     needs, positioning, positioningTests, objectivesValidated, results, convocations, infoSheets, psh, disability,
     attendance, partial, equipment, courseDocs, sessionTrainers, trainerCerts, trainerTrainings, trainerInterviews,
     hotEvals, coldEvals, trainerEvals, satisfactionSent, reclamations, ncs, alertsTreated, programmes, sst, opcoSessions,
-    audits, signedConventions,
+    audits, signedConventions, formativeSheets, formativeSessions, formativeOn,
   ] = await Promise.all([
     count('session_needs_analysis'),
     count('positioning_results'),
@@ -45,8 +45,9 @@ export async function loadEvidence() {
     count('session_trainees', (q) => q.not('result', 'is', null)),
     count('session_trainees', (q) => q.not('convocation_sent_at', 'is', null)),
     count('trainee_info_sheets'),
-    count('psh_requests'),
-    count('trainees', (q) => q.eq('has_disability', true)),
+    // Données de handicap réservées (direction, référent) : comptages sans identité par fonction
+    supabase.rpc('psh_request_count').then(({ data, error }) => (error ? 0 : Number(data) || 0)),
+    supabase.rpc('disability_count').then(({ data, error }) => (error ? 0 : Number(data) || 0)),
     count('attendance_halfdays'),
     count('session_trainees', (q) => q.eq('early_departure', true)),
     count('equipment_catalog'),
@@ -70,6 +71,10 @@ export async function loadEvidence() {
     count('sessions', (q) => q.ilike('funding_type', '%opco%')),
     count('audits_internes'),
     count('sessions', (q) => q.eq('convention_signed', true)),
+    // Suivi formatif (module optionnel, migration 0250) : fiches archivées et sessions qui en ont une
+    count('formative_sheets'),
+    supabase.from('formative_sheets').select('session_id').then(({ data }) => new Set((data || []).map((r) => r.session_id)).size, () => 0),
+    supabase.from('org_modules').select('enabled').eq('key', 'suivi_formatif').maybeSingle().then(({ data }) => !!data?.enabled, () => false),
   ])
 
   const c = courses.data || []
@@ -126,7 +131,9 @@ export async function loadEvidence() {
       convocations, infoSheets, psh, disability, attendance, partial, equipment, courseDocs, sessionTrainers,
       trainerCerts, trainerTrainings, trainerInterviews, hotEvals, coldEvals, trainerEvals, satisfactionSent,
       reclamations, ncs, alertsTreated, programmes, sst, opcoSessions, audits, signedConventions,
+      formativeSheets, formativeSessions,
     },
+    formativeOn,
   }
 }
 
@@ -204,6 +211,9 @@ export const RULES = {
     items: [
       e.n.objectivesValidated ? ok(`Objectifs évalués et validés : ${e.n.objectivesValidated}`, L.sessions) : ko('Aucun objectif évalué', L.sessions),
       e.n.results ? ok(`Résultats des stagiaires saisis : ${e.n.results}`, L.sessions) : ko('Aucun résultat saisi', L.sessions),
+      ...(e.n.formativeSheets
+        ? [ok(`Suivi formatif par séquence : ${plural(e.n.formativeSessions, 'session')} avec fiche archivée (${plural(e.n.formativeSheets, 'version')})`, L.sessions)]
+        : (e.formativeOn ? [ko('Suivi formatif activé, aucune fiche de suivi archivée', L.sessions)] : [])),
     ],
     missing: [],
   }),

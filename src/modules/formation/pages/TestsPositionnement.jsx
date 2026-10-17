@@ -324,7 +324,7 @@ export default function TestsPositionnement() {
                 {stats.byLevel.map((d) => (
                   <div key={d.value} className="text-center">
                     <div className="font-display text-lg font-bold text-gray-900">{d.n}</div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">{d.label}</div>
+                    <div className="text-ui-sm uppercase tracking-wide text-gray-500">{d.label}</div>
                   </div>
                 ))}
               </div>
@@ -386,7 +386,7 @@ export default function TestsPositionnement() {
                         <button type="button" onClick={() => update(q.id, { is_active: q.is_active === false })} className="btn btn-ghost btn-icon" title={q.is_active === false ? 'Réactiver' : 'Désactiver'}>
                           {q.is_active === false ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
-                        <button type="button" onClick={() => deleteQuestion(q.id)} className="btn btn-ghost btn-icon text-red-600" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                        <button type="button" onClick={() => deleteQuestion(q.id)} className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
                         <button type="button" onClick={() => setExpanded((e) => ({ ...e, [q.id]: !open }))} className="btn btn-ghost btn-icon">
                           {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
@@ -428,7 +428,7 @@ export default function TestsPositionnement() {
                               <div className="space-y-2">
                                 {(q.options || []).map((opt, i) => (
                                   <div key={i} className="flex items-center gap-2">
-                                    <span className="w-7 h-7 rounded-md bg-primary-900 text-white text-ui-sm font-bold flex items-center justify-center flex-shrink-0">{(q.correct_order || []).indexOf(i) + 1 || '?'}</span>
+                                    <span className="w-7 h-7 rounded-ui-sm bg-primary-900 text-white text-ui-sm font-bold flex items-center justify-center flex-shrink-0">{(q.correct_order || []).indexOf(i) + 1 || '?'}</span>
                                     <input type="text" value={opt} onChange={(e) => updateOption(q.id, i, e.target.value)} className="input flex-1" />
                                     <button type="button" onClick={() => removeOption(q.id, i)} className="btn btn-ghost btn-icon text-gray-400"><X className="w-4 h-4" /></button>
                                   </div>
@@ -505,7 +505,7 @@ export default function TestsPositionnement() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowForm(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-ui-lg shadow-xl w-full max-w-lg">
+            <div className="relative bg-white rounded-ui-lg shadow-md w-full max-w-lg">
               <div className="flex items-center justify-between p-4 border-b border-gray-100">
                 <h2 className="section-title">Nouvelle question</h2>
                 <button onClick={() => setShowForm(false)} className="btn btn-ghost btn-icon"><X className="w-5 h-5" /></button>
@@ -543,7 +543,7 @@ export default function TestsPositionnement() {
                             {form.correct_index === idx && <CheckCircle className="w-4 h-4" />}
                           </button>
                         )}
-                        {form.kind === 'order' && <span className="w-7 h-7 rounded-md bg-primary-900 text-white text-ui-sm font-bold flex items-center justify-center">{idx + 1}</span>}
+                        {form.kind === 'order' && <span className="w-7 h-7 rounded-ui-sm bg-primary-900 text-white text-ui-sm font-bold flex items-center justify-center">{idx + 1}</span>}
                         <input type="text" value={opt} disabled={form.kind === 'truefalse'}
                           onChange={(e) => { const o = [...form.options]; o[idx] = e.target.value; setForm({ ...form, options: o }) }}
                           className="input flex-1" placeholder={`Option ${idx + 1}`} />
@@ -587,7 +587,7 @@ export default function TestsPositionnement() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowImportModal(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-ui-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="relative bg-white rounded-ui-lg shadow-md w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b border-gray-100">
                 <div>
                   <h2 className="section-title">Questions de référence</h2>

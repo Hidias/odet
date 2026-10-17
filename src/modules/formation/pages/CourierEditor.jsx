@@ -247,11 +247,11 @@ export default function CourierEditor() {
         
         {/* Type de document */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Type de document</label>
+          <label className="block text-ui font-medium text-gray-700 mb-2">Type de document</label>
           <div className="grid grid-cols-3 gap-2">
             {DOC_TYPES.map(t => (
               <button key={t.id} onClick={() => setDocType(t.id)}
-                className={'px-3 py-2 rounded-lg border text-sm text-center transition-colors ' +
+                className={'px-3 py-2 rounded-ui-sm border text-ui text-center transition-colors ' +
                   (docType === t.id ? 'bg-primary-50 border-primary-300 text-primary-700 font-medium' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50')}>
                 {t.label}
               </button>
@@ -261,77 +261,77 @@ export default function CourierEditor() {
 
         {/* Destinataire */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Destinataire</label>
+          <label className="block text-ui font-medium text-gray-700 mb-1">Destinataire</label>
           <textarea value={destinataire} onChange={(e) => setDestinataire(e.target.value)}
             placeholder={"M. / Mme ...\nEntreprise\nAdresse"}
-            rows="3" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none" />
+            rows="3" className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none" />
         </div>
 
         {/* Date et Lieu */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Lieu</label>
+            <label className="block text-ui font-medium text-gray-700 mb-1">Lieu</label>
             <input type="text" value={lieu} onChange={(e) => setLieu(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+              className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <label className="block text-ui font-medium text-gray-700 mb-1">Date</label>
             <input type="date" value={docDate} onChange={(e) => setDocDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+              className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
           </div>
         </div>
 
         {/* Objet */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Objet</label>
+          <label className="block text-ui font-medium text-gray-700 mb-1">Objet</label>
           <input type="text" value={objet} onChange={(e) => setObjet(e.target.value)}
             placeholder={docType === 'attestation' ? "Attestation de formation SST" : "Objet du courrier..."}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+            className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
 
         {/* Contexte IA (optionnel) */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <Sparkles className="w-3.5 h-3.5 inline mr-1 text-amber-500" />
+          <label className="block text-ui font-medium text-gray-700 mb-1">
+            <Sparkles className="w-3.5 h-3.5 inline mr-1 text-[rgb(var(--c-warning))]" />
             Contexte pour l'IA <span className="text-gray-400 font-normal">(optionnel)</span>
           </label>
           <input type="text" value={context} onChange={(e) => setContext(e.target.value)}
             placeholder="Ex: Formation SST de 14h pour 8 salariés de l'entreprise X..."
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-amber-50 focus:ring-2 focus:ring-amber-300 focus:border-transparent" />
+            className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui bg-[rgb(var(--c-warning-bg))] focus:ring-2 focus:ring-[rgb(var(--c-warning)/0.3)] focus:border-transparent" />
         </div>
 
         {/* Corps du document */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-medium text-gray-700">Corps du document</label>
+            <label className="block text-ui font-medium text-gray-700">Corps du document</label>
             <div className="flex gap-1">
               <button onClick={() => handleAI('generate')} disabled={generating || !objet}
                 title="Générer le texte avec l'IA"
-                className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-md text-xs font-medium flex items-center gap-1 disabled:opacity-40 transition-colors">
+                className="px-2.5 py-1 bg-[rgb(var(--c-warning-bg))] hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm text-ui-sm font-medium flex items-center gap-1 disabled:opacity-40 transition-colors">
                 {generatingAction === 'generate' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                 Générer
               </button>
               <button onClick={() => handleAI('reformulate')} disabled={generating || !body}
                 title="Reformuler le texte"
-                className="px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md text-xs font-medium flex items-center gap-1 disabled:opacity-40 transition-colors">
+                className="px-2.5 py-1 bg-[rgb(var(--c-info-bg))] hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] rounded-ui-sm text-ui-sm font-medium flex items-center gap-1 disabled:opacity-40 transition-colors">
                 {generatingAction === 'reformulate' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
                 Reformuler
               </button>
               <button onClick={() => handleAI('shorter')} disabled={generating || !body}
                 title="Raccourcir"
-                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md text-xs disabled:opacity-40 transition-colors">
+                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-ui-sm text-ui-sm disabled:opacity-40 transition-colors">
                 {generatingAction === 'shorter' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Minus className="w-3 h-3" />}
               </button>
               <button onClick={() => handleAI('longer')} disabled={generating || !body}
                 title="Enrichir"
-                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md text-xs disabled:opacity-40 transition-colors">
+                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-ui-sm text-ui-sm disabled:opacity-40 transition-colors">
                 {generatingAction === 'longer' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
               </button>
               <div className="w-px h-5 bg-gray-300 mx-1" />
               <button onClick={toggleMic}
                 title={listening ? 'Arrêter la dictée' : 'Dicter (micro)'}
-                className={'px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-colors ' +
-                  (listening ? 'bg-red-100 text-red-600 animate-pulse hover:bg-red-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-600')}>
+                className={'px-2 py-1 rounded-ui-sm text-ui-sm font-medium flex items-center gap-1 transition-colors ' +
+                  (listening ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] animate-pulse hover:bg-[rgb(var(--c-danger-bg))]' : 'bg-gray-100 hover:bg-gray-200 text-gray-600')}>
                 {listening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
                 {listening ? 'Stop' : 'Dicter'}
               </button>
@@ -339,11 +339,11 @@ export default function CourierEditor() {
           </div>
           <textarea value={body} onChange={(e) => setBody(e.target.value)}
             placeholder="Rédigez votre texte ici ou utilisez le bouton  Générer pour que l'IA vous propose un brouillon..."
-            rows="10" className={'w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-y leading-relaxed ' +
-              (listening ? 'border-red-400 ring-2 ring-red-200 bg-red-50/30' : 'border-gray-300')} />
+            rows="10" className={'w-full px-3 py-2 border rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-y leading-relaxed ' +
+              (listening ? 'border-[rgb(var(--c-danger)/0.3)] ring-2 ring-[rgb(var(--c-danger)/0.3)] bg-[rgb(var(--c-danger-bg))]' : 'border-gray-300')} />
           {listening && (
-            <div className="flex items-center gap-2 text-xs text-red-600 mt-1">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            <div className="flex items-center gap-2 text-ui-sm text-[rgb(var(--c-danger))] mt-1">
+              <span className="w-2 h-2 bg-[rgb(var(--c-danger))] rounded-full animate-pulse" />
               Dictée en cours... parlez maintenant
             </div>
           )}
@@ -351,19 +351,19 @@ export default function CourierEditor() {
 
         {/* Signataire */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Signataire</label>
+          <label className="block text-ui font-medium text-gray-700 mb-1">Signataire</label>
           <input type="text" value={signataire} onChange={(e) => setSignataire(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+            className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
 
         {/* Actions */}
         <div className="flex gap-3 pb-4">
           <button onClick={handleDownload} disabled={!body.trim()}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40 font-medium text-sm transition-colors">
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 disabled:opacity-40 font-medium text-ui transition-colors">
             <Download className="w-4 h-4" /> Télécharger PDF
           </button>
           <button onClick={handleSave} disabled={!body.trim() || saving}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-40 font-medium text-sm transition-colors">
+            className="flex-1 flex items-center justify-center gap-2 btn btn-secondary disabled:opacity-40 font-medium text-ui transition-colors">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Sauvegarder
           </button>
@@ -371,12 +371,12 @@ export default function CourierEditor() {
       </div>
 
       {/* Colonne droite : aperçu PDF en direct */}
-      <div className="w-1/2 bg-gray-100 rounded-xl border border-gray-200 overflow-hidden flex flex-col">
+      <div className="w-1/2 bg-gray-100 rounded-ui border border-gray-200 overflow-hidden flex flex-col">
         <div className="bg-gray-200 px-4 py-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          <span className="text-ui font-medium text-gray-700 flex items-center gap-2">
             <Eye className="w-4 h-4" /> Aperçu en direct
           </span>
-          <span className="text-xs text-gray-500">Mise à jour automatique</span>
+          <span className="text-ui-sm text-gray-500">Mise à jour automatique</span>
         </div>
         <div className="flex-1">
           {pdfUrl ? (
@@ -385,7 +385,7 @@ export default function CourierEditor() {
             <div className="flex items-center justify-center h-full text-gray-400">
               <div className="text-center">
                 <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Commencez à rédiger pour voir l'aperçu</p>
+                <p className="text-ui">Commencez à rédiger pour voir l'aperçu</p>
               </div>
             </div>
           )}

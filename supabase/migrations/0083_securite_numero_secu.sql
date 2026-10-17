@@ -14,7 +14,7 @@
 --     save_trainee_with_ssn (écriture) : personnel autorisé à modifier le stagiaire.
 -- La fonction save_trainee_with_ssn écrivait un texte chiffré avec une clé écrite en dur, illisible
 -- ensuite : elle enregistre désormais le numéro saisi.
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 create table if not exists public.trainee_ssn (
   trainee_id uuid primary key references public.trainees(id) on delete cascade deferrable initially deferred,

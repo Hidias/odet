@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Lock, Eye, EyeOff, CheckCircle, Loader2, AlertCircle } from 'lucide-react'
 import { supabase } from '../supabase'
-import { useBranding, brandLogo } from '../branding/BrandingProvider'
+import { useBranding, brandLogo, appIcon } from '../branding/BrandingProvider'
 
 // Choix du mot de passe : après une invitation (mode 'welcome'), un lien de réinitialisation
 // (mode 'reset') ou depuis le menu utilisateur (mode 'change', déjà connecté).
@@ -26,7 +26,7 @@ function strength(pw) {
 
 export default function SetPassword({ mode = 'change', onDone }) {
   const { branding } = useBranding()
-  const logo = brandLogo(branding, false)
+  const logo = appIcon(branding) || brandLogo(branding, false)
   const [ready, setReady] = useState(mode === 'change')
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
@@ -92,14 +92,14 @@ export default function SetPassword({ mode = 'change', onDone }) {
       {done ? (
         <div className="text-center">
           <div className="w-14 h-14 rounded-full bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] flex items-center justify-center mx-auto mb-4"><CheckCircle className="w-8 h-8" /></div>
-          <h1 className="font-display font-semibold text-2xl text-gray-900">Mot de passe enregistré</h1>
+          <h1 className="page-title">Mot de passe enregistré</h1>
           <p className="muted mt-1 mb-6">{email ? `Compte ${email}.` : ''}</p>
           <button type="button" className="btn btn-primary w-full" onClick={finish}>{mode === 'change' ? 'Fermer' : 'Ouvrir l\'application'}</button>
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <h1 className="font-display font-semibold text-2xl text-gray-900">{titles[mode]}</h1>
+            <h1 className="page-title">{titles[mode]}</h1>
             <p className="muted mt-1">{intro[mode]}{email ? ` Compte : ${email}` : ''}</p>
           </div>
           {!ready && !error && <div className="flex items-center gap-2 text-ui text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /> Vérification du lien</div>}

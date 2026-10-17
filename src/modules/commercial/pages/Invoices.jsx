@@ -1,3 +1,4 @@
+import { toneStyle } from '../../../ui/StatusBadge'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -952,9 +953,9 @@ export default function Invoices() {
     const relances = invoiceRelancesMap[inv?.id] || []
     if (relances.length === 0 || inv?.type === 'credit_note') return null
     const count = relances.length
-    const colorClass = count >= 3 ? 'bg-red-100 text-red-700' : count === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+    const colorClass = count >= 3 ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : count === 2 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-gray-100 text-gray-600'
     return (
-      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium ml-1 ${colorClass}`}>
+      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-ui-sm font-medium ml-1 ${colorClass}`}>
         <Mail size={10} />
         {count}
       </span>
@@ -967,29 +968,29 @@ export default function Invoices() {
   if (mode === 'list') return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Facturation</h1>
+        <h1 className="page-title">Facturation</h1>
         <div className="flex gap-2 flex-wrap justify-end">
-          <button onClick={() => setShowQuoteSelector(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 text-sm"><Receipt size={16} />Depuis un devis</button>
-          <button onClick={openSessionSelector} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"><CheckCircle size={16} />Depuis une session</button>
-          <button onClick={() => handleNew('invoice')} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"><Plus size={16} />Facture libre</button>
-          <button onClick={() => { setGroupedClientSearch(''); setGroupedClientId(''); setGroupedClientOpen(false); setShowGroupedModal(true) }} className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center gap-2 text-sm"><Receipt size={16} />Sous-traitance groupée</button>
-          <button onClick={() => handleNew('credit_note')} className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 text-sm"><Plus size={16} />Avoir</button>
+          <button onClick={() => setShowQuoteSelector(true)} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Depuis un devis</button>
+          <button onClick={openSessionSelector} className="btn btn-secondary flex items-center gap-2 text-ui"><CheckCircle size={16} />Depuis une session</button>
+          <button onClick={() => handleNew('invoice')} className="btn btn-primary flex items-center gap-2 text-ui"><Plus size={16} />Facture libre</button>
+          <button onClick={() => { setGroupedClientSearch(''); setGroupedClientId(''); setGroupedClientOpen(false); setShowGroupedModal(true) }} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Sous-traitance groupée</button>
+          <button onClick={() => handleNew('credit_note')} className="btn btn-secondary flex items-center gap-2 text-ui"><Plus size={16} />Avoir</button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white border rounded-xl p-4 border-green-200"><p className="text-xs text-gray-500">CA Payé</p><p className="text-xl font-bold text-green-600 mt-1">{money(stats.paid)}</p><p className="text-xs text-gray-400 mt-1">{stats.invCount} factures</p></div>
-        <div className="bg-white border rounded-xl p-4 border-blue-200"><p className="text-xs text-gray-500">En attente</p><p className="text-xl font-bold text-blue-600 mt-1">{money(stats.pending)}</p></div>
-        <div className="bg-white border rounded-xl p-4 border-red-200"><p className="text-xs text-gray-500">En retard</p><p className="text-xl font-bold text-red-600 mt-1">{money(stats.overdue)}</p></div>
-        <div className="bg-white border rounded-xl p-4 border-orange-200"><p className="text-xs text-gray-500">Avoirs</p><p className="text-xl font-bold text-orange-600 mt-1">{money(stats.credits)}</p><p className="text-xs text-gray-400 mt-1">{stats.crCount} avoirs</p></div>
+        <div className="bg-white border rounded-ui p-4 border-[rgb(var(--c-success)/0.3)]"><p className="text-ui-sm text-gray-500">CA Payé</p><p className="text-xl font-bold text-[rgb(var(--c-success))] mt-1">{money(stats.paid)}</p><p className="text-ui-sm text-gray-400 mt-1">{stats.invCount} factures</p></div>
+        <div className="bg-white border rounded-ui p-4 border-[rgb(var(--c-info)/0.3)]"><p className="text-ui-sm text-gray-500">En attente</p><p className="text-xl font-bold text-[rgb(var(--c-info))] mt-1">{money(stats.pending)}</p></div>
+        <div className="bg-white border rounded-ui p-4 border-[rgb(var(--c-danger)/0.3)]"><p className="text-ui-sm text-gray-500">En retard</p><p className="text-xl font-bold text-[rgb(var(--c-danger))] mt-1">{money(stats.overdue)}</p></div>
+        <div className="bg-white border rounded-ui p-4 border-[rgb(var(--c-warning)/0.3)]"><p className="text-ui-sm text-gray-500">Avoirs</p><p className="text-xl font-bold text-[rgb(var(--c-warning))] mt-1">{money(stats.credits)}</p><p className="text-ui-sm text-gray-400 mt-1">{stats.crCount} avoirs</p></div>
         <div
-          className={`bg-white border rounded-xl p-4 cursor-pointer transition-colors ${relanceFilter ? 'border-purple-400 bg-purple-50' : 'border-purple-200 hover:bg-purple-50'}`}
+          className={`bg-white border rounded-ui p-4 cursor-pointer transition-colors ${relanceFilter ? 'border-gray-400 bg-gray-50' : 'border-gray-200 hover:bg-gray-50'}`}
           onClick={() => setRelanceFilter(f => !f)}
         >
-          <p className="text-xs text-gray-500">À relancer</p>
-          <p className="text-xl font-bold text-purple-600 mt-1">{stats.toRelance}</p>
-          <p className="text-xs text-purple-500 mt-1">{relanceFilter ? ' Filtre actif' : 'Cliquer pour filtrer'}</p>
+          <p className="text-ui-sm text-gray-500">À relancer</p>
+          <p className="text-xl font-bold text-gray-800 mt-1">{stats.toRelance}</p>
+          <p className="text-ui-sm text-gray-800 mt-1">{relanceFilter ? ' Filtre actif' : 'Cliquer pour filtrer'}</p>
         </div>
       </div>
 
@@ -997,19 +998,19 @@ export default function Invoices() {
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-          <input type="text" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+          <input type="text" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-ui-sm text-ui" />
         </div>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border rounded-ui-sm px-3 py-2 text-ui">
           <option value="">Tous types</option>
           <option value="invoice">Factures</option>
           <option value="credit_note">Avoirs</option>
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border rounded-ui-sm px-3 py-2 text-ui">
           <option value="">Tous statuts</option>
           {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
         {relanceFilter && (
-          <button onClick={() => setRelanceFilter(false)} className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm flex items-center gap-1">
+          <button onClick={() => setRelanceFilter(false)} className="px-3 py-2 bg-gray-100 text-gray-800 rounded-ui-sm text-ui flex items-center gap-1">
             <X size={14} />À relancer
           </button>
         )}
@@ -1017,10 +1018,10 @@ export default function Invoices() {
 
       {/* Table */}
       {loading ? <p className="text-center py-8 text-gray-400">Chargement...</p> : filtered.length === 0 ? <p className="text-center py-8 text-gray-500">{search || statusFilter || typeFilter || relanceFilter ? 'Aucun résultat' : 'Aucune facture'}</p> : (
-        <div className="bg-white rounded-xl border overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-ui border overflow-x-auto">
+          <table className="w-full text-ui">
             <thead>
-              <tr className="border-b bg-gray-50 text-gray-500 text-xs uppercase">
+              <tr className="border-b bg-gray-50 text-gray-500 text-ui-sm uppercase">
                 <th className="px-4 py-3 text-left cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort('reference')}>Référence<SortIcon field="reference" /></th>
                 <th className="px-4 py-3 text-left cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort('client')}>Client<SortIcon field="client" /></th>
                 <th className="px-4 py-3 text-left">Objet</th>
@@ -1041,27 +1042,27 @@ export default function Invoices() {
                 return (
                   <tr key={inv.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => handleView(inv)}>
                     <td className="px-4 py-3 font-medium">
-                      <span className={isCr ? 'text-orange-600' : 'text-gray-900'}>{inv.reference}</span>
-                      {isCr && <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Avoir</span>}
-                      {inv.is_subrogation && <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">OPCO</span>}
+                      <span className={isCr ? 'text-[rgb(var(--c-warning))]' : 'text-gray-900'}>{inv.reference}</span>
+                      {isCr && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Avoir</span>}
+                      {inv.is_subrogation && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">OPCO</span>}
                       <RelanceBadge inv={inv} />
                     </td>
                     <td className="px-4 py-3 text-gray-600">{inv.clients?.name || '-'}</td>
                     <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">{inv.object || '-'}</td>
                     <td className="px-4 py-3 text-right">{money(inv.total_net_ht)}</td>
                     <td className="px-4 py-3 text-right font-medium">{money(inv.total_ttc)}</td>
-                    <td className="px-4 py-3 text-right font-medium">{parseFloat(inv.amount_due) > 0 ? <span className="text-red-600">{money(inv.amount_due)}</span> : '-'}</td>
+                    <td className="px-4 py-3 text-right font-medium">{parseFloat(inv.amount_due) > 0 ? <span className="text-[rgb(var(--c-danger))]">{money(inv.amount_due)}</span> : '-'}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-${st.color}-100 text-${st.color}-700`}>{st.label}</span>
-                      {odDays > 0 && <span className="text-xs text-red-500 block">+{odDays}j</span>}
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-ui-sm font-medium whitespace-nowrap`} style={toneStyle(st.color)}>{st.label}</span>
+                      {odDays > 0 && <span className="text-ui-sm text-[rgb(var(--c-danger))] block">+{odDays}j</span>}
                     </td>
-                    <td className="px-4 py-3 text-center text-xs text-gray-500">{inv.due_date ? fmtDateShort(inv.due_date) : '-'}</td>
+                    <td className="px-4 py-3 text-center text-ui-sm text-gray-500">{inv.due_date ? fmtDateShort(inv.due_date) : '-'}</td>
                     <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-1 justify-end">
                         {(isCr ? inv.status !== 'draft' : !['paid', 'cancelled', 'credited'].includes(inv.status)) && (
                           <button
                             onClick={e => openSendModal(inv, e)}
-                            className={`p-1.5 rounded transition-colors ${isCr ? 'hover:bg-blue-100 text-blue-500' : relances.length >= 3 ? 'hover:bg-red-100 text-red-500' : relances.length >= 1 ? 'hover:bg-orange-100 text-orange-500' : 'hover:bg-blue-100 text-blue-500'}`}
+                            className={`p-1.5 rounded transition-colors ${isCr ? 'hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' : relances.length >= 3 ? 'hover:bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : relances.length >= 1 ? 'hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]'}`}
                             title={isCr ? (relances.length === 0 ? "Envoyer l'avoir" : "Renvoyer l'avoir") : (relances.length === 0 ? 'Envoyer la facture' : `Relance ${relances.length} - Renvoyer`)}
                           >
                             <Mail size={14} />
@@ -1070,12 +1071,12 @@ export default function Invoices() {
                         <button onClick={() => handleEdit(inv)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier"><Pencil size={14} /></button>
                         <button
                           onClick={async e => { e.stopPropagation(); const { data: ii } = await supabase.from('invoice_items').select('*').eq('invoice_id', inv.id).order('position'); handleFacturX(inv, ii) }}
-                          className="p-1.5 hover:bg-purple-100 text-purple-600 rounded"
+                          className="p-1.5 hover:bg-gray-100 text-gray-800 rounded"
                           title={isCr ? "Télécharger l'avoir (Factur-X)" : 'Télécharger Factur-X'}
                         >
                           <Download size={14} />
                         </button>
-                        {inv.status === 'draft' && <button onClick={() => handleDelete(inv.id)} className="p-1.5 hover:bg-red-100 rounded text-red-500" title="Supprimer"><Trash2 size={14} /></button>}
+                        {inv.status === 'draft' && <button onClick={() => handleDelete(inv.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded text-[rgb(var(--c-danger))]" title="Supprimer"><Trash2 size={14} /></button>}
                       </div>
                     </td>
                   </tr>
@@ -1089,10 +1090,10 @@ export default function Invoices() {
       {/* ─── Modal envoi / relance ─── */}
       {showSendModal && sendModalInv && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Mail size={18} className="text-blue-600" />
+                <Mail size={18} className="text-[rgb(var(--c-info))]" />
                 {sendModalInv.type === 'credit_note'
                   ? `${sendModalRelances.length === 0 ? 'Envoyer' : 'Renvoyer'} l'avoir ${sendModalInv.reference}`
                   : (sendModalRelances.length === 0 ? `Envoyer ${sendModalInv.reference}` : `Relance ${sendModalRelances.length} - ${sendModalInv.reference}`)}
@@ -1103,7 +1104,7 @@ export default function Invoices() {
             {/* Historique */}
             {sendModalRelances.length > 0 && (
               <div className="px-4 pt-3 pb-0">
-                <div className="flex flex-wrap gap-2 text-xs">
+                <div className="flex flex-wrap gap-2 text-ui-sm">
                   {sendModalRelances.map((r, i) => (
                     <span key={r.id || i} className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
                       {i === 0 ? 'Envoi' : (sendModalInv.type === 'credit_note' ? `Renvoi ${i}` : `Relance ${i}`)} le {format(new Date(r.sent_at), 'dd/MM/yyyy')} → {r.to_email}
@@ -1116,11 +1117,11 @@ export default function Invoices() {
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               {/* Expéditeur */}
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Expéditeur</label>
+                <label className="text-ui-sm font-medium text-gray-500 block mb-1">Expéditeur</label>
                 <select
                   value={sendForm.caller}
                   onChange={e => setSendForm(f => ({...f, caller: e.target.value}))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  className="w-full border rounded-ui-sm px-3 py-2 text-ui"
                 >
                   {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
@@ -1128,53 +1129,53 @@ export default function Invoices() {
 
               {/* Destinataire */}
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Destinataire</label>
+                <label className="text-ui-sm font-medium text-gray-500 block mb-1">Destinataire</label>
                 <input
                   type="email"
                   value={sendForm.to}
                   onChange={e => setSendForm(f => ({...f, to: e.target.value}))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  className="w-full border rounded-ui-sm px-3 py-2 text-ui"
                   placeholder="email@entreprise.fr"
                 />
               </div>
 
               {/* Objet */}
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Objet</label>
+                <label className="text-ui-sm font-medium text-gray-500 block mb-1">Objet</label>
                 <input
                   type="text"
                   value={sendForm.subject}
                   onChange={e => setSendForm(f => ({...f, subject: e.target.value}))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  className="w-full border rounded-ui-sm px-3 py-2 text-ui"
                 />
               </div>
 
               {/* Corps */}
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Message</label>
+                <label className="text-ui-sm font-medium text-gray-500 block mb-1">Message</label>
                 <textarea
                   value={sendForm.body}
                   onChange={e => setSendForm(f => ({...f, body: e.target.value}))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono"
+                  className="w-full border rounded-ui-sm px-3 py-2 text-ui font-mono"
                   rows={12}
                 />
               </div>
 
               {/* PJ */}
-              <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700">
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-ui-sm px-3 py-2 text-ui text-gray-800">
                 <Download size={14} />
                 <span>Pièce jointe : <strong>{sendModalInv.reference}_facturx.pdf</strong></span>
               </div>
             </div>
 
             <div className="p-4 border-t flex justify-end gap-3">
-              <button onClick={() => setShowSendModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50" disabled={sendingEmail}>
+              <button onClick={() => setShowSendModal(false)} className="px-4 py-2 border rounded-ui-sm text-ui text-gray-600 hover:bg-gray-50" disabled={sendingEmail}>
                 Annuler
               </button>
               <button
                 onClick={handleSendInvoice}
                 disabled={sendingEmail || !sendForm.to}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50 flex items-center gap-2"
               >
                 {sendingEmail ? (
                   <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />Envoi…</>
@@ -1190,9 +1191,9 @@ export default function Invoices() {
       {/* Quote selector modal */}
       {showQuoteSelector && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b"><h3 className="font-semibold text-lg">Créer une facture depuis un devis</h3><button onClick={() => setShowQuoteSelector(false)}><X size={20} /></button></div>
-            <div className="p-4"><div className="relative"><Search className="absolute left-3 top-2.5 text-gray-400" size={16} /><input type="text" placeholder="Rechercher un devis..." value={quoteSearch} onChange={e => setQuoteSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" autoFocus /></div></div>
+            <div className="p-4"><div className="relative"><Search className="absolute left-3 top-2.5 text-gray-400" size={16} /><input type="text" placeholder="Rechercher un devis..." value={quoteSearch} onChange={e => setQuoteSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-ui-sm text-ui" autoFocus /></div></div>
             <div className="overflow-y-auto flex-1 px-4 pb-4">
               {quotes.filter(q => {
                 if (!quoteSearch) return q.status === 'accepted' || q.status === 'sent'
@@ -1201,9 +1202,9 @@ export default function Invoices() {
               }).map(q => {
                 const cli = clients.find(c => c.id === q.client_id)
                 return (
-                  <button key={q.id} onClick={() => handleFromQuote(q)} className="w-full text-left p-3 border rounded-lg mb-2 hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                    <div className="flex justify-between items-start"><div><span className="font-medium text-sm">{q.reference}</span><span className="text-gray-500 text-sm ml-2">{cli?.name}</span></div><span className="font-semibold text-sm">{money(q.total_ttc)}</span></div>
-                    {q.object && <p className="text-xs text-gray-400 mt-1 truncate">{q.object}</p>}
+                  <button key={q.id} onClick={() => handleFromQuote(q)} className="w-full text-left p-3 border rounded-ui-sm mb-2 hover:bg-[rgb(var(--c-info-bg))] hover:border-[rgb(var(--c-info)/0.3)] transition-colors">
+                    <div className="flex justify-between items-start"><div><span className="font-medium text-ui">{q.reference}</span><span className="text-gray-500 text-ui ml-2">{cli?.name}</span></div><span className="font-semibold text-ui">{money(q.total_ttc)}</span></div>
+                    {q.object && <p className="text-ui-sm text-gray-400 mt-1 truncate">{q.object}</p>}
                   </button>
                 )
               })}
@@ -1215,9 +1216,9 @@ export default function Invoices() {
       {/* Session selector modal */}
       {showSessionSelector && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b"><h3 className="font-semibold text-lg">Créer une facture depuis une session</h3><button onClick={() => setShowSessionSelector(false)}><X size={20} /></button></div>
-            <div className="p-4"><div className="relative"><Search className="absolute left-3 top-2.5 text-gray-400" size={16} /><input type="text" placeholder="Rechercher une session..." value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" autoFocus /></div></div>
+            <div className="p-4"><div className="relative"><Search className="absolute left-3 top-2.5 text-gray-400" size={16} /><input type="text" placeholder="Rechercher une session..." value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-ui-sm text-ui" autoFocus /></div></div>
             <div className="overflow-y-auto flex-1 px-4 pb-4">
               {completedSessions.filter(s => {
                 if (!sessionSearch) return true
@@ -1227,22 +1228,22 @@ export default function Invoices() {
                 const isChecked = selectedSessionIds.includes(s.id)
                 const toggle = () => setSelectedSessionIds(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id])
                 return (
-                <div key={s.id} className={`w-full flex items-stretch border rounded-lg mb-2 transition-colors ${isChecked ? 'border-green-400 bg-green-50' : s.already_invoiced ? 'border-orange-200 bg-orange-50/50 hover:bg-orange-50' : 'hover:bg-green-50 hover:border-green-300'}`}>
+                <div key={s.id} className={`w-full flex items-stretch border rounded-ui-sm mb-2 transition-colors ${isChecked ? 'border-[rgb(var(--c-success)/0.3)] bg-[rgb(var(--c-success-bg))]' : s.already_invoiced ? 'border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] hover:bg-[rgb(var(--c-warning-bg))]' : 'hover:bg-[rgb(var(--c-success-bg))] hover:border-[rgb(var(--c-success)/0.3)]'}`}>
                   {s.session_type !== 'subcontract' && (
                     <label className="flex items-center px-3 cursor-pointer border-r" title="Sélectionner pour une facture globale" onClick={e => e.stopPropagation()}>
-                      <input type="checkbox" checked={isChecked} onChange={toggle} className="w-4 h-4 rounded text-green-600" />
+                      <input type="checkbox" checked={isChecked} onChange={toggle} className="w-4 h-4 rounded text-[rgb(var(--c-success))]" />
                     </label>
                   )}
                   <button onClick={() => { if (s.already_invoiced) { if (!confirm('Cette session a déjà une facture associée. Créer quand même ?')) return }; setShowSessionSelector(false); handleFromSession(s.id) }}
                     className="flex-1 text-left p-3 min-w-0">
                   <div className="flex justify-between items-start">
-                    <div><span className="font-medium text-sm">{s.reference}</span><span className="text-gray-500 text-sm ml-2">{s.clients?.name}</span></div>
+                    <div><span className="font-medium text-ui">{s.reference}</span><span className="text-gray-500 text-ui ml-2">{s.clients?.name}</span></div>
                     <div className="flex items-center gap-2">
-                      {s.already_invoiced && <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Déjà facturée</span>}
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${s.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{s.status === 'completed' ? 'Terminée' : 'En cours'}</span>
+                      {s.already_invoiced && <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Déjà facturée</span>}
+                      <span className={`text-ui-sm px-1.5 py-0.5 rounded ${s.status === 'completed' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>{s.status === 'completed' ? 'Terminée' : 'En cours'}</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 truncate">{s.courses?.title} - {fmtDateShort(s.start_date)}{s.end_date !== s.start_date ? ' au ' + fmtDateShort(s.end_date) : ''}</p>
+                  <p className="text-ui-sm text-gray-400 mt-1 truncate">{s.courses?.title} - {fmtDateShort(s.start_date)}{s.end_date !== s.start_date ? ' au ' + fmtDateShort(s.end_date) : ''}</p>
                   </button>
                 </div>
                 )
@@ -1251,16 +1252,16 @@ export default function Invoices() {
             </div>
             {selectedSessionIds.length > 0 && (
               <div className="p-4 border-t flex items-center justify-between gap-3">
-                <span className="text-sm text-gray-600">{selectedSessionIds.length} session{selectedSessionIds.length > 1 ? 's' : ''} sélectionnée{selectedSessionIds.length > 1 ? 's' : ''} - facture globale (même client)</span>
+                <span className="text-ui text-gray-600">{selectedSessionIds.length} session{selectedSessionIds.length > 1 ? 's' : ''} sélectionnée{selectedSessionIds.length > 1 ? 's' : ''} - facture globale (même client)</span>
                 <div className="flex gap-2">
-                  <button onClick={() => setSelectedSessionIds([])} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Vider</button>
+                  <button onClick={() => setSelectedSessionIds([])} className="px-3 py-1.5 text-ui border rounded-ui-sm hover:bg-gray-50">Vider</button>
                   <button onClick={() => {
                     const chosen = completedSessions.filter(x => selectedSessionIds.includes(x.id))
                     if (new Set(chosen.map(x => x.client_id)).size > 1) { toast.error('Les sessions sélectionnées doivent appartenir au même client'); return }
                     const already = chosen.filter(x => x.already_invoiced)
                     if (already.length > 0 && !confirm(`${already.map(x => x.reference).join(', ')} ${already.length > 1 ? 'ont' : 'a'} déjà une facture associée. Créer quand même ?`)) return
                     setShowSessionSelector(false); handleFromSessions(selectedSessionIds)
-                  }} className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">Facturer la sélection</button>
+                  }} className="px-3 py-1.5 text-ui bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))]">Facturer la sélection</button>
                 </div>
               </div>
             )}
@@ -1271,22 +1272,22 @@ export default function Invoices() {
       {/* Facture groupée sous-traitance */}
       {showGroupedModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-lg max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b shrink-0">
-              <h2 className="text-lg font-semibold flex items-center gap-2"><Receipt size={18} className="text-amber-600" />Facture groupée sous-traitance</h2>
+              <h2 className="text-lg font-semibold flex items-center gap-2"><Receipt size={18} className="text-[rgb(var(--c-warning))]" />Facture groupée sous-traitance</h2>
               <button onClick={() => setShowGroupedModal(false)} className="p-1 hover:bg-gray-100 rounded"><X size={18} /></button>
             </div>
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <label className="text-xs text-gray-500 block mb-1">Client (OF)</label>
+                  <label className="text-ui-sm text-gray-500 block mb-1">Client (OF)</label>
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-2.5 text-gray-400" />
                     <input type="text" value={groupedClientSearch}
                       onChange={e => { setGroupedClientSearch(e.target.value); setGroupedClientOpen(true); if (!e.target.value) { setGroupedClientId(''); loadGroupedSessions('', groupedMonth) } }}
                       onFocus={() => setGroupedClientOpen(true)}
                       placeholder="Rechercher..."
-                      className="w-full border rounded-lg pl-9 pr-8 py-2 text-sm"
+                      className="w-full border rounded-ui-sm pl-9 pr-8 py-2 text-ui"
                     />
                     {groupedClientId && (
                       <button onClick={() => { setGroupedClientSearch(''); setGroupedClientId(''); setGroupedClientOpen(false); loadGroupedSessions('', groupedMonth) }} className="absolute right-2 top-2 p-0.5 hover:bg-gray-100 rounded">
@@ -1295,14 +1296,14 @@ export default function Invoices() {
                     )}
                   </div>
                   {groupedClientOpen && groupedClientSearch && !groupedClientId && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-10 mt-1 w-full bg-white border rounded-ui-sm shadow-md max-h-48 overflow-y-auto">
                       {clients.filter(c => c.status !== 'inactif' && c.name?.toLowerCase().includes(groupedClientSearch.toLowerCase())).length === 0
-                        ? <p className="px-3 py-2 text-sm text-gray-400">Aucun résultat</p>
+                        ? <p className="px-3 py-2 text-ui text-gray-400">Aucun résultat</p>
                         : clients.filter(c => c.status !== 'inactif' && c.name?.toLowerCase().includes(groupedClientSearch.toLowerCase())).slice(0, 8).map(c => (
                           <button key={c.id} type="button" onClick={() => { setGroupedClientId(c.id); setGroupedClientSearch(c.name); setGroupedClientOpen(false); loadGroupedSessions(c.id, groupedMonth) }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50 flex items-center justify-between border-b last:border-0">
+                            className="w-full text-left px-3 py-2 text-ui hover:bg-[rgb(var(--c-warning-bg))] flex items-center justify-between border-b last:border-0">
                             <span className="font-medium">{c.name}</span>
-                            {c.client_type === 'organisme_formation' && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">OF</span>}
+                            {c.client_type === 'organisme_formation' && <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">OF</span>}
                           </button>
                         ))
                       }
@@ -1310,27 +1311,27 @@ export default function Invoices() {
                   )}
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Mois</label>
-                  <input type="month" value={groupedMonth} onChange={e => { setGroupedMonth(e.target.value); loadGroupedSessions(groupedClientId, e.target.value) }} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                  <label className="text-ui-sm text-gray-500 block mb-1">Mois</label>
+                  <input type="month" value={groupedMonth} onChange={e => { setGroupedMonth(e.target.value); loadGroupedSessions(groupedClientId, e.target.value) }} className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
                 </div>
               </div>
               {groupedSessions.length > 0 ? (
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="border rounded-ui-sm overflow-hidden">
+                  <table className="w-full text-ui">
                     <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Date</th><th className="px-3 py-2 text-left">Formation</th><th className="px-3 py-2 text-right">Montant</th><th className="px-3 py-2 text-center">Statut</th></tr></thead>
                     <tbody>
                       {groupedSessions.map(s => {
                         const days = Math.max(1, Math.round((new Date(s.end_date) - new Date(s.start_date)) / 86400000) + 1)
                         const total = days * (parseFloat(s.subcontract_daily_rate) || 0)
                         return (
-                          <tr key={s.id} className={`border-t ${s.subcontract_invoiced ? 'bg-green-50 opacity-60' : ''}`}>
+                          <tr key={s.id} className={`border-t ${s.subcontract_invoiced ? 'bg-[rgb(var(--c-success-bg))] opacity-60' : ''}`}>
                             <td className="px-3 py-2 whitespace-nowrap">{fmtDateShort(s.start_date)}</td>
                             <td className="px-3 py-2 truncate max-w-[180px]">{s.subcontract_course_title || 'Formation'}</td>
                             <td className="px-3 py-2 text-right font-mono">{total.toFixed(2)} €</td>
                             <td className="px-3 py-2 text-center">
                               {s.subcontract_invoiced
-                                ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Facturée</span>
-                                : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">À facturer</span>}
+                                ? <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded-full">Facturée</span>
+                                : <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-2 py-0.5 rounded-full">À facturer</span>}
                             </td>
                           </tr>
                         )
@@ -1351,13 +1352,13 @@ export default function Invoices() {
                   </table>
                 </div>
               ) : groupedClientId ? (
-                <p className="text-sm text-gray-500 text-center py-4">Aucune session sous-traitance pour ce client sur ce mois</p>
+                <p className="text-ui text-gray-500 text-center py-4">Aucune session sous-traitance pour ce client sur ce mois</p>
               ) : null}
             </div>
             <div className="flex justify-end gap-3 p-4 border-t shrink-0">
-              <button onClick={() => setShowGroupedModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button>
+              <button onClick={() => setShowGroupedModal(false)} className="px-4 py-2 text-ui text-gray-600 hover:text-gray-800">Annuler</button>
               <button onClick={handleGroupedInvoice} disabled={!groupedSessions.some(s => !s.subcontract_invoiced)}
-                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                className="btn btn-secondary text-ui font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 <Receipt size={16} />Générer la facture
               </button>
             </div>
@@ -1377,13 +1378,13 @@ export default function Invoices() {
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => { setMode('list'); loadAll() }} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft size={20} /></button>
+        <button onClick={() => { setMode('list'); loadAll() }} className="p-2 hover:bg-gray-100 rounded-ui-sm"><ChevronLeft size={20} /></button>
         <h1 className="text-xl font-bold flex-1">{mode === 'create' ? (isCr ? 'Nouvel avoir' : 'Nouvelle facture') : mode === 'view' ? current?.reference : 'Modifier ' + current?.reference}</h1>
         <div className="flex gap-2 flex-wrap justify-end">
           {mode === 'view' && (isCr ? current?.status !== 'draft' : !['paid', 'cancelled', 'credited'].includes(current?.status)) && (
             <button
               onClick={() => openSendModal(current)}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1 hover:bg-blue-700"
+              className="btn btn-secondary text-ui flex items-center gap-1 hover:bg-[rgb(var(--c-info))]"
             >
               <Mail size={14} />
               {isCr
@@ -1393,19 +1394,19 @@ export default function Invoices() {
           )}
           {mode === 'view' && (
             <>
-              <button onClick={() => handleFacturX(current, items)} className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm flex items-center gap-1" title={isCr ? "Télécharger l'avoir (Factur-X)" : 'Télécharger Factur-X'}>
+              <button onClick={() => handleFacturX(current, items)} className="px-3 py-2 bg-gray-100 text-gray-800 rounded-ui-sm text-ui flex items-center gap-1" title={isCr ? "Télécharger l'avoir (Factur-X)" : 'Télécharger Factur-X'}>
                 <Download size={14} />{isCr ? 'PDF avoir' : 'Factur-X'}
               </button>
               {current?.type === 'invoice' && CREDITABLE_STATUSES.includes(current.status) && creditableOf(current) > 0.01 && (
-                <button onClick={() => handleCreateCreditNote(current)} className="px-3 py-2 bg-orange-100 text-orange-700 rounded-lg text-sm flex items-center gap-1">
+                <button onClick={() => handleCreateCreditNote(current)} className="px-3 py-2 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm text-ui flex items-center gap-1">
                   <Copy size={14} />Avoir
                 </button>
               )}
-              <button onClick={() => handleEdit(current)} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1"><Pencil size={14} />Modifier</button>
+              <button onClick={() => handleEdit(current)} className="btn btn-secondary text-ui flex items-center gap-1"><Pencil size={14} />Modifier</button>
             </>
           )}
           {(mode === 'create' || mode === 'edit') && (
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">
+            <button onClick={handleSave} disabled={saving} className="btn btn-secondary text-ui disabled:opacity-50">
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           )}
@@ -1414,61 +1415,61 @@ export default function Invoices() {
 
       <div className="space-y-6">
         {/* Info principale */}
-        <div className="bg-white rounded-xl border p-5">
+        <div className="bg-white rounded-ui border p-5">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div><label className="text-xs text-gray-500 block mb-1">Référence</label><input type="text" value={current?.reference || ''} onChange={e => setCurrent({...current, reference: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" readOnly={ro} /></div>
-            <div><label className="text-xs text-gray-500 block mb-1">Date</label><input type="date" value={current?.invoice_date || ''} onChange={e => setCurrent({...current, invoice_date: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" readOnly={ro} /></div>
+            <div><label className="text-ui-sm text-gray-500 block mb-1">Référence</label><input type="text" value={current?.reference || ''} onChange={e => setCurrent({...current, reference: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
+            <div><label className="text-ui-sm text-gray-500 block mb-1">Date</label><input type="date" value={current?.invoice_date || ''} onChange={e => setCurrent({...current, invoice_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Statut</label>
+              <label className="text-ui-sm text-gray-500 block mb-1">Statut</label>
               {ro
-                ? <span className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-${getStatusInfo(current).color}-100 text-${getStatusInfo(current).color}-700`}>{getStatusInfo(current).label}</span>
+                ? <span className={`inline-flex items-center px-3 py-2 rounded-ui-sm text-ui font-medium`} style={toneStyle(getStatusInfo(current).color)}>{getStatusInfo(current).label}</span>
                 : isCr
-                  ? <select value={current?.status === 'draft' ? 'draft' : 'validated'} onChange={e => setCurrent({...current, status: e.target.value === 'draft' ? 'draft' : (current.status && current.status !== 'draft' ? current.status : 'paid')})} className="w-full border rounded-lg px-3 py-2 text-sm">
+                  ? <select value={current?.status === 'draft' ? 'draft' : 'validated'} onChange={e => setCurrent({...current, status: e.target.value === 'draft' ? 'draft' : (current.status && current.status !== 'draft' ? current.status : 'paid')})} className="w-full border rounded-ui-sm px-3 py-2 text-ui">
                       <option value="draft">Brouillon (sans effet)</option>
                       <option value="validated">Validé (appliqué à la facture)</option>
                     </select>
-                  : <select value={current?.status || 'draft'} onChange={e => setCurrent({...current, status: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" disabled={current?.status === 'credited'}>
+                  : <select value={current?.status || 'draft'} onChange={e => setCurrent({...current, status: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" disabled={current?.status === 'credited'}>
                       {Object.entries(STATUS_MAP).filter(([k]) => k !== 'credited' || current?.status === 'credited').map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
               }
             </div>
-            <div><label className="text-xs text-gray-500 block mb-1">Créé par</label><select value={current?.created_by || ''} onChange={e => setCurrent({...current, created_by: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" disabled={ro}>{teamNames().map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+            <div><label className="text-ui-sm text-gray-500 block mb-1">Créé par</label><select value={current?.created_by || ''} onChange={e => setCurrent({...current, created_by: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" disabled={ro}>{teamNames().map(n => <option key={n} value={n}>{n}</option>)}</select></div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div className="col-span-2">
-              <label className="text-xs text-gray-500 block mb-1">Client</label>
+              <label className="text-ui-sm text-gray-500 block mb-1">Client</label>
               {ro
-                ? <p className="text-sm font-medium">{client?.name || '-'}</p>
+                ? <p className="text-ui font-medium">{client?.name || '-'}</p>
                 : <SearchSelect value={current?.client_id || ''} onChange={v => handleClientChange(v)}
                     options={clientOptions(clients.filter(c => c.status !== 'inactif'))}
                     emptyLabel="- Sélectionner -" searchPlaceholder="Nom, ville, SIRET..." aria-label="Client" />
               }
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Contact facturation</label>
+              <label className="text-ui-sm text-gray-500 block mb-1">Contact facturation</label>
               {ro
-                ? <p className="text-sm">{contacts.find(c => c.id === current?.contact_id)?.name || '-'}</p>
-                : <select value={current?.contact_id || ''} onChange={e => setCurrent({...current, contact_id: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm">
+                ? <p className="text-ui">{contacts.find(c => c.id === current?.contact_id)?.name || '-'}</p>
+                : <select value={current?.contact_id || ''} onChange={e => setCurrent({...current, contact_id: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui">
                     <option value="">- Aucun -</option>
                     {contacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.is_billing ? ' ' : c.is_primary ? ' ' : ''}</option>)}
                   </select>
               }
             </div>
-            <div><label className="text-xs text-gray-500 block mb-1">Réf. client</label><input type="text" value={current?.client_reference || ''} onChange={e => setCurrent({...current, client_reference: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" readOnly={ro} placeholder="Ex: DUC, OPCO2i" /></div>
+            <div><label className="text-ui-sm text-gray-500 block mb-1">Réf. client</label><input type="text" value={current?.client_reference || ''} onChange={e => setCurrent({...current, client_reference: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} placeholder="Ex: DUC, OPCO2i" /></div>
           </div>
 
           {/* Subrogation OPCO */}
           <div className="mt-4 border-t pt-4">
             <div className="flex items-center gap-3 mb-3">
-              <input type="checkbox" id="is_subrogation" checked={current?.is_subrogation || false} onChange={e => setCurrent({...current, is_subrogation: e.target.checked, ...(!e.target.checked && {billing_client_id: ''})})} disabled={ro} className="w-4 h-4 rounded text-amber-500" />
-              <label htmlFor="is_subrogation" className="text-sm font-medium text-gray-700"> Subrogation OPCO <span className="text-xs text-gray-400 font-normal">- Facturer à un tiers payeur (OPCO, organisme financeur)</span></label>
+              <input type="checkbox" id="is_subrogation" checked={current?.is_subrogation || false} onChange={e => setCurrent({...current, is_subrogation: e.target.checked, ...(!e.target.checked && {billing_client_id: ''})})} disabled={ro} className="w-4 h-4 rounded text-[rgb(var(--c-warning))]" />
+              <label htmlFor="is_subrogation" className="text-ui font-medium text-gray-700"> Subrogation OPCO <span className="text-ui-sm text-gray-400 font-normal">- Facturer à un tiers payeur (OPCO, organisme financeur)</span></label>
             </div>
             {current?.is_subrogation && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pl-7 border-l-2 border-amber-200">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pl-7 border-l-2 border-[rgb(var(--c-warning)/0.3)]">
                 <div className="col-span-2">
-                  <label className="text-xs text-gray-500 block mb-1">Client de facturation (OPCO)</label>
+                  <label className="text-ui-sm text-gray-500 block mb-1">Client de facturation (OPCO)</label>
                   {ro
-                    ? <p className="text-sm font-medium text-amber-700">{clients.find(c => c.id === current?.billing_client_id)?.name || '-'}</p>
+                    ? <p className="text-ui font-medium text-[rgb(var(--c-warning))]">{clients.find(c => c.id === current?.billing_client_id)?.name || '-'}</p>
                     : <SearchSelect value={current?.billing_client_id || ''} onChange={v => setCurrent({...current, billing_client_id: v})}
                         options={[
                           ...clientOptions(clients.filter(c => c.status !== 'inactif' && c.client_type === 'opco')).map(o => ({ ...o, group: 'OPCO' })),
@@ -1478,17 +1479,17 @@ export default function Invoices() {
                   }
                 </div>
                 <div className="col-span-2 flex items-end">
-                  <p className="text-xs text-amber-600">La facture sera adressée à l'OPCO avec la mention « Formation réalisée pour le compte de {client?.name || '...'} »</p>
+                  <p className="text-ui-sm text-[rgb(var(--c-warning))]">La facture sera adressée à l'OPCO avec la mention « Formation réalisée pour le compte de {client?.name || '...'} »</p>
                 </div>
               </div>
             )}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <div><label className="text-xs text-gray-500 block mb-1">Réf. Sellsy</label><input type="text" value={current?.sellsy_reference || ''} onChange={e => setCurrent({...current, sellsy_reference: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" readOnly={ro} placeholder="FACT-..." /></div>
+            <div><label className="text-ui-sm text-gray-500 block mb-1">Réf. Sellsy</label><input type="text" value={current?.sellsy_reference || ''} onChange={e => setCurrent({...current, sellsy_reference: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} placeholder="FACT-..." /></div>
             {isCr && !ro ? (
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Facture d'origine *</label>
+                <label className="text-ui-sm text-gray-500 block mb-1">Facture d'origine *</label>
                 <select
                   value={current?.parent_invoice_id || ''}
                   onChange={async e => {
@@ -1497,7 +1498,7 @@ export default function Invoices() {
                     if (mode === 'create') { await handleCreateCreditNote(pinv, current.reference) }
                     else { setCurrent({...current, parent_invoice_id: pinv.id, parent_reference: pinv.reference}) }
                   }}
-                  className={`w-full border rounded-lg px-3 py-2 text-sm ${current?.parent_invoice_id ? '' : 'border-orange-400 bg-orange-50'}`}
+                  className={`w-full border rounded-ui-sm px-3 py-2 text-ui ${current?.parent_invoice_id ? '' : 'border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))]'}`}
                 >
                   <option value="">- Sélectionner la facture -</option>
                   {invoices
@@ -1506,38 +1507,38 @@ export default function Invoices() {
                 </select>
               </div>
             ) : (
-              <div><label className="text-xs text-gray-500 block mb-1">{isCr ? "Facture d'origine" : 'Document parent'}</label><input type="text" value={current?.parent_reference || ''} readOnly className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50" placeholder="Devis ou facture" /></div>
+              <div><label className="text-ui-sm text-gray-500 block mb-1">{isCr ? "Facture d'origine" : 'Document parent'}</label><input type="text" value={current?.parent_reference || ''} readOnly className="w-full border rounded-ui-sm px-3 py-2 text-ui bg-gray-50" placeholder="Devis ou facture" /></div>
             )}
-            <div><label className="text-xs text-gray-500 block mb-1">Début prestation</label><input type="date" value={current?.service_start_date || ''} onChange={e => setCurrent({...current, service_start_date: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" readOnly={ro} /></div>
-            <div><label className="text-xs text-gray-500 block mb-1">Fin prestation</label><input type="date" value={current?.service_end_date || ''} onChange={e => setCurrent({...current, service_end_date: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" readOnly={ro} /></div>
+            <div><label className="text-ui-sm text-gray-500 block mb-1">Début prestation</label><input type="date" value={current?.service_start_date || ''} onChange={e => setCurrent({...current, service_start_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
+            <div><label className="text-ui-sm text-gray-500 block mb-1">Fin prestation</label><input type="date" value={current?.service_end_date || ''} onChange={e => setCurrent({...current, service_end_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
           </div>
-          <div className="mt-4"><label className="text-xs text-gray-500 block mb-1">Objet</label><input type="text" value={current?.object || ''} onChange={e => setCurrent({...current, object: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" readOnly={ro} placeholder="Formation SST du..." /></div>
+          <div className="mt-4"><label className="text-ui-sm text-gray-500 block mb-1">Objet</label><input type="text" value={current?.object || ''} onChange={e => setCurrent({...current, object: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} placeholder="Formation SST du..." /></div>
         </div>
 
         {/* Lignes */}
-        <div className="bg-white rounded-xl border p-5">
-          <h3 className="font-semibold text-sm mb-3">Lignes</h3>
+        <div className="bg-white rounded-ui border p-5">
+          <h3 className="font-semibold text-ui mb-3">Lignes</h3>
           <div className="space-y-3">
             {items.map((item, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-2 items-start border-b pb-3">
-                <div className="col-span-2"><input type="text" value={item.code} onChange={e => updateItem(idx, 'code', e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm" placeholder="Code" readOnly={ro} /></div>
+                <div className="col-span-2"><input type="text" value={item.code} onChange={e => updateItem(idx, 'code', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui" placeholder="Code" readOnly={ro} /></div>
                 <div className="col-span-4">
-                  <input type="text" value={item.description_title} onChange={e => updateItem(idx, 'description_title', e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm" placeholder="Description" readOnly={ro} />
-                  <input type="text" value={item.description_detail || ''} onChange={e => updateItem(idx, 'description_detail', e.target.value)} className="w-full border rounded px-2 py-1 text-xs mt-1 text-gray-500" placeholder="Détail" readOnly={ro} />
+                  <input type="text" value={item.description_title} onChange={e => updateItem(idx, 'description_title', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui" placeholder="Description" readOnly={ro} />
+                  <input type="text" value={item.description_detail || ''} onChange={e => updateItem(idx, 'description_detail', e.target.value)} className="w-full border rounded px-2 py-1 text-ui-sm mt-1 text-gray-500" placeholder="Détail" readOnly={ro} />
                 </div>
-                <div className="col-span-1"><input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm text-center" readOnly={ro} step="0.01" /></div>
-                <div className="col-span-2"><input type="number" value={item.unit_price_ht} onChange={e => updateItem(idx, 'unit_price_ht', e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm text-right" readOnly={ro} step="0.01" /></div>
-                <div className="col-span-1"><select value={item.tva_rate} onChange={e => updateItem(idx, 'tva_rate', e.target.value)} className="w-full border rounded px-1 py-1.5 text-xs" disabled={ro}>{TVA_RATES.map(r => <option key={r} value={r}>{r}%</option>)}</select></div>
-                <div className="col-span-1 text-right pt-2 text-sm font-medium">{money(calcItemTotal(item))}</div>
-                {!ro && <div className="col-span-1 text-center pt-1"><button onClick={() => removeItem(idx)} className="p-1 text-red-400 hover:text-red-600"><X size={16} /></button></div>}
+                <div className="col-span-1"><input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui text-center" readOnly={ro} step="0.01" /></div>
+                <div className="col-span-2"><input type="number" value={item.unit_price_ht} onChange={e => updateItem(idx, 'unit_price_ht', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui text-right" readOnly={ro} step="0.01" /></div>
+                <div className="col-span-1"><select value={item.tva_rate} onChange={e => updateItem(idx, 'tva_rate', e.target.value)} className="w-full border rounded px-1 py-1.5 text-ui-sm" disabled={ro}>{TVA_RATES.map(r => <option key={r} value={r}>{r}%</option>)}</select></div>
+                <div className="col-span-1 text-right pt-2 text-ui font-medium">{money(calcItemTotal(item))}</div>
+                {!ro && <div className="col-span-1 text-center pt-1"><button onClick={() => removeItem(idx)} className="p-1 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]"><X size={16} /></button></div>}
               </div>
             ))}
           </div>
           {!ro && (
             <div className="flex gap-2 mt-3">
-              <button onClick={addItem} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50">+ Ligne</button>
+              <button onClick={addItem} className="px-3 py-1.5 text-ui-sm border rounded-ui-sm hover:bg-gray-50">+ Ligne</button>
               <PickerMenu
-                buttonClassName="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50"
+                buttonClassName="px-3 py-1.5 text-ui-sm border rounded-ui-sm hover:bg-gray-50"
                 searchPlaceholder="Rechercher une formation..."
                 emptyText="Aucune formation"
                 items={courses.map(c => ({ key: c.id, label: c.title, hint: [c.code, c.price_ht ? money(c.price_ht) : 'Prix à définir'].filter(Boolean).join(' · '), course: c }))}
@@ -1549,33 +1550,33 @@ export default function Invoices() {
 
         {/* Conditions & Totaux */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border p-5">
-            <h3 className="font-semibold text-sm mb-3">Conditions</h3>
+          <div className="bg-white rounded-ui border p-5">
+            <h3 className="font-semibold text-ui mb-3">Conditions</h3>
             <div className="space-y-3">
-              <div><label className="text-xs text-gray-500">Moyen de règlement</label><select value={current?.payment_method || ''} onChange={e => setCurrent({...current, payment_method: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" disabled={ro}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-              <div><label className="text-xs text-gray-500">Délai de règlement</label><select value={current?.payment_terms || ''} onChange={e => {
+              <div><label className="text-ui-sm text-gray-500">Moyen de règlement</label><select value={current?.payment_method || ''} onChange={e => setCurrent({...current, payment_method: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" disabled={ro}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+              <div><label className="text-ui-sm text-gray-500">Délai de règlement</label><select value={current?.payment_terms || ''} onChange={e => {
                 const t = e.target.value; let d = 30
                 if (t.includes('réception')) d = 0; else if (t.includes('45')) d = 45; else if (t.includes('60')) d = 60
                 let dueD = addDays(new Date(current.invoice_date || new Date()), d)
                 if (t.includes('fin de mois')) { dueD = new Date(dueD.getFullYear(), dueD.getMonth() + 1, 0) }
                 setCurrent({...current, payment_terms: t, due_date: format(dueD, 'yyyy-MM-dd')})
-              }} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" disabled={ro}>{PAYMENT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-              <div><label className="text-xs text-gray-500">Date d'échéance</label><input type="date" value={current?.due_date || ''} onChange={e => setCurrent({...current, due_date: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" readOnly={ro} /></div>
-              <div><label className="text-xs text-gray-500">Remise globale (%)</label><input type="number" value={current?.discount_percent || 0} onChange={e => setCurrent({...current, discount_percent: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" readOnly={ro} step="0.01" min="0" max="100" /></div>
-              <div><label className="text-xs text-gray-500">Notes</label><textarea value={current?.notes || ''} onChange={e => setCurrent({...current, notes: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" rows={2} readOnly={ro} /></div>
+              }} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" disabled={ro}>{PAYMENT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+              <div><label className="text-ui-sm text-gray-500">Date d'échéance</label><input type="date" value={current?.due_date || ''} onChange={e => setCurrent({...current, due_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" readOnly={ro} /></div>
+              <div><label className="text-ui-sm text-gray-500">Remise globale (%)</label><input type="number" value={current?.discount_percent || 0} onChange={e => setCurrent({...current, discount_percent: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" readOnly={ro} step="0.01" min="0" max="100" /></div>
+              <div><label className="text-ui-sm text-gray-500">Notes</label><textarea value={current?.notes || ''} onChange={e => setCurrent({...current, notes: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" rows={2} readOnly={ro} /></div>
               <div className="flex items-center gap-2 mt-1">
                 <input type="checkbox" id="is_formation_pro" checked={current?.is_formation_pro !== false} onChange={e => setCurrent({...current, is_formation_pro: e.target.checked})} disabled={ro} className="w-4 h-4 rounded" />
-                <label htmlFor="is_formation_pro" className="text-sm text-gray-700">Formation professionnelle <span className="text-xs text-gray-400">(incluse dans le BPF)</span></label>
+                <label htmlFor="is_formation_pro" className="text-ui text-gray-700">Formation professionnelle <span className="text-ui-sm text-gray-400">(incluse dans le BPF)</span></label>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border p-5">
-            <h3 className="font-semibold text-sm mb-3">Totaux</h3>
+          <div className="bg-white rounded-ui border p-5">
+            <h3 className="font-semibold text-ui mb-3">Totaux</h3>
             {currentTotals && (
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-ui">
                 <div className="flex justify-between"><span>Total HT</span><span>{money(currentTotals.subtotalHt)}</span></div>
                 {currentTotals.discountAmt > 0 && <>
-                  <div className="flex justify-between text-orange-600"><span>Remise ({current.discount_percent}%)</span><span>-{money(currentTotals.discountAmt)}</span></div>
+                  <div className="flex justify-between text-[rgb(var(--c-warning))]"><span>Remise ({current.discount_percent}%)</span><span>-{money(currentTotals.discountAmt)}</span></div>
                   <div className="flex justify-between"><span>Net après remise</span><span>{money(currentTotals.netHt)}</span></div>
                 </>}
                 <div className="flex justify-between font-semibold border-t pt-2"><span>Net HT</span><span>{money(currentTotals.netHt)}</span></div>
@@ -1583,22 +1584,22 @@ export default function Invoices() {
                 <div className="flex justify-between font-bold text-lg border-t pt-2"><span>TTC</span><span>{money(currentTotals.totalTtc)}</span></div>
                 {isCr ? (
                   current?.id && current?.status !== 'draft' && <>
-                    <div className="flex justify-between text-orange-600"><span>Imputé sur la facture</span><span>{money(current.amount_credited || 0)}</span></div>
-                    {parseFloat(current?.amount_paid) > 0.01 && <div className="flex justify-between text-green-600"><span>Déjà remboursé</span><span>{money(current.amount_paid)}</span></div>}
-                    {parseFloat(current?.amount_due) > 0.01 && <div className="flex justify-between font-bold text-red-600 border-t pt-2"><span>Reste à rembourser</span><span>{money(current.amount_due)}</span></div>}
+                    <div className="flex justify-between text-[rgb(var(--c-warning))]"><span>Imputé sur la facture</span><span>{money(current.amount_credited || 0)}</span></div>
+                    {parseFloat(current?.amount_paid) > 0.01 && <div className="flex justify-between text-[rgb(var(--c-success))]"><span>Déjà remboursé</span><span>{money(current.amount_paid)}</span></div>}
+                    {parseFloat(current?.amount_due) > 0.01 && <div className="flex justify-between font-bold text-[rgb(var(--c-danger))] border-t pt-2"><span>Reste à rembourser</span><span>{money(current.amount_due)}</span></div>}
                   </>
                 ) : (
                   (parseFloat(current?.amount_paid) > 0 || parseFloat(current?.amount_due) > 0.01 || parseFloat(current?.amount_credited) > 0.01) && <>
-                    <div className="flex justify-between text-green-600"><span>Déjà payé</span><span>{money(current.amount_paid || 0)}</span></div>
-                    {parseFloat(current?.amount_credited) > 0.01 && <div className="flex justify-between text-orange-600"><span>Avoirs</span><span>-{money(current.amount_credited)}</span></div>}
-                    {parseFloat(current?.amount_due) > 0.01 && <div className="flex justify-between font-bold text-red-600 border-t pt-2"><span>Reste dû</span><span>{money(current.amount_due)}</span></div>}
+                    <div className="flex justify-between text-[rgb(var(--c-success))]"><span>Déjà payé</span><span>{money(current.amount_paid || 0)}</span></div>
+                    {parseFloat(current?.amount_credited) > 0.01 && <div className="flex justify-between text-[rgb(var(--c-warning))]"><span>Avoirs</span><span>-{money(current.amount_credited)}</span></div>}
+                    {parseFloat(current?.amount_due) > 0.01 && <div className="flex justify-between font-bold text-[rgb(var(--c-danger))] border-t pt-2"><span>Reste dû</span><span>{money(current.amount_due)}</span></div>}
                   </>
                 )}
                 {!isCr && current?.id && invoices.some(i => i.type === 'credit_note' && i.parent_invoice_id === current.id) && (
                   <div className="border-t pt-2 mt-2 space-y-1">
-                    <p className="text-xs text-gray-500">Avoirs liés</p>
+                    <p className="text-ui-sm text-gray-500">Avoirs liés</p>
                     {invoices.filter(i => i.type === 'credit_note' && i.parent_invoice_id === current.id).map(a => (
-                      <button key={a.id} onClick={() => handleView(a)} className="w-full flex justify-between text-xs text-orange-700 hover:underline">
+                      <button key={a.id} onClick={() => handleView(a)} className="w-full flex justify-between text-ui-sm text-[rgb(var(--c-warning))] hover:underline">
                         <span>{a.reference} · {getStatusInfo(a).label}</span><span>-{money(a.total_ttc)}</span>
                       </button>
                     ))}
@@ -1611,41 +1612,41 @@ export default function Invoices() {
 
         {/* Paiements */}
         {current?.id && (
-          <div className="bg-white rounded-xl border p-5">
+          <div className="bg-white rounded-ui border p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-sm">{isCr ? 'Remboursements' : 'Paiements'}</h3>
+              <h3 className="font-semibold text-ui">{isCr ? 'Remboursements' : 'Paiements'}</h3>
               {(isCr
                 ? (current.status === 'due' && parseFloat(current.amount_due) > 0.01)
                 : (!['cancelled', 'credited'].includes(current.status) && (current.status !== 'paid' || parseFloat(current.amount_due) > 0.01))
               ) && (
-                <button onClick={() => { setPaymentForm({...paymentForm, amount: parseFloat(current.amount_due) > 0.01 ? current.amount_due : ''}); setShowPaymentForm(true) }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1">
+                <button onClick={() => { setPaymentForm({...paymentForm, amount: parseFloat(current.amount_due) > 0.01 ? current.amount_due : ''}); setShowPaymentForm(true) }} className="btn btn-secondary text-ui-sm flex items-center gap-1">
                   <CreditCard size={14} />{isCr ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}
                 </button>
               )}
             </div>
             {payments.length === 0
-              ? <p className="text-sm text-gray-400">{isCr ? 'Aucun remboursement enregistré' : 'Aucun paiement enregistré'}</p>
+              ? <p className="text-ui text-gray-400">{isCr ? 'Aucun remboursement enregistré' : 'Aucun paiement enregistré'}</p>
               : <div className="space-y-2">
                   {payments.map(p => (
-                    <div key={p.id} className="flex items-center justify-between border rounded-lg p-3 text-sm">
-                      <div><span className="font-medium text-green-700">{money(p.amount)}</span><span className="text-gray-500 ml-3">{fmtDateShort(p.payment_date)}</span><span className="text-gray-400 ml-3">{p.payment_method}</span></div>
-                      {p.payment_reference && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{p.payment_reference}</span>}
+                    <div key={p.id} className="flex items-center justify-between border rounded-ui-sm p-3 text-ui">
+                      <div><span className="font-medium text-[rgb(var(--c-success))]">{money(p.amount)}</span><span className="text-gray-500 ml-3">{fmtDateShort(p.payment_date)}</span><span className="text-gray-400 ml-3">{p.payment_method}</span></div>
+                      {p.payment_reference && <span className="text-ui-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{p.payment_reference}</span>}
                     </div>
                   ))}
                 </div>
             }
             {showPaymentForm && (
               <div className="mt-4 border-t pt-4">
-                <h4 className="text-sm font-medium mb-3">{isCr ? 'Nouveau remboursement' : 'Nouveau paiement'}</h4>
+                <h4 className="text-ui font-medium mb-3">{isCr ? 'Nouveau remboursement' : 'Nouveau paiement'}</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div><label className="text-xs text-gray-500">Montant</label><input type="number" value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" step="0.01" autoFocus /></div>
-                  <div><label className="text-xs text-gray-500">Date</label><input type="date" value={paymentForm.payment_date} onChange={e => setPaymentForm({...paymentForm, payment_date: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" /></div>
-                  <div><label className="text-xs text-gray-500">Moyen</label><select value={paymentForm.payment_method} onChange={e => setPaymentForm({...paymentForm, payment_method: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                  <div><label className="text-xs text-gray-500">Référence</label><input type="text" value={paymentForm.payment_reference} onChange={e => setPaymentForm({...paymentForm, payment_reference: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="N° virement..." /></div>
+                  <div><label className="text-ui-sm text-gray-500">Montant</label><input type="number" value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" step="0.01" autoFocus /></div>
+                  <div><label className="text-ui-sm text-gray-500">Date</label><input type="date" value={paymentForm.payment_date} onChange={e => setPaymentForm({...paymentForm, payment_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" /></div>
+                  <div><label className="text-ui-sm text-gray-500">Moyen</label><select value={paymentForm.payment_method} onChange={e => setPaymentForm({...paymentForm, payment_method: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                  <div><label className="text-ui-sm text-gray-500">Référence</label><input type="text" value={paymentForm.payment_reference} onChange={e => setPaymentForm({...paymentForm, payment_reference: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui mt-1" placeholder="N° virement..." /></div>
                 </div>
                 <div className="flex gap-2 mt-3 justify-end">
-                  <button onClick={() => setShowPaymentForm(false)} className="px-3 py-1.5 border rounded-lg text-sm">Annuler</button>
-                  <button onClick={handleAddPayment} className="px-4 py-1.5 bg-green-600 text-white rounded-lg text-sm">Valider</button>
+                  <button onClick={() => setShowPaymentForm(false)} className="px-3 py-1.5 border rounded-ui-sm text-ui">Annuler</button>
+                  <button onClick={handleAddPayment} className="btn btn-secondary text-ui">Valider</button>
                 </div>
               </div>
             )}
@@ -1654,14 +1655,14 @@ export default function Invoices() {
 
         {/* Changer le statut (view) */}
         {mode === 'view' && current?.type === 'invoice' && current?.status !== 'credited' && (
-          <div className="bg-white rounded-xl border p-5">
-            <h3 className="font-semibold text-sm mb-3">Changer le statut</h3>
+          <div className="bg-white rounded-ui border p-5">
+            <h3 className="font-semibold text-ui mb-3">Changer le statut</h3>
             <div className="flex flex-wrap gap-2">
               {Object.entries(STATUS_MAP).filter(([k]) => k !== current.status && k !== 'credited').map(([k, v]) => (
                 <button key={k} onClick={async () => {
                   await handleStatus(current.id, k)
                   if (current.id) { await refreshCurrent(current.id); await loadPayments(current.id) }
-                }} className={`px-3 py-1.5 rounded-lg text-xs font-medium bg-${v.color}-100 text-${v.color}-700 hover:bg-${v.color}-200`}>{v.label}</button>
+                }} className={`px-3 py-1.5 rounded-ui-sm text-ui-sm font-medium`} style={toneStyle(v.color)}>{v.label}</button>
               ))}
             </div>
           </div>
@@ -1669,19 +1670,19 @@ export default function Invoices() {
 
         {/* Historique envois (view) */}
         {mode === 'view' && current?.id && (invoiceRelancesMap[current.id] || []).length > 0 && (
-          <div className="bg-white rounded-xl border p-5">
-            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2"><Mail size={16} className="text-blue-600" />Historique des envois</h3>
+          <div className="bg-white rounded-ui border p-5">
+            <h3 className="font-semibold text-ui mb-3 flex items-center gap-2"><Mail size={16} className="text-[rgb(var(--c-info))]" />Historique des envois</h3>
             <div className="space-y-2">
               {(invoiceRelancesMap[current.id] || []).map((r, i) => (
-                <div key={r.id || i} className="flex items-center justify-between text-sm border-b pb-2 last:border-0 last:pb-0">
+                <div key={r.id || i} className="flex items-center justify-between text-ui border-b pb-2 last:border-0 last:pb-0">
                   <div>
-                    <span className={`font-medium ${i === 0 ? 'text-blue-600' : i >= 2 ? 'text-red-600' : 'text-orange-600'}`}>
+                    <span className={`font-medium ${i === 0 ? 'text-[rgb(var(--c-info))]' : i >= 2 ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-warning))]'}`}>
                       {i === 0 ? 'Envoi initial' : (isCr ? `Renvoi ${i}` : `Relance ${i}`)}
                     </span>
                     <span className="text-gray-500 ml-3">{r.to_email}</span>
                     <span className="text-gray-400 ml-3">par {r.sent_by}</span>
                   </div>
-                  <span className="text-xs text-gray-400">{format(new Date(r.sent_at), 'dd/MM/yyyy HH:mm')}</span>
+                  <span className="text-ui-sm text-gray-400">{format(new Date(r.sent_at), 'dd/MM/yyyy HH:mm')}</span>
                 </div>
               ))}
             </div>
@@ -1692,10 +1693,10 @@ export default function Invoices() {
       {/* Modal envoi depuis vue détail */}
       {showSendModal && sendModalInv && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Mail size={18} className="text-blue-600" />
+                <Mail size={18} className="text-[rgb(var(--c-info))]" />
                 {sendModalInv.type === 'credit_note'
                   ? `${sendModalRelances.length === 0 ? 'Envoyer' : 'Renvoyer'} l'avoir ${sendModalInv.reference}`
                   : (sendModalRelances.length === 0 ? `Envoyer ${sendModalInv.reference}` : `Relance ${sendModalRelances.length} - ${sendModalInv.reference}`)}
@@ -1704,7 +1705,7 @@ export default function Invoices() {
             </div>
             {sendModalRelances.length > 0 && (
               <div className="px-4 pt-3 pb-0">
-                <div className="flex flex-wrap gap-2 text-xs">
+                <div className="flex flex-wrap gap-2 text-ui-sm">
                   {sendModalRelances.map((r, i) => (
                     <span key={r.id || i} className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
                       {i === 0 ? 'Envoi' : (sendModalInv.type === 'credit_note' ? `Renvoi ${i}` : `Relance ${i}`)} le {format(new Date(r.sent_at), 'dd/MM/yyyy')} → {r.to_email}
@@ -1715,31 +1716,31 @@ export default function Invoices() {
             )}
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Expéditeur</label>
-                <select value={sendForm.caller} onChange={e => setSendForm(f => ({...f, caller: e.target.value}))} className="w-full border rounded-lg px-3 py-2 text-sm">
+                <label className="text-ui-sm font-medium text-gray-500 block mb-1">Expéditeur</label>
+                <select value={sendForm.caller} onChange={e => setSendForm(f => ({...f, caller: e.target.value}))} className="w-full border rounded-ui-sm px-3 py-2 text-ui">
                   {teamNames().map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Destinataire</label>
-                <input type="email" value={sendForm.to} onChange={e => setSendForm(f => ({...f, to: e.target.value}))} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="email@entreprise.fr" />
+                <label className="text-ui-sm font-medium text-gray-500 block mb-1">Destinataire</label>
+                <input type="email" value={sendForm.to} onChange={e => setSendForm(f => ({...f, to: e.target.value}))} className="w-full border rounded-ui-sm px-3 py-2 text-ui" placeholder="email@entreprise.fr" />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Objet</label>
-                <input type="text" value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject: e.target.value}))} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                <label className="text-ui-sm font-medium text-gray-500 block mb-1">Objet</label>
+                <input type="text" value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject: e.target.value}))} className="w-full border rounded-ui-sm px-3 py-2 text-ui" />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Message</label>
-                <textarea value={sendForm.body} onChange={e => setSendForm(f => ({...f, body: e.target.value}))} className="w-full border rounded-lg px-3 py-2 text-sm font-mono" rows={12} />
+                <label className="text-ui-sm font-medium text-gray-500 block mb-1">Message</label>
+                <textarea value={sendForm.body} onChange={e => setSendForm(f => ({...f, body: e.target.value}))} className="w-full border rounded-ui-sm px-3 py-2 text-ui font-mono" rows={12} />
               </div>
-              <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 text-sm text-purple-700">
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-ui-sm px-3 py-2 text-ui text-gray-800">
                 <Download size={14} />
                 <span>Pièce jointe : <strong>{sendModalInv.reference}_facturx.pdf</strong></span>
               </div>
             </div>
             <div className="p-4 border-t flex justify-end gap-3">
-              <button onClick={() => setShowSendModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50" disabled={sendingEmail}>Annuler</button>
-              <button onClick={handleSendInvoice} disabled={sendingEmail || !sendForm.to} className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
+              <button onClick={() => setShowSendModal(false)} className="px-4 py-2 border rounded-ui-sm text-ui text-gray-600 hover:bg-gray-50" disabled={sendingEmail}>Annuler</button>
+              <button onClick={handleSendInvoice} disabled={sendingEmail || !sendForm.to} className="btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50 flex items-center gap-2">
                 {sendingEmail
                   ? <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />Envoi…</>
                   : <><Mail size={14} />{sendModalInv.type === 'credit_note' ? (sendModalRelances.length === 0 ? "Envoyer l'avoir" : "Renvoyer l'avoir") : (sendModalRelances.length === 0 ? 'Envoyer' : `Envoyer la relance ${sendModalRelances.length}`)}</>

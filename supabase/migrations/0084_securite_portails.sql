@@ -7,7 +7,7 @@
 --    (avant : lecture directe de course_documents et session_document_access par anon).
 -- 3. Formulaire public de réclamation : public_reclamation_session et public_reclamation_submit
 --    (avant : lecture directe de sessions par anon, refusée depuis 0013 : le formulaire était cassé).
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 alter table public.session_trainees add column if not exists portal_ticket text;
 alter table public.session_trainees add column if not exists portal_ticket_expires_at timestamptz;

@@ -26,6 +26,7 @@ const Settings = lazy(() => import('../core/settings/Settings'))
 const SetupWizard = lazy(() => import('../core/setup/SetupWizard'))
 const SetPassword = lazy(() => import('../core/auth/SetPassword'))
 const Console = lazy(() => import('../core/console/Console'))
+const DesignReference = lazy(() => import('../ui/DesignReference'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
 const Indicateurs = lazy(() => import('../modules/qualite/pages/Indicateurs'))
@@ -41,6 +42,7 @@ const Completude = lazy(() => import('../modules/qualite/pages/Completude'))
 const BPF = lazy(() => import('../modules/qualite/pages/BPF'))
 const Certification = lazy(() => import('../modules/certification/pages/Certification'))
 const Interventions = lazy(() => import('../modules/interventions/pages/Interventions'))
+const Passeport = lazy(() => import('../modules/passeport/pages/Passeport'))
 // Prospection
 const ProspectionTabs = lazy(() => import('../modules/prospection/pages/ProspectionTabs'))
 const ProspectRDVDetail = lazy(() => import('../modules/prospection/pages/ProspectRDVDetail'))
@@ -61,6 +63,8 @@ const SocialMedia = lazy(() => import('../modules/social/pages/SocialMedia'))
 const EspaceComptable = lazy(() => import('../modules/finance/pages/EspaceComptable'))
 // ─── Signature sur le téléphone du formateur ───
 const SignatureFormateur = lazy(() => import('../modules/formation/pages/SignatureFormateur'))
+// ─── Suivi formatif sur le téléphone du formateur ───
+const SuiviTelephone = lazy(() => import('../modules/suivi/pages/SuiviTelephone'))
 
 // Pages publiques
 const TraineePortal = lazy(() => import('../modules/portail/pages/TraineePortal'))
@@ -200,6 +204,13 @@ export default function App() {
             </PrivateRoute>
           } />
 
+          {/* ─── Suivi formatif plein écran (téléphone du formateur) ─── */}
+          <Route path="/suivi/:sessionId" element={
+            <PrivateRoute>
+              <SuiviTelephone />
+            </PrivateRoute>
+          } />
+
           {/* Routes privées (admins uniquement - comptable redirigé) */}
           <Route path="/" element={
             <PrivateRoute>
@@ -239,10 +250,12 @@ export default function App() {
             <Route path="bpf" element={<BPF />} />
             <Route path="certification/*" element={<Certification />} />
             <Route path="interventions/*" element={<Interventions />} />
+            <Route path="passeport/*" element={<Passeport />} />
             <Route path="veille-qualiopi" element={<VeilleQualiopi />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="parametres" element={<Settings />} />
             <Route path="console" element={<Console />} />
+            <Route path="design-systeme" element={<DesignReference />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />
           </Route>

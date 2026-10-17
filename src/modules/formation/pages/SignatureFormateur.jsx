@@ -288,7 +288,7 @@ export default function SignatureFormateur() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
-        <AlertCircle className="w-10 h-10 text-red-500 mb-3" />
+        <AlertCircle className="w-10 h-10 text-[rgb(var(--c-danger))] mb-3" />
         <p className="text-gray-800 font-medium mb-4">{error}</p>
         <button onClick={() => navigate(`/sessions/${sessionId}`)} className="btn btn-primary">
           Retour à la session
@@ -340,17 +340,17 @@ export default function SignatureFormateur() {
       {/* En-tête */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate(`/sessions/${sessionId}`)} className="p-2 -ml-2 rounded-lg text-gray-500 hover:bg-gray-100">
+          <button onClick={() => navigate(`/sessions/${sessionId}`)} className="p-2 -ml-2 rounded-ui-sm text-gray-500 hover:bg-gray-100">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-gray-900 truncate">{session.course || 'Formation'}</p>
-            <p className="text-xs text-gray-500 truncate">{session.client} · {session.location || ''}</p>
+            <p className="text-ui-sm text-gray-500 truncate">{session.client} · {session.location || ''}</p>
           </div>
-          <button onClick={() => setShowHelp(true)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Aide">
+          <button onClick={() => setShowHelp(true)} className="p-2 rounded-ui-sm text-gray-400 hover:bg-gray-100" aria-label="Aide">
             <HelpCircle className="w-5 h-5" />
           </button>
-          <button onClick={() => load()} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Actualiser">
+          <button onClick={() => load()} className="p-2 rounded-ui-sm text-gray-400 hover:bg-gray-100" aria-label="Actualiser">
             <RefreshCw className="w-5 h-5" />
           </button>
         </div>
@@ -364,7 +364,7 @@ export default function SignatureFormateur() {
               <button
                 key={`${h.date}_${h.period}`}
                 onClick={() => { slotRef.current = h; setSlot(h) }}
-                className={`px-3 py-2 rounded-xl text-sm whitespace-nowrap border ${
+                className={`px-3 py-2 rounded-ui text-ui whitespace-nowrap border ${
                   actif ? 'bg-primary-600 text-white border-primary-600 font-semibold'
                         : 'bg-white text-gray-600 border-gray-200'}`}
               >
@@ -377,13 +377,13 @@ export default function SignatureFormateur() {
 
       {/* Bandeaux */}
       {!online && (
-        <div className="mx-4 mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2 text-amber-800 text-sm">
+        <div className="mx-4 mt-3 p-3 rounded-ui bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] flex items-center gap-2 text-[rgb(var(--c-warning))] text-ui">
           <WifiOff className="w-4 h-4 flex-shrink-0" />
           Pas de réseau : les signatures sont gardées sur le téléphone et partiront toutes seules.
         </div>
       )}
       {queue.length > 0 && (
-        <div className="mx-4 mt-3 p-3 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-between gap-2 text-blue-800 text-sm">
+        <div className="mx-4 mt-3 p-3 rounded-ui bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] flex items-center justify-between gap-2 text-[rgb(var(--c-info))] text-ui">
           <span className="flex items-center gap-2">
             <UploadCloud className="w-4 h-4 flex-shrink-0" />
             {queue.length} signature{queue.length > 1 ? 's' : ''} en attente d'envoi
@@ -394,18 +394,18 @@ export default function SignatureFormateur() {
         </div>
       )}
       {slot && slot.date !== data.today && (
-        <div className="mx-4 mt-3 p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-800 text-sm">
+        <div className="mx-4 mt-3 p-3 rounded-ui bg-gray-50 border border-gray-200 text-gray-800 text-ui">
           Régularisation d'une demi-journée passée. L'heure réelle de signature est enregistrée.
         </div>
       )}
 
       {/* Compteur */}
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-        <p className="text-sm text-gray-500 flex items-center gap-1.5">
+        <p className="text-ui text-gray-500 flex items-center gap-1.5">
           <Users className="w-4 h-4" />
           {slot ? `${periodLabel(slot.period)} du ${fmtDate(slot.date)}` : 'Aucune demi-journée'}
         </p>
-        <p className="text-sm font-semibold text-gray-700">{nbSignes}/{nbAttendus} signés</p>
+        <p className="text-ui font-semibold text-gray-700">{nbSignes}/{nbAttendus} signés</p>
       </div>
 
       {/* Liste des stagiaires */}
@@ -420,9 +420,9 @@ export default function SignatureFormateur() {
           return (
             <div
               key={t.trainee_id}
-              className={`rounded-2xl border p-4 flex items-center gap-3 ${
+              className={`rounded-ui-lg border p-4 flex items-center gap-3 ${
                 t.absent ? 'bg-gray-100 border-gray-200 opacity-70'
-                : signe ? 'bg-green-50 border-green-200'
+                : signe ? 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]'
                 : 'bg-white border-gray-200'}`}
             >
               <button
@@ -431,17 +431,17 @@ export default function SignatureFormateur() {
                 className="flex-1 text-left disabled:cursor-default"
               >
                 <p className="text-lg font-semibold text-gray-900">{nom}</p>
-                <p className="text-sm mt-0.5">
+                <p className="text-ui mt-0.5">
                   {t.absent ? (
                     <span className="text-gray-500 flex items-center gap-1"><UserX className="w-4 h-4" /> Absent sur cette session</span>
                   ) : statut === 'attente' ? (
-                    <span className="text-blue-700 flex items-center gap-1"><UploadCloud className="w-4 h-4" /> Signé, envoi en attente</span>
+                    <span className="text-[rgb(var(--c-info))] flex items-center gap-1"><UploadCloud className="w-4 h-4" /> Signé, envoi en attente</span>
                   ) : statut === 'tiers' ? (
-                    <span className="text-green-700 flex items-center gap-1"><Check className="w-4 h-4" /> Signé par un tiers {heureDe(t)}</span>
+                    <span className="text-[rgb(var(--c-success))] flex items-center gap-1"><Check className="w-4 h-4" /> Signé par un tiers {heureDe(t)}</span>
                   ) : statut === 'signe' ? (
-                    <span className="text-green-700 flex items-center gap-1"><Check className="w-4 h-4" /> Signé à {heureDe(t)}</span>
+                    <span className="text-[rgb(var(--c-success))] flex items-center gap-1"><Check className="w-4 h-4" /> Signé à {heureDe(t)}</span>
                   ) : statut === 'valide' ? (
-                    <span className="text-blue-700 flex items-center gap-1"><Clock className="w-4 h-4" /> Présence validée, signature à recueillir</span>
+                    <span className="text-[rgb(var(--c-info))] flex items-center gap-1"><Clock className="w-4 h-4" /> Présence validée, signature à recueillir</span>
                   ) : (
                     <span className="text-gray-500">À signer</span>
                   )}
@@ -451,7 +451,7 @@ export default function SignatureFormateur() {
               {!t.absent && !signe && slot && (
                 <button
                   onClick={() => setSigning(t)}
-                  className="px-4 py-3 rounded-xl bg-primary-600 text-white font-semibold flex items-center gap-1.5"
+                  className="px-4 py-3 rounded-ui bg-primary-600 text-white font-semibold flex items-center gap-1.5"
                 >
                   <PenLine className="w-4 h-4" /> Signer
                 </button>
@@ -466,7 +466,7 @@ export default function SignatureFormateur() {
         <div className="px-3 mt-5">
           <button
             onClick={() => setProxy({ step: 1, trainee: null, reason: '', reasonLibre: '', lastName: '', firstName: '', role: '' })}
-            className="w-full py-3 rounded-xl border border-gray-200 bg-white text-gray-600 text-sm"
+            className="w-full py-3 rounded-ui border border-gray-200 bg-white text-gray-600 text-ui"
           >
             Un stagiaire ne peut pas signer lui-même
           </button>
@@ -477,25 +477,25 @@ export default function SignatureFormateur() {
       {done && (
         <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-md p-6 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-              <Check className="w-9 h-9 text-green-600" />
+            <div className="w-16 h-16 rounded-full bg-[rgb(var(--c-success-bg))] flex items-center justify-center mx-auto mb-3">
+              <Check className="w-9 h-9 text-[rgb(var(--c-success))]" />
             </div>
             <p className="text-xl font-bold text-gray-900">
               {done.trainee.first_name} {(done.trainee.last_name || '').toUpperCase()} a signé
             </p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-ui text-gray-500 mt-1">
               {done.differe ? 'Enregistré sur le téléphone, envoi au retour du réseau' : `${periodLabel(slot.period)} du ${fmtDate(slot.date)}`}
             </p>
 
             {done.next ? (
               <>
-                <p className="mt-5 text-sm text-gray-500">Stagiaire suivant</p>
+                <p className="mt-5 text-ui text-gray-500">Stagiaire suivant</p>
                 <p className="text-2xl font-bold text-gray-900 mb-4">
                   {done.next.first_name} {(done.next.last_name || '').toUpperCase()}
                 </p>
                 <button
                   onClick={() => { const n = done.next; setDone(null); setSigning(n) }}
-                  className="w-full py-4 rounded-2xl bg-primary-600 text-white text-lg font-bold flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-ui-lg bg-primary-600 text-white text-lg font-bold flex items-center justify-center gap-2"
                 >
                   Faire signer <ChevronRight className="w-5 h-5" />
                 </button>
@@ -505,8 +505,8 @@ export default function SignatureFormateur() {
               </>
             ) : (
               <>
-                <p className="mt-5 text-green-700 font-medium">Tout le monde a signé cette demi-journée</p>
-                <button onClick={() => setDone(null)} className="w-full py-4 mt-3 rounded-2xl bg-gray-900 text-white text-lg font-bold">
+                <p className="mt-5 text-[rgb(var(--c-success))] font-medium">Tout le monde a signé cette demi-journée</p>
+                <button onClick={() => setDone(null)} className="w-full py-4 mt-3 rounded-ui-lg bg-gray-900 text-white text-lg font-bold">
                   Terminer
                 </button>
               </>
@@ -526,13 +526,13 @@ export default function SignatureFormateur() {
 
             {proxy.step === 1 && (
               <>
-                <p className="text-sm text-gray-500 mb-3">Quel stagiaire ne peut pas signer, et pourquoi ?</p>
+                <p className="text-ui text-gray-500 mb-3">Quel stagiaire ne peut pas signer, et pourquoi ?</p>
                 <div className="space-y-2 mb-4">
                   {signables.map(t => (
                     <button
                       key={t.trainee_id}
                       onClick={() => setProxy(p => ({ ...p, trainee: t }))}
-                      className={`w-full text-left px-4 py-3 rounded-xl border ${
+                      className={`w-full text-left px-4 py-3 rounded-ui border ${
                         proxy.trainee?.trainee_id === t.trainee_id ? 'border-primary-600 bg-primary-50' : 'border-gray-200'}`}
                     >
                       {t.first_name} {(t.last_name || '').toUpperCase()}
@@ -544,7 +544,7 @@ export default function SignatureFormateur() {
                     <button
                       key={r}
                       onClick={() => setProxy(p => ({ ...p, reason: r }))}
-                      className={`px-3 py-2 rounded-xl text-sm border ${
+                      className={`px-3 py-2 rounded-ui text-ui border ${
                         proxy.reason === r ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}`}
                     >
                       {r}
@@ -562,7 +562,7 @@ export default function SignatureFormateur() {
                 <button
                   disabled={!proxy.trainee || !proxy.reason || (proxy.reason === 'Autre' && !proxy.reasonLibre.trim())}
                   onClick={() => setProxy(p => ({ ...p, step: 2 }))}
-                  className="w-full py-4 rounded-2xl bg-primary-600 text-white font-bold disabled:bg-gray-200 disabled:text-gray-400"
+                  className="w-full py-4 rounded-ui-lg bg-primary-600 text-white font-bold disabled:bg-gray-200 disabled:text-gray-400"
                 >
                   Continuer
                 </button>
@@ -571,7 +571,7 @@ export default function SignatureFormateur() {
 
             {proxy.step === 2 && (
               <>
-                <p className="text-sm text-gray-500 mb-3">Qui signe à sa place ?</p>
+                <p className="text-ui text-gray-500 mb-3">Qui signe à sa place ?</p>
                 <div className="space-y-3 mb-4">
                   <input className="input w-full" placeholder="Nom" value={proxy.lastName}
                     onChange={(e) => setProxy(p => ({ ...p, lastName: e.target.value }))} />
@@ -580,14 +580,14 @@ export default function SignatureFormateur() {
                   <input className="input w-full" placeholder="Qualité (ex : accompagnatrice, collègue)" value={proxy.role}
                     onChange={(e) => setProxy(p => ({ ...p, role: e.target.value }))} />
                 </div>
-                <p className="text-xs text-gray-400 mb-3">
+                <p className="text-ui-sm text-gray-400 mb-3">
                   Ces informations figureront sur une page annexe de la feuille d'émargement,
                   avec le motif et votre contresignature.
                 </p>
                 <button
                   disabled={!proxy.lastName.trim() || !proxy.firstName.trim() || !proxy.role.trim()}
                   onClick={() => setProxy(p => ({ ...p, step: 3 }))}
-                  className="w-full py-4 rounded-2xl bg-primary-600 text-white font-bold disabled:bg-gray-200 disabled:text-gray-400"
+                  className="w-full py-4 rounded-ui-lg bg-primary-600 text-white font-bold disabled:bg-gray-200 disabled:text-gray-400"
                 >
                   Faire signer le tiers
                 </button>
@@ -608,7 +608,7 @@ export default function SignatureFormateur() {
               <p className="font-bold text-gray-900">Comment ça marche</p>
               <button onClick={() => setShowHelp(false)} className="p-2 -mr-2 text-gray-400"><X className="w-5 h-5" /></button>
             </div>
-            <ol className="text-sm text-gray-600 space-y-2 list-decimal list-inside">
+            <ol className="text-ui text-gray-600 space-y-2 list-decimal list-inside">
               <li>La demi-journée en cours est choisie toute seule. Vous pouvez en choisir une autre en haut.</li>
               <li>Appuyez sur « Signer » en face d'un nom, puis tendez le téléphone au stagiaire.</li>
               <li>Il signe avec son doigt et appuie sur « C'est signé ».</li>
@@ -616,15 +616,15 @@ export default function SignatureFormateur() {
               <li>Une demi-journée déjà signée est verrouillée : c'est normal.</li>
               <li>Sans réseau, tout est gardé sur le téléphone et part tout seul au retour du réseau. Ne fermez pas la page avant.</li>
             </ol>
-            <p className="font-semibold text-gray-900 mt-4 mb-1 text-sm">Un stagiaire ne peut pas signer</p>
-            <ol className="text-sm text-gray-600 space-y-2 list-decimal list-inside">
+            <p className="font-semibold text-gray-900 mt-4 mb-1 text-ui">Un stagiaire ne peut pas signer</p>
+            <ol className="text-ui text-gray-600 space-y-2 list-decimal list-inside">
               <li>Bouton « Un stagiaire ne peut pas signer lui-même », en bas de la liste.</li>
               <li>Choisissez le stagiaire et le motif.</li>
               <li>Saisissez le nom, le prénom et la qualité de la personne qui signe à sa place.</li>
               <li>Elle signe, puis vous contresignez.</li>
               <li>Le détail apparaîtra sur une page annexe de la feuille d'émargement.</li>
             </ol>
-            <button onClick={() => setShowHelp(false)} className="w-full py-3 mt-4 rounded-2xl bg-gray-900 text-white font-semibold">
+            <button onClick={() => setShowHelp(false)} className="w-full py-3 mt-4 rounded-ui-lg bg-gray-900 text-white font-semibold">
               Compris
             </button>
           </div>

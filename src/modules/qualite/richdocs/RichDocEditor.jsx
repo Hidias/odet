@@ -21,19 +21,19 @@ import { buildRichDocPDF } from './richDocPDF'
 export const VALIDATE_ROLES = ['superadmin', 'admin', 'direction']
 
 const TONE = {
-  gray: 'bg-gray-100 text-gray-700', blue: 'bg-blue-50 text-blue-800', green: 'bg-green-50 text-green-800', amber: 'bg-amber-50 text-amber-800',
+  gray: 'bg-gray-100 text-gray-700', blue: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', green: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]', amber: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]',
 }
 export function StatusChip({ status }) {
-  return <span className={`inline-flex items-center h-6 px-2 rounded-full text-xs font-semibold whitespace-nowrap ${TONE[status.tone]}`}>{status.label}</span>
+  return <span className={`inline-flex items-center h-6 px-2 rounded-full text-ui-sm font-semibold whitespace-nowrap ${TONE[status.tone]}`}>{status.label}</span>
 }
 
 /** Texte avec gras, champs remplis (bleu), rôles non désignés (rouge), passages à compléter (ambre) */
 export function RichText({ text, ctx }) {
   return richTokens(text, ctx).map((tk, i) => {
     let cls = tk.bold ? 'font-semibold text-gray-900' : ''
-    if (tk.field === 'ok') cls += ' bg-blue-50 text-blue-900 rounded px-0.5'
-    if (tk.field === 'missing') cls += ' bg-red-50 text-red-700 rounded px-0.5'
-    if (tk.gap) cls += ' bg-amber-50 text-amber-900 rounded px-0.5'
+    if (tk.field === 'ok') cls += ' bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] rounded px-0.5'
+    if (tk.field === 'missing') cls += ' bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] rounded px-0.5'
+    if (tk.gap) cls += ' bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded px-0.5'
     return cls.trim() ? <span key={i} className={cls.trim()}>{tk.text}</span> : <span key={i}>{tk.text}</span>
   })
 }
@@ -41,8 +41,8 @@ export function RichText({ text, ctx }) {
 function BlockView({ b, ctx }) {
   if (b.t === 'p') return <p className="text-ui leading-relaxed text-gray-700"><RichText text={b.text} ctx={ctx} /></p>
   if (b.t === 'h') return <h4 className="font-semibold text-ui text-gray-900 pt-1"><RichText text={b.text} ctx={ctx} /></h4>
-  if (b.t === 'note') return <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-ui text-gray-800"><RichText text={b.text} ctx={ctx} /></div>
-  if (b.t === 'quote') return <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-2 text-ui text-gray-700">{(b.paras || []).map((p, i) => <p key={i}><RichText text={p} ctx={ctx} /></p>)}</div>
+  if (b.t === 'note') return <div className="rounded-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] p-3 text-ui text-gray-800"><RichText text={b.text} ctx={ctx} /></div>
+  if (b.t === 'quote') return <div className="rounded-ui-sm bg-gray-50 border border-gray-200 p-3 space-y-2 text-ui text-gray-700">{(b.paras || []).map((p, i) => <p key={i}><RichText text={p} ctx={ctx} /></p>)}</div>
   if (b.t === 'ul' || b.t === 'ol' || b.t === 'check') {
     const Tag = b.t === 'ol' ? 'ol' : 'ul'
     return (
@@ -60,7 +60,7 @@ function BlockView({ b, ctx }) {
     const head = b.head || []
     return (
       <>
-        <div className="hidden md:block overflow-x-auto border border-gray-200 rounded-lg">
+        <div className="hidden md:block overflow-x-auto border border-gray-200 rounded-ui-sm">
           <table className="w-full text-ui-sm">
             <thead className="bg-gray-800 text-white"><tr>{head.map((h, i) => <th key={i} className="text-left font-semibold px-3 py-2 align-bottom"><RichText text={h} ctx={null} /></th>)}</tr></thead>
             <tbody className="divide-y divide-gray-100">
@@ -72,7 +72,7 @@ function BlockView({ b, ctx }) {
         </div>
         <div className="md:hidden space-y-2">
           {(b.rows || []).map((r, i) => (
-            <div key={i} className="border border-gray-200 rounded-lg p-3 space-y-1">
+            <div key={i} className="border border-gray-200 rounded-ui-sm p-3 space-y-1">
               <div className="font-semibold text-ui text-gray-900"><RichText text={r[0] ?? ''} ctx={ctx} /></div>
               {head.slice(1).map((h, j) => (r[j + 1] ? <div key={j} className="text-ui-sm text-gray-700"><span className="text-gray-500">{h} : </span><RichText text={r[j + 1]} ctx={ctx} /></div> : null))}
             </div>
@@ -119,7 +119,7 @@ function BlockEdit({ b, onChange }) {
           {rows.map((r, i) => (
             <div key={i} className="grid gap-1.5 items-start" style={{ gridTemplateColumns: cols }}>
               {head.map((_, j) => <textarea key={j} className="input text-ui-sm" rows={Math.min(5, rowsFor(r[j]))} value={r[j] ?? ''} onChange={(e) => setCell(i, j, e.target.value)} aria-label={`Ligne ${i + 1}, ${head[j] || `colonne ${j + 1}`}`} />)}
-              <button type="button" className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-red-600" aria-label={`Supprimer la ligne ${i + 1}`} onClick={() => onChange({ ...b, rows: rows.filter((_, ri) => ri !== i) })}><Trash2 className="w-4 h-4" /></button>
+              <button type="button" className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-[rgb(var(--c-danger))]" aria-label={`Supprimer la ligne ${i + 1}`} onClick={() => onChange({ ...b, rows: rows.filter((_, ri) => ri !== i) })}><Trash2 className="w-4 h-4" /></button>
             </div>
           ))}
           <div className="flex flex-wrap gap-3 pt-1 text-ui-sm">
@@ -268,15 +268,15 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
         ))}
       </section>
       {(gaps.length > 0 || missing.length > 0) && (
-        <section className="rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-1.5">
-          <h2 className="font-semibold text-ui flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-700" />À compléter</h2>
+        <section className="rounded-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] p-3 space-y-1.5">
+          <h2 className="font-semibold text-ui flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-[rgb(var(--c-warning))]" />À compléter</h2>
           {missing.length > 0 && <p className="text-ui-sm">Rôle non désigné : {missing.map((c) => ctx?.role?.[c]?.label || c).join(', ')}. Paramètres, Qualité.</p>}
           {gaps.length > 0 && <p className="text-ui-sm">{gaps.length} passage{gaps.length > 1 ? 's' : ''} entre crochets : {[...new Set(gaps.map((g) => g.gap))].slice(0, 6).join(', ')}{gaps.length > 6 ? '...' : ''}</p>}
         </section>
       )}
       <section>
         <h2 className="font-semibold text-ui mb-1">Historique</h2>
-        {dirty || content.status === 'brouillon' ? <div className="py-1.5 border-b border-gray-100 text-ui-sm"><strong>v{nextVersion} brouillon</strong>{dirty && <span className="text-amber-700"> (non enregistré)</span>}</div> : null}
+        {dirty || content.status === 'brouillon' ? <div className="py-1.5 border-b border-gray-100 text-ui-sm"><strong>v{nextVersion} brouillon</strong>{dirty && <span className="text-[rgb(var(--c-warning))]"> (non enregistré)</span>}</div> : null}
         {history.map((h) => (
           <div key={h.id} className="py-1.5 border-b border-gray-100 text-ui-sm flex items-start gap-2">
             <div className="flex-1"><strong>v{h.version} validée le {frDate(h.validated_at)}</strong><div className="text-gray-500">{[h.motif, h.validated_by_name].filter(Boolean).join(' · ')}</div></div>
@@ -291,15 +291,15 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 bg-gray-50 flex flex-col" role="dialog" aria-modal="true" aria-label={tpl.name}>
       <header className="bg-white border-b border-gray-200 px-2 sm:px-4 py-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={close} className="h-11 w-11 flex items-center justify-center rounded-lg hover:bg-gray-100" aria-label="Fermer"><ChevronLeft className="w-5 h-5" /></button>
+        <button type="button" onClick={close} className="h-11 w-11 flex items-center justify-center rounded-ui-sm hover:bg-gray-100" aria-label="Fermer"><ChevronLeft className="w-5 h-5" /></button>
         <div className="flex-1 min-w-[180px]">
           <div className="text-ui-sm text-gray-500">{code}</div>
           <h1 className="font-semibold text-base sm:text-lg leading-tight flex flex-wrap items-center gap-2">{tpl.name}<StatusChip status={dirty ? { label: 'Modifié', tone: 'blue' } : status} /></h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <div className="inline-flex rounded-lg bg-gray-100 p-0.5" role="group" aria-label="Mode">
-            <button type="button" className={`h-9 px-3 rounded-md text-ui-sm font-semibold flex items-center gap-1.5 ${mode === 'lire' ? 'bg-white shadow-sm' : 'text-gray-600'}`} onClick={() => setMode('lire')}><Eye className="w-4 h-4" />Lire</button>
-            {canEdit && <button type="button" className={`h-9 px-3 rounded-md text-ui-sm font-semibold flex items-center gap-1.5 ${mode === 'modifier' ? 'bg-white shadow-sm' : 'text-gray-600'}`} onClick={() => setMode('modifier')}><Pencil className="w-4 h-4" />Modifier</button>}
+          <div className="inline-flex rounded-ui-sm bg-gray-100 p-0.5" role="group" aria-label="Mode">
+            <button type="button" className={`h-9 px-3 rounded-ui-sm text-ui-sm font-semibold flex items-center gap-1.5 ${mode === 'lire' ? 'bg-white shadow-sm' : 'text-gray-600'}`} onClick={() => setMode('lire')}><Eye className="w-4 h-4" />Lire</button>
+            {canEdit && <button type="button" className={`h-9 px-3 rounded-ui-sm text-ui-sm font-semibold flex items-center gap-1.5 ${mode === 'modifier' ? 'bg-white shadow-sm' : 'text-gray-600'}`} onClick={() => setMode('modifier')}><Pencil className="w-4 h-4" />Modifier</button>}
           </div>
           <button type="button" className="btn btn-secondary xl:hidden" onClick={() => setShowFiche(true)}><Info className="w-4 h-4" />Fiche</button>
           <button type="button" className="btn btn-secondary" disabled={busy === 'pdf'} onClick={() => pdf()}>{busy === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}Aperçu PDF</button>
@@ -310,13 +310,13 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
 
       <div className="flex-1 min-h-0 flex gap-4 p-2 sm:p-4">
         <nav aria-label="Sommaire" className="hidden md:flex w-60 shrink-0 flex-col card p-2 overflow-y-auto">
-          <span className="text-xs font-semibold text-gray-500 px-2 py-1.5">SOMMAIRE</span>
+          <span className="text-ui-sm font-semibold text-gray-500 px-2 py-1.5">SOMMAIRE</span>
           {content.sections.map((s) => {
             const changed = sectionChanged(s, tpl)
             const hidden = s.cond && !(s.cond === 'particuliers' && content.options?.particuliers)
             return (
               <button key={s.id} type="button" onClick={() => { setActive(s.id); if (mode === 'lire') document.getElementById(`sec-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
-                className={`text-left min-h-[34px] px-2 py-1 rounded-md text-ui-sm flex items-center gap-2 ${active === s.id ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'} ${hidden ? 'opacity-50' : ''}`}>
+                className={`text-left min-h-[34px] px-2 py-1 rounded-ui-sm text-ui-sm flex items-center gap-2 ${active === s.id ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'} ${hidden ? 'opacity-50' : ''}`}>
                 <span className="flex-1">{s.title || 'Introduction'}</span>
                 {changed && <span className="w-2 h-2 rounded-full bg-primary-500 shrink-0" title="Modifiée par rapport au modèle" aria-label="modifiée" />}
               </button>
@@ -351,17 +351,17 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
                 {sectionChanged(sec, tpl) && (tpl.sections || []).some((s) => s.id === sec.id) && (
                   <button type="button" className="btn btn-secondary" onClick={() => { if (window.confirm('Remettre cette section dans son état du modèle ?')) setContent((c) => resetSection(c, sec.id, tpl)) }}><RotateCcw className="w-4 h-4" />Revenir au modèle</button>
                 )}
-                <button type="button" className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-red-600" aria-label="Retirer la section" onClick={removeSection}><Trash2 className="w-4 h-4" /></button>
+                <button type="button" className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-[rgb(var(--c-danger))]" aria-label="Retirer la section" onClick={removeSection}><Trash2 className="w-4 h-4" /></button>
               </div>
-              {sec.cond === 'particuliers' && <p className="text-ui-sm text-amber-800 bg-amber-50 rounded-lg p-2">Section publiée seulement si l'option « Vente aux particuliers » est cochée dans la fiche.</p>}
+              {sec.cond === 'particuliers' && <p className="text-ui-sm text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))] rounded-ui-sm p-2">Section publiée seulement si l'option « Vente aux particuliers » est cochée dans la fiche.</p>}
 
               {sec.blocks.map((b, i) => (
-                <div key={i} className="border border-gray-200 rounded-lg p-3 space-y-2">
+                <div key={i} className="border border-gray-200 rounded-ui-sm p-3 space-y-2">
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-semibold text-gray-500 flex-1">{BLOCK_LABEL[b.t] || b.t}</span>
+                    <span className="text-ui-sm font-semibold text-gray-500 flex-1">{BLOCK_LABEL[b.t] || b.t}</span>
                     <button type="button" className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-900 disabled:opacity-30" disabled={i === 0} aria-label="Monter" onClick={() => moveBlock(i, -1)}><ArrowUp className="w-4 h-4" /></button>
                     <button type="button" className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-900 disabled:opacity-30" disabled={i === sec.blocks.length - 1} aria-label="Descendre" onClick={() => moveBlock(i, 1)}><ArrowDown className="w-4 h-4" /></button>
-                    <button type="button" className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-red-600" aria-label="Supprimer le bloc" onClick={() => setSec({ blocks: sec.blocks.filter((_, bi) => bi !== i) })}><X className="w-4 h-4" /></button>
+                    <button type="button" className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-[rgb(var(--c-danger))]" aria-label="Supprimer le bloc" onClick={() => setSec({ blocks: sec.blocks.filter((_, bi) => bi !== i) })}><X className="w-4 h-4" /></button>
                   </div>
                   <BlockEdit b={b} onChange={(nb) => setBlock(i, nb)} />
                 </div>
@@ -395,11 +395,11 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
 
       {validating && (
         <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg p-5 space-y-3">
+          <div className="bg-white rounded-ui w-full max-w-lg p-5 space-y-3">
             <h2 className="font-semibold text-lg">Valider la version {nextVersion}</h2>
             <p className="text-ui-sm text-gray-600">Le texte est figé avec la date, votre nom et le motif. Il devient la version en vigueur et sa prochaine revue est fixée à un an. Les versions précédentes restent consultables.</p>
             {(gaps.length > 0 || missing.length > 0) && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-ui-sm space-y-1">
+              <div className="rounded-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] p-3 text-ui-sm space-y-1">
                 {missing.length > 0 && <p>Rôle non désigné : {missing.map((c) => ctx?.role?.[c]?.label || c).join(', ')}.</p>}
                 {gaps.length > 0 && <p>{gaps.length} passage{gaps.length > 1 ? 's' : ''} entre crochets à compléter (sauf s'il s'agit de champs laissés à remplir à la main).</p>}
               </div>

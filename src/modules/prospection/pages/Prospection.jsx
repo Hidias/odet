@@ -163,7 +163,7 @@ export default function Prospection() {
 
       {/* ── HEADER ── */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <h2 className="text-sm font-bold text-gray-900">RDV commerciaux</h2>
+        <h2 className="text-ui font-bold text-gray-900">RDV commerciaux</h2>
 
         {/* Filtres commerciaux */}
         <div className="flex gap-1.5">
@@ -171,7 +171,7 @@ export default function Prospection() {
             <button
               key={f}
               onClick={() => setFilterBy(f)}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
+              className={`px-3 py-1.5 rounded-ui-sm text-ui-sm font-semibold border transition-colors ${
                 filterBy === f
                   ? 'bg-gray-900 text-white border-gray-900'
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
@@ -184,7 +184,7 @@ export default function Prospection() {
 
         <button
           onClick={() => navigate('/prospection/nouveau')}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 transition-colors"
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-ui-sm text-ui-sm font-semibold hover:bg-gray-700 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           Nouveau RDV
@@ -192,7 +192,7 @@ export default function Prospection() {
       </div>
 
       {/* ── BOARD ── */}
-      <div className="bg-gray-100 rounded-xl p-3 overflow-x-auto">
+      <div className="bg-gray-100 rounded-ui p-3 overflow-x-auto">
         <div className="grid gap-3 min-w-0" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
 
           {/* ── COL 0 : TRANSFERTS DE LA PROSPECTION TÉLÉPHONIQUE ── */}
@@ -200,8 +200,8 @@ export default function Prospection() {
             title=" Transferts"
             count={transferts.length}
             accentColor="#7c3aed"
-            badgeBg="bg-purple-100"
-            badgeText="text-purple-700"
+            badgeBg="bg-gray-100"
+            badgeText="text-gray-800"
           >
             {transferts.map(rdv => (
               <TransfertCard
@@ -234,8 +234,8 @@ export default function Prospection() {
             title=" Chauds"
             count={chauds.length}
             accentColor="#f97316"
-            badgeBg="bg-orange-100"
-            badgeText="text-orange-700"
+            badgeBg="bg-[rgb(var(--c-warning-bg))]"
+            badgeText="text-[rgb(var(--c-warning))]"
             onAdd={() => navigate('/prospection/nouveau')}
             addLabel="+ Signaler prospect chaud"
           >
@@ -256,8 +256,8 @@ export default function Prospection() {
             title=" RDV fixé"
             count={prevus.length}
             accentColor="#3b82f6"
-            badgeBg="bg-blue-100"
-            badgeText="text-blue-700"
+            badgeBg="bg-[rgb(var(--c-info-bg))]"
+            badgeText="text-[rgb(var(--c-info))]"
             onAdd={() => navigate('/prospection/nouveau')}
             addLabel="+ Fixer un RDV"
           >
@@ -278,8 +278,8 @@ export default function Prospection() {
             title=" À relancer"
             count={aRelancer.length}
             accentColor="#8b5cf6"
-            badgeBg="bg-purple-100"
-            badgeText="text-purple-700"
+            badgeBg="bg-gray-100"
+            badgeText="text-gray-800"
             onAdd={() => navigate('/prospection/nouveau')}
             addLabel="+ Ajouter"
           >
@@ -300,8 +300,8 @@ export default function Prospection() {
             title=" Réalisés"
             count={realises.length}
             accentColor="#22c55e"
-            badgeBg="bg-green-100"
-            badgeText="text-green-700"
+            badgeBg="bg-[rgb(var(--c-success-bg))]"
+            badgeText="text-[rgb(var(--c-success))]"
           >
             {realises.map(rdv => (
               <RdvCard
@@ -329,8 +329,8 @@ function KanbanCol({ title, count, accentColor, badgeBg, badgeText, children, on
     <div className="flex flex-col gap-2 min-w-0">
       {/* Header */}
       <div className="flex items-center gap-2 px-1 mb-1">
-        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">{title}</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeBg} ${badgeText}`}>
+        <span className="text-ui-sm font-bold uppercase tracking-wide text-gray-500">{title}</span>
+        <span className={`text-ui-sm font-bold px-2 py-0.5 rounded-full ${badgeBg} ${badgeText}`}>
           {count}
         </span>
       </div>
@@ -345,7 +345,7 @@ function KanbanCol({ title, count, accentColor, badgeBg, badgeText, children, on
       {onAdd && (
         <button
           onClick={onAdd}
-          className="w-full mt-1 py-2 border-2 border-dashed border-gray-300 rounded-lg text-xs text-gray-400 hover:border-gray-500 hover:text-gray-600 hover:bg-white transition-colors"
+          className="w-full mt-1 py-2 border-2 border-dashed border-gray-300 rounded-ui-sm text-ui-sm text-gray-400 hover:border-gray-500 hover:text-gray-600 hover:bg-white transition-colors"
         >
           {addLabel}
         </button>
@@ -379,69 +379,69 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
   return (
     <div
       onClick={onClick}
-      className={`group bg-white rounded-lg border p-3 cursor-pointer hover:shadow-md transition-all ${isOld ? 'border-red-200 border-l-2 border-l-red-400' : 'border-gray-200 border-l-2 border-l-purple-400'}`}
+      className={`group bg-white rounded-ui-sm border p-3 cursor-pointer hover:shadow-md transition-all ${isOld ? 'border-[rgb(var(--c-danger)/0.3)] border-l-2 border-l-red-400' : 'border-gray-200 border-l-2 border-l-purple-400'}`}
     >
       <div className="flex items-start justify-between gap-1 mb-1">
-        <span className="text-sm font-semibold text-gray-900 leading-tight truncate">
+        <span className="text-ui font-semibold text-gray-900 leading-tight truncate">
           {rdv.clients?.name || 'Client inconnu'}
         </span>
         <button onClick={(e) => { e.stopPropagation(); onDelete(e, rdv.id) }}
-          className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 text-gray-300 hover:text-red-400 transition-opacity flex-shrink-0">
+          className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 text-gray-300 hover:text-[rgb(var(--c-danger))] transition-opacity flex-shrink-0">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
 
       {rdv.contact_name && (
-        <p className="text-xs text-gray-400 mb-1 truncate"> {rdv.contact_name}{rdv.contact_function ? ` · ${rdv.contact_function}` : ''}</p>
+        <p className="text-ui-sm text-gray-400 mb-1 truncate"> {rdv.contact_name}{rdv.contact_function ? ` · ${rdv.contact_function}` : ''}</p>
       )}
       {rdv.contact_phone && (
-        <p className="text-xs text-blue-700 font-medium mb-1">{rdv.contact_phone}</p>
+        <p className="text-ui-sm text-[rgb(var(--c-info))] font-medium mb-1">{rdv.contact_phone}</p>
       )}
       {rdv.notes_crm && (
-        <p className="text-xs text-gray-500 mb-2 italic line-clamp-2">{rdv.notes_crm.replace(/^\S*\s*Transfert[^\n]*?(-|$)/, '').trim()}</p>
+        <p className="text-ui-sm text-gray-500 mb-2 italic line-clamp-2">{rdv.notes_crm.replace(/^\S*\s*Transfert[^\n]*?(-|$)/, '').trim()}</p>
       )}
 
       <div className="flex items-center gap-1.5 flex-wrap mb-2">
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+        <span className="text-ui-sm font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800">
            Transfert
         </span>
         {rdv.conducted_by && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+          <span className="text-ui-sm font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
             → {rdv.conducted_by}
           </span>
         )}
         {isOld && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
+          <span className="text-ui-sm font-semibold px-1.5 py-0.5 rounded-full bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]">
              {days}j
           </span>
         )}
-        <span className="text-[10px] text-gray-400 ml-auto">{ago}</span>
+        <span className="text-ui-sm text-gray-400 ml-auto">{ago}</span>
       </div>
 
       {/* Actions */}
       {!showClose ? (
         <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
           <button onClick={handleConvert} disabled={saving}
-            className="flex-1 px-2 py-1 text-[10px] font-semibold bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50">
+            className="flex-1 px-2 py-1 text-ui-sm font-semibold bg-[rgb(var(--c-warning))] text-white rounded hover:bg-[rgb(var(--c-warning))] disabled:opacity-50">
              → Prospect chaud
           </button>
           <button onClick={(e) => { e.stopPropagation(); setShowClose(true) }}
-            className="px-2 py-1 text-[10px] font-semibold bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
+            className="px-2 py-1 text-ui-sm font-semibold bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
             Clôturer
           </button>
         </div>
       ) : (
         <div className="space-y-1" onClick={e => e.stopPropagation()}>
-          <p className="text-[10px] text-gray-500 font-medium">Résultat :</p>
+          <p className="text-ui-sm text-gray-500 font-medium">Résultat :</p>
           <div className="flex gap-1 flex-wrap">
             {[['realise', ' Traité'], ['annule', ' Sans suite'], ['reporte', ' Reporter']].map(([v, l]) => (
               <button key={v} onClick={(e) => handleClose(e, v)} disabled={saving}
-                className="px-2 py-1 text-[10px] font-semibold bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50">
+                className="px-2 py-1 text-ui-sm font-semibold bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50">
                 {l}
               </button>
             ))}
             <button onClick={(e) => { e.stopPropagation(); setShowClose(false) }}
-              className="px-2 py-1 text-[10px] text-gray-400 rounded hover:bg-gray-100">Fermer</button>
+              className="px-2 py-1 text-ui-sm text-gray-400 rounded hover:bg-gray-100">Fermer</button>
           </div>
         </div>
       )}
@@ -469,9 +469,9 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
   if (rdv.rdv_date) {
     try {
       const d = parseISO(rdv.rdv_date)
-      if (isToday(d)) { dateLbl = `Auj.${rdv.rdv_time ? ' ' + rdv.rdv_time.slice(0, 5) : ''}`; dateColor = 'text-red-600 font-bold' }
-      else if (isTomorrow(d)) { dateLbl = `Dem.${rdv.rdv_time ? ' ' + rdv.rdv_time.slice(0, 5) : ''}`; dateColor = 'text-orange-500 font-semibold' }
-      else if (isRdvLate(rdv)) { dateLbl = 'Dépassé'; dateColor = 'text-red-500 font-semibold' }
+      if (isToday(d)) { dateLbl = `Auj.${rdv.rdv_time ? ' ' + rdv.rdv_time.slice(0, 5) : ''}`; dateColor = 'text-[rgb(var(--c-danger))] font-bold' }
+      else if (isTomorrow(d)) { dateLbl = `Dem.${rdv.rdv_time ? ' ' + rdv.rdv_time.slice(0, 5) : ''}`; dateColor = 'text-[rgb(var(--c-warning))] font-semibold' }
+      else if (isRdvLate(rdv)) { dateLbl = 'Dépassé'; dateColor = 'text-[rgb(var(--c-danger))] font-semibold' }
       else {
         dateLbl = format(d, 'EEE d MMM', { locale: fr }) + (rdv.rdv_time ? ' ' + rdv.rdv_time.slice(0, 5) : '')
       }
@@ -481,16 +481,16 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
   return (
     <div
       onClick={onClick}
-      className={`group bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:shadow-md hover:-translate-y-px transition-all ${borderLeft}`}
+      className={`group bg-white rounded-ui-sm border border-gray-200 p-3 cursor-pointer hover:shadow-md hover:-translate-y-px transition-all ${borderLeft}`}
     >
       {/* Nom + actions au hover */}
       <div className="flex items-start justify-between gap-1 mb-1">
-        <span className="text-sm font-semibold text-gray-900 leading-tight">
+        <span className="text-ui font-semibold text-gray-900 leading-tight">
           {rdv.clients?.name || 'Client inconnu'}
         </span>
         <button
           onClick={(e) => onDelete(e, rdv.id)}
-          className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 text-gray-300 hover:text-red-400 transition-opacity flex-shrink-0 mt-0.5"
+          className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 text-gray-300 hover:text-[rgb(var(--c-danger))] transition-opacity flex-shrink-0 mt-0.5"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -500,7 +500,7 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
 
       {/* Contact */}
       {(rdv.contact_name || rdv.conducted_by) && (
-        <p className="text-xs text-gray-400 mb-2 truncate">
+        <p className="text-ui-sm text-gray-400 mb-2 truncate">
           {[rdv.contact_name, rdv.conducted_by ? `· ${rdv.conducted_by}` : null].filter(Boolean).join(' ')}
         </p>
       )}
@@ -510,53 +510,53 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
 
         {/* Badge chaud / transfert */}
         {isTransfer ? (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+          <span className="text-ui-sm font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800">
             Transfert
           </span>
         ) : isHotFromPhoning ? (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">
+          <span className="text-ui-sm font-semibold px-1.5 py-0.5 rounded-full bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]">
             Chaud
           </span>
         ) : null}
 
         {/* Badge date (prévus) */}
         {dateLbl && variant === 'prevu' && (
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 ${dateColor}`}>
+          <span className={`text-ui-sm font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 ${dateColor}`}>
             {dateLbl}
           </span>
         )}
 
         {/* Badge formations */}
         {rdv.formations_interet?.length > 0 && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 truncate max-w-[90px]" title={rdv.formations_interet.join(', ')}>
+          <span className="text-ui-sm font-semibold px-1.5 py-0.5 rounded-full bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] truncate max-w-[90px]" title={rdv.formations_interet.join(', ')}>
             {rdv.formations_interet[0]}{rdv.formations_interet.length > 1 ? ` +${rdv.formations_interet.length - 1}` : ''}
           </span>
         )}
 
         {/* Badge type RDV si pas de formations */}
         {!rdv.formations_interet?.length && rdv.rdv_type && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
+          <span className="text-ui-sm font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
             {RDV_TYPE_LABELS[rdv.rdv_type] || rdv.rdv_type}
           </span>
         )}
 
         {/* Badge en retard */}
         {late && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
+          <span className="text-ui-sm font-semibold px-1.5 py-0.5 rounded-full bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]">
              En retard
           </span>
         )}
 
         {/* Prochaine action visible au hover */}
         {rdv.next_action && (
-          <span className="hidden group-hover:inline text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-50 text-yellow-700 truncate max-w-[120px]" title={rdv.next_action}>
+          <span className="hidden group-hover:inline text-ui-sm px-1.5 py-0.5 rounded-full bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] truncate max-w-[120px]" title={rdv.next_action}>
              {rdv.next_action}
           </span>
         )}
 
         {/* Ago */}
         {ago && (
-          <span className={`text-[10px] ml-auto flex-shrink-0 ${late ? 'text-red-400 font-semibold' : 'text-gray-300'}`}>
+          <span className={`text-ui-sm ml-auto flex-shrink-0 ${late ? 'text-[rgb(var(--c-danger))] font-semibold' : 'text-gray-300'}`}>
             {ago}
           </span>
         )}
@@ -564,14 +564,14 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
 
       {/* Lieu si prévu */}
       {variant === 'prevu' && rdv.rdv_location && (
-        <p className="text-[10px] text-gray-400 mt-1.5">
+        <p className="text-ui-sm text-gray-400 mt-1.5">
           {LOCATION_LABELS[rdv.rdv_location] || rdv.rdv_location}
         </p>
       )}
 
       {/* Status annulé/reporté */}
       {variant === 'autre' && (
-        <span className="text-[10px] text-gray-400 mt-1 block">
+        <span className="text-ui-sm text-gray-400 mt-1 block">
           {rdv.status === 'annule' ? ' Annulé' : ' Reporté'}
         </span>
       )}
@@ -581,7 +581,7 @@ function RdvCard({ rdv, variant, onClick, onDelete }) {
 
 function EmptyCol({ text }) {
   return (
-    <div className="text-center py-6 text-xs text-gray-400">
+    <div className="text-center py-6 text-ui-sm text-gray-400">
       {text}
     </div>
   )

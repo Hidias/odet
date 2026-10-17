@@ -10,8 +10,12 @@ import {
 import { format, parseISO, isToday, eachDayOfInterval } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import TraineeDocuments from '../../formation/components/TraineeDocuments'
+import { Banner } from '../../../ui/Banner'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
 import QuizEngine from '../../formation/quiz/QuizEngine'
+import PasseportPortalBlock from '../../passeport/components/PasseportPortalBlock'
+import { portailPasseport } from '../../passeport/lib/ppData'
+import { normaliserNir } from '../../passeport/lib/rules'
 
 // Portail stagiaire : identification, fiche de renseignement, positionnement (quiz),
 // émargement par signature, entraînement, évaluation des acquis, satisfaction.
@@ -53,7 +57,7 @@ const ProgressStepper = ({ currentStep, hasTest }) => {
               }`}>
                 {isDone ? <CheckCircle className="w-4 h-4 check-pop" /> : <Icon className="w-4 h-4" />}
               </div>
-              <span className={`text-[10px] mt-1 font-semibold ${isDone ? 'text-primary-900' : isActive ? 'text-accent-700' : 'text-gray-400'}`}>{step.label}</span>
+              <span className={`text-ui-sm mt-1 font-semibold ${isDone ? 'text-primary-900' : isActive ? 'text-accent-700' : 'text-gray-400'}`}>{step.label}</span>
             </div>
             {idx < steps.length - 1 && (
               <div className="flex-1 mx-2 -mt-4">
@@ -83,7 +87,7 @@ const AttendanceCompletePage = ({ session, trainee, onContinue }) => {
     <div className="text-center py-6 portal-card-enter">
       <div className="relative mx-auto mb-6 w-24 h-24">
         <div className="absolute inset-0 rounded-full bg-primary-900 opacity-10 animate-ping" style={{ animationDuration: '2s' }} />
-        <div className="relative w-24 h-24 rounded-full bg-primary-900 flex items-center justify-center shadow-xl">
+        <div className="relative w-24 h-24 rounded-full bg-primary-900 flex items-center justify-center shadow-sm">
           <CheckCircle className="w-12 h-12 text-white check-pop" />
         </div>
       </div>
@@ -187,7 +191,7 @@ function HubCard({ icon: Icon, title, subtitle, status, tone = 'neutral', onClic
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <div className="font-display font-semibold text-gray-900">{title}</div>
-          {badge && <span className="text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent-500 text-accent-fg">{badge}</span>}
+          {badge && <span className="text-ui-sm font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent-500 text-accent-fg">{badge}</span>}
         </div>
         {subtitle && <div className="text-ui-sm text-gray-500 truncate">{subtitle}</div>}
         {status && <div className={`text-ui-sm font-medium mt-0.5 ${tone === 'done' ? 'text-[rgb(var(--c-success))]' : tone === 'locked' ? 'text-gray-400' : 'text-gray-700'}`}>{status}</div>}
@@ -207,6 +211,8 @@ export default function TraineePortal() {
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  // Message d'erreur affiché dans l'écran (remplace les alertes du navigateur)
+  const [portalError, setPortalError] = useState(null)
   const [error, setError] = useState(null)
 
   const [session, setSession] = useState(null)
@@ -244,6 +250,8 @@ export default function TraineePortal() {
     last_training_year: '', highest_diploma: '', csp: '', job_title: '', training_expectations: '', gender: '', rgpd_consent: false,
   })
   const [formErrors, setFormErrors] = useState({})
+  // Passeport de prévention (module actif) : le numéro part chiffré par le serveur, jamais par les fonctions du portail
+  const [pp, setPp] = useState({ enabled: false })
 
   const [evalForm, setEvalForm] = useState(() => ({
     ...Object.fromEntries(EVAL_KEYS.map((k) => [k, 5])),
@@ -382,6 +390,10 @@ export default function TraineePortal() {
 
       setInfoSheet(infoData)
       setSsnOnFile({ known: !!infoData?.ssn_on_file, last3: infoData?.ssn_last3 || '' })
+      setPp({ enabled: false })
+      portailPasseport('portal-state', { token, trainee_id: trainee.id, code: accessCode || undefined })
+        .then((st) => setPp(st.enabled ? { ...st, nom: st.nom_naissance, nir: '', refuse: st.refuse } : { enabled: false }))
+        .catch(() => setPp({ enabled: false }))
       setPositioningQuestions(questions)
       setPositioningTestCompleted(testCompleted)
 
@@ -458,7 +470,13 @@ export default function TraineePortal() {
     }
     if (!infoForm.birth_date_display) errors.birth_date = 'Date de naissance requise'
     else if (!isValidBirthDate(infoForm.birth_date_display)) errors.birth_date = 'Date invalide (format JJ/MM/AAAA)'
-    if (!infoForm.ssn_refused) {
+    if (pp.enabled) {
+      if (!pp.refuse) {
+        if (!String(pp.nom || '').trim()) errors.pp = 'Nom de naissance requis, ou cochez la case'
+        else if (!pp.nir && !pp.nir_present) errors.pp = 'Numéro requis, ou cochez la case'
+        else if (pp.nir && !normaliserNir(pp.nir).ok) errors.pp = normaliserNir(pp.nir).error
+      }
+    } else if (!infoForm.ssn_refused) {
       const ssnNumbers = infoForm.ssn.replace(/\s/g, '')
       if (!ssnNumbers) { if (!ssnOnFile.known) errors.ssn = 'Numéro requis, ou cochez "Je refuse"' }
       else if (ssnNumbers.length !== 15) errors.ssn = 'Le numéro doit contenir 15 chiffres (13 + clé)'
@@ -477,6 +495,20 @@ export default function TraineePortal() {
     setSubmitting(true)
     try {
       const birthDateISO = parseBirthDateToISO(infoForm.birth_date_display)
+      let ppWarning = null
+      if (pp.enabled) {
+        try {
+          const st = await portailPasseport('portal-save', {
+            token, trainee_id: selectedTrainee.id, code: accessCode || undefined,
+            nom_naissance: pp.nom, nir: pp.refuse ? '' : (pp.nir || ''), refuse: !!pp.refuse,
+            gender: infoForm.gender || undefined, birth_date: birthDateISO || undefined,
+          })
+          setPp({ ...st, nom: st.nom_naissance, nir: '', refuse: st.refuse })
+        } catch (ppErr) {
+          if (ppErr.status === 400) { setFormErrors({ pp: ppErr.message }); setSubmitting(false); return }
+          ppWarning = "Votre fiche est enregistrée, mais pas votre numéro : le formateur pourra le saisir."
+        }
+      }
       const traineeUpdate = {
         first_name: infoForm.first_name,
         last_name: infoForm.last_name,
@@ -487,6 +519,10 @@ export default function TraineePortal() {
         csp: infoForm.csp || null,
         job_title: infoForm.job_title || null,
         gender: infoForm.gender || null,
+      }
+      if (pp.enabled) {
+        delete traineeUpdate.social_security_number
+        traineeUpdate.refused_ssn = !!pp.refuse
       }
       const { error: updateError } = await supabase.rpc('update_trainee_data', { p_token: token, p_trainee_id: selectedTrainee.id, p_data: traineeUpdate, p_ticket: portalTicket })
       if (updateError) throw updateError
@@ -499,8 +535,8 @@ export default function TraineePortal() {
         p_ticket: portalTicket,
         p_data: {
           email: infoForm.email_refused ? null : infoForm.email,
-          ssn: infoForm.ssn_refused ? null : infoForm.ssn.replace(/\s/g, ''),
-          ssn_refused: infoForm.ssn_refused,
+          ssn: pp.enabled || infoForm.ssn_refused ? null : infoForm.ssn.replace(/\s/g, ''),
+          ssn_refused: pp.enabled ? !!pp.refuse : infoForm.ssn_refused,
           last_training_year: infoForm.last_training_year ? parseInt(infoForm.last_training_year) : null,
           highest_diploma: infoForm.highest_diploma,
           csp: infoForm.csp || null,
@@ -516,11 +552,12 @@ export default function TraineePortal() {
 
       await supabase.rpc('portal_set_email_refused', { p_token: token, p_trainee_id: selectedTrainee.id, p_refused: !!infoForm.email_refused })
 
-      const typedSsn = infoForm.ssn.replace(/\s/g, '')
-      if (infoForm.ssn_refused) setSsnOnFile({ known: false, last3: '' })
+      const typedSsn = pp.enabled ? '' : infoForm.ssn.replace(/\s/g, '')
+      if (!pp.enabled && infoForm.ssn_refused) setSsnOnFile({ known: false, last3: '' })
       else if (typedSsn) setSsnOnFile({ known: true, last3: typedSsn.slice(-3) })
       setInfoForm((f) => ({ ...f, ssn: '' }))
       setInfoSheet({ ...infoForm, ssn: '', filled_at: new Date().toISOString() })
+      if (ppWarning) setPp((p) => ({ ...p, warning: ppWarning }))
 
       if (positioningQuestions.length > 0 && !positioningTestCompleted) {
         setCurrentStep('hub')
@@ -530,7 +567,7 @@ export default function TraineePortal() {
       }
     } catch (err) {
       console.error('Erreur :', err)
-      alert("Erreur lors de l'enregistrement. Veuillez réessayer.")
+      setPortalError("Erreur lors de l'enregistrement. Veuillez réessayer.")
     } finally {
       setSubmitting(false)
     }
@@ -544,13 +581,13 @@ export default function TraineePortal() {
       const { data, error } = await supabase.rpc('portal_quiz_questions', { p_token: token, p_trainee_id: trainee.id, p_purpose: mode })
       if (error) throw error
       if (!data || data.length === 0) {
-        alert("Aucune question n'est disponible pour cette formation.")
+        setPortalError("Aucune question n'est disponible pour cette formation.")
         return
       }
       setQuiz({ mode, questions: data })
     } catch (err) {
       console.error('Quiz :', err)
-      alert('Impossible de charger le quiz.')
+      setPortalError('Impossible de charger le quiz.')
     } finally {
       setSubmitting(false)
     }
@@ -614,7 +651,7 @@ export default function TraineePortal() {
       const { data, error } = await supabase.rpc('portal_sign_halfday', { p_token: token, p_trainee_id: selectedTrainee.id, p_period: period, p_signature: image })
       if (error) throw error
       if (!data?.ok) {
-        alert(data?.error || "La signature n'a pas pu être enregistrée")
+        setPortalError(data?.error || "La signature n'a pas pu être enregistrée")
         setSigningBusy(false)
         return
       }
@@ -629,7 +666,7 @@ export default function TraineePortal() {
       }
     } catch (err) {
       console.error('Erreur émargement :', err)
-      alert("Erreur lors de l'enregistrement de votre signature. Prévenez votre formateur.")
+      setPortalError("Erreur lors de l'enregistrement de votre signature. Prévenez votre formateur.")
     } finally {
       setSigningBusy(false)
     }
@@ -661,7 +698,7 @@ export default function TraineePortal() {
       else setCurrentStep('thank_you_website')
     } catch (err) {
       console.error('Erreur :', err)
-      alert("Erreur lors de l'enregistrement. Veuillez réessayer.")
+      setPortalError("Erreur lors de l'enregistrement. Veuillez réessayer.")
     } finally {
       setSubmitting(false)
     }
@@ -733,7 +770,7 @@ export default function TraineePortal() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'rgb(var(--ground))' }}>
         <style>{portalStyles}</style>
-        <div className="bg-white rounded-ui-lg shadow-xl p-8 max-w-md text-center portal-card-enter">
+        <div className="bg-white rounded-ui-lg shadow-sm p-8 max-w-md text-center portal-card-enter">
           <div className="w-16 h-16 rounded-full bg-[rgb(var(--c-danger-bg))] flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-[rgb(var(--c-danger))]" />
           </div>
@@ -761,10 +798,15 @@ export default function TraineePortal() {
     <div className="min-h-screen py-4 px-3 sm:py-6 sm:px-4" style={{ background: 'rgb(var(--ground))' }}>
       <style>{portalStyles}</style>
       <div className="max-w-lg mx-auto">
+        {portalError && (
+          <div className="fixed inset-x-0 bottom-0 z-50 p-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+            <div className="max-w-lg mx-auto bg-white" style={{ borderRadius: 'var(--radius-ui)', boxShadow: 'var(--shadow-pop)' }}>
+              <Banner tone="danger" title={portalError} onClose={() => setPortalError(null)} />
+            </div>
+          </div>
+        )}
         {/* En-tête aux couleurs de l'organisme */}
         <div className="bg-nav text-nav-fg rounded-t-ui-lg p-5 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-accent-500/20 -translate-y-1/2 translate-x-1/3" />
-          <div className="absolute bottom-0 left-10 w-24 h-24 rounded-full bg-white/5 translate-y-1/2" />
           <div className="relative">
             <div className="flex items-center gap-3">
               {logo ? (
@@ -775,7 +817,7 @@ export default function TraineePortal() {
                 </div>
               )}
               <div className="min-w-0">
-                <div className="text-[11px] uppercase tracking-wider opacity-70 font-semibold">{orgName}</div>
+                <div className="text-ui-sm uppercase tracking-wider opacity-70 font-semibold">{orgName}</div>
                 <h1 className="font-display text-lg font-bold leading-tight truncate">{session.courses?.title}</h1>
               </div>
             </div>
@@ -797,7 +839,7 @@ export default function TraineePortal() {
             </div>
             {selectedTrainee && (
               <div className="mt-3 inline-flex items-center gap-2 text-ui bg-white/10 rounded-full pl-1 pr-3 py-1">
-                <span className="w-6 h-6 rounded-full bg-accent-500 text-accent-fg text-[11px] font-bold flex items-center justify-center">
+                <span className="w-6 h-6 rounded-full bg-accent-500 text-accent-fg text-ui-sm font-bold flex items-center justify-center">
                   {(selectedTrainee.first_name || '?').slice(0, 1)}{(selectedTrainee.last_name || '').slice(0, 1)}
                 </span>
                 {selectedTrainee.first_name} {selectedTrainee.last_name}
@@ -812,7 +854,7 @@ export default function TraineePortal() {
           </div>
         )}
 
-        <div className="bg-white rounded-b-ui-lg shadow-lg shadow-primary-900/5 p-5 sm:p-6">
+        <div className="bg-white rounded-b-ui-lg shadow-md shadow-primary-900/5 p-5 sm:p-6">
           <div key={currentStep} className="portal-step-enter">
 
             {/* Sélection du stagiaire */}
@@ -846,7 +888,7 @@ export default function TraineePortal() {
             {currentStep === 'verify_code' && (
               <div>
                 <div className="text-center mb-6">
-                  <div className="w-16 h-16 rounded-ui-lg bg-primary-900 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <div className="w-16 h-16 rounded-ui-lg bg-primary-900 flex items-center justify-center mx-auto mb-4 shadow-md">
                     <Shield className="w-8 h-8 text-white" />
                   </div>
                   <h2 className="font-display text-xl font-bold mb-1">Vérification d'accès</h2>
@@ -938,6 +980,9 @@ export default function TraineePortal() {
                   </label>
                 </div>
 
+                {pp.enabled ? (
+                  <PasseportPortalBlock value={pp} onChange={setPp} error={formErrors.pp} />
+                ) : (
                 <div>
                   <label className={labelClass}>Numéro de Sécurité sociale {!infoForm.ssn_refused && '*'}</label>
                   <input type="text" value={infoForm.ssn} onChange={(e) => setInfoForm({ ...infoForm, ssn: formatSSN(e.target.value) })}
@@ -958,6 +1003,7 @@ export default function TraineePortal() {
                     <span className="text-ui-sm text-gray-600">Je refuse de communiquer mon numéro de Sécurité sociale</span>
                   </label>
                 </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1172,7 +1218,7 @@ export default function TraineePortal() {
 
             {currentStep === 'thank_you' && (
               <div className="text-center py-8 portal-card-enter">
-                <div className="w-20 h-20 rounded-full bg-primary-900 flex items-center justify-center mx-auto mb-5 shadow-lg">
+                <div className="w-20 h-20 rounded-full bg-primary-900 flex items-center justify-center mx-auto mb-5 shadow-md">
                   <CheckCircle className="w-10 h-10 text-white check-pop" />
                 </div>
                 <h2 className="font-display text-2xl font-bold text-gray-900 mb-2">C'est noté</h2>

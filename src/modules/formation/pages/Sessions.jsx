@@ -1,3 +1,4 @@
+import { StatusBadge } from '../../../ui/StatusBadge'
 import { apiFetch } from '../../../core/api'
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -510,15 +511,15 @@ export default function Sessions() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sessions</h1>
+          <h1 className="page-title">Sessions</h1>
           <p className="text-gray-500 mt-1">{sessions.length} session(s)</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Toggle Liste / Planning */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 mr-2">
+          <div className="flex items-center bg-gray-100 rounded-ui-sm p-0.5 mr-2">
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-ui font-medium rounded-ui-sm transition-all
                 ${viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <List className="w-4 h-4" />
@@ -526,7 +527,7 @@ export default function Sessions() {
             </button>
             <button
               onClick={() => setViewMode('planning')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-ui font-medium rounded-ui-sm transition-all
                 ${viewMode === 'planning' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <LayoutGrid className="w-4 h-4" />
@@ -595,25 +596,23 @@ export default function Sessions() {
               // Prix retiré de l'affichage liste
               
               return (
-                <div key={group.id} className="rounded-xl border-2 border-purple-200 bg-purple-50/30 overflow-hidden">
+                <div key={group.id} className="rounded-ui border-2 border-gray-200 bg-gray-50 overflow-hidden">
                   {/* En-tête du groupe */}
                   <div
-                    className="px-5 py-4 cursor-pointer hover:bg-purple-50 transition-colors"
+                    className="px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => toggleGroup(group.id)}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                          <span className="badge bg-purple-100 text-purple-700 flex items-center gap-1">
+                          <span className="badge bg-gray-100 text-gray-800 flex items-center gap-1">
                             <Building2 className="w-3 h-3" />
                             Inter-entreprises • {group.sessions.length} entreprises
                           </span>
                           {(() => {
                             const statuses = [...new Set(group.sessions.map(s => s.status))]
                             if (statuses.length === 1) {
-                              return <span className={`badge ${statusLabels[statuses[0]]?.class || 'badge-gray'}`}>
-                                {statusLabels[statuses[0]]?.label || statuses[0]}
-                              </span>
+                              return <StatusBadge kind="session" status={statuses[0]} />
                             }
                             return null
                           })()}
@@ -626,14 +625,14 @@ export default function Sessions() {
                         {/* Badges entreprises */}
                         <div className="flex flex-wrap gap-1.5 mt-2">
                           {group.sessions.map(s => (
-                            <span key={s.id} className="inline-flex items-center gap-1 text-xs bg-white border border-purple-200 text-purple-700 px-2 py-0.5 rounded-full">
+                            <span key={s.id} className="inline-flex items-center gap-1 text-ui-sm bg-white border border-gray-200 text-gray-800 px-2 py-0.5 rounded-full">
                               {s.clients?.name || '?'}
-                              <span className="text-purple-400">({s.session_trainees?.length || 0})</span>
+                              <span className="text-gray-500">({s.session_trainees?.length || 0})</span>
                             </span>
                           ))}
                         </div>
                         
-                        <div className="flex flex-wrap items-center gap-4 mt-2.5 text-sm text-gray-500">
+                        <div className="flex flex-wrap items-center gap-4 mt-2.5 text-ui text-gray-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
                             {group.start_date ? format(new Date(group.start_date), 'd MMM yyyy', { locale: fr }) : 'Date à définir'}
@@ -656,14 +655,14 @@ export default function Sessions() {
                       </div>
                       
                       <div className="flex items-center gap-1 mt-1">
-                        <ChevronDown className={`w-5 h-5 text-purple-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                       </div>
                     </div>
                   </div>
                   
                   {/* Sessions du groupe (dépliées) */}
                   {isExpanded && (
-                    <div className="border-t border-purple-200 divide-y divide-purple-100">
+                    <div className="border-t border-gray-200 divide-y divide-gray-200">
                       {group.sessions.map(session => (
                         <Link
                           key={session.id}
@@ -673,13 +672,11 @@ export default function Sessions() {
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-mono text-gray-400">{session.reference}</span>
-                                <span className={`badge text-xs ${statusLabels[session.status]?.class || 'badge-gray'}`}>
-                                  {statusLabels[session.status]?.label || session.status}
-                                </span>
+                                <span className="text-ui font-mono text-gray-400">{session.reference}</span>
+                                <StatusBadge kind="session" status={session.status} />
                               </div>
                               <p className="font-medium text-gray-900 mt-0.5">{session.clients?.name}</p>
-                              <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
+                              <div className="flex items-center gap-3 mt-1 text-ui text-gray-500">
                                 <span>{session.session_trainees?.length || 0} stagiaire(s)</span>
 
                               </div>
@@ -687,17 +684,17 @@ export default function Sessions() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={(e) => handleDuplicate(session.id, e)}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+                                className="p-1.5 hover:bg-gray-100 rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                                 title="Dupliquer"
                               >
                                 <Copy className="w-4 h-4 text-gray-500" />
                               </button>
                               <button
                                 onClick={(e) => handleDelete(session.id, e)}
-                                className="p-1.5 hover:bg-red-50 rounded-lg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+                                className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                                 title="Supprimer"
                               >
-                                <Trash2 className="w-4 h-4 text-red-500" />
+                                <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                               </button>
                               <ChevronRight className="w-4 h-4 text-gray-400" />
                             </div>
@@ -721,48 +718,48 @@ export default function Sessions() {
                 <Link
                   key={session.id}
                   to={`/sessions/${session.id}`}
-                  className="block bg-amber-50/60 border border-amber-200 rounded-lg px-4 py-2.5 hover:bg-amber-50 transition-colors group"
+                  className="block bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm px-4 py-2.5 hover:bg-[rgb(var(--c-warning-bg))] transition-colors group"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
                       {/* Date */}
-                      <span className="text-sm font-medium text-gray-700 whitespace-nowrap w-[75px] shrink-0">
+                      <span className="text-ui font-medium text-gray-700 whitespace-nowrap w-[75px] shrink-0">
                         {session.start_date ? format(new Date(session.start_date), 'dd/MM/yyyy', { locale: fr }) : '-'}
                       </span>
                       {/* Réfs courtes */}
                       <div className="flex items-center gap-1 shrink-0">
                         {shortRefs.slice(0, 4).map((r, i) => (
-                          <span key={i} className="px-1.5 py-0.5 bg-amber-200/60 text-amber-900 text-xs rounded font-mono">{r}</span>
+                          <span key={i} className="px-1.5 py-0.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui-sm rounded font-mono">{r}</span>
                         ))}
-                        {shortRefs.length > 4 && <span className="text-xs text-amber-600">+{shortRefs.length - 4}</span>}
+                        {shortRefs.length > 4 && <span className="text-ui-sm text-[rgb(var(--c-warning))]">+{shortRefs.length - 4}</span>}
                       </div>
                       {/* Lieu (tronqué) */}
-                      <span className="text-xs text-gray-500 truncate max-w-[180px] hidden sm:inline">
+                      <span className="text-ui-sm text-gray-500 truncate max-w-[180px] hidden sm:inline">
                         {(session.location_name || session.location || '').split(',')[0]}
                       </span>
                       {/* Stagiaires */}
-                      <span className="text-xs text-gray-500 whitespace-nowrap">
+                      <span className="text-ui-sm text-gray-500 whitespace-nowrap">
                         <Users className="w-3 h-3 inline mr-0.5" />{session.subcontract_nb_trainees || 0}
                       </span>
                       {/* Tarif */}
-                      <span className="text-xs font-medium text-amber-700 whitespace-nowrap">
+                      <span className="text-ui-sm font-medium text-[rgb(var(--c-warning))] whitespace-nowrap">
                         {parseFloat(session.subcontract_daily_rate || 0).toFixed(0)}€/j
                       </span>
                       {/* Statut */}
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                        session.subcontract_invoiced ? 'bg-green-100 text-green-700' :
-                        session.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                        session.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      <span className={`text-ui-sm px-1.5 py-0.5 rounded-full ${
+                        session.subcontract_invoiced ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                        session.status === 'completed' ? 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' :
+                        session.status === 'cancelled' ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' :
                         'bg-gray-100 text-gray-600'
                       }`}>
-                        {session.subcontract_invoiced ? ' Fact.' : statusLabels[session.status]?.label || session.status}
+                        {session.subcontract_invoiced ? 'Fact.' : statusLabels[session.status]?.label || session.status}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={(e) => handleDelete(session.id, e)} className="p-1 hover:bg-red-50 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Supprimer">
-                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      <button onClick={(e) => handleDelete(session.id, e)} className="p-1 hover:bg-[rgb(var(--c-danger-bg))] rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Supprimer">
+                        <Trash2 className="w-3.5 h-3.5 text-[rgb(var(--c-danger))]" />
                       </button>
-                      <ChevronRight className="w-4 h-4 text-amber-400" />
+                      <ChevronRight className="w-4 h-4 text-[rgb(var(--c-warning))]" />
                     </div>
                   </div>
                 </Link>
@@ -779,12 +776,10 @@ export default function Sessions() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <span className="text-sm font-mono text-gray-500">{session.reference}</span>
-                      <span className={`badge ${statusLabels[session.status]?.class || 'badge-gray'}`}>
-                        {statusLabels[session.status]?.label || session.status}
-                      </span>
+                      <span className="text-ui font-mono text-gray-500">{session.reference}</span>
+                      <StatusBadge kind="session" status={session.status} />
                       {session.is_intra && (
-                        <span className="badge bg-purple-100 text-purple-700">Intra</span>
+                        <span className="text-ui-sm text-gray-500">Intra</span>
                       )}
                     </div>
                     
@@ -793,7 +788,7 @@ export default function Sessions() {
                     </h3>
                     <p className="text-gray-600">{session.clients?.name}</p>
                     
-                    <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-500">
+                    <div className="flex flex-wrap items-center gap-4 mt-3 text-ui text-gray-500">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
                         {session.start_date ? format(new Date(session.start_date), 'd MMM yyyy', { locale: fr }) : 'Date à définir'}
@@ -819,17 +814,17 @@ export default function Sessions() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => handleDuplicate(session.id, e)}
-                      className="p-2 hover:bg-gray-100 rounded-lg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+                      className="p-2 hover:bg-gray-100 rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                       title="Dupliquer"
                     >
                       <Copy className="w-4 h-4 text-gray-500" />
                     </button>
                     <button
                       onClick={(e) => handleDelete(session.id, e)}
-                      className="p-2 hover:bg-red-50 rounded-lg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+                      className="p-2 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                       title="Supprimer"
                     >
-                      <Trash2 className="w-4 h-4 text-red-500" />
+                      <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                     </button>
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </div>
@@ -844,20 +839,20 @@ export default function Sessions() {
       {/* Modal création */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
-          <div className={`bg-white rounded-xl shadow-xl w-full my-8 ${formData.session_type === 'subcontract' && batchMode ? 'max-w-4xl' : 'max-w-2xl'}`}>
+          <div className={`bg-white rounded-ui shadow-md w-full my-8 ${formData.session_type === 'subcontract' && batchMode ? 'max-w-4xl' : 'max-w-2xl'}`}>
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-xl z-10">
               <h2 className="text-xl font-semibold">Nouvelle session</h2>
-              <button onClick={resetForm} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={resetForm} className="p-2 hover:bg-gray-100 rounded-ui-sm">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {/* Toggle type de session */}
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <div className="flex items-center gap-1 bg-gray-100 rounded-ui-sm p-1">
                 <button type="button"
                   onClick={() => setFormData({ ...formData, session_type: 'intra' })}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-ui font-medium rounded-ui-sm transition-all
                     ${formData.session_type !== 'subcontract' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                   <Calendar className="w-4 h-4" />
@@ -865,8 +860,8 @@ export default function Sessions() {
                 </button>
                 <button type="button"
                   onClick={() => setFormData({ ...formData, session_type: 'subcontract', funding_type: 'none', course_id: '' })}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all
-                    ${formData.session_type === 'subcontract' ? 'bg-amber-50 text-amber-800 shadow-sm border border-amber-200' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-ui font-medium rounded-ui-sm transition-all
+                    ${formData.session_type === 'subcontract' ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] shadow-sm border border-[rgb(var(--c-warning)/0.3)]' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                   <Briefcase className="w-4 h-4" />
                   Sous-traitance
@@ -876,15 +871,15 @@ export default function Sessions() {
               {/* ═══ FORMULAIRE SOUS-TRAITANCE ═══ */}
               {formData.session_type === 'subcontract' && (
                 <>
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-warning))] flex items-center justify-between gap-2 flex-wrap">
                     <span><Briefcase className="w-4 h-4 inline mr-1.5" />Sous-traitance - {batchMode ? 'création par lot' : 'session unique'}</span>
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => setShowImportModal(true)}
-                        className="px-3 py-1 rounded-full text-xs font-medium bg-white text-amber-700 border border-amber-300 hover:bg-amber-100 flex items-center gap-1">
+                        className="px-3 py-1 rounded-full text-ui-sm font-medium bg-white text-[rgb(var(--c-warning))] border border-[rgb(var(--c-warning)/0.3)] hover:bg-[rgb(var(--c-warning-bg))] flex items-center gap-1">
                         <ClipboardPaste className="w-3 h-3" /> Importer planning
                       </button>
                       <button type="button" onClick={() => setBatchMode(!batchMode)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${batchMode ? 'bg-amber-600 text-white' : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-100'}`}>
+                        className={`px-3 py-1 rounded-full text-ui-sm font-medium transition-colors ${batchMode ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white text-[rgb(var(--c-warning))] border border-[rgb(var(--c-warning)/0.3)] hover:bg-[rgb(var(--c-warning-bg))]'}`}>
                         {batchMode ? '← Session unique' : 'Créer par lot →'}
                       </button>
                     </div>
@@ -935,7 +930,7 @@ export default function Sessions() {
                     <label className="label">Intitulé de base de la formation {batchMode ? '*' : ''}</label>
                     <input type="text" value={formData.subcontract_course_title} onChange={(e) => setFormData({ ...formData, subcontract_course_title: e.target.value })} className="input" placeholder="Ex: CACES R.489" />
                     {batchMode && formData.subcontract_course_title && (
-                      <p className="text-xs text-gray-400 mt-1">Chaque session sera nommée : <span className="text-gray-600">{formData.subcontract_course_title} - Réf. [numéro]</span></p>
+                      <p className="text-ui-sm text-gray-400 mt-1">Chaque session sera nommée : <span className="text-gray-600">{formData.subcontract_course_title} - Réf. [numéro]</span></p>
                     )}
                   </div>
 
@@ -963,14 +958,14 @@ export default function Sessions() {
                         </div>
                       </div>
                       {formData.subcontract_daily_rate && formData.start_date && formData.end_date && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                        <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm p-3 text-ui">
                           {(() => {
                             const days = Math.max(1, Math.round((new Date(formData.end_date) - new Date(formData.start_date)) / 86400000) + 1)
                             const total = days * parseFloat(formData.subcontract_daily_rate || 0)
                             return (
                               <div className="flex justify-between items-center">
-                                <span className="text-green-800">{days} jour{days > 1 ? 's' : ''} × {parseFloat(formData.subcontract_daily_rate).toFixed(2)} €</span>
-                                <span className="font-bold text-green-900 text-lg">{total.toFixed(2)} € HT</span>
+                                <span className="text-[rgb(var(--c-success))]">{days} jour{days > 1 ? 's' : ''} × {parseFloat(formData.subcontract_daily_rate).toFixed(2)} €</span>
+                                <span className="font-bold text-[rgb(var(--c-success))] text-lg">{total.toFixed(2)} € HT</span>
                               </div>
                             )
                           })()}
@@ -982,7 +977,7 @@ export default function Sessions() {
                   {/* ═══ MODE BATCH ═══ */}
                   {batchMode && (
                     <div className="space-y-2">
-                      <div className="grid grid-cols-[1fr_110px_70px_60px_32px] gap-2 text-xs font-medium text-gray-500 px-1">
+                      <div className="grid grid-cols-[1fr_110px_70px_60px_32px] gap-2 text-ui-sm font-medium text-gray-500 px-1">
                         <span>Réf. client *</span>
                         <span>Date début *</span>
                         <span>Durée</span>
@@ -998,28 +993,28 @@ export default function Sessions() {
                           <div key={idx} className="grid grid-cols-[1fr_110px_70px_60px_32px] gap-2 items-center">
                             <input type="text" value={line.client_ref} placeholder="2026-02-046"
                               onChange={(e) => { const u = [...batchLines]; u[idx].client_ref = e.target.value; setBatchLines(u) }}
-                              className="px-2 py-1.5 border rounded text-sm font-mono" />
+                              className="px-2 py-1.5 border rounded text-ui font-mono" />
                             <input type="date" value={line.start_date}
                               onChange={(e) => { const u = [...batchLines]; u[idx].start_date = e.target.value; setBatchLines(u) }}
-                              className="px-1.5 py-1.5 border rounded text-sm" />
+                              className="px-1.5 py-1.5 border rounded text-ui" />
                             <div className="flex items-center gap-1">
                               <input type="number" min="1" max="30" value={line.duration_days}
                                 onChange={(e) => { const u = [...batchLines]; u[idx].duration_days = e.target.value; setBatchLines(u) }}
-                                className="w-12 px-1.5 py-1.5 border rounded text-sm text-center" />
-                              <span className="text-xs text-gray-400">j</span>
+                                className="w-12 px-1.5 py-1.5 border rounded text-ui text-center" />
+                              <span className="text-ui-sm text-gray-400">j</span>
                             </div>
                             <input type="number" min="0" value={line.nb_trainees} placeholder="1"
                               onChange={(e) => { const u = [...batchLines]; u[idx].nb_trainees = e.target.value; setBatchLines(u) }}
-                              className="px-1.5 py-1.5 border rounded text-sm text-center" />
+                              className="px-1.5 py-1.5 border rounded text-ui text-center" />
                             <button type="button" onClick={() => { if (batchLines.length > 1) setBatchLines(batchLines.filter((_, i) => i !== idx)) }}
                               disabled={batchLines.length <= 1}
-                              className="p-1 text-red-400 hover:text-red-600 disabled:opacity-30">
+                              className="p-1 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] disabled:opacity-30">
                               <Trash2 className="w-4 h-4" />
                             </button>
                             {line.start_date && (
-                              <div className="col-span-full flex justify-between text-xs text-gray-400 -mt-1 px-1">
+                              <div className="col-span-full flex justify-between text-ui-sm text-gray-400 -mt-1 px-1">
                                 <span>{formData.subcontract_course_title ? `${formData.subcontract_course_title} - Réf. ${line.client_ref || '…'}` : `Réf. ${line.client_ref || '…'}`}{endDate ? ` · → ${endDate}` : ''}</span>
-                                {lineTotal > 0 && <span className="text-green-700 font-medium">{dur}j × {rate.toFixed(0)}€ = {lineTotal.toFixed(2)}€</span>}
+                                {lineTotal > 0 && <span className="text-[rgb(var(--c-success))] font-medium">{dur}j × {rate.toFixed(0)}€ = {lineTotal.toFixed(2)}€</span>}
                               </div>
                             )}
                           </div>
@@ -1028,19 +1023,19 @@ export default function Sessions() {
                       <div className="flex items-center justify-between pt-1">
                         <button type="button"
                           onClick={() => setBatchLines([...batchLines, { client_ref: '', start_date: batchLines[batchLines.length - 1]?.start_date || '', duration_days: '1', nb_trainees: '1' }])}
-                          className="text-sm text-amber-700 hover:text-amber-900 flex items-center gap-1">
+                          className="text-ui text-[rgb(var(--c-warning))] hover:text-[rgb(var(--c-warning))] flex items-center gap-1">
                           <Plus className="w-4 h-4" /> Ajouter une ligne
                         </button>
                         {batchLines.filter(l => l.client_ref && l.start_date).length > 0 && (
-                          <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm">
+                          <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm px-3 py-2 text-ui">
                             {(() => {
                               const validLines = batchLines.filter(l => l.client_ref && l.start_date)
                               const totalDays = validLines.reduce((s, l) => s + Math.max(1, parseInt(l.duration_days) || 1), 0)
                               const rate = parseFloat(formData.subcontract_daily_rate) || 0
                               const totalAmount = totalDays * rate
                               return (
-                                <span className="text-green-800">
-                                  <strong>{validLines.length}</strong> session{validLines.length > 1 ? 's' : ''} · {totalDays}j · <strong className="text-green-900">{totalAmount.toFixed(2)} € HT</strong>
+                                <span className="text-[rgb(var(--c-success))]">
+                                  <strong>{validLines.length}</strong> session{validLines.length > 1 ? 's' : ''} · {totalDays}j · <strong className="text-[rgb(var(--c-success))]">{totalAmount.toFixed(2)} € HT</strong>
                                 </span>
                               )
                             })()}
@@ -1080,8 +1075,8 @@ export default function Sessions() {
               
               {/* Contact pour la session */}
               {formData.client_id && (
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <label className="label text-blue-800">Contact pour cette session</label>
+                <div className="bg-[rgb(var(--c-info-bg))] rounded-ui-sm p-4">
+                  <label className="label text-[rgb(var(--c-info))]">Contact pour cette session</label>
                   <select
                     value={formData.contact_id}
                     onChange={(e) => setFormData({ ...formData, contact_id: e.target.value })}
@@ -1100,12 +1095,12 @@ export default function Sessions() {
                       </>
                     )}
                   </select>
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-ui-sm text-[rgb(var(--c-info))] mt-1">
                     Ce contact sera mentionné sur les convocations
                   </p>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div>
-                      <label className="label text-xs text-blue-800">Signataire convention</label>
+                      <label className="label text-ui-sm text-[rgb(var(--c-info))]">Signataire convention</label>
                       <input
                         type="text"
                         value={formData.signatory_name}
@@ -1115,7 +1110,7 @@ export default function Sessions() {
                       />
                     </div>
                     <div>
-                      <label className="label text-xs text-blue-800">Fonction signataire</label>
+                      <label className="label text-ui-sm text-[rgb(var(--c-info))]">Fonction signataire</label>
                       <input
                         type="text"
                         value={formData.signatory_role}
@@ -1125,7 +1120,7 @@ export default function Sessions() {
                       />
                     </div>
                   </div>
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-ui-sm text-[rgb(var(--c-info))] mt-1">
                     Si vide, le contact ci-dessus sera utilisé comme signataire sur la convention
                   </p>
                 </div>
@@ -1194,8 +1189,8 @@ export default function Sessions() {
               </div>
               
               {/* Type de financement */}
-              <div className="p-4 bg-blue-50 rounded-lg space-y-4">
-                <h3 className="font-medium text-blue-900">Financement de la formation</h3>
+              <div className="p-4 bg-[rgb(var(--c-info-bg))] rounded-ui-sm space-y-4">
+                <h3 className="font-medium text-[rgb(var(--c-info))]">Financement de la formation</h3>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="label">Type de financement *</label>
@@ -1229,7 +1224,7 @@ export default function Sessions() {
                     />
                   </div>
                 </div>
-                <p className="text-xs text-blue-600">
+                <p className="text-ui-sm text-[rgb(var(--c-info))]">
                   {formData.funding_type === 'none' 
                     ? 'Aucune mention de financement ne sera ajoutée à la convention' 
                     : 'Le type de financement sera mentionné dans la convention'}
@@ -1237,7 +1232,7 @@ export default function Sessions() {
               </div>
               
               {/* Intra + Lieu */}
-              <div className="p-4 bg-gray-50 rounded-lg space-y-4">
+              <div className="p-4 bg-gray-50 rounded-ui-sm space-y-4">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1247,7 +1242,7 @@ export default function Sessions() {
                   />
                   <div>
                     <span className="font-medium">Formation Intra-entreprise</span>
-                    <p className="text-sm text-gray-500">La formation se déroule chez le client</p>
+                    <p className="text-ui text-gray-500">La formation se déroule chez le client</p>
                   </div>
                 </label>
                 
@@ -1293,11 +1288,11 @@ export default function Sessions() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Ctrl+clic pour sélectionner plusieurs</p>
+                <p className="text-ui-sm text-gray-500 mt-1">Ctrl+clic pour sélectionner plusieurs</p>
               </div>
               
               {/* Stagiaires avec filtres */}
-              <div className="border rounded-lg p-4">
+              <div className="border rounded-ui-sm p-4">
                 <label className="label mb-3">Stagiaires à inscrire</label>
                 
                 {/* Filtres stagiaires */}
@@ -1309,7 +1304,7 @@ export default function Sessions() {
                       placeholder="Rechercher un stagiaire..."
                       value={traineeSearch}
                       onChange={(e) => setTraineeSearch(e.target.value)}
-                      className="input pl-8 py-1.5 text-sm"
+                      className="input pl-8 py-1.5 text-ui"
                     />
                   </div>
                   <SearchSelect
@@ -1323,7 +1318,7 @@ export default function Sessions() {
                 {/* Liste stagiaires avec checkboxes */}
                 <div className="max-h-48 overflow-y-auto border rounded bg-white">
                   {filteredTrainees.length === 0 ? (
-                    <p className="text-sm text-gray-500 p-3 text-center">Aucun stagiaire trouvé</p>
+                    <p className="text-ui text-gray-500 p-3 text-center">Aucun stagiaire trouvé</p>
                   ) : (
                     filteredTrainees.map(trainee => (
                       <label
@@ -1337,18 +1332,18 @@ export default function Sessions() {
                           className="rounded border-gray-300 text-primary-600"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
+                          <p className="text-ui font-medium truncate">
                             {trainee.first_name} {trainee.last_name}
                           </p>
                           {trainee.clients?.name && (
-                            <p className="text-xs text-gray-500 truncate">{trainee.clients.name}</p>
+                            <p className="text-ui-sm text-gray-500 truncate">{trainee.clients.name}</p>
                           )}
                         </div>
                       </label>
                     ))
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-ui-sm text-gray-500 mt-2">
                   {formData.trainee_ids.length} stagiaire(s) sélectionné(s)
                 </p>
               </div>
@@ -1394,12 +1389,12 @@ export default function Sessions() {
       {/* ═══ MODAL IMPORT PLANNING ═══ */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-[60] p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-8">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-3xl my-8">
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-xl z-10">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <ClipboardPaste className="w-5 h-5 text-amber-600" /> Importer un planning
+                <ClipboardPaste className="w-5 h-5 text-[rgb(var(--c-warning))]" /> Importer un planning
               </h2>
-              <button onClick={() => { setShowImportModal(false); setImportResult(null); setImportText('') }} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => { setShowImportModal(false); setImportResult(null); setImportText('') }} className="p-2 hover:bg-gray-100 rounded-ui-sm">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1408,25 +1403,25 @@ export default function Sessions() {
               {/* Étape 1: Coller */}
               {!importResult && (
                 <>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                  <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-info))]">
                     <strong>1.</strong> Allez sur le planning du donneur d'ordre (Pilocap, AFPI…)<br />
-                    <strong>2.</strong> Sélectionnez tout le texte (<kbd className="px-1 py-0.5 bg-blue-100 rounded text-xs">Cmd+A</kbd>) puis copiez (<kbd className="px-1 py-0.5 bg-blue-100 rounded text-xs">Cmd+C</kbd>)<br />
-                    <strong>3.</strong> Collez ci-dessous (<kbd className="px-1 py-0.5 bg-blue-100 rounded text-xs">Cmd+V</kbd>)
+                    <strong>2.</strong> Sélectionnez tout le texte (<kbd className="px-1 py-0.5 bg-[rgb(var(--c-info-bg))] rounded text-ui-sm">Cmd+A</kbd>) puis copiez (<kbd className="px-1 py-0.5 bg-[rgb(var(--c-info-bg))] rounded text-ui-sm">Cmd+C</kbd>)<br />
+                    <strong>3.</strong> Collez ci-dessous (<kbd className="px-1 py-0.5 bg-[rgb(var(--c-info-bg))] rounded text-ui-sm">Cmd+V</kbd>)
                   </div>
                   <textarea
                     value={importText}
                     onChange={(e) => setImportText(e.target.value)}
                     rows={12}
-                    className="w-full border rounded-lg px-3 py-2 text-sm font-mono resize-y"
+                    className="w-full border rounded-ui-sm px-3 py-2 text-ui font-mono resize-y"
                     placeholder="Collez ici le planning copié..."
                   />
                   <div className="flex justify-between items-center">
-                    <p className="text-xs text-gray-400">{importText.length > 0 ? `${importText.length} caractères` : ''}</p>
+                    <p className="text-ui-sm text-gray-400">{importText.length > 0 ? `${importText.length} caractères` : ''}</p>
                     <button
                       type="button"
                       onClick={parseImportText}
                       disabled={importParsing || importText.trim().length < 20}
-                      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+                      className="btn btn-secondary text-ui font-medium disabled:opacity-50 flex items-center gap-2"
                     >
                       {importParsing ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyse en cours...</> : <><Search className="w-4 h-4" /> Analyser le planning</>}
                     </button>
@@ -1437,23 +1432,23 @@ export default function Sessions() {
               {/* Étape 2: Preview */}
               {importResult && (
                 <>
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 flex items-center justify-between">
+                  <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-success))] flex items-center justify-between">
                     <span>
                       <Check className="w-4 h-4 inline mr-1" />
                       <strong>{importResult.days.length}</strong> jour(s) détecté(s) - <strong>{importResult.total_unique_trainees}</strong> stagiaire(s) uniques
-                      {importResult.detected_training_type && <span className="ml-2 text-green-600">({importResult.detected_training_type})</span>}
+                      {importResult.detected_training_type && <span className="ml-2 text-[rgb(var(--c-success))]">({importResult.detected_training_type})</span>}
                     </span>
-                    <button type="button" onClick={() => { setImportResult(null) }} className="text-xs text-green-700 hover:text-green-900 underline">
+                    <button type="button" onClick={() => { setImportResult(null) }} className="text-ui-sm text-[rgb(var(--c-success))] hover:text-[rgb(var(--c-success))] underline">
                       ← Recoller
                     </button>
                   </div>
 
                   {/* Champs obligatoires pour la création */}
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-                    <p className="text-xs font-medium text-gray-500 uppercase">Paramètres de création</p>
+                  <div className="bg-gray-50 rounded-ui-sm p-3 space-y-3">
+                    <p className="text-ui-sm font-medium text-gray-500 uppercase">Paramètres de création</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Client *</label>
+                        <label className="text-ui-sm text-gray-500 block mb-1">Client *</label>
                         <SearchSelect value={formData.client_id} onChange={(v) => setFormData({ ...formData, client_id: v })}
                           options={[
                           ...clientOptions(clients.filter(c => c.client_type === 'organisme_formation')).map(o => ({ ...o, group: 'Organismes de formation' })),
@@ -1462,8 +1457,8 @@ export default function Sessions() {
                           emptyLabel="Sélectionner..." searchPlaceholder="Nom, ville, SIRET..." aria-label="Client" />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Formateur</label>
-                        <select value={formData.trainer_ids[0] || ''} onChange={(e) => setFormData({ ...formData, trainer_ids: e.target.value ? [e.target.value] : [] })} className="w-full border rounded-lg px-3 py-1.5 text-sm">
+                        <label className="text-ui-sm text-gray-500 block mb-1">Formateur</label>
+                        <select value={formData.trainer_ids[0] || ''} onChange={(e) => setFormData({ ...formData, trainer_ids: e.target.value ? [e.target.value] : [] })} className="w-full border rounded-ui-sm px-3 py-1.5 text-ui">
                           <option value="">Sélectionner...</option>
                           {trainers.map(t => (
                             <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
@@ -1471,48 +1466,48 @@ export default function Sessions() {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Intitulé de base</label>
-                        <input type="text" value={formData.subcontract_course_title} onChange={(e) => setFormData({ ...formData, subcontract_course_title: e.target.value })} className="w-full border rounded-lg px-3 py-1.5 text-sm" placeholder={importResult.detected_training_type || 'CACES R.489'} />
+                        <label className="text-ui-sm text-gray-500 block mb-1">Intitulé de base</label>
+                        <input type="text" value={formData.subcontract_course_title} onChange={(e) => setFormData({ ...formData, subcontract_course_title: e.target.value })} className="w-full border rounded-ui-sm px-3 py-1.5 text-ui" placeholder={importResult.detected_training_type || 'CACES R.489'} />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Tarif journalier HT (€) *</label>
-                        <input type="number" min="0" step="0.01" value={formData.subcontract_daily_rate} onChange={(e) => setFormData({ ...formData, subcontract_daily_rate: e.target.value })} className="w-full border rounded-lg px-3 py-1.5 text-sm" placeholder="300" />
+                        <label className="text-ui-sm text-gray-500 block mb-1">Tarif journalier HT (€) *</label>
+                        <input type="number" min="0" step="0.01" value={formData.subcontract_daily_rate} onChange={(e) => setFormData({ ...formData, subcontract_daily_rate: e.target.value })} className="w-full border rounded-ui-sm px-3 py-1.5 text-ui" placeholder="300" />
                       </div>
                     </div>
-                    {!formData.client_id && <p className="text-xs text-red-500"> Sélectionnez un client pour pouvoir créer</p>}
+                    {!formData.client_id && <p className="text-ui-sm text-[rgb(var(--c-danger))]"> Sélectionnez un client pour pouvoir créer</p>}
                   </div>
 
                   {/* Champs essentiels pour la création */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Client *</label>
+                      <label className="text-ui-sm text-gray-500 block mb-1">Client *</label>
                       <SearchSelect value={formData.client_id} onChange={(v) => setFormData({ ...formData, client_id: v })}
                         options={clientOptions(clients.filter(c => c.status !== 'inactif'))}
                         emptyLabel="Sélectionner..." searchPlaceholder="Nom, ville, SIRET..." aria-label="Client" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Formateur</label>
-                      <select value={formData.trainer_ids[0] || ''} onChange={(e) => setFormData({ ...formData, trainer_ids: e.target.value ? [e.target.value] : [] })} className="w-full border rounded-lg px-2 py-1.5 text-sm">
+                      <label className="text-ui-sm text-gray-500 block mb-1">Formateur</label>
+                      <select value={formData.trainer_ids[0] || ''} onChange={(e) => setFormData({ ...formData, trainer_ids: e.target.value ? [e.target.value] : [] })} className="w-full border rounded-ui-sm px-2 py-1.5 text-ui">
                         <option value="">Sélectionner...</option>
                         {trainers.map(t => <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Tarif/jour HT (€)</label>
+                      <label className="text-ui-sm text-gray-500 block mb-1">Tarif/jour HT (€)</label>
                       <input type="number" min="0" step="0.01" value={formData.subcontract_daily_rate}
                         onChange={(e) => setFormData({ ...formData, subcontract_daily_rate: e.target.value })}
-                        className="w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="300" />
+                        className="w-full border rounded-ui-sm px-2 py-1.5 text-ui" placeholder="300" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Intitulé de base</label>
+                      <label className="text-ui-sm text-gray-500 block mb-1">Intitulé de base</label>
                       <input type="text" value={formData.subcontract_course_title}
                         onChange={(e) => setFormData({ ...formData, subcontract_course_title: e.target.value })}
-                        className="w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="Intitulé de la formation" />
+                        className="w-full border rounded-ui-sm px-2 py-1.5 text-ui" placeholder="Intitulé de la formation" />
                     </div>
                   </div>
 
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
+                  <div className="border rounded-ui-sm overflow-hidden">
+                    <table className="w-full text-ui">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-2 w-10 text-center">
@@ -1544,12 +1539,12 @@ export default function Sessions() {
                             <td className="px-3 py-2">
                               <div className="flex flex-wrap gap-1">
                                 {(day.session_refs || []).map((ref, ri) => (
-                                  <span key={ri} className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded font-mono">{ref}</span>
+                                  <span key={ri} className="px-1.5 py-0.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui-sm rounded font-mono">{ref}</span>
                                 ))}
                               </div>
                             </td>
                             <td className="px-3 py-2 text-center font-semibold">{day.nb_trainees || 0}</td>
-                            <td className="px-3 py-2 text-xs text-gray-500 max-w-[200px] truncate">{day.location || '-'}</td>
+                            <td className="px-3 py-2 text-ui-sm text-gray-500 max-w-[200px] truncate">{day.location || '-'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1561,7 +1556,7 @@ export default function Sessions() {
                           <td className="px-3 py-2 text-center">{importResult.total_unique_trainees || '?'}</td>
                           <td className="px-3 py-2 text-right">
                             {formData.subcontract_daily_rate && (
-                              <span className="text-green-700">
+                              <span className="text-[rgb(var(--c-success))]">
                                 {importChecked.length} × {parseFloat(formData.subcontract_daily_rate).toFixed(0)}€ = <strong>{(importChecked.length * parseFloat(formData.subcontract_daily_rate)).toFixed(2)}€ HT</strong>
                               </span>
                             )}
@@ -1572,7 +1567,7 @@ export default function Sessions() {
                   </div>
 
                   {importResult.notes && (
-                    <p className="text-xs text-gray-500 italic">{importResult.notes}</p>
+                    <p className="text-ui-sm text-gray-500 italic">{importResult.notes}</p>
                   )}
                 </>
               )}
@@ -1580,11 +1575,11 @@ export default function Sessions() {
 
             <div className="flex justify-end gap-3 p-4 border-t">
               <button type="button" onClick={() => { setShowImportModal(false); setImportResult(null); setImportText('') }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button>
+                className="px-4 py-2 text-ui text-gray-600 hover:text-gray-800">Annuler</button>
               {importResult && (
                 <button type="button" onClick={handleImportCreate}
                   disabled={importChecked.length === 0 || !formData.client_id}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                  className="btn btn-secondary text-ui font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                   <Plus className="w-4 h-4" />
                   {!formData.client_id ? 'Sélectionnez un client' : `Créer ${importChecked.length} session${importChecked.length > 1 ? 's' : ''}`}
                 </button>

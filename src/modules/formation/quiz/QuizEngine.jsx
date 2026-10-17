@@ -394,7 +394,7 @@ function OptionButton({ letter, label, image, state, onClick, big }) {
       {image && <img src={image} alt="" className="w-full aspect-square object-cover rounded-ui mb-2" />}
       <div className={`flex items-center gap-3 ${big ? 'justify-center' : ''}`}>
         {letter && !big && (
-          <span className={`w-7 h-7 rounded-md flex items-center justify-center text-ui-sm font-bold flex-shrink-0 ${
+          <span className={`w-7 h-7 rounded-ui-sm flex items-center justify-center text-ui-sm font-bold flex-shrink-0 ${
             state === 'selected' ? 'bg-accent-500 text-accent-fg' : state === 'correct' ? 'bg-[rgb(var(--c-success))] text-white' : state === 'wrong' ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100 text-gray-500'
           }`}>{letter}</span>
         )}
@@ -448,13 +448,13 @@ function OrderPicker({ q, value, onChange, feedback }) {
             <div key={i} className={`flex items-center gap-2 rounded-ui px-3 py-2 border-2 ${
               good === null ? 'border-accent-200 bg-accent-50' : good ? 'border-[rgb(var(--c-success))] bg-[rgb(var(--c-success-bg))]' : 'border-[rgb(var(--c-danger))] bg-[rgb(var(--c-danger-bg))]'
             }`}>
-              <span className="w-6 h-6 rounded-md bg-primary-900 text-white text-ui-sm font-bold flex items-center justify-center">{pos + 1}</span>
+              <span className="w-6 h-6 rounded-ui-sm bg-primary-900 text-white text-ui-sm font-bold flex items-center justify-center">{pos + 1}</span>
               <span className="flex-1 text-gray-900 font-medium">{q.optionList[i]}</span>
               {!feedback && (
                 <>
-                  <button type="button" onClick={() => move(pos, -1)} className="w-8 h-8 rounded-md text-gray-500 hover:bg-white" aria-label="Monter"><ArrowUp className="w-4 h-4 mx-auto" /></button>
-                  <button type="button" onClick={() => move(pos, 1)} className="w-8 h-8 rounded-md text-gray-500 hover:bg-white" aria-label="Descendre"><ArrowDown className="w-4 h-4 mx-auto" /></button>
-                  <button type="button" onClick={() => onChange(order.filter((x) => x !== i))} className="w-8 h-8 rounded-md text-gray-400 hover:bg-white" aria-label="Retirer"><X className="w-4 h-4 mx-auto" /></button>
+                  <button type="button" onClick={() => move(pos, -1)} className="w-8 h-8 rounded-ui-sm text-gray-500 hover:bg-white" aria-label="Monter"><ArrowUp className="w-4 h-4 mx-auto" /></button>
+                  <button type="button" onClick={() => move(pos, 1)} className="w-8 h-8 rounded-ui-sm text-gray-500 hover:bg-white" aria-label="Descendre"><ArrowDown className="w-4 h-4 mx-auto" /></button>
+                  <button type="button" onClick={() => onChange(order.filter((x) => x !== i))} className="w-8 h-8 rounded-ui-sm text-gray-400 hover:bg-white" aria-label="Retirer"><X className="w-4 h-4 mx-auto" /></button>
                 </>
               )}
             </div>
@@ -478,7 +478,7 @@ function Stat({ icon: Icon, label, value, tone }) {
     <div className={`rounded-ui-lg p-3 text-center ${tones[tone]}`}>
       <Icon className="w-5 h-5 mx-auto mb-1" />
       <div className="font-display text-xl font-bold">{value}</div>
-      <div className="text-[11px] uppercase tracking-wide opacity-80">{label}</div>
+      <div className="text-ui-sm uppercase tracking-wide opacity-80">{label}</div>
     </div>
   )
 }

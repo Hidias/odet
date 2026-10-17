@@ -23,12 +23,12 @@ const DEFAULT_QUESTIONS = [
   'Peut-on voir les postes aujourd\'hui ?',
 ].join('\n')
 
-const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm'
+const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui'
 
 function Field({ label, children }) {
   return (
     <label className="block">
-      <span className="block text-sm font-medium text-gray-700 mb-1">{label}</span>
+      <span className="block text-ui font-medium text-gray-700 mb-1">{label}</span>
       {children}
     </label>
   )
@@ -143,31 +143,31 @@ export default function PrepRdvModal({ rdvId, clientName, onClose, onDone }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+      <div className="bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[92vh] flex flex-col">
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-gray-100">
           <div>
             <h3 className="text-base font-semibold text-gray-900">Préparer le RDV</h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-ui text-gray-500">
               {clientName || rdv?.clients?.name || ''}
               {rdv?.rdv_date ? ` · ${fmtDate(rdv.rdv_date)}` : ''}
               {rdv?.conducted_by ? ` · ${rdv.conducted_by}` : ''}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100" aria-label="Fermer">
+          <button onClick={onClose} className="p-1.5 rounded-ui-sm hover:bg-gray-100" aria-label="Fermer">
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {loading ? (
-            <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /> Chargement</div>
+            <div className="flex items-center gap-2 text-ui text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /> Chargement</div>
           ) : (
             <>
               <Field label="Thèmes visés">
                 <div className="flex flex-wrap gap-1.5">
                   {THEMES.map(t => (
                     <button key={t.value} type="button" onClick={() => toggle('themes', t.value)}
-                      className={`px-2.5 py-1 rounded-md text-xs border ${
+                      className={`px-2.5 py-1 rounded-ui-sm text-ui-sm border ${
                         form.themes.includes(t.value) ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-600'
                       }`}>
                       {t.label}
@@ -193,7 +193,7 @@ export default function PrepRdvModal({ rdvId, clientName, onClose, onDone }) {
                 <Field label="Objections entendues au téléphone">
                   <div className="space-y-1">
                     {Array.from(new Set([...heardObjections, ...form.objections])).map(o => (
-                      <label key={o} className="flex items-start gap-2 text-sm text-gray-700">
+                      <label key={o} className="flex items-start gap-2 text-ui text-gray-700">
                         <input type="checkbox" className="mt-0.5" checked={form.objections.includes(o)} onChange={() => toggle('objections', o)} />
                         {o}
                       </label>
@@ -208,13 +208,13 @@ export default function PrepRdvModal({ rdvId, clientName, onClose, onDone }) {
 
               <Field label="Documents du kit à prendre">
                 {kitDocs.length === 0 ? (
-                  <p className="text-sm text-gray-500">Le kit RDV est vide. Ajoutez des documents dans Suivi commercial, bloc « Kit RDV ».</p>
+                  <p className="text-ui text-gray-500">Le kit RDV est vide. Ajoutez des documents dans Suivi commercial, bloc « Kit RDV ».</p>
                 ) : (
                   <div className="space-y-1">
                     {[...suggestedKit, ...otherKit].map(d => (
-                      <label key={d.id} className="flex items-start gap-2 text-sm text-gray-700">
+                      <label key={d.id} className="flex items-start gap-2 text-ui text-gray-700">
                         <input type="checkbox" className="mt-0.5" checked={form.documents.includes(d.id)} onChange={() => toggle('documents', d.id)} />
-                        <span>{d.title} <span className="text-xs text-gray-400">({kitCategoryLabel(d.category)})</span></span>
+                        <span>{d.title} <span className="text-ui-sm text-gray-400">({kitCategoryLabel(d.category)})</span></span>
                       </label>
                     ))}
                   </div>
@@ -225,7 +225,7 @@ export default function PrepRdvModal({ rdvId, clientName, onClose, onDone }) {
                 <textarea className={inputCls} rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} />
               </Field>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-ui-sm text-gray-500">
                 Le PDF reprend aussi l'historique, les arguments des thèmes choisis avec leurs références (à relire sur Légifrance),
                 la liste « À apporter » et une grille de diagnostic express à remplir sur place.
               </p>
@@ -234,15 +234,15 @@ export default function PrepRdvModal({ rdvId, clientName, onClose, onDone }) {
         </div>
 
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+          <button onClick={onClose} className="px-4 py-2 text-ui text-gray-600 border border-gray-200 rounded-ui-sm hover:bg-gray-50">
             Fermer
           </button>
           <button onClick={save} disabled={saving || loading}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+            className="flex items-center gap-1.5 px-4 py-2 text-ui border border-gray-300 rounded-ui-sm hover:bg-gray-50 disabled:opacity-50">
             <Save className="w-4 h-4" /> Enregistrer
           </button>
           <button onClick={pdf} disabled={saving || loading}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
+            className="flex items-center gap-1.5 px-4 py-2 text-ui font-medium bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
             Enregistrer et télécharger le PDF
           </button>

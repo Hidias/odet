@@ -9,10 +9,13 @@
 --     relisent le lien public. Le passer en privé demande de servir ces fichiers par liens signés
 --     partout (travail séparé, voir le compte rendu du chantier 2). Les chemins ne sont pas
 --     listables par un visiteur ;
---   * course-documents, media et trainer-signatures restent lisibles par lien public (supports de
---     formation du portail, logo, signatures imprimées sur les PDF) ;
+--   * course-documents et media restent lisibles par lien public (supports de formation du portail, logo) ;
+--   * trainer-signatures devient privé (ajout du chantier F, 17/10) : signatures manuscrites lues par
+--     liens signés de courte durée (src/core/storageUtils.js, readableUrl) par le personnel, et par
+--     api/portail-signature.js pour l'espace entreprise ; les adresses déjà enregistrées restent valables
+--     (elles servent à retrouver le chemin du fichier) ;
 --   * les règles des buckets certification et interventions (0030, 0050) ne changent pas.
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 do $$
 declare r record;
@@ -26,9 +29,14 @@ begin
   end loop;
 end $$;
 
--- Lecture publique conservée : supports de formation, médias, signatures des formateurs
+-- Lecture publique conservée : supports de formation, médias
 create policy odet_public_lire on storage.objects for select to anon, authenticated
-  using (bucket_id in ('course-documents', 'media', 'trainer-signatures'));
+  using (bucket_id in ('course-documents', 'media'));
+
+-- Signatures des formateurs : bucket privé, lecture par le personnel (liens signés)
+update storage.buckets set public = false where id = 'trainer-signatures';
+create policy odet_signatures_lire on storage.objects for select to authenticated
+  using (bucket_id = 'trainer-signatures' and (select app.role()) = any (array['superadmin', 'admin', 'direction', 'gestionnaire', 'formateur', 'commercial', 'lecture']));
 
 -- documents : personnel de bureau (la lecture par lien public reste possible, voir en tête)
 create policy odet_documents_lire on storage.objects for select to authenticated

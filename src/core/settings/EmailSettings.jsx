@@ -100,7 +100,7 @@ export default function EmailSettings({ embedded = false }) {
                     <div className="text-ui-sm text-gray-500">{c.smtp_host}:{c.smtp_port}{c.last_tested_at ? `, enregistré le ${new Date(c.last_tested_at).toLocaleDateString('fr-FR')}` : ''}</div>
                   </div>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setForm({ ...emptyForm, email: c.email, preset: 'custom', smtpHost: c.smtp_host, smtpPort: c.smtp_port, smtpSecure: c.smtp_secure }); setEditing(true) }}>Modifier</button>
-                  <button type="button" className="btn btn-ghost btn-icon text-red-600" onClick={() => remove(c.email)} aria-label="Retirer"><Trash2 className="w-4 h-4" /></button>
+                  <button type="button" className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" onClick={() => remove(c.email)} aria-label="Retirer"><Trash2 className="w-4 h-4" /></button>
                 </div>
               ))}
             </div>

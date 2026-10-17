@@ -141,3 +141,9 @@ export function brandLogo(branding, onDark = false) {
   if (onDark && branding.logo_on_dark_url) return branding.logo_on_dark_url
   return branding.logo_url || branding.logo_base64 || null
 }
+
+// Icône carrée de l'application (menu, connexion), sinon null : l'écran retombe sur le logo
+export function appIcon(branding) {
+  return branding.icon_192_url || branding.icon_512_url || null
+}
+

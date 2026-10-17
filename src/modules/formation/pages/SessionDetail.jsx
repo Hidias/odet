@@ -1,3 +1,5 @@
+import { Tabs } from '../../../ui/Tabs'
+import { StatusBadge } from '../../../ui/StatusBadge'
 import { orgName, orgEmail } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
@@ -20,6 +22,8 @@ import { supabase } from '../../../core/supabase'
 import { buildStorageFileName } from '../../../core/storageUtils'
 import SessionDocumentAccess from '../components/SessionDocumentAccess'
 import SSTCertificationTab from '../../prevention/components/SSTCertificationTab'
+import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
+import FormativeSummary, { useFormativeSummary } from '../../suivi/components/FormativeSummary'
 import DateTimePickerModal from '../../../ui/DateTimePickerModal'
 import SessionChecklist from '../components/SessionChecklist'
 import SessionNeedsAnalysis from '../components/SessionNeedsAnalysis'
@@ -30,6 +34,7 @@ import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionDOPDF } from '../pdf/satisfactionDOPDF'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
+import { readableUrl } from '../../../core/storageUtils'
 
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
@@ -72,7 +77,10 @@ async function fetchTrainerSignatureBase64(trainerId) {
       .eq('id', trainerId)
       .maybeSingle()
     if (!trainer?.signature_url) return null
-    const resp = await fetch(trainer.signature_url)
+    // Bucket privé : lien signé de courte durée
+    const signed = await readableUrl(trainer.signature_url)
+    if (!signed) return null
+    const resp = await fetch(signed)
     if (!resp.ok) return null
     const blob = await resp.blob()
     return await new Promise((resolve, reject) => {
@@ -107,6 +115,8 @@ export default function SessionDetail() {
   } = useDataStore()
   
   const { user } = useAuthStore()
+  const suiviFormatifOn = (useAuthStore((st) => st.modules) || []).includes('suivi_formatif')
+  const formativeSummary = useFormativeSummary(id)
   
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -334,10 +344,10 @@ export default function SessionDetail() {
     }
     if (hasExpectations && !hasObservation) {
       // Stagiaire a saisi mais pas d'observation → rouge
-      return 'text-red-500 hover:text-red-600'
+      return 'text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]'
     }
     // Observation présente → bleu
-    return 'text-blue-600 hover:text-blue-700'
+    return 'text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))]'
   }
   
   // Sauvegarder attentes et observation
@@ -2779,41 +2789,41 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
-              <Link to="/sessions" className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-2"><ArrowLeft className="w-4 h-4" />Retour</Link>
+              <Link to="/sessions" className="text-ui text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-2"><ArrowLeft className="w-4 h-4" />Retour</Link>
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold text-gray-900">{session.reference}</h1>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700"><Briefcase className="w-3 h-3" />Sous-traitance</span>
+                <h1 className="page-title">{session.reference}</h1>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]"><Briefcase className="w-3 h-3" />Sous-traitance</span>
                 <span className={`badge ${statusLabels[session.status]?.class}`}>{statusLabels[session.status]?.label}</span>
-                {session.subcontract_invoiced && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><Check className="w-3 h-3" />Facturée</span>}
+                {session.subcontract_invoiced && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]"><Check className="w-3 h-3" />Facturée</span>}
               </div>
-              <p className="text-gray-500 text-sm mt-1">{session.clients?.name}</p>
+              <p className="text-gray-500 text-ui mt-1">{session.clients?.name}</p>
             </div>
             <div className="flex gap-2 flex-wrap">
               <button onClick={handleDownloadSatisfactionDO} className="btn btn-secondary flex items-center gap-2"><FileText className="w-4 h-4" />Éval. DO</button>
               <button onClick={() => setShowEdit(true)} className="btn btn-ghost"><Edit className="w-4 h-4" />Modifier</button>
-              <button onClick={handleDelete} className="btn btn-ghost btn-icon text-red-600" aria-label="Supprimer la session"><Trash2 className="w-4 h-4" /></button>
+              <button onClick={handleDelete} className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" aria-label="Supprimer la session"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
 
           {/* Carte info principale */}
-          <div className="bg-white border rounded-xl p-6">
+          <div className="bg-white border rounded-ui p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Colonne gauche - Infos session */}
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{session.subcontract_course_title || session.courses?.title || 'Formation'}</h3>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-gray-600">
+                <div className="flex items-center gap-3 text-ui text-gray-600">
                   <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
                   <span className="font-medium">{format(new Date(session.start_date), 'EEEE d MMMM yyyy', { locale: fr })}</span>
                   {session.start_time && <span className="text-gray-400">· {session.start_time?.substring(0,5)} - {session.end_time?.substring(0,5)}</span>}
                 </div>
-                <div className="flex items-center gap-3 text-sm text-gray-600">
+                <div className="flex items-center gap-3 text-ui text-gray-600">
                   <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
                   <span>{session.location_name || session.location || '-'}</span>
                 </div>
                 {trainer && (
-                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                  <div className="flex items-center gap-3 text-ui text-gray-600">
                     <User className="w-4 h-4 text-gray-400 shrink-0" />
                     <span>{trainer.first_name} {trainer.last_name}</span>
                   </div>
@@ -2824,21 +2834,21 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <div className="space-y-4 border-l pl-6">
                 {session.subcontract_client_ref && (
                   <div>
-                    <p className="text-xs text-gray-400 uppercase font-medium mb-1">Réf. client</p>
+                    <p className="text-ui-sm text-gray-400 uppercase font-medium mb-1">Réf. client</p>
                     <div className="flex flex-wrap gap-1">
                       {session.subcontract_client_ref.split(',').map((ref, i) => (
-                        <span key={i} className="px-2 py-0.5 bg-amber-100 text-amber-800 text-sm rounded font-mono">{ref.trim()}</span>
+                        <span key={i} className="px-2 py-0.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui rounded font-mono">{ref.trim()}</span>
                       ))}
                     </div>
                   </div>
                 )}
                 <div>
-                  <p className="text-xs text-gray-400 uppercase font-medium mb-1">Stagiaires</p>
+                  <p className="text-ui-sm text-gray-400 uppercase font-medium mb-1">Stagiaires</p>
                   <p className="text-lg font-semibold">{session.subcontract_nb_trainees || 0}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 uppercase font-medium mb-1">Facturation</p>
-                  <p className="text-lg font-semibold text-green-700">
+                  <p className="text-ui-sm text-gray-400 uppercase font-medium mb-1">Facturation</p>
+                  <p className="text-lg font-semibold text-[rgb(var(--c-success))]">
                     {(() => {
                       const days = session.start_date === session.end_date ? 1 : Math.ceil((new Date(session.end_date) - new Date(session.start_date)) / (1000 * 60 * 60 * 24)) + 1
                       const rate = parseFloat(session.subcontract_daily_rate) || 0
@@ -2851,9 +2861,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           </div>
 
           {/* Statut rapide */}
-          <div className="bg-white border rounded-xl p-4">
+          <div className="bg-white border rounded-ui p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-700">Statut de la session</p>
+              <p className="text-ui font-medium text-gray-700">Statut de la session</p>
               <select 
                 value={session.status} 
                 onChange={async (e) => {
@@ -2861,7 +2871,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   toast.success('Statut mis à jour')
                   fetchSessions()
                 }}
-                className="border rounded-lg px-3 py-1.5 text-sm"
+                className="border rounded-ui-sm px-3 py-1.5 text-ui"
               >
                 <option value="confirmed">Confirmée</option>
                 <option value="completed">Terminée</option>
@@ -2872,9 +2882,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
           {/* Notes */}
           {session.notes && (
-            <div className="bg-white border rounded-xl p-4">
-              <p className="text-xs text-gray-400 uppercase font-medium mb-2">Notes</p>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{session.notes}</p>
+            <div className="bg-white border rounded-ui p-4">
+              <p className="text-ui-sm text-gray-400 uppercase font-medium mb-2">Notes</p>
+              <p className="text-ui text-gray-600 whitespace-pre-wrap">{session.notes}</p>
             </div>
           )}
 
@@ -2883,7 +2893,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <div className="fixed inset-0 z-50 overflow-y-auto">
               <div className="fixed inset-0 bg-black/50" onClick={() => setShowEdit(false)} />
               <div className="relative min-h-full flex items-center justify-center p-4">
-                <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="relative bg-white rounded-ui shadow-md w-full max-w-lg max-h-[90vh] overflow-y-auto">
                   <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
                     <h2 className="text-lg font-semibold">Modifier la session</h2>
                     <button onClick={() => setShowEdit(false)}><X className="w-5 h-5" /></button>
@@ -2966,37 +2976,22 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       /* ═══ VUE STANDARD (INTRA / INTER) ═══ */
       <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <Link to="/sessions" className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-2"><ArrowLeft className="w-4 h-4" />Retour</Link>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900">{session.reference}</h1>
-            <span className={`badge ${statusLabels[session.status]?.class}`}>{statusLabels[session.status]?.label}</span>
-            {session.is_intra && <span className="badge bg-purple-100 text-purple-700 flex items-center gap-1"><Home className="w-3 h-3" />Intra</span>}
-            
-            {/* Suivi Convention - inline */}
-            <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
-              {session.convention_sent && (
-                <span className="badge bg-blue-100 text-blue-700 flex items-center gap-1">
-                  <Send className="w-3 h-3" />Envoyée
-                </span>
-              )}
-              {session.convention_signed && (
-                <span className="badge bg-green-100 text-green-700 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" />Signée
-                </span>
-              )}
-              {!session.convention_sent && !session.convention_signed && (
-                <span className="badge bg-gray-100 text-gray-600 text-xs">
-                  Convention en attente
-                </span>
-              )}
-            </div>
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div className="grid gap-1.5 min-w-0">
+          <Link to="/sessions" className="text-ui-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 w-fit"><ArrowLeft className="w-4 h-4" />Sessions</Link>
+          <span className="eyebrow tabular-nums">{session.reference}{session.is_intra ? ' · Intra' : ''}</span>
+          <h1 className="page-title leading-tight" style={{ textWrap: 'balance' }}>{session.courses?.title || session.reference}</h1>
+          <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-ui-sm text-gray-500">
+            {session.clients?.name && <span>{session.clients.name}</span>}
+            <StatusBadge kind="session" status={session.status} />
+            {session.convention_signed
+              ? <StatusBadge tone="success">Convention signée</StatusBadge>
+              : session.convention_sent
+                ? <StatusBadge tone="info">Convention envoyée</StatusBadge>
+                : <StatusBadge tone="warning">Convention en attente</StatusBadge>}
           </div>
-          <p className="text-gray-600 mt-1">{session.courses?.title}</p>
-          <p className="text-gray-500 text-sm">{session.clients?.name}</p>
         </div>
-        <div className="flex gap-2 flex-wrap justify-end">
+        <div className="flex gap-2 flex-wrap lg:justify-end items-center">
           {/* Signature sur le téléphone du formateur */}
           <button onClick={() => navigate(`/signature/${session.id}`)}
             className="btn btn-primary">
@@ -3012,25 +3007,26 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <button onClick={() => setShowStageEmailModal(true)} className="btn btn-secondary">
             <Mail className="w-4 h-4" />Aux stagiaires
           </button>
-          <button onClick={() => setShowEdit(true)} className="btn btn-secondary flex items-center gap-2"><Edit className="w-4 h-4" />Modifier</button>
-          <button onClick={handleDelete} className="btn btn-danger"><Trash2 className="w-4 h-4" /></button>
+          <button onClick={() => setShowEdit(true)} className="btn btn-secondary"><Edit className="w-4 h-4" />Modifier</button>
+          <span className="hidden sm:block w-px h-6 bg-gray-200 mx-1" aria-hidden="true" />
+          <button onClick={handleDelete} className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" title="Supprimer la session" aria-label="Supprimer la session"><Trash2 className="w-4 h-4" /></button>
         </div>
       </div>
       
       {/* Bannière création facture - après envoi "Après formation" */}
       {showInvoicePrompt && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between animate-in fade-in">
+        <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui p-4 flex items-center justify-between animate-in fade-in">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center"><Receipt className="w-5 h-5 text-green-600" /></div>
+            <div className="w-10 h-10 bg-[rgb(var(--c-success-bg))] rounded-full flex items-center justify-center"><Receipt className="w-5 h-5 text-[rgb(var(--c-success))]" /></div>
             <div>
-              <p className="font-semibold text-green-900">Documents après formation envoyés !</p>
-              <p className="text-sm text-green-700">Créer la facture pour cette session ?</p>
+              <p className="font-semibold text-[rgb(var(--c-success))]">Documents après formation envoyés !</p>
+              <p className="text-ui text-[rgb(var(--c-success))]">Créer la facture pour cette session ?</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowInvoicePrompt(false)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">Plus tard</button>
+            <button onClick={() => setShowInvoicePrompt(false)} className="btn btn-ghost">Plus tard</button>
             <button onClick={() => navigate(`/factures?from_session=${session.id}`)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center gap-2">
+              className="btn btn-primary">
               <Receipt className="w-4 h-4" /> Créer la facture
             </button>
           </div>
@@ -3039,12 +3035,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
       {/* Bannière persistante - session terminée sans facture (hors Sellsy) */}
       {!showInvoicePrompt && session.status === 'completed' && sessionHasInvoice === false && !(session.notes || '').includes('Sellsy') && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between">
-          <p className="text-sm text-amber-800 flex items-center gap-2">
+        <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-3 flex items-center justify-between">
+          <p className="text-ui text-[rgb(var(--c-warning))] flex items-center gap-2">
             <AlertCircle className="w-4 h-4" /> Formation terminée - aucune facture créée pour cette session
           </p>
           <button onClick={() => navigate(`/factures?from_session=${session.id}`)}
-            className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm flex items-center gap-2">
+            className="btn btn-secondary btn-sm">
             <Receipt className="w-4 h-4" /> Créer la facture
           </button>
         </div>
@@ -3054,33 +3050,33 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card">
           <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><Calendar className="w-4 h-4" />Dates</h3>
-          <p className="text-sm text-gray-600">{format(new Date(session.start_date), 'd MMM yyyy', { locale: fr })}{session.end_date !== session.start_date && ` - ${format(new Date(session.end_date), 'd MMM yyyy', { locale: fr })}`}</p>
-          <p className="text-sm text-gray-500">{session.start_time?.substring(0, 5)} - {session.end_time?.substring(0, 5)}</p>
+          <p className="text-ui text-gray-600">{format(new Date(session.start_date), 'd MMM yyyy', { locale: fr })}{session.end_date !== session.start_date && ` - ${format(new Date(session.end_date), 'd MMM yyyy', { locale: fr })}`}</p>
+          <p className="text-ui text-gray-500">{session.start_time?.substring(0, 5)} - {session.end_time?.substring(0, 5)}</p>
         </div>
         <div className="card">
           <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><MapPin className="w-4 h-4" />Lieu</h3>
-          <p className="text-sm text-gray-600">{getDisplayLocation()}</p>
+          <p className="text-ui text-gray-600">{getDisplayLocation()}</p>
           {session.is_intra && <p className="text-ui-sm text-gray-500 mt-1">Intra-entreprise</p>}
         </div>
         <div className="card">
           <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><Users className="w-4 h-4" />Effectif</h3>
-          <p className="text-sm text-gray-600">{sessionTrainees.length} stagiaire(s)</p>
+          <p className="text-ui text-gray-600">{sessionTrainees.length} stagiaire(s)</p>
         </div>
         <div className="card">
           <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><UserCheck className="w-4 h-4" />Formateur</h3>
-          <p className="text-sm text-gray-600">{trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Non assigné'}</p>
+          <p className="text-ui text-gray-600">{trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Non assigné'}</p>
         </div>
       </div>
       
       {/* Suivi Convention */}
-      <div className="card bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+      <div className="card bg-gray-50 border-[rgb(var(--c-info)/0.3)]">
         <div className="flex items-start justify-between mb-3">
           <h3 className="font-medium text-gray-900 flex items-center gap-2">
-            <FileSignature className="w-5 h-5 text-blue-600" />
+            <FileSignature className="w-5 h-5 text-[rgb(var(--c-info))]" />
             Suivi Convention
           </h3>
           {session.convention_signed && (
-            <span className="badge bg-green-100 text-green-700 flex items-center gap-1">
+            <span className="badge bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" />Signée
             </span>
           )}
@@ -3093,18 +3089,18 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               type="checkbox"
               checked={session.convention_sent || false}
               onChange={(e) => handleConventionSent(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              className="w-4 h-4 rounded border-gray-300 text-[rgb(var(--c-info))] focus:ring-[rgb(var(--c-info)/0.3)] cursor-pointer"
             />
             <div className="flex-1">
-              <span className="text-sm font-medium text-gray-700">Convention envoyée</span>
+              <span className="text-ui font-medium text-gray-700">Convention envoyée</span>
               {session.convention_sent_date && (
                 <div className="flex items-center gap-2">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-ui-sm text-gray-500">
                     Le {format(new Date(session.convention_sent_date), 'dd/MM/yyyy à HH:mm', { locale: fr })}
                   </p>
                   <button
                     onClick={editConventionSentDate}
-                    className="text-blue-600 hover:text-blue-800 text-xs underline"
+                    className="text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))] text-ui-sm underline"
                     title="Modifier la date/heure"
                   >
                     Modifier
@@ -3115,10 +3111,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           </label>
           
           {/* Upload convention signée */}
-          <div className="border-t border-blue-200 pt-3">
+          <div className="border-t border-[rgb(var(--c-info)/0.3)] pt-3">
             {!session.convention_signed ? (
               <div>
-                <label className="btn btn-primary btn-sm w-full flex items-center justify-center gap-2 cursor-pointer">
+                <label className="btn btn-secondary btn-sm w-full flex items-center justify-center gap-2 cursor-pointer">
                   <input
                     type="file"
                     accept="application/pdf"
@@ -3138,24 +3134,24 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     </>
                   )}
                 </label>
-                <p className="text-xs text-gray-500 mt-1 text-center">
+                <p className="text-ui-sm text-gray-500 mt-1 text-center">
                   Le fichier sera automatiquement marqué comme signé
                 </p>
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 p-2 rounded">
+                <div className="flex items-center gap-2 text-ui text-[rgb(var(--c-success))] bg-[rgb(var(--c-success-bg))] p-2 rounded">
                   <CheckCircle2 className="w-4 h-4" />
                   <div className="flex-1">
                     <span className="font-medium">Convention signée reçue</span>
                     {session.convention_signed_date && (
                       <div className="flex items-center gap-2">
-                        <p className="text-xs text-green-600">
+                        <p className="text-ui-sm text-[rgb(var(--c-success))]">
                           Le {format(new Date(session.convention_signed_date), 'dd/MM/yyyy à HH:mm', { locale: fr })}
                         </p>
                         <button
                           onClick={editConventionSignedDate}
-                          className="text-green-700 hover:text-green-900 text-xs underline"
+                          className="text-[rgb(var(--c-success))] hover:text-[rgb(var(--c-success))] text-ui-sm underline"
                           title="Modifier la date/heure"
                         >
                           Modifier
@@ -3173,7 +3169,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     Télécharger la convention signée
                   </button>
                 ) : (
-                  <p className="text-xs text-gray-500 text-center">Réception notée, aucun scan déposé.</p>
+                  <p className="text-ui-sm text-gray-500 text-center">Réception notée, aucun scan déposé.</p>
                 )}
               </div>
             )}
@@ -3190,27 +3186,22 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       </div>
       
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-2 sm:gap-4 overflow-x-auto pb-px -mb-px">
-          {[
-            { id: 'overview', label: 'Stagiaires' },
-            { id: 'presence', label: 'Présence' },
-            { id: 'objectifs', label: 'Validation objectifs' },
-            { id: 'suivi', label: 'Évaluations' },
-            { id: 'materiel', label: 'Matériel' },
-            { id: 'costs', label: 'Coûts supplémentaires' },
-            { id: 'funding', label: ` Financement${sessionFundings.length > 0 ? ` (${sessionFundings.length})` : ''}` },
-            { id: 'documents', label: 'Documents' },
-            ...(isSST ? [{ id: 'sst_certification', label: 'Certification SST' }] : []),
-            { id: 'positionnement', label: 'Test positionnement' },
-            { id: 'scans', label: 'Scans uploadés' },
-            { id: 'attendance', label: 'QR Émargement' },
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`pb-3 pt-2 px-2 text-sm font-medium border-b-2 whitespace-nowrap shrink-0 ${activeTab === tab.id ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{tab.label}</button>
-          ))}
-        </nav>
-      </div>
-      
+      <Tabs value={activeTab} onChange={setActiveTab} visible={5} tabs={[
+        { id: 'overview', label: 'Stagiaires', count: sessionTrainees.length },
+        { id: 'presence', label: 'Présence' },
+        { id: 'suivi', label: 'Évaluations' },
+        { id: 'documents', label: 'Documents' },
+        { id: 'funding', label: 'Financement', count: sessionFundings.length > 0 ? sessionFundings.length : null },
+        ...(suiviFormatifOn && (session?.courses?.formative_enabled || formativeSummary?.sequences?.length > 0) ? [{ id: 'suivi_formatif', label: 'Suivi formatif' }] : []),
+        { id: 'objectifs', label: 'Validation des objectifs' },
+        { id: 'materiel', label: 'Matériel' },
+        { id: 'costs', label: 'Coûts supplémentaires' },
+        ...(isSST ? [{ id: 'sst_certification', label: 'Certification SST' }] : []),
+        { id: 'positionnement', label: 'Test de positionnement' },
+        { id: 'scans', label: 'Scans téléversés' },
+        { id: 'attendance', label: 'QR émargement' },
+      ]} />
+
       {/* TAB: Stagiaires */}
       {activeTab === 'overview' && (
         <div className="card">
@@ -3218,7 +3209,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <h3 className="font-semibold">Stagiaires ({sessionTrainees.length})</h3>
             <div className="flex gap-2">
               <button onClick={() => setShowAddTrainee(true)} className="btn btn-secondary flex items-center gap-2"><UserPlus className="w-4 h-4" />Ajouter existant</button>
-              <button onClick={() => { setNewTraineeForm({ ...newTraineeForm, client_id: session?.client_id || '' }); setShowNewTraineeModal(true) }} className="btn btn-primary flex items-center gap-2"><Plus className="w-4 h-4" />Créer nouveau</button>
+              <button onClick={() => { setNewTraineeForm({ ...newTraineeForm, client_id: session?.client_id || '' }); setShowNewTraineeModal(true) }} className="btn btn-secondary flex items-center gap-2"><Plus className="w-4 h-4" />Créer nouveau</button>
             </div>
           </div>
           {sessionTrainees.length === 0 ? <p className="text-gray-500 text-center py-8">Aucun stagiaire</p> : (
@@ -3234,10 +3225,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     <div className="flex items-center gap-3">
                       <div>
                         <p className="font-medium">{t.first_name} {t.last_name}</p>
-                        <p className="text-sm text-gray-500">{t.email}</p>
+                        <p className="text-ui text-gray-500">{t.email}</p>
                       </div>
-                      {result === 'acquis' && <span className="badge badge-green text-xs"> Acquis</span>}
-                      {result === 'non_acquis' && <span className="badge badge-red text-xs"> Non acquis</span>}
+                      {result === 'acquis' && <span className="badge badge-green text-ui-sm"> Acquis</span>}
+                      {result === 'non_acquis' && <span className="badge badge-red text-ui-sm"> Non acquis</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       {/* Bouton fiche de renseignement */}
@@ -3246,7 +3237,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           setSelectedTraineeInfo({ trainee: t, info: infoSheets[t.id] || null })
                           setShowInfoSheet(true)
                         }}
-                        className={`btn btn-sm flex items-center gap-1 ${hasInfoSheet ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        className={`btn btn-sm flex items-center gap-1 ${hasInfoSheet ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
                       >
                         <FileText className="w-3 h-3" />
                         {hasInfoSheet ? 'Fiche ' : 'Fiche'}
@@ -3275,7 +3266,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         }}
                         className={`btn btn-sm flex items-center gap-1 ${
                           stData?.positioning_test_completed 
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                            ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]' 
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                         }`}
                         disabled={loadingPositioningTest}
@@ -3292,13 +3283,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               href={stData.forprev_card_url} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="btn btn-sm bg-green-100 text-green-700 hover:bg-green-200 flex items-center gap-1"
+                              className="btn btn-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] flex items-center gap-1"
                             >
                               <CheckCircle className="w-3 h-3" />
                               Carte SST
                             </a>
                           ) : (
-                            <label className="btn btn-sm bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center gap-1 cursor-pointer">
+                            <label className="btn btn-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))] flex items-center gap-1 cursor-pointer">
                               <Upload className="w-3 h-3" />
                               Carte FORPREV
                               <input 
@@ -3311,7 +3302,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           )}
                         </>
                       )}
-                      <button onClick={() => handleRemoveTrainee(t.id)} className="text-red-600 hover:text-red-800"><UserMinus className="w-4 h-4" /></button>
+                      <button onClick={() => handleRemoveTrainee(t.id)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]"><UserMinus className="w-4 h-4" /></button>
                     </div>
                   </div>
                 )
@@ -3321,26 +3312,26 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           
           {/* Bandeau FORPREV */}
           {session.requires_forprev && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="mt-4 p-3 bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-green-700 font-medium"> Session FORPREV (SST)</span>
+                  <span className="text-[rgb(var(--c-success))] font-medium"> Session FORPREV (SST)</span>
                   {session.forprev_done ? (
-                    <span className="badge badge-green text-xs"> Cartes générées</span>
+                    <span className="badge badge-green text-ui-sm"> Cartes générées</span>
                   ) : (
-                    <span className="badge badge-amber text-xs"> En attente</span>
+                    <span className="badge badge-amber text-ui-sm"> En attente</span>
                   )}
                 </div>
                 <a 
                   href="https://www.forprev.fr/connexion" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-sm text-green-600 hover:underline flex items-center gap-1"
+                  className="text-ui text-[rgb(var(--c-success))] hover:underline flex items-center gap-1"
                 >
                   Accéder à FORPREV <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
-              <p className="text-xs text-green-600 mt-1">
+              <p className="text-ui-sm text-[rgb(var(--c-success))] mt-1">
                 Uploadez les cartes SST individuelles pour chaque stagiaire ayant validé la formation.
               </p>
             </div>
@@ -3354,10 +3345,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-green-600" />
+                <UserCheck className="w-5 h-5 text-[rgb(var(--c-success))]" />
                 Feuille de présence par demi-journée
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-ui text-gray-500">
                 Durée formation : {session?.courses?.duration_hours || 7}h = {getHalfDaysCount()} demi-journée(s)
               </p>
             </div>
@@ -3376,16 +3367,16 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <p className="text-gray-500 text-center py-8">Aucun stagiaire inscrit</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-ui">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-3 px-2 font-medium sticky left-0 bg-white">Stagiaire</th>
                     {getHalfDaysList().map((hd, idx) => (
                       <th key={idx} className="text-center py-3 px-2 font-medium min-w-[80px]">
                         <div className="flex flex-col items-center">
-                          <span className="text-xs text-gray-500">{format(hd.date, 'dd/MM', { locale: fr })}</span>
+                          <span className="text-ui-sm text-gray-500">{format(hd.date, 'dd/MM', { locale: fr })}</span>
                           <span className="flex items-center gap-1">
-                            {hd.period === 'morning' ? <Sun className="w-3 h-3 text-yellow-500" /> : <Moon className="w-3 h-3 text-blue-500" />}
+                            {hd.period === 'morning' ? <Sun className="w-3 h-3 text-[rgb(var(--c-warning))]" /> : <Moon className="w-3 h-3 text-[rgb(var(--c-info))]" />}
                             {hd.label}
                           </span>
                         </div>
@@ -3405,20 +3396,20 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     const hasEarlyDeparture = stData?.early_departure
                     const hasLateArrival = !!stData?.arrival_time
                     return (
-                      <tr key={t.id} className={`hover:bg-gray-50 ${stData?.absent ? 'bg-gray-100 text-gray-400' : hasEarlyDeparture ? 'bg-red-50' : ''}`}>
-                        <td className={`py-3 px-2 font-medium sticky left-0 ${hasEarlyDeparture ? 'bg-red-50' : 'bg-white'}`}>
+                      <tr key={t.id} className={`hover:bg-gray-50 ${stData?.absent ? 'bg-gray-100 text-gray-400' : hasEarlyDeparture ? 'bg-[rgb(var(--c-danger-bg))]' : ''}`}>
+                        <td className={`py-3 px-2 font-medium sticky left-0 ${hasEarlyDeparture ? 'bg-[rgb(var(--c-danger-bg))]' : 'bg-white'}`}>
                           <div className="flex items-center gap-2">
                             <span className={hasEarlyDeparture ? 'line-through text-gray-500' : ''}>
                               {t.first_name} {t.last_name?.toUpperCase()}
                             </span>
                             {hasEarlyDeparture && (
-                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Départ {(stData.departure_time || '').slice(0, 5).replace(':', 'h')}</span>
+                              <span className="text-ui-sm bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] px-2 py-0.5 rounded">Départ {(stData.departure_time || '').slice(0, 5).replace(':', 'h')}</span>
                             )}
                             {hasLateArrival && (
-                              <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Arrivée {stData.arrival_time.slice(0, 5).replace(':', 'h')}</span>
+                              <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-2 py-0.5 rounded">Arrivée {stData.arrival_time.slice(0, 5).replace(':', 'h')}</span>
                             )}
                             {stData?.presence_hours != null && (hasEarlyDeparture || hasLateArrival) && (
-                              <span className="text-xs text-gray-500">{formatHours(stData.presence_hours)}</span>
+                              <span className="text-ui-sm text-gray-500">{formatHours(stData.presence_hours)}</span>
                             )}
                           </div>
                         </td>
@@ -3431,7 +3422,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 onClick={() => handleHalfDayChange(t.id, hd.dateStr, hd.period, !isPresent)}
                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                                   isPresent 
-                                    ? 'bg-green-500 text-white' 
+                                    ? 'bg-[rgb(var(--c-success))] text-white' 
                                     : 'bg-gray-200 text-gray-400 hover:bg-gray-300'
                                 }`}
                               >
@@ -3445,18 +3436,18 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         </td>
                         <td className="text-center py-3 px-2">
                           {status.complete ? (
-                            <span className="inline-flex items-center gap-1 text-green-600 font-medium">
+                            <span className="inline-flex items-center gap-1 text-[rgb(var(--c-success))] font-medium">
                               <CheckCircle className="w-4 h-4" /> 100%
                             </span>
                           ) : (
-                            <span className="text-orange-600 font-medium">{status.percentage}%</span>
+                            <span className="text-[rgb(var(--c-warning))] font-medium">{status.percentage}%</span>
                           )}
                         </td>
                         <td className="text-center py-3 px-2">
                           {(() => {
                             const { signees, total } = getSignedCount(t.id)
                             return (
-                              <span className={`text-xs font-medium ${signees === 0 ? 'text-gray-400' : signees >= total ? 'text-green-600' : 'text-orange-600'}`}>
+                              <span className={`text-ui-sm font-medium ${signees === 0 ? 'text-gray-400' : signees >= total ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-warning))]'}`}>
                                 {signees}/{total} signée{total > 1 ? 's' : ''}
                               </span>
                             )
@@ -3465,12 +3456,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <td className="text-center py-3 px-2">
                           {stData?.absent ? (
                             <button onClick={() => handleToggleAbsent(t, false)}
-                              className="text-xs text-red-600 hover:text-red-800 underline" title={stData.absent_reason || 'Absent'}>
+                              className="text-ui-sm text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] underline" title={stData.absent_reason || 'Absent'}>
                               Absent
                             </button>
                           ) : (
                             <button onClick={() => handleToggleAbsent(t, true)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded transition-colors"
                               title="Noter absent sur toute la session (bloque son QR code)">
                               <UserX className="w-4 h-4" />
                             </button>
@@ -3479,17 +3470,17 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <td className="text-center py-3 px-2">
                           {(hasEarlyDeparture || hasLateArrival) ? (
                             <div className="flex flex-col items-center gap-0.5">
-                              <button onClick={() => openDepartureModal(t)} className="text-xs text-gray-600 hover:text-gray-900 underline">
+                              <button onClick={() => openDepartureModal(t)} className="text-ui-sm text-gray-600 hover:text-gray-900 underline">
                                 Modifier
                               </button>
-                              <button onClick={() => handleCancelDeparture(t)} className="text-xs text-red-600 hover:text-red-800 underline">
+                              <button onClick={() => handleCancelDeparture(t)} className="text-ui-sm text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] underline">
                                 Annuler
                               </button>
                             </div>
                           ) : (
                             <button
                               onClick={() => openDepartureModal(t)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded transition-colors"
                               title="Arrivée tardive ou départ anticipé"
                             >
                               <LogOut className="w-4 h-4" />
@@ -3504,8 +3495,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </div>
           )}
           
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700">
+          <div className="mt-4 p-3 bg-[rgb(var(--c-info-bg))] rounded-ui-sm">
+            <p className="text-ui text-[rgb(var(--c-info))]">
               <strong>Note :</strong> La présence à 100% est requise pour valider les objectifs de formation et délivrer le certificat de réalisation.
             </p>
           </div>
@@ -3518,7 +3509,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center gap-2">
-                <Target className="w-5 h-5 text-blue-600" />
+                <Target className="w-5 h-5 text-[rgb(var(--c-info))]" />
                 Validation des objectifs de formation
               </h3>
               <div className="flex gap-2">
@@ -3537,14 +3528,14 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </div>
             
             {/* Liste des objectifs de la formation */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="mb-6 p-4 bg-gray-50 rounded-ui-sm">
               <h4 className="font-medium text-gray-700 mb-2">Objectifs de la formation :</h4>
               {getObjectivesList().length === 0 ? (
                 <p className="text-gray-500 italic">Aucun objectif défini. Ajoutez-les dans la fiche formation (un par ligne).</p>
               ) : (
                 <ul className="list-disc list-inside space-y-1">
                   {getObjectivesList().map((obj, idx) => (
-                    <li key={idx} className="text-sm text-gray-600">{obj}</li>
+                    <li key={idx} className="text-ui text-gray-600">{obj}</li>
                   ))}
                 </ul>
               )}
@@ -3561,7 +3552,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-ui">
                   <thead>
                     <tr className="border-b bg-gray-50">
                       <th className="text-left py-3 px-2 font-medium">Stagiaire</th>
@@ -3585,6 +3576,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <tr key={trainee.id} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-2">
                             <div className="font-medium">{trainee.first_name} {trainee.last_name?.toUpperCase()}</div>
+                            <FormativeSummary summary={formativeSummary} traineeId={trainee.id} className="mt-0.5 max-w-[260px]" />
                           </td>
                           {getObjectivesList().map((obj, idx) => {
                             const objData = objectivesData.find(o => o.trainee_id === trainee.id && o.objective_index === idx)
@@ -3596,11 +3588,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   <button
                                     onClick={() => hasFullPresence && handleToggleObjective(trainee.id, idx, isValidated)}
                                     disabled={!hasFullPresence}
-                                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                    className={`px-3 py-1 rounded text-ui-sm font-medium transition-colors ${
                                       !hasFullPresence
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                         : isValidated 
-                                          ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                          ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]' 
                                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                     }`}
                                     title={!hasFullPresence ? 'Présence 100% requise' : ''}
@@ -3612,7 +3604,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                       value={objData?.remediation_comment || ''}
                                       onChange={(e) => handleUpdateRemediationComment(trainee.id, idx, e.target.value)}
                                       placeholder="Actions correctives..."
-                                      className="w-full min-w-[200px] text-xs px-2 py-1 border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                      className="w-full min-w-[200px] text-ui-sm px-2 py-1 border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-[rgb(var(--c-warning)/0.3)]"
                                       rows={2}
                                       onBlur={(e) => {
                                         if (e.target.value.trim()) {
@@ -3626,10 +3618,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             )
                           })}
                           <td className="text-center py-3 px-2">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            <span className={`px-2 py-1 rounded text-ui-sm font-medium ${
                               presStatus.complete 
-                                ? 'bg-green-100 text-green-700' 
-                                : 'bg-orange-100 text-orange-700'
+                                ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' 
+                                : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'
                             }`}>
                               {presStatus.present}/{presStatus.total} ({presStatus.percentage}%)
                             </span>
@@ -3637,17 +3629,17 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           <td className="text-center py-3 px-2">
                             <div className="flex items-center justify-center gap-2">
                               {result === 'acquired' && (
-                                <span className="px-3 py-1 rounded bg-green-500 text-white text-xs font-bold">
+                                <span className="px-3 py-1 rounded bg-[rgb(var(--c-success))] text-white text-ui-sm font-bold">
                                   ACQUIS
                                 </span>
                               )}
                               {result === 'not_acquired' && (
-                                <span className="px-3 py-1 rounded bg-red-500 text-white text-xs font-bold">
+                                <span className="px-3 py-1 rounded bg-[rgb(var(--c-danger))] text-white text-ui-sm font-bold">
                                   NON ACQUIS
                                 </span>
                               )}
                               {!result && objStatus && (
-                                <span className="text-gray-400 text-xs">
+                                <span className="text-gray-400 text-ui-sm">
                                   {objStatus.validated}/{objStatus.total} obj.
                                 </span>
                               )}
@@ -3655,7 +3647,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               <PickerMenu
                                 searchable={false}
                                 minWidth={170}
-                                buttonClassName="text-xs text-gray-500 hover:text-gray-800 px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200"
+                                buttonClassName="text-ui-sm text-gray-500 hover:text-gray-800 px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200"
                                 items={[
                                   { key: 'acquired', label: 'Forcer Acquis' },
                                   { key: 'not_acquired', label: 'Forcer Non Acquis' },
@@ -3673,9 +3665,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             )}
             
             {/* Légende */}
-            <div className="mt-4 pt-4 border-t text-sm text-gray-500">
+            <div className="mt-4 pt-4 border-t text-ui text-gray-500">
               <p><strong>Règle de validation :</strong> Un stagiaire obtient le résultat "Acquis" si tous ses objectifs sont validés ET s'il a été présent à toutes les journées de formation.</p>
-              <p className="mt-1 text-xs"><strong> Forcer :</strong> Permet de modifier manuellement le résultat en cas d'exception (rattrapage, absence justifiée validée...).</p>
+              <p className="mt-1 text-ui-sm"><strong> Forcer :</strong> Permet de modifier manuellement le résultat en cas d'exception (rattrapage, absence justifiée validée...).</p>
             </div>
           </div>
         </div>
@@ -3688,15 +3680,15 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-semibold flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-orange-600" />Évaluations à chaud (stagiaires)</h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <h3 className="font-semibold flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-[rgb(var(--c-warning))]" />Évaluations à chaud (stagiaires)</h3>
+                <p className="text-ui text-gray-500 mt-1">
                   Formation : <strong>{session.courses?.title || 'Non définie'}</strong> - Formateur : <strong>{trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Non assigné'}</strong>
                 </p>
               </div>
               <button 
                 onClick={handleSendHotEvalReminder}
                 disabled={sendingHotEvalReminder}
-                className="btn btn-secondary flex items-center gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                className="btn btn-secondary flex items-center gap-2 text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)] hover:bg-[rgb(var(--c-warning-bg))]"
               >
                 {sendingHotEvalReminder ? (
                   <><Loader className="w-4 h-4 animate-spin" />Envoi...</>
@@ -3711,19 +3703,19 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   const eval_ = evaluationsData[t.id] || {}
                   const isEnabled = eval_.questionnaire_submitted
                   return (
-                    <div key={t.id} className="border rounded-lg p-4">
+                    <div key={t.id} className="border rounded-ui-sm p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-medium">{t.first_name} {t.last_name}</span>
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" checked={eval_.questionnaire_submitted || false} onChange={(e) => handleEvalChange(t.id, 'questionnaire_submitted', e.target.checked)} className="w-4 h-4 text-orange-600 rounded" />
+                        <label className="flex items-center gap-2 text-ui">
+                          <input type="checkbox" checked={eval_.questionnaire_submitted || false} onChange={(e) => handleEvalChange(t.id, 'questionnaire_submitted', e.target.checked)} className="w-4 h-4 text-[rgb(var(--c-warning))] rounded" />
                           Questionnaire reçu
                         </label>
                       </div>
                       {isEnabled && (
-                        <div className="space-y-4 text-sm">
+                        <div className="space-y-4 text-ui">
                           {/* Organisation de la formation */}
                           <div>
-                            <p className="font-medium text-gray-700 mb-2 text-xs uppercase">Organisation de la formation</p>
+                            <p className="font-medium text-gray-700 mb-2 text-ui-sm uppercase">Organisation de la formation</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {[
                                 { key: 'q_org_documents', label: 'Communication des documents avant la formation' },
@@ -3732,10 +3724,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 { key: 'q_org_materiel', label: 'Adéquation des moyens matériels' },
                               ].map(item => (
                                 <div key={item.key} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                  <span className="text-xs text-gray-600 flex-1 mr-2">{item.label}</span>
+                                  <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-xs ${eval_[item.key] === n ? 'bg-orange-500 text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -3745,7 +3737,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           
                           {/* Contenu de la formation */}
                           <div>
-                            <p className="font-medium text-gray-700 mb-2 text-xs uppercase">Le contenu de la formation</p>
+                            <p className="font-medium text-gray-700 mb-2 text-ui-sm uppercase">Le contenu de la formation</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {[
                                 { key: 'q_contenu_organisation', label: 'Organisation et déroulement' },
@@ -3754,10 +3746,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 { key: 'q_contenu_programme', label: 'Respect du programme de formation' },
                               ].map(item => (
                                 <div key={item.key} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                  <span className="text-xs text-gray-600 flex-1 mr-2">{item.label}</span>
+                                  <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-xs ${eval_[item.key] === n ? 'bg-orange-500 text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -3767,7 +3759,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           
                           {/* Intervention de l'animateur */}
                           <div>
-                            <p className="font-medium text-gray-700 mb-2 text-xs uppercase">L'intervention de l'animateur</p>
+                            <p className="font-medium text-gray-700 mb-2 text-ui-sm uppercase">L'intervention de l'animateur</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {[
                                 { key: 'q_formateur_pedagogie', label: 'La pédagogie du formateur' },
@@ -3776,10 +3768,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 { key: 'q_formateur_moyens', label: 'Adéquation des moyens mis à disposition' },
                               ].map(item => (
                                 <div key={item.key} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                  <span className="text-xs text-gray-600 flex-1 mr-2">{item.label}</span>
+                                  <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-xs ${eval_[item.key] === n ? 'bg-orange-500 text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -3789,26 +3781,26 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           
                           {/* Perception globale */}
                           <div>
-                            <p className="font-medium text-gray-700 mb-2 text-xs uppercase">Perception globale</p>
+                            <p className="font-medium text-gray-700 mb-2 text-ui-sm uppercase">Perception globale</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {[
                                 { key: 'q_global_adequation', label: 'Adéquation formation / métier ou secteur' },
                                 { key: 'q_global_competences', label: 'Amélioration de vos connaissances' },
                               ].map(item => (
                                 <div key={item.key} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                  <span className="text-xs text-gray-600 flex-1 mr-2">{item.label}</span>
+                                  <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-xs ${eval_[item.key] === n ? 'bg-orange-500 text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
                               ))}
                               <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                <span className="text-xs text-gray-600 flex-1 mr-2">Recommanderiez-vous cette formation ?</span>
+                                <span className="text-ui-sm text-gray-600 flex-1 mr-2">Recommanderiez-vous cette formation ?</span>
                                 <div className="flex gap-1">
-                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', true)} className={`px-3 py-1 rounded text-xs ${eval_.would_recommend === true ? 'bg-green-500 text-white' : 'bg-white border'}`}>Oui</button>
-                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', false)} className={`px-3 py-1 rounded text-xs ${eval_.would_recommend === false ? 'bg-red-500 text-white' : 'bg-white border'}`}>Non</button>
+                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', true)} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === true ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-white border'}`}>Oui</button>
+                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', false)} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === false ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-white border'}`}>Non</button>
                                 </div>
                               </div>
                             </div>
@@ -3817,9 +3809,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           {/* Commentaires */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                              <label className="text-xs text-gray-500">Commentaire général</label>
+                              <label className="text-ui-sm text-gray-500">Commentaire général</label>
                               <textarea 
-                                className="input text-sm mt-1" 
+                                className="input text-ui mt-1" 
                                 rows={2} 
                                 value={eval_.comment_general || ''} 
                                 onChange={(e) => handleEvalChange(t.id, 'comment_general', e.target.value)}
@@ -3827,9 +3819,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               />
                             </div>
                             <div>
-                              <label className="text-xs text-gray-500">Projet de formation</label>
+                              <label className="text-ui-sm text-gray-500">Projet de formation</label>
                               <textarea 
-                                className="input text-sm mt-1" 
+                                className="input text-ui mt-1" 
                                 rows={2} 
                                 value={eval_.comment_projet || ''} 
                                 onChange={(e) => handleEvalChange(t.id, 'comment_projet', e.target.value)}
@@ -3848,8 +3840,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           
           {/* Évaluation formateur */}
           <div className="card">
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><Star className="w-5 h-5 text-amber-500" />Évaluation par le formateur</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><Star className="w-5 h-5 text-[rgb(var(--c-warning))]" />Évaluation par le formateur</h3>
+            <p className="text-ui text-gray-500 mb-4">
               Formation : <strong>{session.courses?.title || 'Non définie'}</strong> - Formateur : <strong>{trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Non assigné'}</strong>
             </p>
             {!trainer ? <p className="text-gray-500">Aucun formateur assigné</p> : (
@@ -3864,17 +3856,17 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     { key: 'overall_score', label: 'Appréciation globale' },
                   ].map(item => (
                     <div key={item.key} className="flex items-center justify-between">
-                      <span className="text-sm">{item.label}</span>
+                      <span className="text-ui">{item.label}</span>
                       <div className="flex gap-1">
                         {[1,2,3,4,5].map(n => (
-                          <button key={n} onClick={() => handleTrainerEvalChange(item.key, n)} className={`w-8 h-8 rounded ${trainerEval?.[item.key] === n ? 'bg-amber-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>{n}</button>
+                          <button key={n} onClick={() => handleTrainerEvalChange(item.key, n)} className={`w-8 h-8 rounded ${trainerEval?.[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>{n}</button>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Commentaires</label>
+                  <label className="text-ui font-medium">Commentaires</label>
                   <textarea value={trainerEval?.comments || ''} onChange={(e) => handleTrainerEvalChange('comments', e.target.value)} className="input mt-1" rows={3} placeholder="Observations du formateur..." />
                 </div>
               </div>
@@ -3883,13 +3875,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           
           {/* Évaluations à froid (90 jours) */}
           <div className="card">
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><Clock className="w-5 h-5 text-purple-600" />Évaluations à froid (90 jours)</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><Clock className="w-5 h-5 text-gray-800" />Évaluations à froid (90 jours)</h3>
+            <p className="text-ui text-gray-500 mb-4">
               Formation : <strong>{session.courses?.title || 'Non définie'}</strong> - Formateur : <strong>{trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Non assigné'}</strong>
             </p>
             {sessionTraineesForEvals.length === 0 ? <p className="text-gray-500">Aucun stagiaire avec présence validée</p> : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-ui">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2">Stagiaire</th>
@@ -3910,39 +3902,39 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <tr key={t.id} className="border-b">
                           <td className="py-3 font-medium">{t.first_name} {t.last_name}</td>
                           <td className="text-center py-3">
-                            <input type="checkbox" checked={!!coldEval.sent_at} onChange={(e) => handleColdEvalChange(t.id, 'sent_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-purple-600 rounded" />
+                            <input type="checkbox" checked={!!coldEval.sent_at} onChange={(e) => handleColdEvalChange(t.id, 'sent_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-gray-800 rounded" />
                           </td>
                           <td className="text-center py-3">
-                            <input type="checkbox" checked={!!coldEval.completed_at} onChange={(e) => handleColdEvalChange(t.id, 'completed_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-purple-600 rounded" disabled={!coldEval.sent_at} />
+                            <input type="checkbox" checked={!!coldEval.completed_at} onChange={(e) => handleColdEvalChange(t.id, 'completed_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-gray-800 rounded" disabled={!coldEval.sent_at} />
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'skills_applied', 5)} className={`px-2 py-1 rounded text-xs ${coldEval.skills_applied === 5 ? 'bg-green-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'skills_applied', 1)} className={`px-2 py-1 rounded text-xs ${coldEval.skills_applied === 1 ? 'bg-red-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'skills_applied', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.skills_applied === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'skills_applied', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.skills_applied === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
                             </div>
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'objectives_met', 5)} className={`px-2 py-1 rounded text-xs ${coldEval.objectives_met === 5 ? 'bg-green-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'objectives_met', 1)} className={`px-2 py-1 rounded text-xs ${coldEval.objectives_met === 1 ? 'bg-red-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'objectives_met', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.objectives_met === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'objectives_met', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.objectives_met === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
                             </div>
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'knowledge_retained', 5)} className={`px-2 py-1 rounded text-xs ${coldEval.knowledge_retained === 5 ? 'bg-green-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'knowledge_retained', 1)} className={`px-2 py-1 rounded text-xs ${coldEval.knowledge_retained === 1 ? 'bg-red-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'knowledge_retained', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.knowledge_retained === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'knowledge_retained', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.knowledge_retained === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
                             </div>
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'job_impact', 5)} className={`px-2 py-1 rounded text-xs ${coldEval.job_impact === 5 ? 'bg-green-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'job_impact', 1)} className={`px-2 py-1 rounded text-xs ${coldEval.job_impact === 1 ? 'bg-red-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'job_impact', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.job_impact === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'job_impact', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.job_impact === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
                             </div>
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'would_recommend', true)} className={`px-2 py-1 rounded text-xs ${coldEval.would_recommend === true ? 'bg-green-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'would_recommend', false)} className={`px-2 py-1 rounded text-xs ${coldEval.would_recommend === false ? 'bg-red-500 text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'would_recommend', true)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.would_recommend === true ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'would_recommend', false)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.would_recommend === false ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
                             </div>
                           </td>
                         </tr>
@@ -3964,7 +3956,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <h3 className="font-semibold flex items-center gap-2">
                  Checklist Matériel
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-ui text-gray-500">
                 {sessionTrainees.length} stagiaire(s) inscrit(s) - quantités calculées automatiquement
               </p>
             </div>
@@ -3997,28 +3989,28 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           ) : (
             <div className="space-y-2">
               {/* Statistiques */}
-              <div className="flex gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="flex gap-4 mb-4 p-3 bg-gray-50 rounded-ui-sm">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-gray-800">{sessionEquipment.length}</p>
-                  <p className="text-xs text-gray-500">Équipements</p>
+                  <p className="text-ui-sm text-gray-500">Équipements</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-2xl font-bold text-[rgb(var(--c-success))]">
                     {sessionEquipment.filter(e => e.is_prepared).length}
                   </p>
-                  <p className="text-xs text-gray-500">Préparés</p>
+                  <p className="text-ui-sm text-gray-500">Préparés</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-orange-600">
+                  <p className="text-2xl font-bold text-[rgb(var(--c-warning))]">
                     {sessionEquipment.filter(e => !e.is_prepared).length}
                   </p>
-                  <p className="text-xs text-gray-500">Restants</p>
+                  <p className="text-ui-sm text-gray-500">Restants</p>
                 </div>
               </div>
               
               {/* Liste du matériel */}
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="border rounded-ui-sm overflow-hidden">
+                <table className="w-full text-ui">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="text-left p-3">Équipement</th>
@@ -4029,21 +4021,21 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   </thead>
                   <tbody className="divide-y">
                     {sessionEquipment.map(eq => (
-                      <tr key={eq.id} className={eq.is_prepared ? 'bg-green-50' : ''}>
+                      <tr key={eq.id} className={eq.is_prepared ? 'bg-[rgb(var(--c-success-bg))]' : ''}>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{eq.equipment_catalog?.name}</span>
                             {eq.equipment_catalog?.is_consumable && (
-                              <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded">Conso.</span>
+                              <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Conso.</span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-ui-sm text-gray-500">
                             {eq.equipment_catalog?.ratio_per_persons 
                               ? `1 pour ${eq.equipment_catalog.ratio_per_persons} pers.`
                               : '1 par session'}
                           </p>
                           {eq.is_prepared && eq.prepared_by && (
-                            <p className="text-xs text-green-600 mt-0.5">
+                            <p className="text-ui-sm text-[rgb(var(--c-success))] mt-0.5">
                                par {eq.prepared_by.split('@')[0]} le {format(new Date(eq.prepared_at), 'dd/MM HH:mm')}
                             </p>
                           )}
@@ -4054,9 +4046,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <td className="p-3 text-center">
                           <button
                             onClick={() => toggleEquipmentPrepared(eq.id, !eq.is_prepared)}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                            className={`px-4 py-2 rounded-ui-sm font-medium transition-colors ${
                               eq.is_prepared 
-                                ? 'bg-green-500 text-white hover:bg-green-600' 
+                                ? 'bg-[rgb(var(--c-success))] text-white hover:bg-[rgb(var(--c-success))]' 
                                 : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                             }`}
                           >
@@ -4070,7 +4062,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 removeEquipmentFromSession(eq.id)
                               }
                             }}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            className="p-1 text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -4106,7 +4098,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {/* Modal ajouter équipement */}
           {showAddEquipmentModal && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+              <div className="bg-white rounded-ui-sm shadow-md max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
                 <div className="p-4 border-b flex items-center justify-between">
                   <h3 className="font-semibold">Ajouter un équipement</h3>
                   <button onClick={() => setShowAddEquipmentModal(false)}>
@@ -4122,7 +4114,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     }, {})
                   ).map(([theme, items]) => (
                     <div key={theme} className="mb-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{theme}</p>
+                      <p className="text-ui-sm font-semibold text-gray-500 uppercase mb-2">{theme}</p>
                       <div className="space-y-1">
                         {items.map(eq => {
                           const alreadyAdded = sessionEquipment.some(se => se.equipment_id === eq.id)
@@ -4134,11 +4126,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               className={`w-full text-left p-2 rounded ${
                                 alreadyAdded 
                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                  : 'hover:bg-blue-50 cursor-pointer'
+                                  : 'hover:bg-[rgb(var(--c-info-bg))] cursor-pointer'
                               }`}
                             >
-                              <span className="text-sm">{eq.name}</span>
-                              {alreadyAdded && <span className="text-xs ml-2">(déjà ajouté)</span>}
+                              <span className="text-ui">{eq.name}</span>
+                              {alreadyAdded && <span className="text-ui-sm ml-2">(déjà ajouté)</span>}
                             </button>
                           )
                         })}
@@ -4158,7 +4150,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold">Coûts supplémentaires</h3>
-              <p className="text-sm text-gray-500">Frais additionnels à inclure dans la convention</p>
+              <p className="text-ui text-gray-500">Frais additionnels à inclure dans la convention</p>
             </div>
             <button 
               onClick={() => setShowAddCost(true)} 
@@ -4172,7 +4164,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <p className="text-gray-500 text-center py-8">Aucun coût supplémentaire</p>
           ) : (
             <div className="space-y-3">
-              <table className="w-full text-sm">
+              <table className="w-full text-ui">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="text-left py-2 px-3 font-medium">Type</th>
@@ -4192,16 +4184,16 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     return (
                       <tr key={cost.id}>
                         <td className="py-2 px-3">
-                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">{typeLabel.split(' ')[0]}</span>
+                          <span className="text-ui-sm bg-gray-100 text-gray-700 px-2 py-1 rounded">{typeLabel.split(' ')[0]}</span>
                         </td>
                         <td className="py-2 px-3">
                           <div className="font-medium">{cost.label}</div>
-                          {cost.notes && <div className="text-xs text-gray-500">{cost.notes}</div>}
+                          {cost.notes && <div className="text-ui-sm text-gray-500">{cost.notes}</div>}
                         </td>
                         <td className="py-2 px-3 text-right">{parseFloat(cost.amount).toFixed(2)} €</td>
                         <td className="py-2 px-3 text-center">
                           {cost.per_trainee ? (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                            <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-1 rounded">
                               × {sessionTrainees.length} stagiaire{sessionTrainees.length > 1 ? 's' : ''}
                             </span>
                           ) : (
@@ -4212,7 +4204,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <td className="py-2 px-3">
                           <button 
                             onClick={() => handleDeleteCost(cost.id)}
-                            className="text-red-600 hover:text-red-800"
+                            className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -4230,8 +4222,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 </tfoot>
               </table>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                <p className="text-blue-800">
+              <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui">
+                <p className="text-[rgb(var(--c-info))]">
                    Ces coûts seront ajoutés au prix de la formation dans la convention.
                   {session?.total_price && (
                     <span className="block mt-1 font-medium">
@@ -4248,7 +4240,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <div className="fixed inset-0 z-50 overflow-y-auto">
               <div className="fixed inset-0 bg-black/50" onClick={() => setShowAddCost(false)} />
               <div className="relative min-h-full flex items-center justify-center p-4">
-                <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+                <div className="relative bg-white rounded-ui shadow-md w-full max-w-md">
                   <div className="flex items-center justify-between p-4 border-b">
                     <h3 className="text-lg font-semibold">Ajouter un coût</h3>
                     <button onClick={() => setShowAddCost(false)}><X className="w-5 h-5" /></button>
@@ -4296,12 +4288,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         onChange={(e) => setCostForm({ ...costForm, per_trainee: e.target.checked })}
                         className="w-4 h-4 rounded border-gray-300"
                       />
-                      <label htmlFor="per_trainee" className="text-sm">
+                      <label htmlFor="per_trainee" className="text-ui">
                         Multiplier par le nombre de stagiaires ({sessionTrainees.length})
                       </label>
                     </div>
                     {costForm.per_trainee && costForm.amount && (
-                      <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                      <p className="text-ui text-[rgb(var(--c-info))] bg-[rgb(var(--c-info-bg))] p-2 rounded">
                         Total calculé : {(parseFloat(costForm.amount) * sessionTrainees.length).toFixed(2)} €
                       </p>
                     )}
@@ -4333,7 +4325,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold">Financement de la session</h3>
-              <p className="text-sm text-gray-500">Répartition entre financeurs (OPCO, entreprise, CPF…)</p>
+              <p className="text-ui text-gray-500">Répartition entre financeurs (OPCO, entreprise, CPF…)</p>
             </div>
             <button 
               onClick={() => { resetFundingForm(); setShowAddFunding(true) }} 
@@ -4352,28 +4344,28 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             const isOver = fundingTotal > totalHT
             const isExact = Math.abs(diff) < 0.01
             return (
-              <div className="mb-5 p-4 rounded-lg border bg-gray-50">
-                <div className="flex items-center justify-between text-sm mb-2">
+              <div className="mb-5 p-4 rounded-ui-sm border bg-gray-50">
+                <div className="flex items-center justify-between text-ui mb-2">
                   <span className="font-medium">Couverture financière</span>
-                  <span className={`font-bold ${isExact ? 'text-green-600' : isOver ? 'text-red-600' : 'text-orange-600'}`}>
+                  <span className={`font-bold ${isExact ? 'text-[rgb(var(--c-success))]' : isOver ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-warning))]'}`}>
                     {fundingTotal.toFixed(2)} € / {totalHT.toFixed(2)} € HT ({coverage}%)
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div 
-                    className={`h-3 rounded-full transition-all ${isExact ? 'bg-green-500' : isOver ? 'bg-red-500' : coverage >= 80 ? 'bg-yellow-500' : 'bg-orange-500'}`}
+                    className={`h-3 rounded-full transition-all ${isExact ? 'bg-[rgb(var(--c-success))]' : isOver ? 'bg-[rgb(var(--c-danger))]' : coverage >= 80 ? 'bg-[rgb(var(--c-warning))]' : 'bg-[rgb(var(--c-warning))]'}`}
                     style={{ width: `${Math.min(coverage, 100)}%` }}
                   />
                 </div>
                 {!isExact && (
-                  <p className={`text-xs mt-1 ${isOver ? 'text-red-600' : 'text-orange-600'}`}>
+                  <p className={`text-ui-sm mt-1 ${isOver ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-warning))]'}`}>
                     {isOver 
                       ? ` Surfinancement de ${(fundingTotal - totalHT).toFixed(2)} €` 
                       : ` Reste à financer : ${diff.toFixed(2)} € HT`}
                   </p>
                 )}
                 {isExact && sessionFundings.length > 0 && (
-                  <p className="text-xs mt-1 text-green-600"> Financement complet</p>
+                  <p className="text-ui-sm mt-1 text-[rgb(var(--c-success))]"> Financement complet</p>
                 )}
               </div>
             )
@@ -4384,7 +4376,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <p className="text-gray-500 text-center py-8">Aucun financement renseigné - cliquez sur "Ajouter un financeur" pour commencer</p>
           ) : (
             <div className="space-y-3">
-              <table className="w-full text-sm">
+              <table className="w-full text-ui">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="text-left py-2 px-3 font-medium">Type</th>
@@ -4401,10 +4393,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   {sessionFundings.map(funding => {
                     const typeInfo = FUNDER_TYPES.find(t => t.value === funding.funder_type) || FUNDER_TYPES[6]
                     const statusColors = {
-                      pending: 'bg-yellow-100 text-yellow-800',
-                      invoiced: 'bg-blue-100 text-blue-800',
-                      paid: 'bg-green-100 text-green-800',
-                      refused: 'bg-red-100 text-red-800',
+                      pending: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]',
+                      invoiced: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]',
+                      paid: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]',
+                      refused: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]',
                       cancelled: 'bg-gray-100 text-gray-500',
                     }
                     const statusLabelsF = {
@@ -4417,27 +4409,27 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     return (
                       <tr key={funding.id} className="hover:bg-gray-50">
                         <td className="py-2 px-3">
-                          <span className={`text-xs px-2 py-1 rounded-full bg-${typeInfo.color}-100 text-${typeInfo.color}-700`}>
+                          <span className="badge badge-neutral">
                             {typeInfo.label}
                           </span>
                         </td>
                         <td className="py-2 px-3">
                           <div className="font-medium">{funding.funder_name}</div>
-                          {funding.funder_siret && <div className="text-xs text-gray-400">SIRET: {funding.funder_siret}</div>}
-                          {funding.funder_contact_email && <div className="text-xs text-gray-400">{funding.funder_contact_email}</div>}
+                          {funding.funder_siret && <div className="text-ui-sm text-gray-400">SIRET: {funding.funder_siret}</div>}
+                          {funding.funder_contact_email && <div className="text-ui-sm text-gray-400">{funding.funder_contact_email}</div>}
                         </td>
                         <td className="py-2 px-3 text-right font-medium">{parseFloat(funding.amount_ht).toFixed(2)} €</td>
                         <td className="py-2 px-3 text-center text-gray-500">{funding.percentage ? `${funding.percentage}%` : '-'}</td>
                         <td className="py-2 px-3">
                           {funding.dossier_number ? (
-                            <span className="text-xs bg-gray-100 px-2 py-1 rounded">{funding.dossier_number}</span>
+                            <span className="text-ui-sm bg-gray-100 px-2 py-1 rounded">{funding.dossier_number}</span>
                           ) : <span className="text-gray-400">-</span>}
                         </td>
                         <td className="py-2 px-3 text-center">
                           <select
                             value={funding.status}
                             onChange={(e) => handleFundingStatus(funding.id, e.target.value)}
-                            className={`text-xs px-2 py-1 rounded-full border-0 cursor-pointer ${statusColors[funding.status] || ''}`}
+                            className={`text-ui-sm px-2 py-1 rounded-full border-0 cursor-pointer ${statusColors[funding.status] || ''}`}
                           >
                             <option value="pending">En attente</option>
                             <option value="invoiced">Facturé</option>
@@ -4448,13 +4440,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         </td>
                         <td className="py-2 px-3 text-center">
                           {funding.invoice_id ? (
-                            <Link to={`/invoices?id=${funding.invoice_id}`} className="text-xs text-blue-600 hover:underline flex items-center justify-center gap-1">
+                            <Link to={`/invoices?id=${funding.invoice_id}`} className="text-ui-sm text-[rgb(var(--c-info))] hover:underline flex items-center justify-center gap-1">
                               <Receipt className="w-3 h-3" /> Voir
                             </Link>
                           ) : (
                             <button
                               onClick={() => handleGenerateFundingInvoice(funding)}
-                              className="text-xs text-primary-600 hover:text-primary-800 flex items-center justify-center gap-1"
+                              className="text-ui-sm text-primary-600 hover:text-primary-800 flex items-center justify-center gap-1"
                             >
                               <FileText className="w-3 h-3" /> Facturer
                             </button>
@@ -4462,10 +4454,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         </td>
                         <td className="py-2 px-3">
                           <div className="flex items-center gap-1 justify-end">
-                            <button onClick={() => handleEditFunding(funding)} className="p-1 text-gray-400 hover:text-blue-600" title="Modifier">
+                            <button onClick={() => handleEditFunding(funding)} className="p-1 text-gray-400 hover:text-[rgb(var(--c-info))]" title="Modifier">
                               <Edit className="w-4 h-4" />
                             </button>
-                            <button onClick={() => handleDeleteFunding(funding.id)} className="p-1 text-gray-400 hover:text-red-600" title="Supprimer">
+                            <button onClick={() => handleDeleteFunding(funding.id)} className="p-1 text-gray-400 hover:text-[rgb(var(--c-danger))]" title="Supprimer">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -4506,7 +4498,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     setShowAddFunding(true)
                   }
                 }}
-                className="text-sm text-blue-600 hover:text-blue-800 underline"
+                className="text-ui text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))] underline"
               >
                  Pré-remplir avec le client de la session (100%)
               </button>
@@ -4518,7 +4510,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <div className="fixed inset-0 z-50 overflow-y-auto">
               <div className="fixed inset-0 bg-black/50" onClick={() => { setShowAddFunding(false); resetFundingForm() }} />
               <div className="relative min-h-full flex items-center justify-center p-4">
-                <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg">
+                <div className="relative bg-white rounded-ui shadow-md w-full max-w-lg">
                   <div className="flex items-center justify-between p-4 border-b">
                     <h3 className="text-lg font-semibold">
                       {editingFunding ? 'Modifier le financement' : 'Ajouter un financeur'}
@@ -4565,20 +4557,20 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     </div>
 
                     {/* Montant : switch % / HT */}
-                    <div className="border rounded-lg p-3 bg-gray-50">
+                    <div className="border rounded-ui-sm p-3 bg-gray-50">
                       <div className="flex items-center gap-3 mb-2">
                         <label className="label mb-0">Mode de saisie :</label>
                         <button
                           type="button"
                           onClick={() => setFundingForm({ ...fundingForm, use_percentage: false })}
-                          className={`text-xs px-3 py-1 rounded-full ${!fundingForm.use_percentage ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+                          className={`text-ui-sm px-3 py-1 rounded-full ${!fundingForm.use_percentage ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}`}
                         >
                           Montant HT
                         </button>
                         <button
                           type="button"
                           onClick={() => setFundingForm({ ...fundingForm, use_percentage: true })}
-                          className={`text-xs px-3 py-1 rounded-full ${fundingForm.use_percentage ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+                          className={`text-ui-sm px-3 py-1 rounded-full ${fundingForm.use_percentage ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}`}
                         >
                           Pourcentage
                         </button>
@@ -4601,10 +4593,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 setFundingForm({ ...fundingForm, percentage: pct, amount_ht: totalHT > 0 ? (totalHT * parseFloat(pct || 0) / 100).toFixed(2) : '' })
                               }}
                             />
-                            <span className="text-sm text-gray-500">%</span>
+                            <span className="text-ui text-gray-500">%</span>
                           </div>
                           {fundingForm.percentage && getSessionTotalHT() > 0 && (
-                            <p className="text-xs text-blue-600 mt-1">
+                            <p className="text-ui-sm text-[rgb(var(--c-info))] mt-1">
                               = {(getSessionTotalHT() * parseFloat(fundingForm.percentage) / 100).toFixed(2)} € HT
                             </p>
                           )}
@@ -4626,7 +4618,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             }}
                           />
                           {fundingForm.amount_ht && getSessionTotalHT() > 0 && (
-                            <p className="text-xs text-blue-600 mt-1">
+                            <p className="text-ui-sm text-[rgb(var(--c-info))] mt-1">
                               = {(parseFloat(fundingForm.amount_ht) / getSessionTotalHT() * 100).toFixed(1)}% du total session
                             </p>
                           )}
@@ -4649,8 +4641,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     )}
 
                     {/* Infos contact facturation */}
-                    <details className="border rounded-lg">
-                      <summary className="p-3 cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800">
+                    <details className="border rounded-ui-sm">
+                      <summary className="p-3 cursor-pointer text-ui font-medium text-gray-600 hover:text-gray-800">
                          Coordonnées de facturation (optionnel)
                       </summary>
                       <div className="p-3 pt-0 space-y-3">
@@ -4719,21 +4711,21 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               {showZipDropdown && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowZipDropdown(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-ui-sm shadow-md z-20 overflow-hidden">
                     <button
                       onClick={handleDownloadZip}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
-                      <p className="text-sm font-medium text-gray-900"> Documents vierges</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Tous les docs avec juste les noms - à remplir manuellement</p>
+                      <p className="text-ui font-medium text-gray-900"> Documents vierges</p>
+                      <p className="text-ui-sm text-gray-500 mt-0.5">Tous les docs avec juste les noms - à remplir manuellement</p>
                     </button>
                     <div className="border-t border-gray-100" />
                     <button
                       onClick={handleDownloadZipFilled}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
-                      <p className="text-sm font-medium text-gray-900"> Documents remplis</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Tous les docs avec les données existantes</p>
+                      <p className="text-ui font-medium text-gray-900"> Documents remplis</p>
+                      <p className="text-ui-sm text-gray-500 mt-0.5">Tous les docs avec les données existantes</p>
                     </button>
                   </div>
                 </>
@@ -4742,11 +4734,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {docTypes.map(doc => (
-              <div key={doc.id} className="border rounded-lg p-3">
+              <div key={doc.id} className="border rounded-ui-sm p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <doc.icon className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium text-sm">{doc.name}</span>
-                  {doc.qualiopi && <span className="text-xs bg-blue-100 text-blue-700 px-1 rounded">Ind.{doc.qualiopi}</span>}
+                  <span className="font-medium text-ui">{doc.name}</span>
+                  {doc.qualiopi && <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1 rounded">Ind.{doc.qualiopi}</span>}
                 </div>
                 <div className="mb-2">
                   <SignatureAuditBadge sessionId={session.id} documentType={doc.id} />
@@ -4756,7 +4748,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   <div className="space-y-1 relative">
                     <button 
                       onClick={() => setDocSelection({...docSelection, expandedDoc: docSelection.expandedDoc === doc.id ? null : doc.id, selectedTrainees: []})}
-                      className="btn btn-sm btn-secondary w-full text-xs flex items-center justify-between"
+                      className="btn btn-sm btn-secondary w-full text-ui-sm flex items-center justify-between"
                     >
                       <span>Sélectionner stagiaires</span>
                       <ChevronDown className={`w-3 h-3 transition-transform ${docSelection.expandedDoc === doc.id ? 'rotate-180' : ''}`} />
@@ -4764,7 +4756,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     
                     {/* Dropdown stagiaires */}
                     {docSelection.expandedDoc === doc.id && (
-                      <div className="absolute z-20 left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      <div className="absolute z-20 left-0 right-0 mt-1 bg-white border rounded-ui-sm shadow-md max-h-64 overflow-y-auto">
                         {/* Tous les stagiaires */}
                         <button
                           onClick={() => {
@@ -4775,7 +4767,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               selectedTrainees: allSelected ? [] : allIds
                             })
                           }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2 border-b font-medium"
+                          className="w-full px-3 py-2 text-left text-ui hover:bg-[rgb(var(--c-info-bg))] flex items-center gap-2 border-b font-medium"
                         >
                           <input 
                             type="checkbox" 
@@ -4799,7 +4791,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   : [...docSelection.selectedTrainees, t.id]
                               })
                             }}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                            className="w-full px-3 py-2 text-left text-ui hover:bg-gray-50 flex items-center gap-2"
                           >
                             <input 
                               type="checkbox" 
@@ -4855,9 +4847,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {activeTab === 'documents' && (
         <div className="card mt-6">
           <div className="flex items-center gap-2 mb-4">
-            <FileCheck className="w-5 h-5 text-blue-600" />
+            <FileCheck className="w-5 h-5 text-[rgb(var(--c-info))]" />
             <h3 className="font-semibold">Fiche de contrôle formation</h3>
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Archivage papier</span>
+            <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-0.5 rounded">Archivage papier</span>
           </div>
           <SessionChecklist session={session} />
         </div>
@@ -4867,12 +4859,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {activeTab === 'positionnement' && (
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2"><HelpCircle className="w-5 h-5 text-blue-600" />Test de positionnement</h3>
+            <h3 className="font-semibold flex items-center gap-2"><HelpCircle className="w-5 h-5 text-[rgb(var(--c-info))]" />Test de positionnement</h3>
             <div className="flex gap-2">
               {questions.length > 0 && (
                 <button 
                   onClick={() => handleDownload('positionnementCorrige')} 
-                  className="btn btn-secondary flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                  className="btn btn-secondary flex items-center gap-2 text-[rgb(var(--c-danger))] border-[rgb(var(--c-danger)/0.3)] hover:bg-[rgb(var(--c-danger-bg))]"
                 >
                   <Eye className="w-4 h-4" />Corrigé formateur
                 </button>
@@ -4890,11 +4882,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">{questions.length} question(s) configurée(s) pour <strong>{session.courses?.title}</strong></p>
+              <p className="text-ui text-gray-600">{questions.length} question(s) configurée(s) pour <strong>{session.courses?.title}</strong></p>
               
               {/* Boutons de téléchargement */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm font-medium text-blue-800 mb-3"> Générer les tests de positionnement</p>
+              <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4">
+                <p className="text-ui font-medium text-[rgb(var(--c-info))] mb-3"> Générer les tests de positionnement</p>
                 <div className="flex flex-wrap gap-2 relative">
                   <button 
                     onClick={() => handleDownloadAll('positionnement')} 
@@ -4915,7 +4907,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     </button>
                     
                     {docSelection.expandedDoc === 'positionnement' && (
-                      <div className="absolute z-20 left-0 mt-1 w-64 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      <div className="absolute z-20 left-0 mt-1 w-64 bg-white border rounded-ui-sm shadow-md max-h-64 overflow-y-auto">
                         {sessionTrainees.map(t => (
                           <button
                             key={t.id}
@@ -4928,7 +4920,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   : [...docSelection.selectedTrainees, t.id]
                               })
                             }}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                            className="w-full px-3 py-2 text-left text-ui hover:bg-gray-50 flex items-center gap-2"
                           >
                             <input 
                               type="checkbox" 
@@ -4965,7 +4957,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               
               {/* Aperçu des questions */}
               <div className="space-y-3">
-                <p className="text-xs font-medium text-gray-500 uppercase">Aperçu des questions</p>
+                <p className="text-ui-sm font-medium text-gray-500 uppercase">Aperçu des questions</p>
                 {questions.map((q, idx) => {
                   // Parser les options
                   let options = q.options
@@ -4976,19 +4968,19 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   const isQCM = q.question_type === 'single_choice' || q.question_type === 'qcm'
                   
                   return (
-                    <div key={q.id} className={`border rounded-lg p-3 ${q.critical ? 'bg-red-50 border-red-200' : 'bg-gray-50'}`}>
+                    <div key={q.id} className={`border rounded-ui-sm p-3 ${q.critical ? 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)]' : 'bg-gray-50'}`}>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                        <span className="text-ui-sm font-medium px-2 py-0.5 rounded bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]">
                           {isQCM ? 'QCM' : 'Ouverte'}
                         </span>
-                        <span className="text-xs text-gray-400">Q{idx + 1}</span>
-                        {q.critical && <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Critique</span>}
+                        <span className="text-ui-sm text-gray-400">Q{idx + 1}</span>
+                        {q.critical && <span className="text-ui-sm px-2 py-0.5 rounded bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]">Critique</span>}
                       </div>
-                      <p className="font-medium text-sm">{q.question_text}</p>
+                      <p className="font-medium text-ui">{q.question_text}</p>
                       {isQCM && options.length > 0 && (
-                        <div className="mt-2 text-sm text-gray-600 space-y-1">
+                        <div className="mt-2 text-ui text-gray-600 space-y-1">
                           {options.map((opt, optIdx) => (
-                            <p key={optIdx} className={q.correct_index === optIdx ? 'text-green-700 font-medium' : ''}>
+                            <p key={optIdx} className={q.correct_index === optIdx ? 'text-[rgb(var(--c-success))] font-medium' : ''}>
                               {q.correct_index === optIdx ? '' : '○'} {opt}
                             </p>
                           ))}
@@ -5022,11 +5014,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 <div key={doc.id} className="py-3 flex items-center justify-between">
                   <div>
                     <p className="font-medium">{doc.file_name?.replace(/^\d+_/, '') || doc.name || 'Document'}</p>
-                    <p className="text-sm text-gray-500">{uploadCategories.find(c => c.id === doc.document_type)?.label || doc.document_type || doc.category} • {format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                    <p className="text-ui text-gray-500">{uploadCategories.find(c => c.id === doc.document_type)?.label || doc.document_type || doc.category} • {format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm')}</p>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => viewDoc(doc)} className="btn btn-sm btn-ghost"><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => handleDeleteDoc(doc)} className="btn btn-sm btn-ghost text-red-600"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => handleDeleteDoc(doc)} className="btn btn-sm btn-ghost text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               ))}
@@ -5043,13 +5035,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <QrCode className="w-5 h-5 text-primary-600" />
                QR Code Stagiaires
-              <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded ml-2">Ind. 8, 11, 30</span>
+              <span className="text-ui-sm bg-primary-100 text-primary-700 px-2 py-1 rounded ml-2">Ind. 8, 11, 30</span>
             </h3>
             
             <div className="grid md:grid-cols-2 gap-6">
               <div className="text-center">
-                {qrCodeUrl && <img src={qrCodeUrl} alt="QR Code Portail" className="mx-auto mb-4 border-2 border-primary-200 rounded-lg p-3 bg-white" style={{maxWidth: '200px'}} />}
-                <p className="text-sm text-gray-600 mb-3 font-medium">Un seul QR code pour tout gérer</p>
+                {qrCodeUrl && <img src={qrCodeUrl} alt="QR Code Portail" className="mx-auto mb-4 border-2 border-primary-200 rounded-ui-sm p-3 bg-white" style={{maxWidth: '200px'}} />}
+                <p className="text-ui text-gray-600 mb-3 font-medium">Un seul QR code pour tout gérer</p>
                 <button 
                   onClick={() => {
                     navigator.clipboard.writeText(`${window.location.origin}/#/portail/${session.attendance_token}`)
@@ -5063,33 +5055,33 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               
               <div>
                 <h4 className="font-medium mb-3">Flux stagiaire</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-start gap-2 p-2 bg-blue-50 rounded">
-                    <span className="bg-blue-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                <div className="space-y-2 text-ui">
+                  <div className="flex items-start gap-2 p-2 bg-[rgb(var(--c-info-bg))] rounded">
+                    <span className="bg-[rgb(var(--c-info))] text-white w-5 h-5 rounded-full flex items-center justify-center text-ui-sm font-bold">1</span>
                     <div>
-                      <p className="font-medium text-blue-800">Fiche de renseignement</p>
-                      <p className="text-xs text-blue-600">1ère connexion uniquement</p>
+                      <p className="font-medium text-[rgb(var(--c-info))]">Fiche de renseignement</p>
+                      <p className="text-ui-sm text-[rgb(var(--c-info))]">1ère connexion uniquement</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 p-2 bg-green-50 rounded">
-                    <span className="bg-green-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                  <div className="flex items-start gap-2 p-2 bg-[rgb(var(--c-success-bg))] rounded">
+                    <span className="bg-[rgb(var(--c-success))] text-white w-5 h-5 rounded-full flex items-center justify-center text-ui-sm font-bold">2</span>
                     <div>
-                      <p className="font-medium text-green-800">Émargement demi-journées</p>
-                      <p className="text-xs text-green-600">Matin + Après-midi du jour en cours</p>
+                      <p className="font-medium text-[rgb(var(--c-success))]">Émargement demi-journées</p>
+                      <p className="text-ui-sm text-[rgb(var(--c-success))]">Matin + Après-midi du jour en cours</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 p-2 bg-orange-50 rounded">
-                    <span className="bg-orange-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                  <div className="flex items-start gap-2 p-2 bg-[rgb(var(--c-warning-bg))] rounded">
+                    <span className="bg-[rgb(var(--c-warning))] text-white w-5 h-5 rounded-full flex items-center justify-center text-ui-sm font-bold">3</span>
                     <div>
-                      <p className="font-medium text-orange-800">Évaluation à chaud</p>
-                      <p className="text-xs text-orange-600">Dernier jour uniquement</p>
+                      <p className="font-medium text-[rgb(var(--c-warning))]">Évaluation à chaud</p>
+                      <p className="text-ui-sm text-[rgb(var(--c-warning))]">Dernier jour uniquement</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 p-2 bg-yellow-50 rounded">
-                    <span className="bg-yellow-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                  <div className="flex items-start gap-2 p-2 bg-[rgb(var(--c-warning-bg))] rounded">
+                    <span className="bg-[rgb(var(--c-warning))] text-white w-5 h-5 rounded-full flex items-center justify-center text-ui-sm font-bold">4</span>
                     <div>
-                      <p className="font-medium text-yellow-800">Avis Google</p>
-                      <p className="text-xs text-yellow-600">Redirection automatique</p>
+                      <p className="font-medium text-[rgb(var(--c-warning))]">Avis Google</p>
+                      <p className="text-ui-sm text-[rgb(var(--c-warning))]">Redirection automatique</p>
                     </div>
                   </div>
                 </div>
@@ -5106,8 +5098,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
             <div className="grid md:grid-cols-2 gap-6">
               <div className="text-center">
-                {qrSignatureUrl && <img src={qrSignatureUrl} alt="QR Code signature formateur" className="mx-auto mb-4 border-2 border-primary-200 rounded-lg p-3 bg-white" style={{ maxWidth: '200px' }} />}
-                <p className="text-sm text-gray-600 mb-3 font-medium">À scanner avec le téléphone du formateur</p>
+                {qrSignatureUrl && <img src={qrSignatureUrl} alt="QR Code signature formateur" className="mx-auto mb-4 border-2 border-primary-200 rounded-ui-sm p-3 bg-white" style={{ maxWidth: '200px' }} />}
+                <p className="text-ui text-gray-600 mb-3 font-medium">À scanner avec le téléphone du formateur</p>
                 <div className="flex gap-2 justify-center flex-wrap">
                   <button onClick={() => navigate(`/signature/${session.id}`)} className="btn btn-primary flex items-center gap-2">
                     <PenLine className="w-4 h-4" />Ouvrir ici
@@ -5126,7 +5118,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
               <div>
                 <h4 className="font-medium mb-2">Comment ça marche</h4>
-                <ul className="text-sm text-gray-600 space-y-1.5 mb-4 list-disc list-inside">
+                <ul className="text-ui text-gray-600 space-y-1.5 mb-4 list-disc list-inside">
                   <li>Le formateur scanne et se connecte à l'application (une seule fois sur son téléphone).</li>
                   <li>La demi-journée en cours est choisie automatiquement.</li>
                   <li>Il tend le téléphone au stagiaire, qui signe en plein écran.</li>
@@ -5143,7 +5135,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     <button
                       key={m.value}
                       onClick={() => handleSignatureMode(m.value)}
-                      className={`px-3 py-1.5 rounded-lg text-xs border ${
+                      className={`px-3 py-1.5 rounded-ui-sm text-ui-sm border ${
                         (session.signature_mode || 'auto') === m.value
                           ? 'bg-primary-600 text-white border-primary-600 font-medium'
                           : 'border-gray-200 text-gray-600 hover:border-primary-300'}`}
@@ -5152,7 +5144,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-ui-sm text-gray-400 mt-2">
                   « Ouvertes » lève la règle des créneaux pour la journée, « Fermées » bloque toute signature depuis le portail.
                   Le téléphone du formateur n'est jamais bloqué.
                 </p>
@@ -5163,10 +5155,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {/* Document stagiaire pour QR code */}
           <div className="card">
             <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
+              <FileText className="w-5 h-5 text-[rgb(var(--c-info))]" />
                Document stagiaire (QR code)
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-ui text-gray-600 mb-4">
               Activez l'accès au livret de formation pour les stagiaires via QR code
             </p>
             <SessionDocumentAccess 
@@ -5178,7 +5170,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 {/* Suivi des présences */}
 <div className="card">
   <h3 className="font-semibold mb-4 flex items-center gap-2">
-    <CheckCircle className="w-5 h-5 text-green-600" />
+    <CheckCircle className="w-5 h-5 text-[rgb(var(--c-success))]" />
     Suivi des présences (via QR code)
   </h3>
   
@@ -5186,7 +5178,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
     <p className="text-gray-500 text-center py-4">Aucun stagiaire inscrit</p>
   ) : (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-ui">
         <thead>
           <tr className="border-b">
             <th className="text-left py-2 px-2">Stagiaire</th>
@@ -5220,7 +5212,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   {accessCodes[t.id] ? (
                     <div className="flex items-center justify-center gap-2">
                       <span className={`font-mono font-bold text-base ${
-                        accessCodes[t.id].locked ? 'text-red-600' : 'text-blue-600'
+                        accessCodes[t.id].locked ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-info))]'
                       }`}>
                         {accessCodes[t.id].code}
                       </span>
@@ -5230,7 +5222,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         title="Régénérer le code"
                       >Nouveau code</button>
                       {accessCodes[t.id].locked && (
-                        <span className="text-xs text-red-600" title="Compte verrouillé"></span>
+                        <span className="text-ui-sm text-[rgb(var(--c-danger))]" title="Compte verrouillé"></span>
                       )}
                     </div>
                   ) : (
@@ -5251,7 +5243,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
     </div>
   )}
   
-  <p className="text-xs text-gray-400 mt-4">
+  <p className="text-ui-sm text-gray-400 mt-4">
      Les données de présence par demi-journée sont visibles dans l'onglet "Présence".
   </p>
 </div>
@@ -5263,7 +5255,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => { setShowAddTrainee(false); setTraineeSearch('') }} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Ajouter des stagiaires</h2>
                 <button onClick={() => { setShowAddTrainee(false); setTraineeSearch('') }}><X className="w-5 h-5" /></button>
@@ -5288,10 +5280,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 {availableTrainees.length === 0 ? <p className="text-gray-500 text-center py-4">Aucun stagiaire disponible</p> : (
                   <div className="space-y-2">
                     {availableTrainees.map(t => (
-                      <div key={t.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                      <div key={t.id} className="flex items-center justify-between p-3 border rounded-ui-sm hover:bg-gray-50">
                         <div>
                           <p className="font-medium">{t.first_name} {t.last_name}</p>
-                          <p className="text-sm text-gray-500">{t.clients?.name}</p>
+                          <p className="text-ui text-gray-500">{t.clients?.name}</p>
                         </div>
                         <button onClick={() => handleAddTrainee(t.id)} className="btn btn-sm btn-primary"><UserPlus className="w-4 h-4" /></button>
                       </div>
@@ -5309,7 +5301,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowEdit(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-lg max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
                 <h2 className="text-lg font-semibold">Modifier la session</h2>
                 <button onClick={() => setShowEdit(false)}><X className="w-5 h-5" /></button>
@@ -5337,23 +5329,23 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 </div>
                 
                 {/* Case Intra */}
-                <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-ui-sm">
                   <input 
                     type="checkbox" 
                     id="is_intra" 
                     checked={editForm.is_intra} 
                     onChange={(e) => setEditForm({...editForm, is_intra: e.target.checked})}
-                    className="w-5 h-5 text-purple-600 rounded"
+                    className="w-5 h-5 text-gray-800 rounded"
                   />
                   <label htmlFor="is_intra" className="flex-1">
                     <span className="font-medium flex items-center gap-2"><Home className="w-4 h-4" />Formation Intra</span>
-                    <p className="text-sm text-gray-500">La formation se déroule chez le client (adresse client utilisée sur les documents)</p>
+                    <p className="text-ui text-gray-500">La formation se déroule chez le client (adresse client utilisée sur les documents)</p>
                   </label>
                 </div>
                 
                 {/* Lieu - désactivé si Intra */}
                 <div>
-                  <label className="label">Lieu {editForm.is_intra && <span className="text-purple-600 text-xs ml-2">(Adresse client utilisée)</span>}</label>
+                  <label className="label">Lieu {editForm.is_intra && <span className="text-gray-800 text-ui-sm ml-2">(Adresse client utilisée)</span>}</label>
                   <input 
                     type="text" 
                     className="input" 
@@ -5380,39 +5372,39 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 </div>
                 
                 {/* Contact pour convocations */}
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
-                  <p className="font-medium text-blue-800 text-sm"> Contact & Signataire</p>
+                <div className="p-3 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm space-y-3">
+                  <p className="font-medium text-[rgb(var(--c-info))] text-ui"> Contact & Signataire</p>
                   <div>
-                    <label className="label text-xs">Contact convocations</label>
+                    <label className="label text-ui-sm">Contact convocations</label>
                     <select className="input" value={editForm.contact_id} onChange={(e) => setEditForm({...editForm, contact_id: e.target.value})}>
                       <option value="">Contact générique (entreprise)</option>
                       {(session?.clients?.contacts || []).map(c => (
                         <option key={c.id} value={c.id}> {c.name}{c.role ? ` (${c.role})` : ''}</option>
                       ))}
                     </select>
-                    <p className="text-xs text-gray-500 mt-0.5">Personne mentionnée sur les convocations</p>
+                    <p className="text-ui-sm text-gray-500 mt-0.5">Personne mentionnée sur les convocations</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="label text-xs">Signataire convention</label>
+                      <label className="label text-ui-sm">Signataire convention</label>
                       <input type="text" className="input" value={editForm.signatory_name} onChange={(e) => setEditForm({...editForm, signatory_name: e.target.value})} placeholder="Ex: Frédéric LE REGENT" />
                     </div>
                     <div>
-                      <label className="label text-xs">Fonction signataire</label>
+                      <label className="label text-ui-sm">Fonction signataire</label>
                       <input type="text" className="input" value={editForm.signatory_role} onChange={(e) => setEditForm({...editForm, signatory_role: e.target.value})} placeholder="Ex: Dirigeant" />
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500">Si vide, le contact ci-dessus sera utilisé comme signataire sur la convention</p>
+                  <p className="text-ui-sm text-gray-500">Si vide, le contact ci-dessus sera utilisé comme signataire sur la convention</p>
                 </div>
                 <div>
                   <label className="label flex items-center gap-2">
                     Statut
-                    {session?.status_locked && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded"> Forcé</span>}
+                    {session?.status_locked && <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-2 py-0.5 rounded"> Forcé</span>}
                   </label>
                   <select className="input" value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})}>
                     {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-ui-sm text-gray-500 mt-1">
                     {session?.status_locked 
                       ? ' Statut verrouillé (pas de changement auto)' 
                       : 'Le statut change automatiquement selon les dates'}
@@ -5426,7 +5418,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         const result = await getSession(id)
                         if (result.data) setSession(result.data)
                       }}
-                      className="text-xs text-blue-600 hover:underline mt-1"
+                      className="text-ui-sm text-[rgb(var(--c-info))] hover:underline mt-1"
                     >
                        Déverrouiller (revenir au mode automatique)
                     </button>
@@ -5438,32 +5430,32 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 </div>
                 
                 {/* FORPREV - pour formations SST/secourisme */}
-                <div className="col-span-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="font-medium text-green-800 mb-2"> FORPREV (INRS) - Formations SST</p>
+                <div className="col-span-2 p-3 bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm">
+                  <p className="font-medium text-[rgb(var(--c-success))] mb-2"> FORPREV (INRS) - Formations SST</p>
                   <div className="flex items-center gap-6">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded text-green-600"
+                        className="w-4 h-4 rounded text-[rgb(var(--c-success))]"
                         checked={editForm.requires_forprev} 
                         onChange={(e) => setEditForm({...editForm, requires_forprev: e.target.checked})}
                       />
-                      <span className="text-sm text-gray-700">Formation nécessitant FORPREV</span>
+                      <span className="text-ui text-gray-700">Formation nécessitant FORPREV</span>
                     </label>
                     {editForm.requires_forprev && (
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input 
                           type="checkbox" 
-                          className="w-4 h-4 rounded text-green-600"
+                          className="w-4 h-4 rounded text-[rgb(var(--c-success))]"
                           checked={editForm.forprev_done} 
                           onChange={(e) => setEditForm({...editForm, forprev_done: e.target.checked})}
                         />
-                        <span className="text-sm text-gray-700"> Cartes générées sur FORPREV</span>
+                        <span className="text-ui text-gray-700"> Cartes générées sur FORPREV</span>
                       </label>
                     )}
                   </div>
                   {editForm.requires_forprev && !editForm.forprev_done && (
-                    <p className="text-xs text-orange-600 mt-2"> Pensez à générer les cartes SST sur le site FORPREV de l'INRS</p>
+                    <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-2"> Pensez à générer les cartes SST sur le site FORPREV de l'INRS</p>
                   )}
                 </div>
               </div>
@@ -5479,16 +5471,16 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {/* MODAL: Forcer le résultat */}
       {showForceModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white rounded-ui-sm shadow-md max-w-md w-full mx-4">
             <div className="p-4 border-b">
               <h3 className="text-lg font-semibold flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-orange-500" />
+                <AlertCircle className="w-5 h-5 text-[rgb(var(--c-warning))]" />
                 Forcer le résultat
               </h3>
             </div>
             <div className="p-4 space-y-4">
-              <p className="text-sm text-gray-600">
-                Vous allez forcer le résultat à <strong className={forceModalData.newResult === 'acquired' ? 'text-green-600' : 'text-red-600'}>
+              <p className="text-ui text-gray-600">
+                Vous allez forcer le résultat à <strong className={forceModalData.newResult === 'acquired' ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-danger))]'}>
                   {forceModalData.newResult === 'acquired' ? 'ACQUIS' : 'NON ACQUIS'}
                 </strong>.
               </p>
@@ -5502,7 +5494,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   onChange={(e) => setForceModalData(prev => ({ ...prev, reason: e.target.value }))}
                 />
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-ui-sm text-gray-500">
                 Cette justification sera enregistrée pour traçabilité mais n'apparaîtra pas sur les documents.
               </p>
             </div>
@@ -5517,21 +5509,21 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {/* MODAL: Certificat Non Acquis */}
       {showCertificatModal && certificatModalData.trainee && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
-            <div className="p-4 border-b bg-red-50">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-red-700">
+          <div className="bg-white rounded-ui-sm shadow-md max-w-lg w-full mx-4">
+            <div className="p-4 border-b bg-[rgb(var(--c-danger-bg))]">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-[rgb(var(--c-danger))]">
                 <AlertCircle className="w-5 h-5" />
                 Certificat - Résultat NON ACQUIS
               </h3>
-              <p className="text-sm text-red-600 mt-1">
+              <p className="text-ui text-[rgb(var(--c-danger))] mt-1">
                 {certificatModalData.trainee?.first_name} {certificatModalData.trainee?.last_name?.toUpperCase()}
               </p>
             </div>
             <div className="p-4 space-y-4">
               {/* Objectifs non validés */}
               <div>
-                <label className="label text-red-700">Objectifs non validés :</label>
-                <div className="bg-red-50 rounded p-3 space-y-1">
+                <label className="label text-[rgb(var(--c-danger))]">Objectifs non validés :</label>
+                <div className="bg-[rgb(var(--c-danger-bg))] rounded p-3 space-y-1">
                   {(() => {
                     const traineeObjectives = objectivesData.filter(o => o.trainee_id === certificatModalData.trainee?.id)
                     const failedObjectives = traineeObjectives
@@ -5541,13 +5533,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     
                     return failedObjectives.length > 0 ? (
                       failedObjectives.map((obj, idx) => (
-                        <p key={idx} className="text-sm text-red-700 flex items-start gap-2">
+                        <p key={idx} className="text-ui text-[rgb(var(--c-danger))] flex items-start gap-2">
                           <X className="w-4 h-4 mt-0.5 flex-shrink-0" />
                           {obj}
                         </p>
                       ))
                     ) : (
-                      <p className="text-sm text-gray-500 italic">Aucun objectif non validé trouvé</p>
+                      <p className="text-ui text-gray-500 italic">Aucun objectif non validé trouvé</p>
                     )
                   })()}
                 </div>
@@ -5563,7 +5555,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   value={certificatModalData.proposal}
                   onChange={(e) => setCertificatModalData(prev => ({ ...prev, proposal: e.target.value }))}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-ui-sm text-gray-500 mt-1">
                   Cette proposition apparaîtra sur le certificat de réalisation.
                 </p>
               </div>
@@ -5584,13 +5576,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {/* MODAL: Créer nouveau stagiaire */}
       {showNewTraineeModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white rounded-ui-sm shadow-md max-w-md w-full mx-4">
             <div className="p-4 border-b">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-primary-600" />
                 Créer un nouveau stagiaire
               </h3>
-              <p className="text-sm text-gray-500 mt-1">Sera automatiquement ajouté à cette session</p>
+              <p className="text-ui text-gray-500 mt-1">Sera automatiquement ajouté à cette session</p>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -5667,11 +5659,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowInfoSheet(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b bg-blue-50">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b bg-[rgb(var(--c-info-bg))]">
                 <div>
                   <h2 className="text-lg font-semibold">Fiche de renseignement</h2>
-                  <p className="text-sm text-gray-600">{selectedTraineeInfo.trainee?.first_name} {selectedTraineeInfo.trainee?.last_name?.toUpperCase()}</p>
+                  <p className="text-ui text-gray-600">{selectedTraineeInfo.trainee?.first_name} {selectedTraineeInfo.trainee?.last_name?.toUpperCase()}</p>
                 </div>
                 <button onClick={() => setShowInfoSheet(false)}><X className="w-5 h-5" /></button>
               </div>
@@ -5679,26 +5671,26 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <div className="flex-1 overflow-y-auto p-4">
                 {selectedTraineeInfo.info?.filled_at ? (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-green-600 bg-green-50 p-2 rounded">
+                    <div className="flex items-center gap-2 text-[rgb(var(--c-success))] bg-[rgb(var(--c-success-bg))] p-2 rounded">
                       <CheckCircle className="w-4 h-4" />
-                      <span className="text-sm">Remplie le {format(new Date(selectedTraineeInfo.info.filled_at), 'dd/MM/yyyy à HH:mm', { locale: fr })}</span>
-                      {selectedTraineeInfo.info.filled_online && <span className="badge badge-blue text-xs">En ligne</span>}
+                      <span className="text-ui">Remplie le {format(new Date(selectedTraineeInfo.info.filled_at), 'dd/MM/yyyy à HH:mm', { locale: fr })}</span>
+                      {selectedTraineeInfo.info.filled_online && <span className="badge badge-blue text-ui-sm">En ligne</span>}
                     </div>
                     
                     {/* Coordonnées - Section importante */}
-                    <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg">
-                      <p className="text-xs text-amber-700 font-medium mb-2"> Coordonnées pour certificat et Passeport Prévention</p>
+                    <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] p-3 rounded-ui-sm">
+                      <p className="text-ui-sm text-[rgb(var(--c-warning))] font-medium mb-2"> Coordonnées pour certificat et Passeport Prévention</p>
                       <div className="grid md:grid-cols-2 gap-3">
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Email</p>
-                          <p className="font-medium text-sm">{selectedTraineeInfo.info.email || '-'}</p>
+                          <p className="text-ui-sm text-gray-500 mb-1">Email</p>
+                          <p className="font-medium text-ui">{selectedTraineeInfo.info.email || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">N° Sécurité sociale</p>
+                          <p className="text-ui-sm text-gray-500 mb-1">N° Sécurité sociale</p>
                           {selectedTraineeInfo.info.ssn_refused ? (
-                            <p className="text-sm text-red-600 italic">Refusé par le stagiaire</p>
+                            <p className="text-ui text-[rgb(var(--c-danger))] italic">Refusé par le stagiaire</p>
                           ) : (
-                            <p className="font-medium text-sm">{selectedTraineeInfo.info.ssn_present ? 'Renseigné (consultable sur la fiche du stagiaire)' : '-'}</p>
+                            <p className="font-medium text-ui">{selectedTraineeInfo.info.ssn_present ? 'Renseigné (consultable sur la fiche du stagiaire)' : '-'}</p>
                           )}
                         </div>
                       </div>
@@ -5706,15 +5698,15 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="bg-gray-50 p-3 rounded">
-                        <p className="text-xs text-gray-500 mb-1">Dernière formation (domaine)</p>
+                        <p className="text-ui-sm text-gray-500 mb-1">Dernière formation (domaine)</p>
                         <p className="font-medium">{selectedTraineeInfo.info.last_training_year || '-'}</p>
                       </div>
                       <div className="bg-gray-50 p-3 rounded">
-                        <p className="text-xs text-gray-500 mb-1">Plus haut diplôme</p>
+                        <p className="text-ui-sm text-gray-500 mb-1">Plus haut diplôme</p>
                         <p className="font-medium">{selectedTraineeInfo.info.highest_diploma || '-'}</p>
                       </div>
                       <div className="bg-gray-50 p-3 rounded">
-                        <p className="text-xs text-gray-500 mb-1">Consentement RGPD</p>
+                        <p className="text-ui-sm text-gray-500 mb-1">Consentement RGPD</p>
                         <p className="font-medium">{selectedTraineeInfo.info.rgpd_consent ? ' Accepté' : ' Non'}</p>
                       </div>
                     </div>
@@ -5723,7 +5715,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   <div className="text-center py-12">
                     <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-500">Fiche non remplie</p>
-                    <p className="text-sm text-gray-400 mt-1">Le stagiaire n'a pas encore rempli sa fiche de renseignement via le QR code</p>
+                    <p className="text-ui text-gray-400 mt-1">Le stagiaire n'a pas encore rempli sa fiche de renseignement via le QR code</p>
                   </div>
                 )}
               </div>
@@ -5756,11 +5748,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowPositioningTest(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b bg-indigo-50">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b bg-[rgb(var(--c-info-bg))]">
                 <div>
                   <h2 className="text-lg font-semibold"> Test de positionnement</h2>
-                  <p className="text-sm text-gray-600">{selectedPositioningTest.trainee?.first_name} {selectedPositioningTest.trainee?.last_name?.toUpperCase()}</p>
+                  <p className="text-ui text-gray-600">{selectedPositioningTest.trainee?.first_name} {selectedPositioningTest.trainee?.last_name?.toUpperCase()}</p>
                 </div>
                 <button onClick={() => setShowPositioningTest(false)}><X className="w-5 h-5" /></button>
               </div>
@@ -5769,9 +5761,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 {selectedPositioningTest.test?.completed ? (
                   <div className="space-y-6">
                     {/* En-tête complété */}
-                    <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
+                    <div className="flex items-center gap-2 text-[rgb(var(--c-success))] bg-[rgb(var(--c-success-bg))] p-3 rounded-ui-sm">
                       <CheckCircle className="w-5 h-5" />
-                      <span className="text-sm font-medium">
+                      <span className="text-ui font-medium">
                         Test complété le {format(new Date(selectedPositioningTest.test.completed_at), 'dd/MM/yyyy à HH:mm', { locale: fr })}
                       </span>
                     </div>
@@ -5786,24 +5778,24 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       const dontKnow = answers.filter(a => a.selected_option_index === -1)
                       
                       const percentage = totalCritical > 0 ? Math.round((correctCritical / totalCritical) * 100) : 0
-                      const color = percentage >= 80 ? 'green' : percentage >= 50 ? 'yellow' : 'red'
+                      const color = percentage >= 80 ? 'success' : percentage >= 50 ? 'warning' : 'danger'
                       
                       return (
-                        <div className={`bg-${color}-50 border-2 border-${color}-200 rounded-lg p-4`}>
+                        <div className="rounded-ui-sm p-4 border" style={{ background: `rgb(var(--c-${color}-bg))`, borderColor: `rgb(var(--c-${color}) / 0.3)` }}>
                           <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                            <Target className={`w-5 h-5 text-${color}-600`} />
+                            <Target className="w-5 h-5" style={{ color: `rgb(var(--c-${color}))` }} />
                             Synthèse
                           </h3>
                           
                           <div className="space-y-3">
                             {/* Score questions critiques */}
                             <div>
-                              <p className="text-sm font-medium text-gray-700 mb-1">Questions critiques</p>
+                              <p className="text-ui font-medium text-gray-700 mb-1">Questions critiques</p>
                               <div className="flex items-center gap-3">
-                                <div className={`text-3xl font-bold text-${color}-600`}>
+                                <div className="text-3xl font-bold" style={{ color: `rgb(var(--c-${color}))` }}>
                                   {correctCritical}/{totalCritical}
                                 </div>
-                                <div className={`px-3 py-1 rounded-full text-sm font-medium bg-${color}-100 text-${color}-700`}>
+                                <div className="px-3 py-1 rounded-full text-ui font-medium bg-white" style={{ color: `rgb(var(--c-${color}))` }}>
                                   {percentage}%
                                 </div>
                               </div>
@@ -5812,17 +5804,17 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             {/* Points de vigilance */}
                             {(failedCritical.length > 0 || dontKnow.length > 0) && (
                               <div className="pt-3 border-t border-gray-200">
-                                <p className="text-sm font-medium text-orange-700 mb-2"> Points de vigilance :</p>
-                                <ul className="space-y-2 text-sm">
+                                <p className="text-ui font-medium text-[rgb(var(--c-warning))] mb-2"> Points de vigilance :</p>
+                                <ul className="space-y-2 text-ui">
                                   {failedCritical.map((q, idx) => {
                                     const options = typeof q.options === 'string' ? JSON.parse(q.options) : q.options
                                     return (
                                       <li key={idx} className="flex items-start gap-2">
-                                        <span className="text-red-600 font-bold"></span>
+                                        <span className="text-[rgb(var(--c-danger))] font-bold"></span>
                                         <div>
                                           <p className="font-medium text-gray-900">{q.question_text}</p>
-                                          <p className="text-red-600">Réponse donnée : {options[q.selected_option_index]}</p>
-                                          <p className="text-green-600 text-xs">Bonne réponse : {options[q.correct_index]}</p>
+                                          <p className="text-[rgb(var(--c-danger))]">Réponse donnée : {options[q.selected_option_index]}</p>
+                                          <p className="text-[rgb(var(--c-success))] text-ui-sm">Bonne réponse : {options[q.correct_index]}</p>
                                         </div>
                                       </li>
                                     )
@@ -5832,7 +5824,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                       <HelpCircle className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
                                       <div>
                                         <p className="font-medium text-gray-700">{q.question_text}</p>
-                                        <p className="text-gray-500 italic text-xs">Réponse : "Je ne sais pas"</p>
+                                        <p className="text-gray-500 italic text-ui-sm">Réponse : "Je ne sais pas"</p>
                                       </div>
                                     </li>
                                   ))}
@@ -5843,8 +5835,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             {/* Points forts */}
                             {correctCritical > 0 && (
                               <div className="pt-3 border-t border-gray-200">
-                                <p className="text-sm font-medium text-green-700 mb-2"> Points forts :</p>
-                                <p className="text-sm text-gray-600">
+                                <p className="text-ui font-medium text-[rgb(var(--c-success))] mb-2"> Points forts :</p>
+                                <p className="text-ui text-gray-600">
                                   {correctCritical} question{correctCritical > 1 ? 's critiques maîtrisées' : ' critique maîtrisée'}
                                 </p>
                               </div>
@@ -5862,15 +5854,15 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           const options = typeof answer.options === 'string' ? JSON.parse(answer.options) : (answer.options || [])
                           
                           return (
-                            <div key={idx} className="border rounded-lg p-4 bg-gray-50">
+                            <div key={idx} className="border rounded-ui-sm p-4 bg-gray-50">
                               <div className="flex items-start gap-3 mb-3">
-                                <span className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                <span className="flex-shrink-0 w-6 h-6 bg-[rgb(var(--c-info))] text-white rounded-full flex items-center justify-center text-ui font-bold">
                                   {idx + 1}
                                 </span>
                                 <div className="flex-1">
                                   <p className="font-medium text-gray-900">{answer.question_text}</p>
                                   {answer.critical && (
-                                    <span className="inline-block mt-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
+                                    <span className="inline-block mt-1 px-2 py-0.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui-sm rounded">
                                       Question critique
                                     </span>
                                   )}
@@ -5887,10 +5879,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                     return (
                                       <div 
                                         key={optIdx}
-                                        className={`p-2 rounded text-sm ${
-                                          isSelected && answer.is_correct ? 'bg-green-100 text-green-800 font-medium' :
-                                          isSelected && !answer.is_correct ? 'bg-red-100 text-red-800 font-medium' :
-                                          isCorrect ? 'bg-green-50 text-green-700 border border-green-200' :
+                                        className={`p-2 rounded text-ui ${
+                                          isSelected && answer.is_correct ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] font-medium' :
+                                          isSelected && !answer.is_correct ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] font-medium' :
+                                          isCorrect ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] border border-[rgb(var(--c-success)/0.3)]' :
                                           'bg-white text-gray-600'
                                         }`}
                                       >
@@ -5901,7 +5893,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                     )
                                   })}
                                   {answer.selected_option_index === -1 && (
-                                    <div className="p-2 rounded text-sm bg-gray-100 text-gray-600 italic">
+                                    <div className="p-2 rounded text-ui bg-gray-100 text-gray-600 italic">
                                        Je ne sais pas
                                     </div>
                                   )}
@@ -5911,7 +5903,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               {/* Question ouverte */}
                               {answer.question_type === 'open' && (
                                 <div className="ml-9 p-3 bg-white rounded border">
-                                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                                  <p className="text-ui text-gray-700 whitespace-pre-wrap">
                                     {answer.text_answer || <span className="italic text-gray-400">Non répondu</span>}
                                   </p>
                                 </div>
@@ -5963,10 +5955,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         const maxT = (session?.end_time || '').slice(0, 5)
         return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-ui shadow-md max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold text-lg flex items-center gap-2">
-                <LogOut className="w-5 h-5 text-red-600" />
+                <LogOut className="w-5 h-5 text-[rgb(var(--c-danger))]" />
                 Présence partielle
               </h3>
               <button onClick={() => setShowDepartureModal(false)} className="p-1 hover:bg-gray-100 rounded">
@@ -5974,12 +5966,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               </button>
             </div>
             <div className="p-4 space-y-4">
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-ui">
                 <strong>{departureTrainee.first_name} {departureTrainee.last_name}</strong>. Sans saisie, le stagiaire est compté de {minT.replace(':', 'h')} à {maxT.replace(':', 'h')}. Heures en heure de Paris.
               </p>
 
-              <div className="rounded-lg border p-3 space-y-3">
-                <label className="flex items-center gap-2 font-medium text-sm">
+              <div className="rounded-ui-sm border p-3 space-y-3">
+                <label className="flex items-center gap-2 font-medium text-ui">
                   <input type="checkbox" checked={f.has_arrival} onChange={(e) => set({ has_arrival: e.target.checked, presence_hours: '' })} />
                   Arrivée tardive
                 </label>
@@ -5991,7 +5983,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <input type="date" className="input" value={f.arrival_date} min={session?.start_date} max={session?.end_date}
                           onChange={(e) => set({ arrival_date: e.target.value, presence_hours: '' })} />
                       </div>
-                    ) : <div className="text-sm text-gray-500 self-end pb-2">Le {f.arrival_date ? f.arrival_date.split('-').reverse().join('/') : ''}</div>}
+                    ) : <div className="text-ui text-gray-500 self-end pb-2">Le {f.arrival_date ? f.arrival_date.split('-').reverse().join('/') : ''}</div>}
                     <div>
                       <label className="label">Heure d'arrivée</label>
                       <input type="time" className="input" value={f.arrival_time} min={minT} max={maxT}
@@ -6001,8 +5993,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 )}
               </div>
 
-              <div className="rounded-lg border p-3 space-y-3">
-                <label className="flex items-center gap-2 font-medium text-sm">
+              <div className="rounded-ui-sm border p-3 space-y-3">
+                <label className="flex items-center gap-2 font-medium text-ui">
                   <input type="checkbox" checked={f.has_departure} onChange={(e) => set({ has_departure: e.target.checked, presence_hours: '' })} />
                   Départ anticipé (compte comme abandon dans les indicateurs)
                 </label>
@@ -6014,7 +6006,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <input type="date" className="input" value={f.departure_date} min={session?.start_date} max={session?.end_date}
                           onChange={(e) => set({ departure_date: e.target.value, presence_hours: '' })} />
                       </div>
-                    ) : <div className="text-sm text-gray-500 self-end pb-2">Le {f.departure_date ? f.departure_date.split('-').reverse().join('/') : ''}</div>}
+                    ) : <div className="text-ui text-gray-500 self-end pb-2">Le {f.departure_date ? f.departure_date.split('-').reverse().join('/') : ''}</div>}
                     <div>
                       <label className="label">Heure de départ</label>
                       <input type="time" className="input" value={f.departure_time} min={minT} max={maxT}
@@ -6049,14 +6041,14 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 </div>
               )}
 
-              <div className="rounded-lg bg-gray-50 p-3">
+              <div className="rounded-ui-sm bg-gray-50 p-3">
                 <label className="label">Heures de présence retenues (attestation)</label>
                 <div className="flex items-center gap-2">
                   <input type="text" inputMode="decimal" className="input w-28" placeholder={String(calc.hours).replace('.', ',')}
                     value={f.presence_hours} onChange={(e) => set({ presence_hours: e.target.value })} />
-                  <span className="text-sm text-gray-600">heures</span>
+                  <span className="text-ui text-gray-600">heures</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-ui-sm text-gray-500 mt-1">
                   Calcul : {formatHours(calc.hours)}{calc.breakLabel ? ` (${calc.breakLabel})` : ''}. Laissez vide pour retenir le calcul, ou corrigez si besoin.
                 </p>
               </div>
@@ -6065,7 +6057,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <button onClick={() => setShowDepartureModal(false)} className="btn btn-secondary">
                 Annuler
               </button>
-              <button onClick={handleSaveDeparture} className="btn bg-red-600 text-white hover:bg-red-700">
+              <button onClick={handleSaveDeparture} className="btn bg-[rgb(var(--c-danger))] text-white hover:bg-[rgb(var(--c-danger))]">
                 Enregistrer
               </button>
             </div>
@@ -6079,10 +6071,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowExpectationsModal(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="relative bg-white rounded-ui shadow-md w-full max-w-lg">
               <div className="flex items-center justify-between p-4 border-b">
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-blue-600" />
+                  <MessageSquare className="w-5 h-5 text-[rgb(var(--c-info))]" />
                   <h2 className="text-lg font-semibold">Attentes & Observations</h2>
                 </div>
                 <button onClick={() => setShowExpectationsModal(false)}>
@@ -6091,17 +6083,17 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               </div>
               
               <div className="p-4 space-y-4">
-                <div className="bg-gray-50 rounded-lg p-3">
+                <div className="bg-gray-50 rounded-ui-sm p-3">
                   <p className="font-medium text-gray-900">
                     {expectationsModalData.trainee.first_name} {expectationsModalData.trainee.last_name?.toUpperCase()}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-ui text-gray-500">
                     {expectationsModalData.trainee.email}
                   </p>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-ui font-medium text-gray-700 mb-1">
                     Attentes du stagiaire
                   </label>
                   <textarea
@@ -6113,13 +6105,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     placeholder="Attentes saisies par le stagiaire ou à saisir manuellement..."
                     className="input w-full h-24"
                   />
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-ui-sm text-gray-400 mt-1">
                     {expectationsModalData.expectations ? 'Modifiable par l\'admin' : 'Aucune attente renseignée'}
                   </p>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-ui font-medium text-gray-700 mb-1">
                     Observation / Adaptation
                   </label>
                   <textarea
@@ -6157,6 +6149,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB: Suivi formatif (module optionnel) */}
+      {activeTab === 'suivi_formatif' && suiviFormatifOn && session?.id && (session?.courses?.formative_enabled || formativeSummary?.sequences?.length > 0) && (
+        <SuiviFormatifTab sessionId={session.id} sessionStatus={session.status} />
       )}
 
       {/* TAB: Certification SST */}

@@ -2,7 +2,7 @@
 """Fabrique le script d'essai du chantier 2 en transaction annulée.
 
 Lancer `python3 scripts/securite/essai.py` réécrit
-supabase/tests/essai_chantier2_transaction_annulee.sql : les migrations 0080 à 0086 à la suite,
+supabase/tests/essai_chantier2_transaction_annulee.sql : les migrations 0080 à 0087 à la suite,
 puis les tests de droits. Le script se termine toujours par une erreur volontaire (fin des tests) :
 toute l'exécution est annulée, rien n'est enregistré. Ne pas modifier le fichier produit à la main.
 """
@@ -10,17 +10,29 @@ import re
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-mig = sorted((root / 'supabase' / 'migrations').glob('008[0-6]_*.sql'))
+mig = sorted((root / 'supabase' / 'migrations').glob('008[0-7]_*.sql'))
 tests = root / 'supabase' / 'tests' / 'droits_chantier2.sql'
 
 parts = ["""-- FICHIER GÉNÉRÉ par scripts/securite/essai.py : ne pas modifier à la main.
--- Essai du chantier 2 en transaction annulée : migrations 0080 à 0086, puis tests de droits.
+-- Essai du chantier 2 en transaction annulée : migrations 0080 à 0087, puis tests de droits.
 -- Le script se termine TOUJOURS par une erreur volontaire « RÉSULTAT DES TESTS DE DROITS » :
 -- tout est annulé, rien n'est enregistré. Il ne contient aucune validation de transaction.
 
 -- Pas de BEGIN : l'éditeur envoie le texte en un seul message, exécuté dans une seule transaction implicite ;
 -- l'erreur finale l'annule entièrement et la connexion reste propre.
 select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '180s', true);
+
+-- Photographie du suivi formatif (0250) avant les migrations : le script de tests vérifie qu'il est inchangé
+create temp table essai_sf_avant as
+  select 'fonction'::text as kind, p.oid::regprocedure::text as name,
+         md5(concat_ws('|', pg_get_functiondef(p.oid), p.prosecdef::text, p.proconfig::text,
+             (select string_agg(a.grantee::regrole::text || ':' || a.privilege_type, ',' order by a.grantee::regrole::text, a.privilege_type)
+              from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a))) as v
+  from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'sf\\_%' or p.proname = 'save_formative_batch')
+  union all
+  select 'règle', tablename || '.' || policyname, md5(concat_ws('|', permissive, roles::text, cmd, qual, with_check))
+  from pg_policies where schemaname = 'public'
+    and tablename in ('course_sequences', 'session_sequences', 'formative_evaluations', 'formative_sheets');
 """]
 for f in mig:
     parts.append(f"\n-- ===== {f.name} =====\n")
@@ -35,7 +47,7 @@ out.write_text(text, encoding='utf-8')
 print(f"{out.relative_to(root)} : {len(mig)} migrations + tests, {len(text)} caractères")
 
 # Essai du retour arrière : état photographié, migrations, retour arrière, comparaison, annulation.
-retour = root / 'supabase' / 'rollback' / '0080-0086_securite_retour.sql'
+retour = root / 'supabase' / 'rollback' / '0080-0087_securite_retour.sql'
 etat = """
 create temp view etat_essai as
   select 'règle' as kind, schemaname || '.' || tablename || '.' || policyname as name,
@@ -73,6 +85,10 @@ create temp view etat_essai as
          md5(coalesce(string_agg(id::text || coalesce(social_security_number, '') || coalesce(encode(ssn_encrypted, 'hex'), ''), ',' order by id), ''))
   from public.trainees
   union all
+  select 'handicap stagiaires', 'trainees',
+         md5(coalesce(string_agg(id::text || coalesce(has_disability::text, '') || coalesce(disability_details, '') || coalesce(disability_adaptations, ''), ',' order by id), ''))
+  from public.trainees
+  union all
   select 'numéros fiches', 'trainee_info_sheets',
          md5(coalesce(string_agg(id::text || coalesce(ssn, ''), ',' order by id), ''))
   from public.trainee_info_sheets;
@@ -101,7 +117,7 @@ end
 $verif$;
 """
 p2 = ["""-- FICHIER GÉNÉRÉ par scripts/securite/essai.py : ne pas modifier à la main.
--- Essai du retour arrière en transaction annulée : photographie de l'état, migrations 0080 à 0086,
+-- Essai du retour arrière en transaction annulée : photographie de l'état, migrations 0080 à 0087,
 -- retour arrière, comparaison avec l'état d'avant. Se termine TOUJOURS par une erreur volontaire
 -- « RÉSULTAT DE L'ESSAI DU RETOUR ARRIÈRE » : tout est annulé. Aucune validation de transaction.
 select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '180s', true);

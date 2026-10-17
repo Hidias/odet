@@ -9,7 +9,7 @@
 --                 (même règle que le mode terrain de l'application, fieldOnly)
 --   entreprise, formateur_externe, stagiaire : comptes externes prévus (lot 2), aucun accès aux tables
 --   null        : pas de profil, ou profil désactivé
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 create schema if not exists app;
 revoke all on schema app from public;
@@ -67,6 +67,23 @@ as $$
   select coalesce(app.role() = any (array[
     'superadmin', 'admin', 'direction', 'gestionnaire', 'formateur', 'commercial', 'comptable', 'lecture', 'technicien'
   ]), false)
+$$;
+
+-- Données de handicap (santé) : direction (superadmin, admin, direction) et référent handicap désigné
+-- dans Qualité > Référents (quality_roles, code referent_handicap). Compte désactivé : jamais.
+create or replace function app.can_see_disability()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    app.role() = any (array['superadmin', 'admin', 'direction'])
+    or (app.role() is not null and exists (
+          select 1 from public.quality_roles q
+          where q.code = 'referent_handicap' and q.profile_id = (select auth.uid()))),
+    false)
 $$;
 
 -- Sessions dont l'utilisateur est le formateur (fiche formateur reliée au compte)

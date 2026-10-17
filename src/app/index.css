@@ -38,22 +38,26 @@
   --row-py: 0.75rem;
   --page-px: 1.5rem;
 
-  /* Rayons moyens */
-  --radius-ui-sm: 6px;
-  --radius-ui: 10px;
-  --radius-ui-lg: 14px;
+  /* Angles (direction Ardoise : nets par défaut) */
+  --radius-ui-sm: 3px;
+  --radius-ui: 5px;
+  --radius-ui-lg: 8px;
 
   /* Couleurs sémantiques : fixes, indépendantes du thème de l'organisme */
   --c-success: 26 107 67;
   --c-success-bg: 230 244 236;
   --c-warning: 138 90 0;
   --c-warning-bg: 255 244 214;
-  --c-danger: 180 35 24;
-  --c-danger-bg: 253 236 236;
+  /* Rouge brique : distinct du rouge de marque, réservé aux alertes */
+  --c-danger: 159 42 20;
+  --c-danger-bg: 251 233 228;
   --c-info: 35 74 143;
   --c-info-bg: 231 238 249;
 
   --ground: 244 245 247;
+  --c-line: 227 229 232;
+  --c-muted: 105 112 121;
+  --shadow-pop: 0 8px 28px -12px rgb(17 20 24 / 0.28), 0 1px 2px rgb(17 20 24 / 0.08);
 }
 
 html[data-density='compact'] {
@@ -81,8 +85,8 @@ html[data-density='large'] {
   --ground: 247 244 238;
 }
 
-html[data-radius='sm'] { --radius-ui-sm: 4px; --radius-ui: 6px; --radius-ui-lg: 8px; }
-html[data-radius='lg'] { --radius-ui-sm: 10px; --radius-ui: 14px; --radius-ui-lg: 18px; }
+html[data-radius='sm'] { --radius-ui-sm: 2px; --radius-ui: 3px; --radius-ui-lg: 4px; }
+html[data-radius='lg'] { --radius-ui-sm: 8px; --radius-ui: 12px; --radius-ui-lg: 16px; }
 
 @layer base {
   html {
@@ -129,7 +133,8 @@ html[data-radius='lg'] { --radius-ui-sm: 10px; --radius-ui: 14px; --radius-ui-lg
   .btn-primary { @apply bg-accent-500 text-accent-fg hover:bg-accent-600; }
   .btn-secondary { @apply bg-white text-gray-800 border-gray-300 hover:bg-gray-50; }
   .btn-ghost { @apply bg-transparent text-gray-700 hover:bg-gray-100; }
-  .btn-danger { @apply bg-red-600 text-white hover:bg-red-700; }
+  .btn-danger { background: rgb(var(--c-danger)); color: #fff; }
+  .btn-danger:hover { filter: brightness(0.92); }
   .btn-success { @apply bg-green-700 text-white hover:bg-green-800; }
   .btn-sm { height: calc(var(--control-h) - 8px); padding: 0 var(--space-2); font-size: var(--text-ui-sm); }
   .btn-icon { width: var(--control-h); padding: 0; }
@@ -153,19 +158,19 @@ html[data-radius='lg'] { --radius-ui-sm: 10px; --radius-ui: 14px; --radius-ui-lg
   }
   .card-flush { padding: 0; overflow: hidden; }
 
+  /* Statuts (direction Ardoise) : un point de couleur et un texte, sans aplat */
   .badge {
-    @apply inline-flex items-center gap-1 font-semibold whitespace-nowrap;
-    height: 22px;
-    padding: 0 0.5rem;
-    border-radius: 999px;
+    @apply inline-flex items-center gap-1.5 font-medium whitespace-nowrap text-gray-800;
     font-size: var(--text-ui-sm);
+    line-height: 1.3;
   }
-  .badge-success { background: rgb(var(--c-success-bg)); color: rgb(var(--c-success)); }
-  .badge-warning { background: rgb(var(--c-warning-bg)); color: rgb(var(--c-warning)); }
-  .badge-danger { background: rgb(var(--c-danger-bg)); color: rgb(var(--c-danger)); }
-  .badge-info { background: rgb(var(--c-info-bg)); color: rgb(var(--c-info)); }
-  .badge-neutral { @apply bg-gray-100 text-gray-700; }
-  .badge-brand { @apply bg-accent-500/10 text-accent-700; }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: rgb(var(--badge-c, var(--c-muted))); flex: none; }
+  .badge-success { --badge-c: var(--c-success); }
+  .badge-warning { --badge-c: 184 122 0; }
+  .badge-danger { --badge-c: var(--c-danger); }
+  .badge-info { --badge-c: var(--c-info); }
+  .badge-neutral { --badge-c: var(--c-muted); }
+  .badge-brand { --badge-c: var(--c-accent-500); }
 
   /* Anciennes classes conservées le temps de la migration des pages */
   .badge-green { @apply badge-success; }
@@ -180,7 +185,12 @@ html[data-radius='lg'] { --radius-ui-sm: 10px; --radius-ui: 14px; --radius-ui-lg
   .section-title { @apply font-display font-semibold text-gray-900; font-size: calc(var(--text-ui) * 1.1); }
   .muted { @apply text-gray-500; }
 
+  .surface { background: #fff; border: 1px solid rgb(var(--c-line)); border-radius: var(--radius-ui); }
+  .hairline { border-color: rgb(var(--c-line)); }
+  .eyebrow { @apply text-gray-500 font-medium; font-size: var(--text-ui-sm); }
+
   .tabs { @apply flex gap-1 border-b border-gray-200 overflow-x-auto; }
+  .btn-lg { height: calc(var(--control-h) + 10px); padding: 0 var(--space-4); font-size: calc(var(--text-ui) + 1px); }
   .tab { @apply px-3 py-2.5 font-medium text-gray-500 border-b-2 border-transparent -mb-px whitespace-nowrap hover:text-gray-900; }
   .tab-active { @apply text-gray-900 border-accent-500; }
 }
@@ -240,3 +250,70 @@ button, a, nav { -webkit-tap-highlight-color: transparent; }
     margin-right: 0.5rem;
   }
 }
+
+/* Statut unique (composant StatusBadge) : un point de couleur et un texte.
+   Hors @layer : les tons sont choisis à l'exécution (status-${ton}), Tailwind ne doit pas les retirer. */
+.status { display: inline-flex; align-items: center; gap: 0.375rem; font-weight: 500; white-space: nowrap; color: #1f2937; font-size: var(--text-ui-sm); }
+.status::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: rgb(var(--status-c, var(--c-muted))); flex: none; }
+.status-success { --status-c: var(--c-success); }
+.status-warning { --status-c: 184 122 0; }
+.status-danger { --status-c: var(--c-danger); }
+.status-info { --status-c: var(--c-info); }
+.status-neutral { --status-c: var(--c-muted); }
+.status-brand { --status-c: var(--c-accent-500); }
+
+/* ============================================================
+   COMPOSANTS COMMUNS (src/ui)
+   ============================================================ */
+
+/* Tableau : tableau sur PC, cartes sur téléphone ou si « Listes en cartes » est choisi */
+.dt-cards { display: none; margin: 0; padding: 0; list-style: none; }
+.dt-card { padding: var(--row-py) var(--space-3); border-top: 1px solid rgb(var(--c-line)); }
+.dt-card:first-child { border-top: 0; }
+@media (max-width: 767px) {
+  .dt-table { display: none; }
+  .dt-cards { display: block; }
+}
+html[data-lists='cards'] .dt-table { display: none; }
+html[data-lists='cards'] .dt-cards { display: block; }
+
+/* Barre d'actions : fixe en bas sur téléphone, dans le flux sur PC */
+.action-bar { display: flex; flex-wrap: wrap; gap: var(--space-1); justify-content: flex-end; align-items: center; }
+@media (max-width: 767px) {
+  .action-bar {
+    position: sticky; bottom: 0; z-index: 30; flex-wrap: nowrap;
+    margin: var(--space-3) calc(var(--page-px) * -1) 0; padding: var(--space-2) var(--page-px);
+    padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
+    background: #fff; border-top: 1px solid rgb(var(--c-line));
+  }
+  .action-bar > .btn { flex: 1 1 auto; }
+  .action-bar > .btn-icon { flex: 0 0 auto; }
+}
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn, .animate-spin { animation: none; }
+}
+
+/* Barre de navigation en bas (téléphone) */
+.bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  background: #fff; border-top: 1px solid rgb(var(--c-line));
+  padding: 4px max(4px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+}
+.bottom-nav-item {
+  display: grid; justify-items: center; align-content: center; gap: 2px; min-height: 52px;
+  font-size: 11px; font-weight: 500; color: #6b7280; position: relative;
+}
+.bottom-nav-item.is-active { color: rgb(var(--c-accent-600)); font-weight: 600; }
+.bottom-nav-item.is-active::before { content: ""; position: absolute; top: -4px; left: 30%; right: 30%; height: 2px; background: rgb(var(--c-accent-500)); }
+@media (max-width: 1023px) {
+  main.has-bottom-nav { padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important; }
+  html[data-bottom-nav='1'] .action-bar { bottom: calc(60px + env(safe-area-inset-bottom)); }
+}
+
+/* Onglets : défilement sans barre visible */
+.tabs-scroll { scrollbar-width: none; }
+.tabs-scroll::-webkit-scrollbar { display: none; }

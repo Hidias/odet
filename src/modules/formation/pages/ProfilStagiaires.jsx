@@ -15,6 +15,8 @@ export default function ProfilStagiaires() {
   
   const [loading, setLoading] = useState(true)
   const [trainees, setTrainees] = useState([])
+  // Nombre de stagiaires en situation de handicap, sans identité (donnée réservée, lue par une fonction de comptage)
+  const [handicapCount, setHandicapCount] = useState(0)
   
   // Filtres
   const [filterPeriod, setFilterPeriod] = useState('all') // all, year, custom
@@ -101,8 +103,7 @@ export default function ProfilStagiaires() {
           gender,
           birth_date,
           csp,
-          job_title,
-          has_disability
+          job_title
         )
       `), 'session_id', sessionIds)
     
@@ -123,6 +124,8 @@ export default function ProfilStagiaires() {
     })
     
     setTrainees(uniqueTrainees)
+    const { data: nHandicap } = await supabase.rpc('disability_count', { p_trainee_ids: [...traineeIds] })
+    setHandicapCount(Number(nHandicap) || 0)
   }
   
   // Calculer l'âge à partir de la date de naissance
@@ -215,8 +218,8 @@ export default function ProfilStagiaires() {
       return { masked: true, total: trainees.length }
     }
     
-    const withHandicap = trainees.filter(t => t.has_disability).length
-    const withoutHandicap = trainees.filter(t => !t.has_disability).length
+    const withHandicap = Math.min(handicapCount, trainees.length)
+    const withoutHandicap = trainees.length - withHandicap
     
     return {
       with: withHandicap,
@@ -434,7 +437,7 @@ export default function ProfilStagiaires() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <Users className="w-7 h-7 text-primary-600" />
             Profil des Stagiaires
           </h1>
@@ -567,7 +570,7 @@ export default function ProfilStagiaires() {
               setStartDate('')
               setEndDate('')
             }}
-            className="text-sm text-red-600 hover:underline mt-3"
+            className="text-ui text-[rgb(var(--c-danger))] hover:underline mt-3"
           >
             Réinitialiser tous les filtres
           </button>
@@ -576,11 +579,11 @@ export default function ProfilStagiaires() {
       
       {/* Alerte RGPD */}
       {trainees.length > 0 && trainees.length < RGPD_THRESHOLD && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-          <Info className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-4 flex items-start gap-3">
+          <Info className="w-5 h-5 text-[rgb(var(--c-warning))] flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-yellow-800">Données masquées (RGPD)</p>
-            <p className="text-sm text-yellow-700 mt-1">
+            <p className="font-medium text-[rgb(var(--c-warning))]">Données masquées (RGPD)</p>
+            <p className="text-ui text-[rgb(var(--c-warning))] mt-1">
               Moins de {RGPD_THRESHOLD} stagiaires trouvés ({trainees.length}). Les statistiques détaillées sont masquées pour respecter la confidentialité.
             </p>
           </div>
@@ -592,7 +595,7 @@ export default function ProfilStagiaires() {
         <div className="card text-center py-12">
           <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">Aucun stagiaire trouvé pour ces critères</p>
-          <p className="text-sm text-gray-400 mt-1">Modifiez les filtres ou vérifiez que des sessions sont terminées</p>
+          <p className="text-ui text-gray-400 mt-1">Modifiez les filtres ou vérifiez que des sessions sont terminées</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
@@ -600,44 +603,44 @@ export default function ProfilStagiaires() {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-600" />
+                <User className="w-5 h-5 text-[rgb(var(--c-info))]" />
                 Répartition par genre
               </h3>
-              <span className="text-sm text-gray-500">{genderStats.total} stagiaires</span>
+              <span className="text-ui text-gray-500">{genderStats.total} stagiaires</span>
             </div>
             
             {genderStats.masked ? (
               <div className="text-center py-8 text-gray-400">
                 <Info className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
+                <p className="text-ui">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Hommes</span>
+                  <span className="text-ui">Hommes</span>
                   <div className="flex items-center gap-2">
                     <div className="w-32 bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-blue-500 h-2 rounded-full"
+                        className="bg-[rgb(var(--c-info))] h-2 rounded-full"
                         style={{ width: `${(genderStats.male / genderStats.total) * 100}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm font-medium w-16 text-right">
+                    <span className="text-ui font-medium w-16 text-right">
                       {genderStats.male} ({((genderStats.male / genderStats.total) * 100).toFixed(1)}%)
                     </span>
                   </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Femmes</span>
+                  <span className="text-ui">Femmes</span>
                   <div className="flex items-center gap-2">
                     <div className="w-32 bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-pink-500 h-2 rounded-full"
+                        className="bg-gray-700 h-2 rounded-full"
                         style={{ width: `${(genderStats.female / genderStats.total) * 100}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm font-medium w-16 text-right">
+                    <span className="text-ui font-medium w-16 text-right">
                       {genderStats.female} ({((genderStats.female / genderStats.total) * 100).toFixed(1)}%)
                     </span>
                   </div>
@@ -645,15 +648,15 @@ export default function ProfilStagiaires() {
                 
                 {genderStats.non_binary > 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Non-binaire</span>
+                    <span className="text-ui">Non-binaire</span>
                     <div className="flex items-center gap-2">
                       <div className="w-32 bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-purple-500 h-2 rounded-full"
+                          className="bg-gray-700 h-2 rounded-full"
                           style={{ width: `${(genderStats.non_binary / genderStats.total) * 100}%` }}
                         ></div>
                       </div>
-                      <span className="text-sm font-medium w-16 text-right">
+                      <span className="text-ui font-medium w-16 text-right">
                         {genderStats.non_binary} ({((genderStats.non_binary / genderStats.total) * 100).toFixed(1)}%)
                       </span>
                     </div>
@@ -662,8 +665,8 @@ export default function ProfilStagiaires() {
                 
                 {genderStats.unknown > 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Non renseigné</span>
-                    <span className="text-sm font-medium w-16 text-right text-gray-500">
+                    <span className="text-ui text-gray-500">Non renseigné</span>
+                    <span className="text-ui font-medium w-16 text-right text-gray-500">
                       {genderStats.unknown}
                     </span>
                   </div>
@@ -676,30 +679,30 @@ export default function ProfilStagiaires() {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
+                <TrendingUp className="w-5 h-5 text-[rgb(var(--c-success))]" />
                 Répartition par âge
               </h3>
-              <span className="text-sm text-gray-500">{ageStats.total} stagiaires</span>
+              <span className="text-ui text-gray-500">{ageStats.total} stagiaires</span>
             </div>
             
             {ageStats.masked ? (
               <div className="text-center py-8 text-gray-400">
                 <Info className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
+                <p className="text-ui">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {Object.entries(ageStats.groups).map(([age, count]) => (
                   <div key={age} className="flex items-center justify-between">
-                    <span className="text-sm">{age}</span>
+                    <span className="text-ui">{age}</span>
                     <div className="flex items-center gap-2">
                       <div className="w-32 bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-green-500 h-2 rounded-full"
+                          className="bg-[rgb(var(--c-success))] h-2 rounded-full"
                           style={{ width: `${(count / ageStats.total) * 100}%` }}
                         ></div>
                       </div>
-                      <span className="text-sm font-medium w-16 text-right">
+                      <span className="text-ui font-medium w-16 text-right">
                         {count} ({((count / ageStats.total) * 100).toFixed(1)}%)
                       </span>
                     </div>
@@ -713,30 +716,30 @@ export default function ProfilStagiaires() {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-orange-600" />
+                <Briefcase className="w-5 h-5 text-[rgb(var(--c-warning))]" />
                 Répartition par CSP
               </h3>
-              <span className="text-sm text-gray-500">{cspStats.total} stagiaires</span>
+              <span className="text-ui text-gray-500">{cspStats.total} stagiaires</span>
             </div>
             
             {cspStats.masked ? (
               <div className="text-center py-8 text-gray-400">
                 <Info className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
+                <p className="text-ui">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
               </div>
             ) : (
               <div className="space-y-3 max-h-80 overflow-y-auto">
                 {cspStats.groups.map(([csp, count]) => (
                   <div key={csp} className="flex items-center justify-between">
-                    <span className="text-sm flex-1 pr-2">{csp}</span>
+                    <span className="text-ui flex-1 pr-2">{csp}</span>
                     <div className="flex items-center gap-2">
                       <div className="w-24 bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-orange-500 h-2 rounded-full"
+                          className="bg-[rgb(var(--c-warning))] h-2 rounded-full"
                           style={{ width: `${(count / cspStats.total) * 100}%` }}
                         ></div>
                       </div>
-                      <span className="text-sm font-medium w-16 text-right">
+                      <span className="text-ui font-medium w-16 text-right">
                         {count} ({((count / cspStats.total) * 100).toFixed(1)}%)
                       </span>
                     </div>
@@ -750,47 +753,47 @@ export default function ProfilStagiaires() {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center gap-2">
-                <Heart className="w-5 h-5 text-red-600" />
+                <Heart className="w-5 h-5 text-[rgb(var(--c-danger))]" />
                 Situation de handicap
               </h3>
-              <span className="text-sm text-gray-500">{handicapStats.total} stagiaires</span>
+              <span className="text-ui text-gray-500">{handicapStats.total} stagiaires</span>
             </div>
             
             {handicapStats.masked ? (
               <div className="text-center py-8 text-gray-400">
                 <Info className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
+                <p className="text-ui">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-[rgb(var(--c-danger-bg))] rounded-ui-sm">
                   <div>
-                    <p className="text-sm text-gray-600">Avec handicap</p>
-                    <p className="text-2xl font-bold text-red-600">{handicapStats.with}</p>
+                    <p className="text-ui text-gray-600">Avec handicap</p>
+                    <p className="text-2xl font-bold text-[rgb(var(--c-danger))]">{handicapStats.with}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-3xl font-bold text-red-600">{handicapStats.percentage}%</p>
-                    <p className="text-xs text-gray-500">du total</p>
+                    <p className="text-3xl font-bold text-[rgb(var(--c-danger))]">{handicapStats.percentage}%</p>
+                    <p className="text-ui-sm text-gray-500">du total</p>
                   </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Avec handicap</span>
+                  <span className="text-ui">Avec handicap</span>
                   <div className="flex items-center gap-2">
                     <div className="w-32 bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-red-500 h-2 rounded-full"
+                        className="bg-[rgb(var(--c-danger))] h-2 rounded-full"
                         style={{ width: `${handicapStats.percentage}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm font-medium w-16 text-right">
+                    <span className="text-ui font-medium w-16 text-right">
                       {handicapStats.with}
                     </span>
                   </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Sans handicap</span>
+                  <span className="text-ui">Sans handicap</span>
                   <div className="flex items-center gap-2">
                     <div className="w-32 bg-gray-200 rounded-full h-2">
                       <div
@@ -798,7 +801,7 @@ export default function ProfilStagiaires() {
                         style={{ width: `${100 - handicapStats.percentage}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm font-medium w-16 text-right">
+                    <span className="text-ui font-medium w-16 text-right">
                       {handicapStats.without}
                     </span>
                   </div>
@@ -811,32 +814,32 @@ export default function ProfilStagiaires() {
           <div className="card md:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-purple-600" />
+                <BarChart3 className="w-5 h-5 text-gray-800" />
                 Top 10 des postes / fonctions
               </h3>
-              <span className="text-sm text-gray-500">{jobStats.total} stagiaires</span>
+              <span className="text-ui text-gray-500">{jobStats.total} stagiaires</span>
             </div>
             
             {jobStats.masked ? (
               <div className="text-center py-8 text-gray-400">
                 <Info className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
+                <p className="text-ui">Données masquées (moins de {RGPD_THRESHOLD} personnes)</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {jobStats.groups.map(([job, count], index) => (
                   <div key={job} className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-gray-400 w-6 text-right">#{index + 1}</span>
+                    <span className="text-ui-sm font-bold text-gray-400 w-6 text-right">#{index + 1}</span>
                     <div className="flex-1 flex items-center justify-between">
-                      <span className="text-sm flex-1 pr-2">{job}</span>
+                      <span className="text-ui flex-1 pr-2">{job}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-32 bg-gray-200 rounded-full h-2">
                           <div
-                            className="bg-purple-500 h-2 rounded-full"
+                            className="bg-gray-700 h-2 rounded-full"
                             style={{ width: `${(count / jobStats.total) * 100}%` }}
                           ></div>
                         </div>
-                        <span className="text-sm font-medium w-16 text-right">
+                        <span className="text-ui font-medium w-16 text-right">
                           {count} ({((count / jobStats.total) * 100).toFixed(1)}%)
                         </span>
                       </div>

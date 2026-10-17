@@ -1,3 +1,5 @@
+import { supabase } from './supabase'
+
 // ════════════════════════════════════════════════════════════════
 // storageUtils.js - Helpers pour Supabase Storage
 // ════════════════════════════════════════════════════════════════
@@ -58,3 +60,54 @@ export function buildStorageFileName(originalName, ts = Date.now()) {
 }
 
 export default sanitizeStorageKey
+
+// ════════════════════════════════════════════════════════════════
+// Fichiers des buckets privés (liens signés)
+// ════════════════════════════════════════════════════════════════
+// Les colonnes gardent l'adresse « publique » enregistrée à l'envoi du fichier
+// (…/storage/v1/object/public/<bucket>/<chemin>) : elle sert seulement à retrouver
+// le chemin. Pour un bucket privé, on demande un lien signé de courte durée.
+// Une adresse qui n'est pas celle d'un bucket privé connu est renvoyée telle quelle.
+
+
+export const PRIVATE_BUCKETS = ['trainer-signatures']
+
+/** Chemin du fichier dans le bucket, depuis une adresse enregistrée ou un chemin */
+export function storagePathFrom(bucket, urlOrPath) {
+  if (!urlOrPath) return null
+  const s = String(urlOrPath)
+  const marker = `/${bucket}/`
+  const i = s.indexOf(marker)
+  if (i >= 0 && /^https?:/.test(s)) return decodeURIComponent(s.slice(i + marker.length).split('?')[0])
+  if (/^https?:|^data:/.test(s)) return null
+  return s.replace(/^\/+/, '')
+}
+
+/** Lien utilisable par le navigateur : signé (5 min) pour un bucket privé, sinon l'adresse d'origine */
+export async function readableUrl(urlOrPath, seconds = 300) {
+  if (!urlOrPath || /^data:/.test(String(urlOrPath))) return urlOrPath || null
+  for (const bucket of PRIVATE_BUCKETS) {
+    if (!String(urlOrPath).includes(`/${bucket}/`)) continue
+    const path = storagePathFrom(bucket, urlOrPath)
+    if (!path) return null
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, seconds)
+    return error ? null : data?.signedUrl || null
+  }
+  return urlOrPath
+}
+
+/** Contenu d'un fichier (adresse enregistrée ou lien), sous forme de data URL ; null si illisible */
+export async function fileAsDataUrl(urlOrPath) {
+  const url = await readableUrl(urlOrPath)
+  if (!url) return null
+  if (/^data:/.test(url)) return url
+  const resp = await fetch(url)
+  if (!resp.ok) return null
+  const blob = await resp.blob()
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}

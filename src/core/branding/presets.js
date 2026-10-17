@@ -41,6 +41,7 @@ export const FONT_PAIRS = {
   atelier: { label: 'Sora et Instrument Sans', display: "'Sora', system-ui, sans-serif", body: "'Instrument Sans', system-ui, sans-serif" },
   terrain: { label: 'Bricolage Grotesque et Public Sans', display: "'Bricolage Grotesque', system-ui, sans-serif", body: "'Public Sans', system-ui, sans-serif" },
   cockpit: { label: 'Space Grotesk et IBM Plex Sans', display: "'Space Grotesk', system-ui, sans-serif", body: "'IBM Plex Sans', system-ui, sans-serif" },
+  lisibilite: { label: 'Atkinson Hyperlegible Next', display: "'Atkinson Hyperlegible Next', system-ui, sans-serif", body: "'Atkinson Hyperlegible Next', system-ui, sans-serif" },
 }
 
 // Normalise un objet de préférences (valeurs inconnues ramenées au préréglage)

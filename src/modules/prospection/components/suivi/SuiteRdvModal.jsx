@@ -124,18 +124,18 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-ui shadow-md w-full max-w-lg max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-gray-100">
           <div>
             <h3 className="text-base font-semibold text-gray-900">Suite du RDV</h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-ui text-gray-500">
               {clientName || 'Client'}
               {rdv.rdv_date ? ` · RDV du ${fmtDate(rdv.rdv_date)}` : ''}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100" aria-label="Fermer">
+          <button onClick={onClose} className="p-1.5 rounded-ui-sm hover:bg-gray-100" aria-label="Fermer">
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
@@ -150,21 +150,21 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
                   key={c.id}
                   type="button"
                   onClick={() => setChoice(c.id)}
-                  className={`text-left p-3 rounded-lg border transition-colors ${
+                  className={`text-left p-3 rounded-ui-sm border transition-colors ${
                     active ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-400'
                   }`}
                 >
-                  <span className={`flex items-center gap-2 text-sm font-semibold ${active ? 'text-primary-700' : 'text-gray-800'}`}>
+                  <span className={`flex items-center gap-2 text-ui font-semibold ${active ? 'text-primary-700' : 'text-gray-800'}`}>
                     <Icon className="w-4 h-4" /> {c.label}
                   </span>
-                  <span className="block text-xs text-gray-500 mt-0.5">{c.hint}</span>
+                  <span className="block text-ui-sm text-gray-500 mt-0.5">{c.hint}</span>
                 </button>
               )
             })}
           </div>
 
           {choice === 'devis_a_faire' && (
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-ui text-gray-700">
               <input type="checkbox" checked={openQuoteAfter} onChange={e => setOpenQuoteAfter(e.target.checked)} />
               Ouvrir la création du devis juste après
             </label>
@@ -172,14 +172,14 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
 
           {choice === 'devis_envoye' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Devis principal (facultatif)</label>
+              <label className="block text-ui font-medium text-gray-700 mb-1">Devis principal (facultatif)</label>
               {quotes.length === 0 ? (
-                <p className="text-sm text-gray-500">Aucun devis trouvé pour ce client.</p>
+                <p className="text-ui text-gray-500">Aucun devis trouvé pour ce client.</p>
               ) : (
                 <select
                   value={quoteId}
                   onChange={e => setQuoteId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
                 >
                   <option value="">Aucun en particulier</option>
                   {quotes.map(q => (
@@ -190,7 +190,7 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
                   ))}
                 </select>
               )}
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-ui-sm text-gray-500 mt-1">
                 Tous les devis du client restent suivis dans « Devis en cours », un par formation.
               </p>
             </div>
@@ -198,14 +198,14 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
 
           {choice === 'a_recontacter' && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Quand ?</label>
+              <label className="block text-ui font-medium text-gray-700">Quand ?</label>
               <div className="flex flex-wrap gap-1.5">
                 {quickDates().map(q => (
                   <button
                     key={q.label}
                     type="button"
                     onClick={() => setRecontactDate(q.value)}
-                    className={`px-2.5 py-1 rounded-md text-xs border ${
+                    className={`px-2.5 py-1 rounded-ui-sm text-ui-sm border ${
                       recontactDate === q.value ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700 hover:border-gray-500'
                     }`}
                   >
@@ -218,25 +218,25 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
                 value={recontactDate}
                 min={todayStr()}
                 onChange={e => setRecontactDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
               />
               <input
                 type="text"
                 value={recontactWhat}
                 onChange={e => setRecontactWhat(e.target.value)}
                 placeholder="Pourquoi ? Ex. après leur budget 2027"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
               />
             </div>
           )}
 
           {choice === 'sans_suite' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Motif</label>
+              <label className="block text-ui font-medium text-gray-700 mb-1">Motif</label>
               <select
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
               >
                 {SANS_SUITE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -245,26 +245,26 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
 
           {choice && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Note rapide (facultatif)</label>
+              <label className="block text-ui font-medium text-gray-700 mb-1">Note rapide (facultatif)</label>
               <textarea
                 value={note}
                 onChange={e => setNote(e.target.value)}
                 rows={2}
                 placeholder="Ce qu'il faut retenir du RDV"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
               />
             </div>
           )}
         </div>
 
         <div className="flex justify-end gap-2 px-5 pb-5">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+          <button onClick={onClose} className="px-4 py-2 text-ui text-gray-600 border border-gray-200 rounded-ui-sm hover:bg-gray-50">
             Annuler
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !canSave}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 text-ui font-medium bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 disabled:opacity-50"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             Enregistrer la suite

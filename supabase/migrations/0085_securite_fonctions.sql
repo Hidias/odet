@@ -8,7 +8,7 @@
 --    les comptes connectés.
 -- 4. Contrôle du rôle ajouté en tête des fonctions SECURITY DEFINER qui lisaient ou modifiaient des
 --    données sans le vérifier (marqueur « garde chantier 2 »).
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 -- Contrôles par session utilisés par les fonctions de présence et de signature ------------------------
 
@@ -67,6 +67,8 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.prokind = 'f'
       and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+      -- Suivi formatif (0250) : fonctions sf_* et save_formative_batch gardées telles quelles
+      and p.proname not like 'sf\_%' and p.proname <> 'save_formative_batch'
   loop
     if not r.has_path then
       execute format('alter function %s set search_path = public', r.sig);
@@ -222,17 +224,24 @@ declare
   ];
 begin
   for r in
-    select p.oid::regprocedure as sig, p.proname, p.prorettype in ('trigger'::regtype, 'event_trigger'::regtype) as is_trigger
+    select p.oid::regprocedure as sig, p.proname, p.prorettype in ('trigger'::regtype, 'event_trigger'::regtype) as is_trigger,
+           -- exécutable aujourd'hui par les comptes connectés (directement ou par PUBLIC) : on ne redonne
+           -- jamais une fonction qu'une migration a volontairement retirée (Passeport, suivi formatif...)
+           exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                   where a.privilege_type = 'EXECUTE' and a.grantee in (0, 'authenticated'::regrole)) as auth_ok
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.prokind = 'f'
       and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+      and p.proname not like 'sf\_%' and p.proname <> 'save_formative_batch'
   loop
     execute format('revoke execute on function %s from public, anon', r.sig);
     if r.is_trigger or r.proname = any (internal) then
       execute format('revoke execute on function %s from authenticated', r.sig);
       execute format('grant execute on function %s to service_role', r.sig);
-    else
+    elsif r.auth_ok then
       execute format('grant execute on function %s to authenticated, service_role', r.sig);
+    else
+      execute format('grant execute on function %s to service_role', r.sig);
     end if;
     if r.proname = any (anon_ok) then
       execute format('grant execute on function %s to anon', r.sig);

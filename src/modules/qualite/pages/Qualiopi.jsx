@@ -1,3 +1,4 @@
+import { toneStyle } from '../../../ui/StatusBadge'
 // Identité affichée : lue dans organization_settings (core/pdf/pdfOrg, core/org/templateContext)
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -496,14 +497,14 @@ export default function Qualiopi() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="page-title flex items-center gap-3">
             <Award className="w-8 h-8 text-primary-600" />
             Espace Qualiopi
           </h1>
           <p className="text-gray-600 mt-1">Gestion qualité et conformité Qualiopi</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium flex items-center gap-1">
+          <span className="px-3 py-1 bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] rounded-full text-ui font-medium flex items-center gap-1">
             <CheckCircle className="w-4 h-4" />
             Habilitation INRS : H37007/2025/SST-1/O/13
           </span>
@@ -594,7 +595,7 @@ export default function Qualiopi() {
                   <FileText className="w-5 h-5 text-primary-600" />
                   Documents obligatoires
                 </h3>
-                <button onClick={() => setActiveTab('documents')} className="text-sm text-primary-600 hover:underline">
+                <button onClick={() => setActiveTab('documents')} className="text-ui text-primary-600 hover:underline">
                   Voir tout →
                 </button>
               </div>
@@ -602,10 +603,10 @@ export default function Qualiopi() {
                 {Object.entries(DOCUMENT_TYPES).filter(([_, v]) => v.required).map(([key, config]) => {
                   const doc = documents.find(d => d.type === key)
                   return (
-                    <a key={key} href={`#/qualite?doc=${config.rich}`} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+                    <a key={key} href={`#/qualite?doc=${config.rich}`} className="flex items-center justify-between p-2 rounded-ui-sm hover:bg-gray-50">
                       <div className="flex items-center gap-2">
                         <config.icon className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm">{config.label}</span>
+                        <span className="text-ui">{config.label}</span>
                       </div>
                       {doc && <StatusChip status={doc.status} />}
                     </a>
@@ -621,38 +622,38 @@ export default function Qualiopi() {
                   <Eye className="w-5 h-5 text-primary-600" />
                   État des veilles
                 </h3>
-                <button onClick={() => setActiveTab('veille')} className="text-sm text-primary-600 hover:underline">
+                <button onClick={() => setActiveTab('veille')} className="text-ui text-primary-600 hover:underline">
                   Voir tout →
                 </button>
               </div>
               <div className="grid grid-cols-4 gap-3 mb-4">
-                <div className="text-center p-2 bg-gray-50 rounded-lg">
+                <div className="text-center p-2 bg-gray-50 rounded-ui-sm">
                   <div className="text-2xl font-bold text-gray-900">{veilleStats.total}</div>
-                  <div className="text-xs text-gray-500">Total</div>
+                  <div className="text-ui-sm text-gray-500">Total</div>
                 </div>
-                <div className="text-center p-2 bg-red-50 rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">{veilleStats.a_traiter}</div>
-                  <div className="text-xs text-red-600">À traiter</div>
+                <div className="text-center p-2 bg-[rgb(var(--c-danger-bg))] rounded-ui-sm">
+                  <div className="text-2xl font-bold text-[rgb(var(--c-danger))]">{veilleStats.a_traiter}</div>
+                  <div className="text-ui-sm text-[rgb(var(--c-danger))]">À traiter</div>
                 </div>
-                <div className="text-center p-2 bg-yellow-50 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-600">{veilleStats.en_cours}</div>
-                  <div className="text-xs text-yellow-600">En cours</div>
+                <div className="text-center p-2 bg-[rgb(var(--c-warning-bg))] rounded-ui-sm">
+                  <div className="text-2xl font-bold text-[rgb(var(--c-warning))]">{veilleStats.en_cours}</div>
+                  <div className="text-ui-sm text-[rgb(var(--c-warning))]">En cours</div>
                 </div>
-                <div className="text-center p-2 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{veilleStats.traite}</div>
-                  <div className="text-xs text-green-600">Traités</div>
+                <div className="text-center p-2 bg-[rgb(var(--c-success-bg))] rounded-ui-sm">
+                  <div className="text-2xl font-bold text-[rgb(var(--c-success))]">{veilleStats.traite}</div>
+                  <div className="text-ui-sm text-[rgb(var(--c-success))]">Traités</div>
                 </div>
               </div>
               {veilles.slice(0, 3).map(v => (
                 <div key={v.id} className="flex items-center justify-between p-2 border-b last:border-0">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{v.sujet}</p>
-                    <p className="text-xs text-gray-500">{v.source}</p>
+                    <p className="text-ui font-medium truncate">{v.sujet}</p>
+                    <p className="text-ui-sm text-gray-500">{v.source}</p>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    v.statut === 'traite' ? 'bg-green-100 text-green-700' :
-                    v.statut === 'en_cours' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
+                  <span className={`text-ui-sm px-2 py-1 rounded-full ${
+                    v.statut === 'traite' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                    v.statut === 'en_cours' ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' :
+                    'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                   }`}>
                     {STATUTS[v.statut]?.label}
                   </span>
@@ -665,20 +666,20 @@ export default function Qualiopi() {
           {reclamations.length > 0 && (
             <div className="card">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                <AlertTriangle className="w-5 h-5 text-orange-500" />
+                <AlertTriangle className="w-5 h-5 text-[rgb(var(--c-warning))]" />
                 Réclamations récentes
               </h3>
               <div className="space-y-2">
                 {reclamations.map(r => (
-                  <div key={r.id} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                  <div key={r.id} className="flex items-center justify-between p-3 bg-[rgb(var(--c-warning-bg))] rounded-ui-sm">
                     <div>
                       <p className="font-medium text-gray-900">{r.subject}</p>
-                      <p className="text-sm text-gray-500">{format(new Date(r.created_at), 'd MMM yyyy', { locale: fr })}</p>
+                      <p className="text-ui text-gray-500">{format(new Date(r.created_at), 'd MMM yyyy', { locale: fr })}</p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      r.status === 'resolved' ? 'bg-green-100 text-green-700' :
-                      r.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
+                    <span className={`px-2 py-1 rounded-full text-ui-sm ${
+                      r.status === 'resolved' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                      r.status === 'in_progress' ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' :
+                      'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                     }`}>
                       {r.status === 'resolved' ? 'Résolu' : r.status === 'in_progress' ? 'En cours' : 'Nouveau'}
                     </span>
@@ -697,25 +698,25 @@ export default function Qualiopi() {
             <h2 className="text-lg font-semibold">Documents Qualiopi</h2>
             <a href="#/qualite" className="btn btn-primary flex items-center gap-2"><ExternalLink className="w-4 h-4" />Tous les documents qualité</a>
           </div>
-          <p className="text-sm text-gray-600">Ces documents se rédigent, se valident et se téléchargent dans Documents qualité. Les convocations, conventions et le portail reprennent automatiquement la version validée.</p>
+          <p className="text-ui text-gray-600">Ces documents se rédigent, se valident et se téléchargent dans Documents qualité. Les convocations, conventions et le portail reprennent automatiquement la version validée.</p>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(DOCUMENT_TYPES).map(([key, config]) => {
               const doc = documents.find(d => d.type === key)
               const st = doc?.status
               const ok = st && (st.code === 'valide')
               return (
-                <a key={key} href={`#/qualite?doc=${config.rich}`} className={`card border-2 block hover:shadow-md ${ok ? 'border-green-200' : config.required ? 'border-amber-200' : 'border-gray-200'}`}>
+                <a key={key} href={`#/qualite?doc=${config.rich}`} className={`card border-2 block hover:shadow-md ${ok ? 'border-[rgb(var(--c-success)/0.3)]' : config.required ? 'border-[rgb(var(--c-warning)/0.3)]' : 'border-gray-200'}`}>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <div className={`p-2 rounded-lg ${ok ? 'bg-green-100' : 'bg-gray-100'}`}><config.icon className={`w-5 h-5 ${ok ? 'text-green-600' : 'text-gray-600'}`} /></div>
+                      <div className={`p-2 rounded-ui-sm ${ok ? 'bg-[rgb(var(--c-success-bg))]' : 'bg-gray-100'}`}><config.icon className={`w-5 h-5 ${ok ? 'text-[rgb(var(--c-success))]' : 'text-gray-600'}`} /></div>
                       <div>
                         <h3 className="font-medium text-gray-900">{config.label}</h3>
-                        {config.required && <span className="text-xs text-gray-500">Obligatoire</span>}
+                        {config.required && <span className="text-ui-sm text-gray-500">Obligatoire</span>}
                       </div>
                     </div>
                     {st && <StatusChip status={st} />}
                   </div>
-                  <p className="text-xs text-gray-500">{doc?.updated_at ? `Mis à jour le ${format(new Date(doc.updated_at), 'd MMM yyyy', { locale: fr })}` : 'Modèle de l\'outil, à relire et valider'}</p>
+                  <p className="text-ui-sm text-gray-500">{doc?.updated_at ? `Mis à jour le ${format(new Date(doc.updated_at), 'd MMM yyyy', { locale: fr })}` : 'Modèle de l\'outil, à relire et valider'}</p>
                 </a>
               )
             })}
@@ -725,7 +726,7 @@ export default function Qualiopi() {
 
       {/* ONGLET: Process */}
       {activeTab === 'process' && (
-        <div className="bg-white rounded-xl shadow-sm border" style={{ height: 'calc(100vh - 280px)' }}>
+        <div className="bg-white rounded-ui shadow-sm border" style={{ height: 'calc(100vh - 280px)' }}>
           <ProcessEditor />
         </div>
       )}
@@ -748,16 +749,16 @@ export default function Qualiopi() {
               return (
                 <div key={key} className="card">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`p-2 rounded-lg bg-${config.color}-100`}>
-                      <config.icon className={`w-5 h-5 text-${config.color}-600`} />
+                    <div className={`p-2 rounded-ui-sm`} style={toneStyle(config.color, { text: false })}>
+                      <config.icon className={`w-5 h-5`} style={toneStyle(config.color, { bg: false })} />
                     </div>
                     <div>
                       <h3 className="font-medium">{config.label}</h3>
-                      <p className="text-sm text-gray-500">{count} entrées</p>
+                      <p className="text-ui text-gray-500">{count} entrées</p>
                     </div>
                   </div>
                   {pending > 0 && (
-                    <div className="text-sm text-red-600 bg-red-50 p-2 rounded-lg flex items-center gap-2">
+                    <div className="text-ui text-[rgb(var(--c-danger))] bg-[rgb(var(--c-danger-bg))] p-2 rounded-ui-sm flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4" />
                       {pending} à traiter
                     </div>
@@ -775,22 +776,22 @@ export default function Qualiopi() {
                 <p className="text-gray-500 text-center py-4">Aucune entrée de veille</p>
               ) : (
                 veilles.map(v => (
-                  <div key={v.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                  <div key={v.id} className="flex items-center justify-between p-3 border rounded-ui-sm hover:bg-gray-50">
                     <div className="flex items-center gap-3">
                       {VEILLE_TYPES[v.type] && (() => {
                         const Icon = VEILLE_TYPES[v.type].icon;
-                        return <Icon className={`w-5 h-5 text-${VEILLE_TYPES[v.type].color}-500`} />;
+                        return <Icon className={`w-5 h-5`} style={toneStyle(VEILLE_TYPES[v.type].color, { bg: false })} />;
                       })()}
                       <div>
                         <p className="font-medium">{v.sujet}</p>
-                        <p className="text-sm text-gray-500">{v.source} • {format(new Date(v.date), 'd MMM yyyy', { locale: fr })}</p>
+                        <p className="text-ui text-gray-500">{v.source} • {format(new Date(v.date), 'd MMM yyyy', { locale: fr })}</p>
                       </div>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      v.statut === 'traite' ? 'bg-green-100 text-green-700' :
-                      v.statut === 'en_cours' ? 'bg-yellow-100 text-yellow-700' :
+                    <span className={`px-3 py-1 rounded-full text-ui-sm font-medium ${
+                      v.statut === 'traite' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                      v.statut === 'en_cours' ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' :
                       v.statut === 'archive' ? 'bg-gray-100 text-gray-700' :
-                      'bg-red-100 text-red-700'
+                      'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]'
                     }`}>
                       {STATUTS[v.statut]?.label}
                     </span>
@@ -822,36 +823,36 @@ export default function Qualiopi() {
               <div key={source.id || source.name} className="card border hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${
-                      source.type === 'legale' ? 'bg-blue-100' :
-                      source.type === 'metiers' ? 'bg-green-100' : 'bg-purple-100'
+                    <div className={`p-2 rounded-ui-sm ${
+                      source.type === 'legale' ? 'bg-[rgb(var(--c-info-bg))]' :
+                      source.type === 'metiers' ? 'bg-[rgb(var(--c-success-bg))]' : 'bg-gray-100'
                     }`}>
                       <Globe className={`w-5 h-5 ${
-                        source.type === 'legale' ? 'text-blue-600' :
-                        source.type === 'metiers' ? 'text-green-600' : 'text-purple-600'
+                        source.type === 'legale' ? 'text-[rgb(var(--c-info))]' :
+                        source.type === 'metiers' ? 'text-[rgb(var(--c-success))]' : 'text-gray-800'
                       }`} />
                     </div>
                     <div>
                       <h3 className="font-medium">{source.name}</h3>
-                      <span className="text-xs text-gray-500">{VEILLE_TYPES[source.type]?.label}</span>
+                      <span className="text-ui-sm text-gray-500">{VEILLE_TYPES[source.type]?.label}</span>
                     </div>
                   </div>
                   {source.id && typeof source.id === 'string' && source.id.includes('-') && (
-                    <button onClick={() => deleteSource(source.id)} className="text-gray-400 hover:text-red-500">
+                    <button onClick={() => deleteSource(source.id)} className="text-gray-400 hover:text-[rgb(var(--c-danger))]">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
                 
                 {source.description && (
-                  <p className="text-sm text-gray-500 mt-2">{source.description}</p>
+                  <p className="text-ui text-gray-500 mt-2">{source.description}</p>
                 )}
                 
                 <a 
                   href={source.url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="mt-3 flex items-center gap-2 text-sm text-primary-600 hover:underline"
+                  className="mt-3 flex items-center gap-2 text-ui text-primary-600 hover:underline"
                 >
                   <Link2 className="w-4 h-4" />
                   Accéder au site
@@ -866,7 +867,7 @@ export default function Qualiopi() {
       {/* MODAL: Document */}
       {showDocModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-ui shadow-md max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b bg-primary-500 text-white flex items-center justify-between">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <FileText className="w-5 h-5" />
@@ -919,10 +920,10 @@ export default function Qualiopi() {
                 <textarea
                   value={docForm.content}
                   onChange={(e) => setDocForm({ ...docForm, content: e.target.value })}
-                  className="input min-h-[400px] font-mono text-sm"
+                  className="input min-h-[400px] font-mono text-ui"
                   placeholder="Saisissez le contenu du document..."
                 />
-                <details className="mt-2 text-xs text-gray-500">
+                <details className="mt-2 text-ui-sm text-gray-500">
                   <summary className="cursor-pointer">Champs remplis automatiquement depuis Paramètres</summary>
                   <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
                     {TEMPLATE_FIELDS.map(([code, label]) => (
@@ -946,53 +947,53 @@ export default function Qualiopi() {
 
       {/* MODAL: Source */}
       {/* Texte explicatif Qualiopi */}
-      <div className="card p-6 bg-purple-50 border border-purple-200 mt-6">
+      <div className="card p-6 bg-gray-50 border border-gray-200 mt-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Info className="w-5 h-5 text-purple-500" />
+          <Info className="w-5 h-5 text-gray-800" />
           Indicateurs de résultats et rattachement au référentiel Qualiopi
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-ui text-gray-700">
           <div>
-            <h4 className="font-semibold text-purple-800 mb-2">Taux de satisfaction (indicateur 30, publié au titre de l'indicateur 2)</h4>
+            <h4 className="font-semibold text-gray-800 mb-2">Taux de satisfaction (indicateur 30, publié au titre de l'indicateur 2)</h4>
             <p className="mb-2">Moyenne des évaluations à chaud sur 14 critères :</p>
-            <ul className="list-disc list-inside space-y-1 text-xs">
+            <ul className="list-disc list-inside space-y-1 text-ui-sm">
               <li><strong>Organisation</strong> : documents, accueil, locaux, matériel</li>
               <li><strong>Contenu</strong> : organisation, supports, durée, programme</li>
               <li><strong>Formateur</strong> : pédagogie, expertise, progression, moyens</li>
               <li><strong>Perception</strong> : adéquation métier, amélioration compétences</li>
             </ul>
-            <p className="mt-2 text-xs italic">Objectif interne : 4/5 au moins (le référentiel ne fixe aucun seuil)</p>
+            <p className="mt-2 text-ui-sm italic">Objectif interne : 4/5 au moins (le référentiel ne fixe aucun seuil)</p>
           </div>
           <div>
-            <h4 className="font-semibold text-purple-800 mb-2">Taux de réussite (indicateur 11, publié au titre de l'indicateur 2)</h4>
+            <h4 className="font-semibold text-gray-800 mb-2">Taux de réussite (indicateur 11, publié au titre de l'indicateur 2)</h4>
             <p className="mb-2">Pourcentage de stagiaires ayant atteint les objectifs :</p>
-            <ul className="list-disc list-inside space-y-1 text-xs">
+            <ul className="list-disc list-inside space-y-1 text-ui-sm">
               <li>Tous les objectifs pédagogiques validés</li>
               <li>Présence complète (100% des demi-journées)</li>
             </ul>
-            <p className="mt-2 text-xs italic">Objectif interne : 80 % au moins</p>
+            <p className="mt-2 text-ui-sm italic">Objectif interne : 80 % au moins</p>
           </div>
           <div>
-            <h4 className="font-semibold text-purple-800 mb-2">Taux de présence (indicateur 12, publié au titre de l'indicateur 2)</h4>
+            <h4 className="font-semibold text-gray-800 mb-2">Taux de présence (indicateur 12, publié au titre de l'indicateur 2)</h4>
             <p className="mb-2">Suivi de l'assiduité des stagiaires :</p>
-            <p className="text-xs">= Stagiaires avec 100% présence / Total stagiaires</p>
-            <p className="mt-2 text-xs italic">Objectif interne : 90 % au moins</p>
+            <p className="text-ui-sm">= Stagiaires avec 100% présence / Total stagiaires</p>
+            <p className="mt-2 text-ui-sm italic">Objectif interne : 90 % au moins</p>
           </div>
           <div>
-            <h4 className="font-semibold text-purple-800 mb-2">Taux de recommandation (indicateur 30, publié au titre de l'indicateur 2)</h4>
+            <h4 className="font-semibold text-gray-800 mb-2">Taux de recommandation (indicateur 30, publié au titre de l'indicateur 2)</h4>
             <p className="mb-2">Mesure de la satisfaction client :</p>
-            <p className="text-xs">Question : "Recommanderiez-vous cette formation ?"</p>
-            <p className="mt-2 text-xs italic">Objectif interne : 90 % au moins</p>
+            <p className="text-ui-sm">Question : "Recommanderiez-vous cette formation ?"</p>
+            <p className="mt-2 text-ui-sm italic">Objectif interne : 90 % au moins</p>
           </div>
         </div>
-        <div className="mt-4 pt-4 border-t border-purple-200 text-xs text-purple-700">
+        <div className="mt-4 pt-4 border-t border-gray-200 text-ui-sm text-gray-800">
           <p><strong>Note :</strong> L'indicateur 2 impose de publier ces résultats avec leur méthode de calcul. Ces indicateurs sont calculés uniquement sur les sessions terminées (statut "Completed"). Les notes de 1 à 3/5 génèrent des alertes qualité à traiter pour démontrer l'amélioration continue.</p>
         </div>
       </div>
       
       {showSourceModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full">
+          <div className="bg-white rounded-ui shadow-md max-w-lg w-full">
             <div className="p-4 border-b bg-primary-500 text-white flex items-center justify-between">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Rss className="w-5 h-5" />
@@ -1071,19 +1072,19 @@ export default function Qualiopi() {
 
 function IndicatorCard({ icon: Icon, label, value, color }) {
   const colors = {
-    green: 'bg-green-50 text-green-700 border-green-200',
-    yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    red: 'bg-red-50 text-red-700 border-red-200',
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    orange: 'bg-orange-50 text-orange-700 border-orange-200',
+    green: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)]',
+    yellow: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)]',
+    red: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] border-[rgb(var(--c-danger)/0.3)]',
+    blue: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] border-[rgb(var(--c-info)/0.3)]',
+    orange: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)]',
     gray: 'bg-gray-50 text-gray-500 border-gray-200'
   }
   
   return (
-    <div className={`p-4 rounded-xl border-2 ${colors[color] || colors.blue}`}>
+    <div className={`p-4 rounded-ui border-2 ${colors[color] || colors.blue}`}>
       <Icon className="w-5 h-5 mb-2 opacity-70" />
       <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs opacity-80">{label}</div>
+      <div className="text-ui-sm opacity-80">{label}</div>
     </div>
   )
 }

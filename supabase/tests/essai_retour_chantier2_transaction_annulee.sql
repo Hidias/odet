@@ -1,5 +1,5 @@
 -- FICHIER GÉNÉRÉ par scripts/securite/essai.py : ne pas modifier à la main.
--- Essai du retour arrière en transaction annulée : photographie de l'état, migrations 0080 à 0086,
+-- Essai du retour arrière en transaction annulée : photographie de l'état, migrations 0080 à 0087,
 -- retour arrière, comparaison avec l'état d'avant. Se termine TOUJOURS par une erreur volontaire
 -- « RÉSULTAT DE L'ESSAI DU RETOUR ARRIÈRE » : tout est annulé. Aucune validation de transaction.
 select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '180s', true);
@@ -40,6 +40,10 @@ create temp view etat_essai as
          md5(coalesce(string_agg(id::text || coalesce(social_security_number, '') || coalesce(encode(ssn_encrypted, 'hex'), ''), ',' order by id), ''))
   from public.trainees
   union all
+  select 'handicap stagiaires', 'trainees',
+         md5(coalesce(string_agg(id::text || coalesce(has_disability::text, '') || coalesce(disability_details, '') || coalesce(disability_adaptations, ''), ',' order by id), ''))
+  from public.trainees
+  union all
   select 'numéros fiches', 'trainee_info_sheets',
          md5(coalesce(string_agg(id::text || coalesce(ssn, ''), ',' order by id), ''))
   from public.trainee_info_sheets;
@@ -59,7 +63,7 @@ create temp table etat_essai_avant as select * from etat_essai;
 -- 0. Avant toute modification, l'état des droits est photographié dans app.etat_avant_chantier2
 --    (règles d'accès, définitions et droits des fonctions, droits sur les tables, buckets). Les scripts
 --    de retour arrière (supabase/rollback/) le relisent pour tout remettre exactement comme avant.
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 -- 0. Photographie de l'état avant le chantier 2 (une seule fois) --------------------------------------
 
@@ -249,7 +253,7 @@ insert into public.schema_migrations (version) values ('0080_securite_urgences')
 --                 (même règle que le mode terrain de l'application, fieldOnly)
 --   entreprise, formateur_externe, stagiaire : comptes externes prévus (lot 2), aucun accès aux tables
 --   null        : pas de profil, ou profil désactivé
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 create schema if not exists app;
 revoke all on schema app from public;
@@ -307,6 +311,23 @@ as $$
   select coalesce(app.role() = any (array[
     'superadmin', 'admin', 'direction', 'gestionnaire', 'formateur', 'commercial', 'comptable', 'lecture', 'technicien'
   ]), false)
+$$;
+
+-- Données de handicap (santé) : direction (superadmin, admin, direction) et référent handicap désigné
+-- dans Qualité > Référents (quality_roles, code referent_handicap). Compte désactivé : jamais.
+create or replace function app.can_see_disability()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    app.role() = any (array['superadmin', 'admin', 'direction'])
+    or (app.role() is not null and exists (
+          select 1 from public.quality_roles q
+          where q.code = 'referent_handicap' and q.profile_id = (select auth.uid()))),
+    false)
 $$;
 
 -- Sessions dont l'utilisateur est le formateur (fiche formateur reliée au compte)
@@ -414,7 +435,7 @@ insert into public.schema_migrations (version) values ('0081_securite_fonctions_
 --   * les rôles sont lus par app.role(), évaluée une fois par requête ;
 --   * un module désactivé rend ses tables inaccessibles, sauf au super administrateur en lecture ;
 --   * anon ne lit et n'écrit plus aucune table : les portails passent par des fonctions à jeton.
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 -- Groupes de rôles de la matrice : (select app.grp('mgr')) vaut vrai si le rôle effectif est dans le groupe.
 create or replace function app.grp(p_group text)
@@ -572,8 +593,8 @@ select pg_temp.regles(array['audit_logs'], null,
   null,
   null);
 
--- audits_internes, bpf_declarations, non_conformites, non_conformities, process_categories, process_connections, process_responsibles, process_steps, process_versions, processes, psh_requests, qualiopi_indicators, quality_alerts, reclamations, rgpd_traitements, veille_qualiopi, veille_sources (module qualite)
-select pg_temp.regles(array['audits_internes', 'bpf_declarations', 'non_conformites', 'non_conformities', 'process_categories', 'process_connections', 'process_responsibles', 'process_steps', 'process_versions', 'processes', 'psh_requests', 'qualiopi_indicators', 'quality_alerts', 'reclamations', 'rgpd_traitements', 'veille_qualiopi', 'veille_sources'], $r$qualite$r$,
+-- audits_internes, bpf_declarations, non_conformites, non_conformities, process_categories, process_connections, process_responsibles, process_steps, process_versions, processes, qualiopi_indicators, quality_alerts, reclamations, rgpd_traitements, veille_qualiopi, veille_sources (module qualite)
+select pg_temp.regles(array['audits_internes', 'bpf_declarations', 'non_conformites', 'non_conformities', 'process_categories', 'process_connections', 'process_responsibles', 'process_steps', 'process_versions', 'processes', 'qualiopi_indicators', 'quality_alerts', 'reclamations', 'rgpd_traitements', 'veille_qualiopi', 'veille_sources'], $r$qualite$r$,
   $r$(select app.grp('staff'))$r$,
   $r$(select app.grp('edit'))$r$,
   $r$(select app.grp('mgr'))$r$,
@@ -796,6 +817,13 @@ select pg_temp.regles(array['prospection_massive'], $r$prospection$r$,
   $r$(select app.grp('sales'))$r$,
   $r$(select app.grp('mgr'))$r$);
 
+-- psh_requests (module qualite)
+select pg_temp.regles(array['psh_requests'], $r$qualite$r$,
+  $r$(select app.can_see_disability())$r$,
+  $r$(select app.can_see_disability())$r$,
+  $r$(select app.can_see_disability())$r$,
+  $r$(select app.can_see_disability())$r$);
+
 -- quality_doc_versions
 select pg_temp.regles(array['quality_doc_versions'], null,
   $r$(select app.grp('int'))$r$,
@@ -912,17 +940,29 @@ select pg_temp.regles(array['user_planning_events'], null,
 do $$
 declare r record;
 begin
+  if to_regprocedure('public.pp_can()') is null then
+    return;
+  end if;
   for r in select p.tablename, p.policyname from pg_policies p
            where p.schemaname = 'public' and p.tablename like 'pp\_%' loop
     execute format('drop policy %I on public.%I', r.policyname, r.tablename);
   end loop;
   for r in select tablename from pg_tables where schemaname = 'public' and tablename like 'pp\_%' loop
+    execute format('alter table public.%I enable row level security', r.tablename);
+    execute format('revoke all on table public.%I from anon', r.tablename);
     if r.tablename = 'pp_nir' then
-      execute 'alter table public.pp_nir enable row level security';
-      execute 'revoke all on table public.pp_nir from anon, authenticated';
-    else
-      perform pg_temp.regles(array[r.tablename], 'passeport',
-        '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))', '(select app.grp(''mgr''))');
+      execute 'revoke all on table public.pp_nir from authenticated';
+      continue;
+    end if;
+    execute format('create policy %I on public.%I for select to authenticated using ((select public.pp_can_read()) and (select app.role()) is not null)',
+                   r.tablename || '_lire', r.tablename);
+    if r.tablename = 'pp_course_settings' then
+      execute format('create policy %I on public.%I for insert to authenticated with check ((select public.pp_can()) and (select app.role()) is not null)',
+                     r.tablename || '_creer', r.tablename);
+      execute format('create policy %I on public.%I for update to authenticated using ((select public.pp_can()) and (select app.role()) is not null) with check ((select public.pp_can()) and (select app.role()) is not null)',
+                     r.tablename || '_modifier', r.tablename);
+      execute format('create policy %I on public.%I for delete to authenticated using ((select public.pp_can()) and (select app.role()) is not null)',
+                     r.tablename || '_supprimer', r.tablename);
     end if;
   end loop;
 end $$;
@@ -946,7 +986,7 @@ insert into public.schema_migrations (version) values ('0082_securite_regles') o
 --     save_trainee_with_ssn (écriture) : personnel autorisé à modifier le stagiaire.
 -- La fonction save_trainee_with_ssn écrivait un texte chiffré avec une clé écrite en dur, illisible
 -- ensuite : elle enregistre désormais le numéro saisi.
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 create table if not exists public.trainee_ssn (
   trainee_id uuid primary key references public.trainees(id) on delete cascade deferrable initially deferred,
@@ -1177,7 +1217,7 @@ insert into public.schema_migrations (version) values ('0083_securite_numero_sec
 --    (avant : lecture directe de course_documents et session_document_access par anon).
 -- 3. Formulaire public de réclamation : public_reclamation_session et public_reclamation_submit
 --    (avant : lecture directe de sessions par anon, refusée depuis 0013 : le formulaire était cassé).
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 alter table public.session_trainees add column if not exists portal_ticket text;
 alter table public.session_trainees add column if not exists portal_ticket_expires_at timestamptz;
@@ -1569,7 +1609,7 @@ insert into public.schema_migrations (version) values ('0084_securite_portails')
 --    les comptes connectés.
 -- 4. Contrôle du rôle ajouté en tête des fonctions SECURITY DEFINER qui lisaient ou modifiaient des
 --    données sans le vérifier (marqueur « garde chantier 2 »).
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 -- Contrôles par session utilisés par les fonctions de présence et de signature ------------------------
 
@@ -1628,6 +1668,8 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.prokind = 'f'
       and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+      -- Suivi formatif (0250) : fonctions sf_* et save_formative_batch gardées telles quelles
+      and p.proname not like 'sf\_%' and p.proname <> 'save_formative_batch'
   loop
     if not r.has_path then
       execute format('alter function %s set search_path = public', r.sig);
@@ -1783,17 +1825,24 @@ declare
   ];
 begin
   for r in
-    select p.oid::regprocedure as sig, p.proname, p.prorettype in ('trigger'::regtype, 'event_trigger'::regtype) as is_trigger
+    select p.oid::regprocedure as sig, p.proname, p.prorettype in ('trigger'::regtype, 'event_trigger'::regtype) as is_trigger,
+           -- exécutable aujourd'hui par les comptes connectés (directement ou par PUBLIC) : on ne redonne
+           -- jamais une fonction qu'une migration a volontairement retirée (Passeport, suivi formatif...)
+           exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                   where a.privilege_type = 'EXECUTE' and a.grantee in (0, 'authenticated'::regrole)) as auth_ok
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.prokind = 'f'
       and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+      and p.proname not like 'sf\_%' and p.proname <> 'save_formative_batch'
   loop
     execute format('revoke execute on function %s from public, anon', r.sig);
     if r.is_trigger or r.proname = any (internal) then
       execute format('revoke execute on function %s from authenticated', r.sig);
       execute format('grant execute on function %s to service_role', r.sig);
-    else
+    elsif r.auth_ok then
       execute format('grant execute on function %s to authenticated, service_role', r.sig);
+    else
+      execute format('grant execute on function %s to service_role', r.sig);
     end if;
     if r.proname = any (anon_ok) then
       execute format('grant execute on function %s to anon', r.sig);
@@ -1824,10 +1873,13 @@ insert into public.schema_migrations (version) values ('0085_securite_fonctions'
 --     relisent le lien public. Le passer en privé demande de servir ces fichiers par liens signés
 --     partout (travail séparé, voir le compte rendu du chantier 2). Les chemins ne sont pas
 --     listables par un visiteur ;
---   * course-documents, media et trainer-signatures restent lisibles par lien public (supports de
---     formation du portail, logo, signatures imprimées sur les PDF) ;
+--   * course-documents et media restent lisibles par lien public (supports de formation du portail, logo) ;
+--   * trainer-signatures devient privé (ajout du chantier F, 17/10) : signatures manuscrites lues par
+--     liens signés de courte durée (src/core/storageUtils.js, readableUrl) par le personnel, et par
+--     api/portail-signature.js pour l'espace entreprise ; les adresses déjà enregistrées restent valables
+--     (elles servent à retrouver le chemin du fichier) ;
 --   * les règles des buckets certification et interventions (0030, 0050) ne changent pas.
--- Migration idempotente. Retour arrière : supabase/rollback/0080-0086_securite_retour.sql (les sept migrations ensemble)
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql (les huit migrations ensemble)
 
 do $$
 declare r record;
@@ -1841,9 +1893,14 @@ begin
   end loop;
 end $$;
 
--- Lecture publique conservée : supports de formation, médias, signatures des formateurs
+-- Lecture publique conservée : supports de formation, médias
 create policy odet_public_lire on storage.objects for select to anon, authenticated
-  using (bucket_id in ('course-documents', 'media', 'trainer-signatures'));
+  using (bucket_id in ('course-documents', 'media'));
+
+-- Signatures des formateurs : bucket privé, lecture par le personnel (liens signés)
+update storage.buckets set public = false where id = 'trainer-signatures';
+create policy odet_signatures_lire on storage.objects for select to authenticated
+  using (bucket_id = 'trainer-signatures' and (select app.role()) = any (array['superadmin', 'admin', 'direction', 'gestionnaire', 'formateur', 'commercial', 'lecture']));
 
 -- documents : personnel de bureau (la lecture par lien public reste possible, voir en tête)
 create policy odet_documents_lire on storage.objects for select to authenticated
@@ -1920,9 +1977,228 @@ create policy odet_signatures_supprimer on storage.objects for delete to authent
 
 insert into public.schema_migrations (version) values ('0086_securite_stockage') on conflict (version) do nothing;
 
--- ===== 0080-0086_securite_retour.sql =====
--- supabase/rollback/0080-0086_securite_retour.sql : retour arrière des migrations 0080 à 0086 (chantier 2).
--- Les sept migrations sont appliquées ensemble ; ce script les annule ensemble.
+-- ===== 0087_securite_handicap.sql =====
+-- 0087_securite_handicap.sql : les données de handicap quittent les tables lisibles (chantier 2, ajout du
+-- chantier F du 17/10/2026, écart n° 8 de odet-conformite-rgpd-certifications.md).
+-- Avant : has_disability, disability_details et disability_adaptations étaient des colonnes de trainees,
+-- lisibles par tout compte qui voit les stagiaires ; le registre PSH était lisible par tout le personnel.
+-- Après :
+--   * ces données vivent dans trainee_disability, lisible et modifiable seulement par la direction
+--     (superadmin, admin, direction) et le référent handicap désigné dans Qualité > Référents
+--     (app.can_see_disability, 0081) ; même règle pour psh_requests (0082) ;
+--   * les colonnes de trainees restent (aucun code existant ne casse) : un déclencheur range toute valeur
+--     écrite dans trainee_disability puis les remet à vide. Il AJOUTE seulement (case cochée, texte
+--     saisi) : un compte qui ne voit pas ces données ne peut pas les effacer en enregistrant une fiche ;
+--   * save_trainee_with_ssn : la direction et le référent écrivent exactement ce que montre la fiche
+--     (y compris décocher ou vider) ; les autres comptes ne peuvent qu'ajouter ;
+--   * get_trainee_with_ssn ne renvoie ces données qu'à la direction et au référent ;
+--   * disability_count donne le nombre de stagiaires concernés (sans identité) au personnel, pour les
+--     statistiques et les preuves Qualiopi (indicateur 26).
+-- Aucun stagiaire réel au 17/10/2026 (0 ligne avec handicap sur odet-gld).
+-- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql
+
+create table if not exists public.trainee_disability (
+  trainee_id uuid primary key references public.trainees(id) on delete cascade deferrable initially deferred,
+  has_disability boolean not null default false,
+  details text,
+  adaptations text,
+  updated_at timestamptz not null default now()
+);
+alter table public.trainee_disability enable row level security;
+revoke all on table public.trainee_disability from public, anon, authenticated;
+grant select, insert, update, delete on table public.trainee_disability to authenticated;
+grant all on table public.trainee_disability to service_role;
+
+drop policy if exists trainee_disability_lire on public.trainee_disability;
+drop policy if exists trainee_disability_creer on public.trainee_disability;
+drop policy if exists trainee_disability_modifier on public.trainee_disability;
+drop policy if exists trainee_disability_supprimer on public.trainee_disability;
+create policy trainee_disability_lire on public.trainee_disability for select to authenticated
+  using ((select app.can_see_disability()));
+create policy trainee_disability_creer on public.trainee_disability for insert to authenticated
+  with check ((select app.can_see_disability()));
+create policy trainee_disability_modifier on public.trainee_disability for update to authenticated
+  using ((select app.can_see_disability())) with check ((select app.can_see_disability()));
+create policy trainee_disability_supprimer on public.trainee_disability for delete to authenticated
+  using ((select app.can_see_disability()));
+
+-- Reprise des données déjà saisies
+insert into public.trainee_disability (trainee_id, has_disability, details, adaptations)
+select t.id, coalesce(t.has_disability, false), nullif(trim(t.disability_details), ''), nullif(trim(t.disability_adaptations), '')
+from public.trainees t
+where coalesce(t.has_disability, false)
+   or nullif(trim(t.disability_details), '') is not null
+   or nullif(trim(t.disability_adaptations), '') is not null
+on conflict (trainee_id) do nothing;
+
+-- Déclencheur sur trainees : ce qui est écrit part dans trainee_disability (ajout seulement)
+create or replace function public.trainee_disability_capture()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_details text := nullif(trim(coalesce(new.disability_details, '')), '');
+  v_adapt text := nullif(trim(coalesce(new.disability_adaptations, '')), '');
+begin
+  if new.id is null then
+    new.id := gen_random_uuid();
+  end if;
+  if coalesce(new.has_disability, false) or v_details is not null or v_adapt is not null then
+    insert into public.trainee_disability (trainee_id, has_disability, details, adaptations, updated_at)
+    values (new.id, true, v_details, v_adapt, now())
+    on conflict (trainee_id) do update set
+      has_disability = true,
+      details = coalesce(excluded.details, public.trainee_disability.details),
+      adaptations = coalesce(excluded.adaptations, public.trainee_disability.adaptations),
+      updated_at = now();
+  end if;
+  new.has_disability := false;
+  new.disability_details := null;
+  new.disability_adaptations := null;
+  return new;
+end
+$function$;
+revoke all on function public.trainee_disability_capture() from public, anon, authenticated;
+
+drop trigger if exists a_trainee_disability_capture on public.trainees;
+create trigger a_trainee_disability_capture before insert or update on public.trainees
+  for each row execute function public.trainee_disability_capture();
+
+-- Les valeurs déjà présentes sortent des colonnes lisibles
+update public.trainees set has_disability = false, disability_details = null, disability_adaptations = null
+where coalesce(has_disability, false) or disability_details is not null or disability_adaptations is not null;
+
+-- La fiche sait si le compte connecté peut voir ces données (texte d'aide à l'écran)
+create or replace function public.can_see_disability()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$ select app.can_see_disability() $$;
+revoke all on function public.can_see_disability() from public, anon;
+grant execute on function public.can_see_disability() to authenticated, service_role;
+
+-- Nombre de stagiaires concernés, sans identité (statistiques, preuves de l'indicateur 26)
+create or replace function public.disability_count(p_trainee_ids uuid[] default null)
+returns bigint
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when app.is_staff() then
+    (select count(*) from public.trainee_disability d
+     where d.has_disability and (p_trainee_ids is null or d.trainee_id = any (p_trainee_ids)))
+  else 0 end
+$$;
+revoke all on function public.disability_count(uuid[]) from public, anon;
+grant execute on function public.disability_count(uuid[]) to authenticated, service_role;
+
+-- Nombre de demandes du registre PSH, sans contenu (preuve de l'indicateur 26)
+create or replace function public.psh_request_count()
+returns bigint
+language sql
+stable
+security definer
+set search_path = ''
+as $$ select case when app.is_staff() then (select count(*) from public.psh_requests) else 0 end $$;
+revoke all on function public.psh_request_count() from public, anon;
+grant execute on function public.psh_request_count() to authenticated, service_role;
+
+-- Lecture d'un stagiaire : handicap seulement pour la direction et le référent
+create or replace function public.get_trainee_with_ssn(p_id uuid)
+returns table(id uuid, first_name text, last_name text, email text, phone text, social_security_number text,
+              client_id uuid, notes text, birth_date date, refused_ssn boolean, has_disability boolean,
+              disability_details text, disability_adaptations text, created_at timestamptz, updated_at timestamptz)
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_role text := app.role();
+  v_handi boolean := app.can_see_disability();
+begin
+  if not (v_role = any (array['superadmin', 'admin', 'direction', 'gestionnaire'])
+          or (v_role = 'formateur' and p_id in (select app.trainer_trainee_ids()))) then
+    raise exception 'Accès refusé' using errcode = '42501';
+  end if;
+  return query
+  select t.id, t.first_name::text, t.last_name::text, t.email::text, t.phone::text,
+         (select repeat('•', greatest(length(s.ssn) - 3, 0)) || right(s.ssn, 3) from public.trainee_ssn s where s.trainee_id = t.id),
+         t.client_id, t.notes, t.birth_date, t.refused_ssn,
+         case when v_handi then coalesce(d.has_disability, false) end,
+         case when v_handi then d.details end,
+         case when v_handi then d.adaptations end,
+         t.created_at, t.updated_at
+  from public.trainees t
+  left join public.trainee_disability d on d.trainee_id = t.id
+  where t.id = p_id;
+end
+$function$;
+
+-- Écriture d'un stagiaire : la direction et le référent écrivent exactement le handicap montré par la fiche
+create or replace function public.save_trainee_with_ssn(
+  p_id uuid, p_first_name text, p_last_name text, p_email text default null, p_phone text default null,
+  p_ssn text default null, p_client_id uuid default null, p_notes text default null, p_birth_date date default null,
+  p_refused_ssn boolean default false, p_has_disability boolean default false, p_disability_details text default null,
+  p_disability_adaptations text default null, p_csp text default null, p_job_title text default null,
+  p_gender text default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_role text := app.role();
+  v_details text := nullif(trim(coalesce(p_disability_details, '')), '');
+  v_adapt text := nullif(trim(coalesce(p_disability_adaptations, '')), '');
+begin
+  if not (v_role = any (array['superadmin', 'admin', 'direction', 'gestionnaire', 'commercial'])
+          or (v_role = 'formateur' and p_id in (select app.trainer_trainee_ids()))) then
+    raise exception 'Accès refusé' using errcode = '42501';
+  end if;
+  -- Le déclencheur range le numéro et ajoute le handicap saisi
+  update public.trainees set
+    first_name = p_first_name,
+    last_name = p_last_name,
+    email = p_email,
+    phone = p_phone,
+    social_security_number = case when coalesce(p_refused_ssn, false) then null else nullif(trim(p_ssn), '') end,
+    client_id = p_client_id,
+    notes = p_notes,
+    birth_date = p_birth_date,
+    refused_ssn = coalesce(p_refused_ssn, false),
+    has_disability = coalesce(p_has_disability, false),
+    disability_details = p_disability_details,
+    disability_adaptations = p_disability_adaptations,
+    csp = coalesce(p_csp, csp),
+    job_title = coalesce(p_job_title, job_title),
+    gender = coalesce(p_gender, gender),
+    updated_at = now()
+  where id = p_id;
+  -- Direction et référent : la fiche montre les données, elle les remplace (décocher efface)
+  if app.can_see_disability() then
+    if coalesce(p_has_disability, false) or v_details is not null or v_adapt is not null then
+      insert into public.trainee_disability (trainee_id, has_disability, details, adaptations, updated_at)
+      values (p_id, coalesce(p_has_disability, false), v_details, v_adapt, now())
+      on conflict (trainee_id) do update set
+        has_disability = excluded.has_disability, details = excluded.details,
+        adaptations = excluded.adaptations, updated_at = now();
+    else
+      delete from public.trainee_disability where trainee_id = p_id;
+    end if;
+  end if;
+end
+$function$;
+
+insert into public.schema_migrations (version) values ('0087_securite_handicap') on conflict (version) do nothing;
+
+-- ===== 0080-0087_securite_retour.sql =====
+-- supabase/rollback/0080-0087_securite_retour.sql : retour arrière des migrations 0080 à 0087 (chantier 2).
+-- Les huit migrations sont appliquées ensemble ; ce script les annule ensemble.
 -- Il remet exactement l'état photographié par 0080 dans app.etat_avant_chantier2 :
 --   règles d'accès (tables et Storage), définitions et droits d'exécution des fonctions, droits des
 --   rôles anon et authenticated sur les tables, buckets, vues, contrainte des rôles de profiles.
@@ -1953,6 +2229,14 @@ begin
     update public.trainee_info_sheets i set ssn = s.ssn from public.trainee_ssn s where s.trainee_id = i.trainee_id;
   end if;
 
+  -- 1 bis. Handicap (0087) : retour dans les colonnes d'origine
+  drop trigger if exists a_trainee_disability_capture on public.trainees;
+  if to_regclass('public.trainee_disability') is not null then
+    update public.trainees t set has_disability = d.has_disability, disability_details = d.details,
+           disability_adaptations = d.adaptations
+    from public.trainee_disability d where d.trainee_id = t.id;
+  end if;
+
   -- 2. Règles d'accès des tables et du Storage ---------------------------------------------------------
   for r in select schemaname, tablename, policyname from pg_policies where schemaname in ('public', 'storage') loop
     execute format('drop policy %I on %I.%I', r.policyname, r.schemaname, r.tablename);
@@ -1970,6 +2254,10 @@ begin
   drop function if exists public.public_reclamation_session(text);
   drop function if exists public.public_reclamation_submit(uuid, text, text, text, text, text);
   drop function if exists public.trainee_ssn_capture();
+  drop function if exists public.trainee_disability_capture();
+  drop function if exists public.can_see_disability();
+  drop function if exists public.disability_count(uuid[]);
+  drop function if exists public.psh_request_count();
   drop function if exists public.info_sheet_ssn_capture();
   drop function if exists public.load_trainee_data(text, uuid, text);
   drop function if exists public.update_trainee_data(text, uuid, jsonb, text);
@@ -2005,6 +2293,7 @@ begin
 
   -- 6. Colonnes et tables ajoutées --------------------------------------------------------------------
   drop table if exists public.trainee_ssn;
+  drop table if exists public.trainee_disability;
   alter table public.trainees drop column if exists ssn_present;
   alter table public.trainee_info_sheets drop column if exists ssn_present;
   alter table public.session_trainees drop column if exists portal_ticket;
@@ -2020,7 +2309,7 @@ end $$;
 drop schema if exists app cascade;
 delete from public.schema_migrations where version in (
   '0080_securite_urgences', '0081_securite_fonctions_aide', '0082_securite_regles', '0083_securite_numero_secu',
-  '0084_securite_portails', '0085_securite_fonctions', '0086_securite_stockage');
+  '0084_securite_portails', '0085_securite_fonctions', '0086_securite_stockage', '0087_securite_handicap');
 
 do $verif$
 declare

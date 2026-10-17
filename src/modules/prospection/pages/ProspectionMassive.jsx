@@ -276,7 +276,7 @@ export default function ProspectionMassive() {
       <div className="max-w-7xl mx-auto">
         
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="page-title mb-2">
              Prospection Massive
           </h1>
           <p className="text-gray-600">
@@ -286,76 +286,76 @@ export default function ProspectionMassive() {
 
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-ui-sm shadow">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total Prospects</p>
+                  <p className="text-ui text-gray-600">Total Prospects</p>
                   <p className="text-2xl font-bold">{stats.total.toLocaleString()}</p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-blue-500" />
+                <TrendingUp className="w-8 h-8 text-[rgb(var(--c-info))]" />
               </div>
             </div>
             
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-ui-sm shadow">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Avec Téléphone</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.withPhone.toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">{stats.percentPhone}%</p>
+                  <p className="text-ui text-gray-600">Avec Téléphone</p>
+                  <p className="text-2xl font-bold text-[rgb(var(--c-success))]">{stats.withPhone.toLocaleString()}</p>
+                  <p className="text-ui-sm text-gray-500">{stats.percentPhone}%</p>
                 </div>
-                <Phone className="w-8 h-8 text-green-500" />
+                <Phone className="w-8 h-8 text-[rgb(var(--c-success))]" />
               </div>
             </div>
             
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-ui-sm shadow">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Avec Email</p>
-                  <p className="text-2xl font-bold text-purple-600">{stats.withEmail.toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">{stats.percentEmail}%</p>
+                  <p className="text-ui text-gray-600">Avec Email</p>
+                  <p className="text-2xl font-bold text-gray-800">{stats.withEmail.toLocaleString()}</p>
+                  <p className="text-ui-sm text-gray-500">{stats.percentEmail}%</p>
                 </div>
-                <Mail className="w-8 h-8 text-purple-500" />
+                <Mail className="w-8 h-8 text-gray-800" />
               </div>
             </div>
             
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-ui-sm shadow">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Complets</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.withBoth.toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">{stats.percentBoth}%</p>
+                  <p className="text-ui text-gray-600">Complets</p>
+                  <p className="text-2xl font-bold text-[rgb(var(--c-info))]">{stats.withBoth.toLocaleString()}</p>
+                  <p className="text-ui-sm text-gray-500">{stats.percentBoth}%</p>
                 </div>
                 <div className="flex gap-1">
-                  <Phone className="w-4 h-4 text-green-500" />
-                  <Mail className="w-4 h-4 text-purple-500" />
+                  <Phone className="w-4 h-4 text-[rgb(var(--c-success))]" />
+                  <Mail className="w-4 h-4 text-gray-800" />
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <div className="bg-white p-4 rounded-ui-sm shadow mb-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Filter className="w-5 h-5" />
             Filtres
           </h2>
           
           <div className="mb-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">Départements</p>
+            <p className="text-ui font-medium text-gray-700 mb-2">Départements</p>
             <div className="flex flex-wrap gap-2">
               {Object.entries(DEPARTEMENTS).map(([code, name]) => (
                 <button
                   key={code}
                   onClick={() => toggleDept(code)}
-                  className={`px-3 py-1 rounded text-sm ${
+                  className={`px-3 py-1 rounded text-ui ${
                     selectedDepts.includes(code)
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-[rgb(var(--c-info))] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
                   {code} - {name}
                   {stats?.byDept[code] && (
-                    <span className="ml-1 text-xs opacity-75">
+                    <span className="ml-1 text-ui-sm opacity-75">
                       ({stats.byDept[code].withContacts}/{stats.byDept[code].total})
                     </span>
                   )}
@@ -365,15 +365,15 @@ export default function ProspectionMassive() {
           </div>
           
           <div className="mb-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">Effectif</p>
+            <p className="text-ui font-medium text-gray-700 mb-2">Effectif</p>
             <div className="flex flex-wrap gap-2">
               {TRANCHES_EFFECTIF.map(({ code, label }) => (
                 <button
                   key={code}
                   onClick={() => toggleEffectif(code)}
-                  className={`px-3 py-1 rounded text-sm ${
+                  className={`px-3 py-1 rounded text-ui ${
                     selectedEffectifs.includes(code)
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-[rgb(var(--c-success))] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -384,7 +384,7 @@ export default function ProspectionMassive() {
           </div>
           
           <div className="mb-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">Contacts disponibles</p>
+            <p className="text-ui font-medium text-gray-700 mb-2">Contacts disponibles</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setContactsFilter('all')}
@@ -400,7 +400,7 @@ export default function ProspectionMassive() {
                 onClick={() => setContactsFilter('with')}
                 className={`px-4 py-2 rounded ${
                   contactsFilter === 'with'
-                    ? 'bg-green-500 text-white'
+                    ? 'bg-[rgb(var(--c-success))] text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -410,7 +410,7 @@ export default function ProspectionMassive() {
                 onClick={() => setContactsFilter('without')}
                 className={`px-4 py-2 rounded ${
                   contactsFilter === 'without'
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-[rgb(var(--c-warning))] text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -420,7 +420,7 @@ export default function ProspectionMassive() {
           </div>
           
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Recherche</p>
+            <p className="text-ui font-medium text-gray-700 mb-2">Recherche</p>
             <div className="relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
               <input
@@ -431,27 +431,27 @@ export default function ProspectionMassive() {
                   setPage(1)
                 }}
                 placeholder="Nom entreprise ou ville..."
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border rounded-ui-sm focus:ring-2 focus:ring-[rgb(var(--c-info)/0.3)]"
               />
             </div>
           </div>
         </div>
 
         <div className="flex justify-between items-center mb-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-ui text-gray-600">
             {total.toLocaleString()} prospects • Page {page}
           </p>
           <button
             onClick={exportCSV}
             disabled={total === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
             Exporter CSV
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-ui-sm shadow overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-gray-500">
               Chargement...
@@ -465,11 +465,11 @@ export default function ProspectionMassive() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entreprise</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ville</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Effectif</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contacts</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                    <th className="px-4 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Entreprise</th>
+                    <th className="px-4 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Ville</th>
+                    <th className="px-4 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Effectif</th>
+                    <th className="px-4 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Contacts</th>
+                    <th className="px-4 py-3 text-left text-ui-sm font-medium text-gray-500 uppercase">Score</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -477,27 +477,27 @@ export default function ProspectionMassive() {
                     <tr key={prospect.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-900">{prospect.name}</p>
-                        <p className="text-xs text-gray-500">{prospect.siret}</p>
+                        <p className="text-ui-sm text-gray-500">{prospect.siret}</p>
                         
                         {prospect.is_multi_etablissement && (
                           <div className="mt-1">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]">
                                {prospect.etablissements_count} établissements
                               {prospect.is_siege && " (Siège)"}
                             </span>
                             
                             {prospect.contact_recommendation === 'call_siege_only' && (
-                              <div className="mt-1 text-xs text-orange-600">
+                              <div className="mt-1 text-ui-sm text-[rgb(var(--c-warning))]">
                                  Même ville → Appeler le siège uniquement
                               </div>
                             )}
                             {prospect.contact_recommendation === 'call_all' && (
-                              <div className="mt-1 text-xs text-green-600">
+                              <div className="mt-1 text-ui-sm text-[rgb(var(--c-success))]">
                                  Villes différentes → Appeler tous
                               </div>
                             )}
                             {prospect.contact_recommendation === 'verify_first' && (
-                              <div className="mt-1 text-xs text-blue-600">
+                              <div className="mt-1 text-ui-sm text-[rgb(var(--c-info))]">
                                  Vérifier si même contact avant
                               </div>
                             )}
@@ -505,41 +505,41 @@ export default function ProspectionMassive() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-gray-900">{prospect.city}</p>
-                        <p className="text-xs text-gray-500">{DEPARTEMENTS[prospect.departement]}</p>
+                        <p className="text-ui text-gray-900">{prospect.city}</p>
+                        <p className="text-ui-sm text-gray-500">{DEPARTEMENTS[prospect.departement]}</p>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
+                      <td className="px-4 py-3 text-ui text-gray-700">
                         {prospect.effectif_label}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
                           {prospect.phone && (
-                            <div className="flex items-center gap-1 text-xs text-green-600">
+                            <div className="flex items-center gap-1 text-ui-sm text-[rgb(var(--c-success))]">
                               <Phone className="w-3 h-3" />
                               {prospect.phone}
                             </div>
                           )}
                           {prospect.email && (
-                            <div className="flex items-center gap-1 text-xs text-purple-600">
+                            <div className="flex items-center gap-1 text-ui-sm text-gray-800">
                               <Mail className="w-3 h-3" />
                               {prospect.email}
                             </div>
                           )}
                           {prospect.site_web && (
-                            <div className="flex items-center gap-1 text-xs text-blue-600">
+                            <div className="flex items-center gap-1 text-ui-sm text-[rgb(var(--c-info))]">
                               <Globe className="w-3 h-3" />
                               Site web
                             </div>
                           )}
                           {!prospect.phone && !prospect.email && !prospect.site_web && (
-                            <span className="text-xs text-gray-400">Aucun contact</span>
+                            <span className="text-ui-sm text-gray-400">Aucun contact</span>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                          prospect.quality_score >= 70 ? 'bg-green-100 text-green-800' :
-                          prospect.quality_score >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                        <div className={`inline-flex items-center px-2 py-1 rounded text-ui-sm font-medium ${
+                          prospect.quality_score >= 70 ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+                          prospect.quality_score >= 50 ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {prospect.quality_score}
@@ -557,17 +557,17 @@ export default function ProspectionMassive() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-ui border rounded-ui-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Précédent
               </button>
-              <span className="text-sm text-gray-600">
+              <span className="text-ui text-gray-600">
                 Page {page} sur {Math.ceil(total / perPage)}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(Math.ceil(total / perPage), p + 1))}
                 disabled={page >= Math.ceil(total / perPage)}
-                className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-ui border rounded-ui-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Suivant
               </button>

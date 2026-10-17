@@ -83,14 +83,14 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : ''
 
 function Chip({ active, onClick, children, color = 'blue' }) {
   const on = {
-    blue: 'bg-blue-600 text-white border-blue-600',
-    green: 'bg-green-600 text-white border-green-600',
-    purple: 'bg-purple-600 text-white border-purple-600',
+    blue: 'bg-[rgb(var(--c-info))] text-white border-[rgb(var(--c-info)/0.3)]',
+    green: 'bg-[rgb(var(--c-success))] text-white border-[rgb(var(--c-success)/0.3)]',
+    purple: 'bg-gray-700 text-white border-gray-400',
     gray: 'bg-gray-800 text-white border-gray-800',
   }[color]
   return (
     <button type="button" onClick={onClick}
-      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? on : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+      className={`px-2.5 py-1 rounded-full text-ui-sm font-medium border transition-colors ${active ? on : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
       {children}
     </button>
   )
@@ -349,42 +349,42 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={f.q} onChange={e => setF({ q: e.target.value })}
             placeholder="Entreprise, adresse, ville…"
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-ui-sm text-ui focus:outline-none focus:ring-2 focus:ring-[rgb(var(--c-info)/0.3)]" />
         </div>
         <button onClick={() => setShowFilters(s => !s)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border ${showFilters ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-ui-sm text-ui border ${showFilters ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
           <SlidersHorizontal className="w-4 h-4" /> Filtres{activeFilterCount > 0 && ` (${activeFilterCount})`}
         </button>
         <div className="relative">
-          <button onClick={() => setShowSegments(s => !s)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-gray-200 text-gray-700 hover:bg-gray-50">
+          <button onClick={() => setShowSegments(s => !s)} className="flex items-center gap-1.5 px-3 py-2 rounded-ui-sm text-ui border border-gray-200 text-gray-700 hover:bg-gray-50">
             <FolderOpen className="w-4 h-4" /> Segments{segments.length > 0 && ` (${segments.length})`}
           </button>
           {showSegments && (
-          <div className="absolute right-0 top-full mt-1 w-72 bg-white border rounded-lg shadow-lg z-20">
-            <button onClick={() => { setShowSegments(false); saveSegment() }} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 border-b">
-              <Save className="w-4 h-4 text-blue-600" /> Enregistrer les filtres actuels
+          <div className="absolute right-0 top-full mt-1 w-72 bg-white border rounded-ui-sm shadow-md z-20">
+            <button onClick={() => { setShowSegments(false); saveSegment() }} className="w-full flex items-center gap-2 px-3 py-2 text-ui hover:bg-gray-50 border-b">
+              <Save className="w-4 h-4 text-[rgb(var(--c-info))]" /> Enregistrer les filtres actuels
             </button>
-            {segments.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">Aucun segment</p>}
+            {segments.length === 0 && <p className="px-3 py-2 text-ui-sm text-gray-400">Aucun segment</p>}
             {segments.map(s => (
               <div key={s.id} className="flex items-center hover:bg-gray-50">
-                <button onClick={() => { setShowSegments(false); applySegment(s) }} className="flex-1 text-left px-3 py-2 text-sm truncate">{s.name}</button>
-                <button onClick={() => deleteSegment(s)} className="px-2 text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => { setShowSegments(false); applySegment(s) }} className="flex-1 text-left px-3 py-2 text-ui truncate">{s.name}</button>
+                <button onClick={() => deleteSegment(s)} className="px-2 text-gray-300 hover:text-[rgb(var(--c-danger))]"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             ))}
           </div>
           )}
         </div>
-        <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-gray-200 text-gray-700 hover:bg-gray-50">
+        <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-ui-sm text-ui border border-gray-200 text-gray-700 hover:bg-gray-50">
           <Upload className="w-4 h-4" /> Coller une liste
         </button>
-        <button onClick={reload} title="Recharger" className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
+        <button onClick={reload} title="Recharger" className="p-2 rounded-ui-sm border border-gray-200 text-gray-500 hover:bg-gray-50">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
       {/* ── Filtres ── */}
       {showFilters && (
-        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-3 text-xs">
+        <div className="bg-gray-50 border border-gray-100 rounded-ui p-3 space-y-3 text-ui-sm">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="w-24 text-gray-500 font-medium">Source</span>
             {SOURCES.map(s => <Chip key={s.v} active={f.sources.includes(s.v)} onClick={() => setF({ sources: toggleIn(f.sources, s.v) })}>{s.l}</Chip>)}
@@ -413,7 +413,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="w-24 text-gray-500 font-medium">Mailing</span>
-            <select value={f.mailed} onChange={e => setF({ mailed: e.target.value })} className="border rounded-lg px-2 py-1">
+            <select value={f.mailed} onChange={e => setF({ mailed: e.target.value })} className="border rounded-ui-sm px-2 py-1">
               <option value="tous">Tous</option>
               <option value="jamais">Jamais mailés</option>
               <option value="deja">Déjà mailés</option>
@@ -421,18 +421,18 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
             </select>
             {f.mailed === 'pas_depuis' && (
               <span className="flex items-center gap-1">
-                <input type="number" min="1" value={f.sinceDays} onChange={e => setF({ sinceDays: e.target.value })} className="w-16 border rounded-lg px-2 py-1" /> jours
+                <input type="number" min="1" value={f.sinceDays} onChange={e => setF({ sinceDays: e.target.value })} className="w-16 border rounded-ui-sm px-2 py-1" /> jours
               </span>
             )}
-            <select value={f.campaignIn} onChange={e => setF({ campaignIn: e.target.value })} className="border rounded-lg px-2 py-1 max-w-[220px]">
+            <select value={f.campaignIn} onChange={e => setF({ campaignIn: e.target.value })} className="border rounded-ui-sm px-2 py-1 max-w-[220px]">
               <option value="">A reçu la campagne…</option>
               {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <select value={f.campaignNotIn} onChange={e => setF({ campaignNotIn: e.target.value })} className="border rounded-lg px-2 py-1 max-w-[220px]">
+            <select value={f.campaignNotIn} onChange={e => setF({ campaignNotIn: e.target.value })} className="border rounded-ui-sm px-2 py-1 max-w-[220px]">
               <option value="">N'a pas reçu la campagne…</option>
               {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <select value={f.replied} onChange={e => setF({ replied: e.target.value })} className="border rounded-lg px-2 py-1">
+            <select value={f.replied} onChange={e => setF({ replied: e.target.value })} className="border rounded-ui-sm px-2 py-1">
               <option value="tous">Réponse : peu importe</option>
               <option value="oui">A déjà répondu</option>
               <option value="non">N'a jamais répondu</option>
@@ -453,31 +453,31 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
             </label>
             {activeFilterCount > 0 && (
               <button onClick={() => onFiltersChange?.({ ...EMPTY_AUDIENCE_FILTERS, includePartners: f.includePartners, includeRgpd: f.includeRgpd })}
-                className="ml-auto text-red-500 hover:text-red-700">Effacer les filtres</button>
+                className="ml-auto text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]">Effacer les filtres</button>
             )}
           </div>
         </div>
       )}
 
       {/* ── Compteurs ── */}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-ui">
         <span className="text-gray-700"><strong>{selectableMatched.length}</strong> adresse{selectableMatched.length > 1 ? 's' : ''} disponible{selectableMatched.length > 1 ? 's' : ''}</span>
         {Object.keys(excludedCounts).length > 0 && (
-          <span className="text-xs text-gray-500">
+          <span className="text-ui-sm text-gray-500">
             · exclues : {Object.entries(excludedCounts).map(([k, n]) => `${EXCLUSION_LABELS[k] || k} ${n}`).join(' · ')}
-            {!f.showExcluded && <button onClick={() => setF({ showExcluded: true })} className="ml-1 text-blue-600 underline">voir</button>}
+            {!f.showExcluded && <button onClick={() => setF({ showExcluded: true })} className="ml-1 text-[rgb(var(--c-info))] underline">voir</button>}
           </span>
         )}
         <div className="flex-1" />
         <button onClick={selectAllMatched} disabled={!selectableMatched.length}
-          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium disabled:opacity-40">
+          className="px-3 py-1.5 bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui-sm font-medium disabled:opacity-40">
           Tout sélectionner ({selectableMatched.length})
         </button>
-        <button onClick={selectPage} className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-medium">
+        <button onClick={selectPage} className="px-3 py-1.5 bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded-ui-sm text-ui-sm font-medium">
           Sélectionner la page
         </button>
         {selectedInMatched > 0 && (
-          <button onClick={unselectAllMatched} className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium">
+          <button onClick={unselectAllMatched} className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-ui-sm text-ui-sm font-medium">
             Désélectionner les filtrés ({selectedInMatched})
           </button>
         )}
@@ -487,8 +487,8 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
       ) : (
-        <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b text-xs text-gray-500">
+        <div className="border border-gray-200 rounded-ui overflow-hidden bg-white">
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b text-ui-sm text-gray-500">
             <span>Tri :</span>
             {[['nom', 'Nom'], ['ville', 'Ville'], ['dernier', 'Dernier mail'], ['lignes', 'Établissements']].map(([k, l]) => (
               <button key={k} onClick={() => setSort(k)} className={`px-2 py-0.5 rounded ${sort === k ? 'bg-white border font-medium text-gray-800' : 'hover:text-gray-800'}`}>{l}</button>
@@ -496,7 +496,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
             <span className="ml-auto">Maj + clic = sélection d'une plage</span>
           </div>
           <div className="max-h-[560px] overflow-y-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-ui-sm">
               <tbody className="divide-y divide-gray-50">
                 {pageRows.length === 0 && (
                   <tr><td className="px-3 py-8 text-center text-gray-400">Aucune adresse ne correspond</td></tr>
@@ -510,20 +510,20 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
                   return (
                     <tr key={r.email}
                       onClick={e => toggleRow(r, index, e.shiftKey)}
-                      className={`${selectable ? 'cursor-pointer' : 'cursor-not-allowed'} ${selected ? 'bg-blue-50 hover:bg-blue-100' : hard ? 'bg-gray-50 text-gray-400' : 'hover:bg-gray-50'}`}>
+                      className={`${selectable ? 'cursor-pointer' : 'cursor-not-allowed'} ${selected ? 'bg-[rgb(var(--c-info-bg))] hover:bg-[rgb(var(--c-info-bg))]' : hard ? 'bg-gray-50 text-gray-400' : 'hover:bg-gray-50'}`}>
                       <td className="w-8 px-3 py-2 align-top">
                         <input type="checkbox" checked={selected} disabled={!selectable} readOnly
-                          className="rounded border-gray-300 text-blue-600" />
+                          className="rounded border-gray-300 text-[rgb(var(--c-info))]" />
                       </td>
                       <td className="px-2 py-2 align-top">
                         <div className="flex flex-wrap items-center gap-1">
                           <span className={`font-medium ${hard ? 'text-gray-400' : 'text-gray-900'}`} title={(r.noms || []).join(' / ')}>{r.display_name}</span>
-                          {(r.source_types || []).includes('client') && <span className="px-1 rounded bg-green-100 text-green-700 text-[10px]">Client</span>}
-                          {(r.source_types || []).includes('contact') && <span className="px-1 rounded bg-green-50 text-green-700 text-[10px]">Contact{r.prenom || r.nom ? ` · ${[r.prenom, r.nom].filter(Boolean).join(' ')}` : ''}</span>}
-                          {(r.source_types || []).includes('crm') && <span className="px-1 rounded bg-blue-100 text-blue-700 text-[10px]">CRM</span>}
-                          {r.nb_lignes > 1 && <span className="px-1 rounded bg-purple-100 text-purple-700 text-[10px]" title={(r.villes || []).join(', ')}>{r.nb_lignes} fiches · 1 envoi</span>}
-                          {r.email_status === 'a_verifier' && <span className="px-1 rounded bg-amber-100 text-amber-700 text-[10px]"> à vérifier</span>}
-                          {(r.email_flags || []).filter(x => x === 'service').map(x => <span key={x} className="px-1 rounded bg-gray-100 text-gray-500 text-[10px]">{FLAG_LABELS[x]}</span>)}
+                          {(r.source_types || []).includes('client') && <span className="px-1 rounded bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] text-ui-sm">Client</span>}
+                          {(r.source_types || []).includes('contact') && <span className="px-1 rounded bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] text-ui-sm">Contact{r.prenom || r.nom ? ` · ${[r.prenom, r.nom].filter(Boolean).join(' ')}` : ''}</span>}
+                          {(r.source_types || []).includes('crm') && <span className="px-1 rounded bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] text-ui-sm">CRM</span>}
+                          {r.nb_lignes > 1 && <span className="px-1 rounded bg-gray-100 text-gray-800 text-ui-sm" title={(r.villes || []).join(', ')}>{r.nb_lignes} fiches · 1 envoi</span>}
+                          {r.email_status === 'a_verifier' && <span className="px-1 rounded bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui-sm"> à vérifier</span>}
+                          {(r.email_flags || []).filter(x => x === 'service').map(x => <span key={x} className="px-1 rounded bg-gray-100 text-gray-500 text-ui-sm">{FLAG_LABELS[x]}</span>)}
                         </div>
                         <div className="text-gray-400 break-all">{r.email}</div>
                       </td>
@@ -534,18 +534,18 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
                       <td className="px-2 py-2 align-top text-gray-400 hidden lg:table-cell">{(r.nafs || [])[0] || '-'}</td>
                       <td className="px-2 py-2 align-top text-right whitespace-nowrap">
                         {r._reason ? (
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${hard ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-700'}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-ui-sm ${hard ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>
                             {EXCLUSION_LABELS[r._reason]}{!hard && (selected ? ' · réintégrée' : ' · cliquer pour réintégrer')}
                           </span>
                         ) : r.last_sent_at ? (
-                          <span className={`text-[10px] ${recent ? 'text-amber-600 font-medium' : 'text-gray-400'}`} title={`${r.nb_campagnes} campagne(s) reçue(s)`}>
+                          <span className={`text-ui-sm ${recent ? 'text-[rgb(var(--c-warning))] font-medium' : 'text-gray-400'}`} title={`${r.nb_campagnes} campagne(s) reçue(s)`}>
                             {recent && <AlertTriangle className="w-3 h-3 inline -mt-0.5 mr-0.5" />}
                             mailé le {fmtDate(r.last_sent_at)}
                           </span>
                         ) : (
-                          <span className="text-[10px] text-gray-300">jamais mailé</span>
+                          <span className="text-ui-sm text-gray-300">jamais mailé</span>
                         )}
-                        {r.last_replied_at && <div className="text-[10px] text-green-600">↩ a répondu le {fmtDate(r.last_replied_at)}</div>}
+                        {r.last_replied_at && <div className="text-ui-sm text-[rgb(var(--c-success))]">↩ a répondu le {fmtDate(r.last_replied_at)}</div>}
                       </td>
                     </tr>
                   )
@@ -553,7 +553,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
               </tbody>
             </table>
           </div>
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t text-xs text-gray-600">
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t text-ui-sm text-gray-600">
             <span className="flex items-center gap-1">
               Afficher
               <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(0) }} className="border rounded px-1 py-0.5">
@@ -574,24 +574,24 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
 
       {/* ── Récapitulatif de la sélection ── */}
       {value.size > 0 && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-2 text-xs">
+        <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui p-3 space-y-2 text-ui-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <strong className="text-blue-900 text-sm">{value.size} destinataire{value.size > 1 ? 's' : ''} sélectionné{value.size > 1 ? 's' : ''}</strong>
+            <strong className="text-[rgb(var(--c-info))] text-ui">{value.size} destinataire{value.size > 1 ? 's' : ''} sélectionné{value.size > 1 ? 's' : ''}</strong>
             {recentCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" title="Avertissement seulement : l'envoi reste possible">
+              <span className="px-2 py-0.5 rounded-full bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]" title="Avertissement seulement : l'envoi reste possible">
                  {recentCount} déjà mailé{recentCount > 1 ? 's' : ''} il y a moins de {RECENT_DAYS} j
                 <button onClick={() => removeWhere(r => r.last_sent_at && daysSince(r.last_sent_at) < RECENT_DAYS, 'mailés récemment')} className="ml-1 underline">retirer</button>
               </span>
             )}
-            {forcedCount > 0 && <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">{forcedCount} réintégré{forcedCount > 1 ? 's' : ''} à la main</span>}
-            <button onClick={() => setSelection(new Map())} className="ml-auto text-red-500 hover:text-red-700">Vider la sélection</button>
+            {forcedCount > 0 && <span className="px-2 py-0.5 rounded-full bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]">{forcedCount} réintégré{forcedCount > 1 ? 's' : ''} à la main</span>}
+            <button onClick={() => setSelection(new Map())} className="ml-auto text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]">Vider la sélection</button>
           </div>
           <div className="flex flex-wrap items-center gap-1">
             <span className="text-gray-500 w-24">Départements</span>
             {recapDeps.map(([d, n]) => (
               <span key={d} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border">
                 {d} : {n}
-                <button onClick={() => removeWhere(r => ((r.departements || [])[0] || '-') === d, `département ${d}`)} className="text-gray-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                <button onClick={() => removeWhere(r => ((r.departements || [])[0] || '-') === d, `département ${d}`)} className="text-gray-400 hover:text-[rgb(var(--c-danger))]"><X className="w-3 h-3" /></button>
               </span>
             ))}
           </div>
@@ -600,7 +600,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
             {recapSect.map(([k, n]) => (
               <span key={k} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border">
                 {k} : {n}
-                <button onClick={() => removeWhere(r => { const x = normNaf((r.nafs || [])[0] || ''); return (x ? x.slice(0, 2) : '-') === k }, `NAF ${k}`)} className="text-gray-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                <button onClick={() => removeWhere(r => { const x = normNaf((r.nafs || [])[0] || ''); return (x ? x.slice(0, 2) : '-') === k }, `NAF ${k}`)} className="text-gray-400 hover:text-[rgb(var(--c-danger))]"><X className="w-3 h-3" /></button>
               </span>
             ))}
           </div>
@@ -610,17 +610,17 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
       {/* ── Import ── */}
       {showImport && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 space-y-3">
+          <div className="bg-white rounded-ui shadow-md w-full max-w-lg p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Coller une liste d'adresses</h3>
               <button onClick={() => setShowImport(false)}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
-            <p className="text-xs text-gray-500">Collez des adresses (une par ligne, ou un copier-coller Excel). Seules celles présentes dans l'application et non exclues sont ajoutées.</p>
+            <p className="text-ui-sm text-gray-500">Collez des adresses (une par ligne, ou un copier-coller Excel). Seules celles présentes dans l'application et non exclues sont ajoutées.</p>
             <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={10}
-              className="w-full border rounded-lg px-3 py-2 text-sm font-mono" placeholder="contact@exemple.fr&#10;rh@entreprise.bzh" />
+              className="w-full border rounded-ui-sm px-3 py-2 text-ui font-mono" placeholder="contact@exemple.fr&#10;rh@entreprise.bzh" />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowImport(false)} className="px-4 py-2 text-sm text-gray-600">Annuler</button>
-              <button onClick={applyImport} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Ajouter à la sélection</button>
+              <button onClick={() => setShowImport(false)} className="px-4 py-2 text-ui text-gray-600">Annuler</button>
+              <button onClick={applyImport} className="btn btn-secondary text-ui">Ajouter à la sélection</button>
             </div>
           </div>
         </div>

@@ -21,31 +21,31 @@ import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 // ═══════════════════════════════════════════════════════════
 const STATUS_CONFIG = {
   brouillon:       { label: 'Brouillon',       emoji: '', color: 'bg-gray-100 text-gray-700' },
-  en_cours:        { label: 'En cours',         emoji: '', color: 'bg-blue-100 text-blue-700' },
-  visite_terrain:  { label: 'Visite terrain',   emoji: '', color: 'bg-amber-100 text-amber-700' },
-  finalisation:    { label: 'Finalisation',     emoji: '', color: 'bg-purple-100 text-purple-700' },
-  termine:         { label: 'Terminé',          emoji: '', color: 'bg-green-100 text-green-700' },
+  en_cours:        { label: 'En cours',         emoji: '', color: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' },
+  visite_terrain:  { label: 'Visite terrain',   emoji: '', color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
+  finalisation:    { label: 'Finalisation',     emoji: '', color: 'bg-gray-100 text-gray-800' },
+  termine:         { label: 'Terminé',          emoji: '', color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
   archive:         { label: 'Archivé',          emoji: '', color: 'bg-stone-100 text-stone-600' },
 }
 
 const FREQUENCE_LABELS = [
-  { value: 1, label: 'Occasionnel', short: '1', desc: 'Quelques fois/mois',    color: 'bg-green-100 text-green-800 border-green-300' },
-  { value: 2, label: 'Fréquent',    short: '2', desc: 'Plusieurs fois/jour',   color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { value: 3, label: 'Très fréquent', short: '3', desc: 'Plusieurs fois/heure', color: 'bg-orange-100 text-orange-800 border-orange-300' },
-  { value: 4, label: 'Permanent',   short: '4', desc: 'Plusieurs fois/min',    color: 'bg-red-100 text-red-800 border-red-300' },
+  { value: 1, label: 'Occasionnel', short: '1', desc: 'Quelques fois/mois',    color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)]' },
+  { value: 2, label: 'Fréquent',    short: '2', desc: 'Plusieurs fois/jour',   color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)]' },
+  { value: 3, label: 'Très fréquent', short: '3', desc: 'Plusieurs fois/heure', color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)]' },
+  { value: 4, label: 'Permanent',   short: '4', desc: 'Plusieurs fois/min',    color: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] border-[rgb(var(--c-danger)/0.3)]' },
 ]
 
 const GRAVITE_LABELS = [
-  { value: 1, label: 'Minime',      short: '1', desc: '1er soin, incident',   color: 'bg-green-100 text-green-800 border-green-300' },
-  { value: 2, label: 'Significatif', short: '2', desc: 'AT sans arrêt',       color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { value: 3, label: 'Grave',       short: '3', desc: 'AT avec arrêt / MP',   color: 'bg-orange-100 text-orange-800 border-orange-300' },
-  { value: 4, label: 'Très grave',  short: '4', desc: 'IPP / décès',          color: 'bg-red-100 text-red-800 border-red-300' },
+  { value: 1, label: 'Minime',      short: '1', desc: '1er soin, incident',   color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)]' },
+  { value: 2, label: 'Significatif', short: '2', desc: 'AT sans arrêt',       color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)]' },
+  { value: 3, label: 'Grave',       short: '3', desc: 'AT avec arrêt / MP',   color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)]' },
+  { value: 4, label: 'Très grave',  short: '4', desc: 'IPP / décès',          color: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] border-[rgb(var(--c-danger)/0.3)]' },
 ]
 
 const MAITRISE_LABELS = [
-  { value: 0.5,  label: 'Totale',       desc: 'Action 100% en place, efficace', color: 'bg-green-100 text-green-800 border-green-300' },
-  { value: 0.75, label: 'Partielle',    desc: 'Action partiellement en place',  color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { value: 1,    label: 'Insuffisante', desc: 'Action non mise en place',       color: 'bg-red-100 text-red-800 border-red-300' },
+  { value: 0.5,  label: 'Totale',       desc: 'Action 100% en place, efficace', color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)]' },
+  { value: 0.75, label: 'Partielle',    desc: 'Action partiellement en place',  color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)]' },
+  { value: 1,    label: 'Insuffisante', desc: 'Action non mise en place',       color: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] border-[rgb(var(--c-danger)/0.3)]' },
 ]
 
 // Types d'actions - CHECK constraint SQL : prevention, protection, formation, organisationnelle, technique
@@ -59,17 +59,17 @@ const ACTION_TYPES = [
 
 // Priorités - CHECK constraint SQL : critique, haute, moyenne, basse
 const ACTION_PRIORITES = [
-  { value: 'critique', label: 'Critique', color: 'bg-red-200 text-red-800' },
-  { value: 'haute',    label: 'Haute',    color: 'bg-red-100 text-red-700' },
-  { value: 'moyenne',  label: 'Moyenne',  color: 'bg-yellow-100 text-yellow-700' },
-  { value: 'basse',    label: 'Basse',    color: 'bg-green-100 text-green-700' },
+  { value: 'critique', label: 'Critique', color: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' },
+  { value: 'haute',    label: 'Haute',    color: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' },
+  { value: 'moyenne',  label: 'Moyenne',  color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
+  { value: 'basse',    label: 'Basse',    color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
 ]
 
 // Statuts - CHECK constraint SQL : a_faire, en_cours, fait, annule
 const ACTION_STATUTS = [
   { value: 'a_faire',  label: 'À faire',  emoji: '⬜', color: 'bg-gray-100 text-gray-700' },
-  { value: 'en_cours', label: 'En cours', emoji: '', color: 'bg-blue-100 text-blue-700' },
-  { value: 'fait',     label: 'Fait',     emoji: '', color: 'bg-green-100 text-green-700' },
+  { value: 'en_cours', label: 'En cours', emoji: '', color: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' },
+  { value: 'fait',     label: 'Fait',     emoji: '', color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
   { value: 'annule',   label: 'Annulé',   emoji: '', color: 'bg-stone-100 text-stone-600' },
 ]
 
@@ -89,10 +89,10 @@ const computeDisplayScores = (r) => {
 
 const getRiskLevel = (score) => {
   if (!score || score <= 0) return { label: 'Non évalué', color: 'bg-gray-200', text: 'text-gray-500', badge: 'bg-gray-100 text-gray-600' }
-  if (score <= 4)  return { label: 'Faible',   color: 'bg-green-500',  text: 'text-green-700',  badge: 'bg-green-100 text-green-700' }
-  if (score <= 8)  return { label: 'Moyen',    color: 'bg-yellow-500', text: 'text-yellow-700', badge: 'bg-yellow-100 text-yellow-700' }
-  if (score <= 12) return { label: 'Élevé',    color: 'bg-orange-500', text: 'text-orange-700', badge: 'bg-orange-100 text-orange-700' }
-  return { label: 'Critique', color: 'bg-red-500', text: 'text-red-700', badge: 'bg-red-100 text-red-700' }
+  if (score <= 4)  return { label: 'Faible',   color: 'bg-[rgb(var(--c-success))]',  text: 'text-[rgb(var(--c-success))]',  badge: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' }
+  if (score <= 8)  return { label: 'Moyen',    color: 'bg-[rgb(var(--c-warning))]', text: 'text-[rgb(var(--c-warning))]', badge: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' }
+  if (score <= 12) return { label: 'Élevé',    color: 'bg-[rgb(var(--c-warning))]', text: 'text-[rgb(var(--c-warning))]', badge: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' }
+  return { label: 'Critique', color: 'bg-[rgb(var(--c-danger))]', text: 'text-[rgb(var(--c-danger))]', badge: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -821,7 +821,7 @@ export default function DuerpDetail() {
   if (loading || !project) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[rgb(var(--c-warning))]" />
       </div>
     )
   }
@@ -833,30 +833,30 @@ export default function DuerpDetail() {
 
       {/* ═══════════ HEADER ═══════════ */}
       <div className="mb-4">
-        <Link to="/duerp" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 mb-2">
+        <Link to="/duerp" className="inline-flex items-center gap-1 text-ui text-gray-500 hover:text-[rgb(var(--c-warning))] mb-2">
           <ArrowLeft className="w-4 h-4" /> Retour aux projets
         </Link>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 truncate">
-              <Shield className="w-6 h-6 text-amber-600 shrink-0" />
+            <h1 className="page-title flex items-center gap-2 truncate">
+              <Shield className="w-6 h-6 text-[rgb(var(--c-warning))] shrink-0" />
               {project.company_name}
             </h1>
-            <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500">
-              <span className="font-mono text-xs">{project.reference}</span>
-              {project.version > 1 && <span className="text-xs bg-blue-50 text-blue-600 px-1.5 rounded">v{project.version}</span>}
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-ui text-gray-500">
+              <span className="font-mono text-ui-sm">{project.reference}</span>
+              {project.version > 1 && <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1.5 rounded">v{project.version}</span>}
               {project.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{project.postal_code} {project.city}</span>}
               {project.effectif && <span> {project.effectif}</span>}
-              {project.naf_code && <span className="text-amber-600 text-xs">NAF {project.naf_code}</span>}
+              {project.naf_code && <span className="text-[rgb(var(--c-warning))] text-ui-sm">NAF {project.naf_code}</span>}
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => { setShowInfoPanel(!showInfoPanel); setEditingProject(null) }}
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-500" title="Infos projet">
+              className="p-2 rounded-ui-sm hover:bg-gray-100 text-gray-500" title="Infos projet">
               <Info className="w-5 h-5" />
             </button>
             <select value={project.status} onChange={e => updateProjectStatus(e.target.value)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium border cursor-pointer ${st.color}`}>
+              className={`px-3 py-2 rounded-ui-sm text-ui font-medium border cursor-pointer ${st.color}`}>
               {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                 <option key={k} value={k}>{v.emoji} {v.label}</option>
               ))}
@@ -866,29 +866,29 @@ export default function DuerpDetail() {
       </div>
 
       {/* ═══════════ BARRE PROGRESSION RISQUES ═══════════ */}
-      <div className="bg-white rounded-xl border shadow-sm p-3 mb-4">
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+      <div className="bg-white rounded-ui border shadow-sm p-3 mb-4">
+        <div className="flex items-center justify-between text-ui-sm text-gray-500 mb-1.5">
           <span>{riskStats.total} risques identifiés - {riskStats.evaluated} évalués</span>
           <span>{actionStats.fait}/{actionStats.total} actions réalisées</span>
         </div>
         <div className="flex h-3 rounded-full overflow-hidden bg-gray-100">
           {riskStats.total > 0 && (<>
-            {riskStats.critique > 0 && <div className="bg-red-500 transition-all" style={{ width: `${(riskStats.critique / riskStats.total) * 100}%` }} />}
-            {riskStats.eleve > 0 && <div className="bg-orange-500 transition-all" style={{ width: `${(riskStats.eleve / riskStats.total) * 100}%` }} />}
-            {riskStats.moyen > 0 && <div className="bg-yellow-500 transition-all" style={{ width: `${(riskStats.moyen / riskStats.total) * 100}%` }} />}
-            {riskStats.faible > 0 && <div className="bg-green-500 transition-all" style={{ width: `${(riskStats.faible / riskStats.total) * 100}%` }} />}
+            {riskStats.critique > 0 && <div className="bg-[rgb(var(--c-danger))] transition-all" style={{ width: `${(riskStats.critique / riskStats.total) * 100}%` }} />}
+            {riskStats.eleve > 0 && <div className="bg-[rgb(var(--c-warning))] transition-all" style={{ width: `${(riskStats.eleve / riskStats.total) * 100}%` }} />}
+            {riskStats.moyen > 0 && <div className="bg-[rgb(var(--c-warning))] transition-all" style={{ width: `${(riskStats.moyen / riskStats.total) * 100}%` }} />}
+            {riskStats.faible > 0 && <div className="bg-[rgb(var(--c-success))] transition-all" style={{ width: `${(riskStats.faible / riskStats.total) * 100}%` }} />}
             {riskStats.nonEvaluated > 0 && <div className="bg-gray-300 transition-all" style={{ width: `${(riskStats.nonEvaluated / riskStats.total) * 100}%` }} />}
           </>)}
         </div>
         <div className="flex flex-wrap gap-3 mt-2">
           {[
-            { label: 'Critique', count: riskStats.critique, color: 'bg-red-500' },
-            { label: 'Élevé', count: riskStats.eleve, color: 'bg-orange-500' },
-            { label: 'Moyen', count: riskStats.moyen, color: 'bg-yellow-500' },
-            { label: 'Faible', count: riskStats.faible, color: 'bg-green-500' },
+            { label: 'Critique', count: riskStats.critique, color: 'bg-[rgb(var(--c-danger))]' },
+            { label: 'Élevé', count: riskStats.eleve, color: 'bg-[rgb(var(--c-warning))]' },
+            { label: 'Moyen', count: riskStats.moyen, color: 'bg-[rgb(var(--c-warning))]' },
+            { label: 'Faible', count: riskStats.faible, color: 'bg-[rgb(var(--c-success))]' },
             { label: 'Non évalué', count: riskStats.nonEvaluated, color: 'bg-gray-300' },
           ].filter(i => i.count > 0).map(i => (
-            <span key={i.label} className="flex items-center gap-1 text-xs text-gray-600">
+            <span key={i.label} className="flex items-center gap-1 text-ui-sm text-gray-600">
               <span className={`w-2.5 h-2.5 rounded-full ${i.color}`} />{i.count} {i.label}
             </span>
           ))}
@@ -897,17 +897,17 @@ export default function DuerpDetail() {
 
       {/* ═══════════ PANEL INFOS PROJET ═══════════ */}
       {showInfoPanel && (
-        <div className="bg-white rounded-xl border shadow-sm p-4 sm:p-6 mb-4">
+        <div className="bg-white rounded-ui border shadow-sm p-4 sm:p-6 mb-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Informations du projet</h3>
             <div className="flex gap-2">
               {editingProject ? (<>
-                <button onClick={saveProjectInfo} className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 flex items-center gap-1">
+                <button onClick={saveProjectInfo} className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
                   <Save className="w-3.5 h-3.5" /> Enregistrer
                 </button>
-                <button onClick={() => setEditingProject(null)} className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-sm">Annuler</button>
+                <button onClick={() => setEditingProject(null)} className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-ui-sm text-ui">Annuler</button>
               </>) : (
-                <button onClick={() => setEditingProject({ ...project })} className="px-3 py-1.5 text-amber-600 hover:bg-amber-50 rounded-lg text-sm flex items-center gap-1">
+                <button onClick={() => setEditingProject({ ...project })} className="px-3 py-1.5 text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))] rounded-ui-sm text-ui flex items-center gap-1">
                   <Edit className="w-3.5 h-3.5" /> Modifier
                 </button>
               )}
@@ -933,21 +933,21 @@ export default function DuerpDetail() {
                 { key: 'date_prochaine_maj', label: 'Prochaine mise à jour', type: 'date' },
               ].map(f => (
                 <div key={f.key}>
-                  <label className="text-xs text-gray-500">{f.label}</label>
+                  <label className="text-ui-sm text-gray-500">{f.label}</label>
                   <input type={f.type || 'text'} value={editingProject[f.key] || ''}
                     onChange={e => setEditingProject({ ...editingProject, [f.key]: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" />
                 </div>
               ))}
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="text-xs text-gray-500">Notes</label>
+                <label className="text-ui-sm text-gray-500">Notes</label>
                 <textarea value={editingProject.notes || ''} rows={3}
                   onChange={e => setEditingProject({ ...editingProject, notes: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" />
+                  className="w-full px-3 py-2 border rounded-ui-sm text-ui" />
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-ui">
               {[
                 { label: 'SIRET', value: project.siret },
                 { label: 'NAF', value: project.naf_code ? `${project.naf_code} - ${project.naf_label || ''}` : null },
@@ -962,13 +962,13 @@ export default function DuerpDetail() {
                 { label: 'Prochaine MAJ', value: project.date_prochaine_maj ? format(new Date(project.date_prochaine_maj), 'dd/MM/yyyy') : null },
               ].filter(i => i.value).map(i => (
                 <div key={i.label}>
-                  <p className="text-xs text-gray-400">{i.label}</p>
+                  <p className="text-ui-sm text-gray-400">{i.label}</p>
                   <p className="font-medium text-gray-700">{i.value}</p>
                 </div>
               ))}
               {project.notes && (
                 <div className="col-span-full">
-                  <p className="text-xs text-gray-400">Notes</p>
+                  <p className="text-ui-sm text-gray-400">Notes</p>
                   <p className="text-gray-600 whitespace-pre-line">{project.notes}</p>
                 </div>
               )}
@@ -988,13 +988,13 @@ export default function DuerpDetail() {
             { id: 'synthese', label: 'Synthèse' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 pt-2 px-3 sm:px-4 text-sm font-medium border-b-2 whitespace-nowrap transition ${
-                activeTab === tab.id ? 'border-amber-600 text-amber-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+              className={`pb-3 pt-2 px-3 sm:px-4 text-ui font-medium border-b-2 whitespace-nowrap transition ${
+                activeTab === tab.id ? 'border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}>
               {tab.label}
               {tab.count !== undefined && (
-                <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
-                  activeTab === tab.id ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+                <span className={`ml-1.5 text-ui-sm px-1.5 py-0.5 rounded-full ${
+                  activeTab === tab.id ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-gray-100 text-gray-500'
                 }`}>{tab.count}</span>
               )}
             </button>
@@ -1008,48 +1008,48 @@ export default function DuerpDetail() {
       {activeTab === 'units' && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-500">Regroupez les postes par exposition homogène aux risques.</p>
+            <p className="text-ui text-gray-500">Regroupez les postes par exposition homogène aux risques.</p>
             <button onClick={() => { setEditingUnit('new'); setUnitForm({ code: `UT${units.length + 1}` }) }}
-              className="flex items-center gap-1 px-3 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700">
+              className="flex items-center gap-1 btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))]">
               <Plus className="w-4 h-4" /> Ajouter
             </button>
           </div>
 
           {editingUnit && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-              <h4 className="font-medium text-sm mb-3">{editingUnit === 'new' ? 'Nouvelle unité de travail' : 'Modifier l\'unité'}</h4>
+            <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-4 mb-4">
+              <h4 className="font-medium text-ui mb-3">{editingUnit === 'new' ? 'Nouvelle unité de travail' : 'Modifier l\'unité'}</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500">Code</label>
+                  <label className="text-ui-sm text-gray-500">Code</label>
                   <input value={unitForm.code || ''} onChange={e => setUnitForm({ ...unitForm, code: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="UT1" />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="UT1" />
                 </div>
                 <div className="sm:col-span-1 lg:col-span-2">
-                  <label className="text-xs text-gray-500">Nom *</label>
+                  <label className="text-ui-sm text-gray-500">Nom *</label>
                   <input value={unitForm.name || ''} onChange={e => setUnitForm({ ...unitForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Bureau, Atelier, Chantier..." />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Bureau, Atelier, Chantier..." />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Effectif</label>
+                  <label className="text-ui-sm text-gray-500">Effectif</label>
                   <input type="number" min="0" value={unitForm.effectif || ''} onChange={e => setUnitForm({ ...unitForm, effectif: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="3" />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="3" />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-xs text-gray-500">Métiers / postes concernés</label>
+                  <label className="text-ui-sm text-gray-500">Métiers / postes concernés</label>
                   <input value={unitForm.metiers || ''} onChange={e => setUnitForm({ ...unitForm, metiers: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Vendeur, Caissier, Magasinier..." />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Vendeur, Caissier, Magasinier..." />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-xs text-gray-500">Description</label>
+                  <label className="text-ui-sm text-gray-500">Description</label>
                   <input value={unitForm.description || ''} onChange={e => setUnitForm({ ...unitForm, description: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Description de l'unité..." />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Description de l'unité..." />
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-3">
                 <button onClick={() => { setEditingUnit(null); setUnitForm({}) }}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Annuler</button>
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-ui-sm text-ui">Annuler</button>
                 <button onClick={saveUnit}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 flex items-center gap-1">
+                  className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
                   <Save className="w-4 h-4" /> Enregistrer
                 </button>
               </div>
@@ -1057,10 +1057,10 @@ export default function DuerpDetail() {
           )}
 
           {units.length === 0 ? (
-            <div className="bg-white rounded-xl border p-8 text-center">
+            <div className="bg-white rounded-ui border p-8 text-center">
               <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 mb-2">Aucune unité de travail définie</p>
-              <p className="text-xs text-gray-400">Les unités regroupent des situations d'exposition homogènes</p>
+              <p className="text-ui-sm text-gray-400">Les unités regroupent des situations d'exposition homogènes</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -1069,17 +1069,17 @@ export default function DuerpDetail() {
                 const maxScore = Math.max(0, ...unitRisks.map(r => r.risque_residuel || r.risque_brut || 0))
                 const lvl = getRiskLevel(maxScore)
                 return (
-                  <div key={u.id} className="bg-white rounded-xl border shadow-sm p-4 hover:shadow-md transition">
+                  <div key={u.id} className="bg-white rounded-ui border shadow-sm p-4 hover:shadow-md transition">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{u.code}</span>
+                          <span className="text-ui-sm font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{u.code}</span>
                           <h4 className="font-semibold text-gray-900">{u.name}</h4>
                           {unitRisks.length > 0 && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${lvl.badge}`}>{unitRisks.length} risque{unitRisks.length > 1 ? 's' : ''}</span>
+                            <span className={`text-ui-sm px-2 py-0.5 rounded-full ${lvl.badge}`}>{unitRisks.length} risque{unitRisks.length > 1 ? 's' : ''}</span>
                           )}
                         </div>
-                        <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                        <div className="flex flex-wrap gap-3 text-ui-sm text-gray-500">
                           {u.effectif && <span> {u.effectif} salarié{u.effectif > 1 ? 's' : ''}</span>}
                           {u.metiers && <span> {u.metiers}</span>}
                           {u.description && <span className="text-gray-400">{u.description}</span>}
@@ -1087,17 +1087,17 @@ export default function DuerpDetail() {
                       </div>
                       <div className="flex items-center gap-1 ml-2">
                         <button onClick={() => { setShowAiUnitModal(u.id); setAiUnitDescription(''); setAiResult(null) }}
-                          className="p-1.5 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600" title="IA : analyser cette unité">
+                          className="p-1.5 rounded hover:bg-gray-50 text-gray-400 hover:text-gray-800" title="IA : analyser cette unité">
                           <Bot className="w-4 h-4" />
                         </button>
                         <button onClick={() => { setActiveTab('risks'); setRiskFilter({ ...riskFilter, unit: u.id }) }}
-                          className="p-1.5 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600" title="Voir les risques">
+                          className="p-1.5 rounded hover:bg-[rgb(var(--c-warning-bg))] text-gray-400 hover:text-[rgb(var(--c-warning))]" title="Voir les risques">
                           <AlertTriangle className="w-4 h-4" />
                         </button>
                         <button onClick={() => { setEditingUnit(u.id); setUnitForm({ code: u.code, name: u.name, description: u.description, effectif: u.effectif || '', metiers: u.metiers }) }}
                           className="p-1.5 rounded hover:bg-gray-100 text-gray-400"><Edit className="w-4 h-4" /></button>
                         <button onClick={() => deleteUnit(u.id)}
-                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                          className="p-1.5 rounded hover:bg-[rgb(var(--c-danger-bg))] text-gray-400 hover:text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
                   </div>
@@ -1109,35 +1109,35 @@ export default function DuerpDetail() {
           {/* ═══ MODAL IA - Analyse complète unité (Mode 2) ═══ */}
           {showAiUnitModal && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setShowAiUnitModal(null); setAiResult(null) } }}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-                <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-purple-50 to-amber-50">
+              <div className="bg-white rounded-ui-lg shadow-md w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
                   <div className="flex items-center gap-2">
-                    <Bot className="w-6 h-6 text-purple-600" />
+                    <Bot className="w-6 h-6 text-gray-800" />
                     <div>
                       <h3 className="font-bold text-gray-900">IA - Analyse de l'unité</h3>
-                      <p className="text-xs text-gray-500">{units.find(u => u.id === showAiUnitModal)?.name || ''}</p>
+                      <p className="text-ui-sm text-gray-500">{units.find(u => u.id === showAiUnitModal)?.name || ''}</p>
                     </div>
                   </div>
-                  <button onClick={() => { setShowAiUnitModal(null); setAiResult(null) }} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+                  <button onClick={() => { setShowAiUnitModal(null); setAiResult(null) }} className="p-2 hover:bg-gray-100 rounded-ui-sm"><X className="w-5 h-5" /></button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6">
                   {/* Zone de saisie description terrain */}
                   {!aiResult && (
                     <div>
-                      <label className="text-sm font-medium text-gray-700 block mb-2">
+                      <label className="text-ui font-medium text-gray-700 block mb-2">
                          Décrivez ce que vous observez dans cette unité de travail
                       </label>
                       <textarea value={aiUnitDescription} onChange={e => setAiUnitDescription(e.target.value)}
                         rows={6} autoFocus
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:ring-1 focus:ring-purple-200 transition"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-ui text-ui focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition"
                         placeholder={"Exemple : Les salariés réceptionnent les palettes avec un transpalette manuel. Le sol est irrégulier avec des trous devant le quai. Pas de zone de déchargement balisée. Les cartons lourds (+15kg) sont portés à la main jusqu'aux racks. Les racks font 3 mètres de haut, ils utilisent un escabeau en mauvais état pour les niveaux hauts. Éclairage faible dans le fond de la réserve. Produits chimiques de nettoyage stockés à côté des denrées alimentaires..."} />
-                      <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                      <p className="text-ui-sm text-gray-400 mt-2 flex items-center gap-1">
                         <Sparkles className="w-3 h-3" /> Plus votre description est détaillée, plus l'IA sera précise.
                         Décrivez les lieux, équipements, gestes, ambiance, organisation...
                       </p>
                       <button onClick={() => evaluateUnitWithAI(showAiUnitModal)} disabled={aiLoading || !aiUnitDescription.trim()}
-                        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 text-white rounded-ui font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
                         {aiLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> Analyse en cours...</>
                           : <><Bot className="w-5 h-5" /> Lancer l'analyse IA</>}
                       </button>
@@ -1148,16 +1148,16 @@ export default function DuerpDetail() {
                   {aiResult?.mode === 'unit' && (
                     <div>
                       {aiResult.analyse_resume && (
-                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                          <p className="text-sm text-purple-800 flex items-center gap-2">
+                        <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-3 mb-4">
+                          <p className="text-ui text-gray-800 flex items-center gap-2">
                             <Sparkles className="w-4 h-4 shrink-0" />
                             {aiResult.analyse_resume}
                           </p>
                         </div>
                       )}
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-sm text-gray-900">{aiResult.risques?.length || 0} risques identifiés par l'IA</h4>
-                        <button onClick={() => setAiResult(null)} className="text-xs text-gray-400 hover:underline">← Modifier la description</button>
+                        <h4 className="font-semibold text-ui text-gray-900">{aiResult.risques?.length || 0} risques identifiés par l'IA</h4>
+                        <button onClick={() => setAiResult(null)} className="text-ui-sm text-gray-400 hover:underline">← Modifier la description</button>
                       </div>
                       <div className="space-y-3">
                         {(aiResult.risques || []).map((r, idx) => {
@@ -1165,7 +1165,7 @@ export default function DuerpDetail() {
                           const lvl = getRiskLevel(scores.residuel || scores.brut)
                           const cat = categories.find(c => c.code === r.category_code)
                           return (
-                            <div key={idx} className={`border rounded-xl p-4 transition ${r._skip ? 'opacity-40 bg-gray-50' : 'bg-white hover:shadow-sm'}`}>
+                            <div key={idx} className={`border rounded-ui p-4 transition ${r._skip ? 'opacity-40 bg-gray-50' : 'bg-white hover:shadow-sm'}`}>
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -1174,20 +1174,20 @@ export default function DuerpDetail() {
                                         ...prev,
                                         risques: prev.risques.map((x, i) => i === idx ? { ...x, _skip: !e.target.checked } : x)
                                       }))
-                                    }} className="rounded text-purple-600" />
-                                    {cat && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{cat.icon} {cat.label}</span>}
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${lvl.badge}`}>
+                                    }} className="rounded text-gray-800" />
+                                    {cat && <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{cat.icon} {cat.label}</span>}
+                                    <span className={`text-ui-sm px-2 py-0.5 rounded-full font-medium ${lvl.badge}`}>
                                       F{r.frequence}×G{r.gravite}×M{r.maitrise} = {scores.residuel} ({lvl.label})
                                     </span>
                                   </div>
-                                  <h5 className="font-semibold text-sm text-gray-900">{r.danger}</h5>
-                                  <p className="text-xs text-gray-500 mt-0.5">{r.situation}</p>
-                                  {r.consequences && <p className="text-xs text-red-400 mt-0.5">→ {r.consequences}</p>}
-                                  {r.justification && <p className="text-xs text-purple-500 mt-1 italic"> {r.justification}</p>}
+                                  <h5 className="font-semibold text-ui text-gray-900">{r.danger}</h5>
+                                  <p className="text-ui-sm text-gray-500 mt-0.5">{r.situation}</p>
+                                  {r.consequences && <p className="text-ui-sm text-[rgb(var(--c-danger))] mt-0.5">→ {r.consequences}</p>}
+                                  {r.justification && <p className="text-ui-sm text-gray-800 mt-1 italic"> {r.justification}</p>}
                                   {r.actions?.length > 0 && (
-                                    <div className="mt-2 pl-3 border-l-2 border-purple-200 space-y-1">
+                                    <div className="mt-2 pl-3 border-l-2 border-gray-200 space-y-1">
                                       {r.actions.map((a, ai) => (
-                                        <p key={ai} className="text-xs text-gray-600">
+                                        <p key={ai} className="text-ui-sm text-gray-600">
                                            <strong>{a.action}</strong>
                                           <span className="text-gray-400 ml-1">({a.type_action}, {a.priorite}{a.cout_estime ? `, ~${a.cout_estime}` : ''})</span>
                                         </p>
@@ -1202,9 +1202,9 @@ export default function DuerpDetail() {
                       </div>
                       <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
                         <button onClick={() => { setShowAiUnitModal(null); setAiResult(null) }}
-                          className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Annuler</button>
+                          className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-ui-sm text-ui">Annuler</button>
                         <button onClick={() => applyAiUnitResults(showAiUnitModal)}
-                          className="px-6 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-2">
+                          className="px-6 py-2.5 bg-gray-700 text-white rounded-ui-sm text-ui font-medium hover:bg-gray-700 flex items-center gap-2">
                           <ThumbsUp className="w-4 h-4" />
                           Créer {(aiResult.risques || []).filter(r => !r._skip).length} risque(s) + actions
                         </button>
@@ -1225,21 +1225,21 @@ export default function DuerpDetail() {
             <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input value={riskFilter.search} onChange={e => setRiskFilter({ ...riskFilter, search: e.target.value })}
-                placeholder="Rechercher..." className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+                placeholder="Rechercher..." className="w-full pl-9 pr-3 py-2 border rounded-ui-sm text-ui" />
             </div>
             <select value={riskFilter.category} onChange={e => setRiskFilter({ ...riskFilter, category: e.target.value })}
-              className="px-3 py-2 border rounded-lg text-sm">
+              className="px-3 py-2 border rounded-ui-sm text-ui">
               <option value="">Catégorie</option>
               {usedCategories.map(c => <option key={c.code} value={c.code}>{c.icon} {c.label}</option>)}
             </select>
             <select value={riskFilter.unit} onChange={e => setRiskFilter({ ...riskFilter, unit: e.target.value })}
-              className="px-3 py-2 border rounded-lg text-sm">
+              className="px-3 py-2 border rounded-ui-sm text-ui">
               <option value="">Unité</option>
               <option value="__none__">Sans unité</option>
               {units.map(u => <option key={u.id} value={u.id}>{u.code} - {u.name}</option>)}
             </select>
             <select value={riskFilter.level} onChange={e => setRiskFilter({ ...riskFilter, level: e.target.value })}
-              className="px-3 py-2 border rounded-lg text-sm">
+              className="px-3 py-2 border rounded-ui-sm text-ui">
               <option value="">Niveau</option>
               <option value="critique"> Critique</option>
               <option value="eleve"> Élevé</option>
@@ -1249,15 +1249,15 @@ export default function DuerpDetail() {
             </select>
             <div className="flex gap-1">
               <button onClick={() => setShowTemplateLibrary(true)}
-                className="flex items-center gap-1 px-3 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700">
+                className="flex items-center gap-1 btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))]">
                 <Plus className="w-4 h-4" /> INRS
               </button>
               <button onClick={addFreeRisk}
-                className="flex items-center gap-1 px-3 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700">
+                className="flex items-center gap-1 px-3 py-2 bg-gray-600 text-white rounded-ui-sm text-ui hover:bg-gray-700">
                 <Plus className="w-4 h-4" /> Libre
               </button>
               <button onClick={() => { setShowAiGeneralModal(true); setAiGeneralDescription(''); setAiResult(null) }}
-                className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700">
+                className="flex items-center gap-1 px-3 py-2 bg-gray-700 text-white rounded-ui-sm text-ui hover:bg-gray-700">
                 <Bot className="w-4 h-4" /> IA Terrain
               </button>
             </div>
@@ -1265,14 +1265,14 @@ export default function DuerpDetail() {
 
           {(riskFilter.category || riskFilter.unit || riskFilter.level || riskFilter.search) && (
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs text-gray-500">{filteredRisks.length}/{risks.length} affiché(s)</span>
+              <span className="text-ui-sm text-gray-500">{filteredRisks.length}/{risks.length} affiché(s)</span>
               <button onClick={() => setRiskFilter({ category: '', unit: '', level: '', search: '' })}
-                className="text-xs text-amber-600 hover:underline">Réinitialiser</button>
+                className="text-ui-sm text-[rgb(var(--c-warning))] hover:underline">Réinitialiser</button>
             </div>
           )}
 
           {filteredRisks.length === 0 ? (
-            <div className="bg-white rounded-xl border p-8 text-center">
+            <div className="bg-white rounded-ui border p-8 text-center">
               <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">{risks.length === 0 ? 'Aucun risque - ajoutez depuis la bibliothèque INRS' : 'Aucun risque ne correspond aux filtres'}</p>
             </div>
@@ -1287,25 +1287,25 @@ export default function DuerpDetail() {
                 const isEditing = editingRisk === r.id
 
                 return (
-                  <div key={r.id} className={`bg-white rounded-xl border shadow-sm transition ${isEditing ? 'ring-2 ring-amber-400' : 'hover:shadow-md'}`}>
+                  <div key={r.id} className={`bg-white rounded-ui border shadow-sm transition ${isEditing ? 'ring-2 ring-[rgb(var(--c-warning)/0.3)]' : 'hover:shadow-md'}`}>
                     <div className="p-4">
                       {/* En-tête */}
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
-                            {cat && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{cat.icon} {cat.label}</span>}
-                            {unit && <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">{unit.code}</span>}
+                            {cat && <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{cat.icon} {cat.label}</span>}
+                            {unit && <span className="text-ui-sm px-1.5 py-0.5 rounded bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]">{unit.code}</span>}
                             {scores.brut > 0 && (<>
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${lvlBrut.badge}`}>Brut {scores.brut}</span>
+                              <span className={`text-ui-sm px-2 py-0.5 rounded-full font-medium ${lvlBrut.badge}`}>Brut {scores.brut}</span>
                               {r.maitrise && r.maitrise < 1 && (
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${lvlRes.badge}`}>Résiduel {scores.residuel}</span>
+                                <span className={`text-ui-sm px-2 py-0.5 rounded-full font-medium ${lvlRes.badge}`}>Résiduel {scores.residuel}</span>
                               )}
                             </>)}
                           </div>
-                          <h4 className="font-semibold text-gray-900 text-sm">{r.danger || 'Risque sans titre'}</h4>
-                          {r.situation && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.situation}</p>}
+                          <h4 className="font-semibold text-gray-900 text-ui">{r.danger || 'Risque sans titre'}</h4>
+                          {r.situation && <p className="text-ui-sm text-gray-500 mt-0.5 line-clamp-2">{r.situation}</p>}
                           {r.prevention_existante && !isEditing && (
-                            <p className="text-xs text-green-600 mt-0.5 line-clamp-1"> {r.prevention_existante}</p>
+                            <p className="text-ui-sm text-[rgb(var(--c-success))] mt-0.5 line-clamp-1"> {r.prevention_existante}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-1 ml-2 shrink-0">
@@ -1313,16 +1313,16 @@ export default function DuerpDetail() {
                             if (aiRiskId === r.id) { setAiRiskId(null); setAiDescription(''); setAiResult(null) }
                             else { setAiRiskId(r.id); setAiDescription(''); setAiResult(null) }
                           }}
-                            className={`p-1.5 rounded ${aiRiskId === r.id ? 'bg-purple-100 text-purple-700' : 'hover:bg-purple-50 text-gray-400 hover:text-purple-600'}`}
+                            className={`p-1.5 rounded ${aiRiskId === r.id ? 'bg-gray-100 text-gray-800' : 'hover:bg-gray-50 text-gray-400 hover:text-gray-800'}`}
                             title="IA : évaluer ce risque">
                             <Bot className="w-4 h-4" />
                           </button>
                           <button onClick={() => setEditingRisk(isEditing ? null : r.id)}
-                            className={`p-1.5 rounded ${isEditing ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-100 text-gray-400'}`}>
+                            className={`p-1.5 rounded ${isEditing ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'hover:bg-gray-100 text-gray-400'}`}>
                             <Edit className="w-4 h-4" />
                           </button>
                           <button onClick={() => deleteRisk(r.id)}
-                            className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
+                            className="p-1.5 rounded hover:bg-[rgb(var(--c-danger-bg))] text-gray-400 hover:text-[rgb(var(--c-danger))]">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -1331,43 +1331,43 @@ export default function DuerpDetail() {
                       {/* ═══ COTATION TACTILE iPad-friendly ═══ */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                         <div>
-                          <label className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mb-1 block">Fréquence</label>
+                          <label className="text-ui-sm uppercase tracking-wider text-gray-400 font-medium mb-1 block">Fréquence</label>
                           <div className="grid grid-cols-4 gap-1">
                             {FREQUENCE_LABELS.map(f => (
                               <button key={f.value} onClick={() => updateRiskField(r.id, 'frequence', f.value)}
-                                className={`py-2.5 px-1 rounded-lg border-2 text-center transition-all touch-manipulation ${
+                                className={`py-2.5 px-1 rounded-ui-sm border-2 text-center transition-all touch-manipulation ${
                                   r.frequence === f.value ? `${f.color} font-bold shadow-sm scale-[1.02]` : 'border-gray-200 text-gray-400 hover:border-gray-300'
                                 }`} title={`${f.label} - ${f.desc}`}>
                                 <span className="block text-lg leading-none">{f.short}</span>
-                                <span className="block text-[8px] mt-0.5 leading-tight">{f.label}</span>
+                                <span className="block text-ui-sm mt-0.5 leading-tight">{f.label}</span>
                               </button>
                             ))}
                           </div>
                         </div>
                         <div>
-                          <label className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mb-1 block">Gravité</label>
+                          <label className="text-ui-sm uppercase tracking-wider text-gray-400 font-medium mb-1 block">Gravité</label>
                           <div className="grid grid-cols-4 gap-1">
                             {GRAVITE_LABELS.map(g => (
                               <button key={g.value} onClick={() => updateRiskField(r.id, 'gravite', g.value)}
-                                className={`py-2.5 px-1 rounded-lg border-2 text-center transition-all touch-manipulation ${
+                                className={`py-2.5 px-1 rounded-ui-sm border-2 text-center transition-all touch-manipulation ${
                                   r.gravite === g.value ? `${g.color} font-bold shadow-sm scale-[1.02]` : 'border-gray-200 text-gray-400 hover:border-gray-300'
                                 }`} title={`${g.label} - ${g.desc}`}>
                                 <span className="block text-lg leading-none">{g.short}</span>
-                                <span className="block text-[8px] mt-0.5 leading-tight">{g.label}</span>
+                                <span className="block text-ui-sm mt-0.5 leading-tight">{g.label}</span>
                               </button>
                             ))}
                           </div>
                         </div>
                         <div>
-                          <label className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mb-1 block">Maîtrise</label>
+                          <label className="text-ui-sm uppercase tracking-wider text-gray-400 font-medium mb-1 block">Maîtrise</label>
                           <div className="grid grid-cols-3 gap-1">
                             {MAITRISE_LABELS.map(m => (
                               <button key={m.value} onClick={() => updateRiskField(r.id, 'maitrise', m.value)}
-                                className={`py-2.5 px-1 rounded-lg border-2 text-center transition-all touch-manipulation ${
+                                className={`py-2.5 px-1 rounded-ui-sm border-2 text-center transition-all touch-manipulation ${
                                   r.maitrise === m.value ? `${m.color} font-bold shadow-sm scale-[1.02]` : 'border-gray-200 text-gray-400 hover:border-gray-300'
                                 }`} title={m.desc}>
-                                <span className="block text-sm leading-none font-medium">{m.value === 0.5 ? '×0.5' : m.value === 0.75 ? '×0.75' : '×1'}</span>
-                                <span className="block text-[8px] mt-0.5 leading-tight">{m.label}</span>
+                                <span className="block text-ui leading-none font-medium">{m.value === 0.5 ? '×0.5' : m.value === 0.75 ? '×0.75' : '×1'}</span>
+                                <span className="block text-ui-sm mt-0.5 leading-tight">{m.label}</span>
                               </button>
                             ))}
                           </div>
@@ -1376,24 +1376,24 @@ export default function DuerpDetail() {
 
                       {/* ═══ PANNEAU IA - Évaluation risque (Mode 1) ═══ */}
                       {aiRiskId === r.id && (
-                        <div className="mt-3 p-4 bg-gradient-to-r from-purple-50 to-amber-50 rounded-xl border border-purple-200">
+                        <div className="mt-3 p-4 bg-gray-50 rounded-ui border border-gray-200">
                           <div className="flex items-center gap-2 mb-3">
-                            <Bot className="w-5 h-5 text-purple-600" />
-                            <span className="font-semibold text-sm text-purple-800">IA - Évaluation de ce risque</span>
+                            <Bot className="w-5 h-5 text-gray-800" />
+                            <span className="font-semibold text-ui text-gray-800">IA - Évaluation de ce risque</span>
                           </div>
 
                           {!aiResult?.riskId && (
                             <>
                               <textarea value={aiDescription} onChange={e => setAiDescription(e.target.value)}
                                 rows={3} autoFocus
-                                className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm bg-white focus:border-purple-400 focus:ring-1 focus:ring-purple-200"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui bg-white focus:border-gray-400 focus:ring-1 focus:ring-gray-200"
                                 placeholder="Décrivez la situation terrain : ce que vous voyez, les gestes, les équipements, les incidents passés..." />
                               <div className="flex items-center justify-between mt-2">
-                                <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                                <p className="text-ui-sm text-gray-400 flex items-center gap-1">
                                   <Sparkles className="w-3 h-3" /> L'IA cotera F/G/M et proposera des actions
                                 </p>
                                 <button onClick={() => evaluateRiskWithAI(r)} disabled={aiLoading}
-                                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2">
+                                  className="px-4 py-2 bg-gray-700 text-white rounded-ui-sm text-ui font-medium hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2">
                                   {aiLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyse...</>
                                     : <><Bot className="w-4 h-4" /> Évaluer</>}
                                 </button>
@@ -1405,25 +1405,25 @@ export default function DuerpDetail() {
                             <div className="space-y-3">
                               {/* Scores proposés */}
                               <div className="grid grid-cols-3 gap-2">
-                                <div className="bg-white rounded-lg p-2 text-center border">
+                                <div className="bg-white rounded-ui-sm p-2 text-center border">
                                   <div className="text-lg font-bold text-gray-900">F={aiResult.frequence}</div>
-                                  <p className="text-[10px] text-gray-500">{aiResult.justification?.frequence}</p>
+                                  <p className="text-ui-sm text-gray-500">{aiResult.justification?.frequence}</p>
                                 </div>
-                                <div className="bg-white rounded-lg p-2 text-center border">
+                                <div className="bg-white rounded-ui-sm p-2 text-center border">
                                   <div className="text-lg font-bold text-gray-900">G={aiResult.gravite}</div>
-                                  <p className="text-[10px] text-gray-500">{aiResult.justification?.gravite}</p>
+                                  <p className="text-ui-sm text-gray-500">{aiResult.justification?.gravite}</p>
                                 </div>
-                                <div className="bg-white rounded-lg p-2 text-center border">
+                                <div className="bg-white rounded-ui-sm p-2 text-center border">
                                   <div className="text-lg font-bold text-gray-900">M=×{aiResult.maitrise}</div>
-                                  <p className="text-[10px] text-gray-500">{aiResult.justification?.maitrise}</p>
+                                  <p className="text-ui-sm text-gray-500">{aiResult.justification?.maitrise}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 text-sm">
+                              <div className="flex items-center gap-2 text-ui">
                                 {(() => {
                                   const b = aiResult.frequence * aiResult.gravite
                                   const res = b * aiResult.maitrise
                                   const lvl = getRiskLevel(res)
-                                  return <span className={`px-3 py-1 rounded-full font-medium text-xs ${lvl.badge}`}>
+                                  return <span className={`px-3 py-1 rounded-full font-medium text-ui-sm ${lvl.badge}`}>
                                     Brut {b} → Résiduel {res} ({lvl.label})
                                   </span>
                                 })()}
@@ -1432,10 +1432,10 @@ export default function DuerpDetail() {
                               {/* Actions proposées */}
                               {aiResult.actions?.length > 0 && (
                                 <div>
-                                  <h5 className="text-xs font-semibold text-gray-700 mb-1"> Actions proposées :</h5>
+                                  <h5 className="text-ui-sm font-semibold text-gray-700 mb-1"> Actions proposées :</h5>
                                   <div className="space-y-1">
                                     {aiResult.actions.map((a, i) => (
-                                      <div key={i} className="bg-white rounded-lg p-2 border text-xs">
+                                      <div key={i} className="bg-white rounded-ui-sm p-2 border text-ui-sm">
                                         <strong>{a.action}</strong>
                                         <span className="text-gray-400 ml-1">({a.type_action}, {a.priorite}{a.cout_estime ? `, ~${a.cout_estime}` : ''})</span>
                                       </div>
@@ -1446,15 +1446,15 @@ export default function DuerpDetail() {
 
                               <div className="flex justify-end gap-2 pt-2">
                                 <button onClick={() => { setAiResult(null); setAiDescription('') }}
-                                  className="px-3 py-2 text-gray-500 hover:bg-gray-100 rounded-lg text-sm flex items-center gap-1">
+                                  className="px-3 py-2 text-gray-500 hover:bg-gray-100 rounded-ui-sm text-ui flex items-center gap-1">
                                   <RefreshCw className="w-3.5 h-3.5" /> Réessayer
                                 </button>
                                 <button onClick={() => { setAiRiskId(null); setAiResult(null); setAiDescription('') }}
-                                  className="px-3 py-2 text-gray-500 hover:bg-gray-100 rounded-lg text-sm">
+                                  className="px-3 py-2 text-gray-500 hover:bg-gray-100 rounded-ui-sm text-ui">
                                   Ignorer
                                 </button>
                                 <button onClick={() => applyAiRiskResult(r)}
-                                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-2">
+                                  className="px-4 py-2 bg-gray-700 text-white rounded-ui-sm text-ui font-medium hover:bg-gray-700 flex items-center gap-2">
                                   <ThumbsUp className="w-4 h-4" /> Appliquer cotation + actions
                                 </button>
                               </div>
@@ -1468,48 +1468,48 @@ export default function DuerpDetail() {
                         <div className="mt-4 pt-4 border-t border-dashed border-gray-200 space-y-3">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                              <label className="text-xs text-gray-500">Danger / Risque identifié</label>
+                              <label className="text-ui-sm text-gray-500">Danger / Risque identifié</label>
                               <input value={r.danger || ''} onChange={e => {
                                 setRisks(prev => prev.map(x => x.id === r.id ? { ...x, danger: e.target.value } : x))
-                              }} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                              }} className="w-full px-3 py-2 border rounded-ui-sm text-ui" />
                             </div>
                             <div>
-                              <label className="text-xs text-gray-500">Unité de travail</label>
+                              <label className="text-ui-sm text-gray-500">Unité de travail</label>
                               <select value={r.unit_id || ''} onChange={e => updateRiskField(r.id, 'unit_id', e.target.value || null)}
-                                className="w-full px-3 py-2 border rounded-lg text-sm">
+                                className="w-full px-3 py-2 border rounded-ui-sm text-ui">
                                 <option value="">- Aucune -</option>
                                 {units.map(u => <option key={u.id} value={u.id}>{u.code} - {u.name}</option>)}
                               </select>
                             </div>
                             <div>
-                              <label className="text-xs text-gray-500">Description du travail réalisé</label>
+                              <label className="text-ui-sm text-gray-500">Description du travail réalisé</label>
                               <textarea value={r.description_travail || ''} rows={2} onChange={e => {
                                 setRisks(prev => prev.map(x => x.id === r.id ? { ...x, description_travail: e.target.value } : x))
-                              }} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Décolisage, mise en rayon..." />
+                              }} className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Décolisage, mise en rayon..." />
                             </div>
                             <div>
-                              <label className="text-xs text-gray-500">Situations à risque</label>
+                              <label className="text-ui-sm text-gray-500">Situations à risque</label>
                               <textarea value={r.situation || ''} rows={2} onChange={e => {
                                 setRisks(prev => prev.map(x => x.id === r.id ? { ...x, situation: e.target.value } : x))
-                              }} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                              }} className="w-full px-3 py-2 border rounded-ui-sm text-ui" />
                             </div>
                             <div>
-                              <label className="text-xs text-gray-500">Conséquences</label>
+                              <label className="text-ui-sm text-gray-500">Conséquences</label>
                               <textarea value={r.consequences || ''} rows={2} onChange={e => {
                                 setRisks(prev => prev.map(x => x.id === r.id ? { ...x, consequences: e.target.value } : x))
-                              }} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Brûlures, TMS, fractures..." />
+                              }} className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Brûlures, TMS, fractures..." />
                             </div>
                             <div>
-                              <label className="text-xs text-gray-500">Prévention existante</label>
+                              <label className="text-ui-sm text-gray-500">Prévention existante</label>
                               <textarea value={r.prevention_existante || ''} rows={2} onChange={e => {
                                 setRisks(prev => prev.map(x => x.id === r.id ? { ...x, prevention_existante: e.target.value } : x))
-                              }} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Mesures déjà en place..." />
+                              }} className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Mesures déjà en place..." />
                             </div>
                             <div className="sm:col-span-2">
-                              <label className="text-xs text-gray-500">Notes terrain</label>
+                              <label className="text-ui-sm text-gray-500">Notes terrain</label>
                               <textarea value={r.notes || ''} rows={2} onChange={e => {
                                 setRisks(prev => prev.map(x => x.id === r.id ? { ...x, notes: e.target.value } : x))
-                              }} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Observations visite..." />
+                              }} className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Observations visite..." />
                             </div>
                           </div>
                           <div className="flex justify-between">
@@ -1517,13 +1517,13 @@ export default function DuerpDetail() {
                               setEditingAction('new')
                               setActionForm({ statut: 'a_faire', priorite: 'haute', type_action: 'prevention', risk_id: r.id, action: '' })
                               setActiveTab('actions')
-                            }} className="text-xs text-amber-600 hover:underline flex items-center gap-1">
+                            }} className="text-ui-sm text-[rgb(var(--c-warning))] hover:underline flex items-center gap-1">
                               <Target className="w-3.5 h-3.5" /> Créer une action pour ce risque
                             </button>
                             <div className="flex gap-2">
-                              <button onClick={() => setEditingRisk(null)} className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-sm">Fermer</button>
+                              <button onClick={() => setEditingRisk(null)} className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-ui-sm text-ui">Fermer</button>
                               <button onClick={() => saveRisk(risks.find(x => x.id === r.id))}
-                                className="px-4 py-1.5 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 flex items-center gap-1">
+                                className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
                                 <Save className="w-3.5 h-3.5" /> Enregistrer
                               </button>
                             </div>
@@ -1540,22 +1540,22 @@ export default function DuerpDetail() {
           {/* Modal bibliothèque INRS */}
           {showTemplateLibrary && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setShowTemplateLibrary(false) }}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+              <div className="bg-white rounded-ui-lg shadow-md w-full max-w-2xl max-h-[85vh] flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b">
                   <div>
                     <h3 className="font-bold text-gray-900">Bibliothèque de risques INRS</h3>
-                    <p className="text-xs text-gray-500">{filteredTemplates.length} disponibles (déjà ajoutés masqués)</p>
+                    <p className="text-ui-sm text-gray-500">{filteredTemplates.length} disponibles (déjà ajoutés masqués)</p>
                   </div>
-                  <button onClick={() => setShowTemplateLibrary(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+                  <button onClick={() => setShowTemplateLibrary(false)} className="p-2 hover:bg-gray-100 rounded-ui-sm"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="px-6 pt-3 flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input value={templateSearch} onChange={e => setTemplateSearch(e.target.value)}
-                      placeholder="Rechercher..." className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" autoFocus />
+                      placeholder="Rechercher..." className="w-full pl-9 pr-3 py-2 border rounded-ui-sm text-ui" autoFocus />
                   </div>
                   <select value={templateCatFilter} onChange={e => setTemplateCatFilter(e.target.value)}
-                    className="px-3 py-2 border rounded-lg text-sm">
+                    className="px-3 py-2 border rounded-ui-sm text-ui">
                     <option value="">Toutes familles</option>
                     {categories.map(c => <option key={c.code} value={c.code}>{c.icon} {c.label}</option>)}
                   </select>
@@ -1568,17 +1568,17 @@ export default function DuerpDetail() {
                       {filteredTemplates.map(t => {
                         const cat = categories.find(c => c.code === t.category_code)
                         return (
-                          <div key={t.id} className="flex items-start justify-between p-3 rounded-lg border hover:bg-amber-50 hover:border-amber-200 transition">
+                          <div key={t.id} className="flex items-start justify-between p-3 rounded-ui-sm border hover:bg-[rgb(var(--c-warning-bg))] hover:border-[rgb(var(--c-warning)/0.3)] transition">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-0.5">
-                                {cat && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{cat.icon} {cat.label}</span>}
-                                <span className="font-medium text-sm text-gray-900">{t.label}</span>
+                                {cat && <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{cat.icon} {cat.label}</span>}
+                                <span className="font-medium text-ui text-gray-900">{t.label}</span>
                               </div>
-                              {t.situations && <p className="text-xs text-gray-500 line-clamp-2">{t.situations}</p>}
-                              {t.consequences && <p className="text-xs text-red-400 line-clamp-1 mt-0.5">→ {t.consequences}</p>}
+                              {t.situations && <p className="text-ui-sm text-gray-500 line-clamp-2">{t.situations}</p>}
+                              {t.consequences && <p className="text-ui-sm text-[rgb(var(--c-danger))] line-clamp-1 mt-0.5">→ {t.consequences}</p>}
                             </div>
                             <button onClick={() => addRiskFromTemplate(t)}
-                              className="ml-3 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs hover:bg-amber-700 shrink-0">
+                              className="ml-3 btn btn-secondary text-ui-sm hover:bg-[rgb(var(--c-warning))] shrink-0">
                               + Ajouter
                             </button>
                           </div>
@@ -1594,16 +1594,16 @@ export default function DuerpDetail() {
           {/* ═══ MODAL IA - Saisie libre générale (Mode 3) ═══ */}
           {showAiGeneralModal && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setShowAiGeneralModal(false); setAiResult(null) } }}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-                <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-purple-50 to-amber-50">
+              <div className="bg-white rounded-ui-lg shadow-md w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
                   <div className="flex items-center gap-2">
-                    <Bot className="w-6 h-6 text-purple-600" />
+                    <Bot className="w-6 h-6 text-gray-800" />
                     <div>
                       <h3 className="font-bold text-gray-900">IA - Observations terrain libres</h3>
-                      <p className="text-xs text-gray-500">Décrivez tout ce que vous voyez, l'IA identifie et ventile les risques par unité</p>
+                      <p className="text-ui-sm text-gray-500">Décrivez tout ce que vous voyez, l'IA identifie et ventile les risques par unité</p>
                     </div>
                   </div>
-                  <button onClick={() => { setShowAiGeneralModal(false); setAiResult(null) }} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+                  <button onClick={() => { setShowAiGeneralModal(false); setAiResult(null) }} className="p-2 hover:bg-gray-100 rounded-ui-sm"><X className="w-5 h-5" /></button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6">
@@ -1611,13 +1611,13 @@ export default function DuerpDetail() {
                     <div>
                       <textarea value={aiGeneralDescription} onChange={e => setAiGeneralDescription(e.target.value)}
                         rows={8} autoFocus
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:ring-1 focus:ring-purple-200 transition"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-ui text-ui focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition"
                         placeholder={"Dictez ou notez vos observations en vrac, même si ça concerne plusieurs zones/unités.\n\nExemple : En arrivant j'ai remarqué que le parking n'est pas éclairé le soir. À la caisse, les salariées sont assises sur des chaises non ergonomiques, elles se plaignent de maux de dos. En réserve, les produits chimiques ne sont pas dans une armoire ventilée. Il y a un escabeau bancal. Le four en cuisine n'a pas de gant anti-chaleur à proximité. Les cartons arrivent par palette de 800kg et sont déchargés à la main..."} />
-                      <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                      <p className="text-ui-sm text-gray-400 mt-2 flex items-center gap-1">
                         <Sparkles className="w-3 h-3" /> L'IA créera les risques et les rattachera aux bonnes unités, ou proposera de nouvelles unités si nécessaire.
                       </p>
                       <button onClick={evaluateGeneralWithAI} disabled={aiLoading || !aiGeneralDescription.trim()}
-                        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 text-white rounded-ui font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
                         {aiLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> Analyse en cours...</>
                           : <><Bot className="w-5 h-5" /> Analyser mes observations</>}
                       </button>
@@ -1627,21 +1627,21 @@ export default function DuerpDetail() {
                   {aiResult?.mode === 'general' && (
                     <div>
                       {aiResult.analyse_resume && (
-                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                          <p className="text-sm text-purple-800 flex items-center gap-2"><Sparkles className="w-4 h-4 shrink-0" /> {aiResult.analyse_resume}</p>
+                        <div className="bg-gray-50 border border-gray-200 rounded-ui-sm p-3 mb-4">
+                          <p className="text-ui text-gray-800 flex items-center gap-2"><Sparkles className="w-4 h-4 shrink-0" /> {aiResult.analyse_resume}</p>
                         </div>
                       )}
                       {aiResult.nouvelles_unites?.length > 0 && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                          <p className="text-xs font-medium text-blue-800 mb-1"> Nouvelles unités proposées :</p>
+                        <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 mb-4">
+                          <p className="text-ui-sm font-medium text-[rgb(var(--c-info))] mb-1"> Nouvelles unités proposées :</p>
                           {aiResult.nouvelles_unites.map((nu, i) => (
-                            <span key={i} className="inline-block text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded mr-1 mb-1">{nu.code} - {nu.name}</span>
+                            <span key={i} className="inline-block text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-0.5 rounded mr-1 mb-1">{nu.code} - {nu.name}</span>
                           ))}
                         </div>
                       )}
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-sm">{aiResult.risques?.length || 0} risques identifiés</h4>
-                        <button onClick={() => setAiResult(null)} className="text-xs text-gray-400 hover:underline">← Modifier</button>
+                        <h4 className="font-semibold text-ui">{aiResult.risques?.length || 0} risques identifiés</h4>
+                        <button onClick={() => setAiResult(null)} className="text-ui-sm text-gray-400 hover:underline">← Modifier</button>
                       </div>
                       <div className="space-y-3">
                         {(aiResult.risques || []).map((r, idx) => {
@@ -1650,21 +1650,21 @@ export default function DuerpDetail() {
                           const cat = categories.find(c => c.code === r.category_code)
                           const unitName = units.find(u => u.code === r.unit_code)?.name || r.unit_code || '?'
                           return (
-                            <div key={idx} className={`border rounded-xl p-4 transition ${r._skip ? 'opacity-40 bg-gray-50' : 'bg-white hover:shadow-sm'}`}>
+                            <div key={idx} className={`border rounded-ui p-4 transition ${r._skip ? 'opacity-40 bg-gray-50' : 'bg-white hover:shadow-sm'}`}>
                               <div className="flex items-start gap-2">
                                 <input type="checkbox" checked={!r._skip} onChange={e => {
                                   setAiResult(prev => ({ ...prev, risques: prev.risques.map((x, i) => i === idx ? { ...x, _skip: !e.target.checked } : x) }))
-                                }} className="mt-1 rounded text-purple-600" />
+                                }} className="mt-1 rounded text-gray-800" />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex flex-wrap items-center gap-2 mb-1">
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600"> {unitName}</span>
-                                    {cat && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{cat.label}</span>}
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${lvl.badge}`}>{lvl.label} ({scores.residuel})</span>
+                                    <span className="text-ui-sm px-1.5 py-0.5 rounded bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]"> {unitName}</span>
+                                    {cat && <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{cat.label}</span>}
+                                    <span className={`text-ui-sm px-2 py-0.5 rounded-full font-medium ${lvl.badge}`}>{lvl.label} ({scores.residuel})</span>
                                   </div>
-                                  <h5 className="font-semibold text-sm text-gray-900">{r.danger}</h5>
-                                  <p className="text-xs text-gray-500 mt-0.5">{r.situation}</p>
+                                  <h5 className="font-semibold text-ui text-gray-900">{r.danger}</h5>
+                                  <p className="text-ui-sm text-gray-500 mt-0.5">{r.situation}</p>
                                   {r.actions?.map((a, ai) => (
-                                    <p key={ai} className="text-xs text-gray-600 mt-1"> <strong>{a.action}</strong> <span className="text-gray-400">({a.type_action}, {a.priorite})</span></p>
+                                    <p key={ai} className="text-ui-sm text-gray-600 mt-1"> <strong>{a.action}</strong> <span className="text-gray-400">({a.type_action}, {a.priorite})</span></p>
                                   ))}
                                 </div>
                               </div>
@@ -1673,9 +1673,9 @@ export default function DuerpDetail() {
                         })}
                       </div>
                       <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-                        <button onClick={() => { setShowAiGeneralModal(false); setAiResult(null) }} className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Annuler</button>
+                        <button onClick={() => { setShowAiGeneralModal(false); setAiResult(null) }} className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-ui-sm text-ui">Annuler</button>
                         <button onClick={applyAiGeneralResults}
-                          className="px-6 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-2">
+                          className="px-6 py-2.5 bg-gray-700 text-white rounded-ui-sm text-ui font-medium hover:bg-gray-700 flex items-center gap-2">
                           <ThumbsUp className="w-4 h-4" /> Tout créer
                         </button>
                       </div>
@@ -1698,82 +1698,82 @@ export default function DuerpDetail() {
               {[
                 { label: 'Total', value: actionStats.total, color: 'text-gray-700' },
                 { label: 'À faire', value: actionStats.a_faire, color: 'text-gray-500' },
-                { label: 'En cours', value: actionStats.en_cours, color: 'text-blue-600' },
-                { label: 'Fait', value: actionStats.fait, color: 'text-green-600' },
+                { label: 'En cours', value: actionStats.en_cours, color: 'text-[rgb(var(--c-info))]' },
+                { label: 'Fait', value: actionStats.fait, color: 'text-[rgb(var(--c-success))]' },
               ].map(s => (
-                <span key={s.label} className={`text-sm ${s.color}`}><strong>{s.value}</strong> {s.label}</span>
+                <span key={s.label} className={`text-ui ${s.color}`}><strong>{s.value}</strong> {s.label}</span>
               ))}
             </div>
             <button onClick={() => { setEditingAction('new'); setActionForm({ statut: 'a_faire', priorite: 'moyenne', type_action: 'prevention' }) }}
-              className="flex items-center gap-1 px-3 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700">
+              className="flex items-center gap-1 btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))]">
               <Plus className="w-4 h-4" /> Nouvelle action
             </button>
           </div>
 
           {/* Formulaire action */}
           {editingAction && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-              <h4 className="font-medium text-sm mb-3">{editingAction === 'new' ? 'Nouvelle action de prévention' : 'Modifier l\'action'}</h4>
+            <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-4 mb-4">
+              <h4 className="font-medium text-ui mb-3">{editingAction === 'new' ? 'Nouvelle action de prévention' : 'Modifier l\'action'}</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="text-xs text-gray-500">Action de prévention *</label>
+                  <label className="text-ui-sm text-gray-500">Action de prévention *</label>
                   <textarea value={actionForm.action || ''} rows={2}
                     onChange={e => setActionForm({ ...actionForm, action: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ex: Formation SST, installation garde-corps..." />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Ex: Formation SST, installation garde-corps..." />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Type d'action</label>
+                  <label className="text-ui-sm text-gray-500">Type d'action</label>
                   <select value={actionForm.type_action || 'prevention'} onChange={e => setActionForm({ ...actionForm, type_action: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm">
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui">
                     {ACTION_TYPES.map(t => <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Priorité</label>
+                  <label className="text-ui-sm text-gray-500">Priorité</label>
                   <select value={actionForm.priorite || 'moyenne'} onChange={e => setActionForm({ ...actionForm, priorite: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm">
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui">
                     {ACTION_PRIORITES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Responsable</label>
+                  <label className="text-ui-sm text-gray-500">Responsable</label>
                   <input value={actionForm.responsable || ''} onChange={e => setActionForm({ ...actionForm, responsable: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Nom / fonction" />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Nom / fonction" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Échéance</label>
+                  <label className="text-ui-sm text-gray-500">Échéance</label>
                   <input type="date" value={actionForm.echeance || ''} onChange={e => setActionForm({ ...actionForm, echeance: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Coût estimé</label>
+                  <label className="text-ui-sm text-gray-500">Coût estimé</label>
                   <input value={actionForm.cout_estime || ''} onChange={e => setActionForm({ ...actionForm, cout_estime: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="500€, interne, à chiffrer..." />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="500€, interne, à chiffrer..." />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Risque lié</label>
+                  <label className="text-ui-sm text-gray-500">Risque lié</label>
                   <SearchSelect value={actionForm.risk_id || ''} onChange={v => setActionForm({ ...actionForm, risk_id: v || null })}
                     options={risks.map(r => ({ value: r.id, label: r.danger || 'Risque sans libellé', hint: r.situation || '' }))}
                     emptyLabel="- Aucun -" searchPlaceholder="Rechercher un risque..." aria-label="Risque lié" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Formation liée (catalogue Access)</label>
+                  <label className="text-ui-sm text-gray-500">Formation liée (catalogue Access)</label>
                   <SearchSelect value={actionForm.course_id || ''} onChange={v => setActionForm({ ...actionForm, course_id: v || null })}
                     options={courseOptions(courses)}
                     emptyLabel="- Aucune -" searchPlaceholder="Rechercher une formation..." aria-label="Formation liée" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Statut</label>
+                  <label className="text-ui-sm text-gray-500">Statut</label>
                   <select value={actionForm.statut || 'a_faire'} onChange={e => setActionForm({ ...actionForm, statut: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm">
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui">
                     {ACTION_STATUTS.map(s => <option key={s.value} value={s.value}>{s.emoji} {s.label}</option>)}
                   </select>
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-xs text-gray-500">Notes</label>
+                  <label className="text-ui-sm text-gray-500">Notes</label>
                   <textarea value={actionForm.notes || ''} rows={2}
                     onChange={e => setActionForm({ ...actionForm, notes: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" />
                 </div>
               </div>
               {/* Formations réglementaires suggérées quand risque sélectionné */}
@@ -1783,13 +1783,13 @@ export default function DuerpDetail() {
                 const relatedFormations = formations.filter(f => f.category_code === risk.category_code)
                 if (relatedFormations.length === 0) return null
                 return (
-                  <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs font-medium text-blue-800 mb-1"> Formations réglementaires liées :</p>
+                  <div className="mt-3 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3">
+                    <p className="text-ui-sm font-medium text-[rgb(var(--c-info))] mb-1"> Formations réglementaires liées :</p>
                     {relatedFormations.map(f => (
-                      <div key={f.id} className="text-xs text-blue-700 flex items-center gap-2 mt-0.5">
+                      <div key={f.id} className="text-ui-sm text-[rgb(var(--c-info))] flex items-center gap-2 mt-0.5">
                         <span> <strong>{f.formation_label}</strong></span>
-                        {f.periodicite && <span className="text-blue-500">- {f.periodicite}</span>}
-                        {f.reglementation && <span className="text-blue-400 text-[10px]">({f.reglementation})</span>}
+                        {f.periodicite && <span className="text-[rgb(var(--c-info))]">- {f.periodicite}</span>}
+                        {f.reglementation && <span className="text-[rgb(var(--c-info))] text-ui-sm">({f.reglementation})</span>}
                       </div>
                     ))}
                   </div>
@@ -1797,9 +1797,9 @@ export default function DuerpDetail() {
               })()}
               <div className="flex justify-end gap-2 mt-3">
                 <button onClick={() => { setEditingAction(null); setActionForm({}) }}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Annuler</button>
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-ui-sm text-ui">Annuler</button>
                 <button onClick={saveAction}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 flex items-center gap-1">
+                  className="btn btn-secondary text-ui hover:bg-[rgb(var(--c-warning))] flex items-center gap-1">
                   <Save className="w-4 h-4" /> Enregistrer
                 </button>
               </div>
@@ -1808,10 +1808,10 @@ export default function DuerpDetail() {
 
           {/* Liste actions */}
           {actions.length === 0 ? (
-            <div className="bg-white rounded-xl border p-8 text-center">
+            <div className="bg-white rounded-ui border p-8 text-center">
               <Target className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 mb-2">Aucune action de prévention</p>
-              <p className="text-xs text-gray-400">Définissez des mesures pour réduire les risques identifiés.</p>
+              <p className="text-ui-sm text-gray-400">Définissez des mesures pour réduire les risques identifiés.</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -1824,28 +1824,28 @@ export default function DuerpDetail() {
                 const isOverdue = a.echeance && a.statut !== 'fait' && a.statut !== 'annule' && new Date(a.echeance) < new Date()
 
                 return (
-                  <div key={a.id} className={`bg-white rounded-xl border shadow-sm p-4 ${isOverdue ? 'border-red-300 bg-red-50/30' : ''}`}>
+                  <div key={a.id} className={`bg-white rounded-ui border shadow-sm p-4 ${isOverdue ? 'border-[rgb(var(--c-danger)/0.3)] bg-[rgb(var(--c-danger-bg))]' : ''}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <select value={a.statut || 'a_faire'} onChange={e => updateActionStatus(a.id, e.target.value)}
-                            className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer ${ast.color}`}>
+                            className={`text-ui-sm px-2 py-1 rounded-full font-medium border-0 cursor-pointer ${ast.color}`}>
                             {ACTION_STATUTS.map(s => <option key={s.value} value={s.value}>{s.emoji} {s.label}</option>)}
                           </select>
-                          {pr && <span className={`text-[10px] px-1.5 py-0.5 rounded ${pr.color}`}>{pr.label}</span>}
-                          {tp && <span className="text-[10px] text-gray-500">{tp.emoji} {tp.label}</span>}
-                          {isOverdue && <span className="text-[10px] text-red-600 font-medium"> En retard</span>}
+                          {pr && <span className={`text-ui-sm px-1.5 py-0.5 rounded ${pr.color}`}>{pr.label}</span>}
+                          {tp && <span className="text-ui-sm text-gray-500">{tp.emoji} {tp.label}</span>}
+                          {isOverdue && <span className="text-ui-sm text-[rgb(var(--c-danger))] font-medium"> En retard</span>}
                         </div>
-                        <h4 className={`font-semibold text-sm ${a.statut === 'fait' ? 'text-gray-400 line-through' : a.statut === 'annule' ? 'text-gray-400' : 'text-gray-900'}`}>
+                        <h4 className={`font-semibold text-ui ${a.statut === 'fait' ? 'text-gray-400 line-through' : a.statut === 'annule' ? 'text-gray-400' : 'text-gray-900'}`}>
                           {a.action}
                         </h4>
-                        <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-400">
+                        <div className="flex flex-wrap gap-3 mt-1.5 text-ui-sm text-gray-400">
                           {a.responsable && <span> {a.responsable}</span>}
                           {a.echeance && <span> {format(new Date(a.echeance), 'dd/MM/yyyy')}</span>}
-                          {a.date_realisation && <span className="text-green-600"> Réalisé {format(new Date(a.date_realisation), 'dd/MM/yyyy')}</span>}
+                          {a.date_realisation && <span className="text-[rgb(var(--c-success))]"> Réalisé {format(new Date(a.date_realisation), 'dd/MM/yyyy')}</span>}
                           {a.cout_estime && <span> {a.cout_estime}</span>}
-                          {linkedRisk && <span className="text-amber-600"> {linkedRisk.danger}</span>}
-                          {linkedCourse && <span className="text-blue-600"> {linkedCourse.title}</span>}
+                          {linkedRisk && <span className="text-[rgb(var(--c-warning))]"> {linkedRisk.danger}</span>}
+                          {linkedCourse && <span className="text-[rgb(var(--c-info))]"> {linkedCourse.title}</span>}
                         </div>
                       </div>
                       <div className="flex items-center gap-1 ml-2 shrink-0">
@@ -1859,7 +1859,7 @@ export default function DuerpDetail() {
                           })
                         }} className="p-1.5 rounded hover:bg-gray-100 text-gray-400"><Edit className="w-4 h-4" /></button>
                         <button onClick={() => deleteAction(a.id)}
-                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                          className="p-1.5 rounded hover:bg-[rgb(var(--c-danger-bg))] text-gray-400 hover:text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
                   </div>
@@ -1876,8 +1876,8 @@ export default function DuerpDetail() {
             })
             if (risksWithoutAction.length === 0) return null
             return (
-              <div className="mt-6 bg-orange-50 border border-orange-200 rounded-xl p-4">
-                <h4 className="font-medium text-sm text-orange-800 mb-2 flex items-center gap-1">
+              <div className="mt-6 bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-4">
+                <h4 className="font-medium text-ui text-[rgb(var(--c-warning))] mb-2 flex items-center gap-1">
                   <Zap className="w-4 h-4" /> Risques élevés/critiques sans action ({risksWithoutAction.length})
                 </h4>
                 <div className="space-y-1.5">
@@ -1885,12 +1885,12 @@ export default function DuerpDetail() {
                     const lvl = getRiskLevel(r.risque_residuel || r.risque_brut)
                     const relatedFormations = formations.filter(f => f.category_code === r.category_code)
                     return (
-                      <div key={r.id} className="flex items-center justify-between text-sm bg-white rounded-lg p-2">
+                      <div key={r.id} className="flex items-center justify-between text-ui bg-white rounded-ui-sm p-2">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${lvl.badge}`}>{r.risque_residuel || r.risque_brut}</span>
+                          <span className={`text-ui-sm px-1.5 py-0.5 rounded shrink-0 ${lvl.badge}`}>{r.risque_residuel || r.risque_brut}</span>
                           <span className="text-gray-700 truncate">{r.danger}</span>
                           {relatedFormations.length > 0 && (
-                            <span className="text-[10px] text-blue-600 shrink-0"> {relatedFormations[0].formation_label}</span>
+                            <span className="text-ui-sm text-[rgb(var(--c-info))] shrink-0"> {relatedFormations[0].formation_label}</span>
                           )}
                         </div>
                         <button onClick={() => {
@@ -1902,7 +1902,7 @@ export default function DuerpDetail() {
                             risk_id: r.id,
                             action: relatedFormations.length > 0 ? relatedFormations[0].formation_label : `Action corrective : ${r.danger}`,
                           })
-                        }} className="text-xs text-amber-600 hover:underline shrink-0 ml-2">+ Action</button>
+                        }} className="text-ui-sm text-[rgb(var(--c-warning))] hover:underline shrink-0 ml-2">+ Action</button>
                       </div>
                     )
                   })}
@@ -1931,15 +1931,15 @@ export default function DuerpDetail() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: 'Risques identifiés', value: riskStats.total, icon: '', border: 'border-gray-300' },
-              { label: 'Évalués', value: `${riskStats.evaluated}/${riskStats.total}`, icon: '', border: 'border-blue-400' },
-              { label: 'Critiques + Élevés', value: riskStats.critique + riskStats.eleve, icon: '', border: 'border-red-400' },
-              { label: 'Actions terminées', value: `${actionStats.fait}/${actionStats.total}`, icon: '', border: 'border-green-400' },
+              { label: 'Évalués', value: `${riskStats.evaluated}/${riskStats.total}`, icon: '', border: 'border-[rgb(var(--c-info)/0.3)]' },
+              { label: 'Critiques + Élevés', value: riskStats.critique + riskStats.eleve, icon: '', border: 'border-[rgb(var(--c-danger)/0.3)]' },
+              { label: 'Actions terminées', value: `${actionStats.fait}/${actionStats.total}`, icon: '', border: 'border-[rgb(var(--c-success)/0.3)]' },
             ].map(k => (
-              <div key={k.label} className={`bg-white rounded-xl border-l-4 ${k.border} p-4 shadow-sm`}>
+              <div key={k.label} className={`bg-white rounded-ui border-l-4 ${k.border} p-4 shadow-sm`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-2xl font-bold text-gray-900">{k.value}</p>
-                    <p className="text-xs text-gray-500">{k.label}</p>
+                    <p className="text-ui-sm text-gray-500">{k.label}</p>
                   </div>
                   <span className="text-2xl">{k.icon}</span>
                 </div>
@@ -1948,20 +1948,20 @@ export default function DuerpDetail() {
           </div>
 
           {/* ═══ IA AUDIT DE COMPLÉTUDE (Mode 4) ═══ */}
-          <div className="bg-gradient-to-r from-purple-50 to-amber-50 rounded-xl border border-purple-200 p-4 sm:p-6">
+          <div className="bg-gray-50 rounded-ui border border-gray-200 p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                  <Bot className="w-6 h-6 text-purple-600" />
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                  <Bot className="w-6 h-6 text-gray-800" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Audit IA de complétude</h3>
-                  <p className="text-xs text-gray-500">L'IA vérifie que vous n'avez rien oublié, basé sur votre secteur et vos unités</p>
+                  <p className="text-ui-sm text-gray-500">L'IA vérifie que vous n'avez rien oublié, basé sur votre secteur et vos unités</p>
                 </div>
               </div>
               <button onClick={() => { setShowAiAuditModal(true); setAiResult(null); runAiAudit() }}
                 disabled={aiLoading}
-                className="px-5 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2">
+                className="px-5 py-2.5 bg-gray-700 text-white rounded-ui-sm text-ui font-medium hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2">
                 {aiLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyse...</>
                   : <><Sparkles className="w-4 h-4" /> Vérifier mon DUERP</>}
               </button>
@@ -1971,21 +1971,21 @@ export default function DuerpDetail() {
           {/* ═══ MODAL RÉSULTATS AUDIT ═══ */}
           {showAiAuditModal && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setShowAiAuditModal(false); setAiResult(null) } }}>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-purple-50 to-amber-50">
+              <div className="bg-white rounded-ui-lg shadow-md w-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
                   <div className="flex items-center gap-2">
-                    <Bot className="w-6 h-6 text-purple-600" />
+                    <Bot className="w-6 h-6 text-gray-800" />
                     <h3 className="font-bold text-gray-900">Audit IA - Complétude du DUERP</h3>
                   </div>
-                  <button onClick={() => { setShowAiAuditModal(false); setAiResult(null) }} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+                  <button onClick={() => { setShowAiAuditModal(false); setAiResult(null) }} className="p-2 hover:bg-gray-100 rounded-ui-sm"><X className="w-5 h-5" /></button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6">
                   {aiLoading && (
                     <div className="flex flex-col items-center justify-center py-16">
-                      <Loader2 className="w-10 h-10 animate-spin text-purple-600 mb-4" />
+                      <Loader2 className="w-10 h-10 animate-spin text-gray-800 mb-4" />
                       <p className="text-gray-500 font-medium">L'IA analyse votre DUERP...</p>
-                      <p className="text-xs text-gray-400 mt-1">Vérification des {risks.length} risques dans {units.length} unités</p>
+                      <p className="text-ui-sm text-gray-400 mt-1">Vérification des {risks.length} risques dans {units.length} unités</p>
                     </div>
                   )}
 
@@ -2008,11 +2008,11 @@ export default function DuerpDetail() {
                           </span>
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm text-gray-700">{aiResult.resume}</p>
+                          <p className="text-ui text-gray-700">{aiResult.resume}</p>
                           {aiResult.points_forts?.length > 0 && (
                             <div className="mt-2 space-y-1">
                               {aiResult.points_forts.map((pf, i) => (
-                                <p key={i} className="text-xs text-green-600 flex items-center gap-1">
+                                <p key={i} className="text-ui-sm text-[rgb(var(--c-success))] flex items-center gap-1">
                                   <CheckCircle className="w-3.5 h-3.5 shrink-0" /> {pf}
                                 </p>
                               ))}
@@ -2024,38 +2024,38 @@ export default function DuerpDetail() {
                       {/* Manques identifiés */}
                       {aiResult.manques?.length > 0 && (
                         <div>
-                          <h4 className="font-semibold text-sm text-gray-900 mb-3">
+                          <h4 className="font-semibold text-ui text-gray-900 mb-3">
                              {aiResult.manques.length} manque(s) identifié(s)
                           </h4>
                           <div className="space-y-4">
                             {aiResult.manques.map((m, idx) => {
-                              const gravColors = { critique: 'bg-red-50 border-red-300', important: 'bg-orange-50 border-orange-300', mineur: 'bg-yellow-50 border-yellow-300' }
-                              const gravBadge = { critique: 'bg-red-100 text-red-700', important: 'bg-orange-100 text-orange-700', mineur: 'bg-yellow-100 text-yellow-700' }
+                              const gravColors = { critique: 'bg-[rgb(var(--c-danger-bg))] border-[rgb(var(--c-danger)/0.3)]', important: 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)]', mineur: 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.3)]' }
+                              const gravBadge = { critique: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]', important: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', mineur: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' }
                               return (
-                                <div key={idx} className={`rounded-xl border-2 p-4 ${gravColors[m.gravite_manque] || 'bg-gray-50 border-gray-200'}`}>
+                                <div key={idx} className={`rounded-ui border-2 p-4 ${gravColors[m.gravite_manque] || 'bg-gray-50 border-gray-200'}`}>
                                   <div className="flex items-start justify-between mb-2">
                                     <div>
                                       <div className="flex items-center gap-2 mb-1">
-                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${gravBadge[m.gravite_manque] || 'bg-gray-100 text-gray-600'}`}>
+                                        <span className={`text-ui-sm uppercase font-bold px-2 py-0.5 rounded ${gravBadge[m.gravite_manque] || 'bg-gray-100 text-gray-600'}`}>
                                           {m.gravite_manque}
                                         </span>
-                                        <span className="text-xs text-gray-400">{m.unite_concernee}</span>
+                                        <span className="text-ui-sm text-gray-400">{m.unite_concernee}</span>
                                       </div>
-                                      <h5 className="font-semibold text-sm text-gray-900">{m.titre}</h5>
-                                      <p className="text-xs text-gray-600 mt-0.5">{m.explication}</p>
+                                      <h5 className="font-semibold text-ui text-gray-900">{m.titre}</h5>
+                                      <p className="text-ui-sm text-gray-600 mt-0.5">{m.explication}</p>
                                     </div>
                                   </div>
                                   {m.risques_suggeres?.length > 0 && (
                                     <div className="mt-3 space-y-2">
-                                      <p className="text-xs font-medium text-gray-500">Risques suggérés :</p>
+                                      <p className="text-ui-sm font-medium text-gray-500">Risques suggérés :</p>
                                       {m.risques_suggeres.map((r, ri) => {
                                         const sc = (r.frequence||0) * (r.gravite||0) * (r.maitrise||1)
                                         const lvl = getRiskLevel(sc)
                                         return (
-                                          <div key={ri} className="bg-white rounded-lg p-2 border text-xs flex items-center justify-between">
+                                          <div key={ri} className="bg-white rounded-ui-sm p-2 border text-ui-sm flex items-center justify-between">
                                             <div className="flex-1 min-w-0">
                                               <span className="font-medium text-gray-900">{r.danger}</span>
-                                              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${lvl.badge}`}>{lvl.label}</span>
+                                              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-ui-sm font-medium ${lvl.badge}`}>{lvl.label}</span>
                                               {r.actions?.map((a, ai) => (
                                                 <p key={ai} className="text-gray-400 mt-0.5 pl-2"> {a.action}</p>
                                               ))}
@@ -2064,7 +2064,7 @@ export default function DuerpDetail() {
                                         )
                                       })}
                                       <button onClick={() => applyAuditSuggestion(m)}
-                                        className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 flex items-center gap-1">
+                                        className="mt-2 px-4 py-2 bg-gray-700 text-white rounded-ui-sm text-ui-sm font-medium hover:bg-gray-700 flex items-center gap-1">
                                         <Plus className="w-3.5 h-3.5" /> Ajouter ces {m.risques_suggeres.length} risque(s)
                                       </button>
                                     </div>
@@ -2078,11 +2078,11 @@ export default function DuerpDetail() {
 
                       {/* Recommandations générales */}
                       {aiResult.recommandations_generales?.length > 0 && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                          <h4 className="font-semibold text-sm text-blue-800 mb-2"> Recommandations générales</h4>
+                        <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui p-4">
+                          <h4 className="font-semibold text-ui text-[rgb(var(--c-info))] mb-2"> Recommandations générales</h4>
                           <ul className="space-y-1">
                             {aiResult.recommandations_generales.map((rec, i) => (
-                              <li key={i} className="text-xs text-blue-700 flex items-start gap-1">
+                              <li key={i} className="text-ui-sm text-[rgb(var(--c-info))] flex items-start gap-1">
                                 <span className="mt-1">•</span> {rec}
                               </li>
                             ))}
@@ -2092,7 +2092,7 @@ export default function DuerpDetail() {
 
                       <div className="flex justify-end pt-4 border-t">
                         <button onClick={() => { setShowAiAuditModal(false); setAiResult(null) }}
-                          className="px-5 py-2.5 bg-gray-600 text-white rounded-lg text-sm font-medium hover:bg-gray-700">
+                          className="px-5 py-2.5 bg-gray-600 text-white rounded-ui-sm text-ui font-medium hover:bg-gray-700">
                           Fermer
                         </button>
                       </div>
@@ -2104,13 +2104,13 @@ export default function DuerpDetail() {
           )}
 
           {/* ═══ EXPORT PDF / EXCEL ═══ */}
-          <div className="bg-white rounded-xl border shadow-sm p-4 sm:p-6">
+          <div className="bg-white rounded-ui border shadow-sm p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-amber-600" /> Exporter le DUERP
+                  <FileText className="w-5 h-5 text-[rgb(var(--c-warning))]" /> Exporter le DUERP
                 </h3>
-                <p className="text-xs text-gray-500 mt-1">Rapport complet avec inventaire, plan d'action et mentions légales</p>
+                <p className="text-ui-sm text-gray-500 mt-1">Rapport complet avec inventaire, plan d'action et mentions légales</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={async () => {
@@ -2119,7 +2119,7 @@ export default function DuerpDetail() {
                     toast.success('PDF généré et téléchargé')
                   } catch (err) { console.error(err); toast.error('Erreur génération PDF') }
                 }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">
+                  className="flex items-center gap-2 px-4 py-2.5 bg-[rgb(var(--c-danger))] text-white rounded-ui-sm text-ui font-medium hover:bg-[rgb(var(--c-danger))]">
                   <Download className="w-4 h-4" /> PDF
                 </button>
                 <button onClick={() => {
@@ -2128,7 +2128,7 @@ export default function DuerpDetail() {
                     toast.success('Excel généré et téléchargé')
                   } catch (err) { console.error(err); toast.error('Erreur génération Excel') }
                 }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
+                  className="flex items-center gap-2 btn btn-secondary text-ui font-medium hover:bg-[rgb(var(--c-success))]">
                   <Download className="w-4 h-4" /> Excel
                 </button>
               </div>
@@ -2136,34 +2136,34 @@ export default function DuerpDetail() {
           </div>
 
           {/* Matrice F × G */}
-          <div className="bg-white rounded-xl border shadow-sm p-4 sm:p-6">
+          <div className="bg-white rounded-ui border shadow-sm p-4 sm:p-6">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-amber-600" /> Matrice Fréquence × Gravité
+              <BarChart3 className="w-5 h-5 text-[rgb(var(--c-warning))]" /> Matrice Fréquence × Gravité
             </h3>
             <div className="overflow-x-auto">
-              <table className="w-full text-center text-sm">
+              <table className="w-full text-center text-ui">
                 <thead>
                   <tr>
-                    <th className="p-2 text-xs text-gray-400">F \ G</th>
-                    {GRAVITE_LABELS.map(g => <th key={g.value} className="p-2 text-xs text-gray-500">{g.value} - {g.label}</th>)}
+                    <th className="p-2 text-ui-sm text-gray-400">F \ G</th>
+                    {GRAVITE_LABELS.map(g => <th key={g.value} className="p-2 text-ui-sm text-gray-500">{g.value} - {g.label}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {[...FREQUENCE_LABELS].reverse().map(f => (
                     <tr key={f.value}>
-                      <td className="p-2 text-xs text-gray-500 font-medium text-left">{f.value} - {f.label}</td>
+                      <td className="p-2 text-ui-sm text-gray-500 font-medium text-left">{f.value} - {f.label}</td>
                       {GRAVITE_LABELS.map(g => {
                         const score = f.value * g.value
                         const lvl = getRiskLevel(score)
                         const count = risks.filter(r => r.frequence === f.value && r.gravite === g.value).length
                         return (
                           <td key={g.value} className="p-1">
-                            <div className={`rounded-lg p-2 min-h-[48px] min-w-[48px] flex items-center justify-center ${
+                            <div className={`rounded-ui-sm p-2 min-h-[48px] min-w-[48px] flex items-center justify-center ${
                               count > 0 ? lvl.badge : 'bg-gray-50 text-gray-300'
                             }`}>
                               {count > 0 ? (
-                                <div><span className="font-bold text-lg block">{count}</span><span className="text-[9px] opacity-70">= {score}</span></div>
-                              ) : <span className="text-xs">{score}</span>}
+                                <div><span className="font-bold text-lg block">{count}</span><span className="text-ui-sm opacity-70">= {score}</span></div>
+                              ) : <span className="text-ui-sm">{score}</span>}
                             </div>
                           </td>
                         )
@@ -2176,10 +2176,10 @@ export default function DuerpDetail() {
           </div>
 
           {/* Risques par catégorie */}
-          <div className="bg-white rounded-xl border shadow-sm p-4 sm:p-6">
+          <div className="bg-white rounded-ui border shadow-sm p-4 sm:p-6">
             <h3 className="font-semibold text-gray-900 mb-4">Risques par catégorie</h3>
             {usedCategories.length === 0 ? (
-              <p className="text-gray-400 text-sm">Aucune catégorie</p>
+              <p className="text-gray-400 text-ui">Aucune catégorie</p>
             ) : (
               <div className="space-y-2">
                 {usedCategories.map(cat => {
@@ -2188,10 +2188,10 @@ export default function DuerpDetail() {
                   const lvl = getRiskLevel(maxScore)
                   return (
                     <div key={cat.code} className="flex items-center gap-3">
-                      <span className="text-sm shrink-0">{cat.icon}</span>
+                      <span className="text-ui shrink-0">{cat.icon}</span>
                       <span className={`w-3 h-3 rounded-full shrink-0 ${lvl.color}`} />
-                      <span className="text-sm text-gray-700 flex-1 min-w-0 truncate">{cat.label}</span>
-                      <span className="text-sm font-bold text-gray-900">{catRisks.length}</span>
+                      <span className="text-ui text-gray-700 flex-1 min-w-0 truncate">{cat.label}</span>
+                      <span className="text-ui font-bold text-gray-900">{catRisks.length}</span>
                       <div className="w-24 h-2 rounded-full bg-gray-100 overflow-hidden">
                         <div className={`h-full rounded-full ${lvl.color}`}
                           style={{ width: `${Math.min(100, (catRisks.length / Math.max(1, risks.length)) * 100)}%` }} />
@@ -2204,10 +2204,10 @@ export default function DuerpDetail() {
           </div>
 
           {/* Risques par unité */}
-          <div className="bg-white rounded-xl border shadow-sm p-4 sm:p-6">
+          <div className="bg-white rounded-ui border shadow-sm p-4 sm:p-6">
             <h3 className="font-semibold text-gray-900 mb-4">Risques par unité de travail</h3>
             {units.length === 0 ? (
-              <p className="text-gray-400 text-sm">Aucune unité définie</p>
+              <p className="text-gray-400 text-ui">Aucune unité définie</p>
             ) : (
               <div className="space-y-3">
                 {units.map(u => {
@@ -2220,16 +2220,16 @@ export default function DuerpDetail() {
                   const ne = unitRisks.filter(r => !r.frequence || !r.gravite).length
                   if (unitRisks.length === 0) return null
                   return (
-                    <div key={u.id} className="bg-gray-50 rounded-lg p-3">
+                    <div key={u.id} className="bg-gray-50 rounded-ui-sm p-3">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-sm text-gray-900">{u.code} - {u.name}</span>
-                        <span className="text-xs text-gray-500">{unitRisks.length} risque{unitRisks.length > 1 ? 's' : ''} {u.effectif ? `•  ${u.effectif}` : ''}</span>
+                        <span className="font-medium text-ui text-gray-900">{u.code} - {u.name}</span>
+                        <span className="text-ui-sm text-gray-500">{unitRisks.length} risque{unitRisks.length > 1 ? 's' : ''} {u.effectif ? `•  ${u.effectif}` : ''}</span>
                       </div>
                       <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-200">
-                        {crit > 0 && <div className="bg-red-500" style={{ width: `${(crit / unitRisks.length) * 100}%` }} />}
-                        {elev > 0 && <div className="bg-orange-500" style={{ width: `${(elev / unitRisks.length) * 100}%` }} />}
-                        {moy > 0 && <div className="bg-yellow-500" style={{ width: `${(moy / unitRisks.length) * 100}%` }} />}
-                        {faib > 0 && <div className="bg-green-500" style={{ width: `${(faib / unitRisks.length) * 100}%` }} />}
+                        {crit > 0 && <div className="bg-[rgb(var(--c-danger))]" style={{ width: `${(crit / unitRisks.length) * 100}%` }} />}
+                        {elev > 0 && <div className="bg-[rgb(var(--c-warning))]" style={{ width: `${(elev / unitRisks.length) * 100}%` }} />}
+                        {moy > 0 && <div className="bg-[rgb(var(--c-warning))]" style={{ width: `${(moy / unitRisks.length) * 100}%` }} />}
+                        {faib > 0 && <div className="bg-[rgb(var(--c-success))]" style={{ width: `${(faib / unitRisks.length) * 100}%` }} />}
                         {ne > 0 && <div className="bg-gray-300" style={{ width: `${(ne / unitRisks.length) * 100}%` }} />}
                       </div>
                     </div>
@@ -2239,10 +2239,10 @@ export default function DuerpDetail() {
                   const orphans = risks.filter(r => !r.unit_id)
                   if (orphans.length === 0) return null
                   return (
-                    <div className="bg-gray-50 rounded-lg p-3 border-dashed border-2 border-gray-200">
+                    <div className="bg-gray-50 rounded-ui-sm p-3 border-dashed border-2 border-gray-200">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm text-gray-500"> Sans unité</span>
-                        <span className="text-xs text-orange-500 font-medium">{orphans.length} à affecter</span>
+                        <span className="font-medium text-ui text-gray-500"> Sans unité</span>
+                        <span className="text-ui-sm text-[rgb(var(--c-warning))] font-medium">{orphans.length} à affecter</span>
                       </div>
                     </div>
                   )
@@ -2252,34 +2252,34 @@ export default function DuerpDetail() {
           </div>
 
           {/* Avancement actions */}
-          <div className="bg-white rounded-xl border shadow-sm p-4 sm:p-6">
+          <div className="bg-white rounded-ui border shadow-sm p-4 sm:p-6">
             <h3 className="font-semibold text-gray-900 mb-4">Avancement du plan d'action</h3>
             {actionStats.total === 0 ? (
-              <p className="text-gray-400 text-sm">Aucune action définie</p>
+              <p className="text-gray-400 text-ui">Aucune action définie</p>
             ) : (<>
               <div className="flex h-4 rounded-full overflow-hidden bg-gray-100 mb-3">
-                {actionStats.fait > 0 && <div className="bg-green-500 transition-all" style={{ width: `${(actionStats.fait / actionStats.total) * 100}%` }} />}
-                {actionStats.en_cours > 0 && <div className="bg-blue-500 transition-all" style={{ width: `${(actionStats.en_cours / actionStats.total) * 100}%` }} />}
+                {actionStats.fait > 0 && <div className="bg-[rgb(var(--c-success))] transition-all" style={{ width: `${(actionStats.fait / actionStats.total) * 100}%` }} />}
+                {actionStats.en_cours > 0 && <div className="bg-[rgb(var(--c-info))] transition-all" style={{ width: `${(actionStats.en_cours / actionStats.total) * 100}%` }} />}
                 {actionStats.a_faire > 0 && <div className="bg-gray-300 transition-all" style={{ width: `${(actionStats.a_faire / actionStats.total) * 100}%` }} />}
                 {actionStats.annule > 0 && <div className="bg-stone-300 transition-all" style={{ width: `${(actionStats.annule / actionStats.total) * 100}%` }} />}
               </div>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500" /> {actionStats.fait} terminée{actionStats.fait > 1 ? 's' : ''}</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500" /> {actionStats.en_cours} en cours</span>
+              <div className="flex flex-wrap gap-4 text-ui">
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[rgb(var(--c-success))]" /> {actionStats.fait} terminée{actionStats.fait > 1 ? 's' : ''}</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[rgb(var(--c-info))]" /> {actionStats.en_cours} en cours</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-gray-300" /> {actionStats.a_faire} à faire</span>
                 {actionStats.annule > 0 && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-stone-300" /> {actionStats.annule} annulée{actionStats.annule > 1 ? 's' : ''}</span>}
               </div>
               <p className="text-2xl font-bold text-gray-900 mt-3">
                 {actionStats.total > 0 ? Math.round((actionStats.fait / actionStats.total) * 100) : 0}%
-                <span className="text-sm font-normal text-gray-500 ml-2">d'avancement</span>
+                <span className="text-ui font-normal text-gray-500 ml-2">d'avancement</span>
               </p>
             </>)}
           </div>
 
           {/* Rappels réglementaires */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h4 className="font-medium text-sm text-blue-800 mb-2"> Rappels réglementaires</h4>
-            <div className="text-xs text-blue-700 space-y-1">
+          <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui p-4">
+            <h4 className="font-medium text-ui text-[rgb(var(--c-info))] mb-2"> Rappels réglementaires</h4>
+            <div className="text-ui-sm text-[rgb(var(--c-info))] space-y-1">
               <p>• <strong>Conservation obligatoire 40 ans</strong> (Art. L.4121-3-1 V - loi du 2 août 2021)</p>
               <p>• Mise à jour : {project.effectif && parseInt(project.effectif) >= 11
                 ? 'au minimum annuelle (obligatoire ≥11 salariés)'
@@ -2300,20 +2300,20 @@ export default function DuerpDetail() {
             const relevantFormations = formations.filter(f => riskCats.includes(f.category_code))
             if (relevantFormations.length === 0) return null
             return (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <h4 className="font-medium text-sm text-amber-800 mb-2"> Formations réglementaires identifiées ({relevantFormations.length})</h4>
+              <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-4">
+                <h4 className="font-medium text-ui text-[rgb(var(--c-warning))] mb-2"> Formations réglementaires identifiées ({relevantFormations.length})</h4>
                 <div className="space-y-1.5">
                   {relevantFormations.map(f => {
                     const cat = categories.find(c => c.code === f.category_code)
                     return (
-                      <div key={f.id} className="flex items-start gap-2 text-sm bg-white rounded-lg p-2.5">
+                      <div key={f.id} className="flex items-start gap-2 text-ui bg-white rounded-ui-sm p-2.5">
                         <span className="shrink-0">{cat?.icon || ''}</span>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-900">{f.formation_label}</p>
-                          <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-0.5">
+                          <div className="flex flex-wrap gap-2 text-ui-sm text-gray-500 mt-0.5">
                             {f.periodicite && <span> {f.periodicite}</span>}
                             {f.reglementation && <span> {f.reglementation}</span>}
-                            {f.course_code && <span className="text-amber-600 font-medium">Réf: {f.course_code}</span>}
+                            {f.course_code && <span className="text-[rgb(var(--c-warning))] font-medium">Réf: {f.course_code}</span>}
                           </div>
                         </div>
                       </div>

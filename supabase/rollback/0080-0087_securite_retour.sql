@@ -1,5 +1,5 @@
--- supabase/rollback/0080-0086_securite_retour.sql : retour arrière des migrations 0080 à 0086 (chantier 2).
--- Les sept migrations sont appliquées ensemble ; ce script les annule ensemble.
+-- supabase/rollback/0080-0087_securite_retour.sql : retour arrière des migrations 0080 à 0087 (chantier 2).
+-- Les huit migrations sont appliquées ensemble ; ce script les annule ensemble.
 -- Il remet exactement l'état photographié par 0080 dans app.etat_avant_chantier2 :
 --   règles d'accès (tables et Storage), définitions et droits d'exécution des fonctions, droits des
 --   rôles anon et authenticated sur les tables, buckets, vues, contrainte des rôles de profiles.
@@ -30,6 +30,14 @@ begin
     update public.trainee_info_sheets i set ssn = s.ssn from public.trainee_ssn s where s.trainee_id = i.trainee_id;
   end if;
 
+  -- 1 bis. Handicap (0087) : retour dans les colonnes d'origine
+  drop trigger if exists a_trainee_disability_capture on public.trainees;
+  if to_regclass('public.trainee_disability') is not null then
+    update public.trainees t set has_disability = d.has_disability, disability_details = d.details,
+           disability_adaptations = d.adaptations
+    from public.trainee_disability d where d.trainee_id = t.id;
+  end if;
+
   -- 2. Règles d'accès des tables et du Storage ---------------------------------------------------------
   for r in select schemaname, tablename, policyname from pg_policies where schemaname in ('public', 'storage') loop
     execute format('drop policy %I on %I.%I', r.policyname, r.schemaname, r.tablename);
@@ -47,6 +55,10 @@ begin
   drop function if exists public.public_reclamation_session(text);
   drop function if exists public.public_reclamation_submit(uuid, text, text, text, text, text);
   drop function if exists public.trainee_ssn_capture();
+  drop function if exists public.trainee_disability_capture();
+  drop function if exists public.can_see_disability();
+  drop function if exists public.disability_count(uuid[]);
+  drop function if exists public.psh_request_count();
   drop function if exists public.info_sheet_ssn_capture();
   drop function if exists public.load_trainee_data(text, uuid, text);
   drop function if exists public.update_trainee_data(text, uuid, jsonb, text);
@@ -82,6 +94,7 @@ begin
 
   -- 6. Colonnes et tables ajoutées --------------------------------------------------------------------
   drop table if exists public.trainee_ssn;
+  drop table if exists public.trainee_disability;
   alter table public.trainees drop column if exists ssn_present;
   alter table public.trainee_info_sheets drop column if exists ssn_present;
   alter table public.session_trainees drop column if exists portal_ticket;
@@ -97,4 +110,4 @@ end $$;
 drop schema if exists app cascade;
 delete from public.schema_migrations where version in (
   '0080_securite_urgences', '0081_securite_fonctions_aide', '0082_securite_regles', '0083_securite_numero_secu',
-  '0084_securite_portails', '0085_securite_fonctions', '0086_securite_stockage');
+  '0084_securite_portails', '0085_securite_fonctions', '0086_securite_stockage', '0087_securite_handicap');

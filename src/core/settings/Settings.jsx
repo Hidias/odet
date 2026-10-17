@@ -31,7 +31,7 @@ const ORG_FIELDS = [
   'nda', 'nda_region', 'qualiopi_certified', 'qualiopi_since', 'qualiopi_organisme', 'activity_kind', 'caces_activity', 'date_creation',
   'address', 'postal_code', 'city', 'phone', 'email', 'website', 'lieu_signature', 'region', 'zone_departements',
   'dirigeant_name', 'dirigeant_title', 'dirigeant_signature_url', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
-  'app_name', 'app_short_name', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'logo_base64', 'stamp_base64',
+  'app_name', 'app_short_name', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'logo_base64', 'stamp_base64', 'icon_192_url', 'icon_512_url', 'favicon_url',
   'doc_prefix',
   'bank_name', 'iban', 'bic', 'bank_overdraft', 'email_bcc', 'email_default_sender', 'email_sync_ignored', 'exercice_start_month', 'demo_mode',
   'ai_profile',
@@ -95,7 +95,7 @@ export default function Settings() {
     }
   }
 
-  const onFile = (key, kind) => async (e) => {
+  const onFile = (key, kind, alsoKeys = []) => async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     try {
@@ -106,6 +106,7 @@ export default function Settings() {
       } else {
         const url = await uploadBrandingFile(file, key)
         set(key, url)
+        alsoKeys.forEach((k) => set(k, url))
       }
       toast.success('Fichier chargé, pensez à enregistrer')
     } catch (err) {
@@ -255,6 +256,20 @@ export default function Settings() {
                     {form.logo_on_dark_url && <button type="button" className="btn btn-ghost" onClick={() => set('logo_on_dark_url', '')}><Trash2 className="w-4 h-4" />Retirer</button>}
                   </div>
                 </Field>
+                <Field label="Icône de l'application" hint="Carré, PNG 512 × 512 px. Sur le téléphone, dans le menu et sur l'écran de connexion. Vide : le logo est utilisé" className="md:col-span-2">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {(form.icon_512_url || form.icon_192_url) && <img src={form.icon_512_url || form.icon_192_url} alt="" className="h-14 w-14 border rounded-ui-sm object-cover" />}
+                    <label className="btn btn-secondary cursor-pointer"><Upload className="w-4 h-4" />Choisir<input type="file" accept="image/png,image/svg+xml,image/webp" className="hidden" onChange={onFile('icon_512_url', 'storage', ['icon_192_url'])} /></label>
+                    {(form.icon_512_url || form.icon_192_url) && <button type="button" className="btn btn-ghost" onClick={() => { set('icon_512_url', ''); set('icon_192_url', '') }}><Trash2 className="w-4 h-4" />Retirer</button>}
+                  </div>
+                </Field>
+                <Field label="Icône de l'onglet du navigateur (facultatif)" hint="Carré, PNG 48 × 48 px. Vide : l'icône de l'application est utilisée" className="md:col-span-2">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {form.favicon_url && <img src={form.favicon_url} alt="" className="h-8 w-8 border rounded-ui-sm object-cover" />}
+                    <label className="btn btn-secondary cursor-pointer"><Upload className="w-4 h-4" />Choisir<input type="file" accept="image/png,image/svg+xml,image/x-icon" className="hidden" onChange={onFile('favicon_url', 'storage')} /></label>
+                    {form.favicon_url && <button type="button" className="btn btn-ghost" onClick={() => set('favicon_url', '')}><Trash2 className="w-4 h-4" />Retirer</button>}
+                  </div>
+                </Field>
                 <Field label="Tampon (sur conventions et attestations)" hint="Image, 500 Ko maximum" className="md:col-span-2">
                   <div className="flex items-center gap-4 flex-wrap">
                     {form.stamp_base64 && <img src={form.stamp_base64} alt="" className="h-14 border rounded-ui-sm bg-white p-1" />}
@@ -374,13 +389,13 @@ function QualiteSection({ onReferentHandicap }) {
     <>
       <h2 className="section-title">Responsables et référents qualité</h2>
       <p className="text-ui-sm text-gray-500">Chaque rôle est tenu par un utilisateur, avec un suppléant qui le remplace en cas d'absence ou de conflit d'intérêts (obligatoire pour le référent handicap et le référent violences, harcèlement et discriminations). Les documents qualité affichent automatiquement les personnes choisies ici. Le changement est enregistré immédiatement.</p>
-      {demoNames && <p className="text-ui-sm rounded-lg bg-amber-50 border border-amber-300 p-2">Démonstration : les documents affichent les noms fictifs indiqués sous chaque rôle. Ils disparaissent avec l'effacement des données de démonstration (Console) ; les comptes choisis ici prennent alors leur place.</p>}
+      {demoNames && <p className="text-ui-sm rounded-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] p-2">Démonstration : les documents affichent les noms fictifs indiqués sous chaque rôle. Ils disparaissent avec l'effacement des données de démonstration (Console) ; les comptes choisis ici prennent alors leur place.</p>}
       <div className="divide-y border rounded-ui">
         {roles.map((r) => (
           <div key={r.code} className="flex items-center justify-between gap-3 px-3 py-2 flex-wrap">
             <div>
               <div className="text-ui font-medium text-gray-800">{r.label}</div>
-              {demoNames && r.demo_name && <div className="text-ui-sm text-amber-800">Démonstration : {r.demo_name}{r.demo_deputy_name ? `, suppléant ${r.demo_deputy_name}` : ''}</div>}
+              {demoNames && r.demo_name && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Démonstration : {r.demo_name}{r.demo_deputy_name ? `, suppléant ${r.demo_deputy_name}` : ''}</div>}
             </div>
             <div className="flex items-center gap-2">
               {busy === r.code && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
@@ -490,7 +505,7 @@ function UsersSection({ isSuperadmin }) {
                 <td><Toggle checked={p.is_active} onChange={(v) => update(p.id, { is_active: v })} label="" /></td>
                 <td className="text-right whitespace-nowrap">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => reset(p.email)} disabled={busy}><KeyRound className="w-4 h-4" />Mot de passe</button>
-                  {isSuperadmin && p.id !== me?.id && <button type="button" className="btn btn-ghost btn-sm text-red-700" onClick={() => remove(p)}><Trash2 className="w-4 h-4" /></button>}
+                  {isSuperadmin && p.id !== me?.id && <button type="button" className="btn btn-ghost btn-sm text-[rgb(var(--c-danger))]" onClick={() => remove(p)}><Trash2 className="w-4 h-4" /></button>}
                 </td>
               </tr>
             ))}

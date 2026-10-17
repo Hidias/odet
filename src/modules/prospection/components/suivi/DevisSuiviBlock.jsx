@@ -19,8 +19,8 @@ const STATUS_LABELS = { sent: 'Envoyé', partial: 'Accepté en partie' }
 function dueBadge(nextDue, today) {
   if (!nextDue) return null
   const late = diffDays(nextDue, today)
-  if (late > 0) return { text: `relance due depuis ${late} j`, cls: 'bg-red-50 text-red-700' }
-  if (late === 0) return { text: 'relance aujourd\'hui', cls: 'bg-amber-50 text-amber-700' }
+  if (late > 0) return { text: `relance due depuis ${late} j`, cls: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' }
+  if (late === 0) return { text: 'relance aujourd\'hui', cls: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' }
   return { text: `prochaine relance le ${fmtDate(nextDue)}`, cls: 'bg-gray-100 text-gray-600' }
 }
 
@@ -57,38 +57,38 @@ function PerduModal({ quote, author, onClose, onDone }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-ui shadow-md w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100">
           <div>
             <h3 className="text-base font-semibold text-gray-900">
               {isPartial ? 'Refus définitif des lignes restantes' : 'Devis perdu'}
             </h3>
-            <p className="text-sm text-gray-500">{quote.reference} · {fmtMoney(quote.total_ht)}</p>
+            <p className="text-ui text-gray-500">{quote.reference} · {fmtMoney(quote.total_ht)}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100" aria-label="Fermer">
+          <button onClick={onClose} className="p-1.5 rounded-ui-sm hover:bg-gray-100" aria-label="Fermer">
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
         <div className="p-5 space-y-3">
           {isPartial && (
-            <p className="text-sm text-gray-600">
+            <p className="text-ui text-gray-600">
               La partie acceptée reste acquise. Le devis sort simplement du suivi des relances.
             </p>
           )}
-          <label className="block text-sm font-medium text-gray-700">Motif</label>
+          <label className="block text-ui font-medium text-gray-700">Motif</label>
           <select value={reason} onChange={e => setReason(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui">
             {LOST_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
           <input value={note} onChange={e => setNote(e.target.value)} placeholder="Précision (facultatif)"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+            className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui" />
         </div>
         <div className="flex justify-end gap-2 px-5 pb-5">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+          <button onClick={onClose} className="px-4 py-2 text-ui text-gray-600 border border-gray-200 rounded-ui-sm hover:bg-gray-50">
             Annuler
           </button>
           <button onClick={save} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 text-ui font-medium bg-[rgb(var(--c-danger))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-danger))] disabled:opacity-50">
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             Confirmer
           </button>
@@ -181,32 +181,32 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
         <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2 text-left min-w-0 flex-1">
           {open ? <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />}
           <span className="min-w-0">
-            <span className="block text-sm font-semibold text-gray-900 truncate">{client.name || 'Client inconnu'}</span>
-            <span className="block text-xs text-gray-500">
+            <span className="block text-ui font-semibold text-gray-900 truncate">{client.name || 'Client inconnu'}</span>
+            <span className="block text-ui-sm text-gray-500">
               {group.quotes.length} devis · {fmtMoney(group.total)} HT
               {client.contact_name ? ` · ${client.contact_name}` : ''}
             </span>
           </span>
         </button>
-        {badge && <span className={`text-xs px-2 py-0.5 rounded-md ${badge.cls}`}>{badge.text}</span>}
+        {badge && <span className={`text-ui-sm px-2 py-0.5 rounded-ui-sm ${badge.cls}`}>{badge.text}</span>}
         <div className="flex items-center gap-1.5 flex-wrap">
           {phone && (
             <a href={`tel:${phone.replace(/\s/g, '')}`}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
+              className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">
               <Phone className="w-3.5 h-3.5" /> {phone}
             </a>
           )}
           <button onClick={relanceFaite} disabled={busy}
-            className="px-2.5 py-1.5 text-xs font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50">
+            className="px-2.5 py-1.5 text-ui-sm font-medium bg-gray-900 text-white rounded-ui-sm hover:bg-gray-700 disabled:opacity-50">
             Relance faite
           </button>
           <button onClick={() => setVeilleOpen(true)} disabled={busy}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
+            className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">
             <Moon className="w-3.5 h-3.5" /> En veille
           </button>
           {showTriage && (
             <button onClick={garder} disabled={busy}
-              className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
+              className="px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">
               Garder en suivi
             </button>
           )}
@@ -214,40 +214,40 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
       </div>
 
       {open && (
-        <div className="ml-6 mb-3 bg-gray-50 rounded-lg divide-y divide-gray-200">
+        <div className="ml-6 mb-3 bg-gray-50 rounded-ui-sm divide-y divide-gray-200">
           {group.quotes.map(q => {
             const due = quoteNextDue(q)
             return (
               <div key={q.id} className="flex items-center gap-3 px-3 py-2 flex-wrap">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-900">
+                  <p className="text-ui text-gray-900">
                     <span className="font-medium">{q.reference}</span>
                     <span className="text-gray-500"> · {fmtDate(q.quote_date)} · {fmtMoney(q.total_ht)}</span>
                   </p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-ui-sm text-gray-500 truncate">
                     {STATUS_LABELS[q.status] || q.status}
                     {q.object ? ` · ${q.object}` : ''}
                     {` · ${q.relance_count || 0} relance(s)`}
                     {due ? ` · prochaine le ${fmtDate(due)}` : ''}
                   </p>
-                  {q.followup_notes && <p className="text-xs text-gray-600 mt-0.5">{q.followup_notes}</p>}
+                  {q.followup_notes && <p className="text-ui-sm text-gray-600 mt-0.5">{q.followup_notes}</p>}
                 </div>
                 <div className="flex items-center gap-1.5">
                   {q.status === 'sent' && (
                     <button onClick={() => onRelanceMail?.(q)} disabled={relanceBusyId === q.id}
-                      className="flex items-center gap-1 px-2 py-1 text-xs border border-gray-300 rounded-md hover:bg-white disabled:opacity-50">
+                      className="flex items-center gap-1 px-2 py-1 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-white disabled:opacity-50">
                       {relanceBusyId === q.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
                       Relance mail
                     </button>
                   )}
                   {q.status === 'sent' && (
                     <button onClick={() => gagne(q)}
-                      className="flex items-center gap-1 px-2 py-1 text-xs border border-green-300 text-green-700 rounded-md hover:bg-green-50">
+                      className="flex items-center gap-1 px-2 py-1 text-ui-sm border border-[rgb(var(--c-success)/0.3)] text-[rgb(var(--c-success))] rounded-ui-sm hover:bg-[rgb(var(--c-success-bg))]">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Gagné
                     </button>
                   )}
                   <button onClick={() => setPerduQuote(q)}
-                    className="flex items-center gap-1 px-2 py-1 text-xs border border-red-200 text-red-600 rounded-md hover:bg-red-50">
+                    className="flex items-center gap-1 px-2 py-1 text-ui-sm border border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))] rounded-ui-sm hover:bg-[rgb(var(--c-danger-bg))]">
                     <XCircle className="w-3.5 h-3.5" /> {q.status === 'partial' ? 'Refus du reste' : 'Perdu'}
                   </button>
                   <button onClick={() => navigate('/devis')} title="Ouvrir la page Devis"
@@ -260,7 +260,7 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
           })}
           {group.clientId && (
             <div className="px-3 py-2">
-              <button onClick={() => navigate(`/clients/${group.clientId}`)} className="text-xs text-primary-600 hover:underline">
+              <button onClick={() => navigate(`/clients/${group.clientId}`)} className="text-ui-sm text-primary-600 hover:underline">
                 Ouvrir la fiche client
               </button>
             </div>
@@ -290,7 +290,7 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
 
 export default function DevisSuiviBlock({ groups, author, onChanged, onRelanceMail, relanceBusyId, emptyText, showTriage = false }) {
   if (!groups || groups.length === 0) {
-    return <p className="text-sm text-gray-500 py-3">{emptyText || 'Aucun devis ici.'}</p>
+    return <p className="text-ui text-gray-500 py-3">{emptyText || 'Aucun devis ici.'}</p>
   }
   return (
     <div>
