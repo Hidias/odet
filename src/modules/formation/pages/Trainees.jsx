@@ -3,6 +3,7 @@ import { useDataStore, useAuthStore } from '../../../core/store'
 import PasseportTraineeBlock from '../../passeport/components/PasseportTraineeBlock'
 import { PP_ROLES } from '../../passeport/lib/ppData'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { Plus, Search, Edit, Trash2, X, Save, FileText, Upload, Eye, Building2, Download, CheckSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -82,6 +83,21 @@ export default function Trainees() {
     { first_name: '', last_name: '', email: '', phone: '', social_security_number: '' }
   ])
   const [duplicateWarning, setDuplicateWarning] = useState(null) // { type: 'single'|'bulk', duplicates: [], onConfirm: fn }
+
+  // Handicap (donnée de santé) : table à part, lisible seulement par la direction et le référent handicap.
+  // Pour les autres comptes la liste revient vide : rien ne s'affiche, ce qu'ils saisissent est ajouté.
+  const [disabilityMap, setDisabilityMap] = useState({})
+  const [canSeeDisability, setCanSeeDisability] = useState(false)
+  const loadDisability = async () => {
+    const [{ data: ok }, { data: rows }] = await Promise.all([
+      supabase.rpc('can_see_disability'),
+      fetchAll(() => supabase.from('trainee_disability').select('trainee_id, has_disability, details, adaptations'), { orderBy: 'trainee_id' }),
+    ])
+    setCanSeeDisability(!!ok)
+    setDisabilityMap(Object.fromEntries((rows || []).map((r) => [r.trainee_id, r])))
+  }
+  useEffect(() => { loadDisability() }, [trainees])
+  const dis = (t) => (t ? disabilityMap[t.id] : null) || null
   
   // Sélection en masse
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -144,14 +160,15 @@ export default function Trainees() {
         last_name: trainee.last_name || '',
         email: trainee.email || '',
         phone: trainee.phone || '',
-        social_security_number: trainee.social_security_number || '',
+        // Le numéro n'est jamais chargé dans la liste : champ vide = numéro conservé
+        social_security_number: '',
         client_id: trainee.client_id || '',
         notes: trainee.notes || '',
         birth_date: trainee.birth_date || '',
         refused_ssn: trainee.refused_ssn || false,
-        has_disability: trainee.has_disability || false,
-        disability_details: trainee.disability_details || '',
-        disability_adaptations: trainee.disability_adaptations || '',
+        has_disability: dis(trainee)?.has_disability || false,
+        disability_details: dis(trainee)?.details || '',
+        disability_adaptations: dis(trainee)?.adaptations || '',
         csp: trainee.csp || '',
         job_title: trainee.job_title || '',
         gender: trainee.gender || '',
@@ -172,15 +189,15 @@ export default function Trainees() {
     // Log d'audit : consultation fiche stagiaire
     logAudit('view', 'trainee', trainee.id, `${trainee.first_name} ${trainee.last_name}`)
     
-    // Charger le N° sécu déchiffré si le stagiaire en a un
-    if (!passeportOn && (trainee.social_security_number || trainee.ssn_encrypted)) {
+    // Le numéro est lu à la demande, par une fonction réservée à la direction, à la gestion
+    // et au formateur de la session (module Passeport coupé ; sinon le bloc Passeport s'en charge)
+    if (!passeportOn && trainee.ssn_present) {
       setLoadingSSN(true)
-      const { data } = await getTraineeWithSSN(trainee.id)
-      if (data?.social_security_number) {
+      const { data, error } = await getTraineeWithSSN(trainee.id)
+      if (error) {
+        setDecryptedSSN('Accès réservé à la direction, à la gestion et au formateur de la session')
+      } else if (data?.social_security_number) {
         setDecryptedSSN(data.social_security_number)
-      } else if (trainee.social_security_number) {
-        // Fallback : N° non chiffré (ancien format)
-        setDecryptedSSN(trainee.social_security_number)
       }
       setLoadingSSN(false)
     }
@@ -683,7 +700,7 @@ export default function Trainees() {
                     <button onClick={() => openPreview(t)} className="font-medium text-primary hover:underline">
                       {t.first_name} {t.last_name?.toUpperCase()}
                     </button>
-                    {t.has_disability && (
+                    {dis(t)?.has_disability && (
                       <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 text-ui-sm rounded" title="Situation de handicap"></span>
                     )}
                   </div>
@@ -748,14 +765,14 @@ export default function Trainees() {
                 <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-3">
                   <div className="flex items-center justify-between">
                     <p className="text-ui-sm text-[rgb(var(--c-warning))] font-medium mb-1">N° Sécurité Sociale (Passeport Prévention)</p>
-                    <span className="text-ui-sm text-[rgb(var(--c-success))] flex items-center gap-1"> Chiffré</span>
+                    <span className="text-ui-sm text-[rgb(var(--c-success))] flex items-center gap-1">Accès protégé</span>
                   </div>
                   {selectedTrainee.refused_ssn ? (
                     <p className="text-ui text-[rgb(var(--c-danger))] font-medium">A refusé de communiquer son numéro</p>
                   ) : loadingSSN ? (
-                    <p className="font-mono text-lg text-[rgb(var(--c-warning))]">Déchiffrement...</p>
+                    <p className="font-mono text-lg text-[rgb(var(--c-warning))]">Chargement...</p>
                   ) : (
-                    <p className="font-mono text-lg font-bold text-[rgb(var(--c-warning))]">{decryptedSSN || selectedTrainee.social_security_number || 'Non renseigné'}</p>
+                    <p className="font-mono text-lg font-bold text-[rgb(var(--c-warning))]">{decryptedSSN || (selectedTrainee.ssn_present ? 'Renseigné' : 'Non renseigné')}</p>
                   )}
                 </div>
                 )}
@@ -767,19 +784,19 @@ export default function Trainees() {
                 )}
                 
                 {/* Handicap */}
-                {selectedTrainee.has_disability && (
+                {dis(selectedTrainee)?.has_disability && (
                   <div className="col-span-2 mt-2 p-3 bg-gray-50 border border-gray-200 rounded-ui-sm">
                     <p className="text-gray-800 font-medium text-ui mb-2"> Situation de handicap</p>
-                    {selectedTrainee.disability_details && (
+                    {dis(selectedTrainee)?.details && (
                       <div className="mb-2">
                         <p className="text-gray-500 text-ui-sm">Besoins identifiés :</p>
-                        <p className="text-ui">{selectedTrainee.disability_details}</p>
+                        <p className="text-ui">{dis(selectedTrainee).details}</p>
                       </div>
                     )}
-                    {selectedTrainee.disability_adaptations && (
+                    {dis(selectedTrainee)?.adaptations && (
                       <div>
                         <p className="text-gray-500 text-ui-sm">Adaptations :</p>
-                        <p className="text-ui">{selectedTrainee.disability_adaptations}</p>
+                        <p className="text-ui">{dis(selectedTrainee).adaptations}</p>
                       </div>
                     )}
                   </div>
@@ -857,7 +874,7 @@ export default function Trainees() {
                   <input 
                     type="text" 
                     className="input font-mono" 
-                    placeholder="X XX XX XX XXX XXX XX" 
+                    placeholder={selectedTrainee?.ssn_present ? 'Déjà enregistré : laisser vide pour le conserver' : 'X XX XX XX XXX XXX XX'} 
                     value={form.social_security_number} 
                     onChange={(e) => setForm({...form, social_security_number: e.target.value})}
                     disabled={form.refused_ssn}
@@ -927,6 +944,11 @@ export default function Trainees() {
                       Situation de handicap déclarée
                     </label>
                   </div>
+                  {!canSeeDisability && selectedTrainee && (
+                    <p className="text-ui-sm text-gray-500 mb-3">
+                      Informations visibles seulement par la direction et le référent handicap. Ce que vous cochez ou saisissez ici est ajouté à la fiche.
+                    </p>
+                  )}
                   
                   {form.has_disability && (
                     <div className="space-y-3 pl-7 border-l-2 border-accent-200">

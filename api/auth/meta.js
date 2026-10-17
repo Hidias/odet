@@ -1,11 +1,13 @@
 // ═══════════════════════════════════════════════════════════
 // VERCEL API ROUTE — OAuth Meta (Facebook + Instagram)
-// GET /api/auth/meta?code=...
-// GET /api/auth/meta?action=connect (initie le flow OAuth)
+// GET /api/auth/meta?action=start (administrateur connecté, jeton Bearer) → { url } d'autorisation avec state signé
+// GET /api/auth/meta?code=...&state=... (retour du fournisseur, state vérifié)
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
 import { appUrl } from '../_lib/internal.js'
+import { requireRole, ADMINS } from '../_lib/auth.js'
+import { createOAuthState, verifyOAuthState, socialRedirect } from '../_lib/oauthState.js'
 import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
@@ -22,16 +24,14 @@ async function handler(req, res) {
   const APP_URL = ENV_APP_URL || appUrl(req)
   const REDIRECT_URI = `${APP_URL}/api/auth/meta`
   try {
-    const { code, action, error: oauthError } = req.query
+    const { code, action, state, error: oauthError } = req.query
 
-    // ── Étape 0 : Erreur OAuth ──────────────────────────
-    if (oauthError) {
-      console.error('Meta OAuth error:', oauthError)
-      return res.redirect(`${APP_URL}/#/social?meta=error&reason=${oauthError}`)
-    }
-
-    // ── Étape 1 : Initier la connexion ──────────────────
-    if (action === 'connect') {
+    // ── Étape 1 : Initier la connexion (administrateur connecté) ──
+    // Appelée par l'interface avec le jeton de l'utilisateur ; renvoie l'adresse d'autorisation
+    if (action === 'start' || action === 'connect') {
+      const ctx = await requireRole(req, res, ADMINS)
+      if (!ctx) return
+      if (!META_APP_ID) return res.status(500).json({ error: 'META_APP_ID non configuré' })
       const scope = [
         'pages_show_list',
         'pages_manage_posts',
@@ -39,26 +39,34 @@ async function handler(req, res) {
         'instagram_basic',
         'instagram_content_publish',
       ].join(',')
-
-      const authUrl = `https://www.facebook.com/v25.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${scope}&response_type=code&auth_type=rerequest`
-
-      return res.redirect(authUrl)
+      const authUrl = `https://www.facebook.com/v25.0/dialog/oauth?client_id=${encodeURIComponent(META_APP_ID)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&response_type=code&auth_type=rerequest&state=${encodeURIComponent(createOAuthState(ctx.user.id, 'meta'))}`
+      return res.status(200).json({ url: authUrl })
     }
 
-    // ── Étape 2 : Échanger le code contre un token ──────
+    // ── Étape 0 : Erreur OAuth ──────────────────────────
+    if (oauthError) {
+      console.error('Meta OAuth error:', oauthError)
+      return res.redirect(socialRedirect(APP_URL, { meta: 'error', reason: oauthError }))
+    }
+
+    // ── Étape 2 : Vérifier le state puis échanger le code contre un token ──
     if (!code) {
-      return res.status(400).json({ error: 'Missing code parameter' })
+      return res.status(400).json({ error: 'Paramètre code manquant' })
+    }
+    const checked = await verifyOAuthState(state, 'meta')
+    if (checked.error) {
+      return res.redirect(socialRedirect(APP_URL, { meta: 'error', reason: checked.error }))
     }
 
     // Échanger le code
-    const tokenUrl = `https://graph.facebook.com/v25.0/oauth/access_token?client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code=${code}`
+    const tokenUrl = `https://graph.facebook.com/v25.0/oauth/access_token?client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code=${encodeURIComponent(code)}`
 
     const tokenRes = await fetch(tokenUrl)
     const tokenData = await tokenRes.json()
 
     if (tokenData.error) {
       console.error('Token exchange error:', tokenData.error)
-      return res.redirect(`${APP_URL}/#/social?meta=error&reason=token_exchange`)
+      return res.redirect(socialRedirect(APP_URL, { meta: 'error', reason: 'token_exchange' }))
     }
 
     const shortToken = tokenData.access_token
@@ -91,7 +99,7 @@ async function handler(req, res) {
 
     if (pagesData.error) {
       console.error('Pages API error:', pagesData.error)
-      return res.redirect(`${APP_URL}/#/social?meta=error&reason=pages_api_${encodeURIComponent(pagesData.error.message?.slice(0, 50))}`)
+      return res.redirect(socialRedirect(APP_URL, { meta: 'error', reason: `pages_api_${String(pagesData.error.message || '').slice(0, 50)}` }))
     }
 
     if (!pagesData.data || pagesData.data.length === 0) {
@@ -105,7 +113,7 @@ async function handler(req, res) {
         metadata: { error: 'no_pages_found', user_token: longToken },
         updated_at: new Date().toISOString(),
       }, { onConflict: 'platform' })
-      return res.redirect(`${APP_URL}/#/social?meta=error&reason=no_pages`)
+      return res.redirect(socialRedirect(APP_URL, { meta: 'error', reason: 'no_pages' }))
     }
 
     // Prendre la première page (ou celle qui porte le nom de l'organisme si elle existe)
@@ -159,11 +167,11 @@ async function handler(req, res) {
 
     // ── Succès ! Rediriger vers l'app ───────────────────
     const igStatus = igAccountId ? 'ok' : 'no_ig'
-    return res.redirect(`${APP_URL}/#/social?meta=success&page=${encodeURIComponent(pageName)}&ig=${igStatus}${igUsername ? '&ig_user=' + igUsername : ''}`)
+    return res.redirect(socialRedirect(APP_URL, { meta: 'success', page: pageName, ig: igStatus, ig_user: igUsername }))
 
   } catch (err) {
     console.error('Meta OAuth handler error:', err)
-    return res.redirect(`${APP_URL}/#/social?meta=error&reason=server_error`)
+    return res.redirect(socialRedirect(APP_URL, { meta: 'error', reason: 'server_error' }))
   }
 }
 

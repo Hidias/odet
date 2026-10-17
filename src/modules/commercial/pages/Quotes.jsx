@@ -3,6 +3,7 @@ import { orgName, currentUserName, teamNames } from '../../../core/org/currentOr
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -257,9 +258,10 @@ export default function Quotes() {
   async function loadAll() {
     setLoading(true)
     const [quotesRes, clientsRes, coursesRes] = await Promise.all([
-      supabase.from('quotes').select('*, clients(name, siret, address, postal_code, city, contact_name, contact_phone, contact_email)').order('quote_date', { ascending: false }),
-      supabase.from('clients').select('id, name, siret, siren, address, postal_code, city, contact_name, contact_phone, contact_email, status').order('name'),
-      supabase.from('courses').select('id, title, code, price_ht, duration_hours, duration_days, description').order('title')
+      // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
+      fetchAll(() => supabase.from('quotes').select('*, clients(name, siret, address, postal_code, city, contact_name, contact_phone, contact_email)').order('quote_date', { ascending: false })),
+      fetchAll(() => supabase.from('clients').select('id, name, siret, siren, address, postal_code, city, contact_name, contact_phone, contact_email, status').order('name')),
+      fetchAll(() => supabase.from('courses').select('id, title, code, price_ht, duration_hours, duration_days, description').order('title'))
     ])
     setQuotes(quotesRes.data || [])
     setClients(clientsRes.data || [])

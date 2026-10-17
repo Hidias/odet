@@ -2,6 +2,7 @@ import { setCurrentProfile, setTeamCache, profileName } from './org/currentOrg'
 import { create } from 'zustand'
 import { supabase, ADMIN_EMAILS } from './supabase'
 import { buildStorageFileName } from './storageUtils'
+import { fetchAll, fetchAllIn } from './fetchAll'
 
 // ─── Résolution du rôle et du profil d'un utilisateur connecté ─────
 // Source de vérité : la table profiles (rôle, identité affichée, préférences).
@@ -155,10 +156,10 @@ export const useDataStore = create((set, get) => ({
   
   fetchClients: async () => {
     set({ clientsLoading: true })
-    const { data, error } = await supabase
+    const { data, error } = await fetchAll(() => supabase
       .from('clients')
       .select('*')
-      .order('name')
+      .order('name'))
     if (!error) set({ clients: data || [] })
     set({ clientsLoading: false })
     return { data, error }
@@ -407,10 +408,10 @@ export const useDataStore = create((set, get) => ({
     set({ traineesLoading: true })
     // Utilise la table directe avec jointure client
     // Le N° sécu sera déchiffré uniquement à la demande (fiche détaillée)
-    const { data, error } = await supabase
+    const { data, error } = await fetchAll(() => supabase
       .from('trainees')
       .select('*, clients(id, name)')
-      .order('last_name')
+      .order('last_name'))
     if (!error) set({ trainees: data || [] })
     set({ traineesLoading: false })
     return { data, error }
@@ -418,19 +419,14 @@ export const useDataStore = create((set, get) => ({
   
   // Récupérer un stagiaire avec son N° sécu déchiffré
   getTraineeWithSSN: async (id) => {
+    // Lecture contrôlée par la base : direction, gestion et formateur de la session
     const { data, error } = await supabase
       .rpc('get_trainee_with_ssn', { p_id: id })
     if (error) {
       console.error('getTraineeWithSSN error:', error)
-      // Fallback sur la méthode classique si RPC pas encore disponible
-      const { data: fallbackData } = await supabase
-        .from('trainees')
-        .select('*')
-        .eq('id', id)
-        .single()
-      return { data: fallbackData, error: null }
+      return { data: null, error }
     }
-    return { data: data?.[0] || null, error }
+    return { data: data?.[0] || null, error: null }
   },
   
   createTrainee: async (trainee) => {
@@ -541,13 +537,14 @@ export const useDataStore = create((set, get) => ({
         { data: sessionTraineesData },
         { data: contactsData }
       ] = await Promise.all([
-        supabase.from('sessions').select('*').order('start_date', { ascending: false }),
-        supabase.from('courses').select('*'),
-        supabase.from('clients').select('*'),
-        supabase.from('trainers').select('*'),
-        supabase.from('trainees').select('*'),
-        supabase.from('session_trainees').select('id, session_id, trainee_id, registration_date, result, admin_observation, expectations_notification_sent, presence_complete, early_departure, access_code, positioning_test_completed, positioning_test_completed_at, forprev_card_url, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, convocation_sent_at, absent, absent_reason'),
-        supabase.from('client_contacts').select('*')
+        // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
+        fetchAll(() => supabase.from('sessions').select('*').order('start_date', { ascending: false })),
+        fetchAll(() => supabase.from('courses').select('*')),
+        fetchAll(() => supabase.from('clients').select('*')),
+        fetchAll(() => supabase.from('trainers').select('*')),
+        fetchAll(() => supabase.from('trainees').select('*')),
+        fetchAll(() => supabase.from('session_trainees').select('id, session_id, trainee_id, registration_date, result, admin_observation, expectations_notification_sent, presence_complete, early_departure, access_code, positioning_test_completed, positioning_test_completed_at, forprev_card_url, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, convocation_sent_at, absent, absent_reason')),
+        fetchAll(() => supabase.from('client_contacts').select('*'))
       ])
       
       if (sessionsError) {
@@ -999,14 +996,17 @@ export const useDataStore = create((set, get) => ({
   
   fetchDocuments: async (sessionId = null) => {
     set({ documentsLoading: true })
-    let query = supabase
-      .from('documents')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const build = () => {
+      let query = supabase
+        .from('documents')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (sessionId) query = query.eq('session_id', sessionId)
+      return query
+    }
     
-    if (sessionId) query = query.eq('session_id', sessionId)
-    
-    const { data, error } = await query
+    // fetchAll : pagination complète (sans sessionId, toute la table est chargée)
+    const { data, error } = await fetchAll(build)
     if (error) console.error('fetchDocuments error:', error)
     if (!error) set({ documents: data || [] })
     set({ documentsLoading: false })
@@ -1075,10 +1075,10 @@ export const useDataStore = create((set, get) => ({
   
   fetchUploadedFiles: async () => {
     set({ uploadedFilesLoading: true })
-    const { data, error } = await supabase
+    const { data, error } = await fetchAll(() => supabase
       .from('uploaded_documents')
       .select('*, sessions(reference), courses(title), clients(name)')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }))
     if (!error) set({ uploadedFiles: data || [] })
     set({ uploadedFilesLoading: false })
     return { data, error }
@@ -1838,10 +1838,10 @@ export const useDataStore = create((set, get) => ({
   fetchAllEvaluations: async () => {
     try {
       const [hotEvals, trainerEvals, coldEvals, attendances] = await Promise.all([
-        supabase.from('trainee_evaluations').select('*'),
-        supabase.from('trainer_evaluations').select('*'),
-        supabase.from('evaluations_cold').select('*'),
-        supabase.from('attendances').select('*'),
+        fetchAll(() => supabase.from('trainee_evaluations').select('*')),
+        fetchAll(() => supabase.from('trainer_evaluations').select('*')),
+        fetchAll(() => supabase.from('evaluations_cold').select('*')),
+        fetchAll(() => supabase.from('attendances').select('*')),
       ])
       
       return {
@@ -1887,10 +1887,12 @@ export const useDataStore = create((set, get) => ({
   // ========== STATISTIQUES GLOBALES ==========
   fetchGlobalStats: async () => {
     // D'abord récupérer les IDs des sessions terminées
-    const { data: completedSessions } = await supabase
+    // fetchAll / fetchAllIn : pagination complète et lots d'identifiants
+    // (une longue liste .in() dépasse la taille d'URL et la limite de 1 000 lignes)
+    const { data: completedSessions } = await fetchAll(() => supabase
       .from('sessions')
       .select('id')
-      .eq('status', 'completed')
+      .eq('status', 'completed'))
     
     const completedIds = completedSessions?.map(s => s.id) || []
     
@@ -1899,11 +1901,10 @@ export const useDataStore = create((set, get) => ({
     }
     
     // Taux de satisfaction (sessions terminées uniquement)
-    const { data: evalData } = await supabase
+    const { data: evalData } = await fetchAllIn(() => supabase
       .from('trainee_evaluations')
       .select('satisfaction_score, session_id')
-      .in('session_id', completedIds)
-      .not('satisfaction_score', 'is', null)
+      .not('satisfaction_score', 'is', null), 'session_id', completedIds)
     
     const scores = evalData?.filter(e => e.satisfaction_score) || []
     const avgSatisfaction = scores.length > 0
@@ -1911,31 +1912,28 @@ export const useDataStore = create((set, get) => ({
       : 0
     
     // Taux de recommandation (sessions terminées uniquement)
-    const { data: recoData } = await supabase
+    const { data: recoData } = await fetchAllIn(() => supabase
       .from('trainee_evaluations')
       .select('would_recommend, session_id')
-      .in('session_id', completedIds)
-      .not('would_recommend', 'is', null)
+      .not('would_recommend', 'is', null), 'session_id', completedIds)
     
     const recoResponses = recoData?.filter(e => e.would_recommend !== null) || []
     const recoYes = recoResponses.filter(e => e.would_recommend).length
     const tauxRecommandation = recoResponses.length > 0 ? (recoYes / recoResponses.length) * 100 : 0
     
     // Taux de présence (sessions terminées uniquement)
-    const { data: presenceData } = await supabase
+    const { data: presenceData } = await fetchAllIn(() => supabase
       .from('attendances')
-      .select('present, session_id')
-      .in('session_id', completedIds)
+      .select('present, session_id'), 'session_id', completedIds)
     
     const totalPresence = presenceData?.length || 0
     const presentCount = presenceData?.filter(p => p.present).length || 0
     const tauxPresence = totalPresence > 0 ? (presentCount / totalPresence) * 100 : 0
     
     // Taux de réponse questionnaires (sessions terminées uniquement)
-    const { data: questionnaireData } = await supabase
+    const { data: questionnaireData } = await fetchAllIn(() => supabase
       .from('trainee_evaluations')
-      .select('questionnaire_submitted, session_id')
-      .in('session_id', completedIds)
+      .select('questionnaire_submitted, session_id'), 'session_id', completedIds)
     
     const totalQ = questionnaireData?.length || 0
     const submittedQ = questionnaireData?.filter(q => q.questionnaire_submitted).length || 0
@@ -1953,7 +1951,8 @@ export const useDataStore = create((set, get) => ({
   fetchCompletudeReport: async () => {
     const missing = []
     
-    const { data: clients } = await supabase.from('clients').select('*')
+    // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
+    const { data: clients } = await fetchAll(() => supabase.from('clients').select('*'))
     clients?.forEach(c => {
       const m = []
       if (!c.name) m.push('Nom')
@@ -1964,7 +1963,7 @@ export const useDataStore = create((set, get) => ({
       if (m.length > 0) missing.push({ type: 'Client', name: c.name || 'Sans nom', fields: m })
     })
     
-    const { data: trainees } = await supabase.from('trainees').select('*')
+    const { data: trainees } = await fetchAll(() => supabase.from('trainees').select('*'))
     trainees?.forEach(t => {
       const m = []
       if (!t.first_name) m.push('Prénom')
@@ -1973,7 +1972,7 @@ export const useDataStore = create((set, get) => ({
       if (m.length > 0) missing.push({ type: 'Stagiaire', name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Sans nom', fields: m })
     })
     
-    const { data: trainers } = await supabase.from('trainers').select('*')
+    const { data: trainers } = await fetchAll(() => supabase.from('trainers').select('*'))
     trainers?.forEach(t => {
       const m = []
       if (!t.first_name) m.push('Prénom')
@@ -1983,7 +1982,7 @@ export const useDataStore = create((set, get) => ({
       if (m.length > 0) missing.push({ type: 'Formateur', name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Sans nom', fields: m })
     })
     
-    const { data: sessions } = await supabase.from('sessions').select('*')
+    const { data: sessions } = await fetchAll(() => supabase.from('sessions').select('*'))
     sessions?.forEach(s => {
       const m = []
       if (!s.course_id) m.push('Formation')
@@ -2004,10 +2003,10 @@ export const useDataStore = create((set, get) => ({
   fetchQualiopiReport: async () => {
     const issues = []
     
-    // Charger les sessions avec leurs relations
-    const { data: sessions } = await supabase
+    // Charger les sessions avec leurs relations (pagination complète)
+    const { data: sessions } = await fetchAll(() => supabase
       .from('sessions')
-      .select('*')
+      .select('*'))
     
     // Vérifier chaque session
     sessions?.forEach(s => {
@@ -2238,10 +2237,10 @@ export const useDataStore = create((set, get) => ({
   nonConformities: [],
   
   fetchNonConformities: async () => {
-    const { data, error } = await supabase
+    const { data, error } = await fetchAll(() => supabase
       .from('non_conformites')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }))
     if (error) console.error('fetchNonConformities error:', error)
     if (!error) set({ nonConformities: data || [] })
     return { data, error }
@@ -2527,7 +2526,8 @@ export const useDataStore = create((set, get) => ({
     if (error) {
       console.warn('RPC get_purge_stats not available:', error)
       // Fallback : calcul manuel
-      const { data: trainees } = await supabase.from('trainees').select('id, created_at, last_session_date')
+      // fetchAll : sinon le total et le nombre à purger sont plafonnés à 1 000
+      const { data: trainees } = await fetchAll(() => supabase.from('trainees').select('id, created_at, last_session_date'))
       
       const fiveYearsAgo = new Date()
       fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5)
@@ -2561,9 +2561,10 @@ export const useDataStore = create((set, get) => ({
     if (error) {
       console.warn('View trainees_to_purge not available:', error)
       // Fallback
-      const { data: trainees } = await supabase
+      // fetchAll : sinon des stagiaires à purger pourraient être ignorés
+      const { data: trainees } = await fetchAll(() => supabase
         .from('trainees')
-        .select('*, clients(name)')
+        .select('*, clients(name)'))
       
       const fiveYearsAgo = new Date()
       fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5)

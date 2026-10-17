@@ -22,7 +22,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { createHash, createSign } from 'crypto'
-import { requireCronOrUser } from './_lib/auth.js'
+import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { getOrg, isTestEnvironment } from './_lib/mailer.js'
 import { loadTeam, leaders, profileFirstName } from './_lib/team.js'
 import { withErrorLog } from './_lib/errors.js'
@@ -751,7 +751,8 @@ async function notifyIfNeeded(trainerLabel, stats) {
 
 // ═══ HANDLER ══════════════════════════════════════════════
 async function handler(req, res) {
-  if (!(await requireCronOrUser(req, res))) return
+  // Tâche planifiée (CRON_SECRET) ou lancement manuel par un administrateur
+  if (!(await requireCronOrRole(req, res, ADMINS))) return
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

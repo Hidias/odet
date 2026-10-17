@@ -2,7 +2,7 @@
 // Géocode les prospects par code postal via l'API gouvernementale gratuite geo.api.gouv.fr
 
 import { createClient } from '@supabase/supabase-js'
-import { requireUser } from './_lib/auth.js'
+import { requireRole, SALES } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const supabase = createClient(
@@ -13,12 +13,10 @@ const supabase = createClient(
 export const config = { maxDuration: 300 }
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, SALES)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

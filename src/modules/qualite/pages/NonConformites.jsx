@@ -2,6 +2,7 @@ import { teamFirstNameByEmail, currentUserName as fullName, teamNames } from '..
 import { useEffect, useState } from 'react'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { 
   AlertTriangle, Plus, Search, X, CheckCircle, Clock, AlertCircle,
   ChevronRight, Edit, Trash2, Save, FileText, Calendar, MessageSquare,
@@ -104,7 +105,7 @@ export default function NonConformites() {
   // ===== CHARGEMENT NC =====
   const loadNonConformites = async () => {
     setLoadingNC(true)
-    const { data, error } = await supabase.from('non_conformites').select('*').order('created_at', { ascending: false })
+    const { data, error } = await fetchAll(() => supabase.from('non_conformites').select('*').order('created_at', { ascending: false }))
     if (!error) setNonConformites(data || [])
     setLoadingNC(false)
   }
@@ -112,7 +113,7 @@ export default function NonConformites() {
   // ===== CHARGEMENT RÉCLAMATIONS =====
   const loadReclamations = async () => {
     setLoadingRecl(true)
-    const { data, error } = await supabase.from('reclamations').select('*').order('created_at', { ascending: false })
+    const { data, error } = await fetchAll(() => supabase.from('reclamations').select('*').order('created_at', { ascending: false }))
     if (!error) setReclamations(data || [])
     else console.error('Error loading reclamations:', error)
     setLoadingRecl(false)

@@ -12,7 +12,7 @@
 
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
-import { requireUser, ADMIN_ROLES } from './_lib/auth.js'
+import { requireRole, ADMINS, OFFICE_WRITE } from './_lib/auth.js'
 import { getOrg } from './_lib/mailer.js'
 import { loadTeam, profileFirstName } from './_lib/team.js'
 import { appUrl } from './_lib/internal.js'
@@ -24,16 +24,29 @@ const supabase = createClient(
 )
 
 // Signature du lien d'abonnement (clé serveur, jamais exposée)
-function signTrainer(trainer) {
-  const secret = process.env.CALENDAR_SECRET || process.env.ENCRYPTION_KEY || process.env.CRON_SECRET || ''
-  if (!secret) return null
+// Clé dédiée CALENDAR_SECRET en priorité pour les nouveaux liens.
+// Compatibilité : les liens déjà distribués ont été signés avec l'ancienne clé
+// (ENCRYPTION_KEY, sinon CRON_SECRET) ; ils restent acceptés en lecture tant que cette clé existe,
+// pour ne pas casser les agendas déjà abonnés. Pour les révoquer : redistribuer les liens
+// puis définir CALENDAR_LEGACY_DISABLED=1.
+function hmacTrainer(secret, trainer) {
   return crypto.createHmac('sha256', secret).update(`calendar:${trainer}`).digest('hex').slice(0, 32)
 }
 
-function sameKey(a, b) {
-  const x = Buffer.from(String(a || ''))
-  const y = Buffer.from(String(b || ''))
-  return x.length === y.length && x.length > 0 && crypto.timingSafeEqual(x, y)
+function legacySecret() {
+  if (process.env.CALENDAR_LEGACY_DISABLED === '1') return ''
+  return process.env.ENCRYPTION_KEY || process.env.CRON_SECRET || ''
+}
+
+function signTrainer(trainer) {
+  const secret = process.env.CALENDAR_SECRET || legacySecret()
+  if (!secret) return null
+  return hmacTrainer(secret, trainer)
+}
+
+function validKey(trainer, key) {
+  const secrets = [process.env.CALENDAR_SECRET, legacySecret()].filter(Boolean)
+  return secrets.some((secret) => sameKey(key, hmacTrainer(secret, trainer)))
 }
 
 // Formateur → utilisateur relié (profiles.trainer_id) : prénom porté par les RDV, id des événements personnels
@@ -46,10 +59,11 @@ async function trainerMap() {
 
 // Lien d'abonnement signé, demandé depuis l'écran Planning par un utilisateur connecté
 async function linkHandler(req, res) {
-  const ctx = await requireUser(req)
-  if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
+  // Personnel de bureau (les rôles externes et « lecture » n'obtiennent aucun lien)
+  const ctx = await requireRole(req, res, OFFICE_WRITE)
+  if (!ctx) return
   const target = String(req.query.link)
-  const isAdmin = ADMIN_ROLES.includes(ctx.profile.role)
+  const isAdmin = ADMINS.includes(ctx.profile.role)
   if (target === 'all' ? !isAdmin : !(isAdmin || ctx.profile.trainer_id === target)) {
     return res.status(403).json({ error: 'Ce lien est réservé à la direction ou au formateur concerné' })
   }
@@ -106,7 +120,7 @@ async function handler(req, res) {
 
   const { trainer, key } = req.query
 
-  if (trainer && !sameKey(key, signTrainer(trainer))) {
+  if (trainer && !validKey(trainer, key)) {
     return res.status(403).json({ error: 'Lien d\'agenda invalide : copiez-le à nouveau depuis le Planning' })
   }
 

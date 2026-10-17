@@ -1,6 +1,7 @@
 import { PDFDocument, PDFName } from 'pdf-lib'
 import { format } from 'date-fns'
 import { getCompetencesConfig } from '../lib/sstCompetencesConfig'
+import { readableUrl } from '../../../core/storageUtils'
 
 /**
  * Génère le PDF de certification SST en remplissant les vrais PDF INRS
@@ -128,7 +129,8 @@ export async function generateSSTCertificationPDF(certification, trainee, sessio
     if (certification.formateur_signature_url) {
       try {
         // Charger l'image de signature
-        const signatureResponse = await fetch(certification.formateur_signature_url)
+        // Bucket privé : lien signé de courte durée
+        const signatureResponse = await fetch(await readableUrl(certification.formateur_signature_url))
         const signatureBytes = await signatureResponse.arrayBuffer()
         
         // Déterminer le type d'image

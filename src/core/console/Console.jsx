@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore, useDataStore } from '../store'
 import { supabase } from '../supabase'
+import { fetchAll } from '../fetchAll'
 import { callApi } from '../api'
 import { useBranding } from '../branding/BrandingProvider'
 import { APP_VERSION } from '../version'
@@ -134,14 +135,10 @@ export default function Console() {
     try {
       const out = { exported_at: new Date().toISOString(), app_version: APP_VERSION, organization: organization?.name, tables: {} }
       for (const t of EXPORT_TABLES) {
-        const rows = []
-        for (let from = 0; ; from += 1000) {
-          const { data, error } = await supabase.from(t).select('*').range(from, from + 999)
-          if (error) { out.tables[t] = { error: error.message }; break }
-          rows.push(...(data || []))
-          if (!data || data.length < 1000) break
-        }
-        if (!out.tables[t]) out.tables[t] = rows
+        // fetchAll : pagination avec tri stable sur id (sans tri, des lignes
+        // pouvaient être sautées ou doublées entre deux pages)
+        const { data, error } = await fetchAll(() => supabase.from(t).select('*'))
+        out.tables[t] = error ? { error: error.message } : data
       }
       const blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' })
       const a = document.createElement('a')

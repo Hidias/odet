@@ -2,6 +2,7 @@ import { toneStyle } from '../../../ui/StatusBadge'
 // Identité affichée : lue dans organization_settings (core/pdf/pdfOrg, core/org/templateContext)
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { useDataStore } from '../../../core/store'
 import { 
   Award, FileText, Scale, BookOpen, Briefcase, TrendingUp, 
@@ -180,7 +181,7 @@ export default function Qualiopi() {
     if (!error) {
       setVeilles(data || [])
       // Calculer les stats
-      const { data: allVeilles } = await supabase.from('veille_qualiopi').select('statut')
+      const { data: allVeilles } = await fetchAll(() => supabase.from('veille_qualiopi').select('statut'))
       if (allVeilles) {
         setVeilleStats({
           total: allVeilles.length,
@@ -208,12 +209,12 @@ export default function Qualiopi() {
 
   const loadIndicators = async () => {
     try {
-      // 1. Charger les sessions complétées
-      const { data: allSessions } = await supabase.from('sessions').select('id, status')
+      // 1. Charger les sessions complétées (fetchAll : pagination complète, pas de troncature à 1 000)
+      const { data: allSessions } = await fetchAll(() => supabase.from('sessions').select('id, status'))
       const completedSessionIds = (allSessions || []).filter(s => s.status === 'completed').map(s => s.id)
       
       // 2. Charger les évaluations à chaud (trainee_evaluations)
-      const { data: hotEvals } = await supabase.from('trainee_evaluations').select('*')
+      const { data: hotEvals } = await fetchAll(() => supabase.from('trainee_evaluations').select('*'))
       const filteredHotEvals = (hotEvals || []).filter(e => completedSessionIds.includes(e.session_id))
       
       // Calcul satisfaction (moyenne des NOUVELLES colonnes uniquement)
@@ -242,7 +243,7 @@ export default function Qualiopi() {
       }
 
       // 3. Charger les résultats des stagiaires
-      const { data: traineeResults } = await supabase.from('session_trainees').select('session_id, trainee_id, result, presence_complete')
+      const { data: traineeResults } = await fetchAll(() => supabase.from('session_trainees').select('session_id, trainee_id, result, presence_complete'))
       const filteredResults = (traineeResults || []).filter(r => completedSessionIds.includes(r.session_id))
       
       // Calcul taux de réussite (result === 'acquired' comme dans Indicateurs.jsx)
@@ -270,7 +271,7 @@ export default function Qualiopi() {
 
       // 5. Stats supplémentaires
       const uniqueTrainees = new Set(filteredResults.map(t => t.trainee_id))
-      const { data: reclam } = await supabase.from('reclamations').select('id')
+      const { data: reclam } = await fetchAll(() => supabase.from('reclamations').select('id'))
 
       setIndicators({
         satisfaction: avgSatisfaction !== null ? parseFloat(avgSatisfaction) : null,

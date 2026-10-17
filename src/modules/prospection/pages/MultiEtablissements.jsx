@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { Building2, MapPin, Phone, AlertTriangle, CheckCircle, HelpCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -27,10 +28,12 @@ export default function MultiEtablissements() {
   async function loadGroupes() {
     setLoading(true)
     
-    const { data, error } = await supabase
+    // Vue sans colonne id (une ligne par couple siren + name) : départage stable
+    // sur ces deux colonnes ; fetchAll évite la troncature à 1 000 groupes
+    const { data, error } = await fetchAll(() => supabase
       .from('prospection_groupes_siren')
       .select('*')
-      .order('nb_etablissements', { ascending: false })
+      .order('nb_etablissements', { ascending: false }), { orderBy: ['siren', 'name'] })
     
     if (error) {
       toast.error('Erreur chargement groupes')

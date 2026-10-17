@@ -16,7 +16,7 @@
 import { ImapFlow } from 'imapflow'
 import { createClient } from '@supabase/supabase-js'
 import { decrypt } from './_lib/mailer.js'
-import { requireCronOrUser } from './_lib/auth.js'
+import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { getImapHost } from './_lib/save-to-sent.js'
 import { withErrorLog } from './_lib/errors.js'
 
@@ -149,7 +149,8 @@ async function saveCursor(email, lastUid, uidValidity, lastError) {
 }
 
 async function handler(req, res) {
-  if (!(await requireCronOrUser(req, res))) return
+  // Tâche planifiée (CRON_SECRET) ou lancement manuel par un administrateur
+  if (!(await requireCronOrRole(req, res, ADMINS))) return
 
   try {
     getSupabase()

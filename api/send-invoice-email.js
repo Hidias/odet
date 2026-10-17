@@ -1,10 +1,10 @@
 // api/send-invoice-email.js
 // Envoi d'une facture (ou d'une relance) par email, avec PDF Factur-X en pièce jointe.
-// Expéditeur : la configuration email de l'utilisateur connecté, sinon l'expéditeur par défaut de l'organisme.
+// Expéditeur : la configuration email de l'utilisateur connecté uniquement (pas de repli vers la boîte d'un tiers).
 
-import { getSupabaseAdmin, getMailer, getMailerByEmail, sendWithRetry, getOrg, getSender, wrapEmailHTML, decrypt } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, wrapEmailHTML, decrypt } from './_lib/mailer.js'
 import { saveToSentFolder } from './_lib/save-to-sent.js'
-import { requireUser } from './_lib/auth.js'
+import { requireRole, BILLING } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
@@ -14,25 +14,18 @@ export const config = {
   maxDuration: 60,
 }
 
-async function pickMailer(userId, org) {
-  let m = await getMailer(supabase, userId)
-  if (!m.error) return m
-  if (org.email_default_sender) {
-    m = await getMailerByEmail(supabase, org.email_default_sender)
-    if (!m.error) return m
-  }
-  const { data: configs } = await supabase.from('user_email_configs').select('email').eq('is_active', true).limit(1)
-  if (configs?.[0]) return getMailerByEmail(supabase, configs[0].email)
-  return { error: 'Aucune configuration email active. Configurez un compte dans Paramètres.' }
+// Boîte de l'utilisateur appelant uniquement : aucun appel automatique n'utilise cette route
+async function pickMailer(userId) {
+  const m = await getMailer(supabase, userId)
+  if (m.error) return { error: 'Configurez votre compte email dans Paramètres > Comptes email' }
+  return m
 }
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, BILLING)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
 
   let transporter = null
@@ -43,7 +36,7 @@ async function handler(req, res) {
     }
 
     const org = await getOrg(supabase)
-    const mailer = await pickMailer(req.user.id, org)
+    const mailer = await pickMailer(req.user.id)
     if (mailer.error) return res.status(400).json({ error: mailer.error })
     const { emailConfig } = mailer
     transporter = mailer.transporter

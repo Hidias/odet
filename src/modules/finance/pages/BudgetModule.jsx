@@ -2,6 +2,7 @@ import { toneStyle } from '../../../ui/StatusBadge'
 import { apiFetch } from '../../../core/api'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll as fetchAllResult, fetchAllIn, fetchAllRows as fetchAll } from '../../../core/fetchAll'
 import toast from 'react-hot-toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts'
 import { generateInvoicePDF, generateFacturXPDF, calcInvoiceTotals } from '../../commercial/pdf/invoiceGenerator'
@@ -50,20 +51,7 @@ const fmtS = (n) => { if (!n) return '-'; const a = Math.abs(n); return a >= 100
 // demandée. Passé ce seuil, les lignes les plus anciennes disparaissent
 // SILENCIEUSEMENT : pas d'erreur, juste un tableau tronqué - et donc des KPI,
 // un dashboard et un prévisionnel faux.
-// fetchAll() pagine par tranches de 1000 jusqu'à avoir tout récupéré.
-async function fetchAll(buildQuery, pageSize = 1000) {
-  let from = 0
-  const all = []
-  for (;;) {
-    const { data, error } = await buildQuery().range(from, from + pageSize - 1)
-    if (error) { console.error('fetchAll:', error.message); break }
-    if (!data || data.length === 0) break
-    all.push(...data)
-    if (data.length < pageSize) break
-    from += pageSize
-  }
-  return all
-}
+// fetchAll() (src/core/fetchAll.js) pagine jusqu'à avoir tout récupéré.
 
 // Formate une date SQL 'YYYY-MM-DD' sans passer par new Date() :
 // évite le décalage UTC/Paris qui décale l'affichage d'un jour.
@@ -2341,9 +2329,10 @@ function DashboardTab({ stats, months, categories, transactions, invoices: invoi
   // Charger les factures localement (invoicesProp peut arriver vide - pattern identique aux autres tabs)
   const [localInvoices, setLocalInvoices] = useState(null)
   useEffect(() => {
-    supabase.from('invoices')
+    // Pagination complète (fetchAll) : sans elle, au-delà de 1 000 factures la TVA était tronquée
+    fetchAllResult(() => supabase.from('invoices')
       .select('id, invoice_date, type, status, total_ttc, total_tva, amount_due, due_date')
-      .order('invoice_date', { ascending: false })
+      .order('invoice_date', { ascending: false }))
       .then(({ data }) => { if (data) setLocalInvoices(data) })
   }, [])
   const invoices = localInvoices ?? invoicesProp ?? []
@@ -4694,7 +4683,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
   // ══ LOAD ACTIONS ══
   async function loadActions() {
-    const { data } = await supabase.from('budget_actions').select('*').order('created_at', { ascending: false })
+    const { data } = await fetchAllResult(() => supabase.from('budget_actions').select('*').order('created_at', { ascending: false }))
     if (data) setActions(data)
     setActionsLoaded(true)
   }
@@ -4734,19 +4723,19 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
   // ══ LOAD PIPELINE ══
   async function loadPipeline() {
     // Charger les entrées manuelles
-    const { data: manualData } = await supabase.from('budget_pipeline').select('*').not('status', 'eq', 'annule').order('expected_month')
+    const { data: manualData } = await fetchAllResult(() => supabase.from('budget_pipeline').select('*').not('status', 'eq', 'annule').order('expected_month'))
     
     // Charger les devis (envoyés, acceptés = pipeline auto)
-    const { data: quotesData } = await supabase.from('quotes')
+    const { data: quotesData } = await fetchAllResult(() => supabase.from('quotes')
       .select('id, reference, client_id, quote_date, validity_date, status, total_ht, total_ttc, session_id, object, created_by, clients(name)')
       .in('status', ['accepted'])
-      .order('quote_date', { ascending: false })
+      .order('quote_date', { ascending: false }))
     
     // Charger les sessions liées pour avoir les dates
     const sessionIds = (quotesData || []).filter(q => q.session_id).map(q => q.session_id)
     let sessionsMap = {}
     if (sessionIds.length > 0) {
-      const { data: sesData } = await supabase.from('sessions').select('id, start_date, trainer_id').in('id', sessionIds)
+      const { data: sesData } = await fetchAllIn(() => supabase.from('sessions').select('id, start_date, trainer_id'), 'id', sessionIds)
       if (sesData) sesData.forEach(s => { sessionsMap[s.id] = s })
     }
 
@@ -4780,8 +4769,8 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
   async function loadSessionsAndCourses() {
     const [sesR, couR] = await Promise.all([
-      supabase.from('sessions').select('id, reference, start_date, end_date, status, custom_price_ht, total_price, session_type, is_intra, client_id, course_id, day_type, subcontract_daily_rate, subcontract_course_title').not('status', 'eq', 'cancelled').order('start_date'),
-      supabase.from('courses').select('id, title, code, duration_days, price_ht'),
+      fetchAllResult(() => supabase.from('sessions').select('id, reference, start_date, end_date, status, custom_price_ht, total_price, session_type, is_intra, client_id, course_id, day_type, subcontract_daily_rate, subcontract_course_title').not('status', 'eq', 'cancelled').order('start_date')),
+      fetchAllResult(() => supabase.from('courses').select('id, title, code, duration_days, price_ht')),
     ])
     if (sesR.data) setSessions(sesR.data)
     if (couR.data) setCourses(couR.data)

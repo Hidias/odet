@@ -1,15 +1,13 @@
-import { requireUser } from './_lib/auth.js'
+import { requireRole, MANAGERS } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/parse-planning-import.js
 // Parse un planning copié-collé (ex: Pilocap) via Claude et retourne des sessions structurées
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, MANAGERS)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

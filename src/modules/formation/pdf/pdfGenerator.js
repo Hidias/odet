@@ -1257,7 +1257,7 @@ function generateFicheRenseignements(session, trainee = null, isBlank = false, i
   if (isBlank) {
     f.checks([{ label: 'Communiqué via le portail stagiaire' }, { label: 'Je refuse de le communiquer' }], { inline: true, colW: 70 })
   } else {
-    const st = (trainee?.refused_ssn || infoSheet?.ssn_refused) ? 'Refus du stagiaire' : ((trainee?.social_security_number || infoSheet?.ssn) ? 'Renseigné par le stagiaire' : 'Non renseigné')
+    const st = (trainee?.refused_ssn || infoSheet?.ssn_refused) ? 'Refus du stagiaire' : ((trainee?.ssn_present || infoSheet?.ssn_present || trainee?.social_security_number || infoSheet?.ssn) ? 'Renseigné par le stagiaire' : 'Non renseigné')
     f.para(st, { after: 3 })
   }
 

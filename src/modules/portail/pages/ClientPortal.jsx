@@ -28,12 +28,15 @@ function saveBase64(base64, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-async function urlToDataUrl(url) {
+async function portalSignature(token, code, sessionId) {
   try {
-    const r = await fetch(url)
+    const r = await fetch('/api/portail-signature', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, code, session_id: sessionId }),
+    })
     if (!r.ok) return null
-    const blob = await r.blob()
-    return await new Promise((resolve) => { const fr = new FileReader(); fr.onloadend = () => resolve(fr.result); fr.onerror = () => resolve(null); fr.readAsDataURL(blob) })
+    const j = await r.json().catch(() => ({}))
+    return j.dataUrl || null
   } catch { return null }
 }
 
@@ -123,7 +126,8 @@ export default function ClientPortal() {
         out = await generateAllPDF('convocation', session, trainees, { trainer })
       } else if (kind === 'emargement') {
         const absents = (s.session_trainees || []).filter(st => st.absent).map(st => st.trainee_id)
-        const trainerSignatureBase64 = trainer?.signature_url ? await urlToDataUrl(trainer.signature_url) : null
+        // Signature du formateur : bucket privé, servie par le serveur après contrôle du lien et du code
+        const trainerSignatureBase64 = trainer?.signature_url ? await portalSignature(token, code, s.id) : null
         const hasAttendance = (s.halfdays || []).length > 0 || (s.proxies || []).length > 0
         out = await generatePDF('emargement', session, {
           // Jamais vierge ici : sans signature, la feuille garde l'intitulé, les dates et les noms

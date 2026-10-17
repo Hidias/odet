@@ -1,4 +1,4 @@
-import { requireUser } from './_lib/auth.js'
+import { requireRole, OFFICE_WRITE } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/ai-proxy.js
 // Proxy serveur vers l'API Anthropic.
@@ -23,33 +23,39 @@ function hostOf(value) {
   }
 }
 
-// On autorise uniquement les requêtes venant de nos propres domaines.
-// Si aucune origine n'est fournie, on laisse passer pour ne casser aucun
-// appel légitime (le garde-fou modèle + le plafond de dépense couvrent le reste).
-// Domaine propre de l'instance : APP_URL et l'hôte qui reçoit la requête
+// Contrôle principal : le jeton de l'utilisateur et son rôle. Contrôle d'origine en complément :
+// seules l'adresse de l'application (APP_URL) et les adresses du déploiement courant
+// (VERCEL_URL, VERCEL_BRANCH_URL, VERCEL_PROJECT_PRODUCTION_URL) et l'hôte qui reçoit la requête
+// sont acceptées ; plus de *.vercel.app générique.
 function ownHosts(req) {
-  return [process.env.APP_URL, req?.headers?.host ? `https://${req.headers.host}` : ''].map(hostOf).filter(Boolean)
+  const env = process.env
+  // L'hôte qui reçoit la requête (domaine personnalisé sans APP_URL) : un navigateur ne peut pas le falsifier
+  const list = [env.APP_URL, req?.headers?.host ? `https://${req.headers.host}` : '']
+  for (const v of [env.VERCEL_URL, env.VERCEL_BRANCH_URL, env.VERCEL_PROJECT_PRODUCTION_URL]) {
+    if (v) list.push(`https://${v}`)
+  }
+  // Développement local uniquement (hors Vercel)
+  if (!env.VERCEL) list.push('http://localhost', 'http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173')
+  return list.map(hostOf).filter(Boolean)
 }
 
 function originAllowed(req) {
-  const host = hostOf(req.headers.origin || '') || hostOf(req.headers.referer || '')
-  if (!host) return true
-  return (
-    host === 'localhost' ||
-    host.startsWith('localhost:') ||
-    host.startsWith('127.0.0.1') ||
-    host.endsWith('.vercel.app') ||
-    ownHosts(req).includes(host)
-  )
+  const origin = req.headers.origin || ''
+  if (!origin) {
+    // Sans Origin : refus seulement si la requête vient manifestement d'un navigateur
+    // (en-têtes Sec-Fetch-* ajoutés par les navigateurs) ; les appels serveur restent soumis au jeton
+    return !req.headers['sec-fetch-site'] && !req.headers['sec-fetch-mode']
+  }
+  const host = hostOf(origin)
+  return !!host && ownHosts(req).includes(host)
 }
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  // Appelants : réseaux sociaux (commercial), budget (comptable), emails stagiaires (formateur, gestion)
+  const ctx = await requireRole(req, res, OFFICE_WRITE)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

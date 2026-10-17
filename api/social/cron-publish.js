@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
-import { requireCronOrUser } from '../_lib/auth.js'
+import { requireCronOrRole, ADMINS } from '../_lib/auth.js'
 import { appUrl } from '../_lib/internal.js'
 import { isTestEnvironment } from '../_lib/mailer.js'
 import { withErrorLog } from '../_lib/errors.js'
@@ -20,7 +20,8 @@ const ENV_APP_URL = String(process.env.APP_URL || '').replace(/\/$/, '')
 
 async function handler(req, res) {
   const APP_URL = ENV_APP_URL || appUrl(req)
-  if (!(await requireCronOrUser(req, res))) return
+  // Tâche planifiée (CRON_SECRET) ou lancement manuel par un administrateur
+  if (!(await requireCronOrRole(req, res, ADMINS))) return
 
   // Préversion : aucune publication programmée n'est envoyée
   if (isTestEnvironment()) return res.status(200).json({ message: 'Préversion : publication désactivée', count: 0 })
@@ -63,7 +64,8 @@ async function handler(req, res) {
         // Appeler l'API de publication
         const pubRes = await fetch(`${APP_URL}/api/social/publish`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          // Appel serveur à serveur : authentifié par le secret des tâches planifiées
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.CRON_SECRET || ''}` },
           body: JSON.stringify({ post_id: post.id }),
         })
         const pubData = await pubRes.json()

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Upload, Trash2, RotateCcw, Check, Pen, Image as ImageIcon, X } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import toast from 'react-hot-toast'
+import { readableUrl } from '../../../core/storageUtils'
 
 export default function TrainerSignatureManager({ trainer, onUpdate }) {
   const [mode, setMode] = useState('draw') // 'draw' ou 'upload'
@@ -9,6 +10,14 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
   const [hasDrawn, setHasDrawn] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [currentSignature, setCurrentSignature] = useState(trainer?.signature_url || null)
+  // Bucket privé : l'image s'affiche par un lien signé de courte durée
+  const [signatureSrc, setSignatureSrc] = useState(null)
+  useEffect(() => {
+    let alive = true
+    setSignatureSrc(null)
+    if (currentSignature) readableUrl(currentSignature).then((u) => { if (alive) setSignatureSrc(u) })
+    return () => { alive = false }
+  }, [currentSignature])
   
   const canvasRef = useRef(null)
   const ctxRef = useRef(null)
@@ -298,7 +307,7 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
           </div>
           <div className="flex items-center justify-center bg-white rounded p-4 border border-[rgb(var(--c-success)/0.3)]">
             <img 
-              src={currentSignature} 
+              src={signatureSrc || undefined} 
               alt="Signature actuelle" 
               className="max-h-24 object-contain"
             />

@@ -20,6 +20,7 @@ import {
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx-js-style'
 import { supabase } from '../../../core/supabase'
+import { fetchAllIn } from '../../../core/fetchAll'
 import { useAuthStore, useDataStore } from '../../../core/store'
 import { useZoneDepartements, zoneCodes } from '../../../core/org/departements'
 
@@ -374,12 +375,16 @@ export default function AdminImport() {
     toast.loading('Vérification des doublons...', { id: 'dedup' })
     let existingSirets = new Set(); let existingEmails = new Set()
     try {
+      // fetchAllIn : la liste du CSV est découpée en lots de 200 (URL trop longue
+      // et troncature à 1 000 lignes sinon → doublons non détectés). Erreur → exception.
       if (sirets.length > 0) {
-        const { data } = await supabase.from(targetTable).select('siret').in('siret', sirets)
+        const { data, error } = await fetchAllIn(() => supabase.from(targetTable).select('siret'), 'siret', sirets)
+        if (error) throw error
         ;(data || []).forEach(r => existingSirets.add(r.siret))
       }
       if (emails.length > 0) {
-        const { data } = await supabase.from(targetTable).select('email').in('email', emails)
+        const { data, error } = await fetchAllIn(() => supabase.from(targetTable).select('email'), 'email', emails)
+        if (error) throw error
         ;(data || []).forEach(r => existingEmails.add(r.email))
       }
     } catch (err) { toast.error('Erreur vérification : ' + err.message, { id: 'dedup' }); return }

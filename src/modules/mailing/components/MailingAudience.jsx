@@ -17,6 +17,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAllOrThrow } from '../../../core/fetchAll'
 import {
   loadMailingExclusions, getAudienceExclusion, EXCLUSION_LABELS, SOFT_EXCLUSIONS,
   FLAG_LABELS, normEmail, normNaf,
@@ -73,14 +74,8 @@ const PAGE_SIZES = [50, 100, 200, 0] // 0 = tout
 
 async function fetchAudience() {
   const cols = 'email, display_name, send_source, source_id, city, nb_lignes, source_types, noms, villes, departements, nafs, effectifs, etiquettes, statuts_prospection, statuts_client, types_client, do_not_mail, prenom, nom, civilite, email_status, email_flags, blocage, last_sent_at, nb_campagnes, campagnes, last_replied_at'
-  const all = []
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from('mailing_audience_v').select(cols).order('email').range(from, from + 999)
-    if (error) throw error
-    all.push(...(data || []))
-    if (!data || data.length < 1000) break
-  }
-  return all
+  // Vue sans colonne id : email unique (GROUP BY email dans la vue)
+  return fetchAllOrThrow(() => supabase.from('mailing_audience_v').select(cols).order('email'), { orderBy: 'email' })
 }
 
 const daysSince = (d) => d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : null

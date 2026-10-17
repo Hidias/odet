@@ -1,16 +1,14 @@
-import { requireUser, getAdminClient } from './_lib/auth.js'
+import { requireRole, getAdminClient, SALES } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock, addressRule } from './_lib/orgProfile.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/generate-compte-rendu.js
 // Génère le compte-rendu via l'API Claude (côté serveur pour éviter CORS)
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, SALES)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

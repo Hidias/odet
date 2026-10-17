@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAllRows as fetchAll } from '../../../core/fetchAll'
 import { useAuthStore, useDataStore } from '../../../core/store'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -214,20 +215,7 @@ const AGING_BUCKETS = [
 
 //  PostgREST plafonne toute requête à 1000 lignes sans plage explicite.
 // Au-delà, les lignes les plus anciennes sont tronquées SILENCIEUSEMENT.
-// fetchAll() pagine par tranches de 1000 jusqu'à tout récupérer.
-async function fetchAll(buildQuery, pageSize = 1000) {
-  let from = 0
-  const all = []
-  for (;;) {
-    const { data, error } = await buildQuery().range(from, from + pageSize - 1)
-    if (error) { console.error('fetchAll:', error.message); break }
-    if (!data || data.length === 0) break
-    all.push(...data)
-    if (data.length < pageSize) break
-    from += pageSize
-  }
-  return all
-}
+// fetchAll() (src/core/fetchAll.js) pagine jusqu'à tout récupérer.
 
 export default function EspaceComptable() {
   const { user, logout } = useAuthStore()

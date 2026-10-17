@@ -2,6 +2,7 @@
 // Les identités viennent de organization_settings ; ce fichier n'écrit aucune valeur d'organisme.
 
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { sanitizeStorageKey } from '../../../core/storageUtils'
 import { useDataStore } from '../../../core/store'
 
@@ -64,7 +65,7 @@ export async function loadDeadlines() {
 }
 
 export async function loadDocuments() {
-  const { data, error } = await supabase.from('cert_documents').select('*').order('created_at', { ascending: false })
+  const { data, error } = await fetchAll(() => supabase.from('cert_documents').select('*').order('created_at', { ascending: false }))
   if (error) throw error
   return data || []
 }
@@ -101,11 +102,13 @@ export async function downloadBlob(path, bucket = BUCKET) {
 
 export async function loadReferential(code) {
   const [ref, crit, ind, st, proofs] = await Promise.all([
-    supabase.from('cert_referentials').select('*').order('sort_order'),
-    supabase.from('cert_criteria').select('*').eq('referential_code', code).order('number'),
-    supabase.from('cert_indicators').select('*').eq('referential_code', code).order('number'),
-    supabase.from('cert_indicator_status').select('*').eq('referential_code', code),
-    supabase.from('cert_proofs').select('*').order('created_at'),
+    // fetchAll : pagination complète. Tables sans colonne id : départage sur leur clé
+    // (cert_referentials : code ; cert_criteria / cert_indicators / cert_indicator_status : referential_code + number)
+    fetchAll(() => supabase.from('cert_referentials').select('*').order('sort_order'), { orderBy: 'code' }),
+    fetchAll(() => supabase.from('cert_criteria').select('*').eq('referential_code', code).order('number'), { orderBy: ['referential_code', 'number'] }),
+    fetchAll(() => supabase.from('cert_indicators').select('*').eq('referential_code', code).order('number'), { orderBy: ['referential_code', 'number'] }),
+    fetchAll(() => supabase.from('cert_indicator_status').select('*').eq('referential_code', code), { orderBy: ['referential_code', 'number'] }),
+    fetchAll(() => supabase.from('cert_proofs').select('*').order('created_at')),
   ])
   for (const r of [ref, crit, ind, st, proofs]) if (r.error) throw r.error
   return { referentials: ref.data || [], criteria: crit.data || [], indicators: ind.data || [], statuses: st.data || [], proofs: proofs.data || [] }
@@ -143,7 +146,7 @@ export async function removeProof(p) {
 }
 
 export async function loadFindings() {
-  const { data, error } = await supabase.from('cert_audit_findings').select('*').order('created_at', { ascending: false })
+  const { data, error } = await fetchAll(() => supabase.from('cert_audit_findings').select('*').order('created_at', { ascending: false }))
   if (error) throw error
   return data || []
 }

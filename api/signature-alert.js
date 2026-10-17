@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { getSupabaseAdmin } from './_lib/mailer.js'
-import { requireCronOrUser } from './_lib/auth.js'
+import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { internalRecipients, internalMailer, appUrl } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
 
@@ -64,7 +64,8 @@ function buildHTML(session, { APP_URL, color, signature }) {
 }
 
 async function handler(req, res) {
-  if (!(await requireCronOrUser(req, res))) return
+  // Tâche planifiée (CRON_SECRET) ou lancement manuel par un administrateur
+  if (!(await requireCronOrRole(req, res, ADMINS))) return
 
   const dry = !!req.query?.dry
   const supabase = getSupabaseAdmin()

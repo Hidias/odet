@@ -3,7 +3,7 @@
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, decrypt } from './_lib/mailer.js'
 import { saveToSentFolder } from './_lib/save-to-sent.js'
-import { requireUser } from './_lib/auth.js'
+import { requireRole, SALES } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 // Augmenter la limite du body parser Vercel (défaut 4.5MB)
@@ -27,12 +27,10 @@ const supabase = getSupabaseAdmin()
 // Signatures importées depuis _lib/mailer.js
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, SALES)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -54,7 +52,8 @@ async function handler(req, res) {
     }
 
     // 1. Configuration SMTP de l'utilisateur connecté et transporteur (redirection démo incluse)
-    const mailer = await getMailer(supabase, req.user?.id || userId)
+    // Toujours la boîte de l'utilisateur connecté (userId du corps ignoré)
+    const mailer = await getMailer(supabase, req.user.id)
     if (mailer.error) {
       return res.status(400).json({ error: 'Configuration email non trouvée. Configurez votre email dans Paramètres.' })
     }
@@ -92,9 +91,14 @@ async function handler(req, res) {
     }
 
     // 6b. Programmes de formation : le transporteur lit directement depuis l'URL (pas de téléchargement préalable)
-    if (programUrls && programUrls.length > 0) {
+    // Seules les adresses du stockage Supabase du projet sont acceptées : nodemailer lit aussi
+    // les chemins locaux du serveur et toute adresse réseau passée dans `path`
+    const storageBase = (() => {
+      try { return `${new URL(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL).origin}/storage/v1/object/` } catch { return null }
+    })()
+    if (Array.isArray(programUrls) && programUrls.length > 0) {
       for (const prog of programUrls) {
-        if (prog.url && prog.filename) {
+        if (prog?.url && prog.filename && storageBase && String(prog.url).startsWith(storageBase) && !String(prog.url).includes('..')) {
           console.log('Programme (stream URL):', prog.filename)
           mailOptions.attachments.push({
             filename: prog.filename,

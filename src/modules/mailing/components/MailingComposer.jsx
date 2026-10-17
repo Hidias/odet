@@ -16,6 +16,7 @@ import { team, currentUserEmail, currentUserFirstName } from '../../../core/org/
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { sanitizeStorageKey } from '../../../core/storageUtils'
 import { loadMailingExclusions, getAudienceExclusion, SOFT_EXCLUSIONS, EXCLUSION_LABELS } from '../lib/mailingExclusions'
 import { MAILING_VARIABLES, buildRecipientVars, applyMailingVars, usedMailingVars } from '../lib/mailingVars'
@@ -302,11 +303,13 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
           : `Envoi lancé côté serveur - ${payload.length} destinataires. Vous pouvez fermer cette page.`, { duration: 6000 })
         onScheduled?.(camp)
       } else {
-        const { data: sends, error: sErr } = await supabase
+        // fetchAll : sans pagination, une campagne de plus de 1 000 destinataires
+        // n'aurait envoyé que les 1 000 premiers mails depuis le navigateur
+        const { data: sends, error: sErr } = await fetchAll(() => supabase
           .from('mailing_sends')
           .select('id, email, company_name, unsubscribe_token, vars')
           .eq('campaign_id', camp.id).eq('status', 'pending')
-          .order('created_at')
+          .order('created_at'))
         if (sErr) throw sErr
         onLaunchBrowser?.({
           campaign: camp,

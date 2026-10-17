@@ -1,4 +1,4 @@
-import { requireUser } from './_lib/auth.js'
+import { requireRole, SALES } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock } from './_lib/orgProfile.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/generate-relance-email.js
@@ -6,13 +6,11 @@ import { withErrorLog } from './_lib/errors.js'
 // Prend en compte : contexte client, âge du devis, historique de relances, formations concernées
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-    req.admin = ctx.admin
-  }
+  const ctx = await requireRole(req, res, SALES)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
+  req.admin = ctx.admin
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

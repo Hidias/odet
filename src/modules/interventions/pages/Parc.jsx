@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, Loader2, ChevronRight } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import { loadClientsLight } from '../lib/itvData'
 import { todayIso } from '../lib/schedule'
@@ -22,9 +23,10 @@ export default function Parc({ isManager, profile }) {
     (async () => {
       const [cl0, { data: eq }, { data: ct }, { data: mine }] = await Promise.all([
         loadClientsLight(),
-        supabase.from('itv_equipment').select('client_id, next_check_on, status').neq('status', 'retire'),
-        supabase.from('itv_contracts').select('client_id').eq('status', 'actif'),
-        fieldOnly && profile?.id ? supabase.from('itv_visits').select('client_id').eq('technician_id', profile.id) : { data: null },
+        // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
+        fetchAll(() => supabase.from('itv_equipment').select('client_id, next_check_on, status').neq('status', 'retire')),
+        fetchAll(() => supabase.from('itv_contracts').select('client_id').eq('status', 'actif')),
+        fieldOnly && profile?.id ? fetchAll(() => supabase.from('itv_visits').select('client_id').eq('technician_id', profile.id)) : { data: null },
       ])
       const allowed = mine ? new Set(mine.map((v) => v.client_id)) : null
       const cl = allowed ? (cl0 || []).filter((c) => allowed.has(c.id)) : cl0

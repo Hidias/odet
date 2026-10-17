@@ -34,6 +34,7 @@ import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionDOPDF } from '../pdf/satisfactionDOPDF'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
+import { readableUrl } from '../../../core/storageUtils'
 
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
@@ -76,7 +77,10 @@ async function fetchTrainerSignatureBase64(trainerId) {
       .eq('id', trainerId)
       .maybeSingle()
     if (!trainer?.signature_url) return null
-    const resp = await fetch(trainer.signature_url)
+    // Bucket privé : lien signé de courte durée
+    const signed = await readableUrl(trainer.signature_url)
+    if (!signed) return null
+    const resp = await fetch(signed)
     if (!resp.ok) return null
     const blob = await resp.blob()
     return await new Promise((resolve, reject) => {
@@ -5686,7 +5690,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           {selectedTraineeInfo.info.ssn_refused ? (
                             <p className="text-ui text-[rgb(var(--c-danger))] italic">Refusé par le stagiaire</p>
                           ) : (
-                            <p className="font-mono font-medium text-ui">{selectedTraineeInfo.info.ssn || '-'}</p>
+                            <p className="font-medium text-ui">{selectedTraineeInfo.info.ssn_present ? 'Renseigné (consultable sur la fiche du stagiaire)' : '-'}</p>
                           )}
                         </div>
                       </div>

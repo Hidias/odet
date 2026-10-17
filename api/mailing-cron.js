@@ -21,7 +21,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { applyMailingVars } from '../src/modules/mailing/lib/mailingVars.js'
 import sendMailingSingle from './send-mailing-single.js'
-import { requireCronOrUser } from './_lib/auth.js'
+import { requireCronSecret } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 export const config = { maxDuration: 60 }
@@ -122,7 +122,8 @@ async function sendOne(body) {
 }
 
 async function handler(req, res) {
-  if (!(await requireCronOrUser(req, res))) return
+  // Appelée uniquement par Supabase (pg_cron) avec le CRON_SECRET : l'interface ne l'appelle pas
+  if (!requireCronSecret(req, res)) return
 
   const campaignId = String(req.query?.campaign || '')
   if (!UUID_RE.test(campaignId)) {

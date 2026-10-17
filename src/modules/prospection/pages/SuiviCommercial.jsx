@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Phone, ExternalLink, Loader2, RefreshCw, ChevronDown, ChevronRight, ListChecks } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import { useRelanceIA } from '../../commercial/lib/useRelanceIA'
 import RelancePreviewModal from '../../commercial/components/RelancePreviewModal'
@@ -122,27 +123,26 @@ export default function SuiviCommercial() {
 
   const load = useCallback(async () => {
     try {
+      // fetchAll : pagination complète (les anciens .limit(1000) tronquaient sans prévenir)
       const [rdvRes, quoteRes, lightRes, cbRes] = await Promise.all([
-        supabase
+        fetchAll(() => supabase
           .from('prospect_rdv')
           .select('*, clients (id, name, city, contact_phone, contact_name)')
           .neq('status', 'annule')
-          .order('rdv_date', { ascending: true }),
-        supabase
+          .order('rdv_date', { ascending: true })),
+        fetchAll(() => supabase
           .from('quotes')
           .select('id, reference, client_id, quote_date, created_at, status, object, notes, total_ht, total_ttc, relance_count, last_relance_date, followup_state, veille_until, next_followup_date, lost_reason, followup_notes, triaged_at, clients (name, contact_name, contact_phone, contact_email)')
           .in('status', ['sent', 'partial'])
-          .order('quote_date', { ascending: true }),
-        supabase
+          .order('quote_date', { ascending: true })),
+        fetchAll(() => supabase
           .from('quotes')
-          .select('id, client_id, quote_date, created_at')
-          .limit(1000),
-        supabase
+          .select('id, client_id, quote_date, created_at')),
+        fetchAll(() => supabase
           .from('prospect_calls')
           .select('id, client_id, called_by, callback_date, callback_time, callback_reason, contact_name, contact_mobile, notes, clients (id, name, city, contact_phone)')
           .eq('needs_callback', true)
-          .order('callback_date', { ascending: true })
-          .limit(1000),
+          .order('callback_date', { ascending: true })),
       ])
       if (rdvRes.error) throw rdvRes.error
       if (quoteRes.error) throw quoteRes.error

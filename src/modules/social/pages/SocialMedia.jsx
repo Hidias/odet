@@ -259,9 +259,9 @@ function ConnectionPanel({ connections, onRefresh }) {
       id: 'facebook',
       label: 'Facebook',
       icon: '',
-      connectUrl: '/api/auth/meta?action=connect',
+      connectUrl: '/api/auth/meta?action=start',
       color: 'blue',
-      details: connections?.facebook?.metadata?.page_name,
+      details: connections?.facebook?.name,
     },
     {
       id: 'instagram',
@@ -269,28 +269,44 @@ function ConnectionPanel({ connections, onRefresh }) {
       icon: '',
       connectUrl: null, // Se connecte via Meta
       color: 'pink',
-      details: connections?.instagram?.metadata?.username ? `@${connections.instagram.metadata.username}` : null,
+      details: connections?.instagram?.name ? `@${connections.instagram.name}` : null,
       linkedTo: 'facebook',
     },
     {
       id: 'gmb',
       label: 'Google',
       icon: '',
-      connectUrl: '/api/auth/google?action=connect',
+      connectUrl: '/api/auth/google?action=start',
       color: 'green',
-      details: connections?.gmb?.metadata?.location_name,
+      details: connections?.gmb?.name,
     },
     {
       id: 'linkedin',
       label: 'LinkedIn Page',
       icon: '',
-      connectUrl: '/api/auth/linkedin?action=connect',
+      connectUrl: '/api/auth/linkedin?action=start',
       color: 'blue',
-      details: connections?.linkedin?.metadata?.org_name || null,
+      details: connections?.linkedin?.name || null,
     },
   ]
 
   const connectedCount = platformConfigs.filter(p => connections?.[p.id]?.connected).length
+
+  // Démarrage OAuth : le serveur vérifie le rôle (jeton de l'utilisateur) et renvoie l'adresse
+  // d'autorisation munie d'un state signé, vérifié au retour du fournisseur
+  const [connecting, setConnecting] = useState(null)
+  const startConnect = async (p) => {
+    setConnecting(p.id)
+    try {
+      const res = await apiFetch(p.connectUrl)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) throw new Error(data.error || `Erreur ${res.status}`)
+      window.location.href = data.url
+    } catch (err) {
+      toast.error(`Connexion ${p.label} impossible : ${err.message}`)
+      setConnecting(null)
+    }
+  }
 
   return (
     <div className="bg-white rounded-ui border overflow-hidden">
@@ -355,12 +371,14 @@ function ConnectionPanel({ connections, onRefresh }) {
                       ) : p.disabled ? (
                         <div className="text-ui-sm text-gray-400">{p.details}</div>
                       ) : p.connectUrl ? (
-                        <a
-                          href={p.connectUrl}
-                          className="inline-block text-ui-sm bg-[#0F2D35] text-white px-3 py-1.5 rounded-ui-sm hover:opacity-90 transition-colors font-medium"
+                        <button
+                          type="button"
+                          onClick={() => startConnect(p)}
+                          disabled={connecting === p.id}
+                          className="inline-block text-ui-sm bg-[#0F2D35] text-white px-3 py-1.5 rounded-ui-sm hover:opacity-90 transition-colors font-medium disabled:opacity-60"
                         >
-                          Connecter
-                        </a>
+                          {connecting === p.id ? 'Connexion…' : 'Connecter'}
+                        </button>
                       ) : null}
                     </>
                   )}

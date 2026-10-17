@@ -2,6 +2,7 @@ import { apiFetch } from '../../core/api'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore, useDataStore } from '../../core/store'
+import { fetchAll } from '../../core/fetchAll'
 import { supabase } from '../../core/supabase'
 import { 
   Building2, GraduationCap, Users, Calendar, FileText, ArrowRight, GitMerge, 
@@ -48,6 +49,9 @@ const WIDGET_REGISTRY = {
   hours_realized:       { id: 'hours_realized',       label: 'Heures réalisées',          icon: Clock,         category: 'analytique',color: 'teal',   defaultSize: 'md' },
   trainee_stats:        { id: 'trainee_stats',        label: 'Statistiques stagiaires',   icon: Users,         category: 'analytique',color: 'purple', defaultSize: 'md' },
 }
+
+// Widgets construits sur les factures et les devis
+const BILLING_WIDGETS = new Set(['quotes_pipeline', 'monthly_revenue', 'conversion_rate', 'revenue_12m'])
 
 const CATEGORIES = {
   formation:  { label: 'Formation',  color: 'amber' },
@@ -103,7 +107,7 @@ function ProgressBar({ value, max = 100, color = 'bg-gray-800', label, showValue
 // ═══════════════════════════════════════════════════════════
 export default function Dashboard() {
   const { clients, fetchClients, courses, fetchCourses, trainees, fetchTrainees, sessions, fetchSessions, getPurgeStats, organization, fetchOrganization } = useDataStore()
-  const { user, modules } = useAuthStore()
+  const { user, modules, userRole } = useAuthStore()
   const navigate = useNavigate()
   
   
@@ -206,11 +210,11 @@ export default function Dashboard() {
       supabase.from('quotes').select('*, clients(name)').order('created_at', { ascending: false }).limit(50),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(20),
       //  TABLE CORRECTE: trainee_evaluations (la vraie table des évals à chaud)
-      supabase.from('trainee_evaluations').select('session_id, trainee_id, q_org_documents, q_org_accueil, q_org_locaux, q_org_materiel, q_contenu_organisation, q_contenu_supports, q_contenu_duree, q_contenu_programme, q_formateur_pedagogie, q_formateur_expertise, q_formateur_progression, q_formateur_moyens, q_global_adequation, q_global_competences, would_recommend, questionnaire_submitted, submitted_at'),
-      supabase.from('sst_certifications').select('id, session_id, trainee_id, formation_type, candidat_certifie, date_certification, created_at'),
+      fetchAll(() => supabase.from('trainee_evaluations').select('session_id, trainee_id, q_org_documents, q_org_accueil, q_org_locaux, q_org_materiel, q_contenu_organisation, q_contenu_supports, q_contenu_duree, q_contenu_programme, q_formateur_pedagogie, q_formateur_expertise, q_formateur_progression, q_formateur_moyens, q_global_adequation, q_global_competences, would_recommend, questionnaire_submitted, submitted_at')),
+      fetchAll(() => supabase.from('sst_certifications').select('id, session_id, trainee_id, formation_type, candidat_certifie, date_certification, created_at')),
       supabase.from('training_themes').select('id, code, name, color'),
       // Factures émises (y compris partielles et annulées par avoir) + avoirs validés (déduits)
-      supabase.from('invoices').select('id, reference, type, invoice_date, total_net_ht, total_ttc, status').in('status', ['paid', 'due', 'sent', 'overdue', 'partial', 'credited']),
+      fetchAll(() => supabase.from('invoices').select('id, reference, type, invoice_date, total_net_ht, total_ttc, status').in('status', ['paid', 'due', 'sent', 'overdue', 'partial', 'credited'])),
     ])
     
     // Enrich alerts
@@ -1001,7 +1005,12 @@ export default function Dashboard() {
     </div>
   )
   
-  const visibleWidgets = widgetConfigs.filter(c => c.visible).sort((a, b) => a.position - b.position)
+  // Chiffre d'affaires et devis : seulement pour les rôles qui lisent les factures et les devis
+  // (formateur et lecture n'y ont pas accès dans la base)
+  const canSeeBilling = ['superadmin', 'admin', 'direction', 'gestionnaire', 'commercial', 'comptable'].includes(userRole)
+  const visibleWidgets = widgetConfigs
+    .filter(c => c.visible && (canSeeBilling || !BILLING_WIDGETS.has(c.widget_id)))
+    .sort((a, b) => a.position - b.position)
   
   return (
     <div className="space-y-6">

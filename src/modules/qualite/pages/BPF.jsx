@@ -1,6 +1,7 @@
 import { toneStyle } from '../../../ui/StatusBadge'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { 
   FileText, Calculator, Save, Download, RefreshCw, ChevronDown, ChevronRight,
   Building2, Users, GraduationCap, Euro, ClipboardCheck, AlertCircle, CheckCircle, Info
@@ -228,23 +229,23 @@ export default function BPF() {
       const startDate = `${year}-01-01`
       const endDate = `${year}-12-31`
 
-      // 1. Sessions de l'année
-      const { data: sessions } = await supabase
+      // 1. Sessions de l'année (fetchAll / fetchAllIn : pagination complète, le BPF ne doit rien perdre)
+      const { data: sessions } = await fetchAll(() => supabase
         .from('sessions')
         .select('id, reference, course_id, trainer_id, start_date, end_date, status, courses(id, title, code, duration_hours, price_ht)')
         .gte('start_date', startDate)
-        .lte('start_date', endDate)
+        .lte('start_date', endDate))
 
       const allSessions = sessions || []
       const completedSessions = allSessions.filter(s => ['completed', 'closed'].includes(s.status))
 
       // 2. Factures de l'année (uniquement formation professionnelle)
-      const { data: invoices } = await supabase
+      const { data: invoices } = await fetchAll(() => supabase
         .from('invoices')
         .select('id, type, total_net_ht, status, client_id, session_id, invoice_date, is_formation_pro')
         .gte('invoice_date', startDate)
         .lte('invoice_date', endDate)
-        .in('status', ['paid', 'sent', 'due', 'overdue', 'partial', 'credited'])
+        .in('status', ['paid', 'sent', 'due', 'overdue', 'partial', 'credited']))
 
       // Exclure les factures hors formation professionnelle
       const allInvoices = (invoices || []).filter(inv => inv.is_formation_pro !== false)
@@ -255,18 +256,17 @@ export default function BPF() {
       const totalHorsFP = excludedInvoices.reduce((sum, inv) => sum + signedHt(inv), 0)
 
       // 2b. Clients avec leur type (entreprise, organisme_formation, public)
-      const { data: clients } = await supabase
+      const { data: clients } = await fetchAll(() => supabase
         .from('clients')
-        .select('id, name, client_type')
+        .select('id, name, client_type'))
 
       // 3. Financements multi-financeurs
       const sessionIds = allSessions.map(s => s.id)
       let fundings = []
       if (sessionIds.length > 0) {
-        const { data: fundingsData } = await supabase
+        const { data: fundingsData } = await fetchAllIn(() => supabase
           .from('session_fundings')
-          .select('*')
-          .in('session_id', sessionIds)
+          .select('*'), 'session_id', sessionIds)
         fundings = fundingsData || []
       }
 
@@ -303,10 +303,9 @@ export default function BPF() {
       }
 
       // 4. Stagiaires
-      const { data: sessionTrainees } = await supabase
+      const { data: sessionTrainees } = await fetchAllIn(() => supabase
         .from('session_trainees')
-        .select('trainee_id, session_id, trainees(id, first_name, last_name, gender, csp)')
-        .in('session_id', sessionIds)
+        .select('trainee_id, session_id, trainees(id, first_name, last_name, gender, csp)'), 'session_id', sessionIds)
 
       const stList = sessionTrainees || []
       // Compter les stagiaires uniques
@@ -354,9 +353,9 @@ export default function BPF() {
       })
 
       // 6. Formateurs
-      const { data: trainers } = await supabase
+      const { data: trainers } = await fetchAll(() => supabase
         .from('trainers')
-        .select('id, first_name, last_name, is_internal')
+        .select('id, first_name, last_name, is_internal'))
 
       const allTrainers = trainers || []
       const trainerIds = [...new Set(allSessions.map(s => s.trainer_id).filter(Boolean))]

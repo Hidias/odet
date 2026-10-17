@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Routes, Route, NavLink, Navigate, Link } from 'react-router-dom'
 import { Loader2, BookUser } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
-import { loadFormat, loadSettings, loadDonnees, loadFichiers, loadCourses, loadPresets, PP_ROLES } from '../lib/ppData'
+import { loadFormat, loadSettings, loadDonnees, loadFichiers, loadCourses, loadPresets, PP_ROLES, apiPasseport } from '../lib/ppData'
+import { Banner, Button } from '../../../ui'
 import { statutInscription, dateLimite, obligatoire, couleurDelai, isoDate, daysBetween } from '../lib/rules'
 import PpBref from './PpBref'
 import PpADeclarer from './PpADeclarer'
@@ -25,6 +26,9 @@ export default function Passeport() {
   const [presets, setPresets] = useState([])
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Numéros saisis par l'ancien chemin, à reprendre dans le Passeport (source unique, décision du 17/10)
+  const [ancien, setAncien] = useState(0)
+  const [reprise, setReprise] = useState({ busy: false, message: null })
 
   const reload = useCallback(async () => {
     try {
@@ -36,6 +40,22 @@ export default function Passeport() {
   }, [])
 
   useEffect(() => { if (enabled && allowed) reload() }, [enabled, allowed, reload])
+  useEffect(() => {
+    if (!enabled || !allowed) return
+    apiPasseport('reprise-ancien', { dry: true }).then((r) => setAncien(r?.en_attente || 0)).catch(() => setAncien(0))
+  }, [enabled, allowed])
+
+  const reprendre = async () => {
+    setReprise({ busy: true, message: null })
+    try {
+      const r = await apiPasseport('reprise-ancien')
+      setAncien(r?.en_attente || 0)
+      setReprise({ busy: false, message: `${r?.repris || 0} numéro(s) repris dans le Passeport${r?.invalides ? `, ${r.invalides} à vérifier sur la fiche du stagiaire` : ''}.` })
+      reload()
+    } catch (e) {
+      setReprise({ busy: false, message: `Reprise impossible : ${e.message || e}` })
+    }
+  }
 
   const today = isoDate(new Date())
 
@@ -124,6 +144,13 @@ export default function Passeport() {
         <div className="muted text-ui-sm">Formation</div>
         <h1 className="page-title">Passeport de prévention</h1>
       </div>
+      {ancien > 0 && (
+        <Banner tone="warning" title={`${ancien} numéro(s) de sécurité sociale saisi(s) hors du Passeport`}
+          action={<Button size="sm" variant="secondary" loading={reprise.busy} onClick={reprendre}>Les reprendre dans le Passeport</Button>}>
+          Saisis avant l'activation du module ou par un ancien écran. Une fois repris, ils sont chiffrés ici et effacés de l'ancien emplacement.
+        </Banner>
+      )}
+      {reprise.message && <Banner tone="info" onClose={() => setReprise({ busy: false, message: null })}>{reprise.message}</Banner>}
       <nav className="tabs" aria-label="Rubriques du Passeport de prévention">
         {TABS.map((t) => (
           <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tab ${isActive ? 'tab-active' : ''}`}>

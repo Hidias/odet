@@ -2,6 +2,7 @@ import { orgReferentHandicap, currentUserName, teamNames } from '../../../core/o
 import { useEffect, useState } from 'react'
 import { useDataStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import {
   Plus, Search, X, Save, Edit, Trash2, Calendar,
   Mail, Phone, FileInput, MessageSquare, User, Building2, Users,
@@ -11,6 +12,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import SearchSelect from '../../../ui/SearchSelect'
+import { Banner } from '../../../ui'
 
 // ===== LABELS & ICÔNES =====
 const sourceLabels = {
@@ -65,16 +67,21 @@ export default function RegistrePSH() {
   const [editing, setEditing]         = useState(null)
   const [formData, setFormData]       = useState(emptyForm)
   const [saving, setSaving]           = useState(false)
+  // Registre réservé à la direction et au référent handicap (données de santé)
+  const [canSee, setCanSee]           = useState(true)
 
-  useEffect(() => { loadRequests() }, [])
+  useEffect(() => {
+    loadRequests()
+    supabase.rpc('can_see_disability').then(({ data, error }) => { if (!error) setCanSee(!!data) })
+  }, [])
 
   // ===== CHARGEMENT =====
   const loadRequests = async () => {
     setLoading(true)
-    const { data, error } = await supabase
+    const { data, error } = await fetchAll(() => supabase
       .from('psh_requests')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }))
     if (!error) setRequests(data || [])
     else console.error('PSH load error:', error)
     setLoading(false)
@@ -197,6 +204,11 @@ export default function RegistrePSH() {
           </p>
         </div>
       </div>
+      {!canSee && (
+        <Banner tone="info">
+          Ce registre contient des données de santé : il n'est visible que par la direction et le référent handicap (Qualité &gt; Référents).
+        </Banner>
+      )}
 
       {/* Bandeau RGPD */}
       <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-info))] flex items-start gap-2">

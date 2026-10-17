@@ -6,7 +6,7 @@
 
 import { PDFDocument, PDFName, PDFString, PDFNumber, AFRelationship } from 'pdf-lib'
 import { getSupabaseAdmin, getOrg } from './_lib/mailer.js'
-import { requireUser } from './_lib/auth.js'
+import { requireRole, BILLING } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 export const config = {
@@ -683,12 +683,10 @@ export async function embedAndMakePDFA3(pdfBuffer, xmlString, invoice, seller) {
 // --- Route ---------------------------------------------------------------------
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, BILLING)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   try {
     const { invoice_id, pdf_base64 } = req.body || {}

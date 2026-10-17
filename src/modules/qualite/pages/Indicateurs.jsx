@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
+import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { 
   BarChart3, Filter, Users, Star, TrendingUp, ThumbsUp, 
   Thermometer, Clock, Building, BookOpen, UserCheck, Target,
@@ -127,13 +128,14 @@ export default function Indicateurs() {
       fetchSessions(),
       fetchClients(),
       fetchCourses(),
-      supabase.from('training_themes').select('*').order('position'),
-      supabase.from('trainee_evaluations').select('*'),
-      supabase.from('trainer_evaluations').select('*'),
-      supabase.from('evaluations_cold').select('*'),
-      supabase.from('session_trainees').select('session_id, trainee_id, result, presence_complete, early_departure, situation, funding_type'),
-      supabase.from('quality_alerts').select('*').order('created_at', { ascending: false }),
-      supabase.from('non_conformites').select('id, title, status').order('created_at', { ascending: false })
+      // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
+      fetchAll(() => supabase.from('training_themes').select('*').order('position')),
+      fetchAll(() => supabase.from('trainee_evaluations').select('*')),
+      fetchAll(() => supabase.from('trainer_evaluations').select('*')),
+      fetchAll(() => supabase.from('evaluations_cold').select('*')),
+      fetchAll(() => supabase.from('session_trainees').select('session_id, trainee_id, result, presence_complete, early_departure, situation, funding_type')),
+      fetchAll(() => supabase.from('quality_alerts').select('*').order('created_at', { ascending: false })),
+      fetchAll(() => supabase.from('non_conformites').select('id, title, status').order('created_at', { ascending: false }))
     ])
     
     setThemes(themesResult.data || [])
@@ -144,13 +146,18 @@ export default function Indicateurs() {
     setNonConformites(ncsResult.data || [])
     
     // Charger les stagiaires pour enrichissement (avec CSP et job_title)
-    const { data: allTrainees } = await supabase.from('trainees').select('id, first_name, last_name, csp, job_title')
+    // Seuls les stagiaires référencés (inscriptions + alertes) sont chargés, par lots
+    const neededTraineeIds = [
+      ...(resultsResult.data || []).map(r => r.trainee_id),
+      ...(alertsResult.data || []).map(a => a.trainee_id),
+    ]
+    const { data: allTrainees } = await fetchAllIn(() => supabase.from('trainees').select('id, first_name, last_name, csp, job_title'), 'id', neededTraineeIds)
     const traineesMap = {}
     ;(allTrainees || []).forEach(t => { traineesMap[t.id] = t })
     setTraineesData(traineesMap)
     
     // Charger les formateurs
-    const { data: allTrainers } = await supabase.from('trainers').select('id, first_name, last_name')
+    const { data: allTrainers } = await fetchAll(() => supabase.from('trainers').select('id, first_name, last_name'))
     const trainersMap = {}
     ;(allTrainers || []).forEach(t => { trainersMap[t.id] = t })
     
@@ -258,18 +265,19 @@ export default function Indicateurs() {
   
   // Helper pour recharger les alertes
   const reloadAlerts = async () => {
-    const { data: updatedAlerts } = await supabase
+    const { data: updatedAlerts } = await fetchAll(() => supabase
       .from('quality_alerts')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }))
     
     if (updatedAlerts) {
       // Charger les stagiaires et formateurs pour enrichissement
-      const { data: allTrainees } = await supabase.from('trainees').select('id, first_name, last_name')
+      // Seuls les stagiaires cités dans les alertes sont chargés, par lots
+      const { data: allTrainees } = await fetchAllIn(() => supabase.from('trainees').select('id, first_name, last_name'), 'id', updatedAlerts.map(a => a.trainee_id))
       const traineesMap = {}
       ;(allTrainees || []).forEach(t => { traineesMap[t.id] = t })
       
-      const { data: allTrainers } = await supabase.from('trainers').select('id, first_name, last_name')
+      const { data: allTrainers } = await fetchAll(() => supabase.from('trainers').select('id, first_name, last_name'))
       const trainersMap = {}
       ;(allTrainers || []).forEach(t => { trainersMap[t.id] = t })
       

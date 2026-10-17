@@ -2,7 +2,7 @@
 // Envoie un email individuel à un stagiaire avec ses documents en PJ
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML } from './_lib/mailer.js'
-import { requireUser } from './_lib/auth.js'
+import { requireRole, OFFICE_WRITE, isSafeStoragePath } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
@@ -11,12 +11,10 @@ const supabase = getSupabaseAdmin()
 
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, OFFICE_WRITE)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -30,8 +28,15 @@ async function handler(req, res) {
       return res.status(400).json({ error: 'Paramètres manquants' })
     }
 
+    // Pièces jointes : uniquement des fichiers déposés pour CETTE session (bucket documents, « stagiaire-emails/<sessionId>/... »)
+    if (!Array.isArray(attachmentPaths)) return res.status(400).json({ error: 'Pièces jointes invalides' })
+    if (attachmentPaths.length > 0 && (!sessionId || attachmentPaths.some((att) => !isSafeStoragePath(att?.path, `stagiaire-emails/${sessionId}/`)))) {
+      return res.status(400).json({ error: 'Pièce jointe non autorisée pour cette session' })
+    }
+
     // 1. Configuration SMTP de l'utilisateur connecté et transporteur (redirection démo incluse)
-    const mailer = await getMailer(supabase, req.user?.id || userId)
+    // Toujours la boîte de l'utilisateur connecté (userId du corps ignoré)
+    const mailer = await getMailer(supabase, req.user.id)
     if (mailer.error) {
       return res.status(400).json({ error: 'Configuration email non trouvée.' })
     }

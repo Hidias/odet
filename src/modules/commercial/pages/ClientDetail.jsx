@@ -4,6 +4,7 @@ import { apiFetch } from '../../../core/api'
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { ArrowLeft, Building2, MapPin, Phone, Mail, Globe, Edit, Save, X, Plus, Trash2, User, Clock, MessageSquare, Calendar, FileText, GraduationCap, Star, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Send, StickyNote, Receipt, RefreshCw, Briefcase, FileSignature, Smartphone, Loader2, Search, CreditCard, Paperclip, KeyRound, Copy, Power } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -163,7 +164,8 @@ export default function ClientDetail() {
   // Charger la liste de tous les clients (A→Z) pour navigation
   useEffect(() => {
     async function loadClientIds() {
-      const { data } = await supabase.from('clients').select('id, name').order('name')
+      // fetchAll : navigation précédent/suivant sur TOUS les clients (tri secondaire id stable)
+      const { data } = await fetchAll(() => supabase.from('clients').select('id, name').order('name'))
       if (data) setAllClientIds(data.map(c => c.id))
     }
     loadClientIds()

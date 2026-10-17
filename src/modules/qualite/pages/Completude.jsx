@@ -1,6 +1,7 @@
 import { toneStyle } from '../../../ui/StatusBadge'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import { loadNirEtat } from '../../passeport/lib/ppData'
 import { 
@@ -64,9 +65,9 @@ export default function Completude() {
 
     try {
       // 1. STAGIAIRES
-      const { data: trainees } = await supabase
+      const { data: trainees } = await fetchAll(() => supabase
         .from('trainees')
-        .select('id, first_name, last_name, birth_date, csp, job_title, gender, social_security_number, refused_ssn')
+        .select('id, first_name, last_name, birth_date, csp, job_title, gender, ssn_present, refused_ssn'))
       
       // Module Passeport de prévention actif : le numéro est chiffré à part (présence seulement, jamais le numéro)
       let nirPresents = null
@@ -119,7 +120,7 @@ export default function Completude() {
             since: null
           })
         }
-        if (!t.refused_ssn && !(nirPresents ? nirPresents[t.id] : t.social_security_number)) {
+        if (!t.refused_ssn && !(nirPresents ? nirPresents[t.id] : t.ssn_present)) {
           allIssues.push({
             category: 'stagiaires',
             priority: 'bloquant',
@@ -133,7 +134,7 @@ export default function Completude() {
       })
 
       // 2. SESSIONS
-      const { data: sessions } = await supabase
+      const { data: sessions } = await fetchAll(() => supabase
         .from('sessions')
         .select(`
           id, 
@@ -148,7 +149,7 @@ export default function Completude() {
           courses(title),
           trainer_id
         `)
-        .eq('status', 'completed')
+        .eq('status', 'completed'))
       
       sessions?.forEach(s => {
         const clientName = s.clients?.name || 'Client inconnu'
@@ -229,15 +230,16 @@ export default function Completude() {
 
       // 3 à 5 et 7 : participants des sessions en cours ou terminées, rapprochés par session et stagiaire
       // (émargements, évaluations et objectifs sont rattachés à session_id + trainee_id)
-      const { data: doneSessions } = await supabase
+      const { data: doneSessions } = await fetchAll(() => supabase
         .from('sessions')
         .select('id, reference, start_date, end_date, start_time, end_time, status, courses(title)')
-        .in('status', ['in_progress', 'completed'])
+        .in('status', ['in_progress', 'completed']))
       const sessionById = new Map((doneSessions || []).map((s) => [s.id, s]))
       const doneIds = [...sessionById.keys()]
       const inDone = async (table, cols) => {
         if (!doneIds.length) return []
-        const { data, error } = await supabase.from(table).select(cols).in('session_id', doneIds)
+        // Par lots d'identifiants et sans troncature à 1 000 lignes
+        const { data, error } = await fetchAllIn(() => supabase.from(table).select(cols), 'session_id', doneIds)
         if (error) console.error(`Complétude ${table} :`, error.message)
         return data || []
       }
@@ -311,7 +313,7 @@ export default function Completude() {
       })
 
       // 6. ÉVALUATIONS FORMATEURS
-      const { data: trainerEvals } = await supabase
+      const { data: trainerEvals } = await fetchAll(() => supabase
         .from('sessions')
         .select(`
           id,
@@ -320,12 +322,12 @@ export default function Completude() {
           courses(title),
           trainer_id, trainers(id, first_name, last_name)
         `)
-        .eq('status', 'completed')
+        .eq('status', 'completed'))
       
       if (trainerEvals) {
-        const { data: existingEvals } = await supabase
+        const { data: existingEvals } = await fetchAll(() => supabase
           .from('trainer_evaluations')
-          .select('session_id, trainer_id')
+          .select('session_id, trainer_id'))
         
         const evalMap = new Map()
         existingEvals?.forEach(e => {

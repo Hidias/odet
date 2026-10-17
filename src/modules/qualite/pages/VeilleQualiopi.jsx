@@ -1,6 +1,7 @@
 import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { 
   Plus, Search, Edit, Trash2, X, Save, Eye, FileText, 
   Scale, Briefcase, BookOpen, AlertTriangle, CheckCircle, Clock, Archive,
@@ -75,10 +76,10 @@ export default function VeilleQualiopi() {
   }, [])
 
   const fetchVeilles = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await fetchAll(() => supabase
       .from('veille_qualiopi')
       .select('*')
-      .order('date', { ascending: false })
+      .order('date', { ascending: false }))
     
     if (error) {
       console.error('Erreur chargement veilles:', error)

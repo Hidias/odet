@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useDataStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
+import { fetchAllIn } from '../../../core/fetchAll'
 import { 
   Users, Download, Filter, Calendar, Building, BookOpen, DollarSign,
   PieChart, BarChart3, TrendingUp, User, Briefcase, Heart, Info
@@ -14,6 +15,8 @@ export default function ProfilStagiaires() {
   
   const [loading, setLoading] = useState(true)
   const [trainees, setTrainees] = useState([])
+  // Nombre de stagiaires en situation de handicap, sans identité (donnée réservée, lue par une fonction de comptage)
+  const [handicapCount, setHandicapCount] = useState(0)
   
   // Filtres
   const [filterPeriod, setFilterPeriod] = useState('all') // all, year, custom
@@ -87,7 +90,8 @@ export default function ProfilStagiaires() {
     const sessionIds = filteredSessions.map(s => s.id)
     
     // Charger les stagiaires des sessions filtrées
-    const { data: sessionTrainees, error } = await supabase
+    // fetchAllIn : lots d'identifiants + pagination complète (pas de troncature à 1 000)
+    const { data: sessionTrainees, error } = await fetchAllIn(() => supabase
       .from('session_trainees')
       .select(`
         session_id,
@@ -99,11 +103,9 @@ export default function ProfilStagiaires() {
           gender,
           birth_date,
           csp,
-          job_title,
-          has_disability
+          job_title
         )
-      `)
-      .in('session_id', sessionIds)
+      `), 'session_id', sessionIds)
     
     if (error) {
       console.error('Erreur chargement stagiaires:', error)
@@ -122,6 +124,8 @@ export default function ProfilStagiaires() {
     })
     
     setTrainees(uniqueTrainees)
+    const { data: nHandicap } = await supabase.rpc('disability_count', { p_trainee_ids: [...traineeIds] })
+    setHandicapCount(Number(nHandicap) || 0)
   }
   
   // Calculer l'âge à partir de la date de naissance
@@ -214,8 +218,8 @@ export default function ProfilStagiaires() {
       return { masked: true, total: trainees.length }
     }
     
-    const withHandicap = trainees.filter(t => t.has_disability).length
-    const withoutHandicap = trainees.filter(t => !t.has_disability).length
+    const withHandicap = Math.min(handicapCount, trainees.length)
+    const withoutHandicap = trainees.length - withHandicap
     
     return {
       with: withHandicap,

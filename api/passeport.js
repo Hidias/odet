@@ -17,7 +17,7 @@ import { withErrorLog } from './_lib/errors.js'
 //
 // Actions :
 //  portal-state, portal-save (portail stagiaire, sans compte : jeton de session + stagiaire + code individuel
-//  si la session en a un) ; staff-save, generate, demo-accuse (rôles habilités) ; demo-seed (superadmin).
+//  si la session en a un) ; staff-save, generate, demo-accuse, reprise-ancien (rôles habilités) ; demo-seed (superadmin).
 
 const MANAGERS = ['superadmin', 'admin', 'direction', 'gestionnaire']
 const INFO = 'odet-passeport-nir-v1'
@@ -281,6 +281,34 @@ async function handler(req, res) {
       if (ecarts.length && !body.force) return res.status(409).json({ error: `Numéro incohérent avec la fiche : ${ecarts.join(', ')}`, ecarts })
       await enregistrerNir(admin, traineeId, n.nir, 'fiche', ctx.profile.id)
       return res.status(200).json({ ok: true, fin: finNir(n.nir) })
+    }
+
+    // Source unique (décision du 17/10) : les numéros saisis par l'ancien chemin (table trainee_ssn du
+    // chantier 2, en clair côté base mais sans aucun accès direct) passent dans pp_nir chiffré, puis sont effacés.
+    // { dry: true } : compte seulement. Aucun numéro dans la réponse ni dans les journaux.
+    if (action === 'reprise-ancien') {
+      const { data: rows, error: e1 } = await admin.from('trainee_ssn').select('trainee_id, ssn')
+      if (e1) {
+        // Table absente (chantier 2 non appliqué) : rien à reprendre
+        if (e1.code === '42P01' || e1.code === 'PGRST205') return res.status(200).json({ en_attente: 0, repris: 0, invalides: 0 })
+        throw e1
+      }
+      const ids = (rows || []).map((r) => r.trainee_id)
+      if (body.dry) return res.status(200).json({ en_attente: ids.length })
+      const { data: deja } = await admin.from('pp_nir').select('trainee_id').in('trainee_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000'])
+      const dejaSet = new Set((deja || []).map((d) => d.trainee_id))
+      let repris = 0; let invalides = 0; let doublons = 0
+      for (const r of rows || []) {
+        if (!dejaSet.has(r.trainee_id)) {
+          const n = normaliserNir(r.ssn)
+          if (!n.ok) { invalides++; continue }
+          await enregistrerNir(admin, r.trainee_id, n.nir, 'fiche', ctx.profile.id)
+          repris++
+        } else doublons++
+        await admin.from('trainee_ssn').delete().eq('trainee_id', r.trainee_id)
+        await admin.from('trainees').update({ ssn_present: false }).eq('id', r.trainee_id)
+      }
+      return res.status(200).json({ en_attente: invalides, repris, deja_dans_le_passeport: doublons, invalides })
     }
 
     if (action === 'generate') {

@@ -10,6 +10,7 @@ import { generateSatisfactionEntreprisePDF } from '../pdf/satisfactionEntreprise
 import { useDataStore } from '../../../core/store'
 import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPasseportPrevention'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
+import { readableUrl } from '../../../core/storageUtils'
 
 // ════════════════════════════════════════════════════════════
 // MiniSignaturePad - Mini canvas signature inline pour formateur
@@ -248,7 +249,10 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
       return null
     }
     try {
-      const resp = await fetch(trainerFull.signature_url)
+      // Bucket privé : lien signé de courte durée
+      const signed = await readableUrl(trainerFull.signature_url)
+      if (!signed) return null
+      const resp = await fetch(signed)
       const blob = await resp.blob()
       const b64 = await blobToBase64WithPrefix(blob)
       setTrainerSignatureBase64(b64)

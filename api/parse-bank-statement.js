@@ -1,4 +1,4 @@
-import { requireUser } from './_lib/auth.js'
+import { requireRole, FINANCE } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/parse-bank-statement.js
 // Extraction des soldes d'un relevé bancaire (PDF) + contrôle arithmétique.
@@ -83,12 +83,10 @@ function signedBalance(raw, sense) {
 const round2 = (n) => Math.round(n * 100) / 100
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, FINANCE)
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

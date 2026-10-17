@@ -1,11 +1,13 @@
 // ═══════════════════════════════════════════════════════════
 // VERCEL API ROUTE — OAuth Google (My Business)
-// GET /api/auth/google?code=...
-// GET /api/auth/google?action=connect (initie le flow OAuth)
+// GET /api/auth/google?action=start (administrateur connecté, jeton Bearer) → { url } d'autorisation avec state signé
+// GET /api/auth/google?code=...&state=... (retour du fournisseur, state vérifié)
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
 import { appUrl } from '../_lib/internal.js'
+import { requireRole, ADMINS } from '../_lib/auth.js'
+import { createOAuthState, verifyOAuthState, socialRedirect } from '../_lib/oauthState.js'
 import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
@@ -22,28 +24,34 @@ async function handler(req, res) {
   const APP_URL = ENV_APP_URL || appUrl(req)
   const REDIRECT_URI = `${APP_URL}/api/auth/google`
   try {
-    const { code, action, error: oauthError } = req.query
+    const { code, action, state, error: oauthError } = req.query
+
+    // ── Étape 1 : Initier la connexion (administrateur connecté) ──
+    // Appelée par l'interface avec le jeton de l'utilisateur ; renvoie l'adresse d'autorisation
+    if (action === 'start' || action === 'connect') {
+      const ctx = await requireRole(req, res, ADMINS)
+      if (!ctx) return
+      if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: 'GOOGLE_CLIENT_ID non configuré' })
+      const scope = [
+        'https://www.googleapis.com/auth/business.manage',
+      ].join(' ')
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&response_type=code&access_type=offline&prompt=consent&state=${encodeURIComponent(createOAuthState(ctx.user.id, 'google'))}`
+      return res.status(200).json({ url: authUrl })
+    }
 
     // ── Erreur OAuth ────────────────────────────────────
     if (oauthError) {
       console.error('Google OAuth error:', oauthError)
-      return res.redirect(`${APP_URL}/#/social?google=error&reason=${oauthError}`)
+      return res.redirect(socialRedirect(APP_URL, { google: 'error', reason: oauthError }))
     }
 
-    // ── Étape 1 : Initier la connexion ──────────────────
-    if (action === 'connect') {
-      const scope = [
-        'https://www.googleapis.com/auth/business.manage',
-      ].join(' ')
-
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&response_type=code&access_type=offline&prompt=consent`
-
-      return res.redirect(authUrl)
-    }
-
-    // ── Étape 2 : Échanger le code contre un token ──────
+    // ── Étape 2 : Vérifier le state puis échanger le code contre un token ──
     if (!code) {
-      return res.status(400).json({ error: 'Missing code parameter' })
+      return res.status(400).json({ error: 'Paramètre code manquant' })
+    }
+    const checked = await verifyOAuthState(state, 'google')
+    if (checked.error) {
+      return res.redirect(socialRedirect(APP_URL, { google: 'error', reason: checked.error }))
     }
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -62,7 +70,7 @@ async function handler(req, res) {
 
     if (tokenData.error) {
       console.error('Google token error:', tokenData.error)
-      return res.redirect(`${APP_URL}/#/social?google=error&reason=token_exchange`)
+      return res.redirect(socialRedirect(APP_URL, { google: 'error', reason: 'token_exchange' }))
     }
 
     const accessToken = tokenData.access_token
@@ -135,11 +143,11 @@ async function handler(req, res) {
     }, { onConflict: 'platform' })
 
     // ── Succès ! ────────────────────────────────────────
-    return res.redirect(`${APP_URL}/#/social?google=success&location=${encodeURIComponent(locationName || 'compte connecté')}`)
+    return res.redirect(socialRedirect(APP_URL, { google: 'success', location: locationName || 'compte connecté' }))
 
   } catch (err) {
     console.error('Google OAuth handler error:', err)
-    return res.redirect(`${APP_URL}/#/social?google=error&reason=server_error`)
+    return res.redirect(socialRedirect(APP_URL, { google: 'error', reason: 'server_error' }))
   }
 }
 

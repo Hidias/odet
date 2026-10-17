@@ -12,6 +12,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { fetchAll } from '../../../core/fetchAll'
 import { FLAG_LABELS } from '../lib/mailingExclusions'
 import {
   ArrowLeft, Loader2, RefreshCw, CheckCircle, XCircle, Pencil, RotateCcw,
@@ -63,11 +64,12 @@ export default function MailingQualite({ user, onBack }) {
 
   async function loadStatus() {
     setLoading(true)
-    const { data, error } = await supabase
+    // fetchAll : pagination complète ; vue sans colonne id, email unique (clé de mailing_email_status)
+    const { data, error } = await fetchAll(() => supabase
       .from('mailing_email_status_v')
       .select('*')
       .or('status.neq.ok,flags.neq.{},manual.eq.true')
-      .order('email')
+      .order('email'), { orderBy: 'email' })
     if (error) toast.error('Erreur chargement : ' + error.message)
     setRows(data || [])
     setLoading(false)
@@ -75,10 +77,10 @@ export default function MailingQualite({ user, onBack }) {
 
   async function loadBlocklist() {
     setLoadingBl(true)
-    const { data, error } = await supabase
+    const { data, error } = await fetchAll(() => supabase
       .from('mailing_blocklist')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }))
     if (error) toast.error('Erreur liste de blocage : ' + error.message)
     setBlocklist(data || [])
     setLoadingBl(false)

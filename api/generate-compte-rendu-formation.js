@@ -1,16 +1,14 @@
-import { requireUser } from './_lib/auth.js'
+import { requireRole, MANAGERS } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/generate-compte-rendu-formation.js
 // Proxy vers l'API Anthropic pour générer le compte rendu post-formation
 // Évite le CORS en appelant depuis le serveur
 
 async function handler(req, res) {
-  if (req.method !== 'OPTIONS') {
-    const ctx = await requireUser(req)
-    if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
-    req.user = ctx.user
-    req.profile = ctx.profile
-  }
+  const ctx = await requireRole(req, res, [...MANAGERS, 'formateur'])
+  if (!ctx) return
+  req.user = ctx.user
+  req.profile = ctx.profile
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

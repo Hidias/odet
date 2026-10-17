@@ -6,7 +6,7 @@
 import { ImapFlow } from 'imapflow'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
-import { requireCronOrUser } from './_lib/auth.js'
+import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { getImapHost } from './_lib/save-to-sent.js'
 import { loadTeam, findProfileByEmail, profileFirstName, loadInternalMatcher } from './_lib/team.js'
 import { withErrorLog } from './_lib/errors.js'
@@ -312,7 +312,8 @@ async function syncAccount(emailConfig, cursor, ctx) {
 }
 
 async function handler(req, res) {
-  if (!(await requireCronOrUser(req, res))) return
+  // Tâche planifiée (CRON_SECRET) ou lancement manuel par un administrateur
+  if (!(await requireCronOrRole(req, res, ADMINS))) return
   console.log('=== SYNC SENT EMAILS START ===')
 
   try {

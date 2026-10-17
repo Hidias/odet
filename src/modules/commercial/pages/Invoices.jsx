@@ -4,6 +4,7 @@ import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { useDataStore } from '../../../core/store'
 import { generateFacturXPDF, calcInvoiceTotals } from '../pdf/invoiceGenerator'
 import { format, addDays } from 'date-fns'
@@ -209,11 +210,12 @@ export default function Invoices() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     const [invR, cliR, courseR, quoteR, relR] = await Promise.all([
-      supabase.from('invoices').select('*, clients!client_id(name,siret,address,postal_code,city), client_contacts!contact_id(name,email,civilite,first_name,last_name)').order('invoice_date', {ascending: false}),
-      supabase.from('clients').select('id,name,siret,address,postal_code,city,contact_name,contact_email,status,billing_mode,default_payment_terms,client_type').order('name'),
-      supabase.from('courses').select('id,title,code,price_ht,duration_hours,description').order('title'),
-      supabase.from('quotes').select('id,reference,client_id,contact_id,object,client_reference,discount_percent,discount_label,tva_applicable,tva_rate,payment_method,payment_terms,session_id,status,total_ht,total_ttc').order('quote_date', {ascending: false}),
-      supabase.from('invoice_relances').select('invoice_id,relance_number,sent_at,to_email,sent_by').order('sent_at', {ascending: false}),
+      // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
+      fetchAll(() => supabase.from('invoices').select('*, clients!client_id(name,siret,address,postal_code,city), client_contacts!contact_id(name,email,civilite,first_name,last_name)').order('invoice_date', {ascending: false})),
+      fetchAll(() => supabase.from('clients').select('id,name,siret,address,postal_code,city,contact_name,contact_email,status,billing_mode,default_payment_terms,client_type').order('name')),
+      fetchAll(() => supabase.from('courses').select('id,title,code,price_ht,duration_hours,description').order('title')),
+      fetchAll(() => supabase.from('quotes').select('id,reference,client_id,contact_id,object,client_reference,discount_percent,discount_label,tva_applicable,tva_rate,payment_method,payment_terms,session_id,status,total_ht,total_ttc').order('quote_date', {ascending: false})),
+      fetchAll(() => supabase.from('invoice_relances').select('invoice_id,relance_number,sent_at,to_email,sent_by').order('sent_at', {ascending: false})),
     ])
 
     // Construire la map des relances par facture
@@ -240,7 +242,7 @@ export default function Invoices() {
 
     if (updates.length > 0) {
       await Promise.all(updates)
-      const { data: refreshed } = await supabase.from('invoices').select('*, clients!client_id(name,siret,address,postal_code,city), client_contacts!contact_id(name,email,civilite,first_name,last_name)').order('invoice_date', {ascending: false})
+      const { data: refreshed } = await fetchAll(() => supabase.from('invoices').select('*, clients!client_id(name,siret,address,postal_code,city), client_contacts!contact_id(name,email,civilite,first_name,last_name)').order('invoice_date', {ascending: false}))
       setInvoices(refreshed || [])
     } else {
       setInvoices(invR.data || [])
@@ -463,9 +465,14 @@ export default function Invoices() {
       .in('status', ['completed', 'in_progress'])
       .order('end_date', {ascending: false})
       .limit(100)
-    const { data: existingInvs } = await supabase.from('invoices').select('session_id').not('session_id', 'is', null)
-    // Factures multi-sessions : table de liaison invoice_sessions
-    const { data: linkedInvs } = await supabase.from('invoice_sessions').select('session_id')
+    // Sessions déjà facturées (garde-fou contre la double facturation) : la
+    // recherche est faite côté base sur les seules sessions affichées, par lots
+    // et sans troncature. Erreur → on bloque plutôt que d'afficher « non facturée ».
+    const displayedIds = (data || []).map(s => s.id)
+    const { data: existingInvs, error: invErr } = await fetchAllIn(() => supabase.from('invoices').select('session_id'), 'session_id', displayedIds)
+    // Factures multi-sessions : table de liaison invoice_sessions (sans colonne id)
+    const { data: linkedInvs, error: linkErr } = await fetchAllIn(() => supabase.from('invoice_sessions').select('session_id'), 'session_id', displayedIds, { orderBy: ['invoice_id', 'session_id'] })
+    if (invErr || linkErr) { toast.error('Impossible de vérifier les sessions déjà facturées : ' + (invErr || linkErr).message); return }
     const invoicedSessionIds = new Set([...(existingInvs || []), ...(linkedInvs || [])].map(i => i.session_id))
     setCompletedSessions((data || []).map(s => ({...s, already_invoiced: invoicedSessionIds.has(s.id)})))
     setShowSessionSelector(true)
