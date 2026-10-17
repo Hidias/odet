@@ -9,6 +9,7 @@ import crypto from 'crypto'
 import { requireCronOrUser } from './_lib/auth.js'
 import { getImapHost } from './_lib/save-to-sent.js'
 import { loadTeam, findProfileByEmail, profileFirstName, loadInternalMatcher } from './_lib/team.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -310,7 +311,7 @@ async function syncAccount(emailConfig, cursor, ctx) {
   return { synced, matched, notified, skipped }
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await requireCronOrUser(req, res))) return
   console.log('=== SYNC SENT EMAILS START ===')
 
@@ -359,3 +360,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'sync-sent-emails')

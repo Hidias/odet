@@ -7,6 +7,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireCronOrUser } from '../_lib/auth.js'
 import { appUrl } from '../_lib/internal.js'
+import { isTestEnvironment } from '../_lib/mailer.js'
+import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -16,9 +18,12 @@ const supabase = createClient(
 // Adresse de l'application : variable APP_URL, sinon l'hôte de la requête (calculée dans le handler)
 const ENV_APP_URL = String(process.env.APP_URL || '').replace(/\/$/, '')
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const APP_URL = ENV_APP_URL || appUrl(req)
   if (!(await requireCronOrUser(req, res))) return
+
+  // Préversion : aucune publication programmée n'est envoyée
+  if (isTestEnvironment()) return res.status(200).json({ message: 'Préversion : publication désactivée', count: 0 })
 
   try {
     const now = new Date().toISOString()
@@ -104,3 +109,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message })
   }
 }
+
+export default withErrorLog(handler, 'social/cron-publish')

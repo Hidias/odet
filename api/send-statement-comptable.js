@@ -8,6 +8,7 @@ import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML, getOrg,
 import { loadTeam, payerLabel } from './_lib/team.js'
 import { getComptableConfig } from './_lib/comptable.js'
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 export const config = {
   maxDuration: 60,
@@ -22,7 +23,7 @@ const fmtDateFR = (d) => {
   return (y && m && day) ? `${day}/${m}/${y}` : '-'
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -177,3 +178,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'send-statement-comptable')

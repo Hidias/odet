@@ -22,6 +22,7 @@ import { createClient } from '@supabase/supabase-js'
 import { applyMailingVars } from '../src/modules/mailing/lib/mailingVars.js'
 import sendMailingSingle from './send-mailing-single.js'
 import { requireCronOrUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 export const config = { maxDuration: 60 }
 
@@ -120,7 +121,7 @@ async function sendOne(body) {
   return out
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await requireCronOrUser(req, res))) return
 
   const campaignId = String(req.query?.campaign || '')
@@ -205,3 +206,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message })
   }
 }
+
+export default withErrorLog(handler, 'mailing-cron')

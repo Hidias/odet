@@ -13,6 +13,7 @@
 import { getSupabaseAdmin } from './_lib/mailer.js'
 import { requireCronOrUser } from './_lib/auth.js'
 import { internalRecipients, internalMailer, greeting, appUrl } from './_lib/internal.js'
+import { withErrorLog } from './_lib/errors.js'
 
 export const config = { maxDuration: 60 }
 
@@ -69,7 +70,7 @@ function buildHTML(groupes, { APP_URL, hello, color, signature }) {
   </div>`
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await requireCronOrUser(req, res))) return
 
   const dry = !!req.query?.dry
@@ -109,3 +110,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message })
   }
 }
+
+export default withErrorLog(handler, 'signature-weekly')

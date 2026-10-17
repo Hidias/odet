@@ -23,8 +23,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHash, createSign } from 'crypto'
 import { requireCronOrUser } from './_lib/auth.js'
-import { getOrg } from './_lib/mailer.js'
+import { getOrg, isTestEnvironment } from './_lib/mailer.js'
 import { loadTeam, leaders, profileFirstName } from './_lib/team.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -749,7 +750,7 @@ async function notifyIfNeeded(trainerLabel, stats) {
 }
 
 // ═══ HANDLER ══════════════════════════════════════════════
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await requireCronOrUser(req, res))) return
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -765,7 +766,8 @@ export default async function handler(req, res) {
   // ou mettre la variable Vercel GCAL_SYNC_ENABLED à "false"
   const rawFlag = process.env.GCAL_SYNC_ENABLED
   const flag = String(rawFlag || '').trim().toLowerCase()
-  const writesEnabled = flag === 'false' ? false : WRITES_ENABLED
+  // Préversion : simulation forcée, rien n'est écrit dans les vrais agendas
+  const writesEnabled = isTestEnvironment() ? false : (flag === 'false' ? false : WRITES_ENABLED)
   const envFlag = rawFlag === undefined ? 'absente' : `présente (${flag})`
   const dryRun = req.query?.dry === 'true' || !writesEnabled
 
@@ -807,3 +809,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'sync-google-calendar')

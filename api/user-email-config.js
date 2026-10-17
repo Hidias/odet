@@ -5,6 +5,7 @@
 import nodemailer from 'nodemailer'
 import { getSupabaseAdmin, encrypt } from './_lib/mailer.js'
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -28,7 +29,7 @@ function smtpSettings(body, existing) {
   }
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireUser(req)
   if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
   const userId = ctx.user.id
@@ -107,3 +108,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+export default withErrorLog(handler, 'user-email-config')

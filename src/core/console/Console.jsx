@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  Activity, Database, Layers, Mail, Users, Lock, Download, RefreshCw, Sparkles, FileText, Copy, CheckCircle, AlertTriangle, Loader2, ChevronDown, ChevronUp, Clock,
+  Activity, Database, Layers, Mail, Users, Lock, Download, RefreshCw, Sparkles, FileText, Copy, CheckCircle, AlertTriangle, Loader2, ChevronDown, ChevronUp, Clock, Bug,
 } from 'lucide-react'
 import { useAuthStore, useDataStore } from '../store'
 import { supabase } from '../supabase'
@@ -59,6 +59,7 @@ export default function Console() {
   const [sql, setSql] = useState({})
   const [exporting, setExporting] = useState(false)
   const [showChangelog, setShowChangelog] = useState(false)
+  const [errSummary, setErrSummary] = useState(null)
 
   const isSuperadmin = userRole === 'superadmin'
 
@@ -78,6 +79,13 @@ export default function Console() {
       c[t] = count ?? 0
     }
     setCounts(c)
+    // Erreurs à traiter (table error_logs, migration 0070) : absente tant que la migration n'est pas appliquée
+    const since = new Date(Date.now() - 86400000).toISOString()
+    const [{ count: open, error: errOpen }, { count: recent }] = await Promise.all([
+      supabase.from('error_logs').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+      supabase.from('error_logs').select('id', { count: 'exact', head: true }).eq('status', 'open').gte('first_seen', since),
+    ])
+    setErrSummary(errOpen ? { unavailable: true } : { open: open ?? 0, recent: recent ?? 0 })
     try {
       const h = await callApi('/api/health', {}, { method: 'GET' })
       if (!h || !Array.isArray(h.env)) throw new Error('réponse inattendue, fonctions serveur non déployées')
@@ -175,6 +183,17 @@ export default function Console() {
           <div key={k} className="card"><div className="text-ui-sm muted">{k}</div><div className="font-display text-2xl font-bold text-gray-900">{v ?? '…'}</div></div>
         ))}
       </div>
+
+      <Section icon={Bug} title="Erreurs" actions={<Link to="/console/erreurs" className="btn btn-secondary btn-sm">Voir les erreurs</Link>}>
+        {!errSummary ? <p className="muted text-ui">…</p> : errSummary.unavailable ? (
+          <p className="muted text-ui">Suivi des erreurs indisponible : appliquer la mise à jour de la base 0070_suivi_erreurs.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <span className={`badge ${errSummary.recent > 0 ? 'badge-danger' : 'badge-neutral'}`}>{errSummary.recent} nouvelle{errSummary.recent > 1 ? 's' : ''} (24 h)</span>
+            <span className={`badge ${errSummary.open > 0 ? 'badge-warning' : 'badge-success'}`}>{errSummary.open > 0 ? `${errSummary.open} à traiter` : 'Rien à traiter'}</span>
+          </div>
+        )}
+      </Section>
 
       <RetoursConsole />
 

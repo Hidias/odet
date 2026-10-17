@@ -1,4 +1,5 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/detect-opco.js
 // Détection OPCO + enrichissement adresse via multi-sources
 // Table IDCC→OPCO mise à jour avec nouvelles conventions 2024-2025
@@ -114,7 +115,7 @@ function normalizeOpcoName(raw) {
   return raw // retourne tel quel si pas reconnu
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -237,3 +238,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erreur: ' + err.message })
   }
 }
+
+export default withErrorLog(handler, 'detect-opco')

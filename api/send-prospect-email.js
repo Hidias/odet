@@ -5,6 +5,7 @@
 import { getSupabaseAdmin, getMailer, getMailerByEmail, sendWithRetry, getOrg, getSender, wrapEmailHTML, decrypt } from './_lib/mailer.js'
 import { saveToSentFolder } from './_lib/save-to-sent.js'
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -25,7 +26,7 @@ async function pickMailer(userId, org) {
   return { error: 'Aucune configuration email active. Configurez un compte dans Paramètres.' }
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -118,3 +119,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message || 'Erreur lors de l\'envoi' })
   }
 }
+
+export default withErrorLog(handler, 'send-prospect-email')

@@ -1,9 +1,10 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-compte-rendu-formation.js
 // Proxy vers l'API Anthropic pour générer le compte rendu post-formation
 // Évite le CORS en appelant depuis le serveur
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -50,3 +51,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erreur serveur', details: error.message })
   }
 }
+
+export default withErrorLog(handler, 'generate-compte-rendu-formation')

@@ -1,4 +1,5 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/parse-bank-statement.js
 // Extraction des soldes d'un relevé bancaire (PDF) + contrôle arithmétique.
 //
@@ -81,7 +82,7 @@ function signedBalance(raw, sense) {
 
 const round2 = (n) => Math.round(n * 100) / 100
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -227,3 +228,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message, arithmetic_ok: false })
   }
 }
+
+export default withErrorLog(handler, 'parse-bank-statement')

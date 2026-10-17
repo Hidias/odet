@@ -15,6 +15,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { getOrg, decrypt, createTransporter } from './_lib/mailer.js'
+import { withErrorLog } from './_lib/errors.js'
 
 export const config = { maxDuration: 15 }
 
@@ -129,7 +130,7 @@ async function sendNotificationToSender(org, senderEmail, companyName, recipient
 }
 
 // ─── Handler principal ────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Accepte GET uniquement (lien cliqué depuis un client email)
   const org = await orgForPage()
   if (req.method !== 'GET') {
@@ -212,3 +213,5 @@ export default async function handler(req, res) {
     return res.status(500).send(errorPage(org, 'Une erreur est survenue. Contactez-nous directement.'))
   }
 }
+
+export default withErrorLog(handler, 'unsubscribe')

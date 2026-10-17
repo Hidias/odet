@@ -1,4 +1,5 @@
 import { requireRole } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 // État technique de l'instance, réservé au super administrateur :
 // présence des variables d'environnement (jamais leurs valeurs) et accès à la base.
@@ -17,7 +18,7 @@ const ENV_KEYS = [
   ['LINKEDIN_CLIENT_ID', 'LinkedIn'],
 ]
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const ctx = await requireRole(req, res, ['superadmin'])
   if (!ctx) return
   const env = ENV_KEYS.map(([key, label]) => ({ key, label, present: !!process.env[key] }))
@@ -41,3 +42,5 @@ export default async function handler(req, res) {
     time: new Date().toISOString(),
   })
 }
+
+export default withErrorLog(handler, 'health')

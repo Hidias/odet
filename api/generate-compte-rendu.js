@@ -1,9 +1,10 @@
 import { requireUser, getAdminClient } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock, addressRule } from './_lib/orgProfile.js'
+import { withErrorLog } from './_lib/errors.js'
 // api/generate-compte-rendu.js
 // Génère le compte-rendu via l'API Claude (côté serveur pour éviter CORS)
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -117,3 +118,5 @@ GÉNÈRE 3 OBJETS puis 1 MAIL COMPLET (sans signature)`
     })
   }
 }
+
+export default withErrorLog(handler, 'generate-compte-rendu')

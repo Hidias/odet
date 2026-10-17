@@ -8,6 +8,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { appUrl } from '../_lib/internal.js'
+import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -20,7 +21,7 @@ const LINKEDIN_ORG_ID = process.env.LINKEDIN_ORG_ID // ex: "12345678" (numéro d
 // Adresse de l'application : variable APP_URL, sinon l'hôte de la requête (calculée dans le handler)
 const ENV_APP_URL = String(process.env.APP_URL || '').replace(/\/$/, '')
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const APP_URL = ENV_APP_URL || appUrl(req)
   const REDIRECT_URI = `${APP_URL}/api/auth/linkedin`
   try {
@@ -119,3 +120,5 @@ export default async function handler(req, res) {
     return res.redirect(`${APP_URL}/#/social?linkedin=error&reason=server_error`)
   }
 }
+
+export default withErrorLog(handler, 'auth/linkedin')

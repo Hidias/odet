@@ -1,4 +1,5 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 /**
  * ============================================================================
  * API - AUTO-ENRICHISSEMENT PROSPECT v3 (Anthropic + Web Search)
@@ -18,7 +19,7 @@ export const config = {
   maxDuration: 25,
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -196,3 +197,5 @@ function cleanPhone(raw) {
   }
   return null
 }
+
+export default withErrorLog(handler, 'auto-enrich')

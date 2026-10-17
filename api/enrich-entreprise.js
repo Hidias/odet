@@ -1,4 +1,5 @@
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 /**
  * ============================================================================
  * API - ENRICHISSEMENT ENTREPRISE (API Recherche Entreprises + email patterns)
@@ -92,7 +93,7 @@ function pickBestDirigeant(dirigeants) {
   return dirigeants[0]
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -181,3 +182,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message })
   }
 }
+
+export default withErrorLog(handler, 'enrich-entreprise')

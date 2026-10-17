@@ -5,6 +5,7 @@
 
 import { getSupabaseAdmin, getMailer, getMailerByEmail, sendWithRetry, getOrg, getSender, wrapEmailHTML } from './_lib/mailer.js'
 import { requireUser } from './_lib/auth.js'
+import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -74,7 +75,7 @@ async function markSendError(sendId, message) {
   }
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'OPTIONS' && req.internal !== true) {
     const ctx = await requireUser(req)
     if (!ctx) return res.status(401).json({ error: 'Connexion requise' })
@@ -143,3 +144,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message || 'Erreur lors de l\'envoi' })
   }
 }
+
+export default withErrorLog(handler, 'send-mailing-single')
