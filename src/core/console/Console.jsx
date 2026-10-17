@@ -11,6 +11,7 @@ import { useBranding } from '../branding/BrandingProvider'
 import { APP_VERSION } from '../version'
 import { CHANGELOG } from '../changelog'
 import { ModulesSection, Toggle } from '../settings/shared'
+import RetoursConsole from '../feedback/RetoursConsole'
 
 // Console technique de l'instance, réservée au super administrateur :
 // état, migrations à appliquer, modules, mode démo, accès, exports, notes de version.
@@ -174,6 +175,8 @@ export default function Console() {
           <div key={k} className="card"><div className="text-ui-sm muted">{k}</div><div className="font-display text-2xl font-bold text-gray-900">{v ?? '…'}</div></div>
         ))}
       </div>
+
+      <RetoursConsole />
 
       <Section icon={Activity} title="État de l'instance">
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-ui">

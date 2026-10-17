@@ -7,6 +7,7 @@ import {
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '../core/store'
+import PostIt from '../core/feedback/PostIt'
 import { supabase } from '../core/supabase'
 import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
@@ -510,6 +511,8 @@ export default function Layout() {
           {fieldAllowed ? <Outlet /> : <Navigate to="/interventions" replace />}
         </main>
       </div>
+
+      <PostIt userId={user?.id} pageTitle={pageTitle} />
     </div>
   )
 }
