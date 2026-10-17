@@ -314,6 +314,14 @@ html[data-lists='cards'] .dt-cards { display: block; }
   html[data-bottom-nav='1'] .action-bar { bottom: calc(60px + env(safe-area-inset-bottom)); }
 }
 
+/* Post-it de remarques : en bas à droite, au-dessus de la barre du bas et de la barre d'actions sur téléphone */
+.postit-float { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
+@media (max-width: 1023px) {
+  .postit-float { right: 12px; bottom: calc(16px + env(safe-area-inset-bottom)); }
+  html[data-bottom-nav='1'] .postit-float { bottom: calc(76px + env(safe-area-inset-bottom)); }
+  html[data-bottom-nav='1'] .postit-float.is-closed { bottom: calc(136px + env(safe-area-inset-bottom)); }
+}
+
 /* Onglets : défilement sans barre visible */
 .tabs-scroll { scrollbar-width: none; }
 .tabs-scroll::-webkit-scrollbar { display: none; }
