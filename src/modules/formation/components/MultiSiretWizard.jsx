@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Plus, Trash2, Building2, Users, FileCheck, ChevronRight, ChevronLeft, Search, CheckCircle, AlertCircle, Loader2, Euro } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
-import { useDataStore as useStore } from '../../../core/store'
+import { useDataStore as useStore, useAuthStore } from '../../../core/store'
 import toast from 'react-hot-toast'
 import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
@@ -60,6 +60,9 @@ const EMPTY_TRAINEE = () => ({
 })
 
 export default function MultiSiretWizard({ onClose, onCreated }) {
+  // Module Passeport actif : le numéro de sécurité sociale se saisit seulement par le Passeport (source unique pp_nir)
+  const { modules: authModules } = useAuthStore()
+  const passeportOn = (authModules || []).includes('passeport')
   const { courses, trainers, clients, trainees: allTrainees, fetchSessions, fetchClients, fetchTrainees } = useStore()
   
   const [step, setStep] = useState(1)
@@ -398,7 +401,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
               first_name: t.first_name,
               last_name: t.last_name,
               birth_date: t.birth_date || null,
-              social_security_number: t.social_security_number || null,
+              social_security_number: passeportOn ? null : (t.social_security_number || null),
               gender: t.gender || null,
               client_id: clientId,
             }
@@ -919,13 +922,15 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                                   onChange={e => { const u = [...groups]; u[gi].trainees[ti].birth_place = e.target.value; setGroups(u) }}
                                   placeholder="Lieu naissance"
                                 />
-                                <input
-                                  type="text"
-                                  className="input text-ui py-1"
-                                  value={t.social_security_number}
-                                  onChange={e => { const u = [...groups]; u[gi].trainees[ti].social_security_number = e.target.value; setGroups(u) }}
-                                  placeholder="N° SS"
-                                />
+                                {!passeportOn && (
+                                  <input
+                                    type="text"
+                                    className="input text-ui py-1"
+                                    value={t.social_security_number}
+                                    onChange={e => { const u = [...groups]; u[gi].trainees[ti].social_security_number = e.target.value; setGroups(u) }}
+                                    placeholder="N° SS"
+                                  />
+                                )}
                               </div>
                               {t.matched_trainee && <CheckCircle className="w-4 h-4 text-[rgb(var(--c-success))] mt-2 shrink-0" title="Stagiaire existant" />}
                               {group.trainees.length > 1 && (

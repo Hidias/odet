@@ -275,6 +275,8 @@ begin
     perform set_config('request.jwt.claims', '{"role":"anon"}', true);
     execute 'set local role anon';
     select x.vr->>'ticket' into v_ticket from (select public.verify_trainee_access_code(v_st1, v_code) as vr) x;
+    -- Une seconde vérification (route serveur du Passeport) ne doit pas invalider le ticket du navigateur
+    perform public.verify_trainee_access_code(v_st1, v_code);
     select count(*) into v_n from (select public.load_trainee_data(v_token, v_tr1, v_ticket) as vd) x
       where x.vd->'info_sheet'->>'ssn' is null and (x.vd->'info_sheet'->>'ssn_on_file')::boolean
         and x.vd->'info_sheet'->>'ssn_last3' = '436';

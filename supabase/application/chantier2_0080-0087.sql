@@ -1236,7 +1236,12 @@ begin
   end if;
 
   if v_session_trainee.access_code = p_access_code then
-    v_ticket := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
+    -- Un ticket encore valide est réutilisé : la route serveur du Passeport vérifie aussi le code,
+    -- elle ne doit pas invalider le ticket que le navigateur du stagiaire détient déjà
+    v_ticket := case
+      when v_session_trainee.portal_ticket is not null and v_session_trainee.portal_ticket_expires_at > now()
+      then v_session_trainee.portal_ticket
+      else replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '') end;
     update session_trainees
     set access_code_attempts = 0,
         access_code_locked = false,

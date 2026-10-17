@@ -1250,7 +1250,12 @@ begin
   end if;
 
   if v_session_trainee.access_code = p_access_code then
-    v_ticket := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
+    -- Un ticket encore valide est réutilisé : la route serveur du Passeport vérifie aussi le code,
+    -- elle ne doit pas invalider le ticket que le navigateur du stagiaire détient déjà
+    v_ticket := case
+      when v_session_trainee.portal_ticket is not null and v_session_trainee.portal_ticket_expires_at > now()
+      then v_session_trainee.portal_ticket
+      else replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '') end;
     update session_trainees
     set access_code_attempts = 0,
         access_code_locked = false,
@@ -2444,6 +2449,8 @@ begin
     perform set_config('request.jwt.claims', '{"role":"anon"}', true);
     execute 'set local role anon';
     select x.vr->>'ticket' into v_ticket from (select public.verify_trainee_access_code(v_st1, v_code) as vr) x;
+    -- Une seconde vérification (route serveur du Passeport) ne doit pas invalider le ticket du navigateur
+    perform public.verify_trainee_access_code(v_st1, v_code);
     select count(*) into v_n from (select public.load_trainee_data(v_token, v_tr1, v_ticket) as vd) x
       where x.vd->'info_sheet'->>'ssn' is null and (x.vd->'info_sheet'->>'ssn_on_file')::boolean
         and x.vd->'info_sheet'->>'ssn_last3' = '436';
