@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { buildTrainerDevelopmentPDF } from '../pdf/trainerDevelopmentPDF'
+import { useDroits } from '../../../core/rights/useDroit'
 
 const TRAINING_TYPES = {
   externe: { label: 'Formation externe', color: 'blue', icon: '' },
@@ -22,6 +23,7 @@ const INTERVIEW_TYPES = {
 }
 
 export default function TrainerDevelopment({ trainerId, trainerName }) {
+  const d = useDroits({ dossier: 'formation.formateurs.dossier' })
   const [activeTab, setActiveTab] = useState('trainings') // 'trainings' | 'interviews'
   
   // Trainings
@@ -383,7 +385,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
       {activeTab === 'trainings' && (
         <div className="space-y-4">
           {/* Add button */}
-          {!showTrainingForm && (
+          {!showTrainingForm && d.dossier && (
             <button
               onClick={() => setShowTrainingForm(true)}
               className="btn btn-primary flex items-center gap-2"
@@ -575,6 +577,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                         </div>
                       </div>
 
+                      {d.dossier && (
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => editTraining(training)}
@@ -591,6 +594,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                      )}
                     </div>
                   </div>
                 )
@@ -604,7 +608,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
       {activeTab === 'interviews' && (
         <div className="space-y-4">
           {/* Add button */}
-          {!showInterviewForm && (
+          {!showInterviewForm && d.dossier && (
             <button
               onClick={() => setShowInterviewForm(true)}
               className="btn btn-primary flex items-center gap-2"
@@ -792,6 +796,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                         )}
                       </div>
 
+                      {d.dossier && (
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => editInterview(interview)}
@@ -808,6 +813,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                      )}
                     </div>
                   </div>
                 )

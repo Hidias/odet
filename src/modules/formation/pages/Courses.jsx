@@ -7,6 +7,7 @@ import TestsPositionnement from './TestsPositionnement'
 import CourseDocumentsList from '../components/CourseDocumentsList'
 import CourseSequencesModal from '../../suivi/components/CourseSequencesModal'
 import { countSequencesByCourse, canEditCatalog } from '../../suivi/lib/sfData'
+import { useDroits } from '../../../core/rights/useDroit'
 
 // Thèmes du matériel
 const EQUIPMENT_THEMES = {
@@ -113,6 +114,7 @@ export default function Courses() {
   // Suivi formatif (module optionnel) : séquences par formation
   const { modules: enabledModules, userRole } = useAuthStore()
   const suiviFormatifOn = (enabledModules || []).includes('suivi_formatif')
+  const d = useDroits({ gerer: 'formation.catalogue.gerer' })
   const [sequencesCourse, setSequencesCourse] = useState(null)
   const [sequenceCounts, setSequenceCounts] = useState({})
   const reloadSequenceCounts = () => { countSequencesByCourse().then(setSequenceCounts).catch(() => setSequenceCounts({})) }
@@ -501,6 +503,7 @@ export default function Courses() {
               onChange={handleFileSelect}
               className="hidden"
             />
+            {d.gerer && (
             <button 
               onClick={() => fileInputRef.current?.click()} 
               className="btn btn-secondary flex items-center gap-2"
@@ -508,10 +511,13 @@ export default function Courses() {
             >
               <Upload className="w-4 h-4" />Import Sellsy
             </button>
+            )}
+            {d.gerer && (
             <button onClick={() => openForm()} className="btn btn-primary">
               <Plus className="w-4 h-4 mr-2" />
               Nouvelle formation
             </button>
+            )}
           </div>
         )}
       </div>
@@ -630,20 +636,26 @@ export default function Courses() {
                     <h3 className="font-semibold text-gray-900">{course.title}</h3>
                   </div>
                   <div className="flex gap-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    {d.gerer && (
                     <button onClick={() => handleDuplicate(course.id)} className="p-1.5 hover:bg-gray-100 rounded" title="Dupliquer">
                       <Copy className="w-4 h-4 text-gray-500" />
                     </button>
+                    )}
                     {suiviFormatifOn && (
                       <button onClick={() => setSequencesCourse(course)} className="p-1.5 hover:bg-gray-100 rounded" title="Séquences et évaluation formative" aria-label="Séquences et évaluation formative">
                         <ClipboardList className="w-4 h-4 text-gray-500" />
                       </button>
                     )}
+                    {d.gerer && (
                     <button onClick={() => openForm(course)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier">
                       <Edit className="w-4 h-4 text-gray-500" />
                     </button>
+                    )}
+                    {d.gerer && (
                     <button onClick={() => handleDelete(course.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded" title="Supprimer">
                       <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                     </button>
+                    )}
                   </div>
                 </div>
                 
@@ -695,7 +707,7 @@ export default function Courses() {
       )}
 
       {/* Modal formulaire */}
-      {showForm && (
+      {showForm && d.gerer && (
         <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-ui shadow-md w-full max-w-2xl my-8">
             <div className="flex items-center justify-between p-4 border-b">

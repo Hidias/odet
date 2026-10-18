@@ -10,6 +10,7 @@ import {
   isCompetenceAcquise,
   isCandidatCertifie 
 } from '../lib/sstCompetencesConfig'
+import { useDroits } from '../../../core/rights/useDroit'
 
 export default function SSTCertificationModal({ 
   show, 
@@ -23,6 +24,8 @@ export default function SSTCertificationModal({
   const [indicateurs, setIndicateurs] = useState({})
   const [loading, setLoading] = useState(false)
   const [existingCertification, setExistingCertification] = useState(null)
+  // Garde de l'enregistrement de la grille (branche ecrans/gardes)
+  const d = useDroits({ suivi: ['formation.suivi.gerer', 'formation.sessions.modifier_siennes'] })
 
   useEffect(() => {
     if (show && session && trainee) {
@@ -318,14 +321,14 @@ export default function SSTCertificationModal({
           >
             Annuler
           </button>
-          <button
+          {d.suivi && <button
             onClick={handleSave}
             disabled={loading}
             className="btn btn-primary flex items-center gap-2"
           >
             <Save className="w-4 h-4" />
             {loading ? 'Enregistrement...' : 'Enregistrer la certification'}
-          </button>
+          </button>}
         </div>
       </div>
     </div>

@@ -15,6 +15,7 @@ import { authorFromEmail } from '../../prospection/components/suivi/suiviUtils'
 import { canExportVCard, buildVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 import { publicBaseUrl } from '../../../core/org/orgUtils'
 import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
+import { useDroits } from '../../../core/rights/useDroit'
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
@@ -57,6 +58,16 @@ export default function ClientDetail() {
   const [detectingOpco, setDetectingOpco] = useState(false)
   const { user, userRole } = useAuthStore()
   const vcardAllowed = canExportVCard(userRole)
+  // Gardes des boutons d'écriture (la base refuse de toute façon ce qui n'est pas permis)
+  const d = useDroits({
+    modifier: 'clients.fiches.modifier',
+    supprimer: 'clients.fiches.supprimer',
+    historique: 'clients.historique.ecrire',
+    espace: 'clients.espace.gerer',
+    prospection: 'commercial.prospection.gerer',
+    devis: 'commercial.devis.modifier',
+    session: 'formation.sessions.creer',
+  })
 
   function exportContactVCard(contact) {
     if (!vcardAllowed) return
@@ -179,7 +190,8 @@ export default function ClientDetail() {
   function navigateToClient(targetId) {
     if (!targetId) return
     navigate(`/clients/${targetId}`)
-    setEditing(true)
+    // Le mode édition n'est ouvert qu'aux comptes qui peuvent modifier les clients
+    if (d.modifier) setEditing(true)
   }
 
   // Raccourcis clavier Alt+← / Alt+→
@@ -196,7 +208,7 @@ export default function ClientDetail() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [prevClientId, nextClientId])
+  }, [prevClientId, nextClientId, d.modifier])
 
   // ═══════════════════════════════════════════════════════════
   // CHARGEMENT DONNÉES
@@ -888,15 +900,19 @@ export default function ClientDetail() {
             </button>
           </div>
           {!editing ? (
-            <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 text-ui">
-              <Edit className="w-4 h-4" /> <span className="hidden sm:inline">Modifier</span>
-            </button>
+            d.modifier && (
+              <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 text-ui">
+                <Edit className="w-4 h-4" /> <span className="hidden sm:inline">Modifier</span>
+              </button>
+            )
           ) : (
             <>
               <button onClick={() => { setEditing(false); setEditForm(client) }} className="px-3 sm:px-4 py-2 border border-gray-300 rounded-ui-sm text-ui hover:bg-gray-50">Annuler</button>
-              <button onClick={saveClient} className="flex items-center gap-2 px-3 sm:btn btn-secondary text-ui">
-                <Save className="w-4 h-4" /> <span className="hidden sm:inline">Enregistrer</span><span className="sm:hidden">OK</span>
-              </button>
+              {d.modifier && (
+                <button onClick={saveClient} className="flex items-center gap-2 px-3 sm:btn btn-secondary text-ui">
+                  <Save className="w-4 h-4" /> <span className="hidden sm:inline">Enregistrer</span><span className="sm:hidden">OK</span>
+                </button>
+              )}
             </>
           )}
         </div>
@@ -946,7 +962,7 @@ export default function ClientDetail() {
                   </span>
                 )}
               </div>
-              {!editing && (
+              {!editing && d.modifier && (
                 <button onClick={() => setEditing(true)}
                   className="mt-2 px-3 py-1.5 bg-gray-700 text-white text-ui-sm font-medium rounded-ui-sm hover:bg-gray-700 transition-colors inline-flex items-center gap-1">
                   <Edit className="w-3.5 h-3.5" /> Compléter maintenant
@@ -1055,9 +1071,9 @@ export default function ClientDetail() {
                     ))}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {totalLinks > 0 && (
+                    {totalLinks > 0 && d.prospection && (
                       <>
-                        {importable.length > 0 && (
+                        {importable.length > 0 && d.modifier && (
                           <button onClick={importFromProspection}
                             className="flex items-center gap-1.5 btn btn-secondary text-ui-sm font-medium transition-colors">
                             <Save className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Importer & lier tout</span><span className="sm:hidden">Importer</span>
@@ -1109,7 +1125,7 @@ export default function ClientDetail() {
                               {!source.isClients && item.phone && (
                                 <span className="text-gray-500 ml-2">{item.phone}</span>
                               )}
-                              {!source.isClients && (
+                              {!source.isClients && d.prospection && (
                                 <button onClick={() => markDejaClient([item.siren])}
                                   className="ml-2 text-[rgb(var(--c-success))] hover:text-[rgb(var(--c-success))] font-medium whitespace-nowrap">Déjà client</button>
                               )}
@@ -1287,8 +1303,9 @@ export default function ClientDetail() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={toggleDoNotMail}
+                  disabled={!d.modifier}
                   title={client.do_not_mail ? 'Cliquer pour réactiver le mailing' : 'Cliquer pour désactiver le mailing'}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-ui-sm font-medium border transition-colors ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-ui-sm font-medium border transition-colors disabled:cursor-default ${
                     client.do_not_mail
                       ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] border-[rgb(var(--c-danger)/0.3)] hover:bg-[rgb(var(--c-danger-bg))]'
                       : 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)] hover:bg-[rgb(var(--c-success-bg))]'
@@ -1404,23 +1421,31 @@ export default function ClientDetail() {
       )}
 
       {/* ══════ ACTIONS RAPIDES ══════ */}
+      {(d.devis || d.prospection || d.session) && (
       <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => navigate(`/devis?client_id=${id}`)}
-          className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
-          <FileText className="w-4 h-4" /> Nouveau devis
-        </button>
-        <button
-          onClick={() => navigate('/prospection/nouveau?client_id=' + id)}
-          className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
-          <Calendar className="w-4 h-4" /> Nouveau RDV
-        </button>
-        <button
-          onClick={() => navigate('/sessions', { state: { openNew: true, client_id: id } })}
-          className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
-          <GraduationCap className="w-4 h-4" /> Créer une session
-        </button>
+        {d.devis && (
+          <button
+            onClick={() => navigate(`/devis?client_id=${id}`)}
+            className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
+            <FileText className="w-4 h-4" /> Nouveau devis
+          </button>
+        )}
+        {d.prospection && (
+          <button
+            onClick={() => navigate('/prospection/nouveau?client_id=' + id)}
+            className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
+            <Calendar className="w-4 h-4" /> Nouveau RDV
+          </button>
+        )}
+        {d.session && (
+          <button
+            onClick={() => navigate('/sessions', { state: { openNew: true, client_id: id } })}
+            className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
+            <GraduationCap className="w-4 h-4" /> Créer une session
+          </button>
+        )}
       </div>
+      )}
 
       {/* ══════ 2 COLONNES ══════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -1470,8 +1495,8 @@ export default function ClientDetail() {
                     </div>
                     <div className="flex gap-0.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0 ml-2">
                       {vcardAllowed && <button onClick={() => exportContactVCard(c)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Enregistrer sur le téléphone (vCard)"><Smartphone className="w-3.5 h-3.5" /></button>}
-                      <button onClick={() => openEditContact(c)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Modifier"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => deleteContact(c.id)} className="p-1.5 text-gray-400 hover:text-[rgb(var(--c-danger))] rounded hover:bg-white" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
+                      {d.modifier && <button onClick={() => openEditContact(c)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Modifier"><Edit className="w-3.5 h-3.5" /></button>}
+                      {d.modifier && <button onClick={() => deleteContact(c.id)} className="p-1.5 text-gray-400 hover:text-[rgb(var(--c-danger))] rounded hover:bg-white" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>}
                     </div>
                   </div>
                 ))}
@@ -1485,10 +1510,12 @@ export default function ClientDetail() {
                   </button>
                 )}
 
-                <button onClick={() => { setEditingContact(null); setContactForm({ name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false }); setShowContactForm(true) }}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-primary-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
-                  <Plus className="w-4 h-4" /> Ajouter un contact
-                </button>
+                {d.modifier && (
+                  <button onClick={() => { setEditingContact(null); setContactForm({ name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false }); setShowContactForm(true) }}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-primary-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
+                    <Plus className="w-4 h-4" /> Ajouter un contact
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1508,10 +1535,12 @@ export default function ClientDetail() {
               {!portalAccess ? (
                 <>
                   <p className="text-ui-sm text-gray-500 mb-3">Donne au client un lien et un code pour consulter ses sessions et télécharger ses documents (convention, convocations, émargement, attestations, certificats).</p>
-                  <button onClick={createPortalAccess} disabled={portalBusy}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-primary-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
-                    {portalBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Créer l'accès
-                  </button>
+                  {d.espace && (
+                    <button onClick={createPortalAccess} disabled={portalBusy}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-primary-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
+                      {portalBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Créer l'accès
+                    </button>
+                  )}
                 </>
               ) : (
                 <div className="space-y-2">
@@ -1524,14 +1553,16 @@ export default function ClientDetail() {
                     <span className="text-ui-sm text-gray-500 w-10 shrink-0">Code</span>
                     <span className="font-mono text-base tracking-[0.3em] text-gray-900 flex-1">{portalAccess.access_code}</span>
                     <button onClick={() => copyText(portalAccess.access_code, 'Code')} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Copier le code"><Copy className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => updatePortalAccess({ access_code: newCode(), attempts: 0, locked_until: null }, 'Nouveau code généré')} disabled={portalBusy} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Générer un nouveau code"><RefreshCw className="w-3.5 h-3.5" /></button>
+                    {d.espace && <button onClick={() => updatePortalAccess({ access_code: newCode(), attempts: 0, locked_until: null }, 'Nouveau code généré')} disabled={portalBusy} className="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-white" title="Générer un nouveau code"><RefreshCw className="w-3.5 h-3.5" /></button>}
                   </div>
                   <div className="flex items-center justify-between text-ui-sm text-gray-400 pt-1">
                     <span>{portalAccess.last_access_at ? `Dernier accès le ${format(new Date(portalAccess.last_access_at), 'd MMM yyyy à HH:mm', { locale: fr })}` : 'Jamais consulté'}{portalAccess.locked_until && new Date(portalAccess.locked_until) > new Date() ? ' (verrouillé après 5 échecs)' : ''}</span>
-                    <button onClick={() => updatePortalAccess({ is_active: !portalAccess.is_active }, portalAccess.is_active ? 'Accès désactivé' : 'Accès réactivé')} disabled={portalBusy}
-                      className={`flex items-center gap-1 ${portalAccess.is_active ? 'text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-success))] hover:text-[rgb(var(--c-success))]'}`}>
-                      <Power className="w-3.5 h-3.5" /> {portalAccess.is_active ? 'Désactiver' : 'Réactiver'}
-                    </button>
+                    {d.espace && (
+                      <button onClick={() => updatePortalAccess({ is_active: !portalAccess.is_active }, portalAccess.is_active ? 'Accès désactivé' : 'Accès réactivé')} disabled={portalBusy}
+                        className={`flex items-center gap-1 ${portalAccess.is_active ? 'text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-success))] hover:text-[rgb(var(--c-success))]'}`}>
+                        <Power className="w-3.5 h-3.5" /> {portalAccess.is_active ? 'Désactiver' : 'Réactiver'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1581,16 +1612,23 @@ export default function ClientDetail() {
 
             {sections.timeline && (
               <div className="px-5 pb-4">
+                {(d.historique || d.prospection) && (
                 <div className="flex gap-2 mb-3">
-                  <button onClick={() => { setShowInteractionForm(!showInteractionForm); setShowEmailForm(false) }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-ui text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded-ui-sm border border-dashed border-[rgb(var(--c-info)/0.3)] transition-colors">
-                    <Plus className="w-4 h-4" /> Ajouter une interaction
-                  </button>
-                  <button onClick={() => { openEmailForm(); setShowInteractionForm(false) }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] rounded-ui-sm border border-dashed border-[rgb(var(--c-success)/0.3)] transition-colors">
-                    <Mail className="w-4 h-4" /> Envoyer un email
-                  </button>
+                  {d.historique && (
+                    <button onClick={() => { setShowInteractionForm(!showInteractionForm); setShowEmailForm(false) }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-ui text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded-ui-sm border border-dashed border-[rgb(var(--c-info)/0.3)] transition-colors">
+                      <Plus className="w-4 h-4" /> Ajouter une interaction
+                    </button>
+                  )}
+                  {/* Envoi par la route des emails de prospection (mêmes rôles que « Prospecter ») */}
+                  {d.prospection && (
+                    <button onClick={() => { openEmailForm(); setShowInteractionForm(false) }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] rounded-ui-sm border border-dashed border-[rgb(var(--c-success)/0.3)] transition-colors">
+                      <Mail className="w-4 h-4" /> Envoyer un email
+                    </button>
+                  )}
                 </div>
+                )}
 
                 {/* ── Formulaire email direct ── */}
                 {showEmailForm && (
@@ -1791,7 +1829,7 @@ export default function ClientDetail() {
                               </div>
                               {item.content && <p className="text-ui text-gray-600 mt-0.5 whitespace-pre-line leading-relaxed">{item.content}</p>}
                             </div>
-                            {item.deletable && (
+                            {item.deletable && d.supprimer && (
                               <button onClick={() => deleteInteraction(item.rawId)} className="p-1 text-gray-300 hover:text-[rgb(var(--c-danger))] shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>

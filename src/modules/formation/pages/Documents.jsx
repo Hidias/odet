@@ -10,6 +10,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { downloadDocument, setOrganization } from '../pdf/pdfGenerator'
 import CourierEditor from './CourierEditor'
+import { useDroits } from '../../../core/rights/useDroit'
 import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
 const categories = [
@@ -37,6 +38,10 @@ const formatFileSize = (bytes) => {
 }
 
 export default function Documents() {
+  const d = useDroits({
+    modifier: 'formation.documents.modifier',
+    supprimer: 'formation.documents.supprimer',
+  })
   const { 
     uploadedFiles, uploadedFilesLoading, fetchUploadedFiles, 
     uploadFile, deleteUploadedFile,
@@ -239,7 +244,7 @@ export default function Documents() {
           <h1 className="page-title">Documents</h1>
           <p className="text-gray-500 mt-1">Fichiers uploadés et documents vierges</p>
         </div>
-        {activeTab === 'uploaded' && (
+        {activeTab === 'uploaded' && d.modifier && (
           <button 
             onClick={() => fileInputRef.current?.click()}
             className="btn btn-primary flex items-center gap-2"
@@ -313,6 +318,7 @@ export default function Documents() {
       {activeTab === 'uploaded' && (
         <>
           {/* Zone de drag & drop */}
+          {d.modifier && (
           <div
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -335,6 +341,7 @@ export default function Documents() {
               Formats acceptés : PDF, Word, Excel, PowerPoint, Images
             </p>
           </div>
+          )}
       
           {/* Filtres */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -425,6 +432,7 @@ export default function Documents() {
                       >
                         <Download className="w-4 h-4 text-gray-400" />
                       </a>
+                      {d.supprimer && (
                       <button
                         onClick={() => handleDelete(file)}
                         className="p-2 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm"
@@ -432,6 +440,7 @@ export default function Documents() {
                       >
                         <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                       </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -540,7 +549,7 @@ export default function Documents() {
       )}
       
       {/* Modal d'upload */}
-      {showUpload && (
+      {showUpload && d.modifier && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={resetUploadForm} />
           <div className="relative min-h-full flex items-center justify-center p-4">

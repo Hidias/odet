@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QuizEngine, { parseOptions } from '../quiz/QuizEngine'
+import { useDroits } from '../../../core/rights/useDroit'
 
 // Banque de questions par thème de formation.
 // Une question sert au positionnement et/ou à l'évaluation (entraînement + évaluation des acquis).
@@ -46,6 +47,11 @@ const emptyForm = () => ({
 
 export default function TestsPositionnement() {
   const { themes, fetchThemes } = useDataStore()
+  // Nommé « droits » : « d » sert déjà de variable dans les boucles sur les niveaux
+  const droits = useDroits({
+    modifier: 'formation.questions.modifier',
+    supprimer: 'formation.catalogue.gerer',
+  })
   const [selectedTheme, setSelectedTheme] = useState(null)
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(false)
@@ -332,10 +338,10 @@ export default function TestsPositionnement() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setShowForm(true)} className="btn btn-primary"><Plus className="w-4 h-4" /> Nouvelle question</button>
+            {droits.modifier && <button onClick={() => setShowForm(true)} className="btn btn-primary"><Plus className="w-4 h-4" /> Nouvelle question</button>}
             <button onClick={() => openPreview('positioning')} className="btn btn-secondary" disabled={stats.positioning === 0}><Play className="w-4 h-4" /> Aperçu positionnement</button>
             <button onClick={() => openPreview('training')} className="btn btn-secondary" disabled={stats.evaluation === 0}><BookOpen className="w-4 h-4" /> Aperçu entraînement</button>
-            {findRefTheme(selectedTheme) && (
+            {findRefTheme(selectedTheme) && droits.modifier && (
               <button onClick={() => { loadRefQuestions(findRefTheme(selectedTheme)); setShowImportModal(true) }} className="btn btn-ghost">
                 <Download className="w-4 h-4" /> Importer les questions de référence
               </button>
@@ -370,7 +376,7 @@ export default function TestsPositionnement() {
                       <span className="badge badge-neutral mt-0.5">{idx + 1}</span>
                       <div className="flex-1 min-w-0">
                         <textarea value={q.question_text || ''} onChange={(e) => update(q.id, { question_text: e.target.value })}
-                          className="textarea w-full font-medium resize-none" rows={open ? 2 : 1} placeholder="Texte de la question" />
+                          className="textarea w-full font-medium resize-none" rows={open ? 2 : 1} placeholder="Texte de la question" disabled={!droits.modifier} />
                         <div className="flex flex-wrap gap-1.5 mt-2">
                           <span className="badge badge-neutral">{kindLabel(q.kind)}</span>
                           {scored && <span className={`badge ${q.difficulty === 'difficile' ? 'badge-danger' : q.difficulty === 'moyen' ? 'badge-warning' : 'badge-success'}`}>{DIFFICULTIES.find((d) => d.value === q.difficulty)?.label || q.difficulty}</span>}
@@ -383,10 +389,12 @@ export default function TestsPositionnement() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
+                        {droits.modifier && (
                         <button type="button" onClick={() => update(q.id, { is_active: q.is_active === false })} className="btn btn-ghost btn-icon" title={q.is_active === false ? 'Réactiver' : 'Désactiver'}>
                           {q.is_active === false ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
-                        <button type="button" onClick={() => deleteQuestion(q.id)} className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                        )}
+                        {droits.supprimer && <button type="button" onClick={() => deleteQuestion(q.id)} className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" title="Supprimer"><Trash2 className="w-4 h-4" /></button>}
                         <button type="button" onClick={() => setExpanded((e) => ({ ...e, [q.id]: !open }))} className="btn btn-ghost btn-icon">
                           {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
@@ -403,20 +411,20 @@ export default function TestsPositionnement() {
                                 {(q.options || []).map((opt, i) => (
                                   <div key={i} className="flex items-center gap-2">
                                     {q.kind !== 'survey' && (
-                                      <button type="button" onClick={() => update(q.id, { correct_index: i })}
+                                      <button type="button" onClick={() => update(q.id, { correct_index: i })} disabled={!droits.modifier}
                                         className={`w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${q.correct_index === i ? 'border-[rgb(var(--c-success))] bg-[rgb(var(--c-success))] text-white' : 'border-gray-300 hover:border-gray-400'}`}
                                         title="Bonne réponse">
                                         {q.correct_index === i && <CheckCircle className="w-4 h-4" />}
                                       </button>
                                     )}
-                                    <input type="text" value={opt} onChange={(e) => updateOption(q.id, i, e.target.value)} className="input flex-1" placeholder={`Option ${i + 1}`} disabled={q.kind === 'truefalse'} />
-                                    {q.kind !== 'truefalse' && (
+                                    <input type="text" value={opt} onChange={(e) => updateOption(q.id, i, e.target.value)} className="input flex-1" placeholder={`Option ${i + 1}`} disabled={q.kind === 'truefalse' || !droits.modifier} />
+                                    {q.kind !== 'truefalse' && droits.modifier && (
                                       <button type="button" onClick={() => removeOption(q.id, i)} className="btn btn-ghost btn-icon text-gray-400"><X className="w-4 h-4" /></button>
                                     )}
                                   </div>
                                 ))}
                               </div>
-                              {q.kind !== 'truefalse' && (
+                              {q.kind !== 'truefalse' && droits.modifier && (
                                 <button type="button" onClick={() => addOption(q.id)} className="btn btn-ghost btn-sm mt-2"><Plus className="w-4 h-4" /> Ajouter une option</button>
                               )}
                             </div>
@@ -429,29 +437,31 @@ export default function TestsPositionnement() {
                                 {(q.options || []).map((opt, i) => (
                                   <div key={i} className="flex items-center gap-2">
                                     <span className="w-7 h-7 rounded-ui-sm bg-primary-900 text-white text-ui-sm font-bold flex items-center justify-center flex-shrink-0">{(q.correct_order || []).indexOf(i) + 1 || '?'}</span>
-                                    <input type="text" value={opt} onChange={(e) => updateOption(q.id, i, e.target.value)} className="input flex-1" />
-                                    <button type="button" onClick={() => removeOption(q.id, i)} className="btn btn-ghost btn-icon text-gray-400"><X className="w-4 h-4" /></button>
+                                    <input type="text" value={opt} onChange={(e) => updateOption(q.id, i, e.target.value)} className="input flex-1" disabled={!droits.modifier} />
+                                    {droits.modifier && <button type="button" onClick={() => removeOption(q.id, i)} className="btn btn-ghost btn-icon text-gray-400"><X className="w-4 h-4" /></button>}
                                   </div>
                                 ))}
                               </div>
+                              {droits.modifier && (
                               <div className="flex gap-2 mt-2">
                                 <button type="button" onClick={() => addOption(q.id)} className="btn btn-ghost btn-sm"><Plus className="w-4 h-4" /> Ajouter</button>
                                 <button type="button" onClick={() => update(q.id, { correct_order: (q.options || []).map((_, i) => i) })} className="btn btn-ghost btn-sm"><ListOrdered className="w-4 h-4" /> L'ordre saisi est le bon ordre</button>
                               </div>
+                              )}
                             </div>
                           )}
 
                           {q.kind === 'open' && (
                             <div>
                               <div className="label">Critères de notation (pour le formateur)</div>
-                              <textarea value={q.scoring_rubric || ''} onChange={(e) => update(q.id, { scoring_rubric: e.target.value })} className="textarea w-full" rows={2} placeholder="1 point si 2 exemples concrets et pertinents" />
+                              <textarea value={q.scoring_rubric || ''} onChange={(e) => update(q.id, { scoring_rubric: e.target.value })} className="textarea w-full" rows={2} placeholder="1 point si 2 exemples concrets et pertinents" disabled={!droits.modifier} />
                             </div>
                           )}
 
                           {scored && (
                             <div>
                               <div className="label">Explication affichée après la réponse</div>
-                              <textarea value={q.explanation || ''} onChange={(e) => update(q.id, { explanation: e.target.value })} className="textarea w-full" rows={2} placeholder="Pourquoi c'est la bonne réponse, en une ou deux phrases" />
+                              <textarea value={q.explanation || ''} onChange={(e) => update(q.id, { explanation: e.target.value })} className="textarea w-full" rows={2} placeholder="Pourquoi c'est la bonne réponse, en une ou deux phrases" disabled={!droits.modifier} />
                             </div>
                           )}
                         </div>
@@ -459,7 +469,7 @@ export default function TestsPositionnement() {
                         <div className="space-y-3">
                           <div>
                             <div className="label">Type</div>
-                            <select value={q.kind} onChange={(e) => update(q.id, { kind: e.target.value })} className="select">
+                            <select value={q.kind} onChange={(e) => update(q.id, { kind: e.target.value })} className="select" disabled={!droits.modifier}>
                               {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
                             </select>
                           </div>
@@ -468,7 +478,7 @@ export default function TestsPositionnement() {
                               <div className="label">Niveau (jamais affiché)</div>
                               <div className="flex gap-1">
                                 {DIFFICULTIES.map((d) => (
-                                  <button key={d.value} type="button" onClick={() => update(q.id, { difficulty: d.value, xp: d.xp })}
+                                  <button key={d.value} type="button" onClick={() => update(q.id, { difficulty: d.value, xp: d.xp })} disabled={!droits.modifier}
                                     className={`flex-1 h-9 rounded-ui-sm border text-ui-sm font-medium ${q.difficulty === d.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200'}`}>
                                     {d.label}
                                   </button>
@@ -479,15 +489,15 @@ export default function TestsPositionnement() {
                           <div>
                             <div className="label">Utilisation</div>
                             <label className="flex items-center gap-2 text-ui py-1 cursor-pointer">
-                              <input type="checkbox" checked={!!q.for_positioning} onChange={(e) => update(q.id, { for_positioning: e.target.checked })} className="w-4 h-4 accent-[rgb(var(--c-accent-500))]" /> Test de positionnement
+                              <input type="checkbox" checked={!!q.for_positioning} onChange={(e) => update(q.id, { for_positioning: e.target.checked })} disabled={!droits.modifier} className="w-4 h-4 accent-[rgb(var(--c-accent-500))]" /> Test de positionnement
                             </label>
                             <label className={`flex items-center gap-2 text-ui py-1 ${scored ? 'cursor-pointer' : 'opacity-50'}`}>
-                              <input type="checkbox" checked={!!q.for_evaluation} disabled={!scored} onChange={(e) => update(q.id, { for_evaluation: e.target.checked })} className="w-4 h-4 accent-[rgb(var(--c-accent-500))]" /> Entraînement et évaluation des acquis
+                              <input type="checkbox" checked={!!q.for_evaluation} disabled={!scored || !droits.modifier} onChange={(e) => update(q.id, { for_evaluation: e.target.checked })} className="w-4 h-4 accent-[rgb(var(--c-accent-500))]" /> Entraînement et évaluation des acquis
                             </label>
                           </div>
                           <div>
                             <div className="label">Image (URL, facultatif)</div>
-                            <input type="url" value={q.image_url || ''} onChange={(e) => update(q.id, { image_url: e.target.value })} className="input" placeholder="https://" />
+                            <input type="url" value={q.image_url || ''} onChange={(e) => update(q.id, { image_url: e.target.value })} className="input" placeholder="https://" disabled={!droits.modifier} />
                           </div>
                         </div>
                       </div>
@@ -501,7 +511,7 @@ export default function TestsPositionnement() {
       )}
 
       {/* Nouvelle question */}
-      {showForm && (
+      {showForm && droits.modifier && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowForm(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
@@ -583,7 +593,7 @@ export default function TestsPositionnement() {
       )}
 
       {/* Import des questions de référence */}
-      {showImportModal && (
+      {showImportModal && droits.modifier && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowImportModal(false)} />
           <div className="relative min-h-full flex items-center justify-center p-4">

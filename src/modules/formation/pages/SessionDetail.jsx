@@ -35,6 +35,7 @@ import { generateSatisfactionDOPDF } from '../pdf/satisfactionDOPDF'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
 import { readableUrl } from '../../../core/storageUtils'
+import { useDroits } from '../../../core/rights/useDroit'
 
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
@@ -117,6 +118,18 @@ export default function SessionDetail() {
   const { user } = useAuthStore()
   const suiviFormatifOn = (useAuthStore((st) => st.modules) || []).includes('suivi_formatif')
   const formativeSummary = useFormativeSummary(id)
+  // Gardes des boutons d'écriture (branche ecrans/gardes)
+  const d = useDroits({
+    modifier: ['formation.sessions.modifier', 'formation.sessions.modifier_siennes'],
+    supprimer: 'formation.sessions.supprimer',
+    preparer: ['formation.sessions.preparer', 'formation.sessions.modifier_siennes'],
+    suivi: ['formation.suivi.gerer', 'formation.sessions.modifier_siennes'],
+    inscrire: 'formation.inscriptions.gerer',
+    creerStagiaire: 'formation.stagiaires.creer',
+    envoyer: 'formation.convocations.envoyer',
+    couts: 'formation.couts.gerer',
+    factures: 'facturation.factures.modifier',
+  })
   
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -2800,8 +2813,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </div>
             <div className="flex gap-2 flex-wrap">
               <button onClick={handleDownloadSatisfactionDO} className="btn btn-secondary flex items-center gap-2"><FileText className="w-4 h-4" />Éval. DO</button>
-              <button onClick={() => setShowEdit(true)} className="btn btn-ghost"><Edit className="w-4 h-4" />Modifier</button>
-              <button onClick={handleDelete} className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" aria-label="Supprimer la session"><Trash2 className="w-4 h-4" /></button>
+              {d.modifier && <button onClick={() => setShowEdit(true)} className="btn btn-ghost"><Edit className="w-4 h-4" />Modifier</button>}
+              {d.supprimer && <button onClick={handleDelete} className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" aria-label="Supprimer la session"><Trash2 className="w-4 h-4" /></button>}
             </div>
           </div>
 
@@ -2871,6 +2884,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   toast.success('Statut mis à jour')
                   fetchSessions()
                 }}
+                disabled={!d.modifier}
                 className="border rounded-ui-sm px-3 py-1.5 text-ui"
               >
                 <option value="confirmed">Confirmée</option>
@@ -2993,23 +3007,25 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
         <div className="flex gap-2 flex-wrap lg:justify-end items-center">
           {/* Signature sur le téléphone du formateur */}
-          <button onClick={() => navigate(`/signature/${session.id}`)}
+          {d.envoyer && <button onClick={() => navigate(`/signature/${session.id}`)}
             className="btn btn-primary">
             <PenLine className="w-4 h-4" />Faire signer
-          </button>
+          </button>}
           {/* Boutons Email */}
-          <button onClick={() => handleSendEmailBefore()} className="btn btn-secondary">
+          {d.envoyer && <button onClick={() => handleSendEmailBefore()} className="btn btn-secondary">
             <Send className="w-4 h-4" />Avant formation
-          </button>
-          <button onClick={() => handleSendEmailAfter()} className="btn btn-secondary">
+          </button>}
+          {d.envoyer && <button onClick={() => handleSendEmailAfter()} className="btn btn-secondary">
             <Send className="w-4 h-4" />Après formation
-          </button>
-          <button onClick={() => setShowStageEmailModal(true)} className="btn btn-secondary">
+          </button>}
+          {d.envoyer && <button onClick={() => setShowStageEmailModal(true)} className="btn btn-secondary">
             <Mail className="w-4 h-4" />Aux stagiaires
-          </button>
-          <button onClick={() => setShowEdit(true)} className="btn btn-secondary"><Edit className="w-4 h-4" />Modifier</button>
+          </button>}
+          {d.modifier && <button onClick={() => setShowEdit(true)} className="btn btn-secondary"><Edit className="w-4 h-4" />Modifier</button>}
+          {d.supprimer && <>
           <span className="hidden sm:block w-px h-6 bg-gray-200 mx-1" aria-hidden="true" />
           <button onClick={handleDelete} className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" title="Supprimer la session" aria-label="Supprimer la session"><Trash2 className="w-4 h-4" /></button>
+          </>}
         </div>
       </div>
       
@@ -3025,10 +3041,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowInvoicePrompt(false)} className="btn btn-ghost">Plus tard</button>
-            <button onClick={() => navigate(`/factures?from_session=${session.id}`)}
+            {d.factures && <button onClick={() => navigate(`/factures?from_session=${session.id}`)}
               className="btn btn-primary">
               <Receipt className="w-4 h-4" /> Créer la facture
-            </button>
+            </button>}
           </div>
         </div>
       )}
@@ -3039,10 +3055,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <p className="text-ui text-[rgb(var(--c-warning))] flex items-center gap-2">
             <AlertCircle className="w-4 h-4" /> Formation terminée - aucune facture créée pour cette session
           </p>
-          <button onClick={() => navigate(`/factures?from_session=${session.id}`)}
+          {d.factures && <button onClick={() => navigate(`/factures?from_session=${session.id}`)}
             className="btn btn-secondary btn-sm">
             <Receipt className="w-4 h-4" /> Créer la facture
-          </button>
+          </button>}
         </div>
       )}
 
@@ -3089,6 +3105,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               type="checkbox"
               checked={session.convention_sent || false}
               onChange={(e) => handleConventionSent(e.target.checked)}
+              disabled={!d.modifier}
               className="w-4 h-4 rounded border-gray-300 text-[rgb(var(--c-info))] focus:ring-[rgb(var(--c-info)/0.3)] cursor-pointer"
             />
             <div className="flex-1">
@@ -3098,13 +3115,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   <p className="text-ui-sm text-gray-500">
                     Le {format(new Date(session.convention_sent_date), 'dd/MM/yyyy à HH:mm', { locale: fr })}
                   </p>
-                  <button
+                  {d.modifier && <button
                     onClick={editConventionSentDate}
                     className="text-[rgb(var(--c-info))] hover:text-[rgb(var(--c-info))] text-ui-sm underline"
                     title="Modifier la date/heure"
                   >
                     Modifier
-                  </button>
+                  </button>}
                 </div>
               )}
             </div>
@@ -3113,7 +3130,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {/* Upload convention signée */}
           <div className="border-t border-[rgb(var(--c-info)/0.3)] pt-3">
             {!session.convention_signed ? (
-              <div>
+              d.modifier && <div>
                 <label className="btn btn-secondary btn-sm w-full flex items-center justify-center gap-2 cursor-pointer">
                   <input
                     type="file"
@@ -3149,13 +3166,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <p className="text-ui-sm text-[rgb(var(--c-success))]">
                           Le {format(new Date(session.convention_signed_date), 'dd/MM/yyyy à HH:mm', { locale: fr })}
                         </p>
-                        <button
+                        {d.modifier && <button
                           onClick={editConventionSignedDate}
                           className="text-[rgb(var(--c-success))] hover:text-[rgb(var(--c-success))] text-ui-sm underline"
                           title="Modifier la date/heure"
                         >
                           Modifier
-                        </button>
+                        </button>}
                       </div>
                     )}
                   </div>
@@ -3208,8 +3225,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold">Stagiaires ({sessionTrainees.length})</h3>
             <div className="flex gap-2">
-              <button onClick={() => setShowAddTrainee(true)} className="btn btn-secondary flex items-center gap-2"><UserPlus className="w-4 h-4" />Ajouter existant</button>
-              <button onClick={() => { setNewTraineeForm({ ...newTraineeForm, client_id: session?.client_id || '' }); setShowNewTraineeModal(true) }} className="btn btn-secondary flex items-center gap-2"><Plus className="w-4 h-4" />Créer nouveau</button>
+              {d.inscrire && <button onClick={() => setShowAddTrainee(true)} className="btn btn-secondary flex items-center gap-2"><UserPlus className="w-4 h-4" />Ajouter existant</button>}
+              {d.creerStagiaire && <button onClick={() => { setNewTraineeForm({ ...newTraineeForm, client_id: session?.client_id || '' }); setShowNewTraineeModal(true) }} className="btn btn-secondary flex items-center gap-2"><Plus className="w-4 h-4" />Créer nouveau</button>}
             </div>
           </div>
           {sessionTrainees.length === 0 ? <p className="text-gray-500 text-center py-8">Aucun stagiaire</p> : (
@@ -3289,7 +3306,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               Carte SST
                             </a>
                           ) : (
-                            <label className="btn btn-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))] flex items-center gap-1 cursor-pointer">
+                            d.suivi && <label className="btn btn-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))] flex items-center gap-1 cursor-pointer">
                               <Upload className="w-3 h-3" />
                               Carte FORPREV
                               <input 
@@ -3302,7 +3319,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           )}
                         </>
                       )}
-                      <button onClick={() => handleRemoveTrainee(t.id)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]"><UserMinus className="w-4 h-4" /></button>
+                      {d.inscrire && <button onClick={() => handleRemoveTrainee(t.id)} className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]"><UserMinus className="w-4 h-4" /></button>}
                     </div>
                   </div>
                 )
@@ -3352,7 +3369,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 Durée formation : {session?.courses?.duration_hours || 7}h = {getHalfDaysCount()} demi-journée(s)
               </p>
             </div>
-            {sessionTrainees.length > 0 && getHalfDaysCount() > 0 && (
+            {d.suivi && sessionTrainees.length > 0 && getHalfDaysCount() > 0 && (
               <button 
                 onClick={handleMarkAllPresent}
                 className="btn btn-primary flex items-center gap-2"
@@ -3420,6 +3437,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             <td key={idx} className="text-center py-3 px-2">
                               <button
                                 onClick={() => handleHalfDayChange(t.id, hd.dateStr, hd.period, !isPresent)}
+                                disabled={!d.suivi}
                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                                   isPresent 
                                     ? 'bg-[rgb(var(--c-success))] text-white' 
@@ -3455,12 +3473,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         </td>
                         <td className="text-center py-3 px-2">
                           {stData?.absent ? (
-                            <button onClick={() => handleToggleAbsent(t, false)}
+                            <button onClick={() => handleToggleAbsent(t, false)} disabled={!d.suivi}
                               className="text-ui-sm text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] underline" title={stData.absent_reason || 'Absent'}>
                               Absent
                             </button>
                           ) : (
-                            <button onClick={() => handleToggleAbsent(t, true)}
+                            d.suivi && <button onClick={() => handleToggleAbsent(t, true)}
                               className="p-1.5 text-gray-400 hover:text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded transition-colors"
                               title="Noter absent sur toute la session (bloque son QR code)">
                               <UserX className="w-4 h-4" />
@@ -3468,7 +3486,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           )}
                         </td>
                         <td className="text-center py-3 px-2">
-                          {(hasEarlyDeparture || hasLateArrival) ? (
+                          {!d.suivi ? null : (hasEarlyDeparture || hasLateArrival) ? (
                             <div className="flex flex-col items-center gap-0.5">
                               <button onClick={() => openDepartureModal(t)} className="text-ui-sm text-gray-600 hover:text-gray-900 underline">
                                 Modifier
@@ -3513,13 +3531,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 Validation des objectifs de formation
               </h3>
               <div className="flex gap-2">
-                {objectivesData.length > 0 && sessionTrainees.length > 0 && (
+                {d.suivi && objectivesData.length > 0 && sessionTrainees.length > 0 && (
                   <button onClick={handleMarkAllAcquired} className="btn btn-primary flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" />
                     Tous acquis
                   </button>
                 )}
-                {objectivesData.length === 0 && sessionTrainees.length > 0 && getObjectivesList().length > 0 && (
+                {d.suivi && objectivesData.length === 0 && sessionTrainees.length > 0 && getObjectivesList().length > 0 && (
                   <button onClick={handleInitObjectives} className="btn btn-primary">
                     Initialiser les objectifs
                   </button>
@@ -3587,7 +3605,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 <div className="flex flex-col items-center gap-2">
                                   <button
                                     onClick={() => hasFullPresence && handleToggleObjective(trainee.id, idx, isValidated)}
-                                    disabled={!hasFullPresence}
+                                    disabled={!hasFullPresence || !d.suivi}
                                     className={`px-3 py-1 rounded text-ui-sm font-medium transition-colors ${
                                       !hasFullPresence
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -3603,6 +3621,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                     <textarea
                                       value={objData?.remediation_comment || ''}
                                       onChange={(e) => handleUpdateRemediationComment(trainee.id, idx, e.target.value)}
+                                      disabled={!d.suivi}
                                       placeholder="Actions correctives..."
                                       className="w-full min-w-[200px] text-ui-sm px-2 py-1 border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-[rgb(var(--c-warning)/0.3)]"
                                       rows={2}
@@ -3644,7 +3663,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 </span>
                               )}
                               {/* Bouton forcer le résultat */}
-                              <PickerMenu
+                              {d.suivi && <PickerMenu
                                 searchable={false}
                                 minWidth={170}
                                 buttonClassName="text-ui-sm text-gray-500 hover:text-gray-800 px-1.5 py-0.5 rounded border border-transparent hover:border-gray-200"
@@ -3653,7 +3672,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   { key: 'not_acquired', label: 'Forcer Non Acquis' },
                                 ]}
                                 onPick={it => openForceModal(trainee.id, it.key)}
-                              >Forcer</PickerMenu>
+                              >Forcer</PickerMenu>}
                             </div>
                           </td>
                         </tr>
@@ -3685,7 +3704,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   Formation : <strong>{session.courses?.title || 'Non définie'}</strong> - Formateur : <strong>{trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Non assigné'}</strong>
                 </p>
               </div>
-              <button 
+              {d.envoyer && <button
                 onClick={handleSendHotEvalReminder}
                 disabled={sendingHotEvalReminder}
                 className="btn btn-secondary flex items-center gap-2 text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)] hover:bg-[rgb(var(--c-warning-bg))]"
@@ -3695,7 +3714,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 ) : (
                   <><Send className="w-4 h-4" />Relancer les non-répondants</>
                 )}
-              </button>
+              </button>}
             </div>
             {sessionTraineesForEvals.length === 0 ? <p className="text-gray-500">Aucun stagiaire avec présence validée</p> : (
               <div className="space-y-4">
@@ -3707,7 +3726,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-medium">{t.first_name} {t.last_name}</span>
                         <label className="flex items-center gap-2 text-ui">
-                          <input type="checkbox" checked={eval_.questionnaire_submitted || false} onChange={(e) => handleEvalChange(t.id, 'questionnaire_submitted', e.target.checked)} className="w-4 h-4 text-[rgb(var(--c-warning))] rounded" />
+                          <input type="checkbox" checked={eval_.questionnaire_submitted || false} onChange={(e) => handleEvalChange(t.id, 'questionnaire_submitted', e.target.checked)} disabled={!d.suivi} className="w-4 h-4 text-[rgb(var(--c-warning))] rounded" />
                           Questionnaire reçu
                         </label>
                       </div>
@@ -3727,7 +3746,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!d.suivi} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -3749,7 +3768,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!d.suivi} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -3771,7 +3790,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!d.suivi} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -3791,7 +3810,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!d.suivi} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -3799,8 +3818,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
                                 <span className="text-ui-sm text-gray-600 flex-1 mr-2">Recommanderiez-vous cette formation ?</span>
                                 <div className="flex gap-1">
-                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', true)} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === true ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-white border'}`}>Oui</button>
-                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', false)} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === false ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-white border'}`}>Non</button>
+                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', true)} disabled={!d.suivi} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === true ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-white border'}`}>Oui</button>
+                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', false)} disabled={!d.suivi} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === false ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-white border'}`}>Non</button>
                                 </div>
                               </div>
                             </div>
@@ -3815,6 +3834,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 rows={2} 
                                 value={eval_.comment_general || ''} 
                                 onChange={(e) => handleEvalChange(t.id, 'comment_general', e.target.value)}
+                                disabled={!d.suivi}
                                 placeholder="Remarques, suggestions..."
                               />
                             </div>
@@ -3825,6 +3845,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 rows={2} 
                                 value={eval_.comment_projet || ''} 
                                 onChange={(e) => handleEvalChange(t.id, 'comment_projet', e.target.value)}
+                                disabled={!d.suivi}
                                 placeholder="Besoins futurs en formation..."
                               />
                             </div>
@@ -3859,7 +3880,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       <span className="text-ui">{item.label}</span>
                       <div className="flex gap-1">
                         {[1,2,3,4,5].map(n => (
-                          <button key={n} onClick={() => handleTrainerEvalChange(item.key, n)} className={`w-8 h-8 rounded ${trainerEval?.[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>{n}</button>
+                          <button key={n} onClick={() => handleTrainerEvalChange(item.key, n)} disabled={!d.suivi} className={`w-8 h-8 rounded ${trainerEval?.[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>{n}</button>
                         ))}
                       </div>
                     </div>
@@ -3867,7 +3888,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 </div>
                 <div>
                   <label className="text-ui font-medium">Commentaires</label>
-                  <textarea value={trainerEval?.comments || ''} onChange={(e) => handleTrainerEvalChange('comments', e.target.value)} className="input mt-1" rows={3} placeholder="Observations du formateur..." />
+                  <textarea value={trainerEval?.comments || ''} onChange={(e) => handleTrainerEvalChange('comments', e.target.value)} disabled={!d.suivi} className="input mt-1" rows={3} placeholder="Observations du formateur..." />
                 </div>
               </div>
             )}
@@ -3902,39 +3923,39 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <tr key={t.id} className="border-b">
                           <td className="py-3 font-medium">{t.first_name} {t.last_name}</td>
                           <td className="text-center py-3">
-                            <input type="checkbox" checked={!!coldEval.sent_at} onChange={(e) => handleColdEvalChange(t.id, 'sent_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-gray-800 rounded" />
+                            <input type="checkbox" checked={!!coldEval.sent_at} onChange={(e) => handleColdEvalChange(t.id, 'sent_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-gray-800 rounded" disabled={!d.suivi} />
                           </td>
                           <td className="text-center py-3">
-                            <input type="checkbox" checked={!!coldEval.completed_at} onChange={(e) => handleColdEvalChange(t.id, 'completed_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-gray-800 rounded" disabled={!coldEval.sent_at} />
+                            <input type="checkbox" checked={!!coldEval.completed_at} onChange={(e) => handleColdEvalChange(t.id, 'completed_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-gray-800 rounded" disabled={!coldEval.sent_at || !d.suivi} />
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'skills_applied', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.skills_applied === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'skills_applied', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.skills_applied === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'skills_applied', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.skills_applied === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'skills_applied', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.skills_applied === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Non</button>
                             </div>
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'objectives_met', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.objectives_met === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'objectives_met', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.objectives_met === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'objectives_met', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.objectives_met === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'objectives_met', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.objectives_met === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Non</button>
                             </div>
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'knowledge_retained', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.knowledge_retained === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'knowledge_retained', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.knowledge_retained === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'knowledge_retained', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.knowledge_retained === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'knowledge_retained', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.knowledge_retained === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Non</button>
                             </div>
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'job_impact', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.job_impact === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'job_impact', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.job_impact === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'job_impact', 5)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.job_impact === 5 ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'job_impact', 1)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.job_impact === 1 ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Non</button>
                             </div>
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => handleColdEvalChange(t.id, 'would_recommend', true)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.would_recommend === true ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Oui</button>
-                              <button onClick={() => handleColdEvalChange(t.id, 'would_recommend', false)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.would_recommend === false ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled}>Non</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'would_recommend', true)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.would_recommend === true ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Oui</button>
+                              <button onClick={() => handleColdEvalChange(t.id, 'would_recommend', false)} className={`px-2 py-1 rounded text-ui-sm ${coldEval.would_recommend === false ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-gray-100'}`} disabled={!isEnabled || !d.suivi}>Non</button>
                             </div>
                           </td>
                         </tr>
@@ -3961,30 +3982,30 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               </p>
             </div>
             <div className="flex gap-2">
-              <button 
+              {d.preparer && <button
                 onClick={generateEquipmentFromCourse}
                 className="btn btn-secondary flex items-center gap-2"
               >
                  Recalculer depuis formation
-              </button>
-              <button 
+              </button>}
+              {d.preparer && <button
                 onClick={() => setShowAddEquipmentModal(true)}
                 className="btn btn-primary flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />Ajouter
-              </button>
+              </button>}
             </div>
           </div>
           
           {sessionEquipment.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <p className="mb-4">Aucun matériel configuré pour cette session.</p>
-              <button 
+              {d.preparer && <button
                 onClick={generateEquipmentFromCourse}
                 className="btn btn-primary"
               >
                 Générer depuis la formation
-              </button>
+              </button>}
             </div>
           ) : (
             <div className="space-y-2">
@@ -4046,6 +4067,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <td className="p-3 text-center">
                           <button
                             onClick={() => toggleEquipmentPrepared(eq.id, !eq.is_prepared)}
+                            disabled={!d.preparer}
                             className={`px-4 py-2 rounded-ui-sm font-medium transition-colors ${
                               eq.is_prepared 
                                 ? 'bg-[rgb(var(--c-success))] text-white hover:bg-[rgb(var(--c-success))]' 
@@ -4056,7 +4078,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           </button>
                         </td>
                         <td className="p-3 text-center">
-                          <button
+                          {d.preparer && <button
                             onClick={() => {
                               if (confirm('Retirer cet équipement ?')) {
                                 removeEquipmentFromSession(eq.id)
@@ -4065,7 +4087,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             className="p-1 text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     ))}
@@ -4074,7 +4096,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               </div>
               
               {/* Bouton tout marquer préparé */}
-              {sessionEquipment.some(e => !e.is_prepared) && (
+              {d.preparer && sessionEquipment.some(e => !e.is_prepared) && (
                 <button
                   onClick={async () => {
                     const now = new Date().toISOString()
@@ -4152,12 +4174,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <h3 className="font-semibold">Coûts supplémentaires</h3>
               <p className="text-ui text-gray-500">Frais additionnels à inclure dans la convention</p>
             </div>
-            <button 
+            {d.couts && <button
               onClick={() => setShowAddCost(true)} 
               className="btn btn-primary flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />Ajouter un coût
-            </button>
+            </button>}
           </div>
           
           {sessionCosts.length === 0 ? (
@@ -4202,12 +4224,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         </td>
                         <td className="py-2 px-3 text-right font-medium">{totalAmount.toFixed(2)} €</td>
                         <td className="py-2 px-3">
-                          <button 
+                          {d.couts && <button
                             onClick={() => handleDeleteCost(cost.id)}
                             className="text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     )
@@ -4327,12 +4349,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <h3 className="font-semibold">Financement de la session</h3>
               <p className="text-ui text-gray-500">Répartition entre financeurs (OPCO, entreprise, CPF…)</p>
             </div>
-            <button 
+            {d.modifier && <button
               onClick={() => { resetFundingForm(); setShowAddFunding(true) }} 
               className="btn btn-primary flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />Ajouter un financeur
-            </button>
+            </button>}
           </div>
 
           {/* Barre de couverture */}
@@ -4429,6 +4451,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           <select
                             value={funding.status}
                             onChange={(e) => handleFundingStatus(funding.id, e.target.value)}
+                            disabled={!d.modifier}
                             className={`text-ui-sm px-2 py-1 rounded-full border-0 cursor-pointer ${statusColors[funding.status] || ''}`}
                           >
                             <option value="pending">En attente</option>
@@ -4444,7 +4467,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               <Receipt className="w-3 h-3" /> Voir
                             </Link>
                           ) : (
-                            <button
+                            d.factures && <button
                               onClick={() => handleGenerateFundingInvoice(funding)}
                               className="text-ui-sm text-primary-600 hover:text-primary-800 flex items-center justify-center gap-1"
                             >
@@ -4454,12 +4477,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         </td>
                         <td className="py-2 px-3">
                           <div className="flex items-center gap-1 justify-end">
-                            <button onClick={() => handleEditFunding(funding)} className="p-1 text-gray-400 hover:text-[rgb(var(--c-info))]" title="Modifier">
+                            {d.modifier && <button onClick={() => handleEditFunding(funding)} className="p-1 text-gray-400 hover:text-[rgb(var(--c-info))]" title="Modifier">
                               <Edit className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleDeleteFunding(funding.id)} className="p-1 text-gray-400 hover:text-[rgb(var(--c-danger))]" title="Supprimer">
+                            </button>}
+                            {d.modifier && <button onClick={() => handleDeleteFunding(funding.id)} className="p-1 text-gray-400 hover:text-[rgb(var(--c-danger))]" title="Supprimer">
                               <Trash2 className="w-4 h-4" />
-                            </button>
+                            </button>}
                           </div>
                         </td>
                       </tr>
@@ -4479,7 +4502,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           )}
 
           {/* Quick action : pré-remplir avec le client de la session */}
-          {sessionFundings.length === 0 && session?.client_id && (
+          {d.modifier && sessionFundings.length === 0 && session?.client_id && (
             <div className="mt-4 flex gap-2 justify-center">
               <button
                 onClick={() => {
@@ -4999,7 +5022,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {activeTab === 'scans' && (
         <div className="card">
           <h3 className="font-semibold mb-4 flex items-center gap-2"><Upload className="w-5 h-5" />Documents scannés</h3>
-          <div className="flex gap-3 mb-4">
+          {d.preparer && <div className="flex gap-3 mb-4">
             <select value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)} className="input w-48">
               {uploadCategories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
@@ -5007,7 +5030,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <Upload className="w-4 h-4" />{uploading ? 'Upload...' : 'Ajouter un fichier'}
               <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
             </label>
-          </div>
+          </div>}
           {sessionDocs.length === 0 ? <p className="text-gray-500 text-center py-8">Aucun document uploadé</p> : (
             <div className="divide-y">
               {sessionDocs.map(doc => (
@@ -5018,7 +5041,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => viewDoc(doc)} className="btn btn-sm btn-ghost"><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => handleDeleteDoc(doc)} className="btn btn-sm btn-ghost text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>
+                    {d.preparer && <button onClick={() => handleDeleteDoc(doc)} className="btn btn-sm btn-ghost text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>}
                   </div>
                 </div>
               ))}
@@ -5101,9 +5124,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 {qrSignatureUrl && <img src={qrSignatureUrl} alt="QR Code signature formateur" className="mx-auto mb-4 border-2 border-primary-200 rounded-ui-sm p-3 bg-white" style={{ maxWidth: '200px' }} />}
                 <p className="text-ui text-gray-600 mb-3 font-medium">À scanner avec le téléphone du formateur</p>
                 <div className="flex gap-2 justify-center flex-wrap">
-                  <button onClick={() => navigate(`/signature/${session.id}`)} className="btn btn-primary flex items-center gap-2">
+                  {d.suivi && <button onClick={() => navigate(`/signature/${session.id}`)} className="btn btn-primary flex items-center gap-2">
                     <PenLine className="w-4 h-4" />Ouvrir ici
-                  </button>
+                  </button>}
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/#/signature/${session.id}`)
@@ -5135,6 +5158,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     <button
                       key={m.value}
                       onClick={() => handleSignatureMode(m.value)}
+                      disabled={!d.modifier}
                       className={`px-3 py-1.5 rounded-ui-sm text-ui-sm border ${
                         (session.signature_mode || 'auto') === m.value
                           ? 'bg-primary-600 text-white border-primary-600 font-medium'
@@ -5216,11 +5240,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       }`}>
                         {accessCodes[t.id].code}
                       </span>
-                      <button
+                      {d.suivi && <button
                         onClick={() => handleRegenerateCode(t.id)}
                         className="p-1 hover:bg-gray-100 rounded transition"
                         title="Régénérer le code"
-                      >Nouveau code</button>
+                      >Nouveau code</button>}
                       {accessCodes[t.id].locked && (
                         <span className="text-ui-sm text-[rgb(var(--c-danger))]" title="Compte verrouillé"></span>
                       )}
@@ -6133,7 +6157,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 >
                   Annuler
                 </button>
-                <button
+                {d.suivi && <button
                   onClick={handleSaveExpectations}
                   disabled={savingExpectations}
                   className="btn btn-primary flex items-center gap-2"
@@ -6144,7 +6168,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     <Save className="w-4 h-4" />
                   )}
                   Enregistrer
-                </button>
+                </button>}
               </div>
             </div>
           </div>
