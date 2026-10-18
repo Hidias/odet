@@ -4,6 +4,7 @@ import { supabase, ADMIN_EMAILS } from './supabase'
 import { buildStorageFileName } from './storageUtils'
 import { fetchAll, fetchAllIn } from './fetchAll'
 import { configureCompanyContext } from './company/companyContext'
+import { chargerDroits, aLeDroit } from './rights/rights'
 
 // ─── Résolution du rôle et du profil d'un utilisateur connecté ─────
 // Source de vérité : la table profiles (rôle, identité affichée, préférences).
@@ -54,13 +55,15 @@ export const useAuthStore = create((set, get) => ({
   userRole: null, // superadmin | admin | direction | gestionnaire | formateur | commercial | comptable | lecture
   modules: [],
   fieldOnly: false, // technicien de terrain (Interventions seulement)
+  // Droits composés dans la société courante (C1b), lus en base par my_rights ; null = inconnus (comportement d'avant)
+  rights: null,
   loading: true,
   error: null,
 
   applySession: async (session) => {
     if (!session?.user) {
       configureCompanyContext({})
-      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
+      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null })
       return false
     }
     let access = await resolveAccess(session.user)
@@ -75,7 +78,7 @@ export const useAuthStore = create((set, get) => ({
     }
     if (!access) {
       await supabase.auth.signOut()
-      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
+      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null })
       return false
     }
     const modules = await fetchEnabledModules()
@@ -98,7 +101,9 @@ export const useAuthStore = create((set, get) => ({
       } catch { fieldOnly = false }
     }
     configureCompanyContext({ role: access.role })
-    set({ user: session.user, profile: access.profile, userRole: access.role, modules, fieldOnly })
+    // Droits composés (C1b) : une lecture en base ; en cas d'échec, null et rien ne change
+    const rights = await chargerDroits(supabase)
+    set({ user: session.user, profile: access.profile, userRole: access.role, modules, fieldOnly, rights })
     return true
   },
 
@@ -111,7 +116,7 @@ export const useAuthStore = create((set, get) => ({
       supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_OUT') {
           configureCompanyContext({})
-          set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
+          set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null })
           return
         }
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
@@ -152,7 +157,7 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     configureCompanyContext({})
     await supabase.auth.signOut()
-    set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
+    set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null })
     // Les données chargées restent en mémoire : un rechargement complet évite que le compte suivant
     // les voie dans le même onglet avant que la base ne les filtre.
     try { window.location.replace(`${window.location.pathname}#/login`); window.location.reload() } catch { /* hors navigateur */ }
@@ -172,6 +177,13 @@ export const useAuthStore = create((set, get) => ({
   },
 
   hasRole: (...roles) => roles.includes(get().userRole),
+  // Droit composé (C1b) : true ou false si les droits sont connus, null sinon (l'appelant garde son repli sur le rôle)
+  can: (code) => aLeDroit(get().rights, code),
+  refreshRights: async () => {
+    const rights = await chargerDroits(supabase)
+    set({ rights })
+    return rights
+  },
   isAdmin: () => ['superadmin', 'admin'].includes(get().userRole),
   isSuperadmin: () => get().userRole === 'superadmin',
 }))

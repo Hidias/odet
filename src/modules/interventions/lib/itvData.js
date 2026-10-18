@@ -7,13 +7,21 @@ import { profileName } from '../../../core/org/currentOrg'
 import { DEFAULT_OPERATION_LABELS, todayIso } from './schedule'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
+
+// Prix masqués (droits composés, C1b) : un compte sans le droit « Voir les prix des interventions » (le technicien)
+// ne lit aucun prix en base. Il lit les vues sans prix (itv_*_terrain) et écrit les pièces fournies par des
+// fonctions qui prennent le prix dans le catalogue. Réglé par la page Interventions à partir des droits lus en base ;
+// faux par défaut (droits inconnus : lecture directe des tables, comme avant C1b).
+let prixMasques = false
+export function setPrixMasques(masques) { prixMasques = !!masques }
+export function getPrixMasques() { return prixMasques }
 // Listes : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
 const mustAll = async (build, options) => must(await fetchAll(build, options))
 const mustAllIn = async (build, column, ids, options) => must(await fetchAllIn(build, column, ids, options))
 
 // ─── Réglages, types, pièces, techniciens ───
 export async function loadSettings() {
-  const s = must(await supabase.from('itv_settings').select('*').eq('id', 1).maybeSingle()) || {}
+  const s = must(await supabase.from(prixMasques ? 'itv_settings_terrain' : 'itv_settings').select('*').eq('id', 1).maybeSingle()) || {}
   return { ...s, operation_labels: { ...DEFAULT_OPERATION_LABELS, ...(s.operation_labels || {}) } }
 }
 export const saveSettings = async (patch) => must(await supabase.from('itv_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', 1))
@@ -30,7 +38,7 @@ export async function removeType(id) {
   return must(await supabase.from('itv_equipment_types').delete().eq('id', id))
 }
 
-export const loadParts = async () => must(await supabase.from('itv_parts').select('*').order('name'))
+export const loadParts = async () => must(await supabase.from(prixMasques ? 'itv_parts_terrain' : 'itv_parts').select('*').order('name'))
 export async function savePart(p) {
   if (p.id) return must(await supabase.from('itv_parts').update(p).eq('id', p.id).select().single())
   return must(await supabase.from('itv_parts').insert(p).select().single())
@@ -167,7 +175,7 @@ export async function loadVisits({ from = null, to = null, technicianId = null, 
 }
 export const loadVisit = async (id) => must(await supabase.from('itv_visits').select(VISIT_COLS).eq('id', id).single())
 export const loadVisitItems = async (visitId) => must(await supabase.from('itv_visit_items').select('*').eq('visit_id', visitId))
-export const loadVisitParts = async (visitId) => must(await supabase.from('itv_visit_parts').select('*').eq('visit_id', visitId).order('created_at'))
+export const loadVisitParts = async (visitId) => must(await supabase.from(prixMasques ? 'itv_visit_parts_terrain' : 'itv_visit_parts').select('*').eq('visit_id', visitId).order('created_at'))
 export const updateVisit = async (id, patch) => must(await supabase.from('itv_visits').update(patch).eq('id', id).select().single())
 export const createVisit = async (row) => must(await supabase.from('itv_visits').insert(row).select().single())
 
@@ -184,9 +192,26 @@ export async function startVisit(visit, equipmentWithOps) {
 }
 export const saveVisitItem = async (id, patch) => must(await supabase.from('itv_visit_items').update({ ...patch, checked_at: new Date().toISOString() }).eq('id', id).select().single())
 export const addVisitItem = async (row) => must(await supabase.from('itv_visit_items').insert(row).select().single())
-export const addVisitPart = async (row) => must(await supabase.from('itv_visit_parts').insert(row).select().single())
-export const updateVisitPart = async (id, patch) => must(await supabase.from('itv_visit_parts').update(patch).eq('id', id))
-export const removeVisitPart = async (id) => must(await supabase.from('itv_visit_parts').delete().eq('id', id))
+// Pièces fournies. Prix masqués : par les fonctions de la base (le prix unitaire n'est ni envoyé ni renvoyé)
+export async function addVisitPart(row) {
+  if (prixMasques) {
+    return must(await supabase.rpc('itv_visit_part_add', {
+      p_visit: row.visit_id, p_part: row.part_id || null, p_label: row.label || null, p_quantity: Number(row.quantity || 1),
+    }))
+  }
+  return must(await supabase.from('itv_visit_parts').insert(row).select().single())
+}
+export async function updateVisitPart(id, patch) {
+  if (prixMasques) {
+    // Seule la quantité est modifiable sur le terrain
+    return must(await supabase.rpc('itv_visit_part_set_quantity', { p_id: id, p_quantity: Number(patch.quantity) }))
+  }
+  return must(await supabase.from('itv_visit_parts').update(patch).eq('id', id))
+}
+export async function removeVisitPart(id) {
+  if (prixMasques) return must(await supabase.rpc('itv_visit_part_remove', { p_id: id }))
+  return must(await supabase.from('itv_visit_parts').delete().eq('id', id))
+}
 export const closeVisit = async (id) => must(await supabase.rpc('itv_close_visit', { p_visit: id }))
 
 // ─── Photos (bucket privé « interventions ») ───
