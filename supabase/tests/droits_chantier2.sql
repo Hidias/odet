@@ -973,6 +973,54 @@ begin
     end;
   end if;
 
+  -- Fonctions, fichiers et handicap par droits (0378)
+  if to_regprocedure('app.un_des_droits(text[])') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
+                   and policyname like 'odet\_%' and (coalesce(qual, '') || coalesce(with_check, '')) like '%app.role()%'
+                   and (coalesce(qual, '') || coalesce(with_check, '')) not like '%un_des_droits%') then
+      v_lines := v_lines || 'OK      base  0378 : chaque règle de fichiers demande aussi un droit'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0378 : chaque règle de fichiers demande aussi un droit'::text; end if;
+    if not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
+                   and pg_get_functiondef(p.oid) like '%garde chantier 2%' and pg_get_functiondef(p.oid) like '%app.require_roles(%') then
+      v_lines := v_lines || 'OK      base  0378 : plus aucune garde de fonction par groupe de rôles'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0378 : plus aucune garde de fonction par groupe de rôles'::text; end if;
+    declare
+      f_lec uuid := gen_random_uuid(); f_ges uuid := gen_random_uuid(); f_c uuid; f_m uuid; f_s uuid; f_a boolean; f_b boolean; f_h1 boolean; f_h2 boolean;
+    begin
+      select id into f_c from public.companies where is_instance_owner;
+      insert into auth.users (id, email, aud, role) values
+        (f_lec, 'fct.lec@test.invalid', 'authenticated', 'authenticated'), (f_ges, 'fct.ges@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (f_lec, 'fct.lec@test.invalid', 'lecture', true), (f_ges, 'fct.ges@test.invalid', 'gestionnaire', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      select id into f_s from public.sessions limit 1;
+      select id into f_m from public.company_members where profile_id = f_lec and company_id = f_c;
+      perform set_config('request.jwt.claims', json_build_object('sub', f_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      f_a := app.can_read_session(f_s);
+      execute 'reset role';
+      insert into public.company_member_rights (member_id, company_id, right_code, effect) values (f_m, f_c, 'formation.suivi.voir', 'revoke');
+      execute 'set local role authenticated';
+      f_b := app.can_read_session(f_s);
+      execute 'reset role';
+      if f_s is null or (f_a and not f_b) then
+        v_lines := v_lines || 'OK      lec   0378 : droit retiré à une personne, la fonction suit'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0378 : droit retiré à une personne, la fonction suit'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', f_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      f_h1 := app.can_see_disability();
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if not f_h1 then
+        v_lines := v_lines || 'OK      ges   0378 : handicap fermé au gestionnaire (droit qualite.handicap.voir)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0378 : handicap fermé au gestionnaire (droit qualite.handicap.voir)'::text; end if;
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end
