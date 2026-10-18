@@ -51,6 +51,9 @@
     },
     "api/signature-weekly.js": {
       "maxDuration": 60
+    },
+    "api/maintenance-nuit.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -85,6 +88,10 @@
     {
       "path": "/api/signature-weekly",
       "schedule": "0 7 * * 1"
+    },
+    {
+      "path": "/api/maintenance-nuit",
+      "schedule": "10 2 * * *"
     }
   ],
   "regions": [

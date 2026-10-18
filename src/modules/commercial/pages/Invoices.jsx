@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
 import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
-import { useDataStore } from '../../../core/store'
+import { useDataStore, useAuthStore } from '../../../core/store'
 import { generateFacturXPDF, calcInvoiceTotals } from '../pdf/invoiceGenerator'
 import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -236,9 +236,12 @@ export default function Invoices() {
       i.type !== 'credit_note' && i.status === 'sent' && !isOverdue(i.due_date)
     )
 
+    // Garde : seul un compte qui peut modifier les factures fait cette mise à jour à l'ouverture (droits inconnus :
+    // comme avant). Les autres voient les statuts tenus à jour chaque nuit par la base (0376, daily_maintenance).
+    const peutEcrire = useAuthStore.getState().can('facturation.factures.modifier') !== false
     const updates = []
-    if (toUp.length > 0) updates.push(...toUp.map(i => supabase.from('invoices').update({ status: 'overdue', updated_at: new Date().toISOString() }).eq('id', i.id)))
-    if (sentToDue.length > 0) updates.push(...sentToDue.map(i => supabase.from('invoices').update({ status: 'due', updated_at: new Date().toISOString() }).eq('id', i.id)))
+    if (peutEcrire && toUp.length > 0) updates.push(...toUp.map(i => supabase.from('invoices').update({ status: 'overdue', updated_at: new Date().toISOString() }).eq('id', i.id)))
+    if (peutEcrire && sentToDue.length > 0) updates.push(...sentToDue.map(i => supabase.from('invoices').update({ status: 'due', updated_at: new Date().toISOString() }).eq('id', i.id)))
 
     if (updates.length > 0) {
       await Promise.all(updates)

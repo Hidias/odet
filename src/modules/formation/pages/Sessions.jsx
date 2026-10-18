@@ -110,44 +110,7 @@ export default function Sessions() {
   }, [])
   
   // Mise à jour automatique du statut des sessions terminées (J+1 après fin)
-  useEffect(() => {
-    const updateCompletedSessions = async () => {
-      if (sessions.length === 0) return
-      
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      
-      // Sessions dont la date de fin est passée (J+1) et qui ne sont pas encore "completed"
-      const sessionsToComplete = sessions.filter(s => {
-        if (s.status === 'completed' || s.status_locked) return false
-        if (!s.end_date) return false
-        
-        const endDate = new Date(s.end_date)
-        endDate.setHours(0, 0, 0, 0)
-        // J+1 : la session est terminée le lendemain de la date de fin
-        const dayAfterEnd = new Date(endDate)
-        dayAfterEnd.setDate(dayAfterEnd.getDate() + 1)
-        
-        return today >= dayAfterEnd
-      })
-      
-      // Mettre à jour les sessions
-      for (const session of sessionsToComplete) {
-        await supabase
-          .from('sessions')
-          .update({ status: 'completed' })
-          .eq('id', session.id)
-      }
-      
-      // Recharger si des sessions ont été mises à jour
-      if (sessionsToComplete.length > 0) {
-        console.log(`${sessionsToComplete.length} session(s) passée(s) en "Terminée"`)
-        fetchSessions()
-      }
-    }
-    
-    updateCompletedSessions()
-  }, [sessions.length])
+  // Sessions passées « terminées » : écrites chaque nuit par la base (0376, daily_maintenance).
   
   useEffect(() => {
     if (location.state?.openNew) {

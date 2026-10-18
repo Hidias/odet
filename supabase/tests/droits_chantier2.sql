@@ -869,6 +869,32 @@ begin
     end;
   end if;
 
+  -- Écritures de la nuit (0376) : fonction réservée à la tâche planifiée, idempotente
+  if to_regprocedure('public.daily_maintenance()') is not null then
+    execute 'reset role';
+    v_total := v_total + 3;
+    if not has_function_privilege('anon', 'public.daily_maintenance()', 'EXECUTE')
+       and not has_function_privilege('authenticated', 'public.daily_maintenance()', 'EXECUTE')
+       and has_function_privilege('service_role', 'public.daily_maintenance()', 'EXECUTE') then
+      v_lines := v_lines || 'OK      base  0376 : maintenance de la nuit réservée à la tâche planifiée'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0376 : maintenance de la nuit réservée à la tâche planifiée'::text; end if;
+    declare
+      v_sm uuid; v_r1 jsonb; v_r2 jsonb;
+    begin
+      insert into public.sessions (start_date, end_date, attendance_token, status)
+      values (current_date - 5, current_date - 3, 'nuit-' || replace(gen_random_uuid()::text, '-', ''), 'planned')
+      returning id into v_sm;
+      execute 'set local role service_role';
+      v_r1 := public.daily_maintenance();
+      v_r2 := public.daily_maintenance();
+      execute 'reset role';
+      if (select status from public.sessions where id = v_sm) = 'completed' then
+        v_lines := v_lines || 'OK      base  0376 : session passée marquée terminée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0376 : session passée marquée terminée'::text; end if;
+      if (v_r2->>'sessions_terminees')::int = 0 and (v_r2->>'rappels')::int = 0 and (v_r2->>'alertes_qualite')::int = 0
+         and (v_r2->>'factures_en_retard')::int = 0 and (v_r2->>'factures_dues')::int = 0 then
+        v_lines := v_lines || 'OK      base  0376 : relancée le même jour, ne refait rien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0376 : relancée le même jour, ne refait rien (' || v_r2::text || ')'); end if;
   -- Écrans des droits (0377) : aperçu, personnalisation et retour au modèle, réservés aux bons droits
   if to_regprocedure('public.permission_profile_customize(text)') is not null then
     execute 'reset role';

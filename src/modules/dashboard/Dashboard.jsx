@@ -165,47 +165,9 @@ export default function Dashboard() {
   // ─── Data loading ──────────────────────────────────────
   useEffect(() => { loadData() }, [])
   
-  useEffect(() => {
-    const updateCompleted = async () => {
-      if (sessions.length === 0) return
-      const now = new Date(); now.setHours(0,0,0,0)
-      const toComplete = sessions.filter(s => {
-        if (s.status === 'completed' || s.status_locked || !s.end_date) return false
-        const end = new Date(s.end_date); end.setHours(0,0,0,0)
-        const dayAfter = new Date(end); dayAfter.setDate(dayAfter.getDate() + 1)
-        return now >= dayAfter
-      })
-      for (const s of toComplete) await supabase.from('sessions').update({ status: 'completed' }).eq('id', s.id)
-      if (toComplete.length > 0) fetchSessions()
-    }
-    updateCompleted()
-  }, [sessions.length])
-  
-  useEffect(() => {
-    if (!loading && sessions.length > 0) generateAutoNotifications()
-  }, [loading, sessions.length])
-  
-  const generateAutoNotifications = async () => {
-    const t = new Date(), dow = t.getDay(), dom = t.getDate(), mo = t.getMonth() + 1
-    const key = `notif_gen_${format(t, 'yyyy-MM-dd')}`
-    if (localStorage.getItem(key)) return
-    const notifs = []
-    if (dow === 1) notifs.push({ type: 'veille', title: 'Veille réglementaire à réaliser', message: 'Rappel hebdomadaire', link: '/veille-qualiopi' })
-    if (dow === 6) notifs.push({ type: 'materiel', title: 'Vérification matériel', message: 'Rappel hebdomadaire', link: '/parametres' })
-    if (dom === 1 && mo === 7) notifs.push({ type: 'audit', title: 'Audit interne annuel', message: 'Planifiez votre audit', link: '/qualiopi' })
-    if (dom === 1 && mo === 8) notifs.push({ type: 'revue_direction', title: 'Revue de direction', message: 'Revue annuelle à réaliser', link: '/qualiopi' })
-    // Une seule notification par type et par jour, quel que soit le navigateur (le repère local ne suffit pas)
-    const dayStart = new Date(t); dayStart.setHours(0, 0, 0, 0)
-    for (const n of notifs) {
-      const { count } = await supabase.from('notifications').select('id', { count: 'exact', head: true })
-        .eq('type', n.type).gte('created_at', dayStart.toISOString())
-      if (!count) await supabase.from('notifications').insert(n)
-    }
-    // Échéances de certification (NDA, audits Qualiopi, BPF) : notifiées 90, 30 et 7 jours avant
-    await supabase.rpc('cert_daily_notifications').then(() => {}, () => {})
-    localStorage.setItem(key, 'done')
-  }
-  
+  // Sessions passées « terminées », rappels du jour et échéances de certification : écrits chaque nuit par la
+  // base (0376, daily_maintenance), plus à l'ouverture de la page (refusé aux comptes en lecture).
+
   const loadData = async () => {
     await Promise.all([fetchClients(), fetchCourses(), fetchTrainees(), fetchSessions()])
     
