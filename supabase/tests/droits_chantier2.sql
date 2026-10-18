@@ -8,6 +8,8 @@
 -- Utilisation : coller le fichier dans l'éditeur SQL de Supabase et exécuter ; ou le placer après
 -- les migrations dans une même exécution pour les essayer en transaction annulée.
 -- Chaque branche du lot 2 ajoute ses cas dans la liste « tests » ci-dessous.
+-- Socle multi-sociétés (C1a) : bloc conditionnel en fin de script (isolement entre deux sociétés fictives,
+-- société courante, accès de support), joué seulement si la table companies existe.
 
 do $test$
 declare
@@ -421,6 +423,169 @@ begin
                         or (coalesce(qual, '') || coalesce(with_check, '')) not like '%app.role()%')) then
       v_lines := v_lines || 'OK      base  tables pp_* : règles du Passeport (direction et gestion), compte actif'::text;
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  tables pp_* : règles du Passeport (direction et gestion), compte actif'::text; end if;
+  end if;
+
+  -- Socle multi-sociétés (C1a, 0270 à 0273) : seulement si les tables des sociétés existent
+  if to_regclass('public.companies') is not null then
+    declare
+      c_own uuid; c_a uuid; c_b uuid;
+      u_a uuid := gen_random_uuid(); u_aa uuid := gen_random_uuid(); u_b uuid := gen_random_uuid(); u_ba uuid := gen_random_uuid();
+      v_hdr text;
+    begin
+      -- Structure (en postgres), avant les sociétés fictives
+      select id into c_own from public.companies where is_instance_owner;
+      v_total := v_total + 5;
+      if (select count(*) from public.companies where is_instance_owner) = 1 then
+        v_lines := v_lines || 'OK      base  une seule société n° 1 (porte l''instance)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  une seule société n° 1 (porte l''instance)'::text; end if;
+      if not exists (select 1 from public.profiles p
+                     where p.role in ('admin', 'direction', 'gestionnaire', 'formateur', 'commercial', 'comptable', 'lecture')
+                       and not exists (select 1 from public.company_members m
+                                       where m.profile_id = p.id and m.company_id = c_own and m.role = p.role
+                                         and m.is_active = coalesce(p.is_active, true)))
+         and not exists (select 1 from public.company_members m join public.profiles p on p.id = m.profile_id
+                         where p.role = 'superadmin' and m.is_active) then
+        v_lines := v_lines || 'OK      base  appartenances à la société n° 1 = rôles des comptes internes'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  appartenances à la société n° 1 = rôles des comptes internes'::text; end if;
+      if not exists (select 1 from public.org_modules o
+                     left join public.company_modules cm on cm.company_id = c_own and cm.key = o.key
+                     where cm.enabled is distinct from o.enabled) then
+        v_lines := v_lines || 'OK      base  modules de la société n° 1 = modules actifs'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  modules de la société n° 1 = modules actifs'::text; end if;
+      select string_agg(c.relname, ', ') into v_got from pg_class c
+      where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p')
+        and not exists (select 1 from app.tables_avant_societes t where t.table_name = c.relname)
+        and not exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'company_id' and not a.attisdropped);
+      if v_got is null then
+        v_lines := v_lines || 'OK      base  toute nouvelle table naît avec company_id'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  toute nouvelle table naît avec company_id (' || v_got || ')'); end if;
+      if (select count(*) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relrowsecurity
+            and c.relname in ('companies', 'company_establishments', 'company_members', 'company_member_roles',
+                              'company_modules', 'support_access_grants')) = 6 then
+        v_lines := v_lines || 'OK      base  RLS active sur les 6 tables des sociétés'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  RLS active sur les 6 tables des sociétés'::text; end if;
+
+      -- Deux sociétés fictives, créées et supprimées dans la transaction : A en accès de support permanent, B à la demande
+      insert into auth.users (id, email, aud, role)
+      select x.id, x.email, 'authenticated', 'authenticated' from (values
+        (u_a, 'essai.a@test.invalid'), (u_aa, 'essai.aa@test.invalid'), (u_b, 'essai.b@test.invalid'),
+        (u_ba, 'essai.ba@test.invalid')) x(id, email);
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active)
+      select x.id, x.email, x.role, true from (values
+        (u_a, 'essai.a@test.invalid', 'direction'), (u_aa, 'essai.aa@test.invalid', 'admin'),
+        (u_b, 'essai.b@test.invalid', 'gestionnaire'), (u_ba, 'essai.ba@test.invalid', 'admin')) x(id, email, role)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      delete from public.company_members where profile_id in (u_a, u_aa, u_b, u_ba);
+      insert into public.companies (legal_name, support_access_mode) values ('Essai société A', 'permanent') returning id into c_a;
+      insert into public.companies (legal_name, support_access_mode) values ('Essai société B', 'on_demand') returning id into c_b;
+      insert into public.company_members (company_id, profile_id, role, is_default) values
+        (c_a, u_a, 'direction', true), (c_a, u_aa, 'admin', true), (c_b, u_b, 'gestionnaire', true), (c_b, u_ba, 'admin', true);
+      insert into public.company_modules (company_id, key, enabled) values (c_a, 'formation', true), (c_b, 'formation', true);
+
+      for r in
+        select * from (values
+          -- Isolement entre sociétés
+          ('a', null, 'lit sa société', 'select count(*) from public.companies where id = ''' || c_a || '''', '=1'),
+          ('a', null, 'ne voit pas une autre société', 'select count(*) from public.companies where id = ''' || c_b || '''', '=0'),
+          ('a', null, 'ne voit pas la société n° 1', 'select count(*) from public.companies where is_instance_owner', '=0'),
+          ('a', null, 'lit les modules de sa société', 'select count(*) from public.company_modules where company_id = ''' || c_a || '''', '=1'),
+          ('b', null, 'ne lit pas les modules d''une autre société', 'select count(*) from public.company_modules where company_id = ''' || c_a || '''', '=0'),
+          ('b', null, 'ne lit pas les appartenances d''une autre société', 'select count(*) from public.company_members where company_id = ''' || c_a || '''', '=0'),
+          ('a', null, 'ne modifie pas une autre société', 'with x as (update public.companies set short_name = short_name where id = ''' || c_b || ''' returning 1) select count(*) from x', '=0'),
+          ('a', null, 'direction ne modifie pas sa société (sans licence totale)', 'with x as (update public.companies set short_name = short_name where id = ''' || c_a || ''' returning 1) select count(*) from x', '=0'),
+          ('a', null, 'direction ne donne pas d''accès', 'with x as (insert into public.company_members (company_id, profile_id, role) values (''' || c_a || ''', ''' || u_b || ''', ''lecture'') returning 1) select count(*) from x', 'refus'),
+          ('aa', null, 'administrateur de A : donne un accès à A', 'with x as (insert into public.company_members (company_id, profile_id, role) values (''' || c_a || ''', ''' || u_b || ''', ''lecture'') returning 1) select count(*) from x', '=1'),
+          ('aa', null, 'administrateur de A : pas d''accès à B', 'with x as (insert into public.company_members (company_id, profile_id, role) values (''' || c_b || ''', ''' || u_a || ''', ''lecture'') returning 1) select count(*) from x', 'refus'),
+          ('aa', null, 'aucune appartenance super administrateur', 'with x as (insert into public.company_members (company_id, profile_id, role) values (''' || c_a || ''', ''' || u_ba || ''', ''superadmin'') returning 1) select count(*) from x', 'refus'),
+          ('b', null, 'accès donné : voit A et B', 'select count(*) from public.companies where id in (''' || c_a || ''', ''' || c_b || ''')', '=2'),
+          ('b', null, 'société courante : la société par défaut (B)', 'select count(*) from (select app.current_company() c) x where c = ''' || c_b || '''', '=1'),
+          ('b', '{"x-company-id":"' || c_a || '"}', 'en-tête autorisé : société courante A', 'select count(*) from (select app.current_company() c) x where c = ''' || c_a || '''', '=1'),
+          ('b', '{"x-company-id":"' || c_a || '"}', 'rôle dans A : celui de l''appartenance (lecture)', 'select count(*) from (select app.company_role() r) x where r = ''lecture''', '=1'),
+          ('a', '{"x-company-id":"' || c_b || '"}', 'en-tête non autorisé : retombe sur sa société', 'select count(*) from (select app.current_company() c) x where c = ''' || c_a || '''', '=1'),
+          ('a', '{"x-company-id":"pas-un-uuid"}', 'en-tête mal formé : retombe sur sa société', 'select count(*) from (select app.current_company() c) x where c = ''' || c_a || '''', '=1'),
+          ('a', '{"x-company-id":"' || gen_random_uuid() || '"}', 'en-tête inconnu : retombe sur sa société', 'select count(*) from (select app.current_company() c) x where c = ''' || c_a || '''', '=1'),
+          ('ges', null, 'société courante : la société n° 1', 'select count(*) from (select app.current_company() c) x where c = ''' || coalesce(c_own::text, gen_random_uuid()::text) || '''', '=1'),
+          ('lec', null, 'ses sociétés : la société n° 1 seulement', 'select count(*) from public.my_companies()', '=1'),
+          ('tech', null, 'technicien : voit la société n° 1', 'select count(*) from public.companies where is_instance_owner', '=1'),
+          ('off', null, 'compte désactivé : aucune société', 'select count(*) from public.companies', 'vide'),
+          ('ent', null, 'compte externe : aucune société', 'select count(*) from public.companies', 'vide'),
+          ('anon', null, 'visiteur : aucune société', 'select count(*) from public.companies', 'refus'),
+          ('anon', null, 'visiteur : n''appelle pas ses sociétés', 'select count(*) from public.my_companies()', 'refus'),
+          -- Accès de support de l'éditeur
+          ('sa', null, 'liste des sociétés lisible (réglages)', 'select count(*) from public.companies where id in (''' || c_a || ''', ''' || c_b || ''')', '=2'),
+          ('sa', null, 'accès permanent : données de A visibles', 'select count(*) from app.visible_companies() v where v = ''' || c_a || '''', '=1'),
+          ('sa', null, 'à la demande sans fenêtre : B non visible', 'select count(*) from app.visible_companies() v where v = ''' || c_b || '''', '=0'),
+          ('sa', null, 'aucune appartenance pour le super administrateur', 'select count(*) from public.company_members where profile_id = auth.uid()', '=0'),
+          ('sa', '{"x-company-id":"' || c_a || '"}', 'trace des lectures de A', 'select public.support_trace(array[''clients'', ''profiles'', ''pas_une_table''], ''#/clients?q=essai'')', '=1'),
+          ('sa', null, 'trace : tables métier seulement, page sans la recherche', 'select count(*) from public.audit_logs where details ->> ''company_id'' = ''' || c_a || ''' and details -> ''tables'' = ''["clients"]''::jsonb and details ->> ''page'' = ''#/clients'' and (details ->> ''fenetre_ouverte'')::boolean', '=1'),
+          ('sa', '{"x-company-id":"' || c_b || '"}', 'trace des lectures de B hors fenêtre', 'select public.support_trace(array[''sessions''], ''#/sessions'')', '=1'),
+          ('sa', null, 'trace de B : fenêtre fermée notée', 'select count(*) from public.audit_logs where details ->> ''company_id'' = ''' || c_b || ''' and not (details ->> ''fenetre_ouverte'')::boolean', '=1'),
+          ('sa', null, 'trace sans table métier : rien d''écrit', 'select public.support_trace(array[''profiles'', ''org_modules''], ''#/'')', '=0'),
+          ('aa', null, 'administrateur : voit la trace au journal', 'select count(*) from public.audit_logs where details ->> ''company_id'' = ''' || c_a || ''' and (details ->> ''support'')::boolean', 'non_vide'),
+          ('ges', null, 'trace refusée hors super administrateur', 'select public.support_trace(array[''clients''], ''#/'')', 'refus'),
+          ('a', null, 'direction ne change pas le mode d''accès', 'select count(*) from (select public.company_set_support_mode(''' || c_a || ''', ''none'')) x', 'refus'),
+          ('sa', null, 'le super administrateur ne change pas le mode', 'select count(*) from (select public.company_set_support_mode(''' || c_b || ''', ''permanent'')) x', 'refus'),
+          ('sa', null, 'mode non modifiable en direct', 'with x as (update public.companies set support_access_mode = ''permanent'' where id = ''' || c_b || ''' returning 1) select count(*) from x', 'refus'),
+          ('aa', null, 'administrateur de A : passe A à la demande', 'select count(*) from (select public.company_set_support_mode(''' || c_a || ''', ''on_demand'')) x', '=1'),
+          ('sa', null, 'A à la demande sans fenêtre : non visible', 'select count(*) from app.visible_companies() v where v = ''' || c_a || '''', '=0'),
+          ('a', null, 'direction n''ouvre pas de fenêtre', 'select count(*) from (select public.support_access_open(''' || c_a || ''', ''Essai support'', 2)) x', 'refus'),
+          ('aa', null, 'administrateur de A : pas de fenêtre sur B', 'select count(*) from (select public.support_access_open(''' || c_b || ''', ''Essai support'', 2)) x', 'refus'),
+          ('ba', null, 'administrateur de B : ouvre une fenêtre de 2 h', 'select count(*) from (select public.support_access_open(''' || c_b || ''', ''Essai support'', 2) t) x where t > now() + interval ''1 hour''', '=1'),
+          ('sa', null, 'fenêtre ouverte : B visible', 'select count(*) from app.visible_companies() v where v = ''' || c_b || '''', '=1'),
+          ('sa', null, 'fenêtre ouverte : rôle super administrateur dans B', 'select count(*) from (select app.company_role(''' || c_b || ''') r) x where r = ''superadmin''', '=1'),
+          ('ba', null, 'administrateur de B : lit ses fenêtres', 'select count(*) from public.support_access_grants where company_id = ''' || c_b || '''', '=1'),
+          ('a', null, 'direction de A : ne lit pas les fenêtres de B', 'select count(*) from public.support_access_grants', '=0'),
+          ('ba', null, 'fenêtre non créée en direct', 'with x as (insert into public.support_access_grants (company_id, expires_at, reason) values (''' || c_b || ''', now() + interval ''1 day'', ''Essai'') returning 1) select count(*) from x', 'refus'),
+          ('ba', null, 'administrateur de B : ferme la fenêtre', 'select public.support_access_close(''' || c_b || ''')', '=1'),
+          ('sa', null, 'fenêtre fermée : B non visible', 'select count(*) from app.visible_companies() v where v = ''' || c_b || '''', '=0'),
+          ('ba', null, 'ouverture et fermeture écrites au journal', 'select count(*) from public.audit_logs where details ->> ''company_id'' = ''' || c_b || ''' and entity_name in (''Accès de support ouvert'', ''Accès de support fermé'')', '=2'),
+          ('aa', null, 'licence totale réservée au super administrateur', 'with x as (update public.companies set full_license = true where id = ''' || c_a || ''' returning 1) select count(*) from x', 'vide')
+        ) t(who, hdr, label, sql, expect)
+      loop
+        v_uid := case r.who when 'sa' then u_sa when 'ges' then u_ges when 'lec' then u_lec when 'tech' then u_tech
+                            when 'off' then u_off when 'ent' then u_ent when 'a' then u_a when 'aa' then u_aa
+                            when 'b' then u_b when 'ba' then u_ba end;
+        if r.who = 'anon' then
+          v_claims := '{"role":"anon"}';
+        else
+          v_claims := json_build_object('sub', v_uid, 'role', 'authenticated', 'email', 'essai.' || r.who || '@test.invalid')::text;
+        end if;
+        begin
+          perform set_config('request.jwt.claims', v_claims, true);
+          perform set_config('request.jwt.claim.sub', coalesce(v_uid::text, ''), true);
+          perform set_config('request.headers', coalesce(r.hdr, ''), true);
+          if r.who = 'anon' then execute 'set local role anon'; else execute 'set local role authenticated'; end if;
+          execute r.sql into v_n;
+          v_got := v_n::text;
+          execute 'reset role';
+        exception when others then
+          v_got := 'refus (' || sqlstate || ')';
+        end;
+        perform set_config('request.headers', '', true);
+        v_ok := case
+          when r.expect = 'refus' then v_got like 'refus%'
+          when r.expect = 'vide' then v_got like 'refus%' or v_got = '0'
+          when r.expect = 'non_vide' then v_got ~ '^[0-9]+$' and v_got::bigint > 0
+          when r.expect like '=%' then v_got = substr(r.expect, 2)
+          else false end;
+        v_total := v_total + 1;
+        if not v_ok then v_fail := v_fail + 1; end if;
+        v_lines := v_lines || format('%s  %-5s %-55s attendu %-10s obtenu %s',
+          case when v_ok then 'OK    ' else 'ÉCHEC ' end, r.who, r.label, r.expect, v_got);
+      end loop;
+
+      -- Sociétés fictives supprimées (l'erreur finale annule de toute façon toute la transaction)
+      delete from public.support_access_grants where company_id in (c_a, c_b);
+      delete from public.company_modules where company_id in (c_a, c_b);
+      delete from public.company_members where company_id in (c_a, c_b);
+      delete from public.companies where id in (c_a, c_b);
+      v_total := v_total + 1;
+      if not exists (select 1 from public.companies where legal_name like 'Essai société %') then
+        v_lines := v_lines || 'OK      base  sociétés fictives supprimées'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  sociétés fictives supprimées'::text; end if;
+    end;
   end if;
 
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
