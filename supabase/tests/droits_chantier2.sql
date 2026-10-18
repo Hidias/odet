@@ -10,6 +10,9 @@
 -- Chaque branche du lot 2 ajoute ses cas dans la liste « tests » ci-dessous.
 -- Socle multi-sociétés (C1a) : bloc conditionnel en fin de script (isolement entre deux sociétés fictives,
 -- société courante, accès de support), joué seulement si la table companies existe.
+-- Droits composés (C1b) : bloc conditionnel après celui de C1a (catalogue, reprise sans perte, prix cachés au
+-- technicien, comptable externe sans écriture, RH, salarié, écran, licence totale, offres, droits par société,
+-- circuits de validation), joué seulement si la table permissions existe.
 
 do $test$
 declare
@@ -585,6 +588,276 @@ begin
       if not exists (select 1 from public.companies where legal_name like 'Essai société %') then
         v_lines := v_lines || 'OK      base  sociétés fictives supprimées'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  sociétés fictives supprimées'::text; end if;
+    end;
+  end if;
+
+  -- Droits composés par société (C1b, 0370 à 0375) : seulement si le catalogue des droits existe
+  if to_regclass('public.permissions') is not null then
+    declare
+      c1 uuid; c_x uuid; c_y uuid;
+      u_cpe uuid := gen_random_uuid(); u_rh uuid := gen_random_uuid(); u_sal uuid := gen_random_uuid();
+      u_ecr uuid := gen_random_uuid(); u_mbr uuid := gen_random_uuid(); u_x uuid := gen_random_uuid();
+      v_part uuid; v_vp uuid; v_req uuid; v_req2 uuid; v_del uuid; v_off uuid;
+    begin
+      select id into c1 from public.companies where is_instance_owner;
+
+      -- Structure (en postgres) ------------------------------------------------------------------------
+      v_total := v_total + 7;
+      -- Tous les droits demandés par les règles existent au catalogue
+      select string_agg(distinct m[1], ', ') into v_got
+      from pg_policies p, regexp_matches(coalesce(p.qual, '') || ' ' || coalesce(p.with_check, ''),
+                                         'a_le_droit(?:_dans)?\(''([a-z_.]+)''', 'g') m
+      where p.schemaname = 'public' and not exists (select 1 from public.permissions d where d.code = m[1]);
+      if v_got is null then
+        v_lines := v_lines || 'OK      base  C1b : tous les droits des règles sont au catalogue'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  C1b : droits des règles absents du catalogue (' || v_got || ')'); end if;
+      -- Plus aucune règle de table par groupe de rôles : une seule source (app.a_le_droit)
+      if not exists (select 1 from pg_policies where schemaname = 'public'
+                     and (coalesce(qual, '') || coalesce(with_check, '')) like '%app.grp(%') then
+        v_lines := v_lines || 'OK      base  C1b : règles des tables par droits (plus de groupe de rôles)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C1b : règles des tables par droits (plus de groupe de rôles)'::text; end if;
+      -- Reprise sans perte : chaque compte actif a exactement les droits du modèle de son rôle (sans profil en plus)
+      select string_agg(p.email, ', ') into v_got
+      from public.profiles p
+      where app.role_of(p.id) is not null and p.id not in (u_cpe, u_rh, u_sal, u_ecr, u_mbr, u_x)
+        and (app.role_of(p.id) = 'superadmin'
+             or exists (select 1 from public.company_members m where m.profile_id = p.id and m.company_id = c1 and m.is_active))
+        and not exists (select 1 from public.company_member_roles cr join public.company_members m on m.id = cr.member_id
+                        where m.profile_id = p.id)
+        and not exists (select 1 from public.company_member_rights cg join public.company_members m on m.id = cg.member_id
+                        where m.profile_id = p.id)
+        and app.rights_for(p.id, case when app.role_of(p.id) = 'superadmin' then null else c1 end)
+            is distinct from coalesce((select array_agg(pr.right_code order by pr.right_code)
+                                       from public.permission_profile_rights pr
+                                       join public.permission_profiles pp on pp.id = pr.profile_id
+                                       join public.permissions d on d.code = pr.right_code
+                                       where pp.company_id is null and pp.key = app.role_of(p.id)
+                                         -- sans licence totale, les droits qui la demandent ne sont pas donnés
+                                         and (app.role_of(p.id) = 'superadmin' or not d.full_license_only
+                                              or (select c.full_license from public.companies c where c.id = c1))),
+                                      '{}'::text[]);
+      if v_got is null then
+        v_lines := v_lines || 'OK      base  C1b : reprise, chaque compte a les droits du modèle de son rôle'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  C1b : reprise, droits différents du modèle (' || v_got || ')'); end if;
+      -- Le modèle technicien ne contient aucun droit qui montre des prix
+      if not exists (select 1 from public.permission_profile_rights pr join public.permission_profiles p on p.id = pr.profile_id
+                     join public.permissions d on d.code = pr.right_code
+                     where p.company_id is null and p.key = 'technicien' and d.shows_prices) then
+        v_lines := v_lines || 'OK      base  C1b : modèle technicien sans aucun droit de prix'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C1b : modèle technicien sans aucun droit de prix'::text; end if;
+      -- Vues terrain : aucune colonne de prix
+      if not exists (select 1 from information_schema.columns
+                     where table_schema = 'public' and table_name in ('itv_parts_terrain', 'itv_settings_terrain', 'itv_visit_parts_terrain')
+                       and (column_name like '%price%' or column_name like '%fee%' or column_name like '%_ht')) then
+        v_lines := v_lines || 'OK      base  C1b : vues terrain sans colonne de prix'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C1b : vues terrain sans colonne de prix'::text; end if;
+      -- Modèles de profils types présents
+      if (select count(*) from public.permission_profiles where company_id is null and key in ('superadmin', 'admin',
+            'direction', 'gestionnaire', 'formateur', 'commercial', 'technicien', 'comptable', 'comptable_externe', 'rh',
+            'salarie', 'lecture', 'ecran', 'membre')) = 14 then
+        v_lines := v_lines || 'OK      base  C1b : 14 profils types'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C1b : 14 profils types'::text; end if;
+      -- Lectures identiques avant et après C1b (photographie prise par le script d'essai avant 0370)
+      if to_regclass('pg_temp.essai_lectures_avant') is not null then
+        select string_agg(x, ', ') into v_got from (
+          select a.who || ':' || a.tbl || ' ' || a.n || '→' || coalesce(b.n::text, '?') as x
+          from essai_lectures_avant a left join essai_lectures_apres b on b.who = a.who and b.tbl = a.tbl
+          where a.n is distinct from b.n
+            and not (a.who = 'tech' and a.tbl in ('itv_parts', 'itv_settings', 'itv_visit_parts') and b.n = 0)
+            and a.tbl <> 'schema_migrations'  -- les migrations de C1b s'y inscrivent
+          order by 1 limit 20) z;
+        if v_got is null then
+          v_lines := v_lines || ('OK      base  C1b : mêmes lignes lues avant et après pour ' || (select count(*) from essai_lectures_avant)
+                                 || ' couples compte-table (sauf prix du technicien : '
+                                 || (select count(*) from essai_lectures_avant a join essai_lectures_apres b using (who, tbl)
+                                     where a.n is distinct from b.n and a.tbl <> 'schema_migrations') || ' masqués)');
+        else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  C1b : lectures différentes (' || v_got || ')'); end if;
+      else
+        v_lines := v_lines || 'OK      base  C1b : comparaison des lectures (seulement dans le script d''essai)'::text;
+      end if;
+
+      -- Comptes et données du bloc ---------------------------------------------------------------------
+      insert into auth.users (id, email, aud, role)
+      select x.id, x.email, 'authenticated', 'authenticated' from (values
+        (u_cpe, 'essai.cpe@test.invalid'), (u_rh, 'essai.rh@test.invalid'), (u_sal, 'essai.sal@test.invalid'),
+        (u_ecr, 'essai.ecr@test.invalid'), (u_mbr, 'essai.mbr@test.invalid'), (u_x, 'essai.x@test.invalid')) x(id, email);
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active)
+      select x.id, x.email, x.role, true from (values
+        (u_cpe, 'essai.cpe@test.invalid', 'membre'), (u_rh, 'essai.rh@test.invalid', 'membre'),
+        (u_sal, 'essai.sal@test.invalid', 'membre'), (u_ecr, 'essai.ecr@test.invalid', 'membre'),
+        (u_mbr, 'essai.mbr@test.invalid', 'membre'), (u_x, 'essai.x@test.invalid', 'gestionnaire')) x(id, email, role)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.company_member_roles (member_id, role_key)
+      select m.id, x.k from (values (u_cpe, 'comptable_externe'), (u_rh, 'rh'), (u_sal, 'salarie'), (u_ecr, 'ecran')) x(u, k)
+      join public.company_members m on m.profile_id = x.u and m.company_id = c1;
+      insert into public.itv_parts (name, price_ht) values ('Essai pièce C1b', 42) returning id into v_part;
+      insert into public.itv_visit_parts (visit_id, part_id, label, quantity, unit_price_ht)
+      values (v_v1, v_part, 'Essai pièce C1b', 1, 42) returning id into v_vp;
+      -- Deux sociétés fictives : X (le gestionnaire u_x y est membre en lecture) et Y (aucun lien)
+      insert into public.companies (legal_name) values ('Essai société X') returning id into c_x;
+      insert into public.companies (legal_name) values ('Essai société Y') returning id into c_y;
+      insert into public.company_members (company_id, profile_id, role) values (c_x, u_x, 'lecture');
+      insert into public.approval_rules (company_id, scope, mode, validator_right) values (c_y, 'expense', 'none', 'frais.notes.valider');
+
+      for r in
+        select * from (values
+          -- Technicien : aucun prix lisible, missions par les vues sans prix
+          ('tech', null, 'ne lit pas les prix des pièces', 'select count(*) from public.itv_parts', 'vide'),
+          ('tech', null, 'ne lit pas le forfait de visite', 'select count(*) from public.itv_settings', 'vide'),
+          ('tech', null, 'ne lit pas les prix des pièces fournies', 'select count(*) from public.itv_visit_parts', 'vide'),
+          ('tech', null, 'ne lit aucun contrat (prix annuel)', 'select count(*) from public.itv_contracts', 'vide'),
+          ('tech', null, 'ne lit aucun devis', 'select count(*) from public.quotes', 'vide'),
+          ('tech', null, 'ne lit aucune ligne de facture', 'select count(*) from public.invoice_items', 'vide'),
+          ('tech', null, 'ne lit aucun coût de session', 'select count(*) from public.session_costs', 'vide'),
+          ('tech', null, 'aucun droit qui montre des prix', 'select count(*) from public.permissions where code = any (app.rights()) and shows_prices', '=0'),
+          ('tech', null, 'lit le catalogue des pièces sans prix', 'select count(*) from public.itv_parts_terrain where id = ''' || v_part || '''', '=1'),
+          ('tech', null, 'lit les réglages sans forfait', 'select count(*) from public.itv_settings_terrain', '=1'),
+          ('tech', null, 'lit les pièces fournies de sa visite sans prix', 'select count(*) from public.itv_visit_parts_terrain where id = ''' || v_vp || '''', '=1'),
+          ('tech', null, 'ajoute une pièce à sa visite : réponse sans prix', 'select count(*) from (select public.itv_visit_part_add(''' || v_v1 || ''', ''' || v_part || ''') j) x where not (j ? ''unit_price_ht'') and (j ->> ''label'') = ''Essai pièce C1b''', '=1'),
+          ('tech', null, 'change la quantité d''une pièce de sa visite', 'select count(*) from (select public.itv_visit_part_set_quantity(''' || v_vp || ''', 3) j) x where (j ->> ''quantity'')::numeric = 3', '=1'),
+          ('tech', null, 'n''ajoute pas de pièce à la visite d''un autre', 'select count(*) from (select public.itv_visit_part_add(''' || v_v2 || ''', ''' || v_part || ''')) x', 'refus'),
+          ('tech', null, 'garde ses missions : ses visites', 'select count(*) from public.itv_visits', '=1'),
+          ('tech', null, 'garde l''annotation du parc de son client', 'with x as (update public.itv_equipment set notes = coalesce(notes, '''') where id = ''' || v_eq || ''' returning 1) select count(*) from x', '=1'),
+          ('lec', null, 'lecture : lit toujours les prix des pièces (inchangé)', 'select count(*) from public.itv_parts where id = ''' || v_part || '''', '=1'),
+          ('ges', null, 'gestionnaire : lit le prix porté par la base', 'select count(*) from public.itv_visit_parts where visit_id = ''' || v_v1 || ''' and part_id = ''' || v_part || ''' and unit_price_ht = 42', '=2'),
+          -- Droits lus par l'application (une seule source)
+          ('lec', null, 'my_rights : droits du modèle lecture', 'select count(*) from (select public.my_rights() j) x where (j -> ''rights'') = (select to_jsonb(array_agg(r.right_code order by r.right_code)) from public.permission_profile_rights r join public.permission_profiles p on p.id = r.profile_id where p.company_id is null and p.key = ''lecture'')', '=1'),
+          ('for', null, 'formateur : ses sessions seulement (droit limité)', 'select count(*) from (select app.rights() d) x where ''formation.sessions.voir_siennes'' = any (d) and not ''formation.sessions.voir'' = any (d)', '=1'),
+          ('tech', null, 'technicien : profil de base technicien', 'select count(*) from (select public.my_rights() j) x where (j -> ''profiles'') = ''["technicien"]''::jsonb', '=1'),
+          ('off', null, 'compte désactivé : aucun droit', 'select coalesce(array_length(app.rights(), 1), 0)', '=0'),
+          ('ent', null, 'compte externe : aucun droit', 'select coalesce(array_length(app.rights(), 1), 0)', '=0'),
+          ('anon', null, 'visiteur : n''appelle pas my_rights', 'select count(*) from (select public.my_rights() j) x where j is not null', 'refus'),
+          ('anon', null, 'visiteur : ne lit pas le catalogue', 'select count(*) from public.permissions', 'refus'),
+          -- Comptable externe : lecture des factures, aucune écriture
+          ('cpe', null, 'comptable externe : lit les factures', 'select count(*) from public.invoices', 'non_vide'),
+          ('cpe', null, 'comptable externe : lit les clients', 'select count(*) from public.clients', 'non_vide'),
+          ('cpe', null, 'comptable externe : devis masqués par défaut', 'select count(*) from public.quotes', 'vide'),
+          ('cpe', null, 'comptable externe : ne crée pas de facture', 'with x as (insert into public.invoices (reference, status) values (''ESSAI-CPE'', ''draft'') returning 1) select count(*) from x', 'refus'),
+          ('cpe', null, 'comptable externe : ne modifie pas une facture', 'with x as (update public.invoices set notes = coalesce(notes, '''') returning 1) select count(*) from x', '=0'),
+          ('cpe', null, 'comptable externe : ne supprime pas une facture', 'with x as (delete from public.invoices returning 1) select count(*) from x', '=0'),
+          ('cpe', null, 'comptable externe : ne crée pas de paiement', 'with x as (insert into public.invoice_payments (invoice_id, amount) values (''' || coalesce(v_inv::text, gen_random_uuid()::text) || ''', 1) returning 1) select count(*) from x', 'refus'),
+          ('cpe', null, 'comptable externe : ne modifie pas un client', 'with x as (update public.clients set notes = coalesce(notes, '''') returning 1) select count(*) from x', '=0'),
+          ('cpe', null, 'comptable externe : aucune session ni stagiaire', 'select (select count(*) from public.sessions) + (select count(*) from public.trainees)', '=0'),
+          ('cpe', null, 'comptable externe : ne change pas l''accès aux devis', 'select count(*) from (select public.external_accountant_set_quotes(true)) x', 'refus'),
+          ('dir', null, 'direction : rend les devis visibles au comptable externe', 'select count(*) from (select public.external_accountant_set_quotes(true) v) x where v', '=1'),
+          ('cpe', null, 'comptable externe : devis visibles après le choix de la direction', 'select count(*) from public.quotes', 'non_vide'),
+          ('cpe', null, 'comptable externe : ne modifie toujours pas un devis', 'with x as (update public.quotes set notes = coalesce(notes, '''') returning 1) select count(*) from x', '=0'),
+          ('dir', null, 'direction : masque de nouveau les devis', 'select count(*) from (select public.external_accountant_set_quotes(false) v) x where not v', '=1'),
+          ('cpe', null, 'comptable externe : devis de nouveau masqués', 'select count(*) from public.quotes', 'vide'),
+          -- RH, salarié, écran, membre sans profil
+          ('rh', null, 'RH : droits RH (salaires, absences)', 'select count(*) from (select app.rights() d) x where ''rh.salaires.voir'' = any (d) and ''rh.absences.valider'' = any (d)', '=1'),
+          ('rh', null, 'RH : aucune facture ni session', 'select (select count(*) from public.invoices) + (select count(*) from public.sessions)', '=0'),
+          ('sal', null, 'salarié : demande ses absences, ne voit pas les salaires', 'select count(*) from (select app.rights() d) x where ''rh.absences.demander'' = any (d) and not ''rh.salaires.voir'' = any (d)', '=1'),
+          ('sal', null, 'salarié : aucun client', 'select count(*) from public.clients', 'vide'),
+          ('ecr', null, 'écran : seulement l''écran mural et les réglages', 'select count(*) from (select app.rights() d) x where d = array[''organisation.reglages.voir'', ''vehicules.ecran_mural.voir'']', '=1'),
+          ('ecr', null, 'écran : aucune donnée métier', 'select (select count(*) from public.clients) + (select count(*) from public.itv_visits)', '=0'),
+          ('mbr', null, 'membre sans profil : aucun droit', 'select coalesce(array_length(app.rights(), 1), 0)', '=0'),
+          ('mbr', null, 'membre sans profil : aucun client', 'select count(*) from public.clients', 'vide'),
+          -- Licence totale : les Paramètres s'ouvrent seulement avec elle (super administrateur toujours)
+          ('ad', null, 'administrateur sans licence totale : pas les Paramètres', 'select count(*) from (select app.rights() d) x where ''parametres.ouvrir'' = any (d)', '=0'),
+          ('dir', null, 'direction : jamais les Paramètres', 'select count(*) from (select app.rights() d) x where ''parametres.ouvrir'' = any (d) or ''parametres.organisme.modifier'' = any (d)', '=0'),
+          ('sa', null, 'super administrateur : les Paramètres', 'select count(*) from (select app.rights() d) x where ''parametres.ouvrir'' = any (d)', '=1'),
+          ('ad', null, 'administrateur sans licence : n''attribue pas de profil', 'with x as (insert into public.company_member_roles (member_id, role_key) select m.id, ''salarie'' from public.company_members m where m.profile_id = ''' || u_lec || ''' and m.company_id = ''' || c1 || ''' returning 1) select count(*) from x', 'refus'),
+          -- Droits par société : le même compte, deux rôles dans deux sociétés
+          ('x', null, 'gestionnaire dans sa société : crée des sessions', 'select count(*) from (select app.a_le_droit(''formation.sessions.creer'') v) x where v', '=1'),
+          ('x', '{"x-company-id":"' || c_x || '"}', 'lecture dans la société X : ne crée pas de sessions', 'select count(*) from (select app.a_le_droit(''formation.sessions.creer'') v) x where v', '=0'),
+          ('x', '{"x-company-id":"' || c_x || '"}', 'société X : profil de base lecture', 'select count(*) from (select public.my_rights() j) x where (j -> ''profiles'') = ''["lecture"]''::jsonb', '=1'),
+          ('x', null, 'aucun droit dans une société sans appartenance', 'select count(*) from (select app.a_le_droit_dans(''' || c_y || ''', ''organisation.reglages.voir'') v) x where v', '=0'),
+          ('dir', null, 'isolement : ne lit pas les circuits d''une autre société', 'select count(*) from public.approval_rules where company_id = ''' || c_y || '''', '=0'),
+          -- Circuits de validation : commandes au-delà de 100 €
+          ('dir', null, 'direction : règle un seuil de 100 € sur les commandes', 'with x as (insert into public.approval_rules (company_id, scope, mode, threshold, validator_right) values (''' || c1 || ''', ''purchase_order'', ''threshold'', 100, ''stock.commandes.valider'') returning 1) select count(*) from x', '=1'),
+          ('ges', null, 'gestionnaire : ne règle pas les circuits', 'with x as (insert into public.approval_rules (company_id, scope, mode, validator_right) values (''' || c1 || ''', ''absence'', ''none'', ''rh.absences.valider'') returning 1) select count(*) from x', 'refus'),
+          ('tech', null, 'commande de 50 € : aucune validation', 'select count(*) from (select public.approval_submit(''purchase_order'', ''itv_visits'', ''' || v_v1 || ''', 50) v) x where v is null', '=1'),
+          ('tech', null, 'commande de 150 € : demande de validation', 'select count(*) from (select public.approval_submit(''purchase_order'', ''itv_visits'', ''' || v_v1 || ''', 150) v) x where v is not null', '=1'),
+          ('tech', null, 'ne valide pas sa propre demande', 'select count(*) from (select public.approval_decide((select id from public.approval_requests where object_id = ''' || v_v1 || ''' and status = ''pending''), ''approved'')) x', 'refus'),
+          ('ges', null, 'sans le droit, ne valide pas', 'select count(*) from (select public.approval_decide((select r.id from public.approval_requests r limit 1), ''approved'')) x', 'refus'),
+          ('dir', null, 'refus sans motif impossible', 'select count(*) from (select public.approval_decide((select id from public.approval_requests where object_id = ''' || v_v1 || ''' and status = ''pending''), ''rejected'')) x', 'refus'),
+          ('dir', null, 'direction : valide la commande', 'select count(*) from (select public.approval_decide((select id from public.approval_requests where object_id = ''' || v_v1 || ''' and status = ''pending''), ''approved'', ''Essai'') s) x where s = ''approved''', '=1'),
+          ('dir', null, 'direction : délègue ses validations au gestionnaire', 'select count(*) from (select public.approval_delegate(''' || u_ges || ''', now() + interval ''7 days'', ''Essai congés'') v) x where v is not null', '=1'),
+          ('tech', null, 'nouvelle commande de 300 €', 'select count(*) from (select public.approval_submit(''purchase_order'', ''itv_visits'', ''' || v_v1 || ''', 300) v) x where v is not null', '=1'),
+          ('ges', null, 'gestionnaire délégué : voit la demande', 'select count(*) from public.approval_requests where object_id = ''' || v_v1 || ''' and status = ''pending''', '=1'),
+          ('ges', null, 'gestionnaire délégué : valide la commande', 'select count(*) from (select public.approval_decide((select id from public.approval_requests where object_id = ''' || v_v1 || ''' and status = ''pending''), ''approved'') s) x where s = ''approved''', '=1'),
+          ('lec', null, 'sans droit : ne voit pas les demandes des autres', 'select count(*) from public.approval_requests', '=0'),
+          ('tech', null, 'demande non écrite en direct', 'with x as (insert into public.approval_requests (company_id, scope, object_table, object_id, steps) values (''' || c1 || ''', ''expense'', ''itv_visits'', ''' || v_v1 || ''', ''["frais.notes.valider"]'') returning 1) select count(*) from x', 'refus')
+        ) t(who, hdr, label, sql, expect)
+      loop
+        v_uid := case r.who when 'sa' then u_sa when 'ad' then u_ad when 'dir' then u_dir when 'ges' then u_ges
+                            when 'for' then u_for when 'com' then u_com when 'cpt' then u_cpt when 'lec' then u_lec
+                            when 'tech' then u_tech when 'ent' then u_ent when 'off' then u_off when 'cpe' then u_cpe
+                            when 'rh' then u_rh when 'sal' then u_sal when 'ecr' then u_ecr when 'mbr' then u_mbr
+                            when 'x' then u_x end;
+        if r.who = 'anon' then
+          v_claims := '{"role":"anon"}';
+        else
+          v_claims := json_build_object('sub', v_uid, 'role', 'authenticated', 'email', 'essai.' || r.who || '@test.invalid')::text;
+        end if;
+        begin
+          perform set_config('request.jwt.claims', v_claims, true);
+          perform set_config('request.jwt.claim.sub', coalesce(v_uid::text, ''), true);
+          perform set_config('request.headers', coalesce(r.hdr, ''), true);
+          if r.who = 'anon' then execute 'set local role anon'; else execute 'set local role authenticated'; end if;
+          execute r.sql into v_n;
+          v_got := v_n::text;
+          execute 'reset role';
+        exception when others then
+          v_got := 'refus (' || sqlstate || ')';
+        end;
+        perform set_config('request.headers', '', true);
+        v_ok := case
+          when r.expect = 'refus' then v_got like 'refus%'
+          when r.expect = 'vide' then v_got like 'refus%' or v_got = '0'
+          when r.expect = 'non_vide' then v_got ~ '^[0-9]+$' and v_got::bigint > 0
+          when r.expect like '=%' then v_got = substr(r.expect, 2)
+          else false end;
+        v_total := v_total + 1;
+        if not v_ok then v_fail := v_fail + 1; end if;
+        v_lines := v_lines || format('%s  %-5s %-55s attendu %-10s obtenu %s',
+          case when v_ok then 'OK    ' else 'ÉCHEC ' end, r.who, r.label, r.expect, v_got);
+      end loop;
+
+      -- Contrôles en postgres : prix posé par la base, offre, ajustement individuel ------------------------
+      perform set_config('request.jwt.claims', '', true);
+      perform set_config('request.jwt.claim.sub', '', true);
+      v_total := v_total + 4;
+      if (select count(*) from public.itv_visit_parts where visit_id = v_v1 and part_id = v_part and unit_price_ht = 42) = 2 then
+        v_lines := v_lines || 'OK      base  C1b : prix de la pièce ajoutée par le technicien pris au catalogue'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C1b : prix de la pièce ajoutée par le technicien pris au catalogue'::text; end if;
+      -- Offre : un droit réservé à une offre disparaît, puis revient avec l'offre
+      insert into public.offer_restrictions (kind, item_key) values ('right', 'formation.convocations.envoyer');
+      if not ('formation.convocations.envoyer' = any (app.rights_for(u_ges, c1))) then
+        insert into public.offers (code, label) values ('essai_offre', 'Essai offre') returning id into v_off;
+        insert into public.offer_items (offer_id, kind, item_key) values (v_off, 'right', 'formation.convocations.envoyer');
+        update public.companies set offer_id = v_off where id = c1;
+        if 'formation.convocations.envoyer' = any (app.rights_for(u_ges, c1)) then
+          v_lines := v_lines || 'OK      base  C1b : droit réservé à une offre, rendu par l''offre de la société'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C1b : droit réservé à une offre (non rendu par l''offre)'::text; end if;
+        update public.companies set offer_id = null where id = c1;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C1b : droit réservé à une offre (toujours présent sans offre)'::text; end if;
+      delete from public.offer_restrictions where item_key = 'formation.convocations.envoyer';
+      -- Ajustement individuel : droit retiré à une personne
+      insert into public.company_member_rights (member_id, right_code, effect)
+      select m.id, 'clients.fiches.voir', 'revoke' from public.company_members m where m.profile_id = u_lec and m.company_id = c1;
+      if not ('clients.fiches.voir' = any (app.rights_for(u_lec, c1))) then
+        v_lines := v_lines || 'OK      base  C1b : droit retiré à une personne'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C1b : droit retiré à une personne'::text; end if;
+      delete from public.company_member_rights where right_code = 'clients.fiches.voir' and company_id = c1;
+      -- Licence totale : l'administrateur reçoit les Paramètres
+      update public.companies set full_license = true where id = c1;
+      if 'parametres.ouvrir' = any (app.rights_for(u_ad, c1)) then
+        v_lines := v_lines || 'OK      base  C1b : licence totale, l''administrateur ouvre les Paramètres'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C1b : licence totale, l''administrateur ouvre les Paramètres'::text; end if;
+      update public.companies set full_license = false where id = c1;
+
+      -- Nettoyage (l'erreur finale annule de toute façon toute la transaction)
+      delete from public.approval_requests where object_id = v_v1;
+      delete from public.approval_delegations where company_id in (c1, c_x, c_y) and reason = 'Essai congés';
+      delete from public.approval_rules where company_id in (c1, c_y) and validator_right in ('stock.commandes.valider', 'frais.notes.valider');
+      delete from public.offers where code = 'essai_offre';
+      delete from public.permission_profiles where company_id = c1 and key = 'comptable_externe';
+      delete from public.company_members where company_id in (c_x, c_y);
+      delete from public.companies where id in (c_x, c_y);
     end;
   end if;
 
