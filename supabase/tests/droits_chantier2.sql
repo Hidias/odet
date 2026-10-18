@@ -869,6 +869,81 @@ begin
     end;
   end if;
 
+  -- Écrans des droits (0377) : aperçu, personnalisation et retour au modèle, réservés aux bons droits
+  if to_regprocedure('public.permission_profile_customize(text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 6;
+    declare
+      e_ad uuid := gen_random_uuid(); e_lec uuid := gen_random_uuid(); e_c uuid; e_lic boolean; e_p uuid; e_ok boolean;
+    begin
+      select id, full_license into e_c, e_lic from public.companies where is_instance_owner;
+      insert into auth.users (id, email, aud, role) values
+        (e_ad, 'ecr.ad@test.invalid', 'authenticated', 'authenticated'), (e_lec, 'ecr.lec@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (e_ad, 'ecr.ad@test.invalid', 'admin', true), (e_lec, 'ecr.lec@test.invalid', 'lecture', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      if has_function_privilege('anon', 'public.member_rights_preview(uuid)', 'EXECUTE')
+         or has_function_privilege('anon', 'public.permission_profile_customize(text)', 'EXECUTE') then
+        v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0377 : fonctions des écrans de droits fermées à anon'::text;
+      else v_lines := v_lines || 'OK      base  0377 : fonctions des écrans de droits fermées à anon'::text; end if;
+      -- Lecture : son propre aperçu oui, celui d'un autre non
+      perform set_config('request.jwt.claims', json_build_object('sub', e_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := (public.member_rights_preview(e_lec) ->> 'rights') is not null;
+      begin
+        perform public.member_rights_preview(e_ad); e_ok := false;
+      exception when insufficient_privilege then null;
+      end;
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      lec   0377 : aperçu de ses droits seulement'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0377 : aperçu de ses droits seulement'::text; end if;
+      -- Administrateur sans licence totale : ne personnalise pas un profil
+      alter table public.companies disable trigger companies_guard;
+      update public.companies set full_license = false where id = e_c;
+      alter table public.companies enable trigger companies_guard;
+      perform set_config('request.jwt.claims', json_build_object('sub', e_ad, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := false;
+      begin
+        perform public.permission_profile_customize('lecture');
+      exception when insufficient_privilege then e_ok := true;
+      end;
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      ad    0377 : sans licence totale, pas de personnalisation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0377 : sans licence totale, pas de personnalisation'::text; end if;
+      -- Avec licence totale : copie identique au modèle, aperçu d'un autre, puis retour au modèle
+      alter table public.companies disable trigger companies_guard;
+      update public.companies set full_license = true where id = e_c;
+      alter table public.companies enable trigger companies_guard;
+      execute 'set local role authenticated';
+      e_p := public.permission_profile_customize('lecture');
+      e_ok := (public.member_rights_preview(e_lec) ->> 'rights') is not null;
+      execute 'reset role';
+      if e_p is not null and e_ok and (select array_agg(right_code order by right_code) from public.permission_profile_rights where profile_id = e_p)
+           = (select array_agg(x7.right_code order by x7.right_code) from public.permission_profile_rights x7
+              join public.permission_profiles y7 on y7.id = x7.profile_id where y7.company_id is null and y7.key = 'lecture') then
+        v_lines := v_lines || 'OK      ad    0377 : personnalisation = copie exacte du modèle, aperçu des autres'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0377 : personnalisation = copie exacte du modèle, aperçu des autres'::text; end if;
+      if app.rights_for(e_lec, e_c) = (select coalesce(array_agg(x7.right_code order by x7.right_code), '{}') from public.permission_profile_rights x7
+            join public.permissions z7 on z7.code = x7.right_code where x7.profile_id = e_p and not z7.platform_only
+              and (not z7.full_license_only or (select c7.full_license from public.companies c7 where c7.id = e_c))) then
+        v_lines := v_lines || 'OK      base  0377 : la copie de la société remplace le modèle sans rien changer'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0377 : la copie de la société remplace le modèle sans rien changer'::text; end if;
+      execute 'set local role authenticated';
+      e_ok := public.permission_profile_reset('lecture');
+      execute 'reset role';
+      if e_ok and not exists (select 1 from public.permission_profiles where company_id = e_c and key = 'lecture') then
+        v_lines := v_lines || 'OK      ad    0377 : retour au modèle'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0377 : retour au modèle'::text; end if;
+      alter table public.companies disable trigger companies_guard;
+      update public.companies set full_license = e_lic where id = e_c;
+      alter table public.companies enable trigger companies_guard;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end
