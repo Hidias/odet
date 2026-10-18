@@ -5,6 +5,8 @@ import { useAuthStore } from '../core/store'
 import { BrandingProvider, useBranding } from '../core/branding/BrandingProvider'
 import { authModeFromUrl } from '../core/auth/SetPassword'
 import { PageErrorBoundary, RouteErrorBoundary } from '../core/errors/ErrorBoundary'
+import { accesPage } from '../core/modules/registry'
+import PageRefusee from '../core/rights/PageRefusee'
 
 // ─── Chargement immédiat (pages critiques) ───────────────────
 import Layout from './Layout'
@@ -83,16 +85,16 @@ function PageLoader() {
 
 // Composant de protection des routes - redirige le comptable vers /comptable
 function PrivateRoute({ children }) {
-  const { user, userRole, loading } = useAuthStore()
+  const { user, userRole, loading, rights, can } = useAuthStore()
   const { branding, loaded } = useBranding()
   const location = useLocation()
   const navigate = useNavigate()
 
   // Instance pas encore configurée : l'administrateur passe par l'assistant
-  const needsSetup = !loading && !!user && loaded && branding.setup_completed === false && ['superadmin', 'admin'].includes(userRole) && location.pathname !== '/setup'
+  const needsSetup = !loading && !!user && loaded && branding.setup_completed === false && ['superadmin', 'admin'].includes(userRole) && accesPage('/setup', userRole, can) && location.pathname !== '/setup'
   useEffect(() => {
     if (needsSetup) navigate('/setup', { replace: true })
-  }, [needsSetup, navigate, location.pathname])
+  }, [needsSetup, navigate, location.pathname, rights])
 
   if (loading) {
     return (
@@ -114,6 +116,15 @@ function PrivateRoute({ children }) {
 
   if (needsSetup) return <PageLoader />
 
+  return children
+}
+
+// Page hors du cadre principal (assistant de configuration) : même garde que le menu et les pages
+function GardeRoute({ chemin, children }) {
+  const { userRole, loading, can } = useAuthStore()
+  useAuthStore((st) => st.rights)
+  if (loading) return <PageLoader />
+  if (!accesPage(chemin, userRole, can)) return <PageRefusee />
   return children
 }
 
@@ -198,7 +209,7 @@ export default function App() {
           {/* Assistant de configuration : plein écran, hors menu */}
           <Route path="/setup" element={
             <PrivateRoute>
-              <SetupWizard />
+              <GardeRoute chemin="/setup"><SetupWizard /></GardeRoute>
             </PrivateRoute>
           } />
 

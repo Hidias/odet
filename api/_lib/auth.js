@@ -87,6 +87,65 @@ export async function requireRole(req, res, roles) {
   return ctx
 }
 
+// ─── Droits composés (C1b) ───────────────────────────────────────────────────
+/**
+ * Droits du compte appelant dans sa société courante, calculés par la base (fonction my_rights, la même que
+ * l'écran). L'appel part avec le jeton de l'utilisateur : la base voit l'utilisateur, pas la clé serveur.
+ * L'en-tête x-company-id éventuel est transmis (la base le contrôle). Retourne un tableau de codes, ou null si
+ * les droits sont inconnus (fonction absente, erreur) : l'appelant retombe alors sur les rôles.
+ */
+export async function droitsDeLAppelant(req) {
+  const token = bearerToken(req)
+  if (!token) return null
+  try {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+    const apikey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !apikey) return null
+    const headers = { Authorization: `Bearer ${token}` }
+    const societe = req.headers?.['x-company-id']
+    if (typeof societe === 'string' && /^[0-9a-f-]{36}$/i.test(societe)) headers['x-company-id'] = societe
+    const client = createClient(url, apikey, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers } })
+    const { data, error } = await client.rpc('my_rights')
+    if (error || !data || !Array.isArray(data.rights)) return null
+    return data.rights.filter((d) => typeof d === 'string')
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Exige un droit (ou un des droits d'une liste) dans la société courante.
+ * Droits connus : le droit décide (comme les règles de la base). Droits inconnus : repli sur `fallbackRoles`
+ * (le contrôle d'avant), jamais d'ouverture plus large. Répond 401/403 et retourne null en cas de refus.
+ */
+export async function requireRight(req, res, codes, fallbackRoles) {
+  const ctx = await requireUser(req)
+  if (!ctx) {
+    res.status(401).json({ error: 'Connexion requise' })
+    return null
+  }
+  const liste = Array.isArray(codes) ? codes : [codes]
+  const droits = await droitsDeLAppelant(req)
+  if (droits) {
+    if (!liste.some((c) => droits.includes(c))) {
+      res.status(403).json({ error: 'Cette action ne fait pas partie de vos accès' })
+      return null
+    }
+    return { ...ctx, droits }
+  }
+  if (!fallbackRoles || !fallbackRoles.includes(ctx.profile.role)) {
+    res.status(403).json({ error: 'Accès refusé pour ce rôle' })
+    return null
+  }
+  return { ...ctx, droits: null }
+}
+
+/** Tâches planifiées lançables aussi à la main : CRON_SECRET, ou un utilisateur qui a le droit */
+export async function requireCronOrRight(req, res, codes, fallbackRoles) {
+  if (hasCronSecret(req)) return { cron: true }
+  return requireRight(req, res, codes, fallbackRoles)
+}
+
 /**
  * Vérifie le secret des tâches planifiées : en-tête Authorization: Bearer <CRON_SECRET> uniquement
  * (plus de ?secret= dans l'adresse, qui finit dans les journaux). Refuse si CRON_SECRET n'est pas définie.
