@@ -869,6 +869,121 @@ begin
     end;
   end if;
 
+  -- Facturation fiable : numérotation par la base, émission, verrou (0360 à 0362)
+  if to_regprocedure('public.billing_issue(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 13;
+    declare
+      b_dir uuid := gen_random_uuid(); b_lec uuid := gen_random_uuid(); b_cli uuid; b_f1 uuid; b_f2 uuid; b_av uuid;
+      b_r1 jsonb; b_r2 jsonb; b_ok boolean; b_ref text; b_n1 bigint; b_n2 bigint;
+    begin
+      insert into auth.users (id, email, aud, role) values
+        (b_dir, 'fac.dir@test.invalid', 'authenticated', 'authenticated'), (b_lec, 'fac.lec@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (b_dir, 'fac.dir@test.invalid', 'direction', true), (b_lec, 'fac.lec@test.invalid', 'lecture', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.clients (name, siret) values ('Client facturation essai', '12345678900011') returning id into b_cli;
+      perform set_config('request.jwt.claims', json_build_object('sub', b_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date, status)
+      values ('FACT-TRICHE-1', 'invoice', b_cli, current_date, current_date + 30, 'due') returning id, reference into b_f1, b_ref;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate)
+      values (b_f1, 0, 'Ligne A', 3, 33.335, 20), (b_f1, 1, 'Ligne B', 1, 10, 0);
+      execute 'reset role';
+      if b_ref like 'BROUILLON-%' and (select status from public.invoices where id = b_f1) = 'draft' then
+        v_lines := v_lines || 'OK      dir   0362 : un document naît brouillon, sans numéro'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0362 : un document naît brouillon, sans numéro (' || b_ref || ')'); end if;
+      -- Un compte connecté ne pose pas lui-même l'émission ni un statut
+      execute 'set local role authenticated';
+      b_ok := false;
+      begin update public.invoices set issued_at = now() where id = b_f1; exception when insufficient_privilege then b_ok := true; end;
+      begin update public.invoices set status = 'due' where id = b_f1; b_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      dir   0362 : émission et statut seulement par la fonction d''émission'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0362 : émission et statut seulement par la fonction d''émission'::text; end if;
+      -- Lecture ne peut pas émettre
+      perform set_config('request.jwt.claims', json_build_object('sub', b_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      b_ok := false;
+      begin perform public.billing_issue(b_f1); exception when insufficient_privilege then b_ok := true; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      lec   0361 : émission refusée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0361 : émission refusée'::text; end if;
+      -- Direction émet : numéro, totaux de la règle unique (3 x 33,335 = 100,01 ; TVA 20,00 ; ligne à 0 %)
+      perform set_config('request.jwt.claims', json_build_object('sub', b_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      b_r1 := public.billing_issue(b_f1);
+      insert into public.invoices (reference, type, client_id, invoice_date) values ('x', 'invoice', b_cli, current_date) returning id into b_f2;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (b_f2, 0, 'Ligne', 1, 50, 20);
+      b_r2 := public.billing_issue(b_f2);
+      execute 'reset role';
+      b_n1 := (regexp_match(b_r1 ->> 'reference', '([0-9]+)$'))[1]::bigint;
+      b_n2 := (regexp_match(b_r2 ->> 'reference', '([0-9]+)$'))[1]::bigint;
+      if b_r1 ->> 'reference' like 'FACT-%' and b_n2 = b_n1 + 1 then
+        v_lines := v_lines || 'OK      dir   0361 : numéros donnés par la base, consécutifs'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : numéros donnés par la base, consécutifs (' || coalesce(b_r1 ->> 'reference', '') || ', ' || coalesce(b_r2 ->> 'reference', '') || ')'); end if;
+      if (select total_ttc from public.invoices where id = b_f1) = 130.01 and (select total_tva from public.invoices where id = b_f1) = 20.00
+         and (select issued_at is not null and seller_snapshot is not null and buyer_snapshot is not null and status = 'due' from public.invoices where id = b_f1) then
+        v_lines := v_lines || 'OK      dir   0361 : totaux de la règle unique, coordonnées figées, date d''émission'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : totaux de la règle unique, coordonnées figées (' || (select total_ttc::text || ' / ' || total_tva::text from public.invoices where id = b_f1) || ')'); end if;
+      -- Verrou : ni modification du contenu, ni lignes, ni suppression, ni retour en brouillon (postgres compris)
+      execute 'set local role authenticated';
+      b_ok := true;
+      begin update public.invoices set object = 'modifié' where id = b_f1; b_ok := false; exception when insufficient_privilege then null; end;
+      begin update public.invoices set status = 'draft' where id = b_f1; b_ok := false; exception when insufficient_privilege then null; end;
+      begin insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht) values (b_f1, 9, 'x', 1, 1); b_ok := false; exception when insufficient_privilege then null; end;
+      begin update public.invoice_items set unit_price_ht = 1 where invoice_id = b_f1; b_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      dir   0362 : facture émise figée (contenu, lignes, statut brouillon)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0362 : facture émise figée (contenu, lignes, statut brouillon)'::text; end if;
+      b_ok := false;
+      begin delete from public.invoices where id = b_f1; exception when insufficient_privilege then b_ok := true; end;
+      if b_ok then v_lines := v_lines || 'OK      base  0362 : suppression d''une facture émise refusée, même au propriétaire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0362 : suppression d''une facture émise refusée, même au propriétaire'::text; end if;
+      execute 'set local role authenticated';
+      b_ok := true;
+      begin update public.invoices set amount_paid = 10, amount_due = 120.01, status = 'partial' where id = b_f1;
+      exception when others then b_ok := false; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      dir   0362 : paiement saisi sur une facture émise'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0362 : paiement saisi sur une facture émise'::text; end if;
+      -- Avoir : au-delà du montant refusé ; avoir partiel émis en série AVR
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, parent_invoice_id, invoice_date) values ('x', 'credit_note', b_cli, b_f2, current_date) returning id into b_av;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (b_av, 0, 'Trop', 1, 100, 20);
+      b_ok := false;
+      begin perform public.billing_issue(b_av); exception when sqlstate '22023' then b_ok := true; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      dir   0361 : avoir supérieur à la facture refusé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0361 : avoir supérieur à la facture refusé'::text; end if;
+      execute 'set local role authenticated';
+      update public.invoice_items set unit_price_ht = 10 where invoice_id = b_av;
+      b_r1 := public.billing_issue(b_av);
+      execute 'reset role';
+      if b_r1 ->> 'reference' like 'AVR-%' then v_lines := v_lines || 'OK      dir   0361 : avoir émis en série AVR'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : avoir émis en série AVR (' || coalesce(b_r1 ->> 'reference', '') || ')'); end if;
+      -- Brouillon : reste supprimable par qui en a le droit
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date) values ('x', 'invoice', b_cli, current_date) returning id into b_f2;
+      delete from public.invoices where id = b_f2;
+      execute 'reset role';
+      if not exists (select 1 from public.invoices where id = b_f2) then v_lines := v_lines || 'OK      dir   0362 : brouillon supprimable'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0362 : brouillon supprimable'::text; end if;
+      -- Aperçu du prochain numéro sans avancer le compteur
+      execute 'set local role authenticated';
+      b_ref := public.billing_next_number('invoice');
+      execute 'reset role';
+      if (regexp_match(b_ref, '([0-9]+)$'))[1]::bigint = b_n2 + 1 then v_lines := v_lines || 'OK      dir   0361 : aperçu du prochain numéro'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : aperçu du prochain numéro (' || b_ref || ')'); end if;
+      if (select count(*) from pg_class where relname in ('billing_settings', 'billing_sequences') and relrowsecurity) = 2 then
+        v_lines := v_lines || 'OK      base  0360 : RLS sur les réglages et les compteurs'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0360 : RLS sur les réglages et les compteurs'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end

@@ -96,6 +96,14 @@ export function calcInvoiceTotals(items, discountPercent, tvaApplicable) {
 // ============================================================
 // GENERATION PDF FACTURE / AVOIR
 // ============================================================
+// Document non émis : pas de date d'émission. Les documents d'avant la numérotation par la base (sans le champ) suivent
+// leur statut.
+export function isDraftDoc(invoice) {
+  if (!invoice) return true
+  if (Object.prototype.hasOwnProperty.call(invoice, 'issued_at')) return !invoice.issued_at
+  return invoice.status === 'draft'
+}
+
 export async function generateInvoicePDF(invoice, items, client, contact, options) {
   options = options || {}
   contact = contact || null
@@ -162,7 +170,7 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
   if (invoice.parent_reference) subtitle = (isCredit ? 'Avoir sur la facture ' : 'Document parent : ') + invoice.parent_reference
 
   renderCommercialDoc(doc, L, {
-    ref: invoice.reference,
+    ref: isDraftDoc(invoice) ? 'Brouillon' : invoice.reference,
     docLabel: isCredit ? 'Avoir' : 'Facture',
     code: isCredit ? 'AVR' : 'FACT',
     title: isCredit ? 'Avoir' : 'Facture',
@@ -173,7 +181,7 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
     recipientLines: recipientLines(displayClient, contact, !billingClient),
     forAccountOf: billingClient && client ? [client.name, client.siret ? 'SIRET ' + client.siret : (client.siren ? 'SIREN ' + client.siren : null)] : null,
     meta: [
-      ['N° ' + (isCredit ? "d'avoir" : 'de facture'), invoice.reference],
+      ['N° ' + (isCredit ? "d'avoir" : 'de facture'), isDraftDoc(invoice) ? 'attribué à l\'émission' : invoice.reference],
       ['Date', fd(invoice.invoice_date)],
       [isCredit ? null : 'Échéance', isCredit ? null : fd(invoice.due_date)],
       ['Période de service', invoice.service_start_date ? fd(invoice.service_start_date) + (invoice.service_end_date && invoice.service_end_date !== invoice.service_start_date ? ' au ' + fd(invoice.service_end_date) : '') : null],
@@ -190,8 +198,23 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
     legal: legal,
   })
 
+  // Brouillon (pas encore émis par la base) : filigrane sur chaque page, aucun numéro (décision du 17/10)
+  if (isDraftDoc(invoice)) {
+    var nPages = doc.getNumberOfPages()
+    for (var pg = 1; pg <= nPages; pg++) {
+      doc.setPage(pg)
+      doc.saveGraphicsState && doc.saveGraphicsState()
+      if (doc.GState) doc.setGState(new doc.GState({ opacity: 0.18 }))
+      doc.setFont(doc.__odetFont || 'helvetica', 'bold')
+      doc.setFontSize(54)
+      doc.setTextColor(150, 0, 0)
+      doc.text('BROUILLON, sans valeur', 105, 160, { align: 'center', angle: 35 })
+      doc.restoreGraphicsState && doc.restoreGraphicsState()
+    }
+    doc.setTextColor(0, 0, 0)
+  }
   if (!options.skipSave) {
-    doc.save(invoice.reference + '.pdf')
+    doc.save((isDraftDoc(invoice) ? 'brouillon' : invoice.reference) + '.pdf')
   }
 
   return doc

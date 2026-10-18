@@ -671,6 +671,9 @@ async function handler(req, res) {
     const supabase = getSupabaseAdmin()
     const { data: invoice, error: invErr } = await supabase.from('invoices').select('*').eq('id', invoice_id).single()
     if (invErr || !invoice) return res.status(404).json({ error: 'Facture introuvable' })
+    // Pas de Factur-X pour un brouillon : seul un document émis (numéro donné par la base) est une facture
+    const nonEmise = Object.prototype.hasOwnProperty.call(invoice, 'issued_at') ? !invoice.issued_at : invoice.status === 'draft'
+    if (nonEmise) return res.status(422).json({ error: 'Document non émis : émettez-le avant de produire le Factur-X' })
 
     const { data: items, error: itemsErr } = await supabase.from('invoice_items').select('*').eq('invoice_id', invoice_id).order('position')
     if (itemsErr) return res.status(500).json({ error: 'Erreur chargement lignes' })

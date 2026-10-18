@@ -11,6 +11,7 @@ import { useBranding } from '../branding/BrandingProvider'
 import { FONT_PAIRS } from '../branding/presets'
 import { missingOrgFields, ORG_REQUIRED } from '../org/orgUtils'
 import EmailSettings from './EmailSettings'
+import NumerotationFactures from './facturation/NumerotationFactures'
 import { THEMES, FORMES, ROLES, Field, Toggle, uploadBrandingFile, ModulesSection, ColorPicker } from './shared'
 
 const SECTIONS = [
@@ -316,6 +317,7 @@ export default function Settings() {
                 <Field label="IBAN" className="md:col-span-2"><input className="input" value={form.iban || ''} onChange={(e) => set('iban', e.target.value)} /></Field>
                 <Field label="Découvert autorisé (euros)" hint="Module Budget : alerte quand le découvert approche de cette limite. 0 si aucun"><input className="input" inputMode="decimal" value={form.bank_overdraft ?? ''} onChange={(e) => set('bank_overdraft', e.target.value)} /></Field>
               </div>
+              <NumerotationFactures />
               <h2 className="section-title">Emails et exercice</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Copie cachée systématique" hint="Adresse d'archivage recevant tous les envois"><input className="input" value={form.email_bcc || ''} onChange={(e) => set('email_bcc', e.target.value)} /></Field>

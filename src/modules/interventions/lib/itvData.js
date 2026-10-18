@@ -336,7 +336,8 @@ export async function createInvoiceDraft(visit, parts, settings) {
   const t = totals(lines, settings?.tva_rate ?? 20)
   const contact = await loadPrimaryContact(visit.client_id)
   const inv = must(await supabase.from('invoices').insert({
-    reference: await nextRef('invoices', 'FACT'), type: 'invoice', client_id: visit.client_id, contact_id: contact?.id || null,
+    // Aucun numéro avant l'émission : la base remplace cette référence provisoire (0362) et numérote à l'émission (0361)
+    reference: 'BROUILLON-' + Math.random().toString(36).slice(2, 12).toUpperCase(), type: 'invoice', client_id: visit.client_id, contact_id: contact?.id || null,
     invoice_date: todayIso(), service_start_date: (visit.started_at || visit.planned_on || '').slice(0, 10) || null, service_end_date: (visit.started_at || visit.planned_on || '').slice(0, 10) || null,
     object: `Vérification du matériel de sécurité, visite ${visit.reference || ''}`.trim(), status: 'draft', is_formation_pro: false, tva_applicable: true,
     total_ht: t.ht, total_discount: 0, total_net_ht: t.ht, total_tva: t.tva, total_ttc: t.ttc, amount_paid: 0, amount_due: t.ttc,
