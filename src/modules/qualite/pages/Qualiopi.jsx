@@ -108,40 +108,7 @@ export default function Qualiopi() {
   }, [])
 
   // Mise à jour automatique du statut des sessions terminées
-  useEffect(() => {
-    const updateCompletedSessions = async () => {
-      if (sessions.length === 0) return
-      
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      
-      const sessionsToComplete = sessions.filter(s => {
-        if (s.status === 'completed' || s.status_locked) return false
-        if (!s.end_date) return false
-        
-        const endDate = new Date(s.end_date)
-        endDate.setHours(0, 0, 0, 0)
-        const dayAfterEnd = new Date(endDate)
-        dayAfterEnd.setDate(dayAfterEnd.getDate() + 1)
-        
-        return today >= dayAfterEnd
-      })
-      
-      for (const session of sessionsToComplete) {
-        await supabase
-          .from('sessions')
-          .update({ status: 'completed' })
-          .eq('id', session.id)
-      }
-      
-      if (sessionsToComplete.length > 0) {
-        await fetchSessions()
-        loadIndicators() // Recharger les indicateurs
-      }
-    }
-    
-    updateCompletedSessions()
-  }, [sessions.length])
+  // Sessions passées « terminées » : écrites chaque nuit par la base (0376, daily_maintenance).
 
   const loadAllData = async () => {
     setLoading(true)
