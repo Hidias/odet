@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { createCompanyFetch, setTraceSender } from './company/companyContext'
 
 // Configuration de l'instance : uniquement par variables d'environnement.
 // Aucune valeur par défaut : une instance mal configurée doit échouer clairement.
@@ -11,7 +12,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Toutes les requêtes passent par l'enveloppe de la société courante (socle multi-sociétés, C1a) :
+// en-tête x-company-id quand une société a été choisie, trace des lectures du super administrateur.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { fetch: createCompanyFetch((...args) => fetch(...args)) },
+})
+
+setTraceSender((tables, page) => supabase.rpc('support_trace', { p_tables: tables, p_path: page }))
 
 // Amorçage temporaire des administrateurs (lot 0).
 // Remplacé par la table profiles (rôles en base) au lot 2.

@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { supabase, ADMIN_EMAILS } from './supabase'
 import { buildStorageFileName } from './storageUtils'
 import { fetchAll, fetchAllIn } from './fetchAll'
+import { configureCompanyContext } from './company/companyContext'
 
 // ─── Résolution du rôle et du profil d'un utilisateur connecté ─────
 // Source de vérité : la table profiles (rôle, identité affichée, préférences).
@@ -58,6 +59,7 @@ export const useAuthStore = create((set, get) => ({
 
   applySession: async (session) => {
     if (!session?.user) {
+      configureCompanyContext({})
       set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
       return false
     }
@@ -95,6 +97,7 @@ export const useAuthStore = create((set, get) => ({
         fieldOnly = !!tech?.is_active
       } catch { fieldOnly = false }
     }
+    configureCompanyContext({ role: access.role })
     set({ user: session.user, profile: access.profile, userRole: access.role, modules, fieldOnly })
     return true
   },
@@ -107,6 +110,7 @@ export const useAuthStore = create((set, get) => ({
 
       supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_OUT') {
+          configureCompanyContext({})
           set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
           return
         }
@@ -146,6 +150,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   logout: async () => {
+    configureCompanyContext({})
     await supabase.auth.signOut()
     set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false })
     // Les données chargées restent en mémoire : un rechargement complet évite que le compte suivant
