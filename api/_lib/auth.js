@@ -115,10 +115,12 @@ export async function droitsDeLAppelant(req) {
 
 /**
  * Exige un droit (ou un des droits d'une liste) dans la société courante.
- * Droits connus : le droit décide (comme les règles de la base). Droits inconnus : repli sur `fallbackRoles`
- * (le contrôle d'avant), jamais d'ouverture plus large. Répond 401/403 et retourne null en cas de refus.
+ * Droits connus : le droit décide (comme les règles de la base) ; si `roles` est donné, le rôle doit aussi y
+ * figurer (le droit ne fait alors que restreindre l'accès d'avant ; un compte au rôle de base « membre » n'a que
+ * ses droits). Droits inconnus : repli sur `fallbackRoles` (le contrôle d'avant), jamais d'ouverture plus large.
+ * Répond 401/403 et retourne null en cas de refus.
  */
-export async function requireRight(req, res, codes, fallbackRoles) {
+export async function requireRight(req, res, codes, fallbackRoles, roles) {
   const ctx = await requireUser(req)
   if (!ctx) {
     res.status(401).json({ error: 'Connexion requise' })
@@ -127,7 +129,8 @@ export async function requireRight(req, res, codes, fallbackRoles) {
   const liste = Array.isArray(codes) ? codes : [codes]
   const droits = await droitsDeLAppelant(req)
   if (droits) {
-    if (!liste.some((c) => droits.includes(c))) {
+    const roleOk = !roles || ctx.profile.role === 'membre' || roles.includes(ctx.profile.role)
+    if (!roleOk || !liste.some((c) => droits.includes(c))) {
       res.status(403).json({ error: 'Cette action ne fait pas partie de vos accès' })
       return null
     }
@@ -141,9 +144,9 @@ export async function requireRight(req, res, codes, fallbackRoles) {
 }
 
 /** Tâches planifiées lançables aussi à la main : CRON_SECRET, ou un utilisateur qui a le droit */
-export async function requireCronOrRight(req, res, codes, fallbackRoles) {
+export async function requireCronOrRight(req, res, codes, fallbackRoles, roles) {
   if (hasCronSecret(req)) return { cron: true }
-  return requireRight(req, res, codes, fallbackRoles)
+  return requireRight(req, res, codes, fallbackRoles, roles)
 }
 
 /**

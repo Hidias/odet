@@ -8,7 +8,7 @@
 // La ligne mailing_sends visée doit correspondre au destinataire (et au jeton de désabonnement pour une campagne).
 
 import { getSupabaseAdmin, getMailer, getMailerByEmail, sendWithRetry, getOrg, getSender, wrapEmailHTML } from './_lib/mailer.js'
-import { requireRole, SALES, ADMINS } from './_lib/auth.js'
+import { requireRight, SALES, ADMINS } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
@@ -119,7 +119,7 @@ async function markSendError(sendId, message) {
 async function handler(req, res) {
   const internal = req.internal === true
   if (!internal) {
-    const ctx = await requireRole(req, res, SALES)
+    const ctx = await requireRight(req, res, 'communication.campagnes.gerer', SALES, SALES)
     if (!ctx) return
     req.user = ctx.user
     req.profile = ctx.profile

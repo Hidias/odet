@@ -12,7 +12,7 @@
 
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
-import { requireRole, ADMINS, OFFICE_WRITE } from './_lib/auth.js'
+import { requireRight, ADMINS, OFFICE_WRITE } from './_lib/auth.js'
 import { getOrg } from './_lib/mailer.js'
 import { loadTeam, profileFirstName } from './_lib/team.js'
 import { appUrl } from './_lib/internal.js'
@@ -60,7 +60,7 @@ async function trainerMap() {
 // Lien d'abonnement signé, demandé depuis l'écran Planning par un utilisateur connecté
 async function linkHandler(req, res) {
   // Personnel de bureau (les rôles externes et « lecture » n'obtiennent aucun lien)
-  const ctx = await requireRole(req, res, OFFICE_WRITE)
+  const ctx = await requireRight(req, res, 'planning.agenda.gerer_siens', OFFICE_WRITE, OFFICE_WRITE)
   if (!ctx) return
   const target = String(req.query.link)
   const isAdmin = ADMINS.includes(ctx.profile.role)

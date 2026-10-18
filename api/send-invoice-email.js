@@ -4,7 +4,7 @@
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, wrapEmailHTML, decrypt } from './_lib/mailer.js'
 import { saveToSentFolder } from './_lib/save-to-sent.js'
-import { requireRole, BILLING } from './_lib/auth.js'
+import { requireRight, BILLING } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
@@ -22,7 +22,7 @@ async function pickMailer(userId) {
 }
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, BILLING)
+  const ctx = await requireRight(req, res, 'facturation.factures.envoyer', BILLING, BILLING)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile

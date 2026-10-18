@@ -2,7 +2,7 @@
 // Géocode les prospects par code postal via l'API gouvernementale gratuite geo.api.gouv.fr
 
 import { createClient } from '@supabase/supabase-js'
-import { requireRole, SALES } from './_lib/auth.js'
+import { requireRight, SALES } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const supabase = createClient(
@@ -13,7 +13,7 @@ const supabase = createClient(
 export const config = { maxDuration: 300 }
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, SALES)
+  const ctx = await requireRight(req, res, 'commercial.prospection.gerer', SALES, SALES)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile

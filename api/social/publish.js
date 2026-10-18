@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
-import { requireCronOrRole, SALES } from '../_lib/auth.js'
+import { requireCronOrRight, SALES } from '../_lib/auth.js'
 import { isTestEnvironment } from '../_lib/mailer.js'
 import { withErrorLog } from '../_lib/errors.js'
 
@@ -393,7 +393,7 @@ async function publishGMB(content, mediaUrl, token) {
 // ── Handler principal ───────────────────────────────────
 async function handler(req, res) {
   // Publication manuelle (commercial et au-dessus) ou appel de cron-publish (CRON_SECRET)
-  const ctx = await requireCronOrRole(req, res, SALES)
+  const ctx = await requireCronOrRight(req, res, 'communication.reseaux.gerer', SALES, SALES)
   if (!ctx) return
   req.user = ctx.user || null
   req.profile = ctx.profile || null

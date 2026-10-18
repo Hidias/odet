@@ -1,11 +1,11 @@
-import { requireRole, MANAGERS } from './_lib/auth.js'
+import { requireRight, MANAGERS } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/generate-compte-rendu-formation.js
 // Proxy vers l'API Anthropic pour générer le compte rendu post-formation
 // Évite le CORS en appelant depuis le serveur
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, [...MANAGERS, 'formateur'])
+  const ctx = await requireRight(req, res, ['formation.suivi.gerer', 'formation.sessions.modifier_siennes'], [...MANAGERS, 'formateur'], [...MANAGERS, 'formateur'])
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile

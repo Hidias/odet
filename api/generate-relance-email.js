@@ -1,4 +1,4 @@
-import { requireRole, SALES } from './_lib/auth.js'
+import { requireRight, SALES } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock } from './_lib/orgProfile.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/generate-relance-email.js
@@ -6,7 +6,7 @@ import { withErrorLog } from './_lib/errors.js'
 // Prend en compte : contexte client, âge du devis, historique de relances, formations concernées
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, SALES)
+  const ctx = await requireRight(req, res, 'facturation.factures.modifier', SALES, SALES)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile

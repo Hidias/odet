@@ -1,10 +1,10 @@
-import { requireRole, MANAGERS } from './_lib/auth.js'
+import { requireRight, MANAGERS } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/parse-planning-import.js
 // Parse un planning copié-collé (ex: Pilocap) via Claude et retourne des sessions structurées
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, MANAGERS)
+  const ctx = await requireRight(req, res, 'formation.sessions.creer', MANAGERS, MANAGERS)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile
