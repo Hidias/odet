@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { FileText, CheckCircle, XCircle, Eye, Download, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useDroits } from '../../../core/rights/useDroit'
 
 /**
  * Composant pour activer/désactiver l'accès au document stagiaire
@@ -14,6 +15,8 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [stats, setStats] = useState({ total: 0, downloaded: 0 })
+  // Droit d'écriture : préparer la session (ou modifier les siennes)
+  const droits = useDroits({ preparer: ['formation.sessions.preparer', 'formation.sessions.modifier_siennes'] })
 
   useEffect(() => {
     if (courseId && sessionId) {
@@ -222,6 +225,7 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
           )}
         </div>
 
+        {droits.preparer && (
         <button
           onClick={toggleAccess}
           disabled={updating}
@@ -235,6 +239,7 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
             }`}
           />
         </button>
+        )}
       </div>
 
       {/* Statistiques (si activé) */}
