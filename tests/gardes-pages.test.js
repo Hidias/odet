@@ -56,3 +56,15 @@ describe('gardes des pages (ecrans/gardes)', () => {
     expect(sans).toEqual([])
   })
 })
+
+import { peut } from '../src/core/rights/useDroit'
+
+describe('gardes des boutons', () => {
+  it('droit connu décide ; inconnu : rôles de repli ou affiché comme avant', () => {
+    expect(peut((c) => c === 'formation.sessions.creer', 'lecture', 'formation.sessions.creer')).toBe(true)
+    expect(peut(() => false, 'admin', 'formation.sessions.creer')).toBe(false)
+    expect(peut(() => null, 'lecture', 'formation.sessions.creer')).toBe(true)
+    expect(peut(() => null, 'lecture', 'formation.sessions.creer', ['admin'])).toBe(false)
+    expect(peut((c) => c === 'b', 'x', ['a', 'b'])).toBe(true)
+  })
+})
