@@ -895,6 +895,9 @@ begin
          and (v_r2->>'factures_en_retard')::int = 0 and (v_r2->>'factures_dues')::int = 0 then
         v_lines := v_lines || 'OK      base  0376 : relancée le même jour, ne refait rien'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0376 : relancée le même jour, ne refait rien (' || v_r2::text || ')'); end if;
+    end;
+  end if;
+
   -- Écrans des droits (0377) : aperçu, personnalisation et retour au modèle, réservés aux bons droits
   if to_regprocedure('public.permission_profile_customize(text)') is not null then
     execute 'reset role';
