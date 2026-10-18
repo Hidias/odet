@@ -26,6 +26,8 @@ declare
   v_trainer uuid; v_client uuid; v_client_tech uuid; v_site uuid; v_site2 uuid; v_s1 uuid; v_s2 uuid; v_tr1 uuid; v_tr2 uuid;
   v_st1 uuid; v_v1 uuid; v_v2 uuid; v_eq uuid; v_token text; v_ref text; v_code text := '482915'; v_ticket text;
   v_inv uuid; n_budget int; n_pm int;
+  -- Comptes réservés à la licence totale (C1b, 0379) : l'administrateur d'une société sans licence ne gère plus les comptes
+  v_lic_comptes boolean := false;
   -- Exécution
   r record; v_n bigint; v_got text; v_ok boolean; v_lines text[] := '{}'; v_fail int := 0; v_total int := 0;
   v_uid uuid; v_claims text;
@@ -98,6 +100,10 @@ begin
   select id into v_inv from public.invoices where status <> 'draft' limit 1;
   select count(*) into n_budget from public.budget_categories;
   select count(*) into n_pm from public.prospection_massive;
+  if to_regclass('public.permissions') is not null then
+    execute $q$select coalesce((select p.full_license_only from public.permissions p where p.code = 'parametres.utilisateurs.gerer'), false)
+               and not exists (select 1 from public.companies c where c.full_license)$q$ into v_lic_comptes;
+  end if;
 
   -- Tests : (compte, libellé, requête renvoyant un nombre, attendu)
   -- attendu : 'refus' (erreur de droit), 'vide' (0 ou refus), 'non_vide' (> 0), '=N'
@@ -185,7 +191,9 @@ begin
       ('tech', 'modifie un appareil de son client', 'with x as (update public.itv_equipment set notes = coalesce(notes, '''') where id = ''' || v_eq || ''' returning 1) select count(*) from x', '=1'),
       ('lec', 'ne modifie pas une facture', 'with x as (update public.invoices set notes = coalesce(notes, '''') where id = ''' || coalesce(v_inv::text, gen_random_uuid()::text) || ''' returning 1) select count(*) from x', '=0'),
       ('ad', 'ne modifie pas un super administrateur', 'with x as (update public.profiles set fonction = fonction where id = ''' || u_sa || ''' returning 1) select count(*) from x', '=0'),
-      ('ad', 'modifie un gestionnaire', 'with x as (update public.profiles set fonction = fonction where id = ''' || u_ges || ''' returning 1) select count(*) from x', '=1'),
+      ('ad', case when v_lic_comptes then 'sans licence totale : ne modifie pas un gestionnaire' else 'modifie un gestionnaire' end,
+             'with x as (update public.profiles set fonction = fonction where id = ''' || u_ges || ''' returning 1) select count(*) from x',
+             case when v_lic_comptes then '=0' else '=1' end),
       ('lec', 'modifie son propre profil', 'with x as (update public.profiles set fonction = fonction where id = auth.uid() returning 1) select count(*) from x', '=1'),
       -- Fonctions
       ('ges', 'lit le numéro de sécurité sociale masqué', 'select count(*) from public.get_trainee_with_ssn(''' || v_tr1 || ''') where social_security_number = ''••••••••••••436''', '=1'),

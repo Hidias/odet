@@ -2,7 +2,7 @@
 
 FICHIER GÉNÉRÉ par `scripts/securite/regles.py` à partir de `scripts/securite/droits.py` et de la matrice des règles d'accès. Ne pas modifier à la main.
 
-Drapeaux : **P** périmètre de la personne (ses sessions, ses visites…) ; **€** montre des prix ; **L** licence totale de la société ; **Pf** plateforme (super administrateur). « Règle » : le droit est demandé aujourd'hui par une règle d'accès en base ; sinon il est prêt pour un module ou un écran à venir.
+Drapeaux : **P** périmètre de la personne (ses sessions, ses visites…) ; **€** montre des prix ; **L** licence totale de la société (**L (0379)** : drapeau posé par la migration 0379, après 0372) ; **Pf** plateforme (super administrateur). « Règle » : le droit est demandé aujourd'hui par une règle d'accès en base ; sinon il est prêt pour un module ou un écran à venir.
 
 ## Profils types
 
@@ -42,10 +42,10 @@ Drapeaux : **P** périmètre de la personne (ses sessions, ses visites…) ; **�
 | **Gérer les agendas de l'équipe** `planning.agenda.gerer_equipe` | Créer, modifier, supprimer les évènements de toute l'équipe | user_planning_events |  | oui | x | x | x | x |  |  |  |  |  |  |  |  |  |  |
 | **parametres** | | | | | | | | | | | | | | | | | | |
 | **Ouvrir les Paramètres** `parametres.ouvrir` | Accéder aux pages Paramètres et à l'assistant de configuration (garde des écrans, branche ecrans/gardes) | pages Paramètres, Console exclue | L |  | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
-| **Configurer l'organisme** `parametres.organisme.modifier` | Modifier l'identité, les textes et les réglages de l'organisme | organization_settings, org_settings |  | oui | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
-| **Configurer les modules** `parametres.modules.gerer` | Activer ou couper un module | org_modules |  | oui | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
-| **Désigner les référents** `parametres.referents.gerer` | Désigner les référents qualité (dont le référent handicap) | quality_roles |  | oui | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
-| **Gérer les comptes** `parametres.utilisateurs.gerer` | Créer, modifier, désactiver un compte (jamais un super administrateur) | profiles |  | oui | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
+| **Configurer l'organisme** `parametres.organisme.modifier` | Modifier l'identité, les textes et les réglages de l'organisme | organization_settings, org_settings | L (0379) | oui | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
+| **Configurer les modules** `parametres.modules.gerer` | Activer ou couper un module | org_modules | L (0379) | oui | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
+| **Désigner les référents** `parametres.referents.gerer` | Désigner les référents qualité (dont le référent handicap) | quality_roles | L (0379) | oui | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
+| **Gérer les comptes** `parametres.utilisateurs.gerer` | Créer, modifier, désactiver un compte (jamais un super administrateur) | profiles | L (0379) | oui | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Gérer les profils de droits** `parametres.profils.gerer` | Créer et modifier les profils de droits de la société (Paramètres › Profils) | permission_profiles, permission_profile_rights | L |  | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Attribuer des droits** `parametres.droits.attribuer` | Donner ou retirer des profils et des droits à une personne dans la société (Paramètres › Utilisateurs) | company_member_roles, company_member_rights | L |  | x | x |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Voir les connexions aux réseaux sociaux** `parametres.reseaux_sociaux.voir` | Lire l'état des connexions (jetons) des réseaux sociaux | social_tokens |  | oui | x | x |  |  |  |  |  |  |  |  |  |  |  |  |

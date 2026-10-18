@@ -17,6 +17,14 @@ Les droits sans règle d'accès aujourd'hui (modules prévus : RH, véhicules, s
 sont décrits ici pour les écrans et les modules à venir ; ils seront branchés par leurs branches.
 """
 
+# Droits réservés à la licence totale par la migration 0379 (décision de H, 17/10, confirmée le 18/10 à 22h38) :
+# sans licence totale, l'administrateur d'une société ne modifie plus l'identité, les modules, les référents ni les
+# comptes ; ces réglages passent par le super administrateur. Le catalogue (0372) les crée sans le drapeau, pour que
+# l'application de C1b ne change aucun accès ; 0379 pose le drapeau et se retire seule
+# (supabase/rollback/0379_droits_licence_parametres_retour.sql). 0379 doit toujours suivre 0372.
+LICENCE_0379 = ['parametres.organisme.modifier', 'parametres.modules.gerer', 'parametres.referents.gerer',
+                'parametres.utilisateurs.gerer']
+
 # (code, module, libellé, ce que le droit permet, données, drapeaux)
 CATALOGUE = [
     # ── Plateforme et organisation ──────────────────────────────────────────────────────────────

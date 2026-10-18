@@ -1014,7 +1014,8 @@ def build_doc():
            "FICHIER GÉNÉRÉ par `scripts/securite/regles.py` à partir de `scripts/securite/droits.py` et de la matrice "
            "des règles d'accès. Ne pas modifier à la main.", "",
            "Drapeaux : **P** périmètre de la personne (ses sessions, ses visites…) ; **€** montre des prix ; "
-           "**L** licence totale de la société ; **Pf** plateforme (super administrateur). "
+           "**L** licence totale de la société (**L (0379)** : drapeau posé par la migration 0379, après 0372) ; "
+           "**Pf** plateforme (super administrateur). "
            "« Règle » : le droit est demandé aujourd'hui par une règle d'accès en base ; sinon il est prêt pour un module "
            "ou un écran à venir.", "",
            "## Profils types", "",
@@ -1032,7 +1033,8 @@ def build_doc():
             module = dom
             out.append(f"| **{dom}** | | | | |" + " |" * len(keys))
         f = _flags(flags)
-        fl = " ".join(x for x, on in (('P', f['own']), ('€', f['prix']), ('L', f['licence']), ('Pf', f['plateforme'])) if on)
+        fl = " ".join(x for x, on in (('P', f['own']), ('€', f['prix']), ('L', f['licence']),
+                                      ('L (0379)', code in catalogue.LICENCE_0379), ('Pf', f['plateforme'])) if on)
         cells = " | ".join('x' if code in prof[k] else '' for k in keys)
         out.append(f"| **{label}** `{code}` | {desc} | {data} | {fl} | {'oui' if code in USAGE else ''} | {cells} |")
     out.append("")
