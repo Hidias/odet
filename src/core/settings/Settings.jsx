@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck,
+  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks,
 } from 'lucide-react'
 import { useDataStore, useAuthStore } from '../store'
 import { supabase } from '../supabase'
@@ -11,6 +11,9 @@ import { useBranding } from '../branding/BrandingProvider'
 import { FONT_PAIRS } from '../branding/presets'
 import { missingOrgFields, ORG_REQUIRED } from '../org/orgUtils'
 import EmailSettings from './EmailSettings'
+import DroitsPersonnes from './droits/DroitsPersonnes'
+import ProfilsDroits from './droits/ProfilsDroits'
+import { peut } from '../rights/useDroit'
 import { THEMES, FORMES, ROLES, Field, Toggle, uploadBrandingFile, ModulesSection, ColorPicker } from './shared'
 
 const SECTIONS = [
@@ -23,6 +26,9 @@ const SECTIONS = [
   { id: 'modules', label: 'Modules', icon: Layers },
   { id: 'emails', label: 'Comptes email', icon: Mail },
   { id: 'utilisateurs', label: 'Utilisateurs', icon: Users },
+  // Droits composés (C1b) : visibles seulement avec le droit, jamais tant que les droits sont inconnus
+  { id: 'droits', label: 'Droits des personnes', icon: UserCog, right: 'parametres.droits.attribuer' },
+  { id: 'profils', label: 'Profils de droits', icon: ListChecks, right: 'parametres.profils.gerer' },
   { id: 'comptable', label: 'Accès comptable', icon: Calculator },
 ]
 
@@ -39,7 +45,9 @@ const ORG_FIELDS = [
 
 export default function Settings() {
   const { organization, fetchOrganization, updateOrganization } = useDataStore()
-  const { userRole, refreshModules, modules } = useAuthStore()
+  const { userRole, refreshModules, modules, can } = useAuthStore()
+  useAuthStore((st) => st.rights)
+  const sections = SECTIONS.filter((s) => !s.right || peut(can, userRole, s.right, []))
   // Module Certification actif : la certification Qualiopi se renseigne là-bas (une seule saisie)
   const certModule = (modules || []).includes('certification')
   const { refresh: refreshBranding } = useBranding()
@@ -136,7 +144,7 @@ export default function Settings() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-5">
         <nav className="card card-flush p-2 self-start">
-          {SECTIONS.map((s) => (
+          {sections.map((s) => (
             <button key={s.id} type="button" onClick={() => setSection(s.id)}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-ui-sm text-ui text-left ${section === s.id ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}>
               <s.icon className="w-4 h-4 flex-none" />{s.label}
@@ -338,6 +346,8 @@ export default function Settings() {
           {section === 'emails' && <EmailSettings embedded />}
           {section === 'utilisateurs' && <UsersSection isSuperadmin={isSuperadmin} />}
           {section === 'comptable' && <ComptableSection />}
+          {section === 'droits' && sections.some((s) => s.id === 'droits') && <DroitsPersonnes />}
+          {section === 'profils' && sections.some((s) => s.id === 'profils') && <ProfilsDroits />}
         </div>
       </div>
     </div>

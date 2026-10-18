@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Calendar, GraduationCap, Users, UserCheck, FileText, FileQuestion, ClipboardCheck,
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
-  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser,
+  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -112,6 +112,9 @@ export const SETTINGS_ITEMS = [
   // Paramètres : super administrateur ; administrateur seulement avec la licence totale (droit parametres.ouvrir,
   // filtré par la base) ; direction jamais (décision du 17/10). Droits inconnus : super administrateur seulement.
   { to: '/parametres', icon: Settings, label: 'Paramètres', roles: ADMINS, right: 'parametres.ouvrir', fallbackRoles: ['superadmin'] },
+  // Règles de gestion : circuits de validation et comptable externe, hors Paramètres (la direction y accède)
+  { to: '/regles-gestion', icon: Workflow, label: 'Règles de gestion', roles: ['superadmin', 'admin', 'direction', 'membre'],
+    right: ['validations.circuits.configurer', 'facturation.comptable_externe.regler'], fallbackRoles: [] },
   { to: '/console', right: 'plateforme.administrer', icon: Sliders, label: 'Console', roles: ['superadmin'] },
 ]
 
