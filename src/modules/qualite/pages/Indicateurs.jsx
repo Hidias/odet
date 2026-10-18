@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
+import { useDroits } from '../../../core/rights/useDroit'
 
 const ratingColor = (value, max = 5) => {
   const percent = (value / max) * 100
@@ -30,6 +31,11 @@ export default function Indicateurs() {
   const { sessions, fetchSessions, clients, fetchClients, courses, fetchCourses } = useDataStore()
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  // Gardes des boutons d'écriture des registres qualité (la base refuse de toute façon ce qui n'est pas permis)
+  const d = useDroits({
+    signaler: 'qualite.registres.signaler',
+    gerer: 'qualite.registres.gerer',
+  })
   
   const [loading, setLoading] = useState(true)
   const [themes, setThemes] = useState([])
@@ -1753,24 +1759,29 @@ export default function Indicateurs() {
                       </button>
                       {alert.status === 'pending' && (
                         <>
-                          <button
-                            onClick={() => {
-                              setSelectedAlert(alert)
-                              setShowAlertModal(true)
-                            }}
-                            className="btn btn-xs btn-success flex items-center gap-1"
-                            title="Marquer comme traitée"
-                          >
-                            <CheckCircle className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => handleCreateNC(alert)}
-                            className="btn btn-xs btn-warning flex items-center gap-1"
-                            title="Créer une NC"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                          {nonConformites.length > 0 && (
+                          {d.gerer && (
+                            <button
+                              onClick={() => {
+                                setSelectedAlert(alert)
+                                setShowAlertModal(true)
+                              }}
+                              className="btn btn-xs btn-success flex items-center gap-1"
+                              title="Marquer comme traitée"
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </button>
+                          )}
+                          {/* Créer une NC écrit aussi l'alerte (lien vers la NC) : il faut signaler et traiter */}
+                          {d.signaler && d.gerer && (
+                            <button
+                              onClick={() => handleCreateNC(alert)}
+                              className="btn btn-xs btn-warning flex items-center gap-1"
+                              title="Créer une NC"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          )}
+                          {d.gerer && nonConformites.length > 0 && (
                             <select
                               onChange={(e) => {
                                 if (e.target.value) {
@@ -1834,12 +1845,14 @@ export default function Indicateurs() {
               >
                 Annuler
               </button>
-              <button
-                onClick={handleTreatAlert}
-                className="btn btn-success"
-              >
-                Valider le traitement
-              </button>
+              {d.gerer && (
+                <button
+                  onClick={handleTreatAlert}
+                  className="btn btn-success"
+                >
+                  Valider le traitement
+                </button>
+              )}
             </div>
           </div>
         </div>

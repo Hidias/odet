@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
 import { useAuthStore } from '../../../core/store'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
+import { useDroits } from '../../../core/rights/useDroit'
 import {
   ArrowLeft, Check, Clock, PenLine, RefreshCw, WifiOff, UploadCloud,
   UserX, ChevronRight, Users, AlertCircle, HelpCircle, X,
@@ -58,6 +59,8 @@ export default function SignatureFormateur() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  // Garde de la signature par le formateur (branche ecrans/gardes)
+  const d = useDroits({ signer: ['formation.sessions.modifier_siennes', 'formation.suivi.gerer'] })
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -426,7 +429,7 @@ export default function SignatureFormateur() {
                 : 'bg-white border-gray-200'}`}
             >
               <button
-                disabled={t.absent || signe || !slot}
+                disabled={t.absent || signe || !slot || !d.signer}
                 onClick={() => setSigning(t)}
                 className="flex-1 text-left disabled:cursor-default"
               >
@@ -448,7 +451,7 @@ export default function SignatureFormateur() {
                 </p>
               </button>
 
-              {!t.absent && !signe && slot && (
+              {d.signer && !t.absent && !signe && slot && (
                 <button
                   onClick={() => setSigning(t)}
                   className="px-4 py-3 rounded-ui bg-primary-600 text-white font-semibold flex items-center gap-1.5"
@@ -462,7 +465,7 @@ export default function SignatureFormateur() {
       </div>
 
       {/* Ne peut pas signer */}
-      {signables.length > 0 && slot && (
+      {d.signer && signables.length > 0 && slot && (
         <div className="px-3 mt-5">
           <button
             onClick={() => setProxy({ step: 1, trainee: null, reason: '', reasonLibre: '', lastName: '', firstName: '', role: '' })}

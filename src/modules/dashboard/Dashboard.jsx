@@ -18,6 +18,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { qualiopiCycle } from '../certification/lib/certData'
 import InterventionsDashboardCard from '../interventions/components/DashboardCard'
+import { useDroits } from '../../core/rights/useDroit'
 
 // ═══════════════════════════════════════════════════════════
 // WIDGET REGISTRY
@@ -109,6 +110,14 @@ export default function Dashboard() {
   const { clients, fetchClients, courses, fetchCourses, trainees, fetchTrainees, sessions, fetchSessions, getPurgeStats, organization, fetchOrganization } = useDataStore()
   const { user, modules, userRole } = useAuthStore()
   const navigate = useNavigate()
+  // Gardes des boutons d'écriture du tableau de bord (la base refuse de toute façon ce qui n'est pas permis)
+  const d = useDroits({
+    preferences: 'organisation.preferences.gerer',
+    signer: ['formation.suivi.gerer', 'formation.sessions.modifier_siennes'],
+    session: 'formation.sessions.creer',
+    client: 'clients.fiches.modifier',
+    stagiaire: 'formation.stagiaires.creer',
+  })
   
   
   const [widgetConfigs, setWidgetConfigs] = useState([])
@@ -1022,7 +1031,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => { setLoading(true); loadData() }} className="btn btn-ghost btn-icon" title="Rafraîchir" aria-label="Rafraîchir"><RefreshCw className="w-5 h-5" /></button>
-          <button onClick={() => setShowSettings(true)} className="btn btn-secondary"><Settings className="w-4 h-4" />Personnaliser</button>
+          {d.preferences && <button onClick={() => setShowSettings(true)} className="btn btn-secondary"><Settings className="w-4 h-4" />Personnaliser</button>}
         </div>
       </div>
       
@@ -1048,9 +1057,11 @@ export default function Dashboard() {
                   <Link to={`/sessions/${s.id}`} className="btn btn-secondary">
                     La session
                   </Link>
-                  <Link to={`/signature/${s.id}`} className="btn btn-primary">
-                    <PenLine className="w-4 h-4" />Faire signer
-                  </Link>
+                  {d.signer && (
+                    <Link to={`/signature/${s.id}`} className="btn btn-primary">
+                      <PenLine className="w-4 h-4" />Faire signer
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}
@@ -1086,7 +1097,7 @@ export default function Dashboard() {
             <div
               key={config.widget_id}
               className={`card group ${SIZE_CLASSES[config.size] || 'col-span-1'} ${dragIdx === idx ? 'opacity-50 ring-2 ring-accent-300' : ''}`}
-              draggable
+              draggable={d.preferences}
               onDragStart={() => handleDragStart(idx)}
               onDragOver={(e) => handleDragOver(e, idx)}
               onDragEnd={handleDragEnd}
@@ -1097,10 +1108,12 @@ export default function Dashboard() {
                   <Icon className="w-4 h-4 text-gray-400" />
                   <h3 className="text-ui font-semibold text-gray-700">{reg.label}</h3>
                 </div>
+                {d.preferences && (
                 <div className="flex items-center gap-0.5">
                   <button onClick={() => cycleSize(config.widget_id)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 text-ui-sm font-mono [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Changer taille">{config.size.toUpperCase()}</button>
                   <button onClick={() => toggleWidget(config.widget_id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm text-gray-300 hover:text-[rgb(var(--c-danger))] transition-colors" title="Retirer ce widget"><X className="w-3.5 h-3.5" /></button>
                 </div>
+                )}
               </div>
               {renderWidget(config.widget_id)}
             </div>
@@ -1111,7 +1124,7 @@ export default function Dashboard() {
       {/* Widgets masqués */}
       {(() => {
         const hiddenWidgets = widgetConfigs.filter(c => !c.visible)
-        if (hiddenWidgets.length === 0) return null
+        if (hiddenWidgets.length === 0 || !d.preferences) return null
         return (
           <div className="card bg-gray-50 border-dashed border-2 border-gray-200">
             <div className="flex items-center justify-between mb-3">
@@ -1142,7 +1155,7 @@ export default function Dashboard() {
         <div className="card text-center py-12">
           <Settings className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 mb-2">Aucun widget visible</p>
-          <button onClick={() => setShowSettings(true)} className="btn btn-primary">Configurer</button>
+          {d.preferences && <button onClick={() => setShowSettings(true)} className="btn btn-primary">Configurer</button>}
         </div>
       )}
       
@@ -1150,9 +1163,9 @@ export default function Dashboard() {
       <div className="card">
         <h2 className="section-title mb-3">Actions rapides</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Link to="/sessions" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Calendar className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouvelle session</span></Link>
-          <Link to="/clients" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Building2 className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau client</span></Link>
-          <Link to="/stagiaires" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Users className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau stagiaire</span></Link>
+          {d.session && <Link to="/sessions" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Calendar className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouvelle session</span></Link>}
+          {d.client && <Link to="/clients" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Building2 className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau client</span></Link>}
+          {d.stagiaire && <Link to="/stagiaires" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Users className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau stagiaire</span></Link>}
           <Link to="/non-conformites" className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><AlertTriangle className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Non-conformités</span></Link>
         </div>
       </div>
