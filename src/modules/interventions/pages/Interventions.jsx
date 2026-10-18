@@ -6,7 +6,8 @@ import { Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-route
 import toast from 'react-hot-toast'
 import { Loader2, MapPin } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
-import { loadSettings, loadTypes, loadTechnicians, loadParts } from '../lib/itvData'
+import { loadSettings, loadTypes, loadTechnicians, loadParts, setPrixMasques } from '../lib/itvData'
+import { prixMasques } from '../../../core/rights/rights'
 import MaJournee from './MaJournee'
 import Visite from './Visite'
 import Appareil from './Appareil'
@@ -19,7 +20,9 @@ import Reglages from './Reglages'
 export const MANAGER_ROLES = ['superadmin', 'admin', 'direction', 'gestionnaire']
 
 export default function Interventions() {
-  const { modules, userRole, profile } = useAuthStore()
+  const { modules, userRole, profile, rights } = useAuthStore()
+  // Droits composés (C1b) : sans le droit des prix, lecture des vues sans prix (aucun changement à l'écran)
+  const masques = prixMasques(rights)
   const location = useLocation()
   const [settings, setSettings] = useState(null)
   const [types, setTypes] = useState([])
@@ -32,11 +35,12 @@ export default function Interventions() {
   const canWrite = isManager || isTechnician
 
   const reload = useCallback(async () => {
+    setPrixMasques(masques)
     try {
       const [s, t, p, tech] = await Promise.all([loadSettings(), loadTypes(), loadParts(), loadTechnicians()])
       setSettings(s); setTypes(t || []); setParts(p || []); setTechnicians(tech || [])
     } catch (e) { setError(e.message || String(e)) }
-  }, [])
+  }, [masques])
 
   useEffect(() => { if (enabled) reload() }, [enabled, reload])
 
