@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import SignatureCanvas from 'react-signature-canvas'
 import { downloadNeedsAnalysisPDF } from '../pdf/needsAnalysisPDF'
 import { sanitizeStorageKey } from '../../../core/storageUtils'
+import { useDroits } from '../../../core/rights/useDroit'
 
 const CONTEXT_REASONS = [
   { value: 'reglementation', label: 'Réglementation / Obligations légales' },
@@ -23,6 +24,8 @@ const PROFILES = [
 ]
 
 export default function SessionNeedsAnalysis({ session, organization }) {
+  // Droit d'écriture : préparer la session (ou modifier les siennes)
+  const d = useDroits({ preparer: ['formation.sessions.preparer', 'formation.sessions.modifier_siennes'] })
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -423,13 +426,16 @@ export default function SessionNeedsAnalysis({ session, organization }) {
           )}
 
           {/* Bouton import scan */}
+          {d.preparer && (
           <label className={`btn btn-sm btn-secondary flex items-center gap-1 cursor-pointer ${uploadingScan ? 'opacity-50 pointer-events-none' : ''}`}>
             <Upload className="w-4 h-4" />
             {uploadingScan ? 'Upload...' : 'Importer un scan'}
             <input type="file" className="hidden" onChange={handleScanUpload} disabled={uploadingScan}
               accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.tiff" />
           </label>
+          )}
 
+          {d.preparer && (
           <button
             onClick={() => setShowForm(!showForm)}
             className="btn btn-sm btn-secondary flex items-center gap-1"
@@ -437,6 +443,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
             <FileCheck className="w-4 h-4" />
             {showForm ? 'Masquer' : analysis ? 'Modifier' : 'Remplir'}
           </button>
+          )}
         </div>
       </div>
 
@@ -455,9 +462,11 @@ export default function SessionNeedsAnalysis({ session, organization }) {
           <button onClick={handleViewScan} className="btn btn-sm btn-secondary flex items-center gap-1" title="Ouvrir">
             <Eye className="w-4 h-4" /> Voir
           </button>
+          {d.preparer && (
           <button onClick={handleDeleteScan} className="p-1.5 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded transition-colors" title="Supprimer">
             <Trash2 className="w-4 h-4" />
           </button>
+          )}
         </div>
       )}
 
@@ -884,6 +893,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
             >
               Annuler
             </button>
+            {d.preparer && (
             <button
               onClick={handleSave}
               disabled={saving}
@@ -892,6 +902,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
               <Save className="w-4 h-4" />
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
+            )}
           </div>
         </div>
       )}
