@@ -177,6 +177,8 @@ ORDRE_PROD = (
     + ['0054']
     # Chantier 12, RH documents et santé au travail administrative (19/10)
     + ['0301']
+    # RH : suppression d'une fiche du personnel (gardes en cascade), 19/10
+    + ['0302']
 )
 
 
