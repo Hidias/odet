@@ -217,7 +217,8 @@ t('quality_roles', sel=REGL(), ins=D('parametres.referents.gerer', ADM), upd=D('
 ADMIN_COMPTES = RAW(is_role('admin'), "(select app.a_le_droit('parametres.utilisateurs.gerer'))")
 SUPERADMIN_COMPTES = RAW(is_role('superadmin'), "(select app.a_le_droit('plateforme.administrer'))")
 profile_admin = any_of(own('id'), SUPERADMIN_COMPTES, f"({ADMIN_COMPTES} and role <> 'superadmin')")
-t('profiles', sel=D('organisation.comptes.voir', ALL), ins=D('parametres.utilisateurs.gerer', ADM), upd=profile_admin,
+# Lecture : sa propre ligne (comptes externes, 0047 : sans elle, la connexion échoue) ou le droit de voir les comptes.
+t('profiles', sel=any_of(own('id'), D('organisation.comptes.voir', ALL)), ins=D('parametres.utilisateurs.gerer', ADM), upd=profile_admin,
   dele=any_of(SUPERADMIN_COMPTES, f"({ADMIN_COMPTES} and role <> 'superadmin')"))
 t('app_versions', sel=REGL(), ins=D('plateforme.administrer', SA), upd=D('plateforme.administrer', SA),
   dele=D('plateforme.administrer', SA))

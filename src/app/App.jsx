@@ -40,6 +40,7 @@ const AValider = lazy(() => import('../modules/commercial/pages/AValider'))
 const SousTraitants = lazy(() => import('../modules/formation/pages/SousTraitants'))
 const EspaceEntrepriseAdmin = lazy(() => import('../modules/commercial/pages/EspaceEntrepriseAdmin'))
 const EspaceEntreprise = lazy(() => import('../modules/portail/pages/EspaceEntreprise'))
+const EspaceExterne = lazy(() => import('../modules/portail/pages/EspaceExterne'))
 const RetoursSuivi = lazy(() => import('../core/feedback/RetoursSuivi'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
@@ -128,6 +129,10 @@ function PrivateRoute({ children }) {
   if (userRole === 'entreprise') {
     return <Navigate to="/mon-entreprise" replace />
   }
+  // Formateur externe et stagiaire (lot 2, 0047) : leur espace seulement
+  if (userRole === 'formateur_externe' || userRole === 'stagiaire') {
+    return <Navigate to="/mon-espace" replace />
+  }
 
   if (needsSetup) return <PageLoader />
 
@@ -149,6 +154,15 @@ function EntrepriseRoute({ children }) {
   if (loading) return <PageLoader />
   if (!user) return <Navigate to="/login" state={{ from: '/mon-entreprise' }} replace />
   if (userRole !== 'entreprise') return <Navigate to="/" replace />
+  return children
+}
+
+// Espace d'un formateur externe ou d'un stagiaire : connecté et à l'un de ces rôles, sinon retour à l'application
+function ExterneRoute({ children }) {
+  const { user, loading, userRole } = useAuthStore()
+  if (loading) return <PageLoader />
+  if (!user) return <Navigate to="/login" state={{ from: '/mon-espace' }} replace />
+  if (userRole !== 'formateur_externe' && userRole !== 'stagiaire') return <Navigate to="/" replace />
   return children
 }
 
@@ -231,6 +245,13 @@ export default function App() {
             <EntrepriseRoute>
               <EspaceEntreprise />
             </EntrepriseRoute>
+          } />
+
+          {/* ─── Espaces formateur externe et stagiaire (lot 2) ─── */}
+          <Route path="/mon-espace" element={
+            <ExterneRoute>
+              <EspaceExterne />
+            </ExterneRoute>
           } />
 
           {/* ─── Route Espace Comptable (comptable + admins) ─── */}

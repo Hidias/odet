@@ -146,7 +146,7 @@ alter default privileges for role postgres in schema public grant all on sequenc
 
 # Ordre d'application constaté en production
 ORDRE_PROD = (
-    [f'{n:04d}' for n in range(1, 52)]
+    [f'{n:04d}' for n in range(1, 41)] + ['0050', '0051']
     + ['0111', '0190', '0250', '0260']
     + [f'{n:04d}' for n in range(80, 88)]
     + ['0070', '0270', '0271', '0272', '0273']
@@ -156,7 +156,7 @@ ORDRE_PROD = (
     # 19/10/2026 : sociétés (C2 puis C3), puis mise en service (chantier A, 0261 à 0264, appliqués après 0277)
     + ['0274', '0275', '0276', '0277', '0261', '0262', '0263', '0264']
     # Lot 2 (0041 et suivantes), appliqués après le chantier A
-    + ['0041', '0042', '0043', '0044', '0045', '0046']
+    + ['0041', '0042', '0043', '0044', '0045', '0046', '0047']
 )
 
 

@@ -177,7 +177,7 @@ begin
       ('lec', 'lit les notifications', 'select count(*) from public.notifications', 'non_vide'),
       ('tech', 'ne lit pas les notifications', 'select count(*) from public.notifications', 'vide'),
       ('tech', 'lit les comptes (noms)', 'select count(*) from public.profiles', 'non_vide'),
-      ('ent', 'ne lit pas les comptes', 'select count(*) from public.profiles', 'vide'),
+      ('ent', 'ne lit que son propre compte', 'select count(*) from public.profiles where id <> auth.uid()', 'vide'),
       ('com', 'ne lit pas la certification', 'select count(*) from public.cert_indicators', 'vide'),
       ('ges', 'lit la certification', 'select count(*) from public.cert_indicators', 'non_vide'),
       -- Interventions
@@ -2413,6 +2413,108 @@ begin
       perform set_config('request.jwt.claims', '', true);
       if e_ok then v_lines := v_lines || 'OK      ent   0046 : compte désactivé, plus aucun accès'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0046 : compte désactivé, plus aucun accès'::text; end if;
+    end;
+  end if;
+
+  -- Lot 2, comptes externes (0047) : formateur externe et stagiaire par leurs fonctions seulement ; liens du profil gardés
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'trainee_id') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 6;
+    declare
+      x_fe uuid := gen_random_uuid(); x_st uuid := gen_random_uuid(); x_t1 uuid; x_t2 uuid; x_tr1 uuid; x_tr2 uuid; x_c uuid;
+      x_s1 uuid; x_s2 uuid; x_s3 uuid; x_j jsonb; x_ok boolean;
+    begin
+      insert into public.trainers (first_name, last_name, is_internal) values ('Externe', 'Essai', false) returning id into x_t1;
+      insert into public.trainers (first_name, last_name, is_internal) values ('Autre', 'Formateur', false) returning id into x_t2;
+      insert into public.clients (name) values ('Essai comptes externes') returning id into x_c;
+      insert into public.trainees (first_name, last_name, client_id) values ('Sam', 'Stagiaire', x_c) returning id into x_tr1;
+      insert into public.trainees (first_name, last_name, client_id) values ('Zoé', 'Autre', x_c) returning id into x_tr2;
+      insert into public.sessions (reference, client_id, trainer_id, start_date, end_date, attendance_token, total_price)
+      values ('SES-EXT-1', x_c, x_t1, current_date + 3, current_date + 3, 'ext-1', 1500) returning id into x_s1;
+      insert into public.sessions (reference, client_id, trainer_id, start_date, end_date, attendance_token)
+      values ('SES-EXT-2', x_c, x_t2, current_date + 4, current_date + 4, 'ext-2') returning id into x_s2;
+      insert into public.sessions (reference, client_id, trainer_id, start_date, end_date, attendance_token)
+      values ('SES-EXT-3', x_c, x_t2, current_date + 5, current_date + 5, 'ext-3') returning id into x_s3;
+      insert into public.session_trainers (session_id, trainer_id) values (x_s3, x_t1);
+      insert into public.session_trainees (session_id, trainee_id) values (x_s1, x_tr1), (x_s2, x_tr2), (x_s3, x_tr2);
+      insert into auth.users (id, email, aud, role) values (x_fe, 'ext.fe@test.invalid', 'authenticated', 'authenticated'),
+        (x_st, 'ext.st@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active, trainer_id) values (x_fe, 'ext.fe@test.invalid', 'formateur_externe', true, x_t1)
+      on conflict (id) do update set role = excluded.role, trainer_id = excluded.trainer_id, is_active = true;
+      insert into public.profiles (id, email, role, is_active, trainee_id) values (x_st, 'ext.st@test.invalid', 'stagiaire', true, x_tr1)
+      on conflict (id) do update set role = excluded.role, trainee_id = excluded.trainee_id, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', x_fe, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_j := public.ext_sessions();
+      x_ok := jsonb_array_length(x_j -> 'sessions') = 2
+        and not exists (select 1 from jsonb_array_elements(x_j -> 'sessions') e where e ->> 'id' = x_s2::text)
+        and position('total_price' in (x_j)::text) = 0 and position('1500' in (x_j)::text) = 0
+        and not exists (select 1 from public.sessions) and not exists (select 1 from public.trainees);
+      execute 'reset role';
+      if x_ok then v_lines := v_lines || 'OK      ext   0047 : formateur externe, ses sessions (principal ou associé), sans prix ni table lisible'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ext   0047 : formateur externe, ses sessions sans prix'::text; end if;
+
+      execute 'set local role authenticated';
+      x_ok := false;
+      begin perform public.stg_sessions(); exception when insufficient_privilege then x_ok := true; end;
+      execute 'reset role';
+      if x_ok then v_lines := v_lines || 'OK      ext   0047 : le formateur externe n''ouvre pas l''espace stagiaire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ext   0047 : le formateur externe n''ouvre pas l''espace stagiaire'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', x_st, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_j := public.stg_sessions();
+      x_ok := jsonb_array_length(x_j -> 'sessions') = 1 and x_j -> 'sessions' -> 0 ->> 'id' = x_s1::text
+        and x_j -> 'trainee' ->> 'first_name' = 'Sam' and position('ssn' in (x_j)::text) = 0
+        and (select count(*) from public.profiles) = 1 and exists (select 1 from public.profiles where id = x_st);
+      execute 'reset role';
+      if x_ok then v_lines := v_lines || 'OK      stg   0047 : stagiaire, ses sessions seulement, sans numéro de sécurité sociale ; lit son seul profil'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   stg   0047 : stagiaire, ses sessions seulement'::text; end if;
+
+      -- Liens du profil : ni le stagiaire ni un formateur ne changent leur fiche reliée ou leur activation
+      execute 'set local role authenticated';
+      x_ok := false;
+      begin update public.profiles set trainee_id = x_tr2 where id = x_st; exception when insufficient_privilege then x_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_ok := x_ok and exists (select 1 from public.profiles where id = u_dir);
+      begin update public.profiles set trainer_id = x_t2 where id = u_dir; x_ok := false; exception when insufficient_privilege then null; end;
+      begin update public.profiles set trainee_id = x_tr2 where id = u_dir; x_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if x_ok then v_lines := v_lines || 'OK      dir   0047 : fiche reliée non modifiable par soi-même (stagiaire, direction)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0047 : fiche reliée non modifiable par soi-même'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_ok := true;
+      begin update public.profiles set trainee_id = x_tr2 where id = x_st; exception when others then x_ok := false; end;
+      execute 'reset role';
+      x_ok := x_ok and (public.acces_externe_etat('formateur', x_t1) ->> 'profile_id') = x_fe::text;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.acces_externe_etat('stagiaire', x_tr2); x_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if x_ok and (select trainee_id from public.profiles where id = x_st) = x_tr2 then
+        v_lines := v_lines || 'OK      sa    0047 : le super administrateur relie un compte à une fiche et voit le compte d''une fiche (pas le formateur)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0047 : le super administrateur relie un compte à une fiche'::text; end if;
+
+      perform set_config('request.jwt.claims', '', true);
+      update public.profiles set is_active = false where id = x_st;
+      perform set_config('request.jwt.claims', json_build_object('sub', x_st, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_ok := false;
+      begin perform public.stg_sessions(); exception when insufficient_privilege then x_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if x_ok then v_lines := v_lines || 'OK      stg   0047 : compte désactivé, plus aucun accès'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   stg   0047 : compte désactivé, plus aucun accès'::text; end if;
     end;
   end if;
 

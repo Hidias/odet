@@ -10,6 +10,7 @@ import {
 import { format, parseISO, isToday, eachDayOfInterval } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import TraineeDocuments from '../../formation/components/TraineeDocuments'
+import CompteStagiairePortail from '../components/CompteStagiairePortail'
 import { Banner } from '../../../ui/Banner'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
 import QuizEngine from '../../formation/quiz/QuizEngine'
@@ -1142,6 +1143,9 @@ export default function TraineePortal() {
                   onClick={() => setCurrentStep('evaluation')} />
 
                 <HubCard icon={FileText} title="Documents de formation" subtitle="Programme, supports et livrets" onClick={() => setShowDocuments(true)} />
+
+                {/* Compte stagiaire personnel (lot 2, 0047) */}
+                <CompteStagiairePortail token={token} trainee={selectedTrainee} ticket={portalTicket} emailConnu={selectedTrainee.email} />
 
                 <button type="button" onClick={() => { setSelectedTrainee(null); setQuizSummary(null); setCurrentStep('select') }}
                   className="w-full text-gray-400 hover:text-gray-600 text-ui font-medium flex items-center justify-center gap-1 pt-2">
