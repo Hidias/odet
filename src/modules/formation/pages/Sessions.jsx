@@ -16,6 +16,7 @@ import SessionPlanning from '../components/SessionPlanning'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 
 import { confirmer } from '../../../ui/Confirm'
+import { BadgeTest } from '../../../core/demo/BadgeTest'
 // Type de journée déduit des horaires : ≤ 4h30 = demi-journée (même règle que Quotes / MultiSiretWizard)
 const dayTypeFromTimes = (startTime, endTime) => {
   const [sh, sm] = (startTime || '09:00').split(':').map(Number)
@@ -646,6 +647,7 @@ export default function Sessions() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-ui font-mono text-gray-400">{session.reference}</span>
+                                <BadgeTest tbl="sessions" id={session.id} />
                                 <StatusBadge kind="session" status={session.status} />
                               </div>
                               <p className="font-medium text-gray-900 mt-0.5">{session.clients?.name}</p>
@@ -756,6 +758,7 @@ export default function Sessions() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <span className="text-ui font-mono text-gray-500">{session.reference}</span>
+                      <BadgeTest tbl="sessions" id={session.id} />
                       <StatusBadge kind="session" status={session.status} />
                       {session.is_intra && (
                         <span className="text-ui-sm text-gray-500">Intra</span>

@@ -42,6 +42,7 @@ import { confirmer, demander } from '../../../ui/Confirm'
 import ChoixSiteSession from '../components/ChoixSiteSession'
 import SessionGroupes from '../components/SessionGroupes'
 import PiloteSession from '../../pilote/PiloteSession'
+import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -2817,6 +2818,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <Link to="/sessions" className="text-ui text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-2"><ArrowLeft className="w-4 h-4" />Retour</Link>
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="page-title">{session.reference}</h1>
+                <BadgeTest tbl="sessions" id={session.id} />
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]"><Briefcase className="w-3 h-3" />Sous-traitance</span>
                 <span className={`badge ${statusLabels[session.status]?.class}`}>{statusLabels[session.status]?.label}</span>
                 {session.subcontract_invoiced && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]"><Check className="w-3 h-3" />Facturée</span>}
@@ -3001,11 +3003,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       ) : (
       /* ═══ VUE STANDARD (INTRA / INTER) ═══ */
       <div className="space-y-6">
+      <BandeauTest tbl="sessions" id={session.id} />
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div className="grid gap-1.5 min-w-0">
           <Link to="/sessions" className="text-ui-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 w-fit"><ArrowLeft className="w-4 h-4" />Sessions</Link>
-          <span className="eyebrow tabular-nums">{session.reference}{session.is_intra ? ' · Intra' : ''}</span>
+          <span className="eyebrow tabular-nums">{session.reference}{session.is_intra ? ' · Intra' : ''} <BadgeTest tbl="sessions" id={session.id} /></span>
           <h1 className="page-title leading-tight" style={{ textWrap: 'balance' }}>{session.courses?.title || session.reference}</h1>
           <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-ui-sm text-gray-500">
             {session.clients?.name && <span>{session.clients.name}</span>}

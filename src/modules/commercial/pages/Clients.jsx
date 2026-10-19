@@ -10,6 +10,8 @@ import { useSirenCheck } from '../lib/useSirenCheck'
 import { canExportVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
 import { useDroits } from '../../../core/rights/useDroit'
+import { BadgeTest } from '../../../core/demo/BadgeTest'
+import { useMarquesDemo } from '../../../core/demo/marquesDemo'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 
 import { confirmer } from '../../../ui/Confirm'
@@ -316,6 +318,7 @@ const ConfirmModal = ({ show, onConfirm, onCancel, message, description, confirm
 }
 
 export default function Clients() {
+  const { estTest } = useMarquesDemo()
   const { clients, fetchClients, createClient, updateClient, deleteClient } = useDataStore()
   // Gardes des boutons d'écriture (la base refuse de toute façon ce qui n'est pas permis)
   const d = useDroits({
@@ -939,6 +942,7 @@ export default function Clients() {
                     <Link to={`/clients/${client.id}`} className="font-medium text-gray-900 hover:text-accent-600 hover:underline text-ui">
                       {client.name}
                     </Link>
+                    <BadgeTest tbl="clients" id={client.id} className="ml-2" />
                     {client.siren && <span className="text-ui-sm text-gray-400 ml-2 font-mono">{client.siren}</span>}
                   </td>
                   <td className="px-2 py-3 text-ui text-gray-600 hidden lg:table-cell">
@@ -1471,7 +1475,10 @@ export default function Clients() {
         onConfirm={handleArchive} onCancel={() => setConfirmArchive(null)} />
       <ConfirmModal show={!!confirmDelete}
         message={`Supprimer ${confirmDelete?.name} ?`}
-        description="Cette action est irréversible. Les factures et sessions liées pourraient empêcher la suppression."
+        description={(estTest('clients', confirmDelete?.id)
+          ? 'Client de TEST (donnée de démonstration). '
+          : 'Attention : c\'est un client RÉEL. ')
+          + 'Cette action est irréversible. Les factures et sessions liées pourraient empêcher la suppression.'}
         confirmLabel="Supprimer"
         onConfirm={handleDelete} onCancel={() => setConfirmDelete(null)} />
 

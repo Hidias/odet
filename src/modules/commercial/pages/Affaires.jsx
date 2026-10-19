@@ -12,6 +12,7 @@ import { EmptyState } from '../../../ui/EmptyState'
 import { Sheet } from '../../../ui/Sheet'
 import { AffaireSheet, EchangeSheet, useListesCommerciales } from '../components/AffaireSheets'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
+import { BadgeTest } from '../../../core/demo/BadgeTest'
 import {
   urgence, URGENCES, trierAFaire, colonnesPipeline, totauxPipeline, cadence, CADENCE, euros, METIERS,
 } from '../lib/affaires'
@@ -85,6 +86,7 @@ export default function Affaires() {
               ? <StatusBadge tone={URGENCES[u][0]}>{u === 'retard' || u === 'aujourdhui' ? URGENCES[u][1] : fr(l.next_action_on)}</StatusBadge>
               : <StatusBadge tone="warning">Relance à dater</StatusBadge>}
             <Link to={`/clients/${l.client_id}`} className="font-semibold text-gray-900 hover:underline truncate">{l.client_name}</Link>
+            <BadgeTest tbl="clients" id={l.client_id} />
           </div>
           <div className="text-ui-sm text-gray-600 truncate">
             {l.next_action || (l.origine === 'devis' ? 'Relancer le devis' : 'À suivre')} · {l.title}
@@ -167,7 +169,7 @@ export default function Affaires() {
                       <li key={`${l.origine}-${l.id}`}>
                         <button type="button" className="w-full text-left rounded-ui-sm border border-gray-200 px-2.5 py-2 hover:bg-gray-50"
                           onClick={() => (l.origine === 'affaire' && peutModifier ? setEdition({ affaire: l }) : setEchange({ clientId: l.client_id, clientName: l.client_name, affaire: l }))}>
-                          <div className="text-ui font-medium truncate">{l.client_name}</div>
+                          <div className="text-ui font-medium truncate">{l.client_name} <BadgeTest tbl="clients" id={l.client_id} /></div>
                           <div className="text-ui-sm text-gray-500 truncate">{l.title}</div>
                           <div className="text-ui-sm text-gray-400 flex justify-between"><span>{euros(l.amount_ht)}</span><span>{fr(l.next_action_on)}</span></div>
                         </button>
@@ -194,6 +196,7 @@ export default function Affaires() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <StatusBadge tone={a.depassee ? 'danger' : 'warning'}>{a.depassee ? 'Dépassée' : fr(a.premiere_echeance)}</StatusBadge>
                           <Link to={`/clients/${a.client_id}`} className="font-semibold text-gray-900 hover:underline truncate">{a.client_name}</Link>
+                          <BadgeTest tbl="clients" id={a.client_id} />
                           {a.city && <span className="text-ui-sm text-gray-400">{a.city}</span>}
                         </div>
                         <div className="text-ui-sm text-gray-600">

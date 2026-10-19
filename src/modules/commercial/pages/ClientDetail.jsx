@@ -26,6 +26,7 @@ import CaClient from '../components/CaClient'
 import AffairesClient from '../components/AffairesClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
+import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 
 import { confirmer } from '../../../ui/Confirm'
 // ═══════════════════════════════════════════════════════════
@@ -994,6 +995,7 @@ export default function ClientDetail() {
         </div>
       )}
 
+      <BandeauTest tbl="clients" id={client.id} />
       {/* ══════ FICHE CLIENT ══════ */}
       <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
         <div className="bg-gray-50/50 px-4 sm:px-6 py-4 border-b">
@@ -1007,7 +1009,7 @@ export default function ClientDetail() {
                   <input value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value.toUpperCase() })}
                     className="text-lg sm:text-xl font-bold bg-white border rounded px-2 py-1 w-full sm:w-80" />
                 ) : (
-                  <h1 className="page-title truncate">{client.name}</h1>
+                  <h1 className="page-title truncate">{client.name} <BadgeTest tbl="clients" id={client.id} /></h1>
                 )}
                 {client.siret && <p className="text-ui-sm sm:text-sm text-gray-500 font-mono mt-0.5">SIRET {client.siret}</p>}
                 {!editing && client.client_type !== 'particulier' && <AnnuaireClient client={client} peutModifier={d.modifier} onChange={loadClient} />}

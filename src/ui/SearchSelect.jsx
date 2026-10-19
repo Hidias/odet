@@ -5,6 +5,7 @@
 //   hint     : petite ligne grise sous le libellé (ville, SIRET, date...)
 //   group    : titre de section (les options d'un même groupe se suivent)
 //   keywords : texte cherché en plus du libellé et du hint (SIRET, contact...)
+//   testTbl  : table de la valeur (« clients »...) : pastille « Test » si c'est une fiche de démonstration (0052)
 // emptyLabel : libellé de l'option vide (« - Sélectionner - ») ; si présent, la valeur peut être effacée.
 //
 // Le panneau s'ouvre au clic (jamais au survol) et reste ouvert tant qu'on ne choisit pas,
@@ -14,6 +15,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Search, X } from 'lucide-react'
+import { useMarquesDemo } from '../core/demo/marquesDemo'
 
 const MAX_RESULTS = 100
 
@@ -91,6 +93,8 @@ export default function SearchSelect({
   'aria-label': ariaLabel,
   noResultsText = 'Aucun résultat',
 }) {
+  const { estTest } = useMarquesDemo()
+  const estTestOption = (o) => !!(o?.testTbl && estTest(o.testTbl, o.value))
   const [open, setOpen] = useState(false)
   const [term, setTerm] = useState('')
   const [active, setActive] = useState(0)
@@ -175,6 +179,7 @@ export default function SearchSelect({
       >
         <span className={'flex-1 min-w-0 truncate ' + (selected ? 'text-gray-900' : 'text-gray-400')}>
           {selected ? selected.label : (emptyLabel || placeholder)}
+          {selected && estTestOption(selected) && <span className="badge-test ml-2">Test</span>}
         </span>
         {selected && emptyLabel !== undefined && !disabled && !required && (
           <span
@@ -253,7 +258,7 @@ export default function SearchSelect({
                       + (i === active ? 'bg-primary-50 ' : '')
                       + (isSel ? 'font-semibold text-primary-700 ' : 'text-gray-900 ')}
                   >
-                    <span className="truncate">{o.label}</span>
+                    <span className="truncate">{o.label}{estTestOption(o) && <span className="badge-test ml-2">Test</span>}</span>
                     {o.hint && <span className="text-xs font-normal text-gray-500 truncate">{o.hint}</span>}
                   </button>
                 </li>
@@ -279,6 +284,7 @@ export const clientOptions = (clients = [], { excludeArchived = true } = {}) =>
     .map(c => ({
       value: c.id,
       label: c.name || 'Sans nom',
+      testTbl: 'clients',
       hint: [c.postal_code && c.city ? `${c.postal_code.slice(0, 2)} ${c.city}` : c.city, c.siret].filter(Boolean).join(' · '),
       keywords: [c.siren, c.contact_name, c.group_name].filter(Boolean).join(' '),
     }))

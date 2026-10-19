@@ -10,6 +10,7 @@ import { Plus, Search, Edit, Trash2, X, Save, FileText, Upload, Eye, Building2, 
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
+import { BadgeTest } from '../../../core/demo/BadgeTest'
 
 // Fonction de formatage des noms
 const formatName = (value, type) => {
@@ -711,7 +712,7 @@ export default function Trainees() {
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-2">
                     <button onClick={() => openPreview(t)} className="font-medium text-primary hover:underline">
-                      {t.first_name} {t.last_name?.toUpperCase()}
+                      {t.first_name} {t.last_name?.toUpperCase()} <BadgeTest tbl="trainees" id={t.id} />
                     </button>
                     {dis(t)?.has_disability && (
                       <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 text-ui-sm rounded" title="Situation de handicap"></span>
@@ -749,7 +750,7 @@ export default function Trainees() {
               </div>
               <div className="p-4 space-y-3">
                 <div className="text-center pb-3 border-b">
-                  <h3 className="text-xl font-bold">{selectedTrainee.first_name} {selectedTrainee.last_name?.toUpperCase()}</h3>
+                  <h3 className="text-xl font-bold">{selectedTrainee.first_name} {selectedTrainee.last_name?.toUpperCase()} <BadgeTest tbl="trainees" id={selectedTrainee.id} /></h3>
                   {selectedTrainee.clients?.name && (
                     <p className="text-gray-500 flex items-center justify-center gap-1 mt-1">
                       <Building2 className="w-4 h-4" />{selectedTrainee.clients.name}
