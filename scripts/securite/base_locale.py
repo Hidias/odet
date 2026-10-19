@@ -201,6 +201,8 @@ ORDRE_PROD = (
     + ['0220']
     # Véhicules, parc, pleins, entretiens, 19/10
     + ['0320']
+    # Purge de démonstration étendue aux véhicules et aux emprunts, 19/10
+    + ['0321']
 )
 
 
