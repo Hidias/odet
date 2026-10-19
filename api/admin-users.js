@@ -7,6 +7,9 @@ import { withErrorLog } from './_lib/errors.js'
 const RANK = { superadmin: 3, admin: 2 }
 const rankOf = (role) => RANK[role] || 1
 
+const adresseValide = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && v.length <= 254
+const echapperMotif = (v) => v.replace(/[\\%_]/g, (c) => `\\${c}`)
+
 const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
 // Gestion des comptes par un administrateur de l'organisme :
@@ -15,7 +18,11 @@ const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 //             administrateur : envoie le lien par email à la personne visée, refusé si le compte visé
 //             est de rang supérieur ou égal
 //  - set_role, set_active : via la table profiles (RLS : admins)
-//  - delete : supprime le compte Auth (super admin uniquement)
+//  - email  : change l'adresse de connexion (super admin uniquement). Même compte, même mot de passe, mêmes droits,
+//             session en cours conservée ; la fiche profil (et la fiche formateur, par la base) suit
+//  - activite : dernière connexion de chaque compte, pour savoir s'il peut être supprimé
+//  - delete : supprime le compte Auth (super admin uniquement), seulement s'il n'a aucune activité
+//             (jamais connecté, aucune ligne au journal d'audit) ; sinon il se désactive
 
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
@@ -24,7 +31,7 @@ async function handler(req, res) {
   const ctx = await requireRight(req, res, 'parametres.utilisateurs.gerer', ['superadmin'])
   if (!ctx) return
   const { admin, profile } = ctx
-  const { action, email, role, user_id, display_name, first_name, last_name } = req.body || {}
+  const { action, email, role, user_id, display_name, first_name, last_name, new_email } = req.body || {}
   const appUrl = (process.env.APP_URL || '').replace(/\/$/, '')
 
   try {
@@ -101,10 +108,42 @@ async function handler(req, res) {
       return res.status(502).json({ error: 'Email de réinitialisation non envoyé : configurez une boîte d\'envoi dans Paramètres > Comptes email' })
     }
 
+    if (action === 'email') {
+      if (profile.role !== 'superadmin') return res.status(403).json({ error: 'Réservé au super administrateur' })
+      if (!user_id) return res.status(400).json({ error: 'Identifiant requis' })
+      const cible = String(new_email || '').trim().toLowerCase()
+      if (!adresseValide(cible)) return res.status(400).json({ error: 'Adresse email invalide' })
+      const { data: avant, error: e1 } = await admin.auth.admin.getUserById(user_id)
+      if (e1 || !avant?.user) return res.status(404).json({ error: 'Compte introuvable' })
+      if (String(avant.user.email || '').toLowerCase() === cible) return res.status(400).json({ error: 'C\'est déjà l\'adresse de ce compte' })
+      const { data: pris } = await admin.from('profiles').select('id').ilike('email', echapperMotif(cible)).neq('id', user_id).limit(1)
+      if (pris?.length) return res.status(409).json({ error: 'Cette adresse est déjà utilisée par un autre compte' })
+      // Changement fait par l'administrateur : aucune confirmation demandée, le mot de passe et les sessions restent
+      const { error: e2 } = await admin.auth.admin.updateUserById(user_id, { email: cible, email_confirm: true })
+      if (e2) return res.status(400).json({ error: e2.message })
+      const { error: e3 } = await admin.from('profiles').update({ email: cible }).eq('id', user_id)
+      if (e3) return res.status(500).json({ error: `Adresse de connexion changée, mais la fiche n'a pas suivi : ${e3.message}` })
+      return res.status(200).json({ ok: true, email: cible })
+    }
+
+    if (action === 'activite') {
+      const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+      if (error) return res.status(400).json({ error: error.message })
+      const activite = {}
+      for (const u of data?.users || []) activite[u.id] = { derniere_connexion: u.last_sign_in_at || null, invitation_acceptee: !!u.email_confirmed_at }
+      return res.status(200).json({ ok: true, activite })
+    }
+
     if (action === 'delete') {
       if (profile.role !== 'superadmin') return res.status(403).json({ error: 'Réservé au super administrateur' })
       if (!user_id) return res.status(400).json({ error: 'Identifiant requis' })
       if (user_id === profile.id) return res.status(400).json({ error: 'Impossible de supprimer son propre compte' })
+      // Un compte qui a servi garde ses traces (Qualiopi, RGPD) : on le désactive au lieu de le supprimer
+      const { data: cibleUser } = await admin.auth.admin.getUserById(user_id)
+      const { count: traces } = await admin.from('audit_logs').select('id', { count: 'exact', head: true }).eq('user_id', user_id)
+      if (cibleUser?.user?.last_sign_in_at || (traces || 0) > 0) {
+        return res.status(409).json({ error: 'Ce compte a déjà servi : il ne peut pas être supprimé. Désactivez-le (son historique est conservé).' })
+      }
       const { error } = await admin.auth.admin.deleteUser(user_id)
       if (error) return res.status(400).json({ error: error.message })
       return res.status(200).json({ ok: true })
