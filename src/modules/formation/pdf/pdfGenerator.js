@@ -15,6 +15,7 @@ import { loadPublishedDoc, versionLabel, cgvCancellationText } from '../../quali
 import { writeRichDoc } from '../../qualite/richdocs/richDocPDF'
 import { loadTemplateContext, buildTemplateContext, fillTemplate } from '../../../core/org/templateContext'
 import { computePresenceHours, formatHours } from '../lib/presence'
+import { buildProgrammePDF } from './programmePDF'
 // Codes documentaires : préfixe propre à l'organisme (ORG.doc_prefix) + code du type de document
 const DOC_CODES = {
   convention: 'CONV', convocation: 'CONVOC', attestation: 'ATTP',
@@ -1168,40 +1169,11 @@ function generateTestPositionnementRempli(session, trainee, testData) {
   return doc
 }
 
-// ── Programme de formation ──
-function generateProgramme(session, trainer = null) {
-  const doc = new jsPDF({ compress: true })
+// ── Programme de formation : une page, modèle des programmes audités (programmePDF.js) ──
+// La fiche formation porte toutes les informations ; le référent pédagogique vient des rôles qualité.
+function generateProgramme(session) {
   const course = session?.courses || {}
-  const ref = session?.reference || ''
-  const f = startDocument(doc, ORG, { ref, docLabel: 'Programme de formation', code: DOC_CODES.programme, title: 'Programme de formation', subtitle: course.title || null })
-  f.kv([
-    ['Durée', courseHoursText(course)],
-    ['Public', course.target_audience || 'Tout public'],
-    ['Prérequis', course.prerequisites || 'Aucun'],
-    ['Effectif', session?.max_participants ? `${session.min_participants || 1} à ${session.max_participants} participants` : null],
-    ['Modalités', session?.is_remote ? 'À distance' : 'En présentiel'],
-    ['Formateur', trainer ? trainerName(trainer) : null],
-  ])
-  const objectifs = objectivesOf(course)
-  if (objectifs.length) { f.section('Objectifs pédagogiques'); f.bullets(objectifs) }
-  const contenu = String(course.program || course.content || '').split('\n').map(s => s.trim()).filter(Boolean)
-  if (contenu.length) {
-    f.section('Contenu')
-    contenu.forEach(line => {
-      if (/^[-•*]\s*/.test(line)) f.bullets([line.replace(/^[-•*]\s*/, '')])
-      else f.para(line, { x: f.M + 5, w: f.W - 5, after: 1 })
-    })
-  }
-  f.section('Méthodes et moyens pédagogiques')
-  f.para(course.methods || course.pedagogical_methods || 'Apports théoriques, exercices pratiques, mises en situation.')
-  if (course.material) f.para(`Matériel : ${course.material}`)
-  f.section("Modalités d'évaluation")
-  f.para(course.evaluation_methods || "Évaluation formative continue, QCM et/ou mise en situation pratique. Évaluation de la satisfaction en fin de formation.")
-  f.section('Accessibilité')
-  const ref_h = ORG.referent_handicap_nom ? `${ORG.referent_handicap_nom}${ORG.referent_handicap_email ? ` (${ORG.referent_handicap_email})` : ''}` : ORG.email
-  f.para(`Formation accessible aux personnes en situation de handicap : contactez notre référent handicap, ${ref_h}, pour étudier les adaptations possibles.`)
-  f.finish()
-  return doc
+  return buildProgrammePDF(course, ORG, { referentPedagogique: QT?.ctx?.role?.validation_programmes?.nom || null })
 }
 
 // ── Règlement intérieur et livret d'accueil (textes des Paramètres) ──
@@ -1332,7 +1304,7 @@ function generateFicheRenseignements(session, trainee = null, isBlank = false, i
 // EXPORT
 // ============================================================
 export async function downloadDocument(docType, session, options = {}) {
-  if (['convention', 'contratParticulier', 'reglement', 'livret'].includes(docType)) await ensureQualityTexts()
+  if (['convention', 'contratParticulier', 'reglement', 'livret', 'programme'].includes(docType)) await ensureQualityTexts()
   const { trainees = [], trainee = null, trainer = null, isBlank = false, questions = [], costs = [], attendanceData = null } = options
   const ref = session?.reference || 'VIERGE'
   let doc, filename
@@ -1356,7 +1328,7 @@ export async function downloadDocument(docType, session, options = {}) {
       break
     }
     case 'attestation': doc = generateAttestation(session, trainee, trainer); filename = `Attestation_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'programme': doc = generateProgramme(session, trainer); filename = `Programme_${ref}.pdf`; break
+    case 'programme': doc = generateProgramme(session); filename = `Programme_${session?.courses?.code || ref}.pdf`; break
     case 'evaluation': doc = generateEvaluation(session, trainee, isBlank); filename = isBlank ? 'Evaluation_Vierge.pdf' : `Evaluation_${ref}.pdf`; break
     case 'evaluationFroid': doc = generateEvaluationFroid(session, trainee, isBlank); filename = isBlank ? 'EvaluationFroid_Vierge.pdf' : `EvaluationFroid_${ref}.pdf`; break
     case 'reglement': doc = generateReglement(); filename = 'Reglement_Interieur.pdf'; break
@@ -1458,7 +1430,7 @@ export async function downloadAllDocuments(docType, session, trainees, options =
 
 // Même chose que downloadDocument mais retourne { base64, filename } au lieu de télécharger
 export async function generatePDF(docType, session, options = {}) {
-  if (['convention', 'contratParticulier', 'reglement', 'livret'].includes(docType)) await ensureQualityTexts()
+  if (['convention', 'contratParticulier', 'reglement', 'livret', 'programme'].includes(docType)) await ensureQualityTexts()
   const { trainees = [], trainee = null, trainer = null, isBlank = false, questions = [], costs = [], attendanceData = null } = options
   const ref = session?.reference || 'VIERGE'
   let doc, filename
@@ -1482,7 +1454,7 @@ export async function generatePDF(docType, session, options = {}) {
       break
     }
     case 'attestation': doc = generateAttestation(session, trainee, trainer); filename = `Attestation_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'programme': doc = generateProgramme(session, trainer); filename = `Programme_${ref}.pdf`; break
+    case 'programme': doc = generateProgramme(session); filename = `Programme_${session?.courses?.code || ref}.pdf`; break
     case 'evaluation': doc = generateEvaluation(session, trainee, isBlank); filename = isBlank ? 'Evaluation_Vierge.pdf' : `Evaluation_${ref}.pdf`; break
     case 'evaluationFroid': doc = generateEvaluationFroid(session, trainee, isBlank); filename = isBlank ? 'EvaluationFroid_Vierge.pdf' : `EvaluationFroid_${ref}.pdf`; break
     case 'evaluationFormateur': doc = generateEvaluationFormateur(session, isBlank); filename = isBlank ? 'Evaluation_Formateur_Vierge.pdf' : `Evaluation_Formateur_${ref}.pdf`; break
@@ -1491,7 +1463,7 @@ export async function generatePDF(docType, session, options = {}) {
     case 'positionnement': doc = generatePositionnement(session, questions, isBlank, trainee, false); filename = isBlank ? 'Test_Positionnement_Vierge.pdf' : `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
     case 'testPositionnementRempli': doc = generateTestPositionnementRempli(session, trainee, options.testData); filename = `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
     case 'positionnementCorrige': doc = generatePositionnement(session, questions, false, null, true); filename = `CORRIGE_Test_Positionnement_${ref}.pdf`; break
-    case 'programme': doc = generateProgramme(session, trainer); filename = `Programme_${ref}.pdf`; break
+    case 'programme': doc = generateProgramme(session); filename = `Programme_${session?.courses?.code || ref}.pdf`; break
     case 'reglement': doc = generateReglement(); filename = 'Reglement_Interieur.pdf'; break
     case 'livret': doc = generateLivret(session); filename = `Livret_Accueil_${ref}.pdf`; break
     default: console.error('Type inconnu:', docType); return null

@@ -10,6 +10,15 @@ import { countSequencesByCourse, canEditCatalog } from '../../suivi/lib/sfData'
 import { useDroits } from '../../../core/rights/useDroit'
 
 import { confirmer } from '../../../ui/Confirm'
+import { programmeModifie, versionSuivante, effectifTexte, DELAI_ACCES_DEFAUT, TARIF_DEFAUT } from '../pdf/programmePDF'
+import { downloadDocument, setOrganization } from '../pdf/pdfGenerator'
+import { currentUserName } from '../../../core/org/currentOrg'
+
+// Champs du programme (fiche formation, migration 0048)
+const PROGRAMME_VIDE = {
+  evaluation_methods: '', min_participants: '', max_participants: '', access_delay: '', validity_kind: 'recyclage',
+  validity_text: '', deliverables: '', trainer_profile: '', price_mention: '', modalities: '', program_ref: '', motif_maj: '',
+}
 // Thèmes du matériel
 const EQUIPMENT_THEMES = {
   SECOURISME: { label: 'Secourisme', color: 'green' },
@@ -110,8 +119,9 @@ const parseSellsyFormationsCSV = (csvText) => {
 export default function Courses() {
   const { 
     courses, fetchCourses, createCourse, updateCourse, deleteCourse, duplicateCourse,
-    themes, fetchThemes
+    themes, fetchThemes, organization, fetchOrganization
   } = useDataStore()
+  useEffect(() => { if (!organization) fetchOrganization?.() }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // Suivi formatif (module optionnel) : séquences par formation
   const { modules: enabledModules, userRole } = useAuthStore()
   const suiviFormatifOn = (enabledModules || []).includes('suivi_formatif')
@@ -133,7 +143,7 @@ export default function Courses() {
   const [form, setForm] = useState({
     code: '', title: '', description: '', duration: '', objectives: '', content: '',
     prerequisites: '', target_audience: '', methods: '', price_per_day: '', price_ht: '', 
-    material: '', trainer_equipment: '', theme_id: '', program_url: ''
+    material: '', trainer_equipment: '', theme_id: '', program_url: '', ...PROGRAMME_VIDE
   })
   const [uploadingProgram, setUploadingProgram] = useState(false)
   
@@ -360,6 +370,18 @@ export default function Courses() {
         trainer_equipment: course.trainer_equipment || '',
         theme_id: course.theme_id || '',
         program_url: course.program_url || '',
+        evaluation_methods: course.evaluation_methods || '',
+        min_participants: course.min_participants ?? '',
+        max_participants: course.max_participants ?? '',
+        access_delay: course.access_delay || '',
+        validity_kind: course.validity_kind || 'recyclage',
+        validity_text: course.validity_text || '',
+        deliverables: course.deliverables || '',
+        trainer_profile: course.trainer_profile || '',
+        price_mention: course.price_mention || '',
+        modalities: course.modalities || '',
+        program_ref: course.program_ref || '',
+        motif_maj: '',
       })
       setSelectedCourse(course)
       loadCourseEquipment(course.id)
@@ -367,7 +389,7 @@ export default function Courses() {
       setForm({
         code: '', title: '', description: '', duration: '', objectives: '', content: '',
         prerequisites: '', target_audience: '', methods: '', price_per_day: '', price_ht: '', 
-        material: '', trainer_equipment: '', theme_id: '', program_url: ''
+        material: '', trainer_equipment: '', theme_id: '', program_url: '', ...PROGRAMME_VIDE
       })
       setSelectedCourse(null)
       setSelectedEquipment([])
@@ -376,6 +398,23 @@ export default function Courses() {
     setShowForm(true)
   }
   
+  // Aperçu du programme avec les valeurs du formulaire (rien n'est enregistré)
+  const apercuProgramme = async () => {
+    if (organization) setOrganization(organization)
+    const course = {
+      ...(selectedCourse || {}),
+      code: form.code, title: form.title, objectives: form.objectives, program: form.content,
+      prerequisites: form.prerequisites, target_audience: form.target_audience, methods: form.methods,
+      material: form.material, evaluation_methods: form.evaluation_methods,
+      duration_hours: form.duration ? parseFloat(form.duration) : null,
+      min_participants: form.min_participants || null, max_participants: form.max_participants || null,
+      access_delay: form.access_delay, validity_kind: form.validity_kind, validity_text: form.validity_text,
+      deliverables: form.deliverables, trainer_profile: form.trainer_profile, price_mention: form.price_mention,
+      modalities: form.modalities, program_ref: form.program_ref,
+    }
+    try { await downloadDocument('programme', { courses: course }) } catch (e) { toast.error('Aperçu impossible : ' + e.message) }
+  }
+
   const handleSave = async () => {
     if (!form.title) return toast.error('Titre requis')
     if (!form.duration) return toast.error('Durée requise')
@@ -394,6 +433,31 @@ export default function Courses() {
       trainer_equipment: form.trainer_equipment || null,
       theme_id: form.theme_id || null,
       program_url: form.program_url || null,
+      methods: form.methods || null,
+      evaluation_methods: form.evaluation_methods || null,
+      min_participants: form.min_participants === '' ? null : parseInt(form.min_participants, 10),
+      max_participants: form.max_participants === '' ? null : parseInt(form.max_participants, 10),
+      access_delay: form.access_delay || null,
+      validity_kind: form.validity_text ? (form.validity_kind || 'recyclage') : null,
+      validity_text: form.validity_text || null,
+      deliverables: form.deliverables || null,
+      trainer_profile: form.trainer_profile || null,
+      price_mention: form.price_mention || null,
+      modalities: form.modalities || null,
+      program_ref: form.program_ref ? form.program_ref.toUpperCase() : null,
+    }
+    if (data.min_participants && data.max_participants && data.min_participants > data.max_participants) {
+      return toast.error('Effectif : le minimum dépasse le maximum')
+    }
+
+    // Programme modifié : nouvelle version datée, avec son motif (preuve de mise à jour pour Qualiopi)
+    const nouvelleVersion = programmeModifie(selectedCourse, data)
+    if (nouvelleVersion && selectedCourse && !form.motif_maj?.trim()) {
+      return toast.error('Programme modifié : indiquez le motif de la mise à jour (en bas de la fiche)')
+    }
+    if (nouvelleVersion) {
+      data.program_version = versionSuivante(selectedCourse?.program_version)
+      data.program_updated_on = new Date().toISOString().slice(0, 10)
     }
     
     // Code formation
@@ -419,6 +483,20 @@ export default function Courses() {
         courseId = newCourse?.id
       }
       
+      // Version du programme : une ligne dans l'historique des versions (Qualité)
+      if (courseId && nouvelleVersion) {
+        const { error: vErr } = await supabase.from('programme_versions').insert({
+          ref_doc: data.program_ref || `PROG-${data.code || selectedCourse?.code || 'FORM'}`,
+          nom_programme: data.title,
+          version: data.program_version,
+          date_maj: data.program_updated_on,
+          valide_par: currentUserName() || 'Organisme',
+          raison_changement: form.motif_maj?.trim() || 'Création du programme',
+          course_id: courseId,
+        })
+        if (vErr) toast.error('Version du programme non enregistrée : ' + vErr.message)
+      }
+
       // Sauvegarder le matériel sélectionné
       if (courseId && selectedEquipment.length > 0) {
         await supabase.from('course_equipment').delete().eq('course_id', courseId)
@@ -940,6 +1018,91 @@ export default function Courses() {
               </div>
             </div>
             
+            {/* Fiche programme (indicateur 1 de Qualiopi) : tout ce qui figure sur le programme généré */}
+            <div className="p-4 border-t space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-ui">Programme de formation</h3>
+                  <p className="text-ui-sm text-gray-500">Ces informations figurent sur le programme remis au client, sur une page. Champ vide : texte grisé par défaut.</p>
+                </div>
+                <button type="button" onClick={apercuProgramme} className="btn btn-secondary flex items-center gap-2 shrink-0">
+                  <FileText className="w-4 h-4" /> Aperçu du programme
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="label">Effectif minimum</label>
+                  <input type="number" min="1" className="input" value={form.min_participants} onChange={(e) => setForm({ ...form, min_participants: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Effectif maximum</label>
+                  <input type="number" min="1" className="input" value={form.max_participants} onChange={(e) => setForm({ ...form, max_participants: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Recyclage ou validité</label>
+                  <select className="input" value={form.validity_kind} onChange={(e) => setForm({ ...form, validity_kind: e.target.value })}>
+                    <option value="recyclage">Recyclage conseillé</option>
+                    <option value="validite">Durée de validité</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Durée</label>
+                  <input type="text" className="input" placeholder="Ex : 1 an, 24 mois" value={form.validity_text} onChange={(e) => setForm({ ...form, validity_text: e.target.value })} />
+                </div>
+              </div>
+              {(form.min_participants || form.max_participants) ? (
+                <p className="text-ui-sm text-gray-500 -mt-2">Affiché : {effectifTexte(form)}</p>
+              ) : null}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Modalités</label>
+                  <input type="text" className="input" placeholder="En présentiel" value={form.modalities} onChange={(e) => setForm({ ...form, modalities: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Délai d&apos;accès</label>
+                  <input type="text" className="input" placeholder={DELAI_ACCES_DEFAUT} value={form.access_delay} onChange={(e) => setForm({ ...form, access_delay: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <label className="label">Moyens pédagogiques</label>
+                <textarea className="input" rows={3} placeholder={'Formation en présentiel, apports théoriques et mises en situation pratiques\nMatériel fourni : extincteurs, présentation projetée\nRemise d\'un aide-mémoire'} value={form.methods} onChange={(e) => setForm({ ...form, methods: e.target.value })} />
+                <p className="text-ui-sm text-gray-500 mt-1">Une ligne par élément (méthodes, matériel fourni, documents remis pendant la formation). Le « Matériel requis (stagiaires) » s&apos;affiche à part, sous « À prévoir par le stagiaire ».</p>
+              </div>
+              <div>
+                <label className="label">Formateur (profil)</label>
+                <input type="text" className="input" placeholder="Ex : formateur expert en sécurité incendie" value={form.trainer_profile} onChange={(e) => setForm({ ...form, trainer_profile: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Modalités d&apos;évaluation</label>
+                <textarea className="input" rows={2} placeholder="Évaluation des acquis par le formateur au cours de la formation. Questionnaire de satisfaction en fin de formation." value={form.evaluation_methods} onChange={(e) => setForm({ ...form, evaluation_methods: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Validation de la formation (documents remis)</label>
+                <textarea className="input" rows={2} placeholder="À l'issue de la formation, une attestation de fin de formation est remise au stagiaire." value={form.deliverables} onChange={(e) => setForm({ ...form, deliverables: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="label">Tarif affiché sur le programme</label>
+                  <input type="text" className="input" placeholder={TARIF_DEFAUT} value={form.price_mention} onChange={(e) => setForm({ ...form, price_mention: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Référence du programme</label>
+                  <input type="text" className="input font-mono uppercase" placeholder={`PROG-${form.code || 'CODE'}`} value={form.program_ref} onChange={(e) => setForm({ ...form, program_ref: e.target.value.toUpperCase() })} />
+                </div>
+              </div>
+              <p className="text-ui-sm text-gray-500">Contenu du programme (champ « Programme / Contenu ») : une ligne par élément, « - » pour une puce, « -- » pour une sous-puce, une ligne sans tiret pour un intertitre (ex. « Partie pratique (1 heure) »).</p>
+              {selectedCourse && (
+                <div>
+                  <label className="label">Motif de la mise à jour du programme</label>
+                  <input type="text" className="input" placeholder="Obligatoire si le programme change. Ex : ajout d'un exercice pratique" value={form.motif_maj} onChange={(e) => setForm({ ...form, motif_maj: e.target.value })} />
+                  <p className="text-ui-sm text-gray-500 mt-1">
+                    {selectedCourse.program_version ? `Version actuelle : ${selectedCourse.program_version}${selectedCourse.program_updated_on ? `, mise à jour le ${new Date(selectedCourse.program_updated_on).toLocaleDateString('fr-FR')}` : ''}. ` : ''}
+                    Une modification du programme crée une nouvelle version datée (Qualité › Versions des programmes).
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Programme PDF */}
             <div className="p-4 border-t bg-gray-50">
               <label className="label">Programme de formation (PDF)</label>
