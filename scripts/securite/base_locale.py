@@ -175,6 +175,8 @@ ORDRE_PROD = (
     + ['0053']
     # Établissement principal, source unique de l'adresse mise en avant (19/10)
     + ['0054']
+    # Chantier 12, RH documents et santé au travail administrative (19/10)
+    + ['0301']
 )
 
 

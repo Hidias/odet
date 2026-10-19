@@ -893,6 +893,23 @@ tdx('0297', 'hr_time_entries', sel=f"({_RH_DOS} or {_RH_HVAL} or person_id in (s
     ins=f"({_RH_HSAI} or {_RH_GER})", upd=f"({_RH_HSAI} or {_RH_GER})", dele=f"({_RH_HSAI} or {_RH_GER})")
 tdx('0297', 'hr_timesheets', sel=f"({_RH_DOS} or {_RH_HVAL} or person_id in (select app.hr_mes_personnes()))")
 
+# Chantier 12, RH documents et santé (0301) : documents lus par la personne (les siens, toutes confidentialités), avec
+# « Voir les dossiers » pour les documents « normal », avec « Voir les documents restreints » pour les documents
+# « restreint » et « privé » (bulletins) ; écrits avec « Tenir les dossiers » (et « restreints » hors « normal ») ; la
+# personne dépose seulement ses justificatifs (restreint). Habilitations lues par la personne ou avec « Voir les
+# dossiers », tenues avec « Tenir les dossiers ». Suivi de santé administratif lu par la personne ou avec « Voir les
+# documents restreints », tenu avec « Tenir les dossiers » et « restreints » (la direction ne le voit pas par défaut).
+_RH_RES = f"company_id in {societes('rh.documents.restreints')}"
+_RH_MOI = "person_id in (select app.hr_mes_personnes())"
+_RH_DOC_GER = f"({_RH_GER} and (confidentiality = 'normal' or {_RH_RES}))"
+tdx('0301', 'hr_documents',
+    sel=f"({_RH_MOI} or (confidentiality = 'normal' and {_RH_DOS}) or (confidentiality <> 'normal' and {_RH_RES}))",
+    ins=f"({_RH_DOC_GER} or ({_RH_MOI} and category = 'justificatif' and confidentiality = 'restreint'))",
+    upd=_RH_DOC_GER, dele=_RH_DOC_GER)
+tdx('0301', 'hr_qualifications', sel=f"({_RH_DOS} or {_RH_MOI})", ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
+_RH_SANTE = f"({_RH_GER} and {_RH_RES})"
+tdx('0301', 'hr_medical_followups', sel=f"({_RH_RES} or {_RH_MOI})", ins=_RH_SANTE, upd=_RH_SANTE, dele=_RH_SANTE)
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}
