@@ -30,6 +30,9 @@ mkdir -p "$D"
 echo "1/5 Rôles, schéma et données"
 supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f "$D/roles.sql"
 supabase db dump --db-url "$SUPABASE_DB_URL" -f "$D/schema.sql"
+# Comptage juste avant l'export des données : avec celui d'après, il encadre ce que l'application a pu écrire pendant
+# l'export (journal d'audit, traces) ; la restauration doit retomber entre les deux.
+psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -At -F $'\t' -f "$ICI/comptage.sql" > "$D/comptage_avant.tsv"
 supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f "$D/data.sql"
 # Politiques du Storage et déclencheurs sur auth/storage : absents de l'export standard.
 {
