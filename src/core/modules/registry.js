@@ -133,56 +133,29 @@ export const NAV_SECTIONS = [
     ],
   },
   {
+    // Maintenance : interventions, stock (0240) et véhicules (0320) dans une seule section ; chaque entrée suit son
+    // module (une entrée dont le module est coupé disparaît, la section avec sa dernière entrée).
     id: 'entreprise',
-    module: 'interventions',
+    module: null,
     label: 'Maintenance',
     icon: Wrench,
     items: [
-      { simple: true, to: '/interventions', right: ['interventions.visites.voir', 'interventions.missions.voir'], icon: MapPin, label: 'Interventions', roles: STAFF },
+      { simple: true, to: '/interventions', right: ['interventions.visites.voir', 'interventions.missions.voir'], icon: MapPin, label: 'Interventions', roles: STAFF, module: 'interventions' },
+      // Stock : le technicien n'a que « Mon stock » (sans prix), les gestionnaires voient tout
+      { simple: true, to: '/stock', right: ['stock.voir', 'stock.sien.mouvementer'], icon: Package, label: 'Stock', roles: [...STAFF, 'membre'], module: 'stock' },
+      // Véhicules : le conducteur n'a que « Mon véhicule », la direction et les gestionnaires voient le parc
+      { simple: true, to: '/vehicules', right: ['vehicules.parc.voir', 'vehicules.siens.utiliser', 'vehicules.couts.voir'], icon: Car, label: 'Véhicules', roles: [...ALL_ROLES, 'membre'], module: 'vehicules' },
     ],
   },
   {
-    // Module RH, socle (chantier 12, 0290) : annuaire, fiches, contrats, équipes, horaires. Coupé tant que la
-    // société ne l'a pas activé ; le profil « Ressources humaines » ou « Salarié » (rôle de base membre) y donne accès.
+    // Entreprise : le personnel (module RH, 0290) et, pour la direction, les emprunts et crédits (module Manager, 0220)
     id: 'personnel',
-    module: 'rh',
-    label: 'Personnel',
+    module: null,
+    label: 'Entreprise',
     icon: Briefcase,
     items: [
-      { simple: true, to: '/collaborateurs', right: 'rh.personnel.voir', icon: Briefcase, label: 'Personnel', roles: [...MANAGERS, 'membre'] },
-    ],
-  },
-  {
-    // Module Stock, socle (0240) : articles, emplacements, mouvements, alertes. Coupé tant que la société ne l'a pas
-    // activé ; le technicien n'a que « Mon stock » (sans prix), les gestionnaires voient tout.
-    id: 'stock',
-    module: 'stock',
-    label: 'Stock',
-    icon: Package,
-    items: [
-      { simple: true, to: '/stock', right: ['stock.voir', 'stock.sien.mouvementer'], icon: Package, label: 'Stock', roles: [...STAFF, 'membre'] },
-    ],
-  },
-  {
-    // Module Véhicules (0320) : parc, conducteurs, échéances, pleins, entretiens. Coupé tant que la société ne l'a pas
-    // activé ; le conducteur n'a que « Mon véhicule », la direction et les gestionnaires voient le parc.
-    id: 'vehicules',
-    module: 'vehicules',
-    label: 'Véhicules',
-    icon: Car,
-    items: [
-      { simple: true, to: '/vehicules', right: ['vehicules.parc.voir', 'vehicules.siens.utiliser', 'vehicules.couts.voir'], icon: Car, label: 'Véhicules', roles: [...ALL_ROLES, 'membre'] },
-    ],
-  },
-  {
-    // Module Manager (0220 et suivantes) : emprunts et crédits d'abord ; le cockpit et le centre de validations suivent.
-    // Coupé tant que la société ne l'a pas activé ; réservé à « Gérer les emprunts » (direction, administrateur).
-    id: 'manager',
-    module: 'manager',
-    label: 'Manager',
-    icon: Landmark,
-    items: [
-      { simple: true, to: '/emprunts', right: 'manager.emprunts.gerer', icon: Landmark, label: 'Emprunts et crédits', roles: [...FINANCE, 'membre'] },
+      { simple: true, to: '/collaborateurs', right: 'rh.personnel.voir', icon: Briefcase, label: 'Personnel', roles: [...MANAGERS, 'membre'], module: 'rh' },
+      { simple: true, to: '/emprunts', right: 'manager.emprunts.gerer', icon: Landmark, label: 'Emprunts et crédits', roles: [...FINANCE, 'membre'], module: 'manager' },
     ],
   },
 ]
