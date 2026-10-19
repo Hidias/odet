@@ -979,6 +979,20 @@ tdx('0220', 'loans', sel=_MG_EMP, ins=_MG_EMP, upd=_MG_EMP, dele=_MG_EMP)
 tdx('0220', 'loan_schedule_lines', sel=_MG_EMP, upd=_MG_EMP)
 tdx('0220', 'loan_events', sel=_MG_EMP, ins=_MG_EMP, upd=_MG_EMP, dele=_MG_EMP)
 
+# Véhicules (0320) : parc lu avec « Voir le parc » (ou « Voir les coûts » pour les pleins et entretiens), tenu avec
+# « Gérer le parc » ; le conducteur voit le véhicule qui lui est attribué (app.vehicules_miens), y saisit ses pleins,
+# relevés et incidents (« Utiliser son véhicule »), et voit ses propres pleins.
+_VH_VOIR = f"company_id in {societes('vehicules.parc.voir')}"
+_VH_GER = f"company_id in {societes('vehicules.parc.gerer')}"
+_VH_COUT = f"company_id in {societes('vehicules.couts.voir')}"
+_VH_SIEN = f"(company_id in {societes('vehicules.siens.utiliser')} and vehicle_id in (select app.vehicules_miens()))"
+tdx('0320', 'vehicles', sel=f"({_VH_VOIR} or {_VH_COUT} or id in (select app.vehicules_miens()))", ins=_VH_GER, upd=_VH_GER, dele=_VH_GER)
+tdx('0320', 'vehicle_assignments', sel=f"({_VH_VOIR} or profile_id = (select auth.uid()))", ins=_VH_GER, upd=_VH_GER, dele=_VH_GER)
+tdx('0320', 'vehicle_maintenance_rules', sel=f"({_VH_VOIR} or vehicle_id in (select app.vehicules_miens()))", ins=_VH_GER, upd=_VH_GER, dele=_VH_GER)
+tdx('0320', 'vehicle_odometer', sel=f"({_VH_VOIR} or vehicle_id in (select app.vehicules_miens()))", ins=f"({_VH_GER} or {_VH_SIEN})", dele=_VH_GER)
+tdx('0320', 'vehicle_events', sel=f"({_VH_VOIR} or {_VH_COUT} or vehicle_id in (select app.vehicules_miens()))", ins=f"({_VH_GER} or {_VH_SIEN})", upd=_VH_GER, dele=_VH_GER)
+tdx('0320', 'vehicle_fuel', sel=f"({_VH_VOIR} or {_VH_COUT} or driver_id = (select auth.uid()))", ins=f"({_VH_GER} or {_VH_SIEN})", upd=_VH_GER, dele=_VH_GER)
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}

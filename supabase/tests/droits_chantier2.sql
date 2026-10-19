@@ -4032,6 +4032,70 @@ begin
     end;
   end if;
 
+  -- Véhicules (0320) : la direction crée le véhicule et l'attribue au technicien ; le technicien ne voit que son
+  -- véhicule, y saisit ses pleins ; consommation entre deux pleins complets ; kilométrage en recul signalé ;
+  -- échéance de contrôle technique dépassée ; rien pour le commercial
+  if to_regclass('public.vehicle_fuel') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare
+      w_v uuid; w_v2 uuid; w_c int; w_conso numeric; w_st text; w_ok boolean := false; w_etat text;
+    begin
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.vehicles (plate, brand, model) values ('ess-320-aa', 'Renault', 'Kangoo') returning id into w_v;
+      insert into public.vehicles (plate, brand, model) values ('ESS-320-BB', 'Peugeot', 'Partner') returning id into w_v2;
+      insert into public.vehicle_assignments (vehicle_id, profile_id, start_km) values (w_v, u_tech, 10000);
+      insert into public.vehicle_maintenance_rules (vehicle_id, kind, every_months, last_on) values (w_v, 'controle_technique', 24, current_date - 800);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if (select plate from public.vehicles where id = w_v) = 'ESS-320-AA' then
+        v_lines := v_lines || 'OK      dir   0320 : véhicule créé (immatriculation en majuscules) et attribué au technicien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0320 : création du véhicule'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      w_c := (select count(*) from public.vehicles);
+      insert into public.vehicle_fuel (vehicle_id, filled_at, km, liters, amount_ttc, full_tank) values (w_v, now() - interval '10 days', 10500, 40, 72, true);
+      insert into public.vehicle_fuel (vehicle_id, filled_at, km, liters, amount_ttc, full_tank) values (w_v, now() - interval '2 days', 11000, 35, 63, true);
+      w_conso := (select l_per_100 from public.v_vehicle_consumption where vehicle_id = w_v order by filled_at desc limit 1);
+      begin insert into public.vehicle_fuel (vehicle_id, km, liters, amount_ttc) values (w_v2, 5000, 30, 50); exception when insufficient_privilege then w_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if w_c = 1 and w_ok then
+        v_lines := v_lines || 'OK      tech  0320 : le technicien ne voit que son véhicule, ne saisit pas de plein sur un autre'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0320 : véhicule du technicien (' || w_c || ', ' || w_ok || ')')::text; end if;
+      if w_conso = 7 then
+        v_lines := v_lines || 'OK      tech  0320 : consommation de 7 l/100 km entre deux pleins complets'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0320 : consommation (' || coalesce(w_conso, -1) || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.vehicle_fuel (vehicle_id, km, liters, amount_ttc) values (w_v, 10900, 20, 36);
+      w_st := (select status from public.vehicle_fuel where vehicle_id = w_v and km = 10900);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      w_etat := (select state from public.v_vehicle_deadlines where vehicle_id = w_v and kind = 'controle_technique');
+      if w_st = 'a_verifier' and w_etat = 'depassee' then
+        v_lines := v_lines || 'OK      base  0320 : kilométrage en recul signalé « à vérifier », contrôle technique dépassé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0320 : anomalies et échéances (' || coalesce(w_st, '?') || ', ' || coalesce(w_etat, '?') || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      w_c := (select count(*) from public.vehicles) + (select count(*) from public.vehicle_fuel);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if w_c = 0 then
+        v_lines := v_lines || 'OK      com   0320 : le commercial ne voit pas le parc'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   com   0320 : parc caché au commercial (' || w_c || ')')::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0320 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
