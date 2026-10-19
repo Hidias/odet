@@ -1,4 +1,4 @@
-import { requireRole, SALES } from './_lib/auth.js'
+import { requireRight, SALES } from './_lib/auth.js'
 import { safeFetch } from './_lib/safeFetch.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/scrape-phone.js
@@ -8,7 +8,7 @@ import { withErrorLog } from './_lib/errors.js'
 export const config = { maxDuration: 10 }
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, SALES)
+  const ctx = await requireRight(req, res, 'commercial.prospection.gerer', SALES, SALES)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile

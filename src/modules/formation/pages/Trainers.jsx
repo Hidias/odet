@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useDataStore } from '../../../core/store'
+import { useDataStore, useAuthStore } from '../../../core/store'
+import { useDroits } from '../../../core/rights/useDroit'
 import { Plus, Search, Edit, Trash2, X, UserCheck, Save, Award, FileText, Upload, Calendar, AlertTriangle, Eye, Settings, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, differenceInDays, isPast, parseISO } from 'date-fns'
@@ -53,6 +54,14 @@ export default function Trainers() {
     trainers, trainersLoading, fetchTrainers, createTrainer, updateTrainer, deleteTrainer,
     fetchTrainerCertificates, createTrainerCertificate, deleteTrainerCertificate
   } = useDataStore()
+  const d = useDroits({
+    gerer: 'formation.formateurs.gerer',
+    saFiche: 'formation.formateurs.modifier_sa_fiche',
+    dossier: 'formation.formateurs.dossier',
+  })
+  // Fiche du formateur rattachée au compte connecté (profiles.trainer_id), pour « modifier sa fiche »
+  const monFormateurId = useAuthStore((s) => s.profile?.trainer_id || null)
+  const peutModifierFiche = (t) => d.gerer || (d.saFiche && !!t && !!monFormateurId && t.id === monFormateurId)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterQualification, setFilterQualification] = useState('')
@@ -360,9 +369,11 @@ export default function Trainers() {
           <button onClick={() => setShowQualificationsManager(true)} className="btn btn-secondary flex items-center gap-2">
             <Settings className="w-4 h-4" /> Qualifications
           </button>
+          {d.gerer && (
           <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" /> Nouveau
           </button>
+          )}
         </div>
       </div>
       
@@ -420,8 +431,8 @@ export default function Trainers() {
                     <button onClick={() => openPreview(item)} className="p-2 text-gray-400 hover:text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))] rounded-ui-sm" title="Aperçu"><Eye className="w-4 h-4" /></button>
                     <button onClick={() => openCertificates(item)} className="p-2 text-gray-400 hover:text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))] rounded-ui-sm" title="Certificats"><FileText className="w-4 h-4" /></button>
                     <button onClick={() => openDevelopment(item)} className="p-2 text-gray-400 hover:text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] rounded-ui-sm" title="Développement"><BookOpen className="w-4 h-4" /></button>
-                    <button onClick={() => handleEdit(item)} className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-ui-sm" title="Modifier"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => setConfirmDelete(item.id)} className="p-2 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                    {peutModifierFiche(item) && <button onClick={() => handleEdit(item)} className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-ui-sm" title="Modifier"><Edit className="w-4 h-4" /></button>}
+                    {d.gerer && <button onClick={() => setConfirmDelete(item.id)} className="p-2 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm" title="Supprimer"><Trash2 className="w-4 h-4" /></button>}
                   </div>
                 </div>
               </div>
@@ -475,7 +486,7 @@ export default function Trainers() {
                 )}
               </div>
               <div className="flex justify-end gap-2 p-4 border-t">
-                <button onClick={() => { setShowPreview(false); handleEdit(selectedTrainer) }} className="btn btn-primary"><Edit className="w-4 h-4 mr-2" />Modifier</button>
+                {peutModifierFiche(selectedTrainer) && <button onClick={() => { setShowPreview(false); handleEdit(selectedTrainer) }} className="btn btn-primary"><Edit className="w-4 h-4 mr-2" />Modifier</button>}
               </div>
             </div>
           </div>
@@ -578,7 +589,7 @@ export default function Trainers() {
                 <button onClick={closeCertificates}><X className="w-5 h-5" /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                {!showCertForm && (
+                {!showCertForm && d.dossier && (
                   <button onClick={() => setShowCertForm(true)} className="w-full mb-4 p-3 border-2 border-dashed border-gray-300 rounded-ui-sm text-gray-500 hover:border-primary-500 hover:text-primary-500 flex items-center justify-center gap-2">
                     <Plus className="w-5 h-5" /> Ajouter
                   </button>
@@ -732,9 +743,11 @@ export default function Trainers() {
                                   <Eye className="w-4 h-4" />
                                 </button>
                               )}
+                              {d.dossier && (
                               <button onClick={() => setConfirmDeleteCert(cert)} className="p-2 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))] rounded-ui-sm hover:bg-[rgb(var(--c-danger-bg))]" title="Supprimer">
                                 <Trash2 className="w-4 h-4" />
                               </button>
+                              )}
                             </div>
                           </div>
                         </div>

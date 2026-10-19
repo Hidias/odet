@@ -21,7 +21,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import * as cheerio from 'cheerio'
-import { requireCronOrRole, SALES } from './_lib/auth.js'
+import { requireCronOrRight, SALES } from './_lib/auth.js'
 import { safeFetch } from './_lib/safeFetch.js'
 import { withErrorLog } from './_lib/errors.js'
 
@@ -348,7 +348,7 @@ async function scrapeWebsite(siteUrl) {
 async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end()
   // Tâche planifiée (CRON_SECRET) ou enrichissement manuel depuis l'écran d'import (prospection)
-  if (!(await requireCronOrRole(req, res, SALES))) return
+  if (!(await requireCronOrRight(req, res, 'commercial.prospection.gerer', SALES, SALES))) return
 
   const batchSize = Math.min(req.body?.batch_size || DEFAULT_BATCH_SIZE, 15) // Max 15 sécurité
 

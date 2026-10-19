@@ -1,11 +1,11 @@
-import { requireRole, MANAGERS } from './_lib/auth.js'
+import { requireRight, MANAGERS } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/duerp-ai-evaluate.js
 // Route Vercel serverless pour l'évaluation IA des risques DUERP
 // Deux modes : 'risk' (évaluation d'un risque) et 'unit' (analyse complète d'une unité)
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, MANAGERS)
+  const ctx = await requireRight(req, res, 'prestations.duerp.gerer', MANAGERS, MANAGERS)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile

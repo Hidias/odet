@@ -5,6 +5,8 @@ import { useAuthStore } from '../core/store'
 import { BrandingProvider, useBranding } from '../core/branding/BrandingProvider'
 import { authModeFromUrl } from '../core/auth/SetPassword'
 import { PageErrorBoundary, RouteErrorBoundary } from '../core/errors/ErrorBoundary'
+import { accesPage } from '../core/modules/registry'
+import PageRefusee from '../core/rights/PageRefusee'
 
 // ─── Chargement immédiat (pages critiques) ───────────────────
 import Layout from './Layout'
@@ -28,6 +30,7 @@ const SetupWizard = lazy(() => import('../core/setup/SetupWizard'))
 const SetPassword = lazy(() => import('../core/auth/SetPassword'))
 const Console = lazy(() => import('../core/console/Console'))
 const DesignReference = lazy(() => import('../ui/DesignReference'))
+const ReglesGestion = lazy(() => import('../core/rights/ReglesGestion'))
 const ConsoleErreurs = lazy(() => import('../core/console/ConsoleErreurs'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
@@ -83,16 +86,16 @@ function PageLoader() {
 
 // Composant de protection des routes - redirige le comptable vers /comptable
 function PrivateRoute({ children }) {
-  const { user, userRole, loading } = useAuthStore()
+  const { user, userRole, loading, rights, can } = useAuthStore()
   const { branding, loaded } = useBranding()
   const location = useLocation()
   const navigate = useNavigate()
 
   // Instance pas encore configurée : l'administrateur passe par l'assistant
-  const needsSetup = !loading && !!user && loaded && branding.setup_completed === false && ['superadmin', 'admin'].includes(userRole) && location.pathname !== '/setup'
+  const needsSetup = !loading && !!user && loaded && branding.setup_completed === false && ['superadmin', 'admin'].includes(userRole) && accesPage('/setup', userRole, can) && location.pathname !== '/setup'
   useEffect(() => {
     if (needsSetup) navigate('/setup', { replace: true })
-  }, [needsSetup, navigate, location.pathname])
+  }, [needsSetup, navigate, location.pathname, rights])
 
   if (loading) {
     return (
@@ -114,6 +117,15 @@ function PrivateRoute({ children }) {
 
   if (needsSetup) return <PageLoader />
 
+  return children
+}
+
+// Page hors du cadre principal (assistant de configuration) : même garde que le menu et les pages
+function GardeRoute({ chemin, children }) {
+  const { userRole, loading, can } = useAuthStore()
+  useAuthStore((st) => st.rights)
+  if (loading) return <PageLoader />
+  if (!accesPage(chemin, userRole, can)) return <PageRefusee />
   return children
 }
 
@@ -198,7 +210,7 @@ export default function App() {
           {/* Assistant de configuration : plein écran, hors menu */}
           <Route path="/setup" element={
             <PrivateRoute>
-              <SetupWizard />
+              <GardeRoute chemin="/setup"><SetupWizard /></GardeRoute>
             </PrivateRoute>
           } />
 
@@ -260,6 +272,7 @@ export default function App() {
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="parametres" element={<Settings />} />
             <Route path="console" element={<Console />} />
+            <Route path="regles-gestion" element={<ReglesGestion />} />
             <Route path="design-systeme" element={<DesignReference />} />
             <Route path="console/erreurs" element={<ConsoleErreurs />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />

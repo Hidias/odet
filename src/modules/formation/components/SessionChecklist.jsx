@@ -4,6 +4,7 @@ import { Printer, FileCheck, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { buildSessionChecklistPDF } from '../pdf/sessionChecklistPDF'
+import { useDroits } from '../../../core/rights/useDroit'
 
 // Liste complète des contrôles
 const CHECKLIST_ITEMS = {
@@ -42,6 +43,8 @@ export default function SessionChecklist({ session }) {
   const [traineeCount, setTraineeCount] = useState(0)
   const [editingComments, setEditingComments] = useState({})
   const [editingDates, setEditingDates] = useState({})
+  // Droit d'écriture : préparer la session (ou modifier les siennes)
+  const droits = useDroits({ preparer: ['formation.sessions.preparer', 'formation.sessions.modifier_siennes'] })
 
   useEffect(() => {
     if (session) {
@@ -231,7 +234,7 @@ export default function SessionChecklist({ session }) {
             type="checkbox"
             checked={itemData.is_checked || false}
             onChange={(e) => handleCheck(item.code, 'is_checked', e.target.checked)}
-            disabled={saving}
+            disabled={saving || !droits.preparer}
             className="w-4 h-4 text-[rgb(var(--c-info))] rounded"
           />
           <label className="flex-1 font-medium text-ui">
@@ -263,7 +266,7 @@ export default function SessionChecklist({ session }) {
                   return newState
                 })
               }}
-              disabled={saving}
+              disabled={saving || !droits.preparer}
               className="w-full px-2 py-1 border rounded text-ui-sm"
             />
           </div>
@@ -286,7 +289,7 @@ export default function SessionChecklist({ session }) {
                   return newState
                 })
               }}
-              disabled={saving}
+              disabled={saving || !droits.preparer}
               placeholder="Optionnel"
               className="w-full px-2 py-1 border rounded text-ui-sm"
             />

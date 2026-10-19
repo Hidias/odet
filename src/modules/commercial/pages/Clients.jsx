@@ -8,6 +8,7 @@ import SirenConflictModal from '../components/SirenConflictModal'
 import { useSirenCheck } from '../lib/useSirenCheck'
 import { canExportVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
+import { useDroits } from '../../../core/rights/useDroit'
 
 // Formatage nom entreprise (majuscules)
 const formatCompanyName = (value) => {
@@ -313,6 +314,12 @@ const ConfirmModal = ({ show, onConfirm, onCancel, message, description, confirm
 
 export default function Clients() {
   const { clients, fetchClients, createClient, updateClient, deleteClient } = useDataStore()
+  // Gardes des boutons d'écriture (la base refuse de toute façon ce qui n'est pas permis)
+  const d = useDroits({
+    modifier: 'clients.fiches.modifier',
+    supprimer: 'clients.fiches.supprimer',
+    prospection: 'commercial.prospection.gerer',
+  })
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   // Entreprises (tous les professionnels) ou particuliers : deux listes séparées
@@ -786,12 +793,12 @@ export default function Clients() {
   
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 mb-6">
+        <div className="min-w-0">
           <h1 className="page-title">Clients</h1>
           <p className="text-gray-600 text-ui mt-1">{filtered.length} client{filtered.length > 1 ? 's' : ''}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {vcardAllowed && (
             <button
               onClick={exportContactsVCard}
@@ -800,34 +807,41 @@ export default function Clients() {
               title="Exporter les contacts des clients affichés vers le téléphone (fichier vCard)"
             >
               <Smartphone className="w-4 h-4" />
-              {exportingVcf ? 'Export...' : 'Contacts vCard'}
+              {exportingVcf ? 'Export...' : <><span className="hidden sm:inline">Contacts vCard</span><span className="sm:hidden">vCard</span></>}
             </button>
           )}
-          <button 
-            onClick={() => setShowTextImport(true)} 
-            className="btn btn-secondary flex items-center gap-2"
-          >
-            <FileText className="w-4 h-4" />
-            Import prospects
-          </button>
-          <button 
-            onClick={() => fileInputRef.current?.click()} 
-            className="btn btn-secondary flex items-center gap-2"
-            disabled={importing}
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            Import CSV
-          </button>
-          <input 
-            ref={fileInputRef} 
-            type="file" 
-            accept=".csv,.txt" 
-            className="hidden" 
-            onChange={handleFileSelect}
-          />
-          <button onClick={() => openForm()} className="btn btn-primary">
-            <Plus className="w-4 h-4 mr-2" />Nouveau client
-          </button>
+          {/* L'import de prospects crée des fiches clients : il faut aussi le droit de modifier les clients */}
+          {d.prospection && d.modifier && (
+            <button 
+              onClick={() => setShowTextImport(true)} 
+              className="btn btn-secondary flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">Import prospects</span><span className="sm:hidden">Prospects</span>
+            </button>
+          )}
+          {d.modifier && (
+            <>
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                className="btn btn-secondary flex items-center gap-2"
+                disabled={importing}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span className="hidden sm:inline">Import CSV</span><span className="sm:hidden">CSV</span>
+              </button>
+              <input 
+                ref={fileInputRef} 
+                type="file" 
+                accept=".csv,.txt" 
+                className="hidden" 
+                onChange={handleFileSelect}
+              />
+              <button onClick={() => openForm()} className="btn btn-primary">
+                <Plus className="w-4 h-4 mr-2" /><span className="hidden sm:inline">Nouveau client</span><span className="sm:hidden">Nouveau</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
       
@@ -941,19 +955,25 @@ export default function Clients() {
                             className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full">
                             <Eye className="w-4 h-4 text-gray-400" /> Voir la fiche
                           </Link>
-                          <button onClick={() => { setActionMenuId(null); openForm(client) }}
-                            className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full text-left">
-                            <Edit className="w-4 h-4 text-gray-400" /> Modifier
-                          </button>
-                          <div className="border-t border-gray-100 my-1" />
-                          <button onClick={() => { setActionMenuId(null); setConfirmArchive(client) }}
-                            className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-[rgb(var(--c-warning-bg))] w-full text-left">
-                            <Archive className="w-4 h-4 text-[rgb(var(--c-warning))]" /> {client.status === 'archive' ? 'Restaurer' : 'Archiver'}
-                          </button>
-                          <button onClick={() => { setActionMenuId(null); setConfirmDelete(client) }}
-                            className="flex items-center gap-2 px-4 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] w-full text-left">
-                            <Trash2 className="w-4 h-4" /> Supprimer
-                          </button>
+                          {d.modifier && (
+                            <button onClick={() => { setActionMenuId(null); openForm(client) }}
+                              className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full text-left">
+                              <Edit className="w-4 h-4 text-gray-400" /> Modifier
+                            </button>
+                          )}
+                          {(d.modifier || d.supprimer) && <div className="border-t border-gray-100 my-1" />}
+                          {d.modifier && (
+                            <button onClick={() => { setActionMenuId(null); setConfirmArchive(client) }}
+                              className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-[rgb(var(--c-warning-bg))] w-full text-left">
+                              <Archive className="w-4 h-4 text-[rgb(var(--c-warning))]" /> {client.status === 'archive' ? 'Restaurer' : 'Archiver'}
+                            </button>
+                          )}
+                          {d.supprimer && (
+                            <button onClick={() => { setActionMenuId(null); setConfirmDelete(client) }}
+                              className="flex items-center gap-2 px-4 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] w-full text-left">
+                              <Trash2 className="w-4 h-4" /> Supprimer
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1011,14 +1031,14 @@ export default function Clients() {
                 <div className="border-t pt-4">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-medium text-gray-700">Contacts ({contacts.length})</h4>
-                    <ContactForm onAdd={async (contactData) => {
+                    {d.modifier && <ContactForm onAdd={async (contactData) => {
                       const { error } = await supabase.from('client_contacts').insert({ ...contactData, client_id: selectedClient.id })
                       await supabase.rpc('client_contact_sync_primary', { p_client_id: selectedClient.id }).then(() => {}, () => {})
                       if (error) return toast.error('Erreur')
                       const { data } = await supabase.from('client_contacts').select('*').eq('client_id', selectedClient.id).order('is_primary', { ascending: false })
                       setContacts(data || [])
                       toast.success('Contact ajouté')
-                    }} />
+                    }} />}
                   </div>
                   {contacts.length === 0 ? (
                     <p className="text-gray-500 text-ui">Aucun contact</p>
@@ -1035,6 +1055,7 @@ export default function Clients() {
                             {c.email && <p className="text-ui text-gray-600">{c.email}</p>}
                             {c.phone && <p className="text-ui text-gray-600">{c.phone}</p>}
                           </div>
+                          {d.modifier && (
                           <div className="flex gap-1">
                             <ContactForm 
                               contact={c}
@@ -1063,6 +1084,7 @@ export default function Clients() {
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
+                          )}
                         </div>
                       ))}
                     </div>

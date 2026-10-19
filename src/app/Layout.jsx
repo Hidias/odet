@@ -14,7 +14,8 @@ import { supabase } from '../core/supabase'
 import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
 import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS } from '../core/branding/presets'
-import { visibleSections, SETTINGS_ITEMS, pageTitleFor, sectionIdFor } from '../core/modules/registry'
+import { visibleSections, visibleSettingsItems, accesPage, pageTitleFor, sectionIdFor } from '../core/modules/registry'
+import PageRefusee from '../core/rights/PageRefusee'
 
 const ROLE_LABELS = {
   superadmin: 'Super administrateur',
@@ -46,7 +47,7 @@ function initials(profile, user) {
 }
 
 export default function Layout() {
-  const { user, profile, userRole, modules, logout, fieldOnly } = useAuthStore()
+  const { user, profile, userRole, modules, logout, fieldOnly, rights, can } = useAuthStore()
   const { branding } = useBranding()
   const { prefs, update } = useUiPrefs()
   const navigate = useNavigate()
@@ -60,11 +61,13 @@ export default function Layout() {
 
   // Technicien de terrain : seulement l'entrée Interventions, ni paramètres, ni recherche, ni notifications
   const sections = useMemo(() => {
-    const all = visibleSections(modules, userRole)
+    const all = visibleSections(modules, userRole, can)
     if (!fieldOnly) return all
     return all.map((s) => ({ ...s, items: s.items.filter((i) => i.to === '/interventions') })).filter((s) => s.items.length > 0)
-  }, [modules, userRole, fieldOnly])
-  const settingsItems = useMemo(() => (fieldOnly ? [] : SETTINGS_ITEMS.filter((i) => i.roles.includes(userRole))), [userRole, fieldOnly])
+  }, [modules, userRole, fieldOnly, rights, can])
+  const settingsItems = useMemo(() => (fieldOnly ? [] : visibleSettingsItems(userRole, can)), [userRole, fieldOnly, rights, can])
+  // Garde de l'adresse directe : même table que le menu (rôle et droits)
+  const pageAutorisee = useMemo(() => accesPage(location.pathname, userRole, can), [location.pathname, userRole, rights, can])
   const fieldAllowed = !fieldOnly || location.pathname.startsWith('/interventions') || location.pathname === '/mot-de-passe'
   const activeSectionId = useMemo(() => sectionIdFor(location.pathname) || sections[0]?.id, [location.pathname, sections])
   const pageTitle = useMemo(() => pageTitleFor(location.pathname), [location.pathname])
@@ -510,7 +513,9 @@ export default function Layout() {
               <span>Les emails ne partent pas vers leurs destinataires : ils sont redirigés vers l'adresse de test.</span>
             </div>
           )}
-          {fieldAllowed ? <RouteErrorBoundary><Outlet /></RouteErrorBoundary> : <Navigate to="/interventions" replace />}
+          {!fieldAllowed ? <Navigate to="/interventions" replace />
+            : pageAutorisee ? <RouteErrorBoundary><Outlet /></RouteErrorBoundary>
+            : <PageRefusee accueil={location.pathname !== '/'} />}
         </main>
       </div>
 
