@@ -52,10 +52,20 @@ Supabase est laissé tel quel, comme historique.
 ## 3. Quoi de neuf (0262, module « nouveautes »)
 
 - Lignes `kind = 'nouveaute'` : brouillon, publiée, archivée. Page `/nouveautes`, groupée par mois.
-- **Alimentation automatique** : l'action GitHub `Nouveautés` (`.github/workflows/nouveautes.yml`) appelle, à chaque
-  PR fusionnée dans main, `notice_from_pull_request` (serveur seulement) : titre de la PR, premier paragraphe de sa
-  description sans titres ni balises Markdown. **Toujours en brouillon** ; une PR ne crée jamais deux entrées.
-  Aucun jeton à saisir : l'action utilise le secret `SUPABASE_DB_URL` déjà en place.
+- **Alimentation automatique** (`.github/workflows/nouveautes.yml`, lecture par
+  `scripts/nouveautes/lire_description.py`) : à chaque PR fusionnée dans main, la description de la PR porte UNE
+  de ces deux sections, en français simple.
+  - `## Quoi de neuf` : première ligne « Titre : ... », puis une phrase ou deux. Réservé à ce qui se voit à l'écran
+    avec les modules actifs. L'action appelle `notice_from_pull_request` (serveur seulement) : entrée **en
+    brouillon**, à relire et publier dans Console › Quoi de neuf ; une PR ne crée jamais deux entrées.
+  - `## Avancées techniques` : une phrase courte (200 caractères au plus). Elle est ajoutée une seule fois à la fin
+    de l'entrée publiée « Avancées techniques », sans nouvelle entrée ni pastille.
+  - Aucune des deux : rien n'est proposé. L'ancienne section « Ce qui change » n'est plus lue (elle produisait des
+    brouillons techniques).
+  - Règles d'écriture contrôlées : vouvoiement, aucun code, aucun numéro de migration, aucun tiret long, aucun émoji.
+    Une phrase « Avancées techniques » fautive n'est pas ajoutée ; un brouillon fautif est créé avec un avertissement
+    dans le résumé de l'action. Mots anglais et jargon : à relire à la main.
+  - Aucun jeton à saisir : l'action utilise le secret `SUPABASE_DB_URL` déjà en place.
 - Console › Quoi de neuf : relire, réécrire en français simple, publier, archiver, supprimer, écrire à la main.
 - Pastille « nouveau » sur le lien (menu, menu du compte) tant que l'utilisateur n'a pas ouvert la page depuis la
   dernière entrée publiée (`profiles.notices_seen_at`, `notices_mark_seen()`).
