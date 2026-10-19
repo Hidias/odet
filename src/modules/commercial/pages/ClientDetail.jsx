@@ -22,6 +22,7 @@ import EcheancesClient from '../components/EcheancesClient'
 import ComptesEntreprise from '../components/ComptesEntreprise'
 import PistesClient from '../components/PistesClient'
 import RegistreClient from '../../registre/components/RegistreClient'
+import CaClient from '../components/CaClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
@@ -74,6 +75,7 @@ export default function ClientDetail() {
     supprimer: 'clients.fiches.supprimer',
     historique: 'clients.historique.ecrire',
     espace: 'clients.espace.gerer',
+    devisVoir: 'commercial.devis.voir',
     prospection: 'commercial.prospection.gerer',
     devis: 'commercial.devis.modifier',
     session: 'formation.sessions.creer',
@@ -1624,6 +1626,9 @@ export default function ClientDetail() {
 
           {/* Registre de sécurité (fonction 11) */}
           {client && modulesActifs.includes('registre') && <RegistreClient client={client} />}
+
+          {/* Chiffre d'affaires attendu (fonction 12) */}
+          {client && modulesActifs.includes('previsionnel') && d.devisVoir && <CaClient clientId={client.id} />}
 
           {rdvs.length > 0 && (
             <div className="bg-white rounded-ui border border-gray-200">

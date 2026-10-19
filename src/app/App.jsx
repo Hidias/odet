@@ -42,6 +42,7 @@ const EspaceEntrepriseAdmin = lazy(() => import('../modules/commercial/pages/Esp
 const EspaceEntreprise = lazy(() => import('../modules/portail/pages/EspaceEntreprise'))
 const EspaceExterne = lazy(() => import('../modules/portail/pages/EspaceExterne'))
 const Pistes = lazy(() => import('../modules/commercial/pages/Pistes'))
+const Previsionnel = lazy(() => import('../modules/commercial/pages/Previsionnel'))
 const RetoursSuivi = lazy(() => import('../core/feedback/RetoursSuivi'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
@@ -336,6 +337,7 @@ export default function App() {
             <Route path="sous-traitants" element={<SousTraitants />} />
             <Route path="espace-entreprise" element={<EspaceEntrepriseAdmin />} />
             <Route path="pistes" element={<Pistes />} />
+            <Route path="previsionnel" element={<Previsionnel />} />
             <Route path="retours" element={<RetoursSuivi />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />

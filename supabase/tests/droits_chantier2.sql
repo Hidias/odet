@@ -2675,6 +2675,66 @@ begin
     end;
   end if;
 
+  -- Fonction 12, prévisionnel (0150) : montants calculés, sans prix comptés à part, pas de double comptage
+  if to_regclass('public.v_recurring_revenue') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 4;
+    declare
+      w_cli uuid; w_t1 uuid; w_t2 uuid; w_t3 uuid; w_sst uuid; w_gp uuid; w_c1 uuid; w_c2 uuid; w_ses uuid; w_k uuid;
+      w_r record; w_n int; w_res jsonb;
+    begin
+      insert into public.clients (name) values ('Essai prévisionnel') returning id into w_cli;
+      insert into public.trainees (first_name, last_name, client_id) values ('A', 'Prev', w_cli) returning id into w_t1;
+      insert into public.trainees (first_name, last_name, client_id) values ('B', 'Prev', w_cli) returning id into w_t2;
+      insert into public.trainees (first_name, last_name, client_id) values ('C', 'Prev', w_cli) returning id into w_t3;
+      insert into public.courses (title, code, price_ht) values ('Essai SST prévisionnel', 'ESSAI-PREV-SST', 200) returning id into w_c1;
+      insert into public.courses (title, code) values ('Essai gestes sans prix', 'ESSAI-PREV-GP') returning id into w_c2;
+      select id into w_sst from public.obligation_rules where code = 'sst' and company_id = (select company_id from public.clients where id = w_cli);
+      select id into w_gp from public.obligation_rules where code = 'gestes_postures' and company_id = (select company_id from public.clients where id = w_cli);
+      update public.obligation_rules set course_ids = array[w_c1] where id = w_sst;
+      update public.obligation_rules set course_ids = array[w_c2], validity_months = coalesce(validity_months, 24) where id = w_gp;
+      insert into public.external_trainings (client_id, trainee_id, rule_id, provider_name, done_on, valid_until) values
+        (w_cli, w_t1, w_sst, 'Ailleurs', current_date - 600, current_date + 100),
+        (w_cli, w_t1, w_sst, 'Ailleurs', current_date - 650, current_date + 50),
+        (w_cli, w_t2, w_sst, 'Ailleurs', current_date - 600, current_date + 100),
+        (w_cli, w_t3, w_sst, 'Ailleurs', current_date - 600, current_date + 100),
+        (w_cli, w_t1, w_gp, 'Ailleurs', current_date - 600, current_date + 120);
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-PREV', w_c1, w_cli, current_date + 20, current_date + 20, 'prev-1') returning id into w_ses;
+      insert into public.session_trainees (session_id, trainee_id) values (w_ses, w_t2);
+
+      select sum(nb_echeances) as nb, sum(montant_attendu) as m, sum(nb_planifies) as np, sum(montant_planifie) as mp
+        into w_r from public.v_recurring_revenue where client_id = w_cli and nature = 'formation' and rule_id = w_sst;
+      if w_r.nb = 3 and w_r.m = 600 and w_r.np = 1 and w_r.mp = 200 then
+        v_lines := v_lines || 'OK      base  0150 : recyclages chiffrés au prix du catalogue, un stagiaire compté une fois, part planifiée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0150 : recyclages chiffrés (' || coalesce(w_r.nb, 0) || ' / ' || coalesce(w_r.m, 0) || ' / ' || coalesce(w_r.np, 0) || ')'); end if;
+
+      select sum(nb_sans_prix) as sp, sum(montant_attendu) as m into w_r from public.v_recurring_revenue where client_id = w_cli and rule_id = w_gp;
+      if w_r.sp = 1 and w_r.m = 0 then
+        v_lines := v_lines || 'OK      base  0150 : échéance sans prix comptée à part, jamais estimée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0150 : échéance sans prix comptée à part'::text; end if;
+
+      insert into public.itv_contracts (client_id, reference, label, start_on, end_on, annual_price_ht, status)
+      values (w_cli, 'CTR-PREV', 'Contrat essai', current_date - 335, current_date + 30, 1200, 'actif') returning id into w_k;
+      perform public.scheduled_actions_generate();
+      perform public.scheduled_actions_generate();
+      select count(*) into w_n from public.scheduled_actions where kind = 'renouvellement_contrat' and target_id = w_k;
+      if w_n = 1 and (select sum(montant_attendu) from public.v_recurring_revenue where client_id = w_cli and nature = 'contrat') = 1200 then
+        v_lines := v_lines || 'OK      base  0150 : contrat à renouveler chiffré, relance préparée une seule fois'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0150 : contrat à renouveler (' || w_n || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      w_n := (select count(*) from public.v_recurring_revenue where client_id = w_cli);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if w_n >= 2 then v_lines := v_lines || 'OK      com   0150 : le commercial lit le prévisionnel'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   com   0150 : le commercial lit le prévisionnel (' || w_n || ')'); end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

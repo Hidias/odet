@@ -14,7 +14,7 @@ import { confirmer } from '../../../ui/Confirm'
 // justificatifs des prestataires, rappels…). Rien ne part tout seul : on valide, on corrige ou on ignore ; une action validée se
 // transmet par sa messagerie (texte prêt à copier) puis se marque « envoyée ». Téléphone d'abord.
 
-const KINDS = { relance_recyclage: 'Recyclage', justificatif_prestataire: 'Justificatif', convocation: 'Convocation', rappel: 'Rappel', evaluation_froid: 'Évaluation à froid', relance_impaye: 'Impayé', autre: 'Autre' }
+const KINDS = { relance_recyclage: 'Recyclage', justificatif_prestataire: 'Justificatif', renouvellement_contrat: 'Renouvellement de contrat', visite_hors_contrat: 'Visite hors contrat', convocation: 'Convocation', rappel: 'Rappel', evaluation_froid: 'Évaluation à froid', relance_impaye: 'Impayé', autre: 'Autre' }
 const STATUTS = { a_valider: ['warning', 'À valider'], valide: ['info', 'Validée'], envoye: ['success', 'Envoyée'], ignore: ['neutral', 'Ignorée'], erreur: ['danger', 'Erreur'] }
 const ONGLETS = [['a_valider', 'À valider'], ['valide', 'À envoyer'], ['envoye', 'Envoyées'], ['ignore', 'Ignorées']]
 

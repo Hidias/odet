@@ -57,6 +57,8 @@ export const NAV_SECTIONS = [
       { to: '/espace-entreprise', right: 'clients.fiches.voir', icon: Megaphone, label: 'Espace entreprise', roles: SALES },
       // Pistes entre formation et maintenance (fonction 10, 0130)
       { to: '/pistes', right: 'clients.fiches.voir', icon: Workflow, label: 'Pistes', roles: SALES, module: 'pont' },
+      // Chiffre d'affaires récurrent attendu sur 12 mois (fonction 12, 0150)
+      { to: '/previsionnel', right: 'commercial.devis.voir', icon: BarChart3, label: 'Prévisionnel', roles: SALES, module: 'previsionnel' },
       { to: '/prospection', right: 'commercial.prospection.voir', icon: Search, label: 'Suivi commercial', roles: SALES, module: 'prospection' },
       { to: '/mailing', right: 'communication.campagnes.gerer', icon: Mail, label: 'Campagnes email', roles: SALES, module: 'mailing' },
       { to: '/prospection-massive', right: 'commercial.prospection.voir', icon: Globe, label: 'Base prospects', roles: SALES, module: 'prospection' },

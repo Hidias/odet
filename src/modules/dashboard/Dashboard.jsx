@@ -18,6 +18,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { qualiopiCycle } from '../certification/lib/certData'
 import InterventionsDashboardCard from '../interventions/components/DashboardCard'
+import CaAttenduCard from '../commercial/components/CaAttenduCard'
 import { useDroits } from '../../core/rights/useDroit'
 
 // ═══════════════════════════════════════════════════════════
@@ -117,6 +118,7 @@ export default function Dashboard() {
     session: 'formation.sessions.creer',
     client: 'clients.fiches.modifier',
     stagiaire: 'formation.stagiaires.creer',
+    devis: 'commercial.devis.voir',
   })
   
   
@@ -1063,6 +1065,7 @@ export default function Dashboard() {
         ))}
       </div>
       {(modules || []).includes('interventions') && <InterventionsDashboardCard />}
+      {(modules || []).includes('previsionnel') && d.devis && <CaAttenduCard />}
       
 
       {/* Widget grid */}
