@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { loadSites, saveEquipment, retireEquipment } from '../lib/itvData'
 import { Sheet } from './ui'
 
+import { confirmer } from '../../../ui/Confirm'
 export default function EquipmentForm({ equipment = null, clientId, siteId = null, types, onClose, onSaved }) {
   const [sites, setSites] = useState([])
   const [busy, setBusy] = useState(false)
@@ -39,7 +40,7 @@ export default function EquipmentForm({ equipment = null, clientId, siteId = nul
     } catch (e) { toast.error(e.message?.includes('duplicate') ? 'Ce code d\'étiquette existe déjà' : e.message) } finally { setBusy(false) }
   }
   const retire = async () => {
-    if (!window.confirm('Retirer cet appareil du parc ? Son historique est conservé.')) return
+    if (!await confirmer('Retirer cet appareil du parc ? Son historique est conservé.')) return
     try { await retireEquipment(equipment.id); toast.success('Appareil retiré du parc'); onSaved(null) } catch (e) { toast.error(e.message) }
   }
 

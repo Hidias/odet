@@ -4,6 +4,7 @@ import { supabase } from '../../../core/supabase'
 import toast from 'react-hot-toast'
 import { readableUrl } from '../../../core/storageUtils'
 
+import { confirmer } from '../../../ui/Confirm'
 export default function TrainerSignatureManager({ trainer, onUpdate }) {
   const [mode, setMode] = useState('draw') // 'draw' ou 'upload'
   const [isDrawing, setIsDrawing] = useState(false)
@@ -243,7 +244,7 @@ export default function TrainerSignatureManager({ trainer, onUpdate }) {
   const deleteSignature = async () => {
     if (!currentSignature) return
 
-    if (!confirm(' Supprimer définitivement cette signature ?')) return
+    if (!await confirmer(' Supprimer définitivement cette signature ?')) return
 
     setUploading(true)
 

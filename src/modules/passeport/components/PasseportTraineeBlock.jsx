@@ -7,6 +7,7 @@ import { Loader2, Lock } from 'lucide-react'
 import { apiPasseport, enregistrerNom, enregistrerRefus, loadNirEtat } from '../lib/ppData'
 import { nomAVerifier, nomPortail, normaliserNir } from '../lib/rules'
 
+import { confirmer } from '../../../ui/Confirm'
 export default function PasseportTraineeBlock({ trainee, onChange, compact = false }) {
   const [etat, setEtat] = useState(null)
   const [nom, setNom] = useState(trainee.nom_naissance || (trainee.last_name || '').toUpperCase())
@@ -56,7 +57,7 @@ export default function PasseportTraineeBlock({ trainee, onChange, compact = fal
   }
 
   const toggleRefus = async (v) => {
-    if (v && !window.confirm('Le numéro enregistré sera effacé et la formation ne pourra pas être déclarée. Continuer ?')) return
+    if (v && !await confirmer('Le numéro enregistré sera effacé et la formation ne pourra pas être déclarée. Continuer ?')) return
     setBusy(true)
     try {
       await enregistrerRefus(trainee.id, v)

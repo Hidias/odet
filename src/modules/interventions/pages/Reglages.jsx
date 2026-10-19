@@ -9,6 +9,7 @@ import { loadStaffProfiles, loadTechnicians, setTechnician, setTechnicianColor, 
 import { DEFAULT_OPERATION_LABELS } from '../lib/schedule'
 import { Sheet } from '../components/ui'
 
+import { confirmer } from '../../../ui/Confirm'
 const SECTIONS = [
   { id: 'types', label: 'Types de matériel' },
   { id: 'pieces', label: 'Pièces et tarifs' },
@@ -93,7 +94,7 @@ function TypeForm({ type, onClose, onSaved }) {
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
   const remove = async () => {
-    if (!window.confirm(`Supprimer le type « ${type.name} » ?`)) return
+    if (!await confirmer(`Supprimer le type « ${type.name} » ?`)) return
     try { await removeType(type.id); toast.success('Type supprimé'); onSaved() } catch (e) { toast.error(e.message) }
   }
   return (

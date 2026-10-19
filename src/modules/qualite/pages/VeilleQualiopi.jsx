@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
+import { confirmer } from '../../../ui/Confirm'
 const VEILLE_TYPES = {
   legale: { 
     label: 'Veille légale et réglementaire', 
@@ -140,7 +141,7 @@ export default function VeilleQualiopi() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer cette entrée ?')) return
+    if (!await confirmer('Supprimer cette entrée ?')) return
     
     const { error } = await supabase
       .from('veille_qualiopi')

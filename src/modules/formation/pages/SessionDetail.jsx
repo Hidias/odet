@@ -37,6 +37,7 @@ import PickerMenu from '../../../ui/PickerMenu'
 import { readableUrl } from '../../../core/storageUtils'
 import { useDroits } from '../../../core/rights/useDroit'
 
+import { confirmer } from '../../../ui/Confirm'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -942,7 +943,7 @@ export default function SessionDetail() {
   
   // Marquer tous les objectifs comme acquis pour tous les stagiaires
   const handleMarkAllAcquired = async () => {
-    if (!confirm('Marquer tous les objectifs comme acquis pour tous les stagiaires ?')) return
+    if (!await confirmer('Marquer tous les objectifs comme acquis pour tous les stagiaires ?')) return
     
     const objectives = getObjectivesList()
     if (objectives.length === 0 || sessionTrainees.length === 0) return
@@ -1074,7 +1075,7 @@ export default function SessionDetail() {
   }
   
   const handleDeleteCost = async (costId) => {
-    if (!confirm('Supprimer ce coût ?')) return
+    if (!await confirmer('Supprimer ce coût ?')) return
     
     const { error } = await supabase
       .from('session_costs')
@@ -1189,7 +1190,7 @@ export default function SessionDetail() {
   }
 
   const handleDeleteFunding = async (fundingId) => {
-    if (!confirm('Supprimer ce financement ?')) return
+    if (!await confirmer('Supprimer ce financement ?')) return
     const { error } = await supabase.from('session_fundings').delete().eq('id', fundingId)
     if (error) { toast.error('Erreur suppression'); return }
     setSessionFundings(prev => prev.filter(f => f.id !== fundingId))
@@ -1643,7 +1644,7 @@ export default function SessionDetail() {
   
   // Marquer tous les stagiaires présents à toutes les demi-journées
   const handleMarkAllPresent = async () => {
-    if (!confirm('Marquer tous les stagiaires présents à toutes les demi-journées ?')) return
+    if (!await confirmer('Marquer tous les stagiaires présents à toutes les demi-journées ?')) return
     
     const halfDays = getHalfDaysList()
     if (halfDays.length === 0 || sessionTrainees.length === 0) return
@@ -1779,7 +1780,7 @@ export default function SessionDetail() {
   }
 
   const handleCancelDeparture = async (trainee) => {
-    if (!confirm('Annuler la présence partielle de ce stagiaire (arrivée tardive et départ anticipé) ?')) return
+    if (!await confirmer('Annuler la présence partielle de ce stagiaire (arrivée tardive et départ anticipé) ?')) return
 
     const { error } = await supabase
       .from('session_trainees')
@@ -1888,7 +1889,7 @@ export default function SessionDetail() {
   }
   
   const handleDeleteDoc = async (doc) => {
-    if (!confirm('Supprimer ce document ?')) return
+    if (!await confirmer('Supprimer ce document ?')) return
     await deleteSessionDocument(doc.id, doc.file_path)
     setSessionDocs(prev => prev.filter(d => d.id !== doc.id))
     toast.success('Document supprimé')
@@ -1918,7 +1919,7 @@ export default function SessionDetail() {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Supprimer cette session ?')) return
+    if (!await confirmer('Supprimer cette session ?')) return
     await deleteSession(id)
     toast.success('Session supprimée')
     navigate('/sessions')
@@ -2010,11 +2011,11 @@ export default function SessionDetail() {
       
       if (hasData) {
         // Double confirmation pour stagiaire avec données
-        if (!confirm(' Ce stagiaire a déjà des données enregistrées (fiche, émargements ou évaluation).\n\nÊtes-vous sûr de vouloir le retirer ?')) return
-        if (!confirm(' ATTENTION : Cette action supprimera TOUTES ses données pour cette session.\n\nConfirmer la suppression définitive ?')) return
+        if (!await confirmer(' Ce stagiaire a déjà des données enregistrées (fiche, émargements ou évaluation).\n\nÊtes-vous sûr de vouloir le retirer ?')) return
+        if (!await confirmer(' ATTENTION : Cette action supprimera TOUTES ses données pour cette session.\n\nConfirmer la suppression définitive ?')) return
       } else {
         // Simple confirmation
-        if (!confirm('Retirer ce stagiaire de la session ?')) return
+        if (!await confirmer('Retirer ce stagiaire de la session ?')) return
       }
       
       const { error } = await removeTraineeFromSession(id, traineeId)
@@ -2028,7 +2029,7 @@ export default function SessionDetail() {
     } catch (err) {
       console.error('Erreur vérification données:', err)
       // Fallback : simple confirmation
-      if (!confirm('Retirer ce stagiaire de la session ?')) return
+      if (!await confirmer('Retirer ce stagiaire de la session ?')) return
       const { error } = await removeTraineeFromSession(id, traineeId)
       if (error) {
         toast.error('Erreur lors du retrait')
@@ -2620,7 +2621,7 @@ export default function SessionDetail() {
     }
     
     // Confirmer l'envoi
-    const confirm = window.confirm(
+    const confirm = await confirmer(
       `Envoyer un email de relance à ${nonRespondants.length} stagiaire(s) qui n'ont pas encore rempli leur évaluation à chaud ?\n\n` +
       nonRespondants.map(t => `• ${t.first_name} ${t.last_name}`).join('\n')
     )
@@ -4081,8 +4082,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         </td>
                         <td className="p-3 text-center">
                           {d.preparer && <button
-                            onClick={() => {
-                              if (confirm('Retirer cet équipement ?')) {
+                            onClick={async () => {
+                              if (await confirmer('Retirer cet équipement ?')) {
                                 removeEquipmentFromSession(eq.id)
                               }
                             }}

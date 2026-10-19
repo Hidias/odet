@@ -8,6 +8,7 @@ import { formatDistanceToNowStrict, parseISO, isToday, isTomorrow, isBefore, sta
 import { fr } from 'date-fns/locale'
 import { useNavigate } from 'react-router-dom'
 
+import { confirmer } from '../../../ui/Confirm'
 const LOCATION_LABELS = {
   leurs_locaux: ' Leurs locaux',
   nos_locaux: ' Nos locaux',
@@ -83,7 +84,7 @@ export default function Prospection() {
 
   const handleDelete = async (e, id) => {
     e.stopPropagation()
-    if (!confirm('Supprimer ce RDV ?')) return
+    if (!await confirmer('Supprimer ce RDV ?')) return
     try {
       const { error } = await supabase.from('prospect_rdv').delete().eq('id', id)
       if (error) throw error

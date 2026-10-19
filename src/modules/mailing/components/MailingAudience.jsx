@@ -31,6 +31,7 @@ import { useDataStore } from '../../../core/store'
 import { DEPARTEMENTS_FR as DEPARTEMENTS, zoneCodes } from '../../../core/org/departements'
 
 
+import { confirmer } from '../../../ui/Confirm'
 const EFFECTIFS = [
   { code: '01', label: '1-2' }, { code: '02', label: '3-5' }, { code: '03', label: '6-9' },
   { code: '11', label: '10-19' }, { code: '12', label: '20-49' }, { code: '21', label: '50-99' },
@@ -304,7 +305,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
     loadSegments()
   }
   async function deleteSegment(s) {
-    if (!confirm(`Supprimer le segment « ${s.name} » ?`)) return
+    if (!await confirmer(`Supprimer le segment « ${s.name} » ?`)) return
     await supabase.from('mailing_segments').delete().eq('id', s.id)
     loadSegments()
   }

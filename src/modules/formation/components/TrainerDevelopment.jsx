@@ -10,6 +10,7 @@ import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { buildTrainerDevelopmentPDF } from '../pdf/trainerDevelopmentPDF'
 import { useDroits } from '../../../core/rights/useDroit'
 
+import { confirmer } from '../../../ui/Confirm'
 const TRAINING_TYPES = {
   externe: { label: 'Formation externe', color: 'blue', icon: '' },
   interne: { label: 'Formation interne', color: 'green', icon: '' },
@@ -142,7 +143,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
   // TRAININGS - DELETE
   // ============================================
   const deleteTraining = async (id) => {
-    if (!confirm('Supprimer cette formation ?')) return
+    if (!await confirmer('Supprimer cette formation ?')) return
 
     try {
       const { error } = await supabase
@@ -233,7 +234,7 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
   // INTERVIEWS - DELETE
   // ============================================
   const deleteInterview = async (id) => {
-    if (!confirm('Supprimer cet entretien ?')) return
+    if (!await confirmer('Supprimer cet entretien ?')) return
 
     try {
       const { error } = await supabase

@@ -10,6 +10,7 @@ import { canExportVCard, buildVCards, clientAsContact, vcfFilename, downloadVCar
 import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
 import { useDroits } from '../../../core/rights/useDroit'
 
+import { confirmer } from '../../../ui/Confirm'
 // Formatage nom entreprise (majuscules)
 const formatCompanyName = (value) => {
   if (!value) return ''
@@ -1071,7 +1072,7 @@ export default function Clients() {
                             />
                             <button
                               onClick={async () => {
-                                if (!confirm('Supprimer ce contact ?')) return
+                                if (!await confirmer('Supprimer ce contact ?')) return
                                 const { error } = await supabase.from('client_contacts').delete().eq('id', c.id)
                                 await supabase.rpc('client_contact_sync_primary', { p_client_id: selectedClient.id }).then(() => {}, () => {})
                                 if (error) return toast.error('Erreur')

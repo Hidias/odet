@@ -6,6 +6,7 @@ import { useDataStore } from '../../../core/store'
 import { orgName, orgCity } from '../../../core/org/currentOrg'
 import { buildSocialSystemPrompt, brandHashtag } from '../lib/socialPrompt'
 
+import { confirmer } from '../../../ui/Confirm'
 // ═══════════════════════════════════════════════════════════
 // MODULE RÉSEAUX SOCIAUX
 // Phase 1 : Générateur IA + Calendrier + Médiathèque
@@ -964,7 +965,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
                     toast.error('Connectez d\'abord vos réseaux (panneau ci-dessus)')
                     return
                   }
-                  if (!confirm(`Publier maintenant sur ${connectedPlatforms.map(p => PLATFORMS.find(x => x.id === p)?.label).join(', ')} ?`)) return
+                  if (!await confirmer(`Publier maintenant sur ${connectedPlatforms.map(p => PLATFORMS.find(x => x.id === p)?.label).join(', ')} ?`)) return
 
                   setPublishing(true)
                   try {
@@ -1330,21 +1331,21 @@ function CalendarTab({ posts, onUpdate }) {
 
   // Actions sur les posts
   const cancelPost = async (postId) => {
-    if (!confirm('Annuler cette publication planifiée ?')) return
+    if (!await confirmer('Annuler cette publication planifiée ?')) return
     await supabase.from('social_posts').update({ status: 'draft' }).eq('id', postId)
     toast.success('Publication annulée → remise en brouillon')
     onUpdate?.()
   }
 
   const deletePost = async (postId) => {
-    if (!confirm('Supprimer définitivement cette publication ?')) return
+    if (!await confirmer('Supprimer définitivement cette publication ?')) return
     await supabase.from('social_posts').delete().eq('id', postId)
     toast.success('Publication supprimée')
     onUpdate?.()
   }
 
   const publishNow = async (postId) => {
-    if (!confirm('Publier maintenant ?')) return
+    if (!await confirmer('Publier maintenant ?')) return
     try {
       const pubRes = await apiFetch('/api/social/publish', {
         method: 'POST',
@@ -1595,7 +1596,7 @@ function LibraryTab({ media, onUpdate }) {
   }
 
   const deleteMedia = async (id, fileUrl) => {
-    if (!confirm('Supprimer cette image ?')) return
+    if (!await confirmer('Supprimer cette image ?')) return
     try {
       await supabase.from('social_media_library').delete().eq('id', id)
       toast.success('Supprimé')
@@ -1649,7 +1650,7 @@ function LibraryTab({ media, onUpdate }) {
 // ═══════════════════════════════════════════════════════════
 function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
   const deleteDraft = async (id) => {
-    if (!confirm('Supprimer ce brouillon ?')) return
+    if (!await confirmer('Supprimer ce brouillon ?')) return
     await supabase.from('social_posts').delete().eq('id', id)
     toast.success('Brouillon supprimé')
     onUpdate?.()

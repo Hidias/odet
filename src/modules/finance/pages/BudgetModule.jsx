@@ -11,6 +11,7 @@ import { team, currentUserName, currentUserEmail, orgLegalName, orgName } from '
 import SirenConflictModal from '../../commercial/components/SirenConflictModal'
 import { useSirenCheck } from '../../commercial/lib/useSirenCheck'
 
+import { confirmer } from '../../../ui/Confirm'
 // ════════════════════════════════════════════════════════════
 //  BUDGET MODULE v4
 //  + Catégorisation IA intelligente + Prévisionnel 50k€
@@ -380,7 +381,7 @@ export default function BudgetModule() {
   }
 
   async function deleteTx(txId) {
-    if (!confirm('Supprimer ?')) return
+    if (!await confirmer('Supprimer ?')) return
     await supabase.from('budget_transactions').delete().eq('id', txId)
     setTransactions(p => p.filter(t => t.id !== txId))
     toast.success('Supprimée'); loadAll()
@@ -667,7 +668,7 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
 
   // Supprimer une transaction récente
   async function deleteTxLocal(txId) {
-    if (!confirm('Supprimer cette transaction ?')) return
+    if (!await confirmer('Supprimer cette transaction ?')) return
     await supabase.from('budget_receipts').delete().eq('transaction_id', txId)
     await supabase.from('budget_meal_guests').delete().eq('transaction_id', txId)
     await supabase.from('budget_transactions').delete().eq('id', txId)
@@ -1435,7 +1436,7 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
     const expected = Math.round((opening - debits + credits) * 100) / 100
     const delta = Math.round((expected - closing) * 100) / 100
     const ok = Math.abs(delta) < 0.01
-    if (!ok && !confirm(`Le contrôle arithmétique ne tombe pas juste (écart de ${delta.toFixed(2)} €).\n\nEnregistrer quand même ?`)) return
+    if (!ok && !await confirmer(`Le contrôle arithmétique ne tombe pas juste (écart de ${delta.toFixed(2)} €).\n\nEnregistrer quand même ?`)) return
 
     setSaving(true)
     try {
@@ -1494,7 +1495,7 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
   }
 
   async function sendToComptable(st) {
-    if (st.sent_to_comptable && !confirm('Ce relevé a déjà été envoyé. Le renvoyer ?')) return
+    if (st.sent_to_comptable && !await confirmer('Ce relevé a déjà été envoyé. Le renvoyer ?')) return
     setSendingId(st.id)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -1516,7 +1517,7 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
   }
 
   async function deleteStatement(st) {
-    if (!confirm(`Supprimer le relevé du ${fmtDateFR(st.period_end)} ?`)) return
+    if (!await confirmer(`Supprimer le relevé du ${fmtDateFR(st.period_end)} ?`)) return
     await supabase.storage.from('bank-statements').remove([st.file_path])
     await supabase.from('bank_statements').delete().eq('id', st.id)
     toast.success('Relevé supprimé')
@@ -2794,7 +2795,7 @@ function CategoriesTab({ categories, loadAll }) {
   const icons = ['','','','','','','','','','','','','','','','','','','','','','','','','↩','']
   async function add() { if(!nw.name.trim()){toast.error('Nom requis');return}; const ms=Math.max(...categories.map(c=>c.sort_order||0),0); const{error}=await supabase.from('budget_categories').insert({...nw,color:'gray',sort_order:ms+1}); if(error){toast.error(error.code==='23505'?'Existe déjà':'Erreur');return}; toast.success('Créée'); setNw({name:'',direction:'depense',type:'variable',icon:''}); loadAll() }
   async function upd() { if(!ef.name?.trim())return; await supabase.from('budget_categories').update(ef).eq('id',editId); toast.success('Modifié'); setEditId(null); loadAll() }
-  async function del(id,n) { const{count}=await supabase.from('budget_transactions').select('id',{count:'exact',head:true}).eq('category_id',id); if(count>0){toast.error(`${count} transactions utilisent "${n}"`);return}; if(!confirm(`Supprimer "${n}" ?`))return; await supabase.from('budget_categories').delete().eq('id',id); toast.success('Supprimé'); loadAll() }
+  async function del(id,n) { const{count}=await supabase.from('budget_transactions').select('id',{count:'exact',head:true}).eq('category_id',id); if(count>0){toast.error(`${count} transactions utilisent "${n}"`);return}; if(!await confirmer(`Supprimer "${n}" ?`))return; await supabase.from('budget_categories').delete().eq('id',id); toast.success('Supprimé'); loadAll() }
 
   return (
     <div className="space-y-4">
@@ -2855,7 +2856,7 @@ function RulesTab({ rules, categories, loadAll }) {
   }
 
   async function del(id, keyword) {
-    if (!confirm(`Supprimer la règle "${keyword}" ?`)) return
+    if (!await confirmer(`Supprimer la règle "${keyword}" ?`)) return
     await supabase.from('budget_rules').delete().eq('id', id)
     toast.success('Règle supprimée')
     loadAll()
@@ -4732,7 +4733,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
   }
 
   async function deleteAction(id) {
-    if (!confirm('Supprimer cette action ?')) return
+    if (!await confirmer('Supprimer cette action ?')) return
     await supabase.from('budget_actions').delete().eq('id', id)
     setActions(prev => prev.filter(a => a.id !== id))
     toast.success('Supprimée')
@@ -4815,7 +4816,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
   }
 
   async function deletePipe(id) {
-    if (!confirm('Supprimer ?')) return
+    if (!await confirmer('Supprimer ?')) return
     await supabase.from('budget_pipeline').delete().eq('id', id)
     loadPipeline()
   }

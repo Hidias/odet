@@ -26,6 +26,7 @@ import { useRelanceIA } from '../lib/useRelanceIA'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
 import AcompteDevis from '../components/AcompteDevis'
 
+import { confirmer } from '../../../ui/Confirm'
 const STATUS_CONFIG = {
   draft: { label: 'Brouillon', class: 'bg-gray-100 text-gray-700', icon: '' },
   sent: { label: 'Envoyé', class: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', icon: '' },
@@ -340,7 +341,7 @@ export default function Quotes() {
   }, [])
 
   async function duplicateQuote(quote) {
-    if (!confirm(`Dupliquer le devis ${quote.reference} ?`)) return
+    if (!await confirmer(`Dupliquer le devis ${quote.reference} ?`)) return
     const ref = await generateReference()
     const qDate = format(new Date(), 'yyyy-MM-dd')
     const vDate = calcValidityDate(qDate)
@@ -408,7 +409,7 @@ export default function Quotes() {
   }
 
   async function deleteQuote(id) {
-    if (!confirm('Supprimer ce devis ?')) return
+    if (!await confirmer('Supprimer ce devis ?')) return
     await supabase.from('quote_items').delete().eq('quote_id', id)
     await supabase.from('quotes').delete().eq('id', id)
     toast.success('Devis supprimé')
@@ -416,7 +417,7 @@ export default function Quotes() {
   }
 
   async function updateStatus(id, newStatus) {
-    if (!confirm(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)) return
+    if (!await confirmer(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)) return
     await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id)
     toast.success(`Statut → ${STATUS_CONFIG[newStatus].label}`)
     if (currentQuote && currentQuote.id === id) setCurrentQuote(prev => ({ ...prev, status: newStatus }))
@@ -1196,7 +1197,7 @@ export default function Quotes() {
                             </button>
                           )}
                           {q.status === 'accepted' && (
-                            <button onClick={() => { setActionMenuId(null); if (confirm('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
+                            <button onClick={async () => { setActionMenuId(null); if (await confirmer('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
                               className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
                               <FileText size={15} /> Créer une facture
                             </button>
@@ -1214,7 +1215,7 @@ export default function Quotes() {
                             </button>
                           )}
                           {q.status === 'sent' && (
-                            <button onClick={() => { setActionMenuId(null); if (confirm('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
+                            <button onClick={async () => { setActionMenuId(null); if (await confirmer('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
                               className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
                               <FileText size={15} /> Créer une facture
                             </button>
@@ -1325,7 +1326,7 @@ export default function Quotes() {
                     </button>
                   )}
                   {q.status === 'accepted' && (
-                    <button onClick={() => { setActionMenuId(null); if (confirm('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
+                    <button onClick={async () => { setActionMenuId(null); if (await confirmer('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
                       <FileText size={15} /> Créer une facture
                     </button>
@@ -1337,7 +1338,7 @@ export default function Quotes() {
                     </button>
                   )}
                   {q.status === 'sent' && (
-                    <button onClick={() => { setActionMenuId(null); if (confirm('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
+                    <button onClick={async () => { setActionMenuId(null); if (await confirmer('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
                       <FileText size={15} /> Créer une facture
                     </button>

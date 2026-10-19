@@ -18,6 +18,7 @@ import {
 } from './model'
 import { buildRichDocPDF } from './richDocPDF'
 
+import { confirmer } from '../../../ui/Confirm'
 export const VALIDATE_ROLES = ['superadmin', 'admin', 'direction']
 
 const TONE = {
@@ -176,13 +177,13 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
     setContent((c) => ({ ...c, sections: [...c.sections, { id, title: `${c.sections.filter((s) => s.title).length + 1}. Nouvelle section`, blocks: [{ t: 'p', text: '' }] }] }))
     setActive(id); setMode('modifier')
   }
-  const removeSection = () => {
-    if (!window.confirm(`Retirer la section « ${sec.title || 'Introduction'} » de ce document ?`)) return
+  const removeSection = async () => {
+    if (!await confirmer(`Retirer la section « ${sec.title || 'Introduction'} » de ce document ?`)) return
     const rest = content.sections.filter((s) => s.id !== sec.id)
     setContent((c) => ({ ...c, sections: rest })); setActive(rest[0]?.id)
   }
 
-  const close = () => { if (dirty && !window.confirm('Des modifications ne sont pas enregistrées. Fermer quand même ?')) return; onClose() }
+  const close = async () => { if (dirty && !await confirmer('Des modifications ne sont pas enregistrées. Fermer quand même ?')) return; onClose() }
 
   const persist = async (next) => {
     const { error } = await supabase.from('quality_documents').upsert({
@@ -349,7 +350,7 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
               <div className="flex flex-wrap items-center gap-2">
                 <input className="input flex-1 min-w-[200px] font-semibold" value={sec.title} placeholder="Introduction (sans titre)" onChange={(e) => setSec({ title: e.target.value })} aria-label="Titre de la section" />
                 {sectionChanged(sec, tpl) && (tpl.sections || []).some((s) => s.id === sec.id) && (
-                  <button type="button" className="btn btn-secondary" onClick={() => { if (window.confirm('Remettre cette section dans son état du modèle ?')) setContent((c) => resetSection(c, sec.id, tpl)) }}><RotateCcw className="w-4 h-4" />Revenir au modèle</button>
+                  <button type="button" className="btn btn-secondary" onClick={async () => { if (await confirmer('Remettre cette section dans son état du modèle ?')) setContent((c) => resetSection(c, sec.id, tpl)) }}><RotateCcw className="w-4 h-4" />Revenir au modèle</button>
                 )}
                 <button type="button" className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-[rgb(var(--c-danger))]" aria-label="Retirer la section" onClick={removeSection}><Trash2 className="w-4 h-4" /></button>
               </div>

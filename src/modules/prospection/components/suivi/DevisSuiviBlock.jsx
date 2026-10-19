@@ -14,6 +14,7 @@ import {
   LOST_REASONS, fmtDate, fmtMoney, quoteNextDue, todayStr, diffDays, logInteraction,
 } from './suiviUtils'
 
+import { confirmer } from '../../../../ui/Confirm'
 const STATUS_LABELS = { sent: 'Envoyé', partial: 'Accepté en partie' }
 
 function dueBadge(nextDue, today) {
@@ -111,7 +112,7 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
   const phone = client.contact_phone
 
   const relanceFaite = async () => {
-    if (!confirm(`Noter une relance faite pour les ${group.quotes.length} devis de ${client.name || 'ce client'} ?`)) return
+    if (!await confirmer(`Noter une relance faite pour les ${group.quotes.length} devis de ${client.name || 'ce client'} ?`)) return
     setBusy(true)
     try {
       const now = new Date().toISOString()
@@ -158,7 +159,7 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
   }
 
   const gagne = async (q) => {
-    if (!confirm(`Passer le devis ${q.reference} en « Accepté » ?`)) return
+    if (!await confirmer(`Passer le devis ${q.reference} en « Accepté » ?`)) return
     try {
       const now = new Date().toISOString()
       const { error } = await supabase.from('quotes')

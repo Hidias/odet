@@ -18,6 +18,7 @@ import PrepRdvModal from '../components/suivi/PrepRdvModal'
 import { OUTCOME_LABELS, authorFromEmail, todayStr, fmtDate as fmtDateLocal } from '../components/suivi/suiviUtils'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 
+import { confirmer } from '../../../ui/Confirm'
 const RESULT_LABELS = {
   chaud: ' Intéressé', tiede: ' Tiède', froid: ' Refus',
   no_answer: ' Injoignable', blocked: ' Barrage', wrong_number: ' N° erroné',
@@ -255,7 +256,7 @@ export default function ProspectRDVDetail() {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Supprimer ce RDV ?')) return
+    if (!await confirmer('Supprimer ce RDV ?')) return
     try {
       const { error } = await supabase.from('prospect_rdv').delete().eq('id', id)
       if (error) throw error

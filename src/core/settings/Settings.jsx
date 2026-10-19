@@ -20,6 +20,7 @@ import Societes from './societes/Societes'
 import { peut } from '../rights/useDroit'
 import { THEMES, FORMES, ROLES, Field, Toggle, uploadBrandingFile, ModulesSection, ColorPicker } from './shared'
 
+import { confirmer } from '../../ui/Confirm'
 const SECTIONS = [
   { id: 'identite', label: 'Identité', icon: Building2 },
   { id: 'coordonnees', label: 'Coordonnées et signataire', icon: MapPin },
@@ -502,7 +503,7 @@ function UsersSection({ isSuperadmin }) {
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
   const remove = async (p) => {
-    if (!window.confirm(`Supprimer définitivement le compte de ${p.email} ?`)) return
+    if (!await confirmer(`Supprimer définitivement le compte de ${p.email} ?`)) return
     try { await callApi('/api/admin-users', { action: 'delete', user_id: p.id }); toast.success('Compte supprimé'); load() } catch (e) { toast.error(e.message) }
   }
 

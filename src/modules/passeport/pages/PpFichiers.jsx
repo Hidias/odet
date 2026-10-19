@@ -9,6 +9,7 @@ import { useDataStore, useAuthStore } from '../../../core/store'
 import { importerAccuse, marquerFichier, apiPasseport, telechargerTexte, loadAccuses } from '../lib/ppData'
 import { lireAccuse, frDate, isoDate, daysBetween } from '../lib/rules'
 
+import { confirmer } from '../../../ui/Confirm'
 export default function PpFichiers({ fichiers, fichiersSansAccuse, format, reload, today }) {
   const { organization, fetchOrganization } = useDataStore()
   const { userRole } = useAuthStore()
@@ -51,7 +52,7 @@ export default function PpFichiers({ fichiers, fichiersSansAccuse, format, reloa
   const alerte = format.regles?.alerte_sans_accuse_jours ?? 15
 
   const numerosFictifs = async () => {
-    if (!window.confirm('Créer des numéros fictifs chiffrés pour les stagiaires de démonstration qui n\'en ont pas ?')) return
+    if (!await confirmer('Créer des numéros fictifs chiffrés pour les stagiaires de démonstration qui n\'en ont pas ?')) return
     try {
       const r = await apiPasseport('demo-seed')
       toast.success(`${r.crees} numéro${r.crees > 1 ? 's' : ''} fictif${r.crees > 1 ? 's' : ''} créé${r.crees > 1 ? 's' : ''}, ${r.laisses_sans_numero} stagiaire${r.laisses_sans_numero > 1 ? 's' : ''} laissé${r.laisses_sans_numero > 1 ? 's' : ''} sans numéro`)

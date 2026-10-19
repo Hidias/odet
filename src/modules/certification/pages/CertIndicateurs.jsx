@@ -9,6 +9,7 @@ import { IndicatorTile, StatusBadge } from '../components/ui'
 import { STATUS_LABEL } from '../lib/proofs'
 import { addProof, removeProof, saveIndicatorStatus, saveSettings, signedUrl } from '../lib/certData'
 
+import { confirmer } from '../../../ui/Confirm'
 const FILTERS = [
   ['tous', 'Tous'], ['a_traiter', 'À traiter'], ['modifies', 'Modifiés en 2026'], ['na', 'Non applicables'],
 ]
@@ -55,7 +56,7 @@ function Detail({ ind, refCode, canWrite, onChanged, onBack }) {
     try { window.open(p.file_path ? await signedUrl(p.file_path) : p.url, '_blank', 'noopener') } catch (e) { toast.error(e.message) }
   }
   const delProof = async (p) => {
-    if (!window.confirm(`Retirer la preuve « ${p.label} » ?`)) return
+    if (!await confirmer(`Retirer la preuve « ${p.label} » ?`)) return
     try { await removeProof(p); onChanged() } catch (e) { toast.error(e.message) }
   }
 

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { apiFetch } from '../api'
 import { Field } from './shared'
 
+import { confirmer } from '../../ui/Confirm'
 // Comptes email d'envoi de l'utilisateur connecté (SMTP). Le mot de passe est chiffré côté serveur
 // et n'est jamais relu par l'application.
 
@@ -74,7 +75,7 @@ export default function EmailSettings({ embedded = false }) {
     } else toast.error(r.error || 'Enregistrement impossible')
   }
   const remove = async (email) => {
-    if (!confirm(`Retirer le compte ${email} ?`)) return
+    if (!await confirmer(`Retirer le compte ${email} ?`)) return
     const r = await call('DELETE', null, `?email=${encodeURIComponent(email)}`)
     if (r.success) { toast.success('Compte retiré'); load() } else toast.error(r.error || 'Suppression impossible')
   }

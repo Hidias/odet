@@ -33,6 +33,7 @@ import {
 } from '../components/suivi/suiviUtils'
 
 
+import { confirmer } from '../../../ui/Confirm'
 function Tile({ label, value }) {
   return (
     <div className="bg-gray-50 rounded-ui-sm px-4 py-3">
@@ -230,7 +231,7 @@ export default function SuiviCommercial() {
   const triCount = data.oldAPrendre.length + data.oldPasses.length + data.oldQuotesCount + data.rappelsADecider.length
 
   const pasEuLieu = async (rdv) => {
-    if (!confirm('Ce RDV n\'a pas eu lieu : le passer en « Annulé » ?')) return
+    if (!await confirmer('Ce RDV n\'a pas eu lieu : le passer en « Annulé » ?')) return
     const now = new Date().toISOString()
     const { error } = await supabase.from('prospect_rdv')
       .update({ status: 'annule', triaged_at: now, updated_at: now })

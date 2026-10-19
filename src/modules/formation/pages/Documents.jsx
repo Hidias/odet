@@ -13,6 +13,7 @@ import CourierEditor from './CourierEditor'
 import { useDroits } from '../../../core/rights/useDroit'
 import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
+import { confirmer } from '../../../ui/Confirm'
 const categories = [
   { id: 'all', name: 'Tous' },
   { id: 'programme', name: 'Programmes' },
@@ -225,7 +226,7 @@ export default function Documents() {
   }
   
   const handleDelete = async (file) => {
-    if (!confirm(`Supprimer le fichier "${file.name}" ?`)) return
+    if (!await confirmer(`Supprimer le fichier "${file.name}" ?`)) return
     
     const { error } = await deleteUploadedFile(file.id, file.file_url)
     

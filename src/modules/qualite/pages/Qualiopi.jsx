@@ -21,6 +21,7 @@ import { brandQualityHtml } from '../lib/qualityHtml'
 import { docStatus } from '../richdocs/model'
 import { StatusChip } from '../richdocs/RichDocEditor'
 
+import { confirmer } from '../../../ui/Confirm'
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
@@ -359,7 +360,7 @@ export default function Qualiopi() {
   }
 
   const deleteDocument = async (id) => {
-    if (!confirm('Supprimer ce document ?')) return
+    if (!await confirmer('Supprimer ce document ?')) return
     
     const { error } = await supabase.from('qualiopi_documents').delete().eq('id', id)
     if (error) {
@@ -438,7 +439,7 @@ export default function Qualiopi() {
   }
 
   const deleteSource = async (id) => {
-    if (!confirm('Supprimer cette source ?')) return
+    if (!await confirmer('Supprimer cette source ?')) return
     
     const { error } = await supabase.from('veille_sources').delete().eq('id', id)
     if (!error) {
