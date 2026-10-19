@@ -266,6 +266,9 @@ const ALIASES = [
   { prefix: '/setup', to: '/parametres' },
   { prefix: '/settings/email', to: null }, // sa propre boîte d'envoi : tout compte connecté
   { prefix: '/mot-de-passe', to: null },
+  // Mon espace (congés, heures, documents) : toute personne du personnel, technicien compris ; la base ne montre que
+  // ses propres données (audit du 19/10 au soir)
+  { prefix: '/collaborateurs/mon-espace', to: null },
   { prefix: '/design-systeme', to: null },
 ]
 
