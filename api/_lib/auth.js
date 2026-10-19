@@ -141,6 +141,11 @@ export async function requireRight(req, res, codes, fallbackRoles, roles) {
     res.status(401).json({ error: 'Connexion requise' })
     return null
   }
+  // Vue groupe (C3) : lecture seule ; une action du serveur se fait toujours dans une société choisie
+  if (req.headers?.['x-company-id'] === 'groupe') {
+    res.status(403).json({ error: 'Vue groupe : lecture seule. Choisissez une société dans l\'en-tête.' })
+    return null
+  }
   const liste = Array.isArray(codes) ? codes : [codes]
   const droits = await droitsDeLAppelant(req)
   if (droits) {

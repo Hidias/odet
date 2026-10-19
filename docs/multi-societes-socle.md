@@ -82,3 +82,26 @@ Générées par `scripts/securite/societes_c2.py` (classes de la spec § 3, list
   l'objet sous la session de l'appelant avant traitement), numérotation des sessions et devis par société, identité des
   PDF et emails par société, rangement des nouveaux fichiers par société, échéances de certification par société
   (`cert_settings` est aujourd'hui une ligne unique).
+
+## Interface multi-sociétés (chantier C3, migration 0277)
+
+Générée par `scripts/securite/societes_c3.py` (fonctions existantes lues en base locale, modifications vérifiées).
+
+- **Vue groupe** : en-tête `x-company-id: groupe`, réservée aux appartenances « vue groupe » ; société courante vide,
+  toute écriture refusée (règles de C2 et routes `/api`), droits = ceux que le compte a dans toutes ses sociétés.
+- **Modules par société** : `app.module_on` = installé sur l'instance et actif dans la société courante.
+- **Création d'une société** : `company_create` (plateforme) en une fois : société, siège, modules, réglages de
+  facturation, premières appartenances. Accès et modules ensuite par `company_member_set` et `company_module_set`
+  (administrateur de la société ou plateforme), écrits au journal.
+- **Identité par société** : `app.identite_societe` (réglages de l'organisme pour la société de l'instance, fiche de
+  la société sinon) pour le contrôle et l'émission des factures (vendeur figé), le Factur-X (`getOrgForCompany`), les
+  initiales des sessions ; à l'écran, `company_identity` remplace l'identité de l'organisme pour les documents.
+- **Numérotation** : numéros uniques par société (factures, devis, sessions) ; compteur et reprise des factures par
+  société.
+- **Comptes** : un compte rattaché à une autre société n'est plus ajouté d'office à la société de l'instance.
+- **Écran** : sélecteur dans l'en-tête et écran de choix (plusieurs sociétés), bandeau de la vue groupe,
+  Paramètres › Sociétés (liste, fiche, modules, accès, assistant en quatre étapes avec l'annuaire officiel),
+  « Pour quelle société ? » sur la fiche client. La société choisie est envoyée aussi aux routes `/api`.
+- Avec une seule société, rien ne s'affiche de nouveau.
+- Reste (petit, sans effet tant qu'il n'y a qu'une société) : rangement des nouveaux fichiers par société, échéances de
+  certification par société, défauts de partage réglables (aujourd'hui : société courante seule).

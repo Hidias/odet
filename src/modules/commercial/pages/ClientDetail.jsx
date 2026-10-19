@@ -16,6 +16,7 @@ import { canExportVCard, buildVCard, buildVCards, clientAsContact, vcfFilename, 
 import { publicBaseUrl } from '../../../core/org/orgUtils'
 import { tvaFromSiren, pappersUrl, annuaireUrl } from '../../../core/org/tva'
 import AnnuaireClient from '../components/AnnuaireClient'
+import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
 // ═══════════════════════════════════════════════════════════
@@ -469,6 +470,8 @@ export default function ClientDetail() {
       chorus_engagement_required: editForm.client_type === 'public' ? !!editForm.chorus_engagement_required : false,
       // OPCO (0368) : date d'accord à partir de laquelle la subrogation n'est plus acceptée
       ...(editForm.client_type === 'opco' ? { opco_subrogation_end: editForm.opco_subrogation_end || null } : {}),
+      // Sociétés qui voient la fiche (C3), seulement si plusieurs sociétés
+      ...(Array.isArray(editForm.company_ids) && editForm._societes_modifiees ? { company_ids: editForm.company_ids } : {}),
     }).eq('id', id)
     if (error) return toast.error('Erreur sauvegarde')
     toast.success(wasAutoPromoted ? 'Fiche complétée → statut passé en Prospect ' : 'Client mis à jour', wasAutoPromoted ? { icon: '' } : {})
@@ -1293,6 +1296,7 @@ export default function ClientDetail() {
                       </label>
                     </div>
                   )}
+                  <ChoixSocietesFiche value={editForm.company_ids} onChange={(ids) => setEditForm({ ...editForm, company_ids: ids, _societes_modifiees: true })} />
                   {editForm.client_type === 'opco' && (
                     <div>
                       <label className="text-ui-sm text-gray-500 mb-1 block">Subrogation refusée pour les accords datés à partir du <span className="text-gray-400">(vide = acceptée)</span></label>

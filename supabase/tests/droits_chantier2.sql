@@ -1872,6 +1872,149 @@ begin
     end;
   end if;
 
+  -- Interface multi-sociétés, partie base (C3, 0277)
+  if to_regprocedure('public.company_create(jsonb)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 7;
+    declare
+      z_own uuid := (select id from public.companies where is_instance_owner limit 1); z_x uuid; z_y uuid;
+      z_h uuid := gen_random_uuid(); z_l uuid := gen_random_uuid(); z_n uuid := gen_random_uuid();
+      z_q1 uuid; z_q2 uuid; z_cli uuid; z_ok boolean; z_n1 int; z_ctx jsonb; z_inv uuid;
+    begin
+      insert into auth.users (id, email, aud, role) values
+        (z_h, 'c3.h@test.invalid', 'authenticated', 'authenticated'), (z_l, 'c3.l@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (z_h, 'c3.h@test.invalid', 'direction', true), (z_l, 'c3.l@test.invalid', 'direction', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      -- Création d'une société : refusée hors plateforme, complète par le super administrateur
+      perform set_config('request.jwt.claims', json_build_object('sub', z_h, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      z_ok := false;
+      begin perform public.company_create('{"legal_name": "Essai C3 refusée"}'); exception when insufficient_privilege then z_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      z_x := public.company_create(jsonb_build_object('legal_name', 'Essai C3 Restauration', 'siret', '52258871400017', 'naf', '56.10A',
+        'address', '1 route', 'postal_code', '29900', 'city', 'Concarneau', 'legal_form', 'SARL', 'capital', '5000',
+        'vat_number', 'FR65522588714', 'rcs', 'RCS Quimper', 'modules', jsonb_build_array('formation'),
+        'members', jsonb_build_array(jsonb_build_object('profile_id', z_h, 'role', 'direction', 'can_consolidate', true))));
+      execute 'reset role';
+      if z_ok and (select siren = '522588714' from public.companies where id = z_x)
+         and exists (select 1 from public.company_establishments where company_id = z_x and is_head_office and siret = '52258871400017')
+         and exists (select 1 from public.billing_settings where company_id = z_x)
+         and (select count(*) from public.company_modules where company_id = z_x and enabled) = 1
+         and exists (select 1 from public.company_members where company_id = z_x and profile_id = z_h and can_consolidate) then
+        v_lines := v_lines || 'OK      sa    C3 : société créée en une fois (siège, modules, facturation, accès), refusée hors plateforme'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    C3 : société créée en une fois (siège, modules, facturation, accès), refusée hors plateforme'::text; end if;
+      -- Accès à une société : administrateur de la société ou plateforme seulement
+      v_total := v_total + 1;
+      perform set_config('request.jwt.claims', json_build_object('sub', z_l, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      z_ok := false;
+      begin perform public.company_member_set(z_x, z_l, 'direction'); exception when insufficient_privilege then z_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.company_member_set(z_x, z_l, 'lecture', false, true);
+      execute 'reset role';
+      if z_ok and exists (select 1 from public.company_members where company_id = z_x and profile_id = z_l and role = 'lecture' and is_active) then
+        v_lines := v_lines || 'OK      sa    C3 : accès à une société donné par la plateforme, refusé à un autre compte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    C3 : accès à une société donné par la plateforme, refusé à un autre compte'::text; end if;
+      delete from public.company_members where company_id = z_x and profile_id = z_l;
+      update public.company_members set can_consolidate = true where profile_id = z_h and company_id = z_own;
+      update public.company_members set can_consolidate = false where profile_id = z_l;
+
+      -- Vue groupe : société courante vide, lecture des deux sociétés, écriture refusée
+      insert into public.clients (name) values ('Client C3') returning id into z_cli;
+      insert into public.quotes (reference, client_id, status) values ('DEV-C3-1', z_cli, 'draft') returning id into z_q1;
+      insert into public.quotes (reference, client_id, status, company_id) values ('DEV-C3-2', z_cli, 'draft', z_x) returning id into z_q2;
+      perform set_config('request.jwt.claims', json_build_object('sub', z_h, 'role', 'authenticated')::text, true);
+      perform set_config('request.headers', '{"x-company-id":"groupe"}', true);
+      execute 'set local role authenticated';
+      z_ctx := public.my_company_context();
+      select count(*) into z_n1 from public.quotes where id in (z_q1, z_q2);
+      z_ok := false;
+      begin insert into public.quotes (reference, client_id, status) values ('DEV-C3-G', z_cli, 'draft'); exception when insufficient_privilege then z_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.headers', '', true);
+      if (z_ctx ->> 'vue_groupe')::boolean and z_ctx ->> 'current' is null and z_n1 = 2 and z_ok then
+        v_lines := v_lines || 'OK      dir   C3 : vue groupe en lecture seule sur toutes ses sociétés'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   C3 : vue groupe en lecture seule (' || coalesce(z_ctx::text, '') || ', ' || z_n1 || ')'); end if;
+
+      -- Vue groupe demandée sans le droit : société par défaut
+      perform set_config('request.jwt.claims', json_build_object('sub', z_l, 'role', 'authenticated')::text, true);
+      perform set_config('request.headers', '{"x-company-id":"groupe"}', true);
+      execute 'set local role authenticated';
+      z_ctx := public.my_company_context();
+      execute 'reset role';
+      perform set_config('request.headers', '', true);
+      if not (z_ctx ->> 'vue_groupe')::boolean and (z_ctx ->> 'current')::uuid = z_own then
+        v_lines := v_lines || 'OK      dir   C3 : vue groupe refusée sans le droit, société par défaut'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   C3 : vue groupe refusée sans le droit, société par défaut'::text; end if;
+
+      -- Société choisie par l'en-tête : ses seuls modules
+      perform set_config('request.jwt.claims', json_build_object('sub', z_h, 'role', 'authenticated')::text, true);
+      perform set_config('request.headers', json_build_object('x-company-id', z_x)::text, true);
+      execute 'set local role authenticated';
+      z_ctx := public.my_company_context();
+      execute 'reset role';
+      perform set_config('request.headers', '', true);
+      if (z_ctx ->> 'current')::uuid = z_x and not (z_ctx -> 'modules') ? 'interventions'
+         and ((z_ctx -> 'modules') ? 'formation' or not exists (select 1 from public.org_modules where key = 'formation' and enabled)) then
+        v_lines := v_lines || 'OK      dir   C3 : modules de la société choisie seulement'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   C3 : modules de la société choisie (' || coalesce(z_ctx::text, '') || ')'); end if;
+
+      -- Identité de la société d'un document
+      if (app.identite_societe(z_x)).legal_name = 'Essai C3 Restauration' and (app.identite_societe(z_x)).siret = '52258871400017'
+         and (app.identite_societe(z_own)).legal_name is not distinct from (select legal_name from public.organization_settings limit 1) then
+        v_lines := v_lines || 'OK      base  C3 : identité de la société d''un document (instance : réglages ; autre : sa fiche)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C3 : identité de la société d''un document'::text; end if;
+
+      -- Numérotation par société : la première facture de l'autre société porte le n° 1 de sa propre série
+      v_total := v_total + 1;
+      declare z_part uuid; z_f uuid; z_r jsonb;
+      begin
+        insert into public.clients (name, address, postal_code, city, client_type, company_id) values ('Particulier C3', '1 rue', '29900', 'Concarneau', 'particulier', z_x) returning id into z_part;
+        insert into public.invoices (reference, type, client_id, invoice_date, due_date, company_id) values ('x', 'invoice', z_part, current_date, current_date + 30, z_x) returning id into z_f;
+        insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (z_f, 0, 'Repas', 1, 100, 10);
+        perform set_config('request.jwt.claims', json_build_object('sub', z_h, 'role', 'authenticated')::text, true);
+        perform set_config('request.headers', json_build_object('x-company-id', z_x)::text, true);
+        execute 'set local role authenticated';
+        z_r := public.billing_issue(z_f);
+        execute 'reset role';
+        perform set_config('request.headers', '', true);
+        if z_r ->> 'reference' like '%00001' and (select seller_snapshot ->> 'legal_name' from public.invoices where id = z_f) = 'Essai C3 Restauration' then
+          v_lines := v_lines || 'OK      dir   C3 : numérotation propre à la société, vendeur figé = la société'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   C3 : numérotation propre à la société (' || coalesce(z_r::text, '') || ')'); end if;
+      end;
+
+      -- Facture de l'autre société : vendeur contrôlé sur sa fiche (capital manquant signalé)
+      update public.companies set capital = null where id = z_x;
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date, company_id) values ('x', 'invoice', z_cli, current_date, current_date + 30, z_x) returning id into z_inv;
+      if exists (select 1 from jsonb_array_elements(app.billing_check(z_inv) -> 'points') p where p ->> 'code' = 'vendeur_capital') then
+        v_lines := v_lines || 'OK      base  C3 : facture contrôlée avec l''identité de sa société'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C3 : facture contrôlée avec l''identité de sa société'::text; end if;
+
+      -- Compte rattaché à une autre société seulement : un changement de son profil ne l'ajoute pas à la société de l'instance
+      insert into auth.users (id, email, aud, role) values (z_n, 'c3.n@test.invalid', 'authenticated', 'authenticated');
+      delete from public.company_members where profile_id = z_n;
+      insert into public.company_members (company_id, profile_id, role, is_default) values (z_x, z_n, 'gestionnaire', true);
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (z_n, 'c3.n@test.invalid', 'gestionnaire', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      if not exists (select 1 from public.company_members where profile_id = z_n and company_id = z_own) then
+        v_lines := v_lines || 'OK      base  C3 : compte propre à une société, pas rattaché d''office à la société de l''instance'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C3 : compte propre à une société, pas rattaché d''office'::text; end if;
+
+      perform set_config('request.jwt.claims', '', true);
+      -- Pas de suppression de la société fictive : elle porte une facture émise (verrou) ; l'erreur finale annule tout
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end

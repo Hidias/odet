@@ -5,16 +5,34 @@
 
 const BRANDING_CACHE_KEY = 'odet.branding.v1'
 let brandingCache = null
+let societeCache = null
 let teamCache = []
 let meCache = null
 
 export function setOrgCache(b) { brandingCache = b }
+
+// Identité de la société courante quand ce n'est pas la société de l'instance (C3) : elle remplace les champs
+// juridiques et de contact de l'organisme pour les documents ; la marque de l'application reste celle du groupe.
+export function setSocieteCache(identite) {
+  societeCache = identite ? {
+    org_name: identite.name || identite.legal_name, legal_name: identite.legal_name, email: identite.email,
+    phone: identite.phone, website: identite.website, address: identite.address, postal_code: identite.postal_code,
+    city: identite.city, siret: identite.siret, nda: identite.nda, doc_prefix: identite.doc_prefix,
+  } : null
+}
 export function setTeamCache(list) { teamCache = Array.isArray(list) ? list : [] }
 export function setCurrentProfile(p) { meCache = p || null }
 
-function b() {
+function brut() {
   if (brandingCache) return brandingCache
   try { return JSON.parse(localStorage.getItem(BRANDING_CACHE_KEY) || '{}') } catch { return {} }
+}
+
+function b() {
+  if (!societeCache) return brut()
+  const out = { ...brut() }
+  for (const [k, v] of Object.entries(societeCache)) out[k] = v ?? null
+  return out
 }
 
 export const orgName = () => b().org_name || ''

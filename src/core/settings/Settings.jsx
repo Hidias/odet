@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks,
+  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks, Network,
 } from 'lucide-react'
 import { useDataStore, useAuthStore } from '../store'
 import { supabase } from '../supabase'
@@ -16,6 +16,7 @@ import MentionsFactures from './facturation/MentionsFactures'
 import TransmissionComptable from './facturation/TransmissionComptable'
 import DroitsPersonnes from './droits/DroitsPersonnes'
 import ProfilsDroits from './droits/ProfilsDroits'
+import Societes from './societes/Societes'
 import { peut } from '../rights/useDroit'
 import { THEMES, FORMES, ROLES, Field, Toggle, uploadBrandingFile, ModulesSection, ColorPicker } from './shared'
 
@@ -33,6 +34,8 @@ const SECTIONS = [
   { id: 'droits', label: 'Droits des personnes', icon: UserCog, right: 'parametres.droits.attribuer' },
   { id: 'profils', label: 'Profils de droits', icon: ListChecks, right: 'parametres.profils.gerer' },
   { id: 'comptable', label: 'Accès comptable', icon: Calculator },
+  // Sociétés (C3) : plateforme, ou administrateur d'une société avec la licence totale
+  { id: 'societes', label: 'Sociétés', icon: Network, right: ['plateforme.administrer', 'parametres.organisme.modifier'] },
 ]
 
 const ORG_FIELDS = [
@@ -48,6 +51,7 @@ const ORG_FIELDS = [
 
 export default function Settings() {
   const { organization, fetchOrganization, updateOrganization } = useDataStore()
+  const surchargee = useDataStore((st) => st.organizationSurchargee)
   const { userRole, refreshModules, modules, can } = useAuthStore()
   useAuthStore((st) => st.rights)
   const sections = SECTIONS.filter((s) => !s.right || peut(can, userRole, s.right, []))
@@ -138,6 +142,13 @@ export default function Settings() {
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Enregistrer
         </button>
       </div>
+
+      {surchargee && (
+        <div className="rounded-ui border border-gray-300 bg-gray-50 p-3 text-ui">
+          Vous travaillez dans une société qui ne porte pas l'instance : son identité, sa banque et ses initiales se règlent dans
+          Paramètres › Sociétés. Les champs d'identité enregistrés ici ne la modifient pas.
+        </div>
+      )}
 
       {missing.length > 0 && (
         <div className="rounded-ui border p-3 text-ui" style={{ background: 'rgb(var(--c-warning-bg))', borderColor: 'rgb(var(--c-warning) / 0.3)', color: 'rgb(var(--c-warning))' }}>
@@ -354,6 +365,7 @@ export default function Settings() {
           {section === 'comptable' && <ComptableSection />}
           {section === 'droits' && sections.some((s) => s.id === 'droits') && <DroitsPersonnes />}
           {section === 'profils' && sections.some((s) => s.id === 'profils') && <ProfilsDroits />}
+          {section === 'societes' && sections.some((s) => s.id === 'societes') && <Societes />}
         </div>
       </div>
     </div>
