@@ -13,7 +13,9 @@ applyCachedUiPrefs()
 // Après une mise à jour, un onglet resté ouvert réclame des fichiers qui n'existent plus
 // (page blanche). On recharge alors la page une fois, sans boucle (au plus une fois par minute).
 // La règle est dans core/errors/chunkReload.js, partagée avec l'écran d'erreur.
-window.addEventListener('vite:preloadError', (e) => { e.preventDefault(); reloadOnceAfterUpdate() })
+// Si le rechargement a déjà eu lieu, l'erreur n'est plus avalée : elle porte l'adresse du fichier en cause, s'affiche
+// et remonte au suivi des erreurs (sinon React.lazy recevait un module vide : « reading 'default' »).
+window.addEventListener('vite:preloadError', (e) => { if (reloadOnceAfterUpdate()) e.preventDefault() })
 window.addEventListener('error', (e) => { if (CHUNK_ERROR.test(e?.message || e?.error?.message || '')) reloadOnceAfterUpdate() })
 window.addEventListener('unhandledrejection', (e) => { if (CHUNK_ERROR.test(e?.reason?.message || '')) reloadOnceAfterUpdate() })
 

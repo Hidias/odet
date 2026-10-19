@@ -1,6 +1,7 @@
 // Remontée des erreurs du navigateur vers la table error_logs (fonction log_error).
 // Ne bloque jamais l'application : toute erreur d'envoi est ignorée.
-// Garde-fous : erreurs de chargement après mise à jour ignorées (rechargement automatique),
+// Garde-fous : erreurs de chargement après mise à jour ignorées (rechargement automatique), sauf si elles persistent
+// après le rechargement (option force),
 // même erreur envoyée une seule fois par minute, 20 envois au plus par page ouverte.
 import { supabase } from '../supabase'
 import { APP_VERSION } from '../version'
@@ -43,7 +44,8 @@ function normalize(err) {
 export function reportError(err, extra = {}) {
   try {
     const { message, stack } = normalize(err)
-    if (!message || IGNORED.some((re) => re.test(message))) return
+    // Chargement d'un fichier : ignoré quand un rechargement automatique suit ; remonté quand l'erreur persiste
+    if (!message || (!(extra.force && CHUNK_ERROR.test(message)) && IGNORED.some((re) => re.test(message)))) return
     if (/chrome-extension:|moz-extension:|safari-extension:/.test(stack)) return // extension du navigateur
     const key = `${message}|${(stack.split('\n')[1] || '').trim()}`
     const last = sent.get(key) || 0

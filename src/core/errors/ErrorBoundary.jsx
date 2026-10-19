@@ -17,9 +17,10 @@ export class PageErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    // Fichier introuvable après une mise à jour : même comportement qu'avant, rechargement automatique
-    if (CHUNK_ERROR.test(error?.message || '')) { reloadOnceAfterUpdate(); return }
-    reportError(error, { componentStack: info?.componentStack })
+    // Fichier introuvable après une mise à jour : rechargement automatique une fois ; si l'erreur persiste après ce
+    // rechargement, elle est affichée et remontée au suivi des erreurs (correctif du 19/10)
+    if (CHUNK_ERROR.test(error?.message || '') && reloadOnceAfterUpdate()) return
+    reportError(error, { componentStack: info?.componentStack, force: true })
   }
 
   render() {
@@ -34,6 +35,9 @@ export class PageErrorBoundary extends Component {
           <div>
             <h1 className="section-title">Un problème est survenu</h1>
             <p className="muted mt-2">L'équipe est prévenue. Rechargez la page pour réessayer.</p>
+            {CHUNK_ERROR.test(this.state.error?.message || '') && (
+              <p className="muted mt-2 text-ui-sm">Un fichier de l'application n'a pas pu être chargé. Si le problème revient, rechargez sans le cache du navigateur : Ctrl + Maj + R (Cmd + Maj + R sur Mac).</p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
             <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}><RefreshCw className="w-4 h-4" /> Recharger la page</button>
