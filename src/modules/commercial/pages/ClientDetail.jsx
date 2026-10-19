@@ -23,6 +23,7 @@ import ComptesEntreprise from '../components/ComptesEntreprise'
 import PistesClient from '../components/PistesClient'
 import RegistreClient from '../../registre/components/RegistreClient'
 import CaClient from '../components/CaClient'
+import AffairesClient from '../components/AffairesClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
@@ -1620,6 +1621,12 @@ export default function ClientDetail() {
 
           {/* Comptes de l'espace entreprise (lot 2, 0046) */}
           {d.espace && client && <ComptesEntreprise client={client} contacts={contacts} />}
+
+          {/* Suivi des affaires et informations commerciales (chantier 10, 0380) */}
+          {client && modulesActifs.includes('affaires') && d.devisVoir && (
+            <AffairesClient client={client} peutModifierFiche={d.modifier} peutAffaires={d.devis} peutNoter={d.historique || d.modifier}
+              onClientChange={(c) => setClient((x) => ({ ...x, ...c }))} />
+          )}
 
           {/* Pistes formation et maintenance (fonction 10) */}
           {client && modulesActifs.includes('pont') && <PistesClient clientId={client.id} />}

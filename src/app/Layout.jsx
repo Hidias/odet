@@ -2,7 +2,7 @@ import toast from 'react-hot-toast'
 import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  Menu, X, Bell, Check, LogOut, ChevronDown, Search, Settings, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
+  Menu, X, Bell, Check, LogOut, ChevronDown, Plus, Settings, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -15,8 +15,8 @@ import { useNotices } from '../core/notices/notices'
 import { supabase } from '../core/supabase'
 import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
-import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS } from '../core/branding/presets'
-import { visibleSections, visibleSettingsItems, accesPage, pageTitleFor, sectionIdFor } from '../core/modules/registry'
+import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS, modeParDefaut } from '../core/branding/presets'
+import { visibleSections, visibleSettingsItems, accesPage, pageTitleFor, sectionIdFor, entreesMenu, ongletsPour, entreePourChemin, creationsVisibles } from '../core/modules/registry'
 import PageRefusee from '../core/rights/PageRefusee'
 import { SelecteurSociete, ChoixSociete, BandeauVueGroupe } from '../core/company/SelecteurSociete'
 
@@ -45,6 +45,9 @@ const NOTIF_ICONS = {
 
 const MENU_KEY = 'menu.sections.v1'
 
+// L'adresse est-elle celle de l'entrée (ou d'une de ses pages filles) ?
+const surRoute = (pathname, to) => (to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(to + '/'))
+
 function initials(profile, user) {
   const name = profile?.display_name || user?.email || ''
   const parts = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean)
@@ -63,13 +66,23 @@ export default function Layout() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showDisplay, setShowDisplay] = useState(false)
+  const [showNouveau, setShowNouveau] = useState(false)
 
-  // Technicien de terrain : seulement l'entrée Interventions, ni paramètres, ni recherche, ni notifications
-  const sections = useMemo(() => {
+  // Mode simple ou complet (réglage personnel ; par défaut selon le rôle)
+  const mode = prefs.mode || modeParDefaut(userRole)
+  const simple = mode === 'simple'
+  // Technicien de terrain : seulement l'entrée Interventions, ni paramètres, ni recherche, ni notifications.
+  // sectionsCompletes : tout ce que le compte peut ouvrir (onglets des groupes) ; sections : le menu (simple ou complet)
+  const sectionsCompletes = useMemo(() => {
     const all = visibleSections(modules, userRole, can)
     if (!fieldOnly) return all
     return all.map((s) => ({ ...s, items: s.items.filter((i) => i.to === '/interventions') })).filter((s) => s.items.length > 0)
   }, [modules, userRole, fieldOnly, rights, can])
+  const sections = useMemo(() => {
+    if (!simple || fieldOnly) return sectionsCompletes
+    return visibleSections(modules, userRole, can, { simple: true })
+  }, [simple, fieldOnly, sectionsCompletes, modules, userRole, rights, can])
+  const creations = useMemo(() => (fieldOnly ? [] : creationsVisibles(modules, userRole, can)), [fieldOnly, modules, userRole, rights, can])
   // Bandeau d'information et « Quoi de neuf » (chantier A) : état lu par la base, relu toutes les 15 minutes
   const notices = useNotices()
   const chargerNotices = notices.charger
@@ -86,7 +99,11 @@ export default function Layout() {
   const pageAutorisee = useMemo(() => accesPage(location.pathname, userRole, can), [location.pathname, userRole, rights, can])
   const fieldAllowed = !fieldOnly || location.pathname.startsWith('/interventions') || location.pathname === '/mot-de-passe'
   const activeSectionId = useMemo(() => sectionIdFor(location.pathname) || sections[0]?.id, [location.pathname, sections])
+  const basculerMode = () => update({ mode: simple ? 'complet' : 'simple' })
   const pageTitle = useMemo(() => pageTitleFor(location.pathname), [location.pathname])
+  // Pages d'un même groupe (ex. Catalogue, Tests et quiz, Obligations) : onglets en haut de la page
+  const onglets = useMemo(() => ongletsPour(location.pathname, sectionsCompletes), [location.pathname, sectionsCompletes])
+  const ongletActif = useMemo(() => entreePourChemin(location.pathname)?.to, [location.pathname])
 
   // Barre de navigation en bas sur téléphone : les 4 destinations principales disponibles pour ce rôle et ces modules, puis « Plus » (menu complet)
   const bottomItems = useMemo(() => {
@@ -216,7 +233,7 @@ export default function Layout() {
       to={item.to}
       end={item.to === '/'}
       className={({ isActive }) => `flex items-center gap-3 ${indent ? 'pl-5 pr-3' : 'px-3'} py-2 rounded-ui-sm text-ui transition-colors ${
-        isActive ? navActive : `${navMuted} ${navHover}`
+        isActive || (item.routes || []).some((r) => surRoute(location.pathname, r)) ? navActive : `${navMuted} ${navHover}`
       }`}
     >
       <item.icon className="w-[18px] h-[18px] flex-none" />
@@ -232,7 +249,8 @@ export default function Layout() {
         const isOpen = openSections[section.id] === true
         const isActiveSection = activeSectionId === section.id
         // Accueil, ou section réduite à une seule page (selon les modules et les droits) : la page directement, sans repli
-        if (section.flat || section.items.length === 1) return <div key={section.id} className="mb-1 space-y-0.5">{section.items.map((item) => navItem(item))}</div>
+        const entrees = entreesMenu(section.items)
+        if (section.flat || entrees.length === 1) return <div key={section.id} className="mb-1 space-y-0.5">{entrees.map((item) => navItem(item))}</div>
         const SectionIcon = section.icon
         return (
           <div key={section.id} className="mb-1">
@@ -245,18 +263,23 @@ export default function Layout() {
               <span className={`flex items-center gap-2 text-ui-sm font-semibold uppercase tracking-[0.12em] ${isActiveSection ? (navIsDark ? 'text-nav-fg' : 'text-gray-900') : navMuted}`}>
                 {SectionIcon && <SectionIcon className="w-4 h-4 flex-none" aria-hidden="true" />}
                 {section.label}
-                {!isOpen && <span className="font-normal normal-case tracking-normal opacity-70">({section.items.length})</span>}
+                {!isOpen && <span className="font-normal normal-case tracking-normal opacity-70">({entrees.length})</span>}
               </span>
               <ChevronDown className={`w-4 h-4 ${navMuted} transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             {isOpen && (
               <div className="mt-0.5 space-y-0.5">
-                {section.items.map((item) => navItem(item, true))}
+                {entrees.map((item) => navItem(item, true))}
               </div>
             )}
           </div>
         )
       })}
+      {!fieldOnly && (
+        <button type="button" onClick={basculerMode} className={`w-full text-left px-3 py-1.5 text-ui-sm underline-offset-2 hover:underline ${navMuted}`}>
+          {simple ? 'Afficher tout le menu' : 'Menu simple'}
+        </button>
+      )}
       {settingsItems.length > 0 && (
         <div className={`mt-2 pt-2 border-t ${navIsDark ? 'border-nav-fg/10' : 'border-gray-200'} space-y-0.5`}>
           {settingsItems.map((item) => navItem(item))}
@@ -283,8 +306,8 @@ export default function Layout() {
   // ─── Variante rail : barre d'icônes avec libellés + sous-menu ───────────
   // Une section à une seule entrée ouvre directement sa page ; les autres affichent leurs pages à côté, sans changer de page.
   const railSectionObj = sections.find((s) => s.id === railSection) || sections[0]
-  const railBtn = (on) => `w-[68px] min-h-[52px] py-1.5 px-1 rounded-ui-sm flex flex-col items-center justify-center gap-1 transition-colors ${on ? 'bg-accent-500 text-accent-fg' : 'text-nav-fg/70 hover:bg-nav-fg/10 hover:text-nav-fg'}`
-  const railLabel = 'text-[10.5px] leading-tight text-center w-full truncate'
+  const railBtn = (on) => `w-[70px] min-h-[52px] py-1.5 px-0.5 rounded-ui-sm flex flex-col items-center justify-center gap-1 transition-colors ${on ? 'bg-accent-500 text-accent-fg' : 'text-nav-fg/70 hover:bg-nav-fg/10 hover:text-nav-fg'}`
+  const railLabel = 'text-[10px] tracking-tight leading-tight text-center w-full truncate'
   const rail = () => (
     <>
       <div className="w-[76px] bg-nav flex flex-col items-center py-3 gap-1 flex-none overflow-y-auto">
@@ -293,7 +316,7 @@ export default function Layout() {
         </div>}
         {sections.map((s) => {
           const Icon = s.icon || s.items[0]?.icon
-          const seule = s.items.length === 1
+          const seule = entreesMenu(s.items).length === 1
           const on = seule ? activeSectionId === s.id : railSection === s.id
           return (
             <button
@@ -309,6 +332,12 @@ export default function Layout() {
             </button>
           )
         })}
+        {!fieldOnly && (
+          <button type="button" onClick={basculerMode} title={simple ? 'Afficher tout le menu' : 'Menu simple'} className={railBtn(false)}>
+            <MoreHorizontal className="w-5 h-5 flex-none" aria-hidden="true" />
+            <span className={railLabel}>{simple ? 'Tout' : 'Simple'}</span>
+          </button>
+        )}
         <div className="flex-1 min-h-2" />
         {settingsItems.map((item) => (
           <NavLink key={item.to} to={item.to} title={item.label}
@@ -326,9 +355,9 @@ export default function Layout() {
           <div className="text-ui-sm text-gray-500 truncate">{branding.app_name || branding.org_name}</div>
         </div>
         <nav className="flex-1 overflow-y-auto px-2 space-y-0.5">
-          {railSectionObj?.items.map((item) => (
+          {entreesMenu(railSectionObj?.items).map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'}
-              className={({ isActive }) => `flex items-center gap-2.5 px-2.5 py-1.5 rounded-ui-sm text-ui ${isActive ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+              className={({ isActive }) => `flex items-center gap-2.5 px-2.5 py-1.5 rounded-ui-sm text-ui ${isActive || (item.routes || []).some((r) => surRoute(location.pathname, r)) ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
               <item.icon className="w-4 h-4 flex-none" aria-hidden="true" />
               <span className="truncate flex-1">{item.label}</span>
               {item.soon && <span className="badge badge-neutral" style={{ height: 18, fontSize: 10.5 }}>bientôt</span>}
@@ -356,6 +385,15 @@ export default function Layout() {
   const displayMenu = () => (
     <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-md z-50 p-3 animate-fadeIn">
       <div className="font-display font-semibold mb-2">Affichage</div>
+      <div className="grid grid-cols-2 gap-2 mb-3" role="radiogroup" aria-label="Mode">
+        {[['simple', 'Simple', 'Les pages du quotidien, le reste en onglets'], ['complet', 'Complet', 'Toutes les pages dans le menu']].map(([k, label, desc]) => (
+          <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => update({ mode: k })}
+            className={`rounded-ui-sm border p-2 text-left ${mode === k ? 'border-accent-500 ring-2 ring-accent-500/20' : 'border-gray-200 hover:border-gray-300'}`}>
+            <div className="text-ui font-semibold">{label}</div>
+            <div className="text-ui-sm text-gray-500 leading-tight mt-0.5">{desc}</div>
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-3 gap-2 mb-3">
         {Object.entries(UI_PRESETS).map(([key, p]) => (
           <button key={key} type="button" onClick={() => update({ preset: key })}
@@ -420,7 +458,7 @@ export default function Layout() {
     </div>
   )
 
-  const closeMenus = () => { setShowNotifications(false); setShowUserMenu(false); setShowDisplay(false) }
+  const closeMenus = () => { setShowNotifications(false); setShowUserMenu(false); setShowDisplay(false); setShowNouveau(false) }
 
   return (
     <div className="min-h-screen flex">
@@ -480,19 +518,24 @@ export default function Layout() {
             </div>
             <h1 className="hidden lg:block font-display font-semibold text-gray-900 truncate" style={{ fontSize: 'calc(var(--text-ui) * 1.15)' }}>{pageTitle}</h1>
             <div className="flex-1" />
-            {!fieldOnly && <button type="button" title="Recherche (bientôt)" className="hidden md:flex items-center gap-2 h-9 px-3 rounded-ui-sm border border-gray-200 text-gray-400 text-ui-sm w-64 bg-white">
-              <Search className="w-4 h-4" /><span className="flex-1 text-left">Rechercher</span>
-            </button>}
+            {creations.length > 0 && (
+              <div className="relative">
+                <button type="button" onClick={() => { const v = !showNouveau; closeMenus(); setShowNouveau(v) }} aria-haspopup="menu" aria-expanded={showNouveau}
+                  className="btn btn-primary h-9 px-3"><Plus className="w-4 h-4" /><span className="hidden sm:inline">Nouveau</span></button>
+                {showNouveau && (
+                  <div role="menu" className="absolute right-0 top-11 w-56 bg-white rounded-ui border border-gray-200 shadow-md z-50 py-1 animate-fadeIn">
+                    {creations.map((c) => (
+                      <button key={c.to} type="button" role="menuitem" className="w-full text-left px-3 py-2 text-ui text-gray-700 hover:bg-gray-50"
+                        onClick={() => { closeMenus(); navigate(c.to, c.sansOuverture ? undefined : { state: { openNew: true } }) }}>
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <SelecteurSociete />
-
-            <div className="relative">
-              <button type="button" onClick={() => { const v = !showDisplay; closeMenus(); setShowDisplay(v) }} aria-label="Affichage" title="Affichage"
-                className={`h-9 w-9 rounded-ui-sm flex items-center justify-center hover:bg-gray-100 ${showDisplay ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}>
-                <SlidersHorizontal className="w-5 h-5" />
-              </button>
-              {showDisplay && displayMenu()}
-            </div>
 
             {!fieldOnly && <div className="relative">
               <button type="button" onClick={() => { const v = !showNotifications; closeMenus(); setShowNotifications(v) }} aria-label="Notifications"
@@ -516,6 +559,7 @@ export default function Layout() {
                 </span>
                 <ChevronDown className="w-4 h-4 text-gray-500 hidden sm:block" />
               </button>
+              {showDisplay && displayMenu()}
               {showUserMenu && (
                 <div className="absolute right-0 top-11 w-64 bg-white rounded-ui border border-gray-200 shadow-md z-50 overflow-hidden animate-fadeIn">
                   <div className="px-3 py-3 border-b border-gray-100">
@@ -530,6 +574,9 @@ export default function Layout() {
                         {item.dot && <span className="ml-auto badge badge-warning" style={{ height: 18, fontSize: 10.5 }}>nouveau</span>}
                       </NavLink>
                     ))}
+                    <button type="button" onClick={() => { closeMenus(); setShowDisplay(true) }} className="w-full flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
+                      <SlidersHorizontal className="w-4 h-4" />Affichage
+                    </button>
                     <NavLink to="/settings/email" onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                       <Mail className="w-4 h-4" />Mes comptes email
                     </NavLink>
@@ -546,7 +593,7 @@ export default function Layout() {
           </div>
         </header>
 
-        {(showNotifications || showUserMenu || showDisplay) && <div className="fixed inset-0 z-10" onClick={closeMenus} />}
+        {(showNotifications || showUserMenu || showDisplay || showNouveau) && <div className="fixed inset-0 z-10" onClick={closeMenus} />}
 
         <main className={`max-w-7xl mx-auto ${showBottomNav ? 'has-bottom-nav' : ''}`} style={{ padding: 'var(--space-4) var(--page-px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
           {branding?.demo_mode && (
@@ -559,6 +606,18 @@ export default function Layout() {
             <BandeauInfo nouveautes={!fieldOnly && (modules || []).includes('nouveautes')} retours={retoursActif !== false} />
           )}
           <BandeauVueGroupe />
+          {onglets.length > 1 && (
+            <nav aria-label="Pages de la rubrique" className="tabs mb-4">
+              <div className="flex gap-1 overflow-x-auto min-w-0 tabs-scroll">
+                {onglets.map((o) => (
+                  <NavLink key={o.to} to={o.to} className={`tab ${o.to === ongletActif ? 'tab-active' : ''} inline-flex items-center gap-1.5 whitespace-nowrap`}
+                    aria-current={o.to === ongletActif ? 'page' : undefined}>
+                    <o.icon className="w-4 h-4" aria-hidden="true" />{o.label}
+                  </NavLink>
+                ))}
+              </div>
+            </nav>
+          )}
           {!fieldAllowed ? <Navigate to="/interventions" replace />
             : pageAutorisee ? <RouteErrorBoundary><Outlet /></RouteErrorBoundary>
             : <PageRefusee accueil={location.pathname !== '/'} />}

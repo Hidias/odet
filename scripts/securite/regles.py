@@ -835,6 +835,14 @@ _DEM = f"company_id in {societes('conformite.demandes.gerer')}"
 tdx('0340', 'rgpd_demandes', sel=_DEM, ins=_DEM, upd=_DEM, dele=_DEM)
 _VIO = f"company_id in {societes('conformite.violations.gerer')}"
 tdx('0340', 'rgpd_violations', sel=_VIO, ins=_VIO, upd=_VIO, dele=_VIO)
+# Chantier 10, suivi des affaires (0380) : listes lues avec les clients, réglées par qui prépare les devis ; affaires
+# (montants) lues avec les devis, tenues par qui prépare les devis ; objectifs de cadence lus avec les clients, réglés
+# par qui prépare les devis.
+_DEV_VOIR = f"company_id in {societes('commercial.devis.voir')}"
+_DEV_MOD = f"company_id in {societes('commercial.devis.modifier')}"
+tdx('0380', 'commercial_lists', sel=_CLI_VOIR, ins=_DEV_MOD, upd=_DEV_MOD, dele=_DEV_MOD)
+tdx('0380', 'opportunities', sel=_DEV_VOIR, ins=_DEV_MOD, upd=_DEV_MOD, dele=_DEV_MOD)
+tdx('0380', 'activity_targets', sel=_CLI_VOIR, ins=_DEV_MOD, upd=_DEV_MOD, dele=_DEV_MOD)
 
 
 def build_suite(migration):

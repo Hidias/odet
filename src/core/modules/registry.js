@@ -3,7 +3,7 @@ import {
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
   MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
-  Home, Store, Wrench, ClipboardList,
+  Home, Store, Wrench, ClipboardList, KanbanSquare,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -33,7 +33,7 @@ export const NAV_SECTIONS = [
     icon: Home,
     flat: true,
     items: [
-      { to: '/', icon: LayoutDashboard, label: 'Tableau de bord', roles: STAFF },
+      { simple: true, to: '/', icon: LayoutDashboard, label: 'Tableau de bord', roles: STAFF },
     ],
   },
   {
@@ -42,18 +42,18 @@ export const NAV_SECTIONS = [
     label: 'Formation',
     icon: GraduationCap,
     items: [
-      { to: '/sessions', right: ['formation.sessions.voir', 'formation.sessions.voir_siennes'], icon: Calendar, label: 'Sessions', roles: STAFF },
-      { to: '/formations', right: 'formation.catalogue.voir', icon: GraduationCap, label: 'Catalogue', roles: STAFF },
-      { to: '/stagiaires', right: ['formation.stagiaires.voir', 'formation.stagiaires.voir_siens'], icon: Users, label: 'Stagiaires', roles: STAFF },
-      { to: '/passeport', right: 'passeport.declarations.gerer', icon: BookUser, label: 'Passeport de prévention', roles: MANAGERS, module: 'passeport' },
-      { to: '/formateurs', right: 'formation.formateurs.gerer', icon: UserCheck, label: 'Formateurs', roles: MANAGERS },
-      // Sous-traitance, donneur d'ordres (lot 2, 0045) : prestataires, justificatifs, bons de commande
-      { to: '/sous-traitants', right: 'formation.formateurs.voir', icon: Briefcase, label: 'Sous-traitants', roles: MANAGERS },
-      { to: '/documents', right: 'formation.documents.voir', icon: FileText, label: 'Documents', roles: STAFF },
-      { to: '/documents-vierges', right: 'formation.documents.voir', icon: FileQuestion, label: 'Documents vierges', roles: STAFF },
-      { to: '/tests-positionnement', right: 'formation.catalogue.voir', icon: ClipboardCheck, label: 'Tests et quiz', roles: STAFF },
+      { simple: true, to: '/sessions', right: ['formation.sessions.voir', 'formation.sessions.voir_siennes'], icon: Calendar, label: 'Sessions', roles: STAFF },
+      { simple: true, to: '/formations', right: 'formation.catalogue.voir', icon: GraduationCap, label: 'Catalogue', roles: STAFF, groupe: 'catalogue' },
+      { to: '/tests-positionnement', right: 'formation.catalogue.voir', icon: ClipboardCheck, label: 'Tests et quiz', roles: STAFF, groupe: 'catalogue' },
       // Référentiel des obligations (lot 2, 0042) : périodicités des formations, du matériel et des exercices
-      { to: '/obligations', right: 'formation.catalogue.voir', icon: CalendarClock, label: 'Obligations', roles: MANAGERS },
+      { to: '/obligations', right: 'formation.catalogue.voir', icon: CalendarClock, label: 'Obligations', roles: MANAGERS, groupe: 'catalogue' },
+      { simple: true, to: '/stagiaires', right: ['formation.stagiaires.voir', 'formation.stagiaires.voir_siens'], icon: Users, label: 'Stagiaires', roles: STAFF },
+      { simple: true, to: '/passeport', right: 'passeport.declarations.gerer', icon: BookUser, label: 'Passeport de prévention', roles: MANAGERS, module: 'passeport' },
+      { to: '/formateurs', right: 'formation.formateurs.gerer', icon: UserCheck, label: 'Formateurs', roles: MANAGERS, groupe: 'formateurs' },
+      // Sous-traitance, donneur d'ordres (lot 2, 0045) : prestataires, justificatifs, bons de commande
+      { to: '/sous-traitants', right: 'formation.formateurs.voir', icon: Briefcase, label: 'Sous-traitants', roles: MANAGERS, groupe: 'formateurs' },
+      { to: '/documents', right: 'formation.documents.voir', icon: FileText, label: 'Documents', roles: STAFF, groupe: 'documents' },
+      { to: '/documents-vierges', right: 'formation.documents.voir', icon: FileQuestion, label: 'Documents vierges', roles: STAFF, groupe: 'documents' },
     ],
   },
   {
@@ -62,17 +62,19 @@ export const NAV_SECTIONS = [
     label: 'Commerce',
     icon: Store,
     items: [
-      { to: '/clients', right: 'clients.fiches.voir', icon: Building2, label: 'Clients', roles: STAFF },
-      { to: '/devis', right: 'commercial.devis.voir', icon: Receipt, label: 'Devis', roles: SALES },
-      { to: '/factures', right: 'facturation.factures.voir', icon: CreditCard, label: 'Factures', roles: [...SALES, 'comptable'] },
+      { simple: true, to: '/clients', right: 'clients.fiches.voir', icon: Building2, label: 'Clients', roles: STAFF },
+      // Suivi des affaires (chantier 10, 0380) : à faire, pipeline, clients à appeler
+      { simple: true, to: '/affaires', right: 'commercial.devis.voir', icon: KanbanSquare, label: 'Affaires', roles: SALES, module: 'affaires', groupe: 'affaires' },
+      { simple: true, to: '/devis', right: 'commercial.devis.voir', icon: Receipt, label: 'Devis', roles: SALES },
+      { simple: true, to: '/factures', right: 'facturation.factures.voir', icon: CreditCard, label: 'Factures', roles: [...SALES, 'comptable'] },
       // Relances préparées chaque nuit, validées à la main (lot 2, 0043)
-      { to: '/a-valider', right: 'formation.convocations.envoyer', icon: Inbox, label: 'Relances à valider', roles: SALES },
+      { simple: true, to: '/a-valider', right: 'formation.convocations.envoyer', icon: Inbox, label: 'Relances à valider', roles: SALES },
       // Demandes des comptes entreprise et actualités publiées dans leurs espaces (lot 2, 0046)
       { to: '/espace-entreprise', right: 'clients.fiches.voir', icon: Megaphone, label: 'Espace entreprise', roles: SALES },
       // Pistes entre formation et maintenance (fonction 10, 0130)
-      { to: '/pistes', right: 'clients.fiches.voir', icon: Workflow, label: 'Pistes', roles: SALES, module: 'pont' },
+      { to: '/pistes', right: 'clients.fiches.voir', icon: Workflow, label: 'Pistes', roles: SALES, module: 'pont', groupe: 'affaires' },
       // Chiffre d'affaires récurrent attendu sur 12 mois (fonction 12, 0150)
-      { to: '/previsionnel', right: 'commercial.devis.voir', icon: BarChart3, label: 'Prévisionnel', roles: SALES, module: 'previsionnel' },
+      { to: '/previsionnel', right: 'commercial.devis.voir', icon: BarChart3, label: 'Prévisionnel', roles: SALES, module: 'previsionnel', groupe: 'affaires' },
       { to: '/prospection', right: 'commercial.prospection.voir', icon: Search, label: 'Suivi commercial', roles: SALES, module: 'prospection' },
       { to: '/mailing', right: 'communication.campagnes.gerer', icon: Mail, label: 'Campagnes email', roles: SALES, module: 'mailing' },
       { to: '/prospection-massive', right: 'commercial.prospection.voir', icon: Globe, label: 'Base prospects', roles: SALES, module: 'prospection' },
@@ -86,7 +88,7 @@ export const NAV_SECTIONS = [
     label: 'Prestations',
     icon: ClipboardList,
     items: [
-      { to: '/duerp', right: 'prestations.duerp.gerer', icon: Shield, label: 'DUERP', roles: MANAGERS },
+      { simple: true, to: '/duerp', right: 'prestations.duerp.gerer', icon: Shield, label: 'DUERP', roles: MANAGERS },
     ],
   },
   {
@@ -95,8 +97,8 @@ export const NAV_SECTIONS = [
     label: 'Finance',
     icon: Wallet,
     items: [
-      { to: '/budget', right: 'finance.budget.gerer', icon: Wallet, label: 'Budget', roles: FINANCE },
-      { to: '/comptable', right: 'facturation.export.comptable', icon: Calculator, label: 'Espace comptable', roles: FINANCE, module: 'comptabilite' },
+      { simple: true, to: '/budget', right: 'finance.budget.gerer', icon: Wallet, label: 'Budget', roles: FINANCE },
+      { simple: true, to: '/comptable', right: 'facturation.export.comptable', icon: Calculator, label: 'Espace comptable', roles: FINANCE, module: 'comptabilite' },
     ],
   },
   {
@@ -105,7 +107,7 @@ export const NAV_SECTIONS = [
     label: 'Communication',
     icon: Megaphone,
     items: [
-      { to: '/social', right: 'communication.reseaux.gerer', icon: Megaphone, label: 'Réseaux sociaux', roles: SALES },
+      { simple: true, to: '/social', right: 'communication.reseaux.gerer', icon: Megaphone, label: 'Réseaux sociaux', roles: SALES },
     ],
   },
   {
@@ -114,30 +116,66 @@ export const NAV_SECTIONS = [
     label: 'Qualité',
     icon: Award,
     items: [
-      { to: '/qualite', right: 'qualite.registres.gerer', icon: FolderCheck, label: 'Processus qualité', roles: MANAGERS },
-      { to: '/qualite/completude', right: 'qualite.completude.suivre', icon: CheckCircle, label: 'Complétude', roles: MANAGERS },
+      { simple: true, to: '/qualiopi', right: 'qualite.registres.gerer', icon: Award, label: 'Qualiopi', roles: MANAGERS, groupe: 'qualiopi' },
+      { to: '/certification', right: 'qualite.certification.gerer', icon: ShieldCheck, label: 'Certification', roles: MANAGERS, module: 'certification', groupe: 'qualiopi' },
+      { to: '/qualite', right: 'qualite.registres.gerer', icon: FolderCheck, label: 'Processus qualité', roles: MANAGERS, groupe: 'qualiopi' },
+      { to: '/qualite/completude', right: 'qualite.completude.suivre', icon: CheckCircle, label: 'Dossiers à compléter', roles: MANAGERS, groupe: 'qualiopi' },
+      { to: '/bpf', right: 'qualite.registres.gerer', icon: FileText, label: 'BPF (bilan annuel)', roles: MANAGERS, groupe: 'qualiopi' },
       { to: '/indicateurs', right: 'qualite.registres.voir', icon: BarChart3, label: 'Indicateurs', roles: STAFF },
-      { to: '/non-conformites', right: 'qualite.registres.gerer', icon: AlertTriangle, label: 'Non-conformités', roles: MANAGERS },
-      { to: '/qualiopi', right: 'qualite.registres.gerer', icon: Award, label: 'Qualiopi', roles: MANAGERS },
-      { to: '/certification', right: 'qualite.certification.gerer', icon: ShieldCheck, label: 'Certification', roles: MANAGERS, module: 'certification' },
-      { to: '/bpf', right: 'qualite.registres.gerer', icon: FileText, label: 'BPF', roles: MANAGERS },
-      { to: '/veille-qualiopi', right: 'qualite.registres.gerer', icon: Eye, label: 'Veille', roles: MANAGERS },
-      { to: '/registre-psh', right: 'qualite.registres.voir', icon: Shield, label: 'Registre PSH', roles: MANAGERS },
-      { to: '/profil-stagiaires', right: 'qualite.registres.gerer', icon: Target, label: 'Profil stagiaires', roles: MANAGERS },
+      { to: '/non-conformites', right: 'qualite.registres.gerer', icon: AlertTriangle, label: 'Non-conformités', roles: MANAGERS, groupe: 'registres' },
+      { to: '/registre-psh', right: 'qualite.registres.voir', icon: Shield, label: 'Registre PSH', roles: MANAGERS, groupe: 'registres' },
+      { to: '/veille-qualiopi', right: 'qualite.registres.gerer', icon: Eye, label: 'Veille réglementaire', roles: MANAGERS, groupe: 'registres' },
+      { to: '/profil-stagiaires', right: 'qualite.registres.gerer', icon: Target, label: 'Profil des stagiaires', roles: MANAGERS, groupe: 'registres' },
       { to: '/audit-logs', right: 'conformite.journal.voir', icon: ScrollText, label: 'Journal d\'audit', roles: ADMINS },
     ],
   },
   {
     id: 'entreprise',
     module: 'interventions',
-    label: 'Entreprise',
+    label: 'Maintenance',
     icon: Wrench,
     items: [
-      { to: '/interventions', right: ['interventions.visites.voir', 'interventions.missions.voir'], icon: MapPin, label: 'Interventions', roles: STAFF },
+      { simple: true, to: '/interventions', right: ['interventions.visites.voir', 'interventions.missions.voir'], icon: MapPin, label: 'Interventions', roles: STAFF },
       { to: '/collaborateurs', right: 'rh.personnel.voir', icon: Briefcase, label: 'Collaborateurs', roles: MANAGERS, module: 'rh', soon: true },
     ],
   },
 ]
+
+// Groupes : plusieurs pages proches sous une seule entrée du menu ; la page ouverte montre les autres en onglets.
+// L'entrée du menu porte le nom du groupe et mène à la première page du groupe que le compte peut ouvrir.
+export const GROUPES = {
+  catalogue: { label: 'Catalogue', icon: GraduationCap },
+  affaires: { label: 'Affaires', icon: KanbanSquare },
+  formateurs: { label: 'Formateurs', icon: UserCheck },
+  documents: { label: 'Documents', icon: FileText },
+  qualiopi: { label: 'Qualiopi', icon: Award },
+  registres: { label: 'Registres', icon: FolderCheck },
+}
+
+// Entrées du menu d'une section : une entrée par page, ou une seule par groupe (à la place de sa première page visible)
+export function entreesMenu(items) {
+  const vus = new Set()
+  const out = []
+  for (const i of items || []) {
+    if (!i.groupe) { out.push(i); continue }
+    if (vus.has(i.groupe)) continue
+    vus.add(i.groupe)
+    const membres = items.filter((x) => x.groupe === i.groupe)
+    if (membres.length === 1) { out.push(i); continue }
+    const g = GROUPES[i.groupe] || { label: i.label, icon: i.icon }
+    out.push({ ...i, label: g.label, icon: g.icon, routes: membres.map((m) => m.to) })
+  }
+  return out
+}
+
+// Onglets à montrer pour une adresse : les pages visibles du même groupe (au moins deux), sinon rien
+export function ongletsPour(pathname, sections) {
+  const items = (sections || []).flatMap((s) => s.items)
+  const entree = entreePourChemin(pathname)
+  if (!entree?.groupe) return []
+  const membres = items.filter((i) => i.groupe === entree.groupe)
+  return membres.length > 1 ? membres : []
+}
 
 export const SETTINGS_ITEMS = [
   // Quoi de neuf (module « nouveautes », chantier A) : tout compte interne qui voit les réglages de l'organisme
@@ -169,16 +207,33 @@ export function itemAutorise(item, role, can) {
   return !roles || roles.includes(role)
 }
 
-// Filtre les sections et entrées selon les modules activés, le rôle et les droits de l'utilisateur
-export function visibleSections(enabledModules, role, can) {
+// Filtre les sections et entrées selon les modules activés, le rôle et les droits de l'utilisateur.
+// Mode simple : seulement les entrées du quotidien (`simple: true`) ; les autres pages restent accessibles par les
+// onglets de leur groupe et par leur adresse.
+export function visibleSections(enabledModules, role, can, { simple = false } = {}) {
   const enabled = new Set(enabledModules || [])
   return NAV_SECTIONS
     .filter((s) => !s.module || enabled.has(s.module))
     .map((s) => ({
       ...s,
-      items: s.items.filter((i) => (!i.module || enabled.has(i.module)) && itemAutorise(i, role, can)),
+      items: s.items.filter((i) => (!i.module || enabled.has(i.module)) && itemAutorise(i, role, can) && (!simple || i.simple)),
     }))
     .filter((s) => s.items.length > 0)
+}
+
+// Bouton « + Nouveau » : créations courantes, ouvertes sur leur page (état { openNew: true })
+export const CREATIONS = [
+  { to: '/sessions', label: 'Session', module: 'formation', right: 'formation.sessions.creer' },
+  { to: '/clients', label: 'Client', module: 'commercial', right: 'clients.fiches.modifier' },
+  { to: '/affaires', label: 'Affaire', module: 'affaires', right: 'commercial.devis.modifier' },
+  { to: '/devis', label: 'Devis', module: 'commercial', right: 'commercial.devis.modifier' },
+  { to: '/factures', label: 'Facture', module: 'commercial', right: 'facturation.factures.modifier' },
+  { to: '/interventions/planning', label: 'Intervention', module: 'interventions', right: 'interventions.visites.gerer', sansOuverture: true },
+]
+
+export function creationsVisibles(enabledModules, role, can) {
+  const enabled = new Set(enabledModules || [])
+  return CREATIONS.filter((c) => enabled.has(c.module) && can?.(c.right) !== false && itemAutorise(entreePourChemin(c.to), role, can))
 }
 
 // `modules` (facultatif) : une entrée rattachée à un module n'apparaît que si le module est actif
