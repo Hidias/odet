@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
 import {
   Home, GraduationCap, Users, MessageSquare, MoreHorizontal, Calendar, MapPin, FileText, FileSignature, ClipboardList,
@@ -486,7 +487,7 @@ function Plus_({ compte, org, salaries }) {
                     {c.duration_hours && <span className="text-xs text-gray-500 shrink-0">{String(c.duration_hours).replace('.', ',')} h</span>}
                   </div>
                   {c.objectives && <p className="text-sm text-gray-600 mt-1 line-clamp-3 whitespace-pre-line">{c.objectives}</p>}
-                  {c.program_url && <a href={c.program_url} target="_blank" rel="noreferrer" className="text-sm text-primary-700 inline-flex items-center gap-1 mt-1">Programme <ExternalLink className="w-3.5 h-3.5" /></a>}
+                  {fichierDeLInstance(c.program_url) && <a href={fichierDeLInstance(c.program_url)} target="_blank" rel="noreferrer" className="text-sm text-primary-700 inline-flex items-center gap-1 mt-1">Programme <ExternalLink className="w-3.5 h-3.5" /></a>}
                 </Carte>
               ))}
             </div>

@@ -8,6 +8,8 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { generateQuotePDF, generatePartialAcceptancePDF } from '../pdf/quoteGenerator'
+import { generatePDF, setOrganization } from '../../formation/pdf/pdfGenerator'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { useDataStore } from '../../../core/store'
 import {
   Plus, Search, FileText, ArrowLeft, Trash2, Save, Send, Copy,
@@ -514,24 +516,32 @@ export default function Quotes() {
       setSendEmail({ to: defaultTo, subject: '', body: '', customInstructions: '' })
       setSendStep(1)
 
-      // Auto-detect programs for items with course_id
+      // Programme de chaque formation du devis : PDF déposé dans le stockage de l'instance s'il existe, sinon
+      // programme généré par l'outil depuis la fiche de la formation. Jamais un fichier d'un autre outil
+      // (fichierDeLInstance) : il porterait l'identité d'un autre organisme.
       const programAttachments = []
       const courseIds = [...new Set(loadedItems.filter(it => it.course_id).map(it => it.course_id))]
       if (courseIds.length > 0) {
         const { data: coursesData } = await supabase
           .from('courses')
-          .select('id, title, code, program_url')
+          .select('*')
           .in('id', courseIds)
-        
+        if (organization) setOrganization(organization)
+
         for (const course of (coursesData || [])) {
-          if (course.program_url) {
-            programAttachments.push({
-              filename: `Programme_${course.code || course.title.replace(/\s+/g, '_')}.pdf`,
-              url: course.program_url,
-              type: 'program',
-              courseTitle: course.title,
-              enabled: true
-            })
+          const filename = `Programme_${course.code || course.title.replace(/\s+/g, '_')}.pdf`
+          const url = fichierDeLInstance(course.program_url)
+          if (url) {
+            programAttachments.push({ filename, url, type: 'program', courseTitle: course.title, enabled: true })
+          } else {
+            try {
+              const genere = await generatePDF('programme', { courses: course, reference: quote.reference })
+              if (genere?.base64) {
+                programAttachments.push({ filename, base64: genere.base64, type: 'program', courseTitle: course.title, enabled: true })
+              }
+            } catch (e) {
+              console.error('Programme non généré :', e)
+            }
           }
         }
       }
@@ -795,7 +805,7 @@ export default function Quotes() {
         .filter(att => att.type === 'program' && att.enabled && att.url)
         .map(att => ({ filename: att.filename, url: att.url }))
       const manualAttachments = sendAttachments
-        .filter(att => att.type === 'manual' && att.enabled && att.base64)
+        .filter(att => (att.type === 'manual' || (att.type === 'program' && !att.url)) && att.enabled && att.base64)
         .map(att => ({ filename: att.filename, base64: att.base64 }))
 
       const resp = await apiFetch('/api/send-quote-email', {

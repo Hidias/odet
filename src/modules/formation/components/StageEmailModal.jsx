@@ -1,4 +1,5 @@
 import { orgName, orgEmail, orgWebsite, orgCity } from '../../../core/org/currentOrg'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -95,7 +96,7 @@ export default function StageEmailModal({ session, onClose }) {
       .eq('type', 'document_stagiaire')
       .order('created_at', { ascending: false })
       .limit(1)
-      .then(({ data }) => { if (data?.length) setDocStagiaire(data[0]) })
+      .then(({ data }) => { if (data?.length && fichierDeLInstance(data[0].file_url)) setDocStagiaire(data[0]) })
   }, [session?.course_id])
 
   useEffect(() => {

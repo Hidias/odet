@@ -1,4 +1,5 @@
 import { Tabs } from '../../../ui/Tabs'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { orgName, orgEmail } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
@@ -2114,7 +2115,7 @@ export default function SessionDetail() {
 
       // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
       let programmeAdded = false
-      const programUrl = session?.courses?.program_url
+      const programUrl = fichierDeLInstance(session?.courses?.program_url) // fichier d'un autre outil écarté : programme généré
       if (programUrl) {
         try {
           const res = await fetch(programUrl)
@@ -2249,7 +2250,7 @@ export default function SessionDetail() {
 
       // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
       let programmeAdded = false
-      const programUrl = session?.courses?.program_url
+      const programUrl = fichierDeLInstance(session?.courses?.program_url) // fichier d'un autre outil écarté : programme généré
       if (programUrl) {
         try {
           const res = await fetch(programUrl)
@@ -2456,7 +2457,7 @@ export default function SessionDetail() {
     
     // Pour le programme : utiliser le fichier uploadé sur la formation si disponible
     if (docType === 'programme') {
-      const programUrl = session?.courses?.program_url
+      const programUrl = fichierDeLInstance(session?.courses?.program_url) // fichier d'un autre outil écarté : programme généré
       if (programUrl) {
         try {
           const response = await fetch(programUrl)
@@ -2565,6 +2566,10 @@ export default function SessionDetail() {
       }
       
       const programme = data[0]
+      if (!fichierDeLInstance(programme.file_url)) {
+        toast.error('Le programme déposé vient d\'un autre outil : utilisez le programme généré par l\'outil.')
+        return
+      }
       console.log('Programme trouvé:', programme.file_name, programme.file_url)
       
       // Méthode 1: Fetch + Blob (contourne les blocages popup)

@@ -11,6 +11,7 @@ import { useDataStore } from '../../../core/store'
 import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPasseportPrevention'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { readableUrl } from '../../../core/storageUtils'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 
 // ════════════════════════════════════════════════════════════
 // MiniSignaturePad - Mini canvas signature inline pour formateur
@@ -485,28 +486,34 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
           addLog('Convention générée')
         }
 
-        // ── PROGRAMME (courses.program_url uniquement) ──
+        // ── PROGRAMME : PDF déposé dans le stockage de l'instance s'il existe, sinon généré par l'outil depuis la
+        // fiche de la formation ; jamais un fichier d'un autre outil (fichierDeLInstance) ──
         addLog('Programme...')
         try {
           const { data: course } = await supabase
             .from('courses')
-            .select('program_url, title')
+            .select('*')
             .eq('id', session.course_id)
             .single()
-
-          if (course?.program_url) {
-            const response = await fetch(course.program_url)
+          const programmeName = `Programme_${course?.title || 'formation'}.pdf`
+          const url = fichierDeLInstance(course?.program_url)
+          let ajoute = false
+          if (url) {
+            const response = await fetch(url)
             if (response.ok) {
               const blob = await response.blob()
               const base64 = await blobToBase64(blob)
-              const programmeName = `Programme_${course.title || 'formation'}.pdf`
               files.push({ id: 'programme', name: programmeName, base64, size: base64.length })
               addLog('Programme récupéré')
-            } else {
-              addLog('Erreur téléchargement programme')
+              ajoute = true
             }
-          } else {
-            addLog('Programme non trouvé - uploadez-le dans la formation')
+          }
+          if (!ajoute && course) {
+            const genere = await generatePDF('programme', { ...session, courses: course }, { trainer })
+            if (genere?.base64) {
+              files.push({ id: 'programme', name: programmeName, base64: genere.base64, size: genere.size })
+              addLog('Programme généré')
+            }
           }
         } catch (e) {
           console.error('Erreur récupération programme:', e)

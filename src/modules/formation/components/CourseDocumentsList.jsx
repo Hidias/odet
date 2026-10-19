@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { supabase } from '../../../core/supabase'
 import { Upload, FileText, Download, Trash2, ChevronDown, ChevronRight, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -68,7 +69,7 @@ export default function CourseDocumentsList() {
 
       // Ajouter les program_url comme documents de type "programme"
       coursesData?.forEach(course => {
-        if (course.program_url) {
+        if (fichierDeLInstance(course.program_url)) {
           if (!docsMap[course.id]) {
             docsMap[course.id] = {}
           }
