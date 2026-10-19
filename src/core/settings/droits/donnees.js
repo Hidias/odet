@@ -36,7 +36,8 @@ export async function chargerCatalogue() {
 export function parDomaine(catalogue) {
   const groupes = new Map()
   for (const d of catalogue) {
-    const cle = d.module || d.code.split('.')[0]
+    // Domaine = premier mot du code (le champ module porte la clé du module de l'application, pas le domaine)
+    const cle = d.code.split('.')[0]
     if (!groupes.has(cle)) groupes.set(cle, [])
     groupes.get(cle).push(d)
   }

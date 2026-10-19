@@ -115,6 +115,9 @@ function FichePersonne({ personne, catalogue, profils, onClose, onChange }) {
             <input className="input pl-8" placeholder="Chercher un droit" value={filtre} onChange={(e) => setFiltre(e.target.value)} aria-label="Chercher un droit" />
           </label>
         </div>
+        {apercu && apercu.rights.size === 0 && !(personne.is_active && personne.profiles?.is_active !== false) && (
+          <Banner tone="info" title="Compte inactif">Un compte désactivé n'a aucun droit. Il se réactive dans Utilisateurs ; les réglages ci-dessous s'appliqueront alors.</Banner>
+        )}
         <p className="text-ui-sm text-gray-500">« Oui » ou « Non » est calculé par la base à partir des profils et des réglages ci-dessous. Un réglage individuel l'emporte sur les profils.</p>
         {!apercu ? <Spinner /> : domaines.map((g) => (
           <details key={g.cle} className="border hairline rounded-ui" open={!!filtre}>

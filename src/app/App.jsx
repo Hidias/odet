@@ -5,6 +5,7 @@ import { useAuthStore } from '../core/store'
 import { BrandingProvider, useBranding } from '../core/branding/BrandingProvider'
 import { authModeFromUrl } from '../core/auth/SetPassword'
 import { PageErrorBoundary, RouteErrorBoundary } from '../core/errors/ErrorBoundary'
+import { ConfirmProvider } from '../ui/Confirm'
 import { accesPage } from '../core/modules/registry'
 import PageRefusee from '../core/rights/PageRefusee'
 
@@ -169,6 +170,8 @@ export default function App() {
 
   return (
     <BrandingProvider>
+    {/* Confirmations communes (useConfirm) : une seule fenêtre pour toute l'application */}
+    <ConfirmProvider>
     <HashRouter>
       <Toaster
         position="top-right"
@@ -285,6 +288,7 @@ export default function App() {
       </Suspense>
       </RouteErrorBoundary>
     </HashRouter>
+    </ConfirmProvider>
     </BrandingProvider>
   )
 }
