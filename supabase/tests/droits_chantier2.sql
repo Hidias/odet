@@ -3738,6 +3738,78 @@ begin
     end;
   end if;
 
+  -- Stock (0240) : le gestionnaire entre du stock au dépôt, le technicien prend au dépôt pour son stock, ne voit
+  -- aucun prix, ne fait pas d'entrée ; la visite terminée sort la pièce ; les mouvements sont figés ; rien pour le
+  -- commercial
+  if to_regprocedure('public.stock_mouvement(text,uuid,numeric,uuid,uuid,text,numeric,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare
+      s_co uuid := app.company_default(); s_dep uuid; s_item uuid; s_n numeric; s_ok boolean := false; s_ok2 boolean := false;
+      s_mien uuid; s_visite uuid; s_c int; s_tech uuid;
+    begin
+      insert into public.stock_locations (company_id, kind, name) values (s_co, 'depot', 'Dépôt essai 0240') returning id into s_dep;
+      insert into public.stock_items (company_id, label, reference, sale_price_ht) values (s_co, 'Joint essai 0240', 'ESSAI-0240', 4.5) returning id into s_item;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.stock_mouvement('entree', s_item, 20, null, s_dep, 'Réception essai', 2.1);
+      s_n := (select quantity from public.v_stock_levels where item_id = s_item and location_id = s_dep);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if s_n = 20 then
+        v_lines := v_lines || 'OK      ges   0240 : entrée de 20 au dépôt, quantité calculée depuis les mouvements'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ges   0240 : entrée au dépôt (' || coalesce(s_n, -1) || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.stock_mon_stock();
+      s_mien := (select location_id from public.stock_mon_stock() limit 1);
+      if s_mien is null then s_mien := (select id from public.stock_locations where profile_id = u_tech and kind = 'technicien' limit 1); end if;
+      perform public.stock_mouvement('transfert', s_item, 3, s_dep, s_mien, 'Prise au dépôt');
+      s_n := (select quantity from public.stock_mon_stock() where item_id = s_item);
+      s_c := (select count(*) from public.stock_items) + (select count(*) from public.stock_item_costs);
+      begin perform public.stock_mouvement('entree', s_item, 5, null, s_mien); exception when insufficient_privilege then s_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if s_n = 3 and s_c = 0 and s_ok then
+        v_lines := v_lines || 'OK      tech  0240 : le technicien prend 3 au dépôt, voit son stock sans aucun prix, ne fait pas d''entrée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0240 : stock du technicien (' || coalesce(s_n, -1) || ', ' || s_c || ', ' || s_ok || ')')::text; end if;
+
+      insert into public.itv_visits (company_id, technician_id, status, planned_on, client_id, site_id)
+      select s_co, u_tech, 'en_cours', current_date, st.client_id, st.id from public.sites st where st.client_id is not null limit 1
+      returning id into s_visite;
+      insert into public.itv_visit_parts (visit_id, label, quantity, stock_item_id, company_id) values (s_visite, 'Joint', 2, s_item, s_co);
+      update public.itv_visits set status = 'terminee', finished_at = now() where id = s_visite;
+      update public.itv_visits set status = 'en_cours' where id = s_visite;
+      update public.itv_visits set status = 'terminee' where id = s_visite;
+      s_n := (select quantity from public.v_stock_levels where item_id = s_item and location_id = s_mien);
+      if s_n = 1 then
+        v_lines := v_lines || 'OK      base  0240 : la visite terminée sort la pièce du stock du technicien, une seule fois'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0240 : sortie à la clôture de la visite (' || coalesce(s_n, -1) || ')')::text; end if;
+
+      begin update public.stock_movements set quantity = 99 where item_id = s_item; exception when check_violation then s_ok2 := true; end;
+      if s_ok2 then
+        v_lines := v_lines || 'OK      base  0240 : un mouvement ne se modifie pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0240 : mouvements figés'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      s_c := (select count(*) from public.stock_items) + (select count(*) from public.stock_movements);
+      s_ok := false;
+      begin perform public.stock_mouvement('sortie', s_item, 1, s_dep, null); exception when insufficient_privilege then s_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if s_c = 0 and s_ok then
+        v_lines := v_lines || 'OK      com   0240 : le commercial ne voit ni ne mouvemente le stock'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0240 : stock caché au commercial'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0240 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

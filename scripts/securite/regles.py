@@ -932,6 +932,22 @@ tdx('0314', 'hr_reviews', sel=f"({_RH_DOS} or {_RH_MOI} or {_RH_EQ})", ins=_RH_G
 tdx('0314', 'hr_checklists', sel=f"({_RH_DOS} or {_RH_MOI})", ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
 tdx('0314', 'hr_checklist_templates', sel=_RH_VOIR, ins=_RH_PAR, upd=_RH_PAR, dele=_RH_PAR)
 
+# Module Stock, socle (0240) : fournisseurs, articles, seuils lus avec « Voir tout le stock », tenus avec « Gérer les
+# articles et les seuils » ; catégories lues aussi par qui mouvemente son stock ; prix d'achat lus seulement avec
+# « Voir les prix d'achat » ; emplacements lus avec « Voir tout le stock » ou le sien ; mouvements lus avec « Voir tout
+# le stock » ou ceux de son emplacement, écrits seulement par les fonctions (stock_mouvement, clôture de visite).
+_ST_VOIR = f"company_id in {societes('stock.voir')}"
+_ST_GER = f"company_id in {societes('stock.articles.gerer')}"
+_ST_VAL = f"company_id in {societes('stock.valeur.voir')}"
+_ST_SIEN = f"company_id in {societes('stock.sien.mouvementer')}"
+tdx('0240', 'suppliers', sel=_ST_VOIR, ins=_ST_GER, upd=_ST_GER, dele=_ST_GER)
+tdx('0240', 'stock_categories', sel=f"({_ST_VOIR} or {_ST_SIEN})", ins=_ST_GER, upd=_ST_GER, dele=_ST_GER)
+tdx('0240', 'stock_items', sel=_ST_VOIR, ins=_ST_GER, upd=_ST_GER, dele=_ST_GER)
+tdx('0240', 'stock_item_costs', sel=_ST_VAL, ins=f"({_ST_GER} and {_ST_VAL})", upd=f"({_ST_GER} and {_ST_VAL})", dele=f"({_ST_GER} and {_ST_VAL})")
+tdx('0240', 'stock_locations', sel=f"({_ST_VOIR} or id in (select app.stock_mes_emplacements()))", ins=_ST_GER, upd=_ST_GER, dele=_ST_GER)
+tdx('0240', 'stock_thresholds', sel=_ST_VOIR, ins=_ST_GER, upd=_ST_GER, dele=_ST_GER)
+tdx('0240', 'stock_movements', sel=f"({_ST_VOIR} or from_location_id in (select app.stock_mes_emplacements()) or to_location_id in (select app.stock_mes_emplacements()))")
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}

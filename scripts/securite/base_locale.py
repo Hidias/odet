@@ -189,6 +189,8 @@ ORDRE_PROD = (
     + ['0313']
     # RH : entretiens, listes d'arrivée et de départ, 19/10
     + ['0314']
+    # Module Stock, socle, 19/10
+    + ['0240']
 )
 
 
