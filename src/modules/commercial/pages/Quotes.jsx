@@ -208,7 +208,7 @@ export default function Quotes() {
 
   const emptyItem = {
     code: '', description_title: '', description_detail: '',
-    quantity: 1, unit: 'unité', unit_price_ht: 0, tva_rate: 20, course_id: ''
+    quantity: 1, unit: 'unité', unit_price_ht: 0, tva_rate: 20, course_id: '', nature: 'service', vat_regime: 'normal'
   }
 
   const predefinedMaterials = [
@@ -392,7 +392,9 @@ export default function Quotes() {
         description_title: it.description_title, description_detail: it.description_detail || '',
         quantity: parseFloat(it.quantity) || 1, unit: it.unit || 'unité',
         unit_price_ht: parseFloat(it.unit_price_ht) || 0, tva_rate: parseRate(it.tva_rate),
-        total_ht: calcItemTotal(it), course_id: it.course_id || null
+        total_ht: calcItemTotal(it), course_id: it.course_id || null,
+        // Nature et régime de TVA de la ligne (0363), repris sur la facture
+        nature: it.nature === 'bien' ? 'bien' : 'service', vat_regime: it.vat_regime || 'normal'
       }))
       if (itemsToInsert.length > 0) {
         const { error: itemsError } = await supabase.from('quote_items').insert(itemsToInsert)
@@ -841,7 +843,7 @@ export default function Quotes() {
     setItems([...items, {
       ...emptyItem, code: mat.code, description_title: mat.description_title,
       description_detail: mat.description_detail, unit_price_ht: mat.unit_price_ht,
-      unit: mat.unit, position: items.length
+      unit: mat.unit, position: items.length, nature: 'bien'
     }])
   }
   function handleClientChange(clientId) {
@@ -1679,6 +1681,14 @@ export default function Quotes() {
                     <input type="text" value={item.description_detail} onChange={(e) => updateItem(idx, 'description_detail', e.target.value)}
                       placeholder="Description détaillée (optionnel)"
                       className="w-full px-2 py-1 border border-gray-200 rounded text-ui-sm text-gray-600 mb-2" />
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      <select value={item.nature || 'service'} onChange={(e) => updateItem(idx, 'nature', e.target.value)} className="border border-gray-200 rounded px-1 py-0.5 text-ui-sm text-gray-600" aria-label="Nature de la ligne">
+                        <option value="service">Service</option><option value="bien">Bien</option>
+                      </select>
+                      <select value={item.vat_regime || 'normal'} onChange={(e) => { const v = e.target.value; const n = [...items]; n[idx] = { ...n[idx], vat_regime: v, tva_rate: v === 'normal' ? (n[idx].tva_rate || 20) : 0 }; setItems(n) }} className="border border-gray-200 rounded px-1 py-0.5 text-ui-sm text-gray-600" aria-label="Régime de TVA de la ligne">
+                        <option value="normal">TVA normale</option><option value="exonere">Exonérée</option><option value="autoliquidation">Autoliquidation</option>
+                      </select>
+                    </div>
                     {/* Row 3: Qté + Unité + PU HT + TVA% + Total = tout sur une ligne */}
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1">
