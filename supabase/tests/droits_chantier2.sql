@@ -2802,6 +2802,71 @@ begin
     end;
   end if;
 
+  -- Chantier F, conformité RGPD (0340) : modèles proposés, lignes héritées archivées, échéances calculées par la base,
+  -- demandes et violations réservées à leurs droits
+  if to_regclass('public.rgpd_violations') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 5;
+    declare
+      g_co uuid := app.company_default(); g_d uuid; g_v uuid; g_n int; g_ok boolean; g_r record;
+    begin
+      if (select count(*) from public.rgpd_traitements where company_id = g_co and origine = 'modele') >= 5
+         and (select count(*) from public.rgpd_sous_traitants where company_id = g_co) >= 6
+         and not exists (select 1 from public.rgpd_traitements where origine = 'reprise' and statut <> 'archive') then
+        v_lines := v_lines || 'OK      base  0340 : traitements modèles proposés, sous-traitants posés, lignes héritées archivées'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0340 : registre de départ'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.rgpd_demandes (nom, droit, recue_le) values ('Essai demande', 'acces', date '2026-10-31') returning id into g_d;
+      g_ok := false;
+      begin
+        update public.rgpd_demandes set prolongee = true where id = g_d;
+      exception when check_violation then g_ok := true; end;
+      update public.rgpd_demandes set prolongee = true, prolongation_motif = 'Demande complexe' where id = g_d;
+      select echeance into g_r from public.rgpd_demandes where id = g_d;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if g_ok and g_r.echeance = date '2027-01-31' then
+        v_lines := v_lines || 'OK      dir   0340 : demande à un mois, prolongation seulement avec motif (trois mois)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0340 : échéance des demandes (' || coalesce(g_r.echeance::text, 'vide') || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.rgpd_violations (decouverte_le, description, nature) values ('2026-10-19 08:00+00', 'Essai violation', array['confidentialite'])
+      returning id into g_v;
+      select echeance_notification into g_r from public.rgpd_violations where id = g_v;
+      g_n := public.rgpd_proposer_modeles();
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if g_r.echeance_notification = timestamptz '2026-10-22 08:00+00' and g_n = 0 then
+        v_lines := v_lines || 'OK      dir   0340 : violation à notifier sous 72 h ; modèles proposés une seule fois'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0340 : échéance des violations ou modèles en double'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      g_n := (select count(*) from public.rgpd_demandes) + (select count(*) from public.rgpd_violations) + (select count(*) from public.rgpd_aipd);
+      g_ok := false;
+      begin perform public.rgpd_proposer_modeles(); exception when insufficient_privilege then g_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if g_n = 0 and g_ok then v_lines := v_lines || 'OK      com   0340 : le commercial ne lit ni demandes ni violations, ne touche pas au registre'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   com   0340 : droits RGPD (' || g_n || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      update public.rgpd_traitements set statut = 'valide' where company_id = g_co and modele_cle = 'plateforme.comptes';
+      select statut, valide_par, actif into g_r from public.rgpd_traitements where company_id = g_co and modele_cle = 'plateforme.comptes';
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if g_r.statut = 'valide' and g_r.valide_par = u_dir and g_r.actif then
+        v_lines := v_lines || 'OK      dir   0340 : traitement validé, validation tracée par la base'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0340 : validation d''un traitement'::text; end if;
+    end;
+  end if;
+
   -- Chantier 10, suivi des affaires (0380) : prochaine action obligatoire, devis lié qui fait avancer l'affaire,
   -- opposition synchronisée avec « ne pas solliciter », montants cachés au technicien, clients à appeler
   if to_regclass('public.opportunities') is not null then

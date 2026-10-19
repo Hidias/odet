@@ -826,6 +826,15 @@ tdx('0130', 'cross_sell_leads', sel=_CLI_VOIR, ins=_CLI_MOD, upd=_CLI_MOD, dele=
 # Fonction 11, registre de sécurité (0140) : documents du client lus avec les clients, tenus par qui modifie les
 # clients ; l'entreprise dépose par ent_document_ajouter (fonction).
 tdx('0140', 'client_documents', sel=_CLI_VOIR, ins=_CLI_MOD, upd=_CLI_MOD, dele=_CLI_MOD)
+# Chantier F, conformité RGPD (0340) : registre (rgpd_traitements, règles inchangées), sous-traitants, preuves
+# d'information et analyses d'impact tenus avec « Tenir le registre RGPD » ; demandes et violations avec leurs droits.
+_RGPD = f"company_id in {societes('conformite.rgpd.gerer')}"
+for _n in ['rgpd_sous_traitants', 'rgpd_informations', 'rgpd_aipd']:
+    tdx('0340', _n, sel=_RGPD, ins=_RGPD, upd=_RGPD, dele=_RGPD)
+_DEM = f"company_id in {societes('conformite.demandes.gerer')}"
+tdx('0340', 'rgpd_demandes', sel=_DEM, ins=_DEM, upd=_DEM, dele=_DEM)
+_VIO = f"company_id in {societes('conformite.violations.gerer')}"
+tdx('0340', 'rgpd_violations', sel=_VIO, ins=_VIO, upd=_VIO, dele=_VIO)
 # Chantier 10, suivi des affaires (0380) : listes lues avec les clients, réglées par qui prépare les devis ; affaires
 # (montants) lues avec les devis, tenues par qui prépare les devis ; objectifs de cadence lus avec les clients, réglés
 # par qui prépare les devis.

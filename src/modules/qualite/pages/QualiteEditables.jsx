@@ -1,7 +1,7 @@
 import { teamNames, docCode } from '../../../core/org/currentOrg'
 import { loadTemplateContext, fillDeep, fillTemplate } from '../../../core/org/templateContext'
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { 
@@ -57,7 +57,8 @@ const QUALITY_DOCS = {
     { id: 'reg-nc', name: 'Registre non-conformités', code: 'QUAL-REGNC', table: 'non_conformites' },
     { id: 'reg-veille', name: 'Registre veille', code: 'QUAL-REGVEI', table: 'veille_qualiopi' },
     { id: 'reg-mat', name: 'Registre matériel', code: 'QUAL-REGMAT', table: 'equipment_catalog' },
-    { id: 'reg-rgpd', name: 'Registre traitements RGPD', code: 'QUAL-REGRGPD', table: 'rgpd_traitements' },
+    // Tenu dans Qualité › RGPD (chantier F, 0340) : un seul registre, par société, avec son export
+    { id: 'reg-rgpd', name: 'Registre traitements RGPD', code: 'QUAL-REGRGPD', table: 'rgpd_traitements', lien: '/conformite' },
     { id: 'reg-audit', name: 'Registre audits internes', code: 'QUAL-REGAUD', table: 'audits_internes' },
     { id: 'reg-programmes', name: 'Programmes de formation', code: 'QUAL-REGPROG', table: 'programme_versions' },
     { id: 'reg-psh', name: 'Registre PSH (Ind. 26)', code: 'QUAL-REGPSH', table: 'psh_requests' },
@@ -962,12 +963,12 @@ export default function QualiteEditables() {
             <div key={reg.id} className="card">
               <div className="flex items-center justify-between mb-3">
                 <div><h3 className="font-semibold">{reg.name}</h3><p className="text-ui text-gray-500">{docCode(reg.code)}</p></div>
-                <div className="flex gap-2">
+                {reg.lien ? <Link to={reg.lien} className="btn btn-sm btn-secondary">Ouvrir le registre</Link> : <div className="flex gap-2">
                   <button onClick={() => loadRegistre(reg.table)} disabled={loadingData} className="btn btn-sm btn-secondary flex items-center gap-1">
                     {loadingData ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Charger
                   </button>
                   <button onClick={() => generatePDF(reg.id, reg)} className="btn btn-sm btn-primary flex items-center gap-1"><Download className="w-4 h-4" /> PDF</button>
-                </div>
+                </div>}
               </div>
               {registreData[reg.table] !== undefined && (
                 <div className="border rounded overflow-hidden">

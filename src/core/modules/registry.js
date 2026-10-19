@@ -3,7 +3,7 @@ import {
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
   MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
-  Home, Store, Wrench, ClipboardList, KanbanSquare,
+  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -126,6 +126,9 @@ export const NAV_SECTIONS = [
       { to: '/registre-psh', right: 'qualite.registres.voir', icon: Shield, label: 'Registre PSH', roles: MANAGERS, groupe: 'registres' },
       { to: '/veille-qualiopi', right: 'qualite.registres.gerer', icon: Eye, label: 'Veille réglementaire', roles: MANAGERS, groupe: 'registres' },
       { to: '/profil-stagiaires', right: 'qualite.registres.gerer', icon: Target, label: 'Profil des stagiaires', roles: MANAGERS, groupe: 'registres' },
+      // Conformité RGPD (chantier F, 0340) : registre par société, demandes, violations, sous-traitants, preuves
+      { to: '/conformite', right: ['conformite.rgpd.gerer', 'conformite.demandes.gerer', 'conformite.violations.gerer'], icon: Fingerprint, label: 'RGPD',
+        roles: ['superadmin', 'admin', 'direction', 'membre'], module: 'rgpd' },
       { to: '/audit-logs', right: 'conformite.journal.voir', icon: ScrollText, label: 'Journal d\'audit', roles: ADMINS },
     ],
   },
