@@ -175,9 +175,9 @@ export function EnvoisAutomatiquesSociete() {
   const [societes, setSocietes] = useState(null)
   const [id, setId] = useState(null)
   useEffect(() => {
-    supabase.from('companies').select('id, name, is_instance_owner').order('is_instance_owner', { ascending: false }).order('name')
+    supabase.from('companies').select('id, short_name, legal_name, is_instance_owner').order('is_instance_owner', { ascending: false }).order('position')
       .then(({ data }) => {
-        const l = data || []
+        const l = (data || []).map((c) => ({ ...c, name: c.short_name || c.legal_name || 'Société' }))
         setSocietes(l)
         const courante = getCurrentCompanyId()
         setId((courante && l.find((s) => s.id === courante)?.id) || l[0]?.id || null)
