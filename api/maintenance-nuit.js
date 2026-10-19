@@ -1,7 +1,8 @@
 // api/maintenance-nuit.js
 // Écritures automatiques de la nuit (migration 0376) : sessions passées « terminées », rappels du jour,
 // alertes qualité (notes basses), statuts « due » et « en retard » des factures envoyées ; puis les relances à
-// valider (0043, scheduled_actions_generate : préparées, jamais envoyées), et les étapes des sessions (0160, pilote_generate).
+// valider (0043, scheduled_actions_generate : préparées, jamais envoyées), les étapes des sessions (0160, pilote_generate)
+// et les purges RGPD à valider (0344, rgpd_purges_generer).
 // Toute la logique est dans la base (public.daily_maintenance, idempotente) ; cette route ne fait que la lancer.
 //
 // Déclenchée chaque nuit par la tâche planifiée Vercel (vercel.json, en-tête Authorization: Bearer CRON_SECRET),
@@ -36,7 +37,12 @@ async function handler(req, res) {
   const { data: pil, error: pilErr } = await admin.rpc('pilote_generate')
   if (!pilErr) pilote = pil
   else if (pilErr.code !== 'PGRST202') console.error('[maintenance-nuit] pilote', pilErr.code || 'erreur')
-  return res.status(200).json({ ok: true, resultat: data, relances, pilote })
+  // Purges RGPD proposées pour validation (chantier F, 0344) : rien n'est supprimé sans une personne
+  let purges = null
+  const { data: pur, error: purErr } = await admin.rpc('rgpd_purges_generer')
+  if (!purErr) purges = pur
+  else if (purErr.code !== 'PGRST202') console.error('[maintenance-nuit] purges', purErr.code || 'erreur')
+  return res.status(200).json({ ok: true, resultat: data, relances, pilote, purges })
 }
 
 export default withErrorLog(handler, 'maintenance-nuit')
