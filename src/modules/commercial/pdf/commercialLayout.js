@@ -32,7 +32,7 @@ export function itemRow(it) {
   var q = parseFloat(it.quantity) || 0
   var pu = parseFloat(it.unit_price_ht) || 0
   var tv = (it.tva_rate === null || it.tva_rate === undefined || it.tva_rate === '') ? 20 : (parseFloat(it.tva_rate) || 0)
-  var lt = q * pu
+  var lt = Math.round((q * pu + Number.EPSILON) * 100) / 100
   var desc = it.description_title || ''
   if (it.description_detail) desc += '\n' + it.description_detail
   return [it.code || '', desc, fmtQty(q), fmtMoney(pu) + '\n' + (it.unit || 'unité'), fmtRate(tv), fmtMoney(lt)]

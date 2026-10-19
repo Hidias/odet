@@ -3,6 +3,7 @@ import { apiFetch } from '../../../core/api'
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useDataStore } from '../../../core/store'
+import { useDroits } from '../../../core/rights/useDroit'
 import { supabase } from '../../../core/supabase'
 import { 
   Calendar, Plus, Search, MapPin, Users, Clock, ChevronRight, ChevronDown, X, Trash2, Copy, Building2, List, LayoutGrid, Briefcase, Euro, ClipboardPaste, Loader2, Check
@@ -35,6 +36,10 @@ const statusLabels = {
 
 export default function Sessions() {
   const location = useLocation()
+  const d = useDroits({
+    creer: 'formation.sessions.creer',
+    supprimer: 'formation.sessions.supprimer',
+  })
   const { 
     sessions, sessionsLoading, fetchSessions, createSession, deleteSession, duplicateSession,
     clients, fetchClients,
@@ -105,44 +110,7 @@ export default function Sessions() {
   }, [])
   
   // Mise à jour automatique du statut des sessions terminées (J+1 après fin)
-  useEffect(() => {
-    const updateCompletedSessions = async () => {
-      if (sessions.length === 0) return
-      
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      
-      // Sessions dont la date de fin est passée (J+1) et qui ne sont pas encore "completed"
-      const sessionsToComplete = sessions.filter(s => {
-        if (s.status === 'completed' || s.status_locked) return false
-        if (!s.end_date) return false
-        
-        const endDate = new Date(s.end_date)
-        endDate.setHours(0, 0, 0, 0)
-        // J+1 : la session est terminée le lendemain de la date de fin
-        const dayAfterEnd = new Date(endDate)
-        dayAfterEnd.setDate(dayAfterEnd.getDate() + 1)
-        
-        return today >= dayAfterEnd
-      })
-      
-      // Mettre à jour les sessions
-      for (const session of sessionsToComplete) {
-        await supabase
-          .from('sessions')
-          .update({ status: 'completed' })
-          .eq('id', session.id)
-      }
-      
-      // Recharger si des sessions ont été mises à jour
-      if (sessionsToComplete.length > 0) {
-        console.log(`${sessionsToComplete.length} session(s) passée(s) en "Terminée"`)
-        fetchSessions()
-      }
-    }
-    
-    updateCompletedSessions()
-  }, [sessions.length])
+  // Sessions passées « terminées » : écrites chaque nuit par la base (0376, daily_maintenance).
   
   useEffect(() => {
     if (location.state?.openNew) {
@@ -534,14 +502,18 @@ export default function Sessions() {
               Planning
             </button>
           </div>
+          {d.creer && (
           <button onClick={() => setShowMultiSiret(true)} className="btn btn-secondary flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             Multi-SIRET
           </button>
+          )}
+          {d.creer && (
           <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
             Nouvelle session
           </button>
+          )}
         </div>
       </div>
       
@@ -682,6 +654,7 @@ export default function Sessions() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
+                              {d.creer && (
                               <button
                                 onClick={(e) => handleDuplicate(session.id, e)}
                                 className="p-1.5 hover:bg-gray-100 rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
@@ -689,6 +662,8 @@ export default function Sessions() {
                               >
                                 <Copy className="w-4 h-4 text-gray-500" />
                               </button>
+                              )}
+                              {d.supprimer && (
                               <button
                                 onClick={(e) => handleDelete(session.id, e)}
                                 className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
@@ -696,6 +671,7 @@ export default function Sessions() {
                               >
                                 <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                               </button>
+                              )}
                               <ChevronRight className="w-4 h-4 text-gray-400" />
                             </div>
                           </div>
@@ -756,9 +732,11 @@ export default function Sessions() {
                       </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {d.supprimer && (
                       <button onClick={(e) => handleDelete(session.id, e)} className="p-1 hover:bg-[rgb(var(--c-danger-bg))] rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Supprimer">
                         <Trash2 className="w-3.5 h-3.5 text-[rgb(var(--c-danger))]" />
                       </button>
+                      )}
                       <ChevronRight className="w-4 h-4 text-[rgb(var(--c-warning))]" />
                     </div>
                   </div>
@@ -812,6 +790,7 @@ export default function Sessions() {
                   </div>
                   
                   <div className="flex items-center gap-2">
+                    {d.creer && (
                     <button
                       onClick={(e) => handleDuplicate(session.id, e)}
                       className="p-2 hover:bg-gray-100 rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
@@ -819,6 +798,8 @@ export default function Sessions() {
                     >
                       <Copy className="w-4 h-4 text-gray-500" />
                     </button>
+                    )}
+                    {d.supprimer && (
                     <button
                       onClick={(e) => handleDelete(session.id, e)}
                       className="p-2 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
@@ -826,6 +807,7 @@ export default function Sessions() {
                     >
                       <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
                     </button>
+                    )}
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </div>
                 </div>
@@ -837,7 +819,7 @@ export default function Sessions() {
       </>}
       
       {/* Modal création */}
-      {showForm && (
+      {showForm && d.creer && (
         <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
           <div className={`bg-white rounded-ui shadow-md w-full my-8 ${formData.session_type === 'subcontract' && batchMode ? 'max-w-4xl' : 'max-w-2xl'}`}>
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-xl z-10">
@@ -1379,7 +1361,7 @@ export default function Sessions() {
         </div>
       )}
       
-      {showMultiSiret && (
+      {showMultiSiret && d.creer && (
         <MultiSiretWizard
           onClose={() => setShowMultiSiret(false)}
           onCreated={() => setShowMultiSiret(false)}

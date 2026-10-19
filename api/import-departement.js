@@ -12,7 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { requireCronOrRole, SALES } from './_lib/auth.js'
+import { requireCronOrRight, SALES } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -223,7 +223,7 @@ async function insertProspects(supabase, prospects) {
 async function handler(req, res) {
   if (req.method !== 'OPTIONS') {
     // Prospection (import manuel) ou tâche planifiée (secret CRON_SECRET, appel de import-auto-cron)
-    const ctx = await requireCronOrRole(req, res, SALES)
+    const ctx = await requireCronOrRight(req, res, 'commercial.prospection.gerer', SALES, SALES)
     if (!ctx) return
     req.user = ctx.user || null
     req.profile = ctx.profile || null

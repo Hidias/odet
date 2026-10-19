@@ -756,6 +756,31 @@ td('approval_delegations',
         + societes('manager.validations.voir') + ")"))
 
 
+# Tables créées après C1b (0360 et suivantes) : même écriture « droits », posée par la migration de leur chantier
+# (0373 n'est jamais régénérée pour elles : elles n'existent pas encore à ce moment-là de l'ordre des migrations).
+# build_suite(migration) écrit le bloc SQL à placer dans la migration ; la ligne de la matrice reste ici.
+MD_SUITE = {}
+
+
+def tdx(migration, name, sel=None, ins=None, upd=None, dele=None):
+    MD_SUITE[name] = (migration, dict(module=None, sel=sel, ins=ins, upd=upd, dele=dele, check=None))
+
+
+# Facturation fiable (0360) : réglages lus par tous, modifiés avec la configuration de l'organisme ; compteurs lus
+# avec les factures, écrits seulement par les fonctions d'émission (aucune règle d'écriture).
+tdx('0360', 'billing_settings', sel=f"company_id in {societes('organisation.reglages.voir')}",
+    ins=f"company_id in {societes('parametres.organisme.modifier')}",
+    upd=f"company_id in {societes('parametres.organisme.modifier')}", dele=PLAT_D)
+tdx('0360', 'billing_sequences', sel=f"company_id in {societes('facturation.factures.voir')}")
+
+
+def build_suite(migration):
+    specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}
+    out = [REGLES_FN, _drop_named(set(specs))]
+    out += _calls(specs)
+    return "\n".join(out) + "\n"
+
+
 def _flags(f):
     return {'own': 'siens' in f, 'prix': 'prix' in f, 'licence': 'licence' in f, 'plateforme': 'plateforme' in f}
 

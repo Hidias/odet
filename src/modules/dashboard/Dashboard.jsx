@@ -18,6 +18,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { qualiopiCycle } from '../certification/lib/certData'
 import InterventionsDashboardCard from '../interventions/components/DashboardCard'
+import { useDroits } from '../../core/rights/useDroit'
 
 // ═══════════════════════════════════════════════════════════
 // WIDGET REGISTRY
@@ -109,6 +110,14 @@ export default function Dashboard() {
   const { clients, fetchClients, courses, fetchCourses, trainees, fetchTrainees, sessions, fetchSessions, getPurgeStats, organization, fetchOrganization } = useDataStore()
   const { user, modules, userRole } = useAuthStore()
   const navigate = useNavigate()
+  // Gardes des boutons d'écriture du tableau de bord (la base refuse de toute façon ce qui n'est pas permis)
+  const d = useDroits({
+    preferences: 'organisation.preferences.gerer',
+    signer: ['formation.suivi.gerer', 'formation.sessions.modifier_siennes'],
+    session: 'formation.sessions.creer',
+    client: 'clients.fiches.modifier',
+    stagiaire: 'formation.stagiaires.creer',
+  })
   
   
   const [widgetConfigs, setWidgetConfigs] = useState([])
@@ -156,47 +165,9 @@ export default function Dashboard() {
   // ─── Data loading ──────────────────────────────────────
   useEffect(() => { loadData() }, [])
   
-  useEffect(() => {
-    const updateCompleted = async () => {
-      if (sessions.length === 0) return
-      const now = new Date(); now.setHours(0,0,0,0)
-      const toComplete = sessions.filter(s => {
-        if (s.status === 'completed' || s.status_locked || !s.end_date) return false
-        const end = new Date(s.end_date); end.setHours(0,0,0,0)
-        const dayAfter = new Date(end); dayAfter.setDate(dayAfter.getDate() + 1)
-        return now >= dayAfter
-      })
-      for (const s of toComplete) await supabase.from('sessions').update({ status: 'completed' }).eq('id', s.id)
-      if (toComplete.length > 0) fetchSessions()
-    }
-    updateCompleted()
-  }, [sessions.length])
-  
-  useEffect(() => {
-    if (!loading && sessions.length > 0) generateAutoNotifications()
-  }, [loading, sessions.length])
-  
-  const generateAutoNotifications = async () => {
-    const t = new Date(), dow = t.getDay(), dom = t.getDate(), mo = t.getMonth() + 1
-    const key = `notif_gen_${format(t, 'yyyy-MM-dd')}`
-    if (localStorage.getItem(key)) return
-    const notifs = []
-    if (dow === 1) notifs.push({ type: 'veille', title: 'Veille réglementaire à réaliser', message: 'Rappel hebdomadaire', link: '/veille-qualiopi' })
-    if (dow === 6) notifs.push({ type: 'materiel', title: 'Vérification matériel', message: 'Rappel hebdomadaire', link: '/parametres' })
-    if (dom === 1 && mo === 7) notifs.push({ type: 'audit', title: 'Audit interne annuel', message: 'Planifiez votre audit', link: '/qualiopi' })
-    if (dom === 1 && mo === 8) notifs.push({ type: 'revue_direction', title: 'Revue de direction', message: 'Revue annuelle à réaliser', link: '/qualiopi' })
-    // Une seule notification par type et par jour, quel que soit le navigateur (le repère local ne suffit pas)
-    const dayStart = new Date(t); dayStart.setHours(0, 0, 0, 0)
-    for (const n of notifs) {
-      const { count } = await supabase.from('notifications').select('id', { count: 'exact', head: true })
-        .eq('type', n.type).gte('created_at', dayStart.toISOString())
-      if (!count) await supabase.from('notifications').insert(n)
-    }
-    // Échéances de certification (NDA, audits Qualiopi, BPF) : notifiées 90, 30 et 7 jours avant
-    await supabase.rpc('cert_daily_notifications').then(() => {}, () => {})
-    localStorage.setItem(key, 'done')
-  }
-  
+  // Sessions passées « terminées », rappels du jour et échéances de certification : écrits chaque nuit par la
+  // base (0376, daily_maintenance), plus à l'ouverture de la page (refusé aux comptes en lecture).
+
   const loadData = async () => {
     await Promise.all([fetchClients(), fetchCourses(), fetchTrainees(), fetchSessions()])
     
@@ -1022,7 +993,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => { setLoading(true); loadData() }} className="btn btn-ghost btn-icon" title="Rafraîchir" aria-label="Rafraîchir"><RefreshCw className="w-5 h-5" /></button>
-          <button onClick={() => setShowSettings(true)} className="btn btn-secondary"><Settings className="w-4 h-4" />Personnaliser</button>
+          {d.preferences && <button onClick={() => setShowSettings(true)} className="btn btn-secondary"><Settings className="w-4 h-4" />Personnaliser</button>}
         </div>
       </div>
       
@@ -1048,9 +1019,11 @@ export default function Dashboard() {
                   <Link to={`/sessions/${s.id}`} className="btn btn-secondary">
                     La session
                   </Link>
-                  <Link to={`/signature/${s.id}`} className="btn btn-primary">
-                    <PenLine className="w-4 h-4" />Faire signer
-                  </Link>
+                  {d.signer && (
+                    <Link to={`/signature/${s.id}`} className="btn btn-primary">
+                      <PenLine className="w-4 h-4" />Faire signer
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}
@@ -1086,7 +1059,7 @@ export default function Dashboard() {
             <div
               key={config.widget_id}
               className={`card group ${SIZE_CLASSES[config.size] || 'col-span-1'} ${dragIdx === idx ? 'opacity-50 ring-2 ring-accent-300' : ''}`}
-              draggable
+              draggable={d.preferences}
               onDragStart={() => handleDragStart(idx)}
               onDragOver={(e) => handleDragOver(e, idx)}
               onDragEnd={handleDragEnd}
@@ -1097,10 +1070,12 @@ export default function Dashboard() {
                   <Icon className="w-4 h-4 text-gray-400" />
                   <h3 className="text-ui font-semibold text-gray-700">{reg.label}</h3>
                 </div>
+                {d.preferences && (
                 <div className="flex items-center gap-0.5">
                   <button onClick={() => cycleSize(config.widget_id)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 text-ui-sm font-mono [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Changer taille">{config.size.toUpperCase()}</button>
                   <button onClick={() => toggleWidget(config.widget_id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm text-gray-300 hover:text-[rgb(var(--c-danger))] transition-colors" title="Retirer ce widget"><X className="w-3.5 h-3.5" /></button>
                 </div>
+                )}
               </div>
               {renderWidget(config.widget_id)}
             </div>
@@ -1111,7 +1086,7 @@ export default function Dashboard() {
       {/* Widgets masqués */}
       {(() => {
         const hiddenWidgets = widgetConfigs.filter(c => !c.visible)
-        if (hiddenWidgets.length === 0) return null
+        if (hiddenWidgets.length === 0 || !d.preferences) return null
         return (
           <div className="card bg-gray-50 border-dashed border-2 border-gray-200">
             <div className="flex items-center justify-between mb-3">
@@ -1142,7 +1117,7 @@ export default function Dashboard() {
         <div className="card text-center py-12">
           <Settings className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 mb-2">Aucun widget visible</p>
-          <button onClick={() => setShowSettings(true)} className="btn btn-primary">Configurer</button>
+          {d.preferences && <button onClick={() => setShowSettings(true)} className="btn btn-primary">Configurer</button>}
         </div>
       )}
       
@@ -1150,9 +1125,9 @@ export default function Dashboard() {
       <div className="card">
         <h2 className="section-title mb-3">Actions rapides</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Link to="/sessions" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Calendar className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouvelle session</span></Link>
-          <Link to="/clients" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Building2 className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau client</span></Link>
-          <Link to="/stagiaires" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Users className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau stagiaire</span></Link>
+          {d.session && <Link to="/sessions" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Calendar className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouvelle session</span></Link>}
+          {d.client && <Link to="/clients" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Building2 className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau client</span></Link>}
+          {d.stagiaire && <Link to="/stagiaires" state={{ openNew: true }} className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><Users className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Nouveau stagiaire</span></Link>}
           <Link to="/non-conformites" className="flex items-center gap-3 p-3 rounded-ui-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"><AlertTriangle className="w-5 h-5 text-gray-500" /><span className="font-medium text-gray-800">Non-conformités</span></Link>
         </div>
       </div>

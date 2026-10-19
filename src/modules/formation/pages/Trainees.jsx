@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import PasseportTraineeBlock from '../../passeport/components/PasseportTraineeBlock'
+import { useDroits } from '../../../core/rights/useDroit'
 import { PP_ROLES } from '../../passeport/lib/ppData'
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
@@ -58,6 +59,11 @@ export default function Trainees() {
   const { modules: ppModules, userRole: ppRole } = useAuthStore()
   const passeportOn = (ppModules || []).includes('passeport')
   const passeportEdit = passeportOn && PP_ROLES.includes(ppRole)
+  const d = useDroits({
+    creer: 'formation.stagiaires.creer',
+    modifier: ['formation.stagiaires.modifier', 'formation.stagiaires.modifier_siens'],
+    supprimer: 'formation.stagiaires.supprimer',
+  })
   const { 
     trainees, fetchTrainees, createTrainee, updateTrainee, deleteTrainee, getTraineeWithSSN,
     clients, fetchClients,
@@ -572,12 +578,16 @@ export default function Trainees() {
           <p className="text-gray-500">{trainees.length} stagiaire(s)</p>
         </div>
         <div className="flex gap-2">
+          {d.creer && (
           <button onClick={() => setShowBulkAdd(true)} className="btn btn-secondary flex items-center gap-2">
             <Plus className="w-4 h-4" />Ajouter plusieurs
           </button>
+          )}
+          {d.creer && (
           <button onClick={() => openForm()} className="btn btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />Nouveau
           </button>
+          )}
         </div>
       </div>
       
@@ -654,9 +664,11 @@ export default function Trainees() {
             {selectedIds.size} stagiaire(s) sélectionné(s)
           </span>
           <div className="flex gap-2">
+            {d.modifier && (
             <button onClick={() => setShowBulkActions(true)} className="btn btn-primary text-ui py-1.5">
               Modifier en masse
             </button>
+            )}
             <button onClick={() => setSelectedIds(new Set())} className="btn btn-secondary text-ui py-1.5">
               Désélectionner
             </button>
@@ -712,8 +724,8 @@ export default function Trainees() {
                   <div className="flex justify-end gap-1">
                     <button onClick={() => openPreview(t)} className="p-2 hover:bg-gray-100 rounded" title="Aperçu"><Eye className="w-4 h-4 text-[rgb(var(--c-info))]" /></button>
                     <button onClick={() => openDocs(t)} className="p-2 hover:bg-gray-100 rounded" title="Documents"><FileText className="w-4 h-4 text-gray-500" /></button>
-                    <button onClick={() => openForm(t)} className="p-2 hover:bg-gray-100 rounded" title="Modifier"><Edit className="w-4 h-4 text-gray-500" /></button>
-                    <button onClick={() => setConfirmDelete(t.id)} className="p-2 hover:bg-gray-100 rounded" title="Supprimer"><Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" /></button>
+                    {d.modifier && <button onClick={() => openForm(t)} className="p-2 hover:bg-gray-100 rounded" title="Modifier"><Edit className="w-4 h-4 text-gray-500" /></button>}
+                    {d.supprimer && <button onClick={() => setConfirmDelete(t.id)} className="p-2 hover:bg-gray-100 rounded" title="Supprimer"><Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" /></button>}
                   </div>
                 </td>
               </tr>
@@ -811,9 +823,11 @@ export default function Trainees() {
                   <Download className="w-4 h-4" />
                   Export RGPD
                 </button>
+                {d.modifier && (
                 <button onClick={() => { setShowPreview(false); openForm(selectedTrainee) }} className="btn btn-primary">
                   <Edit className="w-4 h-4 mr-2" />Modifier
                 </button>
+                )}
               </div>
             </div>
           </div>
@@ -995,12 +1009,14 @@ export default function Trainees() {
                 <h2 className="text-lg font-semibold">Documents - {selectedTrainee.first_name} {selectedTrainee.last_name}</h2>
                 <button onClick={() => setShowDocs(false)}><X className="w-5 h-5" /></button>
               </div>
+              {d.modifier && (
               <div className="p-4 border-b">
                 <label className="btn btn-primary w-full flex items-center justify-center gap-2 cursor-pointer">
                   <Upload className="w-4 h-4" />{uploading ? 'Upload...' : 'Ajouter un document'}
                   <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
                 </label>
               </div>
+              )}
               <div className="flex-1 overflow-y-auto p-4">
                 {traineeDocuments.length === 0 ? (
                   <p className="text-gray-500 text-center py-8">Aucun document</p>
@@ -1014,7 +1030,7 @@ export default function Trainees() {
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => viewDoc(doc)} className="p-2 hover:bg-gray-100 rounded"><Eye className="w-4 h-4" /></button>
-                          <button onClick={() => handleDeleteDoc(doc)} className="p-2 hover:bg-gray-100 rounded text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>
+                          {d.modifier && <button onClick={() => handleDeleteDoc(doc)} className="p-2 hover:bg-gray-100 rounded text-[rgb(var(--c-danger))]"><Trash2 className="w-4 h-4" /></button>}
                         </div>
                       </div>
                     ))}

@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
-import { requireRole, SALES } from '../_lib/auth.js'
+import { requireRight, SALES } from '../_lib/auth.js'
 import { withErrorLog } from '../_lib/errors.js'
 
 const supabase = createClient(
@@ -13,7 +13,7 @@ const supabase = createClient(
 )
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, SALES)
+  const ctx = await requireRight(req, res, 'communication.reseaux.gerer', SALES, SALES)
   if (!ctx) return
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })

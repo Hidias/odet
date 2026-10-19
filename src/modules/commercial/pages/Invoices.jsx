@@ -5,20 +5,21 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
 import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
-import { useDataStore } from '../../../core/store'
-import { generateFacturXPDF, calcInvoiceTotals } from '../pdf/invoiceGenerator'
+import { useDataStore, useAuthStore } from '../../../core/store'
+import { generateFacturXPDF, generateInvoicePDF, calcInvoiceTotals, isDraftDoc } from '../pdf/invoiceGenerator'
+import { Sheet } from '../../../ui/Sheet'
+import { parseRate } from '../../../core/billing/totals'
 import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import {
   Plus, Search, FileText, Download, Send, Pencil, Trash2, X, ChevronLeft,
-  CreditCard, AlertTriangle, CheckCircle, Clock, Ban, Copy, Receipt, Mail
+  CreditCard, AlertTriangle, CheckCircle, Clock, Ban, Copy, Receipt, Mail, Eye, Stamp
 } from 'lucide-react'
 import { money, fmtDate as fmtDateShort, calcLineTotal as calcItemTotal } from '../../../core/utils'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
 import { calcDueDate } from '../lib/echeances'
-import { invoicePrefix, nextInvoiceReference } from '../lib/references'
 
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
@@ -172,6 +173,13 @@ export default function Invoices() {
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  // Émission (Facturation fiable) : numéro donné par la base, contenu figé ensuite
+  // Droits connus : ils décident ; inconnus (avant C1b) : boutons affichés, la base refuse ce qui n'est pas permis
+  const canDroit = useAuthStore((st) => st.can)
+  useAuthStore((st) => st.rights)
+  const droitOuRepli = (code) => canDroit(code) !== false
+  const droitsFac = { valider: droitOuRepli('facturation.factures.valider'), avoir: droitOuRepli('facturation.avoirs.emettre'), modifier: droitOuRepli('facturation.factures.modifier') }
+  const [emission, setEmission] = useState(null) // { inv, items, totaux, verifie, enCours }
   const [exporting, setExporting] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -236,9 +244,12 @@ export default function Invoices() {
       i.type !== 'credit_note' && i.status === 'sent' && !isOverdue(i.due_date)
     )
 
+    // Garde : seul un compte qui peut modifier les factures fait cette mise à jour à l'ouverture (droits inconnus :
+    // comme avant). Les autres voient les statuts tenus à jour chaque nuit par la base (0376, daily_maintenance).
+    const peutEcrire = useAuthStore.getState().can('facturation.factures.modifier') !== false
     const updates = []
-    if (toUp.length > 0) updates.push(...toUp.map(i => supabase.from('invoices').update({ status: 'overdue', updated_at: new Date().toISOString() }).eq('id', i.id)))
-    if (sentToDue.length > 0) updates.push(...sentToDue.map(i => supabase.from('invoices').update({ status: 'due', updated_at: new Date().toISOString() }).eq('id', i.id)))
+    if (peutEcrire && toUp.length > 0) updates.push(...toUp.map(i => supabase.from('invoices').update({ status: 'overdue', updated_at: new Date().toISOString() }).eq('id', i.id)))
+    if (peutEcrire && sentToDue.length > 0) updates.push(...sentToDue.map(i => supabase.from('invoices').update({ status: 'due', updated_at: new Date().toISOString() }).eq('id', i.id)))
 
     if (updates.length > 0) {
       await Promise.all(updates)
@@ -389,10 +400,6 @@ export default function Invoices() {
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Erreur envoi')
 
-      // Mettre à jour le statut local si brouillon
-      if (sendModalInv.status === 'draft' && sendModalInv.type !== 'credit_note') {
-        await supabase.from('invoices').update({ status: 'due', updated_at: new Date().toISOString() }).eq('id', sendModalInv.id)
-      }
 
       const label = sendModalInv.type === 'credit_note'
         ? 'Avoir envoyé'
@@ -408,12 +415,10 @@ export default function Invoices() {
     }
   }
 
-  // ─── Generate reference ───
-  const generateReference = async (type = 'invoice') => {
-    const pfx = invoicePrefix(type), now = new Date()
-    const { data } = await supabase.from('invoices').select('reference').like('reference', pfx + '-%').order('reference', {ascending: false}).limit(1)
-    return nextInvoiceReference(data && data.length > 0 ? data[0].reference : null, type, now)
-  }
+  // ─── Référence d'un brouillon ───
+  // Aucun numéro avant l'émission (décision du 17/10) : la base remplace cette référence provisoire par
+  // « BROUILLON-… » (0362) et donne le numéro définitif à l'émission (billing_issue, 0361).
+  const generateReference = async () => 'BROUILLON-' + Math.random().toString(36).slice(2, 12).toUpperCase()
 
   // ─── New invoice ───
   const handleNew = async (type = 'invoice') => {
@@ -749,7 +754,7 @@ export default function Invoices() {
       discount_label: current.discount_label || '', tva_applicable: current.tva_applicable,
       total_ht: totals.subtotalHt, total_discount: totals.discountAmt, total_net_ht: totals.netHt,
       total_tva: totals.totalTva, total_ttc: totals.totalTtc, amount_paid: ap, amount_due: amountDue,
-      status: current.status, notes: current.notes || '', created_by: current.created_by, is_formation_pro: current.is_formation_pro !== false,
+      status: 'draft', notes: current.notes || '', created_by: current.created_by, is_formation_pro: current.is_formation_pro !== false,
       is_subrogation: current.is_subrogation || false, billing_client_id: current.is_subrogation ? current.billing_client_id || null : null,
       updated_at: new Date().toISOString(),
     }
@@ -766,7 +771,7 @@ export default function Invoices() {
       const toIns = items.filter(it => it.description_title).map((it, i) => ({
         invoice_id: iid, position: i, code: it.code || '', description_title: it.description_title,
         description_detail: it.description_detail || '', quantity: parseFloat(it.quantity) || 1, unit: it.unit || 'unité',
-        unit_price_ht: parseFloat(it.unit_price_ht) || 0, tva_rate: parseFloat(it.tva_rate) || 20,
+        unit_price_ht: parseFloat(it.unit_price_ht) || 0, tva_rate: parseRate(it.tva_rate),
         total_ht: calcItemTotal(it), course_id: it.course_id || null,
       }))
       if (toIns.length > 0) { const { error: ie } = await supabase.from('invoice_items').insert(toIns); if (ie) throw ie }
@@ -879,6 +884,44 @@ export default function Invoices() {
     } catch (e) {
       toast.error('Erreur Factur-X : ' + e.message, { id: 'facturx' })
     }
+  }
+
+  // ─── Aperçu d'un brouillon (PDF avec la mention brouillon, sans numéro) ───
+  const apercuBrouillon = async (inv, itemsList) => {
+    const client = clients.find(c => c.id === inv.client_id)
+    const billingClient = inv.is_subrogation && inv.billing_client_id ? clients.find(c => c.id === inv.billing_client_id) : null
+    let contact = null
+    if (inv.contact_id) { const { data } = await supabase.from('client_contacts').select('*').eq('id', inv.contact_id).single(); contact = data }
+    try {
+      await generateInvoicePDF(inv, itemsList || items, client, contact, { billingClient, orgSettings: organization })
+    } catch (e) { toast.error('Aperçu impossible : ' + e.message) }
+  }
+
+  // ─── Émission : double confirmation bienveillante, puis numéro donné par la base ───
+  const ouvrirEmission = async (inv, itemsList) => {
+    const lignes = itemsList || items
+    const js = calcInvoiceTotals(lignes, inv.discount_percent, inv.tva_applicable)
+    let totaux = { total_net_ht: js.netHt, total_tva: js.totalTva, total_ttc: js.totalTtc, base: false }
+    const { data } = await supabase.rpc('billing_compute_totals', { p_invoice: inv.id })
+    if (data && data.total_ttc !== undefined) totaux = { ...data, base: true }
+    let prochain = null
+    const { data: n } = await supabase.rpc('billing_next_number', { p_type: inv.type || 'invoice' })
+    if (typeof n === 'string') prochain = n
+    setEmission({ inv, items: lignes, totaux, prochain, verifie: false, enCours: false })
+  }
+  const emettre = async () => {
+    if (!emission?.verifie) return
+    setEmission((e) => ({ ...e, enCours: true }))
+    const { data, error } = await supabase.rpc('billing_issue', { p_invoice: emission.inv.id })
+    if (error) {
+      setEmission((e) => ({ ...e, enCours: false }))
+      toast.error(error.message || "Émission refusée")
+      return
+    }
+    toast.success(`${emission.inv.type === 'credit_note' ? 'Avoir émis' : 'Facture émise'} : ${data?.reference || ''}`)
+    setEmission(null)
+    await loadAll()
+    if (emission.inv.id) { await refreshCurrent(emission.inv.id); await loadPayments(emission.inv.id) }
   }
 
   // ─── Items ───
@@ -1052,7 +1095,7 @@ export default function Invoices() {
                     <td className="px-4 py-3 text-center text-ui-sm text-gray-500">{inv.due_date ? fmtDateShort(inv.due_date) : '-'}</td>
                     <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-1 justify-end">
-                        {(isCr ? inv.status !== 'draft' : !['paid', 'cancelled', 'credited'].includes(inv.status)) && (
+                        {!isDraftDoc(inv) && (isCr || !['paid', 'cancelled', 'credited'].includes(inv.status)) && (
                           <button
                             onClick={e => openSendModal(inv, e)}
                             className={`p-1.5 rounded transition-colors ${isCr ? 'hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' : relances.length >= 3 ? 'hover:bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : relances.length >= 1 ? 'hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]'}`}
@@ -1061,15 +1104,15 @@ export default function Invoices() {
                             <Mail size={14} />
                           </button>
                         )}
-                        <button onClick={() => handleEdit(inv)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier"><Pencil size={14} /></button>
-                        <button
+                        {isDraftDoc(inv) && droitsFac.modifier && <button onClick={() => handleEdit(inv)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier"><Pencil size={14} /></button>}
+                        {!isDraftDoc(inv) && <button
                           onClick={async e => { e.stopPropagation(); const { data: ii } = await supabase.from('invoice_items').select('*').eq('invoice_id', inv.id).order('position'); handleFacturX(inv, ii) }}
                           className="p-1.5 hover:bg-gray-100 text-gray-800 rounded"
                           title={isCr ? "Télécharger l'avoir (Factur-X)" : 'Télécharger Factur-X'}
                         >
                           <Download size={14} />
-                        </button>
-                        {inv.status === 'draft' && <button onClick={() => handleDelete(inv.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded text-[rgb(var(--c-danger))]" title="Supprimer"><Trash2 size={14} /></button>}
+                        </button>}
+                        {isDraftDoc(inv) && droitsFac.modifier && <button onClick={() => handleDelete(inv.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded text-[rgb(var(--c-danger))]" title="Supprimer"><Trash2 size={14} /></button>}
                       </div>
                     </td>
                   </tr>
@@ -1374,7 +1417,7 @@ export default function Invoices() {
         <button onClick={() => { setMode('list'); loadAll() }} className="p-2 hover:bg-gray-100 rounded-ui-sm"><ChevronLeft size={20} /></button>
         <h1 className="text-xl font-bold flex-1">{mode === 'create' ? (isCr ? 'Nouvel avoir' : 'Nouvelle facture') : mode === 'view' ? current?.reference : 'Modifier ' + current?.reference}</h1>
         <div className="flex gap-2 flex-wrap justify-end">
-          {mode === 'view' && (isCr ? current?.status !== 'draft' : !['paid', 'cancelled', 'credited'].includes(current?.status)) && (
+          {mode === 'view' && !isDraftDoc(current) && (isCr || !['paid', 'cancelled', 'credited'].includes(current?.status)) && (
             <button
               onClick={() => openSendModal(current)}
               className="btn btn-secondary text-ui flex items-center gap-1 hover:bg-[rgb(var(--c-info))]"
@@ -1385,7 +1428,20 @@ export default function Invoices() {
                 : ((invoiceRelancesMap[current?.id] || []).length === 0 ? 'Envoyer' : `Relance ${(invoiceRelancesMap[current?.id] || []).length}`)}
             </button>
           )}
-          {mode === 'view' && (
+          {mode === 'view' && isDraftDoc(current) && (
+            <>
+              <button onClick={() => apercuBrouillon(current, items)} className="btn btn-secondary text-ui flex items-center gap-1" title="Aperçu du PDF, avec la mention brouillon">
+                <Eye size={14} />Aperçu
+              </button>
+              {droitsFac.modifier && <button onClick={() => handleEdit(current)} className="btn btn-secondary text-ui flex items-center gap-1"><Pencil size={14} />Modifier</button>}
+              {(isCr ? droitsFac.avoir : droitsFac.valider) && (
+                <button onClick={() => ouvrirEmission(current, items)} className="btn btn-primary text-ui flex items-center gap-1">
+                  <Stamp size={14} />{isCr ? "Émettre l'avoir" : 'Émettre la facture'}
+                </button>
+              )}
+            </>
+          )}
+          {mode === 'view' && !isDraftDoc(current) && (
             <>
               <button onClick={() => handleFacturX(current, items)} className="px-3 py-2 bg-gray-100 text-gray-800 rounded-ui-sm text-ui flex items-center gap-1" title={isCr ? "Télécharger l'avoir (Factur-X)" : 'Télécharger Factur-X'}>
                 <Download size={14} />{isCr ? 'PDF avoir' : 'Factur-X'}
@@ -1395,7 +1451,6 @@ export default function Invoices() {
                   <Copy size={14} />Avoir
                 </button>
               )}
-              <button onClick={() => handleEdit(current)} className="btn btn-secondary text-ui flex items-center gap-1"><Pencil size={14} />Modifier</button>
             </>
           )}
           {(mode === 'create' || mode === 'edit') && (
@@ -1410,20 +1465,13 @@ export default function Invoices() {
         {/* Info principale */}
         <div className="bg-white rounded-ui border p-5">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div><label className="text-ui-sm text-gray-500 block mb-1">Référence</label><input type="text" value={current?.reference || ''} onChange={e => setCurrent({...current, reference: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
+            <div><label className="text-ui-sm text-gray-500 block mb-1">Référence</label><input type="text" value={isDraftDoc(current) ? '' : (current?.reference || '')} placeholder="Attribuée à l'émission" className="w-full border rounded-ui-sm px-3 py-2 text-ui bg-gray-50" readOnly /></div>
             <div><label className="text-ui-sm text-gray-500 block mb-1">Date</label><input type="date" value={current?.invoice_date || ''} onChange={e => setCurrent({...current, invoice_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
             <div>
               <label className="text-ui-sm text-gray-500 block mb-1">Statut</label>
               {ro
                 ? <span className={`inline-flex items-center px-3 py-2 rounded-ui-sm text-ui font-medium`} style={toneStyle(getStatusInfo(current).color)}>{getStatusInfo(current).label}</span>
-                : isCr
-                  ? <select value={current?.status === 'draft' ? 'draft' : 'validated'} onChange={e => setCurrent({...current, status: e.target.value === 'draft' ? 'draft' : (current.status && current.status !== 'draft' ? current.status : 'paid')})} className="w-full border rounded-ui-sm px-3 py-2 text-ui">
-                      <option value="draft">Brouillon (sans effet)</option>
-                      <option value="validated">Validé (appliqué à la facture)</option>
-                    </select>
-                  : <select value={current?.status || 'draft'} onChange={e => setCurrent({...current, status: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" disabled={current?.status === 'credited'}>
-                      {Object.entries(STATUS_MAP).filter(([k]) => k !== 'credited' || current?.status === 'credited').map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                    </select>
+                : <span className="inline-flex items-center px-3 py-2 rounded-ui-sm text-ui font-medium" style={toneStyle('gray')}>Brouillon, numéro attribué à l'émission</span>
               }
             </div>
             <div><label className="text-ui-sm text-gray-500 block mb-1">Créé par</label><select value={current?.created_by || ''} onChange={e => setCurrent({...current, created_by: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" disabled={ro}>{teamNames().map(n => <option key={n} value={n}>{n}</option>)}</select></div>
@@ -1647,11 +1695,11 @@ export default function Invoices() {
         )}
 
         {/* Changer le statut (view) */}
-        {mode === 'view' && current?.type === 'invoice' && current?.status !== 'credited' && (
+        {mode === 'view' && current?.type === 'invoice' && current?.status !== 'credited' && !isDraftDoc(current) && droitsFac.modifier && (
           <div className="bg-white rounded-ui border p-5">
             <h3 className="font-semibold text-ui mb-3">Changer le statut</h3>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(STATUS_MAP).filter(([k]) => k !== current.status && k !== 'credited').map(([k, v]) => (
+              {Object.entries(STATUS_MAP).filter(([k]) => k !== current.status && !['credited', 'draft', 'cancelled'].includes(k)).map(([k, v]) => (
                 <button key={k} onClick={async () => {
                   await handleStatus(current.id, k)
                   if (current.id) { await refreshCurrent(current.id); await loadPayments(current.id) }
@@ -1682,6 +1730,34 @@ export default function Invoices() {
           </div>
         )}
       </div>
+
+      {/* Émission : récapitulatif, aperçu, confirmation */}
+      {emission && (
+        <Sheet title={emission.inv.type === 'credit_note' ? "Émettre l'avoir" : 'Émettre la facture'} size="md" onClose={() => !emission.enCours && setEmission(null)}
+          footer={<>
+            <button type="button" className="btn btn-secondary" disabled={emission.enCours} onClick={() => setEmission(null)}>Revenir</button>
+            <button type="button" className="btn btn-primary" disabled={!emission.verifie || emission.enCours} onClick={emettre}>
+              {emission.enCours ? 'Émission…' : 'Émettre définitivement'}
+            </button>
+          </>}>
+          <p className="text-gray-700">Une fois émis, le document reçoit son numéro définitif et ne se modifie plus. Une erreur se corrigera par un avoir.</p>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-ui">
+            <dt className="text-gray-500">Client</dt><dd className="font-medium">{clients.find(c => c.id === emission.inv.client_id)?.name || '-'}</dd>
+            {emission.inv.parent_reference && <><dt className="text-gray-500">Facture d'origine</dt><dd>{emission.inv.parent_reference}</dd></>}
+            <dt className="text-gray-500">Total HT</dt><dd className="tabular-nums">{money(emission.totaux.total_net_ht)}</dd>
+            {(emission.totaux.par_taux || []).flatMap((t) => [<dt key={'t' + t.taux} className="text-gray-500">TVA {Number(t.taux)} %</dt>, <dd key={'v' + t.taux} className="tabular-nums">{money(t.tva)}</dd>])}
+            {!emission.totaux.par_taux && <><dt className="text-gray-500">TVA</dt><dd className="tabular-nums">{money(emission.totaux.total_tva)}</dd></>}
+            <dt className="text-gray-500">Total TTC</dt><dd className="tabular-nums font-semibold">{money(emission.totaux.total_ttc)}</dd>
+            {emission.inv.due_date && <><dt className="text-gray-500">Échéance</dt><dd>{fmtDateShort(emission.inv.due_date)} (décalée si la date de facture change)</dd></>}
+            {emission.prochain && <><dt className="text-gray-500">Numéro prévu</dt><dd>{emission.prochain}</dd></>}
+          </dl>
+          <button type="button" className="btn btn-secondary justify-self-start" onClick={() => apercuBrouillon(emission.inv, emission.items)}><Eye size={14} />Voir l'aperçu du PDF</button>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" className="mt-1" checked={emission.verifie} onChange={(e) => setEmission((x) => ({ ...x, verifie: e.target.checked }))} />
+            <span>J'ai vérifié le client, les lignes et les montants.</span>
+          </label>
+        </Sheet>
+      )}
 
       {/* Modal envoi depuis vue détail */}
       {showSendModal && sendModalInv && (

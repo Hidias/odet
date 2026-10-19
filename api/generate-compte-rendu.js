@@ -1,11 +1,11 @@
-import { requireRole, getAdminClient, SALES } from './_lib/auth.js'
+import { requireRight, getAdminClient, SALES } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock, addressRule } from './_lib/orgProfile.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/generate-compte-rendu.js
 // Génère le compte-rendu via l'API Claude (côté serveur pour éviter CORS)
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, SALES)
+  const ctx = await requireRight(req, res, 'commercial.prospection.gerer', SALES, SALES)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile

@@ -8,6 +8,7 @@ import SSTCertificationModal from './SSTCertificationModal'
 import { generateSSTCertificationPDF } from '../pdf/generateSSTCertificationPDF'
 import { archiveSstGrid, openArchive, archivePathOf } from '../../suivi/lib/archive'
 import FormativeSummary, { useFormativeSummary } from '../../suivi/components/FormativeSummary'
+import { useDroits } from '../../../core/rights/useDroit'
 
 export default function SSTCertificationTab({ session, sessionTrainees, trainer }) {
   const [certifications, setCertifications] = useState([])
@@ -15,6 +16,8 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
   const [showModal, setShowModal] = useState(false)
   const [selectedTrainee, setSelectedTrainee] = useState(null)
   const formativeSummary = useFormativeSummary(session?.id)
+  // Garde de la saisie des grilles (branche ecrans/gardes)
+  const d = useDroits({ suivi: ['formation.suivi.gerer', 'formation.sessions.modifier_siennes'] })
 
   useEffect(() => {
     if (session && sessionTrainees.length > 0) {
@@ -248,12 +251,12 @@ export default function SSTCertificationTab({ session, sessionTrainees, trainer 
 
                   {/* Actions */}
                   <div className="flex items-center gap-2">
-                    <button
+                    {d.suivi && <button
                       onClick={() => handleOpenModal(trainee)}
                       className="btn btn-secondary btn-sm"
                     >
                       {cert ? 'Modifier' : 'Évaluer'}
-                    </button>
+                    </button>}
                     {cert && cert.candidat_certifie && (
                       <button
                         onClick={() => handleGeneratePDF(trainee)}

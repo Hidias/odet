@@ -1,4 +1,4 @@
-import { requireRole, ADMINS } from './_lib/auth.js'
+import { requireRight } from './_lib/auth.js'
 import { internalMailer } from './_lib/internal.js'
 import { sendWithRetry } from './_lib/mailer.js'
 import { withErrorLog } from './_lib/errors.js'
@@ -19,7 +19,9 @@ const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
-  const ctx = await requireRole(req, res, ADMINS)
+  // Gestion des comptes : droit parametres.utilisateurs.gerer (super administrateur, administrateur avec la
+  // licence totale, 0379). Droits inconnus : super administrateur seulement (décision du 17/10, PR #15).
+  const ctx = await requireRight(req, res, 'parametres.utilisateurs.gerer', ['superadmin'])
   if (!ctx) return
   const { admin, profile } = ctx
   const { action, email, role, user_id, display_name, first_name, last_name } = req.body || {}

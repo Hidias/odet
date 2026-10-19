@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
+import { useDroits } from '../../../core/rights/useDroit'
 
 const ratingColor = (value, max = 5) => {
   const percent = (value / max) * 100
@@ -30,6 +31,11 @@ export default function Indicateurs() {
   const { sessions, fetchSessions, clients, fetchClients, courses, fetchCourses } = useDataStore()
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  // Gardes des boutons d'écriture des registres qualité (la base refuse de toute façon ce qui n'est pas permis)
+  const d = useDroits({
+    signaler: 'qualite.registres.signaler',
+    gerer: 'qualite.registres.gerer',
+  })
   
   const [loading, setLoading] = useState(true)
   const [themes, setThemes] = useState([])
@@ -73,41 +79,7 @@ export default function Indicateurs() {
   }, [])
   
   // Mise à jour automatique du statut des sessions terminées
-  useEffect(() => {
-    const updateCompletedSessions = async () => {
-      if (sessions.length === 0) return
-      
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      
-      const sessionsToComplete = sessions.filter(s => {
-        if (s.status === 'completed' || s.status_locked) return false
-        if (!s.end_date) return false
-        
-        const endDate = new Date(s.end_date)
-        endDate.setHours(0, 0, 0, 0)
-        const dayAfterEnd = new Date(endDate)
-        dayAfterEnd.setDate(dayAfterEnd.getDate() + 1)
-        
-        return today >= dayAfterEnd
-      })
-      
-      for (const session of sessionsToComplete) {
-        await supabase
-          .from('sessions')
-          .update({ status: 'completed' })
-          .eq('id', session.id)
-      }
-      
-      if (sessionsToComplete.length > 0) {
-        await fetchSessions()
-        // Recharger les données pour mettre à jour les indicateurs
-        loadData()
-      }
-    }
-    
-    updateCompletedSessions()
-  }, [sessions.length])
+  // Sessions passées « terminées » : écrites chaque nuit par la base (0376, daily_maintenance).
   
   const loadData = async () => {
     setLoading(true)
@@ -178,90 +150,9 @@ export default function Indicateurs() {
     // Afficher la page IMMÉDIATEMENT
     setLoading(false)
     
-    // Détecter les notes basses et créer des alertes automatiquement
-    detectAndCreateAlerts(hotEvalsResult.data || [], alertsResult.data || [])
+    // Alertes sur les notes basses : créées chaque nuit par la base (0376, daily_maintenance)
   }
   
-  // Détecter les notes basses (1-3) et créer des alertes
-  const detectAndCreateAlerts = async (evals, existingAlerts) => {
-    const criteriaKeys = [
-      { key: 'q_org_documents', label: 'Communication des documents' },
-      { key: 'q_org_accueil', label: 'Accueil sur le lieu' },
-      { key: 'q_org_locaux', label: 'Qualité des locaux' },
-      { key: 'q_org_materiel', label: 'Adéquation des moyens matériels' },
-      { key: 'q_contenu_organisation', label: 'Organisation et déroulement' },
-      { key: 'q_contenu_supports', label: 'Qualité des supports pédagogiques' },
-      { key: 'q_contenu_duree', label: 'Durée de la formation' },
-      { key: 'q_contenu_programme', label: 'Respect du programme' },
-      { key: 'q_formateur_pedagogie', label: 'Pédagogie du formateur' },
-      { key: 'q_formateur_expertise', label: 'Expertise du formateur' },
-      { key: 'q_formateur_progression', label: 'Progression de la formation' },
-      { key: 'q_formateur_moyens', label: 'Moyens mis à disposition' },
-      { key: 'q_global_adequation', label: 'Adéquation formation/métier' },
-      { key: 'q_global_competences', label: 'Amélioration des connaissances' },
-    ]
-    
-    // Créer un Set des alertes existantes pour vérification rapide
-    const existingKeys = new Set(
-      (existingAlerts || []).map(a => `${a.session_id}|${a.trainee_id}|${a.criterion_key}`)
-    )
-    
-    const newAlerts = []
-    
-    for (const evalData of evals) {
-      if (!evalData.session_id || !evalData.trainee_id) continue
-      
-      for (const criterion of criteriaKeys) {
-        const score = evalData[criterion.key]
-        // Vérifier si c'est une note basse (1, 2 ou 3)
-        if (score !== null && score !== undefined && Number(score) >= 1 && Number(score) <= 3) {
-          const alertKey = `${evalData.session_id}|${evalData.trainee_id}|${criterion.key}`
-          
-          // Ne pas créer si l'alerte existe déjà
-          if (!existingKeys.has(alertKey)) {
-            newAlerts.push({
-              session_id: evalData.session_id,
-              trainee_id: evalData.trainee_id,
-              criterion_key: criterion.key,
-              criterion_label: criterion.label,
-              score: Number(score),
-              status: 'pending'
-            })
-            // Ajouter au Set pour éviter les doublons dans la même boucle
-            existingKeys.add(alertKey)
-          }
-        }
-      }
-    }
-    
-    if (newAlerts.length === 0) return
-    
-    console.log(`Création de ${newAlerts.length} nouvelles alertes...`)
-    
-    // Insérer les nouvelles alertes en ignorant silencieusement les erreurs de doublon
-    let insertedCount = 0
-    for (const alert of newAlerts) {
-      try {
-        const { error } = await supabase
-          .from('quality_alerts')
-          .insert(alert)
-        
-        if (!error) {
-          insertedCount++
-        }
-        // Ignorer silencieusement les erreurs 409/23505 (doublons)
-      } catch (e) {
-        // Ignorer
-      }
-    }
-    
-    if (insertedCount > 0) {
-      console.log(`${insertedCount} nouvelles alertes créées`)
-    }
-    
-    // Recharger les alertes
-    await reloadAlerts()
-  }
   
   // Helper pour recharger les alertes
   const reloadAlerts = async () => {
@@ -1753,24 +1644,29 @@ export default function Indicateurs() {
                       </button>
                       {alert.status === 'pending' && (
                         <>
-                          <button
-                            onClick={() => {
-                              setSelectedAlert(alert)
-                              setShowAlertModal(true)
-                            }}
-                            className="btn btn-xs btn-success flex items-center gap-1"
-                            title="Marquer comme traitée"
-                          >
-                            <CheckCircle className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => handleCreateNC(alert)}
-                            className="btn btn-xs btn-warning flex items-center gap-1"
-                            title="Créer une NC"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                          {nonConformites.length > 0 && (
+                          {d.gerer && (
+                            <button
+                              onClick={() => {
+                                setSelectedAlert(alert)
+                                setShowAlertModal(true)
+                              }}
+                              className="btn btn-xs btn-success flex items-center gap-1"
+                              title="Marquer comme traitée"
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </button>
+                          )}
+                          {/* Créer une NC écrit aussi l'alerte (lien vers la NC) : il faut signaler et traiter */}
+                          {d.signaler && d.gerer && (
+                            <button
+                              onClick={() => handleCreateNC(alert)}
+                              className="btn btn-xs btn-warning flex items-center gap-1"
+                              title="Créer une NC"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          )}
+                          {d.gerer && nonConformites.length > 0 && (
                             <select
                               onChange={(e) => {
                                 if (e.target.value) {
@@ -1834,12 +1730,14 @@ export default function Indicateurs() {
               >
                 Annuler
               </button>
-              <button
-                onClick={handleTreatAlert}
-                className="btn btn-success"
-              >
-                Valider le traitement
-              </button>
+              {d.gerer && (
+                <button
+                  onClick={handleTreatAlert}
+                  className="btn btn-success"
+                >
+                  Valider le traitement
+                </button>
+              )}
             </div>
           </div>
         </div>

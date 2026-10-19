@@ -6,8 +6,9 @@
 
 import { PDFDocument, PDFName, PDFString, PDFNumber, AFRelationship } from 'pdf-lib'
 import { getSupabaseAdmin, getOrg } from './_lib/mailer.js'
-import { requireRole, BILLING } from './_lib/auth.js'
+import { requireRight, BILLING } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
+import { computeDocumentTotals } from '../src/core/billing/totals.js'
 
 export const config = {
   api: { bodyParser: { sizeLimit: '20mb' } },
@@ -133,36 +134,11 @@ export function buildSeller(org, { needsIban }) {
 // --- Calculs (arrondis à 2 décimales, règles BR-CO-10 à BR-CO-16 et BR-S-08) ----
 
 export function computeTotals(invoice, items, vatApplicable) {
-  const dp = num(invoice.discount_percent)
-  const lines = items.map((it) => {
-    const q = num(it.quantity)
-    const pu = num(it.unit_price_ht)
-    // Même règle de taux que le PDF (invoiceGenerator) : taux absent ou nul => 20 %
-    const rate = vatApplicable ? (num(it.tva_rate) || 20) : 0
-    return { it, q, pu, rate, cat: vatApplicable ? 'S' : 'E', net: round2(q * pu) }
-  })
-  const groups = new Map()
-  for (const l of lines) {
-    const key = `${l.cat}|${l.rate}`
-    if (!groups.has(key)) groups.set(key, { cat: l.cat, rate: l.rate, lines: 0 })
-    groups.get(key).lines = round2(groups.get(key).lines + l.net)
-  }
-  let allowanceTotal = 0
-  let taxTotal = 0
-  const breakdown = [...groups.values()].map((g) => {
-    const allowance = dp > 0 ? round2(g.lines * dp / 100) : 0
-    const base = round2(g.lines - allowance)
-    const tax = g.cat === 'S' ? round2(base * g.rate / 100) : 0
-    allowanceTotal = round2(allowanceTotal + allowance)
-    taxTotal = round2(taxTotal + tax)
-    return { ...g, allowance, base, tax }
-  })
-  const lineTotal = round2(lines.reduce((s, l) => s + l.net, 0))
-  const taxBasis = round2(lineTotal - allowanceTotal)
-  const grandTotal = round2(taxBasis + taxTotal)
+  // Calcul unique partagé avec l'écran et le PDF (src/core/billing/totals.js)
+  const t = computeDocumentTotals(items, { discountPercent: invoice.discount_percent, vatApplicable })
   const prepaid = round2(num(invoice.amount_paid))
-  const due = round2(grandTotal - prepaid)
-  return { dp, lines, breakdown, lineTotal, allowanceTotal, taxBasis, taxTotal, grandTotal, prepaid, due }
+  const due = round2(t.grandTotal - prepaid)
+  return { ...t, prepaid, due }
 }
 
 // --- XML CII (profil EN 16931) --------------------------------------------------
@@ -175,10 +151,10 @@ export function generateCIIXML(invoice, items, client, seller) {
 
   // Motif d'exonération (BT-120 / BT-121)
   let exemption = null
-  if (!vatApplicable) {
+  if (!vatApplicable || t.breakdown.some((g) => g.cat === 'E')) {
     if (!seller.orgVatApplicable) {
       exemption = { code: 'VATEX-FR-FRANCHISE', reason: 'TVA non applicable, article 293 B du CGI' }
-    } else if (invoice.is_formation_pro !== false) {
+    } else if (!vatApplicable && invoice.is_formation_pro !== false) {
       exemption = { code: 'VATEX-EU-132-1I', reason: 'Exonération de TVA, article 261-4-4° a du CGI (formation professionnelle continue)' }
     } else {
       exemption = { code: '', reason: 'Exonération de TVA' }
@@ -683,7 +659,7 @@ export async function embedAndMakePDFA3(pdfBuffer, xmlString, invoice, seller) {
 // --- Route ---------------------------------------------------------------------
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, BILLING)
+  const ctx = await requireRight(req, res, 'facturation.factures.voir', BILLING, BILLING)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile
@@ -695,6 +671,9 @@ async function handler(req, res) {
     const supabase = getSupabaseAdmin()
     const { data: invoice, error: invErr } = await supabase.from('invoices').select('*').eq('id', invoice_id).single()
     if (invErr || !invoice) return res.status(404).json({ error: 'Facture introuvable' })
+    // Pas de Factur-X pour un brouillon : seul un document émis (numéro donné par la base) est une facture
+    const nonEmise = Object.prototype.hasOwnProperty.call(invoice, 'issued_at') ? !invoice.issued_at : invoice.status === 'draft'
+    if (nonEmise) return res.status(422).json({ error: 'Document non émis : émettez-le avant de produire le Factur-X' })
 
     const { data: items, error: itemsErr } = await supabase.from('invoice_items').select('*').eq('invoice_id', invoice_id).order('position')
     if (itemsErr) return res.status(500).json({ error: 'Erreur chargement lignes' })

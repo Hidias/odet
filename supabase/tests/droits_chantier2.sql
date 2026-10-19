@@ -869,6 +869,273 @@ begin
     end;
   end if;
 
+  -- Facturation fiable : numérotation par la base, émission, verrou (0360 à 0362)
+  if to_regprocedure('public.billing_issue(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 13;
+    declare
+      b_dir uuid := gen_random_uuid(); b_lec uuid := gen_random_uuid(); b_cli uuid; b_f1 uuid; b_f2 uuid; b_av uuid;
+      b_r1 jsonb; b_r2 jsonb; b_ok boolean; b_ref text; b_n1 bigint; b_n2 bigint;
+    begin
+      insert into auth.users (id, email, aud, role) values
+        (b_dir, 'fac.dir@test.invalid', 'authenticated', 'authenticated'), (b_lec, 'fac.lec@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (b_dir, 'fac.dir@test.invalid', 'direction', true), (b_lec, 'fac.lec@test.invalid', 'lecture', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.clients (name, siret) values ('Client facturation essai', '12345678900011') returning id into b_cli;
+      perform set_config('request.jwt.claims', json_build_object('sub', b_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date, status)
+      values ('FACT-TRICHE-1', 'invoice', b_cli, current_date, current_date + 30, 'due') returning id, reference into b_f1, b_ref;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate)
+      values (b_f1, 0, 'Ligne A', 3, 33.335, 20), (b_f1, 1, 'Ligne B', 1, 10, 0);
+      execute 'reset role';
+      if b_ref like 'BROUILLON-%' and (select status from public.invoices where id = b_f1) = 'draft' then
+        v_lines := v_lines || 'OK      dir   0362 : un document naît brouillon, sans numéro'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0362 : un document naît brouillon, sans numéro (' || b_ref || ')'); end if;
+      -- Un compte connecté ne pose pas lui-même l'émission ni un statut
+      execute 'set local role authenticated';
+      b_ok := false;
+      begin update public.invoices set issued_at = now() where id = b_f1; exception when insufficient_privilege then b_ok := true; end;
+      begin update public.invoices set status = 'due' where id = b_f1; b_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      dir   0362 : émission et statut seulement par la fonction d''émission'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0362 : émission et statut seulement par la fonction d''émission'::text; end if;
+      -- Lecture ne peut pas émettre
+      perform set_config('request.jwt.claims', json_build_object('sub', b_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      b_ok := false;
+      begin perform public.billing_issue(b_f1); exception when insufficient_privilege then b_ok := true; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      lec   0361 : émission refusée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0361 : émission refusée'::text; end if;
+      -- Direction émet : numéro, totaux de la règle unique (3 x 33,335 = 100,01 ; TVA 20,00 ; ligne à 0 %)
+      perform set_config('request.jwt.claims', json_build_object('sub', b_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      b_r1 := public.billing_issue(b_f1);
+      insert into public.invoices (reference, type, client_id, invoice_date) values ('x', 'invoice', b_cli, current_date) returning id into b_f2;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (b_f2, 0, 'Ligne', 1, 50, 20);
+      b_r2 := public.billing_issue(b_f2);
+      execute 'reset role';
+      b_n1 := (regexp_match(b_r1 ->> 'reference', '([0-9]+)$'))[1]::bigint;
+      b_n2 := (regexp_match(b_r2 ->> 'reference', '([0-9]+)$'))[1]::bigint;
+      if b_r1 ->> 'reference' like 'FACT-%' and b_n2 = b_n1 + 1 then
+        v_lines := v_lines || 'OK      dir   0361 : numéros donnés par la base, consécutifs'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : numéros donnés par la base, consécutifs (' || coalesce(b_r1 ->> 'reference', '') || ', ' || coalesce(b_r2 ->> 'reference', '') || ')'); end if;
+      if (select total_ttc from public.invoices where id = b_f1) = 130.01 and (select total_tva from public.invoices where id = b_f1) = 20.00
+         and (select issued_at is not null and seller_snapshot is not null and buyer_snapshot is not null and status = 'due' from public.invoices where id = b_f1) then
+        v_lines := v_lines || 'OK      dir   0361 : totaux de la règle unique, coordonnées figées, date d''émission'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : totaux de la règle unique, coordonnées figées (' || (select total_ttc::text || ' / ' || total_tva::text from public.invoices where id = b_f1) || ')'); end if;
+      -- Verrou : ni modification du contenu, ni lignes, ni suppression, ni retour en brouillon (postgres compris)
+      execute 'set local role authenticated';
+      b_ok := true;
+      begin update public.invoices set object = 'modifié' where id = b_f1; b_ok := false; exception when insufficient_privilege then null; end;
+      begin update public.invoices set status = 'draft' where id = b_f1; b_ok := false; exception when insufficient_privilege then null; end;
+      begin insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht) values (b_f1, 9, 'x', 1, 1); b_ok := false; exception when insufficient_privilege then null; end;
+      begin update public.invoice_items set unit_price_ht = 1 where invoice_id = b_f1; b_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      dir   0362 : facture émise figée (contenu, lignes, statut brouillon)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0362 : facture émise figée (contenu, lignes, statut brouillon)'::text; end if;
+      b_ok := false;
+      begin delete from public.invoices where id = b_f1; exception when insufficient_privilege then b_ok := true; end;
+      if b_ok then v_lines := v_lines || 'OK      base  0362 : suppression d''une facture émise refusée, même au propriétaire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0362 : suppression d''une facture émise refusée, même au propriétaire'::text; end if;
+      execute 'set local role authenticated';
+      b_ok := true;
+      begin update public.invoices set amount_paid = 10, amount_due = 120.01, status = 'partial' where id = b_f1;
+      exception when others then b_ok := false; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      dir   0362 : paiement saisi sur une facture émise'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0362 : paiement saisi sur une facture émise'::text; end if;
+      -- Avoir : au-delà du montant refusé ; avoir partiel émis en série AVR
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, parent_invoice_id, invoice_date) values ('x', 'credit_note', b_cli, b_f2, current_date) returning id into b_av;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (b_av, 0, 'Trop', 1, 100, 20);
+      b_ok := false;
+      begin perform public.billing_issue(b_av); exception when sqlstate '22023' then b_ok := true; end;
+      execute 'reset role';
+      if b_ok then v_lines := v_lines || 'OK      dir   0361 : avoir supérieur à la facture refusé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0361 : avoir supérieur à la facture refusé'::text; end if;
+      execute 'set local role authenticated';
+      update public.invoice_items set unit_price_ht = 10 where invoice_id = b_av;
+      b_r1 := public.billing_issue(b_av);
+      execute 'reset role';
+      if b_r1 ->> 'reference' like 'AVR-%' then v_lines := v_lines || 'OK      dir   0361 : avoir émis en série AVR'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : avoir émis en série AVR (' || coalesce(b_r1 ->> 'reference', '') || ')'); end if;
+      -- Brouillon : reste supprimable par qui en a le droit
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date) values ('x', 'invoice', b_cli, current_date) returning id into b_f2;
+      delete from public.invoices where id = b_f2;
+      execute 'reset role';
+      if not exists (select 1 from public.invoices where id = b_f2) then v_lines := v_lines || 'OK      dir   0362 : brouillon supprimable'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0362 : brouillon supprimable'::text; end if;
+      -- Aperçu du prochain numéro sans avancer le compteur
+      execute 'set local role authenticated';
+      b_ref := public.billing_next_number('invoice');
+      execute 'reset role';
+      if (regexp_match(b_ref, '([0-9]+)$'))[1]::bigint = b_n2 + 1 then v_lines := v_lines || 'OK      dir   0361 : aperçu du prochain numéro'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : aperçu du prochain numéro (' || b_ref || ')'); end if;
+      if (select count(*) from pg_class where relname in ('billing_settings', 'billing_sequences') and relrowsecurity) = 2 then
+        v_lines := v_lines || 'OK      base  0360 : RLS sur les réglages et les compteurs'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0360 : RLS sur les réglages et les compteurs'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
+  -- Écritures de la nuit (0376) : fonction réservée à la tâche planifiée, idempotente
+  if to_regprocedure('public.daily_maintenance()') is not null then
+    execute 'reset role';
+    v_total := v_total + 3;
+    if not has_function_privilege('anon', 'public.daily_maintenance()', 'EXECUTE')
+       and not has_function_privilege('authenticated', 'public.daily_maintenance()', 'EXECUTE')
+       and has_function_privilege('service_role', 'public.daily_maintenance()', 'EXECUTE') then
+      v_lines := v_lines || 'OK      base  0376 : maintenance de la nuit réservée à la tâche planifiée'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0376 : maintenance de la nuit réservée à la tâche planifiée'::text; end if;
+    declare
+      v_sm uuid; v_r1 jsonb; v_r2 jsonb;
+    begin
+      insert into public.sessions (start_date, end_date, attendance_token, status)
+      values (current_date - 5, current_date - 3, 'nuit-' || replace(gen_random_uuid()::text, '-', ''), 'planned')
+      returning id into v_sm;
+      execute 'set local role service_role';
+      v_r1 := public.daily_maintenance();
+      v_r2 := public.daily_maintenance();
+      execute 'reset role';
+      if (select status from public.sessions where id = v_sm) = 'completed' then
+        v_lines := v_lines || 'OK      base  0376 : session passée marquée terminée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0376 : session passée marquée terminée'::text; end if;
+      if (v_r2->>'sessions_terminees')::int = 0 and (v_r2->>'rappels')::int = 0 and (v_r2->>'alertes_qualite')::int = 0
+         and (v_r2->>'factures_en_retard')::int = 0 and (v_r2->>'factures_dues')::int = 0 then
+        v_lines := v_lines || 'OK      base  0376 : relancée le même jour, ne refait rien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0376 : relancée le même jour, ne refait rien (' || v_r2::text || ')'); end if;
+    end;
+  end if;
+
+  -- Écrans des droits (0377) : aperçu, personnalisation et retour au modèle, réservés aux bons droits
+  if to_regprocedure('public.permission_profile_customize(text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 6;
+    declare
+      e_ad uuid := gen_random_uuid(); e_lec uuid := gen_random_uuid(); e_c uuid; e_lic boolean; e_p uuid; e_ok boolean;
+    begin
+      select id, full_license into e_c, e_lic from public.companies where is_instance_owner;
+      insert into auth.users (id, email, aud, role) values
+        (e_ad, 'ecr.ad@test.invalid', 'authenticated', 'authenticated'), (e_lec, 'ecr.lec@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (e_ad, 'ecr.ad@test.invalid', 'admin', true), (e_lec, 'ecr.lec@test.invalid', 'lecture', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      if has_function_privilege('anon', 'public.member_rights_preview(uuid)', 'EXECUTE')
+         or has_function_privilege('anon', 'public.permission_profile_customize(text)', 'EXECUTE') then
+        v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0377 : fonctions des écrans de droits fermées à anon'::text;
+      else v_lines := v_lines || 'OK      base  0377 : fonctions des écrans de droits fermées à anon'::text; end if;
+      -- Lecture : son propre aperçu oui, celui d'un autre non
+      perform set_config('request.jwt.claims', json_build_object('sub', e_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := (public.member_rights_preview(e_lec) ->> 'rights') is not null;
+      begin
+        perform public.member_rights_preview(e_ad); e_ok := false;
+      exception when insufficient_privilege then null;
+      end;
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      lec   0377 : aperçu de ses droits seulement'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0377 : aperçu de ses droits seulement'::text; end if;
+      -- Administrateur sans licence totale : ne personnalise pas un profil
+      alter table public.companies disable trigger companies_guard;
+      update public.companies set full_license = false where id = e_c;
+      alter table public.companies enable trigger companies_guard;
+      perform set_config('request.jwt.claims', json_build_object('sub', e_ad, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := false;
+      begin
+        perform public.permission_profile_customize('lecture');
+      exception when insufficient_privilege then e_ok := true;
+      end;
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      ad    0377 : sans licence totale, pas de personnalisation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0377 : sans licence totale, pas de personnalisation'::text; end if;
+      -- Avec licence totale : copie identique au modèle, aperçu d'un autre, puis retour au modèle
+      alter table public.companies disable trigger companies_guard;
+      update public.companies set full_license = true where id = e_c;
+      alter table public.companies enable trigger companies_guard;
+      execute 'set local role authenticated';
+      e_p := public.permission_profile_customize('lecture');
+      e_ok := (public.member_rights_preview(e_lec) ->> 'rights') is not null;
+      execute 'reset role';
+      if e_p is not null and e_ok and (select array_agg(right_code order by right_code) from public.permission_profile_rights where profile_id = e_p)
+           = (select array_agg(x7.right_code order by x7.right_code) from public.permission_profile_rights x7
+              join public.permission_profiles y7 on y7.id = x7.profile_id where y7.company_id is null and y7.key = 'lecture') then
+        v_lines := v_lines || 'OK      ad    0377 : personnalisation = copie exacte du modèle, aperçu des autres'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0377 : personnalisation = copie exacte du modèle, aperçu des autres'::text; end if;
+      if app.rights_for(e_lec, e_c) = (select coalesce(array_agg(x7.right_code order by x7.right_code), '{}') from public.permission_profile_rights x7
+            join public.permissions z7 on z7.code = x7.right_code where x7.profile_id = e_p and not z7.platform_only
+              and (not z7.full_license_only or (select c7.full_license from public.companies c7 where c7.id = e_c))) then
+        v_lines := v_lines || 'OK      base  0377 : la copie de la société remplace le modèle sans rien changer'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0377 : la copie de la société remplace le modèle sans rien changer'::text; end if;
+      execute 'set local role authenticated';
+      e_ok := public.permission_profile_reset('lecture');
+      execute 'reset role';
+      if e_ok and not exists (select 1 from public.permission_profiles where company_id = e_c and key = 'lecture') then
+        v_lines := v_lines || 'OK      ad    0377 : retour au modèle'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0377 : retour au modèle'::text; end if;
+      alter table public.companies disable trigger companies_guard;
+      update public.companies set full_license = e_lic where id = e_c;
+      alter table public.companies enable trigger companies_guard;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
+  -- Fonctions, fichiers et handicap par droits (0378)
+  if to_regprocedure('app.un_des_droits(text[])') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
+                   and policyname like 'odet\_%' and (coalesce(qual, '') || coalesce(with_check, '')) like '%app.role()%'
+                   and (coalesce(qual, '') || coalesce(with_check, '')) not like '%un_des_droits%') then
+      v_lines := v_lines || 'OK      base  0378 : chaque règle de fichiers demande aussi un droit'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0378 : chaque règle de fichiers demande aussi un droit'::text; end if;
+    if not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
+                   and pg_get_functiondef(p.oid) like '%garde chantier 2%' and pg_get_functiondef(p.oid) like '%app.require_roles(%') then
+      v_lines := v_lines || 'OK      base  0378 : plus aucune garde de fonction par groupe de rôles'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0378 : plus aucune garde de fonction par groupe de rôles'::text; end if;
+    declare
+      f_lec uuid := gen_random_uuid(); f_ges uuid := gen_random_uuid(); f_c uuid; f_m uuid; f_s uuid; f_a boolean; f_b boolean; f_h1 boolean; f_h2 boolean;
+    begin
+      select id into f_c from public.companies where is_instance_owner;
+      insert into auth.users (id, email, aud, role) values
+        (f_lec, 'fct.lec@test.invalid', 'authenticated', 'authenticated'), (f_ges, 'fct.ges@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (f_lec, 'fct.lec@test.invalid', 'lecture', true), (f_ges, 'fct.ges@test.invalid', 'gestionnaire', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      select id into f_s from public.sessions limit 1;
+      select id into f_m from public.company_members where profile_id = f_lec and company_id = f_c;
+      perform set_config('request.jwt.claims', json_build_object('sub', f_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      f_a := app.can_read_session(f_s);
+      execute 'reset role';
+      insert into public.company_member_rights (member_id, company_id, right_code, effect) values (f_m, f_c, 'formation.suivi.voir', 'revoke');
+      execute 'set local role authenticated';
+      f_b := app.can_read_session(f_s);
+      execute 'reset role';
+      if f_s is null or (f_a and not f_b) then
+        v_lines := v_lines || 'OK      lec   0378 : droit retiré à une personne, la fonction suit'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0378 : droit retiré à une personne, la fonction suit'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', f_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      f_h1 := app.can_see_disability();
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if not f_h1 then
+        v_lines := v_lines || 'OK      ges   0378 : handicap fermé au gestionnaire (droit qualite.handicap.voir)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0378 : handicap fermé au gestionnaire (droit qualite.handicap.voir)'::text; end if;
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end

@@ -4,7 +4,7 @@
 import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML, getOrg, getSender } from './_lib/mailer.js'
 import { loadTeam, payerLabel } from './_lib/team.js'
 import { getComptableConfig } from './_lib/comptable.js'
-import { requireRole, FINANCE } from './_lib/auth.js'
+import { requireRight, FINANCE } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 export const config = {
@@ -12,7 +12,7 @@ export const config = {
 }
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, FINANCE)
+  const ctx = await requireRight(req, res, 'facturation.export.comptable', FINANCE, FINANCE)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile

@@ -3,6 +3,7 @@ import { supabase } from '../../../core/supabase'
 import { Upload, FileText, Download, Trash2, ChevronDown, ChevronRight, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { buildStorageFileName } from '../../../core/storageUtils'
+import { useDroits } from '../../../core/rights/useDroit'
 
 const DOCUMENT_TYPES = {
   support_formateur: {
@@ -23,6 +24,8 @@ const DOCUMENT_TYPES = {
 }
 
 export default function CourseDocumentsList() {
+  // Documents de formation (course_documents) : tables du catalogue
+  const d = useDroits({ gerer: 'formation.catalogue.gerer' })
   const [courses, setCourses] = useState([])
   const [documents, setDocuments] = useState({})
   const [expandedCourses, setExpandedCourses] = useState({})
@@ -392,6 +395,7 @@ export default function CourseDocumentsList() {
                                   <Download className="w-3 h-3" />
                                   Télécharger
                                 </button>
+                                {d.gerer && (
                                 <button
                                   onClick={() => deleteDocument(course.id, type)}
                                   className="px-3 py-1.5 text-ui-sm bg-[rgb(var(--c-danger))] text-white rounded hover:bg-[rgb(var(--c-danger))] flex items-center gap-1"
@@ -399,9 +403,10 @@ export default function CourseDocumentsList() {
                                   <Trash2 className="w-3 h-3" />
                                   Supprimer
                                 </button>
+                                )}
                               </div>
                             </div>
-                          ) : (
+                          ) : d.gerer && (
                             <div className="mt-3 pt-3 border-t border-gray-200">
                               <label className="cursor-pointer">
                                 <input

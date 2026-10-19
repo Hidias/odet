@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { LiberationSans_Regular } from '../../../core/pdf/fonts/LiberationSans-Regular.js'
 import { LiberationSans_Bold } from '../../../core/pdf/fonts/LiberationSans-Bold.js'
 import { buildORG } from '../../../core/org/orgUtils'
+import { computeDocumentTotals, round2 } from '../../../core/billing/totals'
 import { renderCommercialDoc, itemRow, fmtMoney, fmtEuro, fmtRate, issuerLines, recipientLines, companyLegalLine, bankRows } from './commercialLayout'
 
 // Facture et avoir sur la mise en page commune des documents.
@@ -71,43 +72,23 @@ async function loadLogo(L) {
 // ============================================================
 // CALCULS PARTAGES
 // ============================================================
+// Totaux : calcul unique de src/core/billing/totals.js (arrondi au centime par ligne puis par taux,
+// taux de 0 % respecté), même résultat que le Factur-X.
 export function calcInvoiceTotals(items, discountPercent, tvaApplicable) {
-  var subtotalHt = items.reduce(function (s, it) {
-    return s + (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price_ht) || 0)
-  }, 0)
-
-  var dp = parseFloat(discountPercent) || 0
-  var da = subtotalHt * dp / 100
-  var netHt = subtotalHt - da
-
+  var t = computeDocumentTotals(items || [], { discountPercent: discountPercent, vatApplicable: tvaApplicable !== false })
   var tvaByRate = {}
-  items.forEach(function (it) {
-    var rate = parseFloat(it.tva_rate) || 20
-    var lht = (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price_ht) || 0)
-    if (!tvaByRate[rate]) tvaByRate[rate] = { base: 0, tva: 0 }
-    tvaByRate[rate].base += lht
+  t.breakdown.forEach(function (g) {
+    var k = String(g.rate)
+    if (!tvaByRate[k]) tvaByRate[k] = { base: 0, tva: 0 }
+    tvaByRate[k].base = round2(tvaByRate[k].base + g.base)
+    tvaByRate[k].tva = round2(tvaByRate[k].tva + g.tax)
   })
-
-  if (dp > 0) {
-    Object.keys(tvaByRate).forEach(function (r) {
-      tvaByRate[r].base -= tvaByRate[r].base * dp / 100
-    })
-  }
-
-  var totalTva = 0
-  if (tvaApplicable !== false) {
-    Object.keys(tvaByRate).forEach(function (r) {
-      tvaByRate[r].tva = tvaByRate[r].base * parseFloat(r) / 100
-      totalTva += tvaByRate[r].tva
-    })
-  }
-
   return {
-    subtotalHt: subtotalHt,
-    discountAmt: da,
-    netHt: netHt,
-    totalTva: totalTva,
-    totalTtc: netHt + totalTva,
+    subtotalHt: t.lineTotal,
+    discountAmt: t.allowanceTotal,
+    netHt: t.taxBasis,
+    totalTva: t.taxTotal,
+    totalTtc: t.grandTotal,
     tvaByRate: tvaByRate
   }
 }
@@ -115,6 +96,14 @@ export function calcInvoiceTotals(items, discountPercent, tvaApplicable) {
 // ============================================================
 // GENERATION PDF FACTURE / AVOIR
 // ============================================================
+// Document non émis : pas de date d'émission. Les documents d'avant la numérotation par la base (sans le champ) suivent
+// leur statut.
+export function isDraftDoc(invoice) {
+  if (!invoice) return true
+  if (Object.prototype.hasOwnProperty.call(invoice, 'issued_at')) return !invoice.issued_at
+  return invoice.status === 'draft'
+}
+
 export async function generateInvoicePDF(invoice, items, client, contact, options) {
   options = options || {}
   contact = contact || null
@@ -181,7 +170,7 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
   if (invoice.parent_reference) subtitle = (isCredit ? 'Avoir sur la facture ' : 'Document parent : ') + invoice.parent_reference
 
   renderCommercialDoc(doc, L, {
-    ref: invoice.reference,
+    ref: isDraftDoc(invoice) ? 'Brouillon' : invoice.reference,
     docLabel: isCredit ? 'Avoir' : 'Facture',
     code: isCredit ? 'AVR' : 'FACT',
     title: isCredit ? 'Avoir' : 'Facture',
@@ -192,7 +181,7 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
     recipientLines: recipientLines(displayClient, contact, !billingClient),
     forAccountOf: billingClient && client ? [client.name, client.siret ? 'SIRET ' + client.siret : (client.siren ? 'SIREN ' + client.siren : null)] : null,
     meta: [
-      ['N° ' + (isCredit ? "d'avoir" : 'de facture'), invoice.reference],
+      ['N° ' + (isCredit ? "d'avoir" : 'de facture'), isDraftDoc(invoice) ? 'attribué à l\'émission' : invoice.reference],
       ['Date', fd(invoice.invoice_date)],
       [isCredit ? null : 'Échéance', isCredit ? null : fd(invoice.due_date)],
       ['Période de service', invoice.service_start_date ? fd(invoice.service_start_date) + (invoice.service_end_date && invoice.service_end_date !== invoice.service_start_date ? ' au ' + fd(invoice.service_end_date) : '') : null],
@@ -209,8 +198,23 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
     legal: legal,
   })
 
+  // Brouillon (pas encore émis par la base) : filigrane sur chaque page, aucun numéro (décision du 17/10)
+  if (isDraftDoc(invoice)) {
+    var nPages = doc.getNumberOfPages()
+    for (var pg = 1; pg <= nPages; pg++) {
+      doc.setPage(pg)
+      doc.saveGraphicsState && doc.saveGraphicsState()
+      if (doc.GState) doc.setGState(new doc.GState({ opacity: 0.18 }))
+      doc.setFont(doc.__odetFont || 'helvetica', 'bold')
+      doc.setFontSize(54)
+      doc.setTextColor(150, 0, 0)
+      doc.text('BROUILLON, sans valeur', 105, 160, { align: 'center', angle: 35 })
+      doc.restoreGraphicsState && doc.restoreGraphicsState()
+    }
+    doc.setTextColor(0, 0, 0)
+  }
   if (!options.skipSave) {
-    doc.save(invoice.reference + '.pdf')
+    doc.save((isDraftDoc(invoice) ? 'brouillon' : invoice.reference) + '.pdf')
   }
 
   return doc

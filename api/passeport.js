@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { getAdminClient, requireRole } from './_lib/auth.js'
+import { getAdminClient, requireRight } from './_lib/auth.js'
 import {
   normaliserNir, ecartsNir, finNir, statutInscription, construireFichier, identifiants, nomFichier,
 } from '../src/modules/passeport/lib/rules.js'
@@ -266,7 +266,7 @@ async function handler(req, res) {
     }
 
     // ── Actions du personnel ──
-    const ctx = await requireRole(req, res, MANAGERS)
+    const ctx = await requireRight(req, res, 'passeport.declarations.gerer', MANAGERS, MANAGERS)
     if (!ctx) return
     if (!(await moduleOn(admin))) return res.status(403).json({ error: 'Module Passeport de prévention désactivé' })
 

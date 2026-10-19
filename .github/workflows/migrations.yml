@@ -1,0 +1,114 @@
+# Application des migrations en production, sans passer par l'éditeur SQL.
+# Lot décrit dans supabase/lots/<lot>.conf ; script : scripts/migrations/lancer.sh.
+# 1. vérifie que la dernière sauvegarde de nuit est verte et a moins de 30 heures ;
+# 2. joue l'essai et l'essai du retour arrière, chacun en transaction annulée ;
+# 3. applique seulement si les deux essais sont verts (0 échec, 0 écart) et si le mode est « appliquer » ;
+# 4. rejoue les tests de droits ; s'ils échouent, retour arrière immédiat ;
+# 5. écrit le résultat dans le résumé de l'exécution et, pour une PR, en commentaire.
+# Déclenchement : onglet Actions (Run workflow), ou étiquette sur une PR :
+#   « migration:essai » (essais seuls) ou « migration:appliquer », le lot étant donné dans la description
+#   de la PR par une ligne « Lot : <nom> ».
+# Aucun secret dans le code ni dans les journaux : l'adresse de la base vient du secret SUPABASE_DB_URL.
+# Procédure : docs/migrations-production.md
+
+name: Migrations en production
+
+on:
+  workflow_dispatch:
+    inputs:
+      lot:
+        description: "Nom du lot (fichier supabase/lots/<lot>.conf)"
+        required: true
+      mode:
+        description: "essai = transactions annulées seulement ; appliquer = application si les essais sont verts"
+        required: true
+        default: essai
+        type: choice
+        options: [essai, appliquer]
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: migrations-production
+  cancel-in-progress: false
+
+jobs:
+  migrations:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'migration:essai' || github.event.label.name == 'migration:appliquer'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lot et mode
+        id: lot
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          LOT_SAISI: ${{ inputs.lot }}
+          MODE_SAISI: ${{ inputs.mode }}
+          ETIQUETTE: ${{ github.event.label.name }}
+          DESCRIPTION: ${{ github.event.pull_request.body }}
+        run: |
+          if [ "$EVENEMENT" = workflow_dispatch ]; then
+            lot="$LOT_SAISI"; mode="$MODE_SAISI"
+          else
+            lot="$(printf '%s\n' "$DESCRIPTION" | sed -nE 's/^[[:space:]]*Lot[[:space:]]*:[[:space:]]*([a-z0-9_-]+)[[:space:]]*$/\1/p' | head -1)"
+            [ "$ETIQUETTE" = migration:appliquer ] && mode=appliquer || mode=essai
+          fi
+          [[ "$lot" =~ ^[a-z0-9_-]+$ ]] || { echo "::error::Lot absent ou invalide (ligne « Lot : <nom> » dans la description de la PR)"; exit 1; }
+          echo "lot=$lot" >> "$GITHUB_OUTPUT"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+      - name: Sauvegarde de nuit verte ?
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          derniere="$(gh api "repos/${{ github.repository }}/actions/workflows/sauvegarde-nuit.yml/runs?branch=main&status=completed&per_page=1" \
+            --jq '.workflow_runs[0] | "\(.conclusion) \(.created_at)"')"
+          set -- $derniere
+          [ "${1:-}" = success ] || { echo "::error::Dernière sauvegarde de nuit non verte (${1:-introuvable})"; exit 1; }
+          age=$(( ( $(date +%s) - $(date -d "$2" +%s) ) / 3600 ))
+          [ "$age" -lt 30 ] || { echo "::error::Dernière sauvegarde de nuit trop ancienne ($age h)"; exit 1; }
+          echo "Sauvegarde de nuit verte, il y a $age h."
+
+      - name: Client PostgreSQL
+        run: psql --version
+
+      - name: Essais, application, tests
+        id: lancer
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          LOT: ${{ steps.lot.outputs.lot }}
+          MODE: ${{ steps.lot.outputs.mode }}
+          RAPPORT: ${{ runner.temp }}/rapport.md
+        run: bash scripts/migrations/lancer.sh
+
+      - name: Résumé
+        if: always() && steps.lot.outcome == 'success'
+        env:
+          RAPPORT: ${{ runner.temp }}/rapport.md
+        run: |
+          [ -f "$RAPPORT" ] && cat "$RAPPORT" >> "$GITHUB_STEP_SUMMARY" || echo "Pas de rapport (arrêt avant les essais)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commentaire sur la PR
+        if: always() && github.event_name == 'pull_request' && steps.lot.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RAPPORT: ${{ runner.temp }}/rapport.md
+          PR: ${{ github.event.pull_request.number }}
+          ETIQUETTE: ${{ github.event.label.name }}
+          ISSUE: ${{ steps.lancer.outcome }}
+        run: |
+          {
+            echo "**Migrations en production : ${ISSUE}** ([exécution](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))"
+            echo
+            [ -f "$RAPPORT" ] && head -c 60000 "$RAPPORT" || echo "Arrêt avant les essais (voir l'exécution)."
+          } > "$RUNNER_TEMP/commentaire.md"
+          gh pr comment "$PR" --repo "${{ github.repository }}" --body-file "$RUNNER_TEMP/commentaire.md"
+          gh pr edit "$PR" --repo "${{ github.repository }}" --remove-label "$ETIQUETTE" || true

@@ -3,7 +3,7 @@
 // Les PJ sont récupérées depuis Supabase Storage (pas en JSON body → évite la limite 4.5MB Vercel)
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML } from './_lib/mailer.js'
-import { requireRole, SALES, isSafeStoragePath } from './_lib/auth.js'
+import { requireRight, SALES, isSafeStoragePath } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 const supabase = getSupabaseAdmin()
@@ -13,7 +13,7 @@ const supabase = getSupabaseAdmin()
 
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, SALES)
+  const ctx = await requireRight(req, res, 'commercial.prospection.gerer', SALES, SALES)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile

@@ -1,4 +1,4 @@
-import { requireRole, FINANCE } from './_lib/auth.js'
+import { requireRight, FINANCE } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/parse-bank-statement.js
 // Extraction des soldes d'un relevé bancaire (PDF) + contrôle arithmétique.
@@ -83,7 +83,7 @@ function signedBalance(raw, sense) {
 const round2 = (n) => Math.round(n * 100) / 100
 
 async function handler(req, res) {
-  const ctx = await requireRole(req, res, FINANCE)
+  const ctx = await requireRight(req, res, 'finance.budget.gerer', FINANCE, FINANCE)
   if (!ctx) return
   req.user = ctx.user
   req.profile = ctx.profile
