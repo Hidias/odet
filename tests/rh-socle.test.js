@@ -36,3 +36,30 @@ describe('RH absences', async () => {
     expect(joursOuvres('2026-11-06', false, '2026-11-02', false)).toBe(0)
   })
 })
+
+describe('RH heures', async () => {
+  const { totauxSemaine, lundiDe, minutesLigne, heures } = await import('../src/modules/rh/lib/rhData')
+  it('semaine : total, heures supplémentaires 25 % puis 50 %, dépassements signalés', () => {
+    const l = [
+      { work_date: '2026-11-02', start_time: '07:00:00', end_time: '19:00:00', break_minutes: 60 },
+      { work_date: '2026-11-03', start_time: '08:00', end_time: '18:00', break_minutes: 60 },
+      { work_date: '2026-11-04', start_time: '08:00', end_time: '18:00', break_minutes: 60 },
+      { work_date: '2026-11-05', start_time: '08:00', end_time: '18:00', break_minutes: 60 },
+      { work_date: '2026-11-06', start_time: '08:00', end_time: '18:00', break_minutes: 60 },
+    ]
+    const t = totauxSemaine(l, 35 * 60)
+    expect(t.total).toBe(47 * 60)
+    expect(t.sup).toBe(12 * 60)
+    expect(t.sup25).toBe(8 * 60)
+    expect(t.sup50).toBe(4 * 60)
+    expect(t.joursLongs).toEqual(['2026-11-02'])
+    expect(t.semaineLongue).toBe(false)
+  })
+  it('lundi de la semaine, durée d\'une ligne, affichage', () => {
+    expect(lundiDe('2026-11-08')).toBe('2026-11-02')
+    expect(lundiDe('2026-11-02')).toBe('2026-11-02')
+    expect(minutesLigne('13:30', '17:30', 15)).toBe(225)
+    expect(heures(225)).toBe('3 h45')
+    expect(heures(480)).toBe('8 h')
+  })
+})

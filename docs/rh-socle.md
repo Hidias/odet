@@ -45,3 +45,14 @@ Une personne présente dans deux sociétés a pour l'instant une fiche par soci�
 - Soldes calculés (`v_hr_soldes`) depuis les mouvements (acquisition, prise, report, ajustement, annulation) ;
   ajustements par la RH dans la fiche.
 - Aucun motif médical : seule la catégorie du type. Jours fériés : à venir (calendrier par société).
+
+# Heures (migration 0297)
+
+- Ma semaine (Personnel › Heures) : lignes par jour (début, fin, pause, observation), « Reprendre mes visites et
+  sessions » (`hr_semaine_preparer` : visites terminées du technicien, sessions du formateur relié à la fiche, à
+  vérifier), totaux, écart au contrat (35 h par défaut), heures supplémentaires (25 % les 8 premières, 50 % au-delà,
+  à défaut d'accord, à confirmer).
+- Dépassements signalés, jamais bloqués : plus de 10 h par jour, plus de 48 h par semaine.
+- Soumission (`hr_semaine_soumettre`) : circuit commun (« timesheet », « Valider les heures ») ; lignes figées tant que
+  la semaine est soumise ou validée ; une semaine renvoyée redevient modifiable. Les heures supplémentaires ne comptent
+  qu'après validation. L'outil ne calcule pas la paie.

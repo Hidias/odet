@@ -172,3 +172,66 @@ export async function enregistrerTypeAbsence(t) {
   if (id) return must(await supabase.from('hr_absence_types').update(reste).eq('id', id))
   return must(await supabase.from('hr_absence_types').insert(reste))
 }
+
+// ─── Heures (0297) ───
+export const STATUTS_SEMAINE = {
+  ouverte: { label: 'À soumettre', badge: 'badge-neutral' },
+  soumise: { label: 'Soumise', badge: 'badge-warning' },
+  validee: { label: 'Validée', badge: 'badge-success' },
+  rejetee: { label: 'À reprendre', badge: 'badge-danger' },
+}
+// Valeurs du Code du travail, « par défaut, à confirmer » (spec RH § 5) : signalées, jamais bloquées
+export const LIMITES = { jourMinutes: 10 * 60, semaineMinutes: 48 * 60 }
+
+export function lundiDe(iso) {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return d.toISOString().slice(0, 10)
+}
+export function ajouterJours(iso, n) {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+export function minutesLigne(debut, fin, pause = 0) {
+  if (!debut || !fin) return 0
+  const [ha, ma] = debut.slice(0, 5).split(':').map(Number)
+  const [hb, mb] = fin.slice(0, 5).split(':').map(Number)
+  return Math.max(0, (hb * 60 + mb) - (ha * 60 + ma) - Number(pause || 0))
+}
+export const heures = (minutes) => {
+  const m = Math.round(Number(minutes) || 0)
+  return `${Math.floor(m / 60)} h${m % 60 ? String(m % 60).padStart(2, '0') : ''}`
+}
+
+/** Totaux d'une semaine : par jour, total, écart au contrat, heures supplémentaires (25 % les 8 premières, 50 % au-delà) */
+export function totauxSemaine(lignes, contratMinutes = 35 * 60) {
+  const parJour = {}
+  for (const l of lignes || []) parJour[l.work_date] = (parJour[l.work_date] || 0) + minutesLigne(l.start_time, l.end_time, l.break_minutes)
+  const total = Object.values(parJour).reduce((a, b) => a + b, 0)
+  const sup = Math.max(0, total - contratMinutes)
+  return {
+    parJour, total, ecart: total - contratMinutes, sup,
+    sup25: Math.min(sup, 8 * 60), sup50: Math.max(0, sup - 8 * 60),
+    joursLongs: Object.entries(parJour).filter(([, m]) => m > LIMITES.jourMinutes).map(([j]) => j),
+    semaineLongue: total > LIMITES.semaineMinutes,
+  }
+}
+
+export const chargerLignes = async (personId, lundi) => must(await supabase.from('hr_time_entries').select('*, clients(name)')
+  .eq('person_id', personId).gte('work_date', lundi).lte('work_date', ajouterJours(lundi, 6)).order('work_date').order('start_time'))
+export const chargerSemaine = async (personId, lundi) => must(await supabase.from('hr_timesheets').select('*').eq('person_id', personId).eq('week_start', lundi).maybeSingle())
+export const chargerSemainesAValider = async () => must(await supabase.from('hr_timesheets').select('*, hr_people(first_name, last_name, usage_name)').eq('status', 'soumise').order('week_start'))
+export const chargerContratEnCours = async (personId, lundi) => {
+  const { data } = await supabase.from('hr_employments').select('weekly_hours, start_on, end_on').eq('person_id', personId).lte('start_on', ajouterJours(lundi, 6)).order('start_on', { ascending: false }).limit(1)
+  const c = (data || [])[0]
+  return c && (!c.end_on || c.end_on >= lundi) ? c : null
+}
+export async function enregistrerLigne(l) {
+  const { id, clients: _c, minutes: _m, ...reste } = l
+  if (id) return must(await supabase.from('hr_time_entries').update(reste).eq('id', id))
+  return must(await supabase.from('hr_time_entries').insert(reste))
+}
+export const supprimerLigne = async (id) => must(await supabase.from('hr_time_entries').delete().eq('id', id))
+export const preparerSemaine = async (lundi) => must(await supabase.rpc('hr_semaine_preparer', { p_lundi: lundi }))
+export const soumettreSemaine = async (lundi) => must(await supabase.rpc('hr_semaine_soumettre', { p_lundi: lundi }))

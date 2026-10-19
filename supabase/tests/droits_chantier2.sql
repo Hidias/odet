@@ -3372,6 +3372,80 @@ begin
     end;
   end if;
 
+  -- Chantier 12, RH heures (0297) : la personne saisit et soumet sa semaine, lignes figées ensuite, validation par
+  -- un autre dans le circuit commun ; rien pour le commercial
+  if to_regprocedure('public.hr_semaine_soumettre(date)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare
+      t_co uuid := app.company_default(); t_p uuid; t_lundi date; t_ts uuid; t_appro uuid; t_e uuid; t_ok boolean; t_n int; t_st text;
+    begin
+      t_lundi := (date_trunc('week', current_date + 35))::date;
+      insert into public.hr_people (first_name, last_name, profile_id) values ('Essai', 'Heures', u_lec) on conflict do nothing;
+      select id into t_p from public.hr_people where profile_id = u_lec and company_id = t_co limit 1;
+      insert into public.company_member_roles (member_id, role_key)
+      select m.id, 'salarie' from public.company_members m where m.profile_id = u_lec and m.company_id = t_co
+      on conflict do nothing;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.hr_time_entries (person_id, work_date, start_time, end_time) values (t_p, t_lundi, '08:00', '12:00');
+      insert into public.hr_time_entries (person_id, work_date, start_time, end_time) values (t_p, t_lundi, '13:00', '18:00');
+      insert into public.hr_time_entries (person_id, work_date, start_time, end_time, break_minutes) values (t_p, t_lundi + 1, '08:00', '17:00', 60);
+      t_n := public.hr_semaine_preparer(t_lundi);
+      t_ts := public.hr_semaine_soumettre(t_lundi);
+      select approval_id into t_appro from public.hr_timesheets where id = t_ts;
+      select id into t_e from public.hr_time_entries where person_id = t_p and work_date = t_lundi limit 1;
+      t_ok := false;
+      begin update public.hr_time_entries set end_time = '12:30' where id = t_e; exception when check_violation then t_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if (select total_minutes = 1020 and status = 'soumise' from public.hr_timesheets where id = t_ts) and t_appro is not null and t_ok then
+        v_lines := v_lines || 'OK      lec   0297 : semaine saisie (17 h) et soumise au circuit, lignes figées ensuite'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0297 : saisie et soumission de la semaine'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      t_ok := false;
+      begin perform public.approval_decide(t_appro, 'approved', null); exception when insufficient_privilege then t_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ad, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      t_st := public.approval_decide(t_appro, 'approved', null);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if t_ok and t_st = 'approved' and (select status from public.hr_timesheets where id = t_ts) = 'validee' then
+        v_lines := v_lines || 'OK      ad    0297 : semaine validée par un autre (la personne ne valide pas la sienne)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0297 : validation de la semaine'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      t_n := (select count(*) from public.hr_time_entries) + (select count(*) from public.hr_timesheets);
+      t_ok := false;
+      begin insert into public.hr_time_entries (person_id, work_date, start_time, end_time) values (t_p, t_lundi + 21, '08:00', '09:00');
+      exception when insufficient_privilege then t_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if t_n = 0 and t_ok then
+        v_lines := v_lines || 'OK      com   0297 : le commercial ne voit ni ne saisit d''heures'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0297 : heures cachées au commercial'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      t_n := (select count(*) from public.hr_time_entries where person_id = t_p);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if t_n = 3 then
+        v_lines := v_lines || 'OK      dir   0297 : la direction lit les heures du personnel'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0297 : lecture des heures'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0297 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
