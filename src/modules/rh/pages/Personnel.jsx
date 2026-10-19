@@ -7,6 +7,7 @@ import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-
 import toast from 'react-hot-toast'
 import { Plus, Phone, Mail, Search, Users, Pencil, Eye, Archive, ArchiveRestore, Trash2, Clock } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
+import { supabase } from '../../../core/supabase'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
 import { EmptyState, Spinner } from '../../../ui/EmptyState'
@@ -113,12 +114,17 @@ function Annuaire({ peutGerer }) {
 const VIDE = {
   first_name: '', last_name: '', usage_name: '', birth_date: '', work_phone: '', work_email: '', personal_phone: '',
   personal_email: '', personal_address: '', personal_postal_code: '', personal_city: '', emergency_name: '',
-  emergency_relation: '', emergency_phone: '', notes: '',
+  emergency_relation: '', emergency_phone: '', notes: '', profile_id: '',
 }
 function FichePersonneSheet({ personne = null, onClose, onSaved }) {
   const [v, setV] = useState(() => ({ ...VIDE, ...Object.fromEntries(Object.entries(personne || {}).filter(([k]) => k in VIDE).map(([k, x]) => [k, x ?? ''])) }))
   const [plus, setPlus] = useState(!!personne)
   const [busy, setBusy] = useState(false)
+  const [comptes, setComptes] = useState([])
+  useEffect(() => {
+    supabase.from('profiles').select('id, first_name, last_name, display_name, email, is_active').order('last_name')
+      .then(({ data }) => setComptes((data || []).filter((c) => c.is_active !== false || c.id === personne?.profile_id)))
+  }, [personne?.profile_id])
   const m = (k) => (e) => setV({ ...v, [k]: e.target.value })
   const enregistrer = async (e) => {
     e.preventDefault()
@@ -140,6 +146,15 @@ function FichePersonneSheet({ personne = null, onClose, onSaved }) {
           <Champ label="Téléphone professionnel"><input className="input" type="tel" value={v.work_phone} onChange={m('work_phone')} /></Champ>
           <Champ label="Email professionnel"><input className="input" type="email" value={v.work_email} onChange={m('work_email')} /></Champ>
         </div>
+        {comptes.length > 0 && (
+          <Champ label="Compte de l'outil relié">
+            <select className="select" value={v.profile_id} onChange={m('profile_id')}>
+              <option value="">Aucun (la personne ne se connecte pas)</option>
+              {comptes.map((c) => <option key={c.id} value={c.id}>{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.display_name || c.email} · {c.email}</option>)}
+            </select>
+            <span className="block text-ui-sm muted mt-0.5">La personne retrouve alors ses congés, ses heures et ses documents dans « Mon espace ».</span>
+          </Champ>
+        )}
         {!plus && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPlus(true)}>Coordonnées personnelles et contact d'urgence</button>}
         {plus && (
           <>
@@ -378,6 +393,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
         {ligne('Adresse', [p.personal_address, [p.personal_postal_code, p.personal_city].filter(Boolean).join(' ')].filter(Boolean).join(', '))}
         {ligne('Contact d\'urgence', [p.emergency_name, p.emergency_relation, p.emergency_phone].filter(Boolean).join(' · '))}
         {ligne('Notes', p.notes)}
+        {ligne('Compte relié', p.profile_id ? 'Oui, la personne a son espace' : null)}
       </section>
 
       <section className="card space-y-2">
