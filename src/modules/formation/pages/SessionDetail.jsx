@@ -3240,9 +3240,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {activeTab === 'overview' && session?.id && <PiloteSession sessionId={session.id} />}
       {activeTab === 'overview' && (
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 className="font-semibold">Stagiaires ({sessionTrainees.length})</h3>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {d.inscrire && <button onClick={() => setShowAddTrainee(true)} className="btn btn-secondary flex items-center gap-2"><UserPlus className="w-4 h-4" />Ajouter existant</button>}
               {d.creerStagiaire && <button onClick={() => { setNewTraineeForm({ ...newTraineeForm, client_id: session?.client_id || '' }); setShowNewTraineeModal(true) }} className="btn btn-secondary flex items-center gap-2"><Plus className="w-4 h-4" />Créer nouveau</button>}
             </div>

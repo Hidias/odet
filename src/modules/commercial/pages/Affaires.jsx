@@ -91,7 +91,7 @@ export default function Affaires() {
           <div className="text-ui-sm text-gray-600 truncate">
             {l.next_action || (l.origine === 'devis' ? 'Relancer le devis' : 'À suivre')} · {l.title}
           </div>
-          <div className="text-ui-sm text-gray-400">{nomEtape(l.stage)}{l.amount_ht != null ? ` · ${euros(l.amount_ht)}` : ''}{l.origine === 'devis' ? ' · devis sans affaire' : ''}</div>
+          <div className="text-ui-sm text-gray-400">{nomEtape(l.stage)}{l.amount_ht != null ? ` · ${euros(l.amount_ht)}` : ''}{l.origine === 'devis' ? ' · devis pas encore suivi comme affaire' : ''}</div>
         </div>
         <div className="flex gap-2 flex-none">
           {peutNoter && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEchange({ clientId: l.client_id, clientName: l.client_name, affaire: l })}>
@@ -113,7 +113,7 @@ export default function Affaires() {
       <div className="flex flex-wrap items-center gap-3">
         <Tabs value={onglet} onChange={setOnglet} tabs={[
           { id: 'a_faire', label: 'À faire', count: aFaire.length },
-          { id: 'pipeline', label: 'Pipeline', count: totaux.nb },
+          { id: 'pipeline', label: 'Par étape', count: totaux.nb },
           { id: 'appeler', label: 'À appeler', count: appeler?.length ?? null },
         ]} />
         <label className="ml-auto inline-flex items-center gap-2 text-ui-sm text-gray-600">

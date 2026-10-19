@@ -687,7 +687,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
         {/* Plateformes */}
         <div>
           <h3 className="text-ui font-medium text-gray-600 mb-2">Publier sur :</h3>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {PLATFORMS.map(p => (
               <button
                 key={p.id}

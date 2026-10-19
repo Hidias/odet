@@ -656,7 +656,7 @@ export default function Invoices() {
     if (sessionsSorted.length !== sessionIds.length) { toast.error('Session introuvable'); return }
     const clientIds = [...new Set(sessionsSorted.map(s => s.client_id))]
     if (clientIds.length > 1) { toast.error('Les sessions sélectionnées doivent appartenir au même client'); return }
-    if (sessionsSorted.some(s => s.session_type === 'subcontract')) { toast.error('Sous-traitance : utilisez « Sous-traitance groupée »'); return }
+    if (sessionsSorted.some(s => s.session_type === 'subcontract')) { toast.error('Sous-traitance : utilisez « Factures de sous-traitance »'); return }
     if (sessionsSorted.some(s => !s.courses)) { toast.error('Une session sélectionnée n\'a pas de formation associée'); return }
 
     const first = sessionsSorted[0]
@@ -1203,14 +1203,14 @@ export default function Invoices() {
           <button onClick={() => setShowQuoteSelector(true)} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Depuis un devis</button>
           <button onClick={openSessionSelector} className="btn btn-secondary flex items-center gap-2 text-ui"><CheckCircle size={16} />Depuis une session</button>
           <button onClick={() => handleNew('invoice')} className="btn btn-primary flex items-center gap-2 text-ui"><Plus size={16} />Facture libre</button>
-          <button onClick={() => { setGroupedClientSearch(''); setGroupedClientId(''); setGroupedClientOpen(false); setShowGroupedModal(true) }} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Sous-traitance groupée</button>
+          <button onClick={() => { setGroupedClientSearch(''); setGroupedClientId(''); setGroupedClientOpen(false); setShowGroupedModal(true) }} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Factures de sous-traitance</button>
           <button onClick={() => handleNew('credit_note')} className="btn btn-secondary flex items-center gap-2 text-ui"><Plus size={16} />Avoir</button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white border rounded-ui p-4 border-[rgb(var(--c-success)/0.3)]"><p className="text-ui-sm text-gray-500">CA Payé</p><p className="text-xl font-bold text-[rgb(var(--c-success))] mt-1">{money(stats.paid)}</p><p className="text-ui-sm text-gray-400 mt-1">{stats.invCount} factures</p></div>
+        <div className="bg-white border rounded-ui p-4 border-[rgb(var(--c-success)/0.3)]"><p className="text-ui-sm text-gray-500">Encaissé</p><p className="text-xl font-bold text-[rgb(var(--c-success))] mt-1">{money(stats.paid)}</p><p className="text-ui-sm text-gray-400 mt-1">{stats.invCount} factures</p></div>
         <div className="bg-white border rounded-ui p-4 border-[rgb(var(--c-info)/0.3)]"><p className="text-ui-sm text-gray-500">En attente</p><p className="text-xl font-bold text-[rgb(var(--c-info))] mt-1">{money(stats.pending)}</p></div>
         <div className="bg-white border rounded-ui p-4 border-[rgb(var(--c-danger)/0.3)]"><p className="text-ui-sm text-gray-500">En retard</p><p className="text-xl font-bold text-[rgb(var(--c-danger))] mt-1">{money(stats.overdue)}</p></div>
         <div className="bg-white border rounded-ui p-4 border-[rgb(var(--c-warning)/0.3)]"><p className="text-ui-sm text-gray-500">Avoirs</p><p className="text-xl font-bold text-[rgb(var(--c-warning))] mt-1">{money(stats.credits)}</p><p className="text-ui-sm text-gray-400 mt-1">{stats.crCount} avoirs</p></div>

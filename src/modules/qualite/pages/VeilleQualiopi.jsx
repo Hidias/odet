@@ -273,7 +273,7 @@ export default function VeilleQualiopi() {
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-ui-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-ui-sm font-medium transition-all whitespace-nowrap ${
                 isActive 
                   ? `bg-${config.color}-100 text-${config.color}-700 ring-2 ring-${config.color}-500` 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -284,8 +284,7 @@ export default function VeilleQualiopi() {
               } : {}}
             >
               <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{config.label.split(' ')[1]}</span>
-              <span className="sm:hidden">{config.label.split(' ')[1].substring(0, 3)}</span>
+              <span>{{ legale: 'Légale', metiers: 'Métiers', pedagogique: 'Pédagogique' }[key] || config.label.split(' ')[1]}</span>
               {stats.aTraiter > 0 && (
                 <span className="bg-[rgb(var(--c-danger))] text-white text-ui-sm px-1.5 py-0.5 rounded-full">
                   {stats.aTraiter}
