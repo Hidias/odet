@@ -76,15 +76,15 @@ export default function PpADeclarer({ aDeclarer, today, reload }) {
 
       {liste.length === 0 && <div className="card text-ui muted">Rien à déclarer avec ces filtres.</div>}
 
-      <div className="grid gap-2">
+      <div className="grid grid-cols-1 gap-2">
         {liste.map((s) => (
-          <div key={s.session_id} className={`card p-0 flex items-stretch ${ouverte === s.session_id ? 'ring-2 ring-accent-400' : ''}`}>
+          <div key={s.session_id} className={`card p-0 flex items-stretch min-w-0 ${ouverte === s.session_id ? 'ring-2 ring-accent-400' : ''}`}>
             <label className="flex items-center px-3 border-r border-gray-100 cursor-pointer" aria-label={`Sélectionner ${s.reference}`}>
               <input type="checkbox" className="w-5 h-5" disabled={!s.prets} checked={selection.has(s.session_id)} onChange={() => toggle(s.session_id)} />
             </label>
             <button type="button" className="flex-1 text-left p-3 min-w-0" onClick={() => setOuverte(ouverte === s.session_id ? null : s.session_id)}>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold">{s.course_title}</span>
+                <span className="font-semibold break-words min-w-0">{s.course_title}</span>
                 <span className={`badge ${s.type === 'JDR' ? 'badge-success' : 'badge-info'}`}>{s.type}</span>
                 <span className="text-ui-sm muted">cat. {s.categorie || '?'}</span>
                 <span className="ml-auto"><LimiteBadge s={s} today={today} /></span>

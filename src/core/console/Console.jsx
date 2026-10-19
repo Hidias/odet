@@ -231,9 +231,9 @@ export default function Console() {
           <div className="space-y-2">
             {pending.map((m) => (
               <div key={m.version} className="rounded-ui border border-gray-200">
-                <div className="flex items-center gap-3 p-3">
+                <div className="flex flex-wrap items-center gap-3 p-3">
                   <AlertTriangle className="w-4 h-4 text-[rgb(var(--c-warning))]" />
-                  <code className="text-ui font-medium flex-1">{m.version}</code>
+                  <code className="text-ui font-medium flex-1 min-w-0 break-all">{m.version}</code>
                   <button type="button" onClick={() => showSql(m)} className="btn btn-ghost btn-sm">{openSql[m.version] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />} SQL</button>
                   <button type="button" onClick={async () => { if (!sql[m.version]) { const c = await MIGRATION_FILES[m.path](); setSql((s) => ({ ...s, [m.version]: c })); copy(c, 'SQL copié') } else copy(sql[m.version], 'SQL copié') }} className="btn btn-secondary btn-sm"><Copy className="w-4 h-4" /> Copier</button>
                 </div>
@@ -246,7 +246,7 @@ export default function Console() {
           <summary className="text-ui-sm text-gray-500 cursor-pointer">Historique des migrations appliquées</summary>
           <div className="mt-2 divide-y divide-gray-100">
             {(applied || []).map((m) => (
-              <div key={m.version} className="flex items-center justify-between py-1.5 text-ui-sm"><code>{m.version}</code><span className="text-gray-400">{m.applied_at ? new Date(m.applied_at).toLocaleString('fr-FR') : ''}</span></div>
+              <div key={m.version} className="flex flex-wrap items-center justify-between gap-x-3 py-1.5 text-ui-sm"><code className="min-w-0 break-all">{m.version}</code><span className="text-gray-400">{m.applied_at ? new Date(m.applied_at).toLocaleString('fr-FR') : ''}</span></div>
             ))}
           </div>
         </details>

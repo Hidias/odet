@@ -503,7 +503,7 @@ function TransactionsTab({ filtered, categories, months, filterMonth, setFilterM
   return (
     <div className="space-y-3">
       <div className="bg-white rounded-ui shadow-sm border p-3">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 [&>*]:min-w-0 [&>select]:w-full [&>input]:w-full">
           <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="border rounded-ui-sm px-3 py-2 text-ui">
             <option value="all">Tous les mois</option>
             {months.map(m => <option key={m} value={m}>{ML[m]||m}</option>)}
@@ -516,11 +516,11 @@ function TransactionsTab({ filtered, categories, months, filterMonth, setFilterM
             <option value="all">Tout</option><option value="debit">Sorties</option><option value="credit">Entrées</option>
           </select>
           <input type="text" value={filterSearch} onChange={e => setFilterSearch(e.target.value)} placeholder=" Rechercher..." className="border rounded-ui-sm px-3 py-2 text-ui" />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 max-w-full">
             <label className="flex items-center gap-1 text-ui-sm text-gray-600 cursor-pointer">
               <input type="checkbox" checked={showPerso} onChange={e => setShowPerso(e.target.checked)} className="rounded" /> Perso
             </label>
-            <select value={filterSpecial} onChange={e => setFilterSpecial(e.target.value)} className="border rounded px-2 py-1 text-ui-sm flex-1">
+            <select value={filterSpecial} onChange={e => setFilterSpecial(e.target.value)} className="border rounded px-2 py-1 text-ui-sm flex-1 min-w-0 max-w-full">
               <option value="">Filtres rapides</option>
               <option value="resto_no_guest"> Restos sans invités</option>
               <option value="credit_no_invoice"> Crédits non rapprochés</option>
@@ -5753,7 +5753,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
 
         {showPipeForm && (
           <div className="mb-3 p-3 bg-[rgb(var(--c-info-bg))] rounded-ui-sm border border-[rgb(var(--c-info)/0.3)]">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 [&>*]:min-w-0 [&>select]:w-full [&>input]:w-full">
               <input type="text" placeholder="Client" value={newPipe.client} onChange={e => setNewPipe(p => ({ ...p, client: e.target.value }))}
                 className="border rounded px-2 py-1.5 text-ui-sm" />
               <input type="number" placeholder="Montant TTC" value={newPipe.amount_ttc} onChange={e => setNewPipe(p => ({ ...p, amount_ttc: e.target.value }))}
