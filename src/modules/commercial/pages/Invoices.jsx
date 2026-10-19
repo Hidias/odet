@@ -3,6 +3,7 @@ import { orgName, currentUserName, teamNames } from '../../../core/org/currentOr
 import { apiFetch, callApi } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 import { supabase } from '../../../core/supabase'
 import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { useDataStore, useAuthStore } from '../../../core/store'
@@ -449,6 +450,8 @@ export default function Invoices() {
     })
     setItems([emptyItem()]); setPayments([]); setContacts([]); setMode('create')
   }
+  // « + Nouveau › Facture » (barre du haut)
+  useOuvrirSiDemande(() => handleNew('invoice'))
 
   // ─── From quote ───
   const handleFromQuote = async (quote) => {

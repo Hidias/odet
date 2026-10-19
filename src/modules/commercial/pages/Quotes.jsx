@@ -18,6 +18,7 @@ import {
 import { money } from '../../../core/utils'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
+import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 import { calcItemTotal, calcTotals } from '../lib/quoteTotals'
 import { parseRate } from '../../../core/billing/totals'
 import { quoteDay, nextQuoteReference } from '../lib/references'
@@ -226,6 +227,9 @@ export default function Quotes() {
       setRelanceConfirmed(false)
     }
   }, [previewData])
+
+  // « + Nouveau › Devis » (barre du haut)
+  useOuvrirSiDemande(() => openCreate())
 
   // Devis préparé ailleurs (ex. remplacements relevés pendant une visite d'intervention) : ?open=<id>
   useEffect(() => {

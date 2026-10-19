@@ -35,6 +35,12 @@ export const DENSITIES = ['compact', 'normal', 'large']
 export const NAVS = ['dark', 'light', 'rail']
 export const RADII = ['sm', 'md', 'lg']
 export const LISTS = ['table', 'cards']
+// Mode d'utilisation (par personne) : « simple » = menu limité aux pages du quotidien (le reste reste accessible par
+// les onglets et l'adresse), « complet » = tout. Vide = choix par défaut selon le rôle (voir modeParDefaut).
+export const MODES = ['simple', 'complet']
+export function modeParDefaut(role) {
+  return role === 'superadmin' ? 'complet' : 'simple'
+}
 
 // Duos de polices auto-hébergés (fichiers dans node_modules/@fontsource).
 export const FONT_PAIRS = {
@@ -54,6 +60,7 @@ export function normalizeUiPrefs(raw) {
     nav: NAVS.includes(raw?.nav) ? raw.nav : base.nav,
     radius: RADII.includes(raw?.radius) ? raw.radius : base.radius,
     lists: LISTS.includes(raw?.lists) ? raw.lists : base.lists,
+    mode: MODES.includes(raw?.mode) ? raw.mode : null,
   }
 }
 

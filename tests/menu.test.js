@@ -44,3 +44,18 @@ describe('menu : groupes de pages', () => {
     expect(ongletsPour('/sessions', sections)).toEqual([])
   })
 })
+
+describe('menu : mode simple et « + Nouveau »', () => {
+  it('mode simple : pages du quotidien seulement, les groupes gardent toutes leurs pages en onglets', async () => {
+    const { visibleSections: vs, ongletsPour: op, creationsVisibles } = await import('../src/core/modules/registry')
+    const mods = ['formation', 'commercial', 'qualite', 'interventions', 'affaires', 'pont', 'previsionnel', 'certification']
+    const simple = vs(mods, 'admin', inconnus, { simple: true }).flatMap((s) => s.items).map((i) => i.to)
+    expect(simple).toEqual(expect.arrayContaining(['/', '/sessions', '/clients', '/affaires', '/devis', '/factures', '/interventions', '/qualiopi']))
+    expect(simple).not.toContain('/documents-vierges')
+    expect(simple).not.toContain('/audit-logs')
+    const complet = vs(mods, 'admin', inconnus)
+    expect(op('/pistes', complet).map((i) => i.to)).toEqual(['/affaires', '/pistes', '/previsionnel'])
+    expect(creationsVisibles(mods, 'admin', inconnus).map((c) => c.label)).toEqual(['Session', 'Client', 'Affaire', 'Devis', 'Facture', 'Intervention'])
+    expect(creationsVisibles(mods, 'formateur', (c) => c === 'formation.sessions.voir_siennes').map((c) => c.label)).toEqual([])
+  })
+})

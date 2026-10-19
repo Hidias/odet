@@ -2,7 +2,7 @@ import toast from 'react-hot-toast'
 import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  Menu, X, Bell, Check, LogOut, ChevronDown, Settings, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
+  Menu, X, Bell, Check, LogOut, ChevronDown, Plus, Settings, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -15,8 +15,8 @@ import { useNotices } from '../core/notices/notices'
 import { supabase } from '../core/supabase'
 import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
-import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS } from '../core/branding/presets'
-import { visibleSections, visibleSettingsItems, accesPage, pageTitleFor, sectionIdFor, entreesMenu, ongletsPour, entreePourChemin } from '../core/modules/registry'
+import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS, modeParDefaut } from '../core/branding/presets'
+import { visibleSections, visibleSettingsItems, accesPage, pageTitleFor, sectionIdFor, entreesMenu, ongletsPour, entreePourChemin, creationsVisibles } from '../core/modules/registry'
 import PageRefusee from '../core/rights/PageRefusee'
 import { SelecteurSociete, ChoixSociete, BandeauVueGroupe } from '../core/company/SelecteurSociete'
 
@@ -66,13 +66,23 @@ export default function Layout() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showDisplay, setShowDisplay] = useState(false)
+  const [showNouveau, setShowNouveau] = useState(false)
 
-  // Technicien de terrain : seulement l'entrée Interventions, ni paramètres, ni recherche, ni notifications
-  const sections = useMemo(() => {
+  // Mode simple ou complet (réglage personnel ; par défaut selon le rôle)
+  const mode = prefs.mode || modeParDefaut(userRole)
+  const simple = mode === 'simple'
+  // Technicien de terrain : seulement l'entrée Interventions, ni paramètres, ni recherche, ni notifications.
+  // sectionsCompletes : tout ce que le compte peut ouvrir (onglets des groupes) ; sections : le menu (simple ou complet)
+  const sectionsCompletes = useMemo(() => {
     const all = visibleSections(modules, userRole, can)
     if (!fieldOnly) return all
     return all.map((s) => ({ ...s, items: s.items.filter((i) => i.to === '/interventions') })).filter((s) => s.items.length > 0)
   }, [modules, userRole, fieldOnly, rights, can])
+  const sections = useMemo(() => {
+    if (!simple || fieldOnly) return sectionsCompletes
+    return visibleSections(modules, userRole, can, { simple: true })
+  }, [simple, fieldOnly, sectionsCompletes, modules, userRole, rights, can])
+  const creations = useMemo(() => (fieldOnly ? [] : creationsVisibles(modules, userRole, can)), [fieldOnly, modules, userRole, rights, can])
   // Bandeau d'information et « Quoi de neuf » (chantier A) : état lu par la base, relu toutes les 15 minutes
   const notices = useNotices()
   const chargerNotices = notices.charger
@@ -89,9 +99,10 @@ export default function Layout() {
   const pageAutorisee = useMemo(() => accesPage(location.pathname, userRole, can), [location.pathname, userRole, rights, can])
   const fieldAllowed = !fieldOnly || location.pathname.startsWith('/interventions') || location.pathname === '/mot-de-passe'
   const activeSectionId = useMemo(() => sectionIdFor(location.pathname) || sections[0]?.id, [location.pathname, sections])
+  const basculerMode = () => update({ mode: simple ? 'complet' : 'simple' })
   const pageTitle = useMemo(() => pageTitleFor(location.pathname), [location.pathname])
   // Pages d'un même groupe (ex. Catalogue, Tests et quiz, Obligations) : onglets en haut de la page
-  const onglets = useMemo(() => ongletsPour(location.pathname, sections), [location.pathname, sections])
+  const onglets = useMemo(() => ongletsPour(location.pathname, sectionsCompletes), [location.pathname, sectionsCompletes])
   const ongletActif = useMemo(() => entreePourChemin(location.pathname)?.to, [location.pathname])
 
   // Barre de navigation en bas sur téléphone : les 4 destinations principales disponibles pour ce rôle et ces modules, puis « Plus » (menu complet)
@@ -264,6 +275,11 @@ export default function Layout() {
           </div>
         )
       })}
+      {!fieldOnly && (
+        <button type="button" onClick={basculerMode} className={`w-full text-left px-3 py-1.5 text-ui-sm underline-offset-2 hover:underline ${navMuted}`}>
+          {simple ? 'Afficher tout le menu' : 'Menu simple'}
+        </button>
+      )}
       {settingsItems.length > 0 && (
         <div className={`mt-2 pt-2 border-t ${navIsDark ? 'border-nav-fg/10' : 'border-gray-200'} space-y-0.5`}>
           {settingsItems.map((item) => navItem(item))}
@@ -316,6 +332,12 @@ export default function Layout() {
             </button>
           )
         })}
+        {!fieldOnly && (
+          <button type="button" onClick={basculerMode} title={simple ? 'Afficher tout le menu' : 'Menu simple'} className={railBtn(false)}>
+            <MoreHorizontal className="w-5 h-5 flex-none" aria-hidden="true" />
+            <span className={railLabel}>{simple ? 'Tout' : 'Simple'}</span>
+          </button>
+        )}
         <div className="flex-1 min-h-2" />
         {settingsItems.map((item) => (
           <NavLink key={item.to} to={item.to} title={item.label}
@@ -363,6 +385,15 @@ export default function Layout() {
   const displayMenu = () => (
     <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-md z-50 p-3 animate-fadeIn">
       <div className="font-display font-semibold mb-2">Affichage</div>
+      <div className="grid grid-cols-2 gap-2 mb-3" role="radiogroup" aria-label="Mode">
+        {[['simple', 'Simple', 'Les pages du quotidien, le reste en onglets'], ['complet', 'Complet', 'Toutes les pages dans le menu']].map(([k, label, desc]) => (
+          <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => update({ mode: k })}
+            className={`rounded-ui-sm border p-2 text-left ${mode === k ? 'border-accent-500 ring-2 ring-accent-500/20' : 'border-gray-200 hover:border-gray-300'}`}>
+            <div className="text-ui font-semibold">{label}</div>
+            <div className="text-ui-sm text-gray-500 leading-tight mt-0.5">{desc}</div>
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-3 gap-2 mb-3">
         {Object.entries(UI_PRESETS).map(([key, p]) => (
           <button key={key} type="button" onClick={() => update({ preset: key })}
@@ -427,7 +458,7 @@ export default function Layout() {
     </div>
   )
 
-  const closeMenus = () => { setShowNotifications(false); setShowUserMenu(false); setShowDisplay(false) }
+  const closeMenus = () => { setShowNotifications(false); setShowUserMenu(false); setShowDisplay(false); setShowNouveau(false) }
 
   return (
     <div className="min-h-screen flex">
@@ -487,6 +518,23 @@ export default function Layout() {
             </div>
             <h1 className="hidden lg:block font-display font-semibold text-gray-900 truncate" style={{ fontSize: 'calc(var(--text-ui) * 1.15)' }}>{pageTitle}</h1>
             <div className="flex-1" />
+            {creations.length > 0 && (
+              <div className="relative">
+                <button type="button" onClick={() => { const v = !showNouveau; closeMenus(); setShowNouveau(v) }} aria-haspopup="menu" aria-expanded={showNouveau}
+                  className="btn btn-primary h-9 px-3"><Plus className="w-4 h-4" /><span className="hidden sm:inline">Nouveau</span></button>
+                {showNouveau && (
+                  <div role="menu" className="absolute right-0 top-11 w-56 bg-white rounded-ui border border-gray-200 shadow-md z-50 py-1 animate-fadeIn">
+                    {creations.map((c) => (
+                      <button key={c.to} type="button" role="menuitem" className="w-full text-left px-3 py-2 text-ui text-gray-700 hover:bg-gray-50"
+                        onClick={() => { closeMenus(); navigate(c.to, c.sansOuverture ? undefined : { state: { openNew: true } }) }}>
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <SelecteurSociete />
 
             {!fieldOnly && <div className="relative">
@@ -545,7 +593,7 @@ export default function Layout() {
           </div>
         </header>
 
-        {(showNotifications || showUserMenu || showDisplay) && <div className="fixed inset-0 z-10" onClick={closeMenus} />}
+        {(showNotifications || showUserMenu || showDisplay || showNouveau) && <div className="fixed inset-0 z-10" onClick={closeMenus} />}
 
         <main className={`max-w-7xl mx-auto ${showBottomNav ? 'has-bottom-nav' : ''}`} style={{ padding: 'var(--space-4) var(--page-px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
           {branding?.demo_mode && (

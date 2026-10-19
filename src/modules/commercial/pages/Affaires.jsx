@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Phone, MessageSquare, KanbanSquare, PhoneCall, Settings2, Check } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
@@ -11,6 +11,7 @@ import { Banner } from '../../../ui/Banner'
 import { EmptyState } from '../../../ui/EmptyState'
 import { Sheet } from '../../../ui/Sheet'
 import { AffaireSheet, EchangeSheet, useListesCommerciales } from '../components/AffaireSheets'
+import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 import {
   urgence, URGENCES, trierAFaire, colonnesPipeline, totauxPipeline, cadence, CADENCE, euros, METIERS,
 } from '../lib/affaires'
@@ -29,7 +30,8 @@ export default function Affaires() {
   const peutModifier = can('commercial.devis.modifier') !== false
   const peutNoter = can('clients.historique.ecrire') !== false || can('clients.fiches.modifier') !== false
   const listes = useListesCommerciales()
-  const [onglet, setOnglet] = useState('a_faire')
+  const location = useLocation()
+  const [onglet, setOnglet] = useState(['a_faire', 'pipeline', 'appeler'].includes(location.state?.onglet) ? location.state.onglet : 'a_faire')
   const [pipeline, setPipeline] = useState(null)
   const [appeler, setAppeler] = useState(null)
   const [cad, setCad] = useState({ reel: [], obj: [] })
@@ -52,6 +54,8 @@ export default function Affaires() {
     setCad({ reel: r.data || [], obj: o.data || [] })
   }, [])
   useEffect(() => { charger() }, [charger])
+  // « + Nouveau › Affaire » (barre du haut)
+  useOuvrirSiDemande(() => setEdition({}))
 
   const lignes = useMemo(() => (pipeline || []).filter((l) => !mes || !l.owner_id || l.owner_id === user?.id), [pipeline, mes, user?.id])
   const aFaire = useMemo(() => trierAFaire(lignes), [lignes])
