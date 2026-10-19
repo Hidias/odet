@@ -8,6 +8,7 @@ import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { generateFacturXPDF, generateInvoicePDF, calcInvoiceTotals, isDraftDoc } from '../pdf/invoiceGenerator'
 import { Sheet } from '../../../ui/Sheet'
+import { useConfirm } from '../../../ui/Confirm'
 import { parseRate } from '../../../core/billing/totals'
 import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -173,6 +174,7 @@ export default function Invoices() {
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const confirmer = useConfirm()
   // Émission (Facturation fiable) : numéro donné par la base, contenu figé ensuite
   // Droits connus : ils décident ; inconnus (avant C1b) : boutons affichés, la base refuse ce qui n'est pas permis
   const canDroit = useAuthStore((st) => st.can)
@@ -806,7 +808,7 @@ export default function Invoices() {
 
   // ─── Delete ───
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer ?')) return
+    if (!await confirmer({ title: 'Supprimer ce brouillon ?', message: 'Le brouillon et ses lignes seront supprimés. Un document émis, lui, ne se supprime jamais.', confirmLabel: 'Supprimer', danger: true })) return
     await supabase.from('invoice_items').delete().eq('invoice_id', id)
     await supabase.from('invoice_payments').delete().eq('invoice_id', id)
     await supabase.from('invoice_relances').delete().eq('invoice_id', id)
@@ -1415,7 +1417,7 @@ export default function Invoices() {
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => { setMode('list'); loadAll() }} className="p-2 hover:bg-gray-100 rounded-ui-sm"><ChevronLeft size={20} /></button>
-        <h1 className="text-xl font-bold flex-1">{mode === 'create' ? (isCr ? 'Nouvel avoir' : 'Nouvelle facture') : mode === 'view' ? current?.reference : 'Modifier ' + current?.reference}</h1>
+        <h1 className="text-xl font-bold flex-1">{mode === 'create' ? (isCr ? 'Nouvel avoir' : 'Nouvelle facture') : mode === 'view' ? (isDraftDoc(current) ? (isCr ? 'Brouillon d\'avoir' : 'Brouillon de facture') : current?.reference) : (isCr ? 'Modifier le brouillon d\'avoir' : 'Modifier le brouillon de facture')}</h1>
         <div className="flex gap-2 flex-wrap justify-end">
           {mode === 'view' && !isDraftDoc(current) && (isCr || !['paid', 'cancelled', 'credited'].includes(current?.status)) && (
             <button
