@@ -1,7 +1,8 @@
 // Programme de formation sur une page (modèle des programmes audités : colonne d'identité à gauche, chiffres clés,
 // objectifs, contenu, évaluation, validation, tarif à droite). Toutes les valeurs viennent de la fiche formation
 // (courses) et de l'identité de l'organisme (ORG, construit par buildORG) : rien d'un organisme en dur.
-// Les tailles de texte se réduisent jusqu'à tenir sur une page ; au-delà, le contenu continue sur une deuxième page.
+// Les tailles de texte se réduisent jusqu'à tenir sur une page. Quand le contenu est court, la place libre est répartie
+// entre les rubriques et les lignes (dans chaque colonne), plutôt que de laisser un grand blanc en bas de page.
 // Indicateur 1 de Qualiopi : public, prérequis, objectifs, durée, modalités et délais d'accès, tarif, contacts,
 // méthodes mobilisées, modalités d'évaluation, accessibilité aux personnes en situation de handicap.
 
@@ -14,6 +15,11 @@ const M = 10
 
 export const DELAI_ACCES_DEFAUT = 'En moyenne sous 15 jours'
 export const TARIF_DEFAUT = 'Tarif sur devis : nous contacter'
+
+// Tailles essayées, de la plus grande à la plus petite ; écart maximal ajouté par unité (mm)
+const TAILLES = [1.2, 1.16, 1.12, 1.06, 1, 0.95, 0.9, 0.85, 0.8, 0.76, 0.72]
+const ECART_MAX_S = 5
+const ECART_MAX_M = 7
 
 const strip = (s) => String(s || '')
   .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|li|div|h\d)>/gi, '\n').replace(/<[^>]+>/g, '')
@@ -42,9 +48,9 @@ export function heuresTexte(course) {
 export function effectifTexte(course) {
   const a = Number(course?.min_participants || 0)
   const b = Number(course?.max_participants || 0)
-  if (a && b) return `${a} minimum – ${b} maximum`
-  if (b) return `${b} maximum`
-  if (a) return `${a} minimum`
+  if (a && b) return `De ${a} à ${b} personnes`
+  if (b) return `${b} personnes maximum`
+  if (a) return `${a} personnes minimum`
   return ''
 }
 
@@ -123,12 +129,17 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
     [ORG?.siret ? `SIRET : ${ORG.siret}` : null, ORG?.ndaFull ? `NDA : ${ORG.ndaFull}` : null].filter(Boolean).join(' – '),
   ].filter(Boolean)
 
-  const rendre = (k, dessiner) => {
+  // eS, eM : espace ajouté (mm) par unité d'écart, colonne de gauche et colonne principale
+  const rendre = (k, dessiner, eS = 0, eM = 0) => {
     const doc = dessiner || new jsPDF({ compress: true })
     const fs = (n) => n * k
     const lh = (n) => n * k * 0.42 // hauteur de ligne en mm pour une taille en points
     const dw = !!dessiner
     let debordement = false
+    let poidsS = 0
+    let poidsM = 0
+    const ecS = (base, poids) => { poidsS += poids; return base + eS * poids }
+    const ecM = (base, poids) => { poidsM += poids; return base + eM * poids }
 
     // ── colonne gauche ──
     if (dw) { doc.setFillColor(...t.primary); doc.rect(0, 0, SIDE_W, A4.h, 'F') }
@@ -145,23 +156,24 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
     if (contexte.pictogramme) {
       const d = 22 * Math.max(k, 0.8)
       if (dw) { try { doc.addImage(contexte.pictogramme, 'PNG', SIDE_W / 2 - d / 2, ys, d, d) } catch { /* image illisible */ } }
-      ys += d + 6
+      ys += ecS(d + 6, 1)
     }
     for (const [label, valeur] of cote) {
       setF(doc, 'bold'); doc.setFontSize(fs(8.5))
       if (dw) { doc.setTextColor(...t.highlight); doc.text(label.toUpperCase(), SIDE_W / 2, ys, { align: 'center' }) }
-      ys += lh(8.5) + 1.2
+      ys += lh(8.5) + ecS(1.2, 0.3)
       setF(doc, 'normal'); doc.setFontSize(fs(7.8))
       for (const par of valeur.split('\n')) {
         const l = doc.splitTextToSize(par, SIDE_W - 2 * M + 2)
         if (dw) { doc.setTextColor(...doux); doc.text(l, SIDE_W / 2, ys, { align: 'center' }) }
         ys += l.length * lh(7.8) + 1
       }
-      ys += 3.2
+      ys += ecS(3.2, 1)
     }
     const versionTxt = [refProg, c.program_version ? `v${c.program_version}` : null, c.program_updated_on ? `MàJ ${dateFr(c.program_updated_on)}` : null].filter(Boolean).join(' · ')
     if (dw) { setF(doc, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...doux); doc.text(versionTxt, M - 4, A4.h - 7) }
     if (ys > A4.h - 12) debordement = true
+    const resteS = A4.h - 14 - ys
 
     // ── colonne principale ──
     const X = SIDE_W + 8
@@ -170,7 +182,7 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
     let y = 13
     setF(doc, 'bold'); doc.setFontSize(fs(9))
     if (dw) { doc.setTextColor(...t.accent); doc.text('PROGRAMME DE FORMATION', cx, y, { align: 'center' }) }
-    y += lh(9) + 2.5
+    y += lh(9) + ecM(2.5, 0.3)
     setF(doc, 'bold'); doc.setFontSize(fs(17))
     const titre = doc.splitTextToSize((c.title || '').toUpperCase(), W)
     if (dw) { doc.setTextColor(...t.primary); doc.text(titre, cx, y + 2, { align: 'center' }) }
@@ -180,40 +192,45 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
       if (dw) { doc.setTextColor(...t.muted); doc.text(contexte.reference, cx, y, { align: 'center' }) }
       y += lh(7.5) + 1
     }
+    y += ecM(0, 0.6)
 
     // chiffres clés
     if (chiffres.length) {
       const bw = W / chiffres.length
       const r = 4.6 * Math.max(k, 0.8)
+      let nl = 1
       chiffres.forEach(([ic, label, val], i) => {
         const bx = X + i * bw + bw / 2
         if (dw) icone(doc, ic, bx, y + r + 1, r, t.accent, [253, 240, 226])
         setF(doc, 'bold'); doc.setFontSize(fs(7.2))
         if (dw) { doc.setTextColor(...t.primary); doc.text(label, bx, y + 2 * r + 5.5, { align: 'center' }) }
         setF(doc, 'normal'); doc.setFontSize(fs(8.2))
-        if (dw) { doc.setTextColor(...t.text); doc.text(doc.splitTextToSize(val, bw - 4), bx, y + 2 * r + 9.5, { align: 'center' }) }
+        const lv = doc.splitTextToSize(val, bw - 4)
+        nl = Math.max(nl, lv.length)
+        if (dw) { doc.setTextColor(...t.text); doc.text(lv, bx, y + 2 * r + 9.5, { align: 'center' }) }
       })
-      y += 2 * 4.6 * Math.max(k, 0.8) + 14
-      if (dw) { doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.line(X, y - 3, X + W, y - 3) }
+      y += 2 * r + 9.5 + (nl - 1) * lh(8.2) + 1.5
+      if (dw) { doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.line(X, y, X + W, y) }
+      y += ecM(5, 1)
     }
 
     const titreSection = (txt) => {
       setF(doc, 'bold'); doc.setFontSize(fs(9.5))
       if (dw) { doc.setTextColor(...t.accent); doc.text(txt.toUpperCase(), cx, y + 2, { align: 'center' }) }
-      y += lh(9.5) + 3
+      y += lh(9.5) + ecM(3, 0.4)
     }
     const paragraphe = (txt, { taille = 8.6, centre = true, gras = false, couleur = t.text } = {}) => {
       setF(doc, gras ? 'bold' : 'normal'); doc.setFontSize(fs(taille))
       const l = doc.splitTextToSize(txt, W - 4)
       if (dw) { doc.setTextColor(...couleur); doc.text(l, centre ? cx : X + 2, y, centre ? { align: 'center' } : undefined) }
-      y += l.length * lh(taille) + 1.2
+      y += l.length * lh(taille) + ecM(1.2, 0.25)
     }
 
     // objectifs
     if (objectifs.length) {
       titreSection('Objectifs de la formation')
       objectifs.forEach((o) => paragraphe(o, { taille: 9 }))
-      y += 2.5
+      y += ecM(2.5, 1)
     }
 
     // contenu (cadre)
@@ -221,15 +238,16 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
       titreSection('Contenu de la formation')
       const y0 = y
       const tailleC = 8.2
+      const ecC = (base, poids, compter) => { if (compter) poidsM += poids; return base + eM * poids }
       const bloc = (d) => {
-        let yy = y0 + 4
+        let yy = y0 + ecC(4, 0.4, !d)
         for (const it of contenu) {
           if (it.niveau === 0) {
             setF(doc, 'bold'); doc.setFontSize(fs(8.6))
             const l = doc.splitTextToSize(it.texte, W - 8)
-            yy += 1
+            yy += ecC(1, 0.5, !d)
             if (d) { doc.setTextColor(...t.primary); doc.text(l, X + 4, yy) }
-            yy += l.length * lh(8.6) + 1
+            yy += l.length * lh(8.6) + ecC(1, 0.15, !d)
           } else {
             const ind = it.niveau === 1 ? 7 : 12
             setF(doc, 'normal'); doc.setFontSize(fs(tailleC))
@@ -240,10 +258,10 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
               if (it.niveau === 1) doc.circle(X + ind - 2.6, yy - 1.05, 0.65, 'F')
               else { doc.setDrawColor(...t.muted); doc.setLineWidth(0.25); doc.circle(X + ind - 2.6, yy - 1.05, 0.6, 'S') }
             }
-            yy += l.length * lh(tailleC) + 0.8
+            yy += l.length * lh(tailleC) + ecC(0.8, 0.22, !d)
           }
         }
-        return yy + 2
+        return yy + ecC(2, 0.4, !d)
       }
       const yFin = bloc(false)
       if (dw) {
@@ -251,16 +269,16 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
         doc.roundedRect(X, y0, W, yFin - y0, 1.5, 1.5, 'FD')
         bloc(true)
       }
-      y = yFin + 4
+      y = yFin + ecM(4, 1)
     }
 
     titreSection('Évaluation de la formation')
     paragraphe(evaluation)
-    y += 2
+    y += ecM(2, 1)
     titreSection('Validation de la formation')
     paragraphe(validation[0])
     paragraphe(validation[1], { taille: 8, gras: true })
-    y += 2
+    y += ecM(2, 1)
     titreSection('Tarif de la formation')
     paragraphe(tarif)
     if (contexte.referentPedagogique) {
@@ -280,17 +298,22 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
       })
     }
     if (y > yPied - 2) debordement = true
-    return { doc, debordement }
+    return { doc, debordement, poidsS, poidsM, resteS, resteM: yPied - 5 - y }
   }
 
   // Taille la plus grande qui tient sur une page
   let k = 1
-  for (const essai of [1.12, 1.06, 1, 0.95, 0.9, 0.85, 0.8, 0.76, 0.72]) {
+  let mesure = null
+  for (const essai of TAILLES) {
     k = essai
-    if (!rendre(essai, null).debordement) break
+    mesure = rendre(essai, null)
+    if (!mesure.debordement) break
   }
+  // Place libre répartie entre les écarts de chaque colonne, plafonnée pour garder des blocs lisibles
+  const eS = mesure.debordement || !mesure.poidsS ? 0 : Math.max(0, Math.min(ECART_MAX_S, mesure.resteS / mesure.poidsS))
+  const eM = mesure.debordement || !mesure.poidsM ? 0 : Math.max(0, Math.min(ECART_MAX_M, mesure.resteM / mesure.poidsM))
   const doc = cible || new jsPDF({ compress: true })
-  rendre(k, doc)
+  rendre(k, doc, eS, eM)
   return doc
 }
 
