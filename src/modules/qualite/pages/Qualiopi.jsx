@@ -17,6 +17,7 @@ import { fr } from 'date-fns/locale'
 import ProcessEditor from './ProcessEditor'
 import { loadTemplateContext, fillTemplate, TEMPLATE_FIELDS } from '../../../core/org/templateContext'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { champCasse, valeursEnDur, remplacerEnDur } from '../../../core/org/champsProteges'
 import { brandQualityHtml } from '../lib/qualityHtml'
 import { docStatus } from '../richdocs/model'
 import { StatusChip } from '../richdocs/RichDocEditor'
@@ -297,10 +298,20 @@ export default function Qualiopi() {
       return
     }
 
+    // Coordonnées tapées à la main : remplacées par leur champ (avec accord) ; traces d'un autre organisme signalées
+    let contenu = docForm.content
+    const enDur = valeursEnDur(contenu, tplCtx)
+    const aRemplacer = enDur.filter((x) => x.champ)
+    const aCorriger = enDur.filter((x) => !x.champ)
+    if (aRemplacer.length && await confirmer(`Coordonnées tapées à la main : ${aRemplacer.map((x) => `« ${x.texte} »`).join(', ')}.\n\nLes remplacer par les champs remplis depuis Paramètres ? Ainsi, une coordonnée qui change se met à jour dans tous les documents.`)) {
+      contenu = remplacerEnDur(contenu, tplCtx)
+    }
+    if (aCorriger.length) toast(`À corriger à la main : ${aCorriger.map((x) => `« ${x.texte} »`).join(', ')} (identité d'un autre organisme).`, { duration: 8000, icon: '⚠️' })
+
     const dataToSave = {
       type: docForm.type,
       title: docForm.title || DOCUMENT_TYPES[docForm.type]?.label,
-      content: docForm.content,
+      content: contenu,
       version: docForm.version,
       updated_at: new Date().toISOString()
     }
@@ -881,7 +892,14 @@ export default function Qualiopi() {
                 <label className="label">Contenu du document</label>
                 <textarea
                   value={docForm.content}
-                  onChange={(e) => setDocForm({ ...docForm, content: e.target.value })}
+                  onChange={(e) => {
+                    // Un champ {{...}} s'insère ou se retire en entier : la frappe qui l'abîmerait est refusée
+                    if (champCasse(docForm.content, e.target.value)) {
+                      toast.error('Ce champ est rempli depuis Paramètres : sélectionnez-le en entier pour le retirer, il ne se modifie pas.', { id: 'champ-protege' })
+                      return
+                    }
+                    setDocForm({ ...docForm, content: e.target.value })
+                  }}
                   className="input min-h-[400px] font-mono text-ui"
                   placeholder="Saisissez le contenu du document..."
                 />

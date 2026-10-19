@@ -162,7 +162,7 @@ export const BLOCK_LABEL = { p: 'Paragraphe', h: 'Intertitre', ul: 'Liste', ol: 
 export function insertableFields(ctx) {
   const roles = Object.keys(ctx?.role || {})
   return [
-    ['{{org.nom}}', "Nom de l'organisme"], ['{{org.adresse}}', 'Adresse'], ['{{org.ville}}', 'Ville'],
+    ['{{org.nom}}', "Nom de l'organisme"], ['{{org.adresse_site}}', 'Adresse du site (mise en avant)'], ['{{org.siege}}', 'Siège social (adresse légale)'],
     ['{{org.telephone}}', 'Téléphone'], ['{{org.email}}', 'Email'], ['{{org.nda}}', "Déclaration d'activité"],
     ['{{org.siret}}', 'SIRET'], ['{{org.dirigeant}}', 'Dirigeant'], ['{{org.dirigeant_qualite}}', 'Qualité du dirigeant'],
     ['{{org.lieu_signature}}', 'Lieu de signature'], ['{{org.tribunal}}', 'Tribunal compétent'],
