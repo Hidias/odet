@@ -43,17 +43,17 @@ export const NAV_SECTIONS = [
     icon: GraduationCap,
     items: [
       { to: '/sessions', right: ['formation.sessions.voir', 'formation.sessions.voir_siennes'], icon: Calendar, label: 'Sessions', roles: STAFF },
-      { to: '/formations', right: 'formation.catalogue.voir', icon: GraduationCap, label: 'Catalogue', roles: STAFF },
+      { to: '/formations', right: 'formation.catalogue.voir', icon: GraduationCap, label: 'Catalogue', roles: STAFF, groupe: 'catalogue' },
+      { to: '/tests-positionnement', right: 'formation.catalogue.voir', icon: ClipboardCheck, label: 'Tests et quiz', roles: STAFF, groupe: 'catalogue' },
+      // Référentiel des obligations (lot 2, 0042) : périodicités des formations, du matériel et des exercices
+      { to: '/obligations', right: 'formation.catalogue.voir', icon: CalendarClock, label: 'Obligations', roles: MANAGERS, groupe: 'catalogue' },
       { to: '/stagiaires', right: ['formation.stagiaires.voir', 'formation.stagiaires.voir_siens'], icon: Users, label: 'Stagiaires', roles: STAFF },
       { to: '/passeport', right: 'passeport.declarations.gerer', icon: BookUser, label: 'Passeport de prévention', roles: MANAGERS, module: 'passeport' },
-      { to: '/formateurs', right: 'formation.formateurs.gerer', icon: UserCheck, label: 'Formateurs', roles: MANAGERS },
+      { to: '/formateurs', right: 'formation.formateurs.gerer', icon: UserCheck, label: 'Formateurs', roles: MANAGERS, groupe: 'formateurs' },
       // Sous-traitance, donneur d'ordres (lot 2, 0045) : prestataires, justificatifs, bons de commande
-      { to: '/sous-traitants', right: 'formation.formateurs.voir', icon: Briefcase, label: 'Sous-traitants', roles: MANAGERS },
-      { to: '/documents', right: 'formation.documents.voir', icon: FileText, label: 'Documents', roles: STAFF },
-      { to: '/documents-vierges', right: 'formation.documents.voir', icon: FileQuestion, label: 'Documents vierges', roles: STAFF },
-      { to: '/tests-positionnement', right: 'formation.catalogue.voir', icon: ClipboardCheck, label: 'Tests et quiz', roles: STAFF },
-      // Référentiel des obligations (lot 2, 0042) : périodicités des formations, du matériel et des exercices
-      { to: '/obligations', right: 'formation.catalogue.voir', icon: CalendarClock, label: 'Obligations', roles: MANAGERS },
+      { to: '/sous-traitants', right: 'formation.formateurs.voir', icon: Briefcase, label: 'Sous-traitants', roles: MANAGERS, groupe: 'formateurs' },
+      { to: '/documents', right: 'formation.documents.voir', icon: FileText, label: 'Documents', roles: STAFF, groupe: 'documents' },
+      { to: '/documents-vierges', right: 'formation.documents.voir', icon: FileQuestion, label: 'Documents vierges', roles: STAFF, groupe: 'documents' },
     ],
   },
   {
@@ -114,23 +114,23 @@ export const NAV_SECTIONS = [
     label: 'Qualité',
     icon: Award,
     items: [
-      { to: '/qualite', right: 'qualite.registres.gerer', icon: FolderCheck, label: 'Processus qualité', roles: MANAGERS },
-      { to: '/qualite/completude', right: 'qualite.completude.suivre', icon: CheckCircle, label: 'Complétude', roles: MANAGERS },
+      { to: '/qualiopi', right: 'qualite.registres.gerer', icon: Award, label: 'Qualiopi', roles: MANAGERS, groupe: 'qualiopi' },
+      { to: '/certification', right: 'qualite.certification.gerer', icon: ShieldCheck, label: 'Certification', roles: MANAGERS, module: 'certification', groupe: 'qualiopi' },
+      { to: '/qualite', right: 'qualite.registres.gerer', icon: FolderCheck, label: 'Processus qualité', roles: MANAGERS, groupe: 'qualiopi' },
+      { to: '/qualite/completude', right: 'qualite.completude.suivre', icon: CheckCircle, label: 'Complétude', roles: MANAGERS, groupe: 'qualiopi' },
+      { to: '/bpf', right: 'qualite.registres.gerer', icon: FileText, label: 'BPF', roles: MANAGERS, groupe: 'qualiopi' },
       { to: '/indicateurs', right: 'qualite.registres.voir', icon: BarChart3, label: 'Indicateurs', roles: STAFF },
-      { to: '/non-conformites', right: 'qualite.registres.gerer', icon: AlertTriangle, label: 'Non-conformités', roles: MANAGERS },
-      { to: '/qualiopi', right: 'qualite.registres.gerer', icon: Award, label: 'Qualiopi', roles: MANAGERS },
-      { to: '/certification', right: 'qualite.certification.gerer', icon: ShieldCheck, label: 'Certification', roles: MANAGERS, module: 'certification' },
-      { to: '/bpf', right: 'qualite.registres.gerer', icon: FileText, label: 'BPF', roles: MANAGERS },
-      { to: '/veille-qualiopi', right: 'qualite.registres.gerer', icon: Eye, label: 'Veille', roles: MANAGERS },
-      { to: '/registre-psh', right: 'qualite.registres.voir', icon: Shield, label: 'Registre PSH', roles: MANAGERS },
-      { to: '/profil-stagiaires', right: 'qualite.registres.gerer', icon: Target, label: 'Profil stagiaires', roles: MANAGERS },
+      { to: '/non-conformites', right: 'qualite.registres.gerer', icon: AlertTriangle, label: 'Non-conformités', roles: MANAGERS, groupe: 'registres' },
+      { to: '/registre-psh', right: 'qualite.registres.voir', icon: Shield, label: 'Registre PSH', roles: MANAGERS, groupe: 'registres' },
+      { to: '/veille-qualiopi', right: 'qualite.registres.gerer', icon: Eye, label: 'Veille', roles: MANAGERS, groupe: 'registres' },
+      { to: '/profil-stagiaires', right: 'qualite.registres.gerer', icon: Target, label: 'Profil stagiaires', roles: MANAGERS, groupe: 'registres' },
       { to: '/audit-logs', right: 'conformite.journal.voir', icon: ScrollText, label: 'Journal d\'audit', roles: ADMINS },
     ],
   },
   {
     id: 'entreprise',
     module: 'interventions',
-    label: 'Entreprise',
+    label: 'Maintenance',
     icon: Wrench,
     items: [
       { to: '/interventions', right: ['interventions.visites.voir', 'interventions.missions.voir'], icon: MapPin, label: 'Interventions', roles: STAFF },
@@ -138,6 +138,41 @@ export const NAV_SECTIONS = [
     ],
   },
 ]
+
+// Groupes : plusieurs pages proches sous une seule entrée du menu ; la page ouverte montre les autres en onglets.
+// L'entrée du menu porte le nom du groupe et mène à la première page du groupe que le compte peut ouvrir.
+export const GROUPES = {
+  catalogue: { label: 'Catalogue', icon: GraduationCap },
+  formateurs: { label: 'Formateurs', icon: UserCheck },
+  documents: { label: 'Documents', icon: FileText },
+  qualiopi: { label: 'Qualiopi', icon: Award },
+  registres: { label: 'Registres', icon: FolderCheck },
+}
+
+// Entrées du menu d'une section : une entrée par page, ou une seule par groupe (à la place de sa première page visible)
+export function entreesMenu(items) {
+  const vus = new Set()
+  const out = []
+  for (const i of items || []) {
+    if (!i.groupe) { out.push(i); continue }
+    if (vus.has(i.groupe)) continue
+    vus.add(i.groupe)
+    const membres = items.filter((x) => x.groupe === i.groupe)
+    if (membres.length === 1) { out.push(i); continue }
+    const g = GROUPES[i.groupe] || { label: i.label, icon: i.icon }
+    out.push({ ...i, label: g.label, icon: g.icon, routes: membres.map((m) => m.to) })
+  }
+  return out
+}
+
+// Onglets à montrer pour une adresse : les pages visibles du même groupe (au moins deux), sinon rien
+export function ongletsPour(pathname, sections) {
+  const items = (sections || []).flatMap((s) => s.items)
+  const entree = entreePourChemin(pathname)
+  if (!entree?.groupe) return []
+  const membres = items.filter((i) => i.groupe === entree.groupe)
+  return membres.length > 1 ? membres : []
+}
 
 export const SETTINGS_ITEMS = [
   // Quoi de neuf (module « nouveautes », chantier A) : tout compte interne qui voit les réglages de l'organisme
