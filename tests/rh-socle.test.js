@@ -63,3 +63,12 @@ describe('RH heures', async () => {
     expect(heures(480)).toBe('8 h')
   })
 })
+
+describe('RH : jours fériés dans le décompte (0311)', () => {
+  it('le 14 juillet ne compte pas, sauf s\'il est travaillé', async () => {
+    const { joursOuvres } = await import('../src/modules/rh/lib/rhData')
+    expect(joursOuvres('2027-07-12', false, '2027-07-16', false, ['2027-07-14'])).toBe(4)
+    expect(joursOuvres('2027-07-12', false, '2027-07-16', false, [])).toBe(5)
+    expect(joursOuvres('2027-07-14', true, '2027-07-14', false, ['2027-07-14'])).toBe(0)
+  })
+})

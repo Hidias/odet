@@ -122,21 +122,37 @@ export const CATEGORIES_ABSENCE = {
   sans_solde: 'Sans solde', autre: 'Autre',
 }
 
-/** Jours ouvrés (lundi au vendredi) d'une période, demi-journées comprises : même calcul que la base */
-export function joursOuvres(debut, debutApresMidi, fin, finMatin) {
+/** Jours ouvrés (lundi au vendredi, hors jours fériés non travaillés) d'une période, demi-journées comprises :
+ *  même calcul que la base (app.hr_jours_ouvres_societe, 0311). feries : dates « AAAA-MM-JJ » non travaillées */
+export function joursOuvres(debut, debutApresMidi, fin, finMatin, feries = []) {
   if (!debut || !fin || fin < debut) return 0
   let n = 0
   const d = new Date(`${debut}T12:00:00`)
   const f = new Date(`${fin}T12:00:00`)
+  const off = new Set(feries)
+  const iso = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+  const ouvre = (dt) => { const j = dt.getDay(); return j !== 0 && j !== 6 && !off.has(iso(dt)) }
   for (let x = new Date(d); x <= f; x.setDate(x.getDate() + 1)) {
-    const j = x.getDay()
-    if (j !== 0 && j !== 6) n += 1
+    if (ouvre(x)) n += 1
   }
-  const ouvre = (dt) => { const j = dt.getDay(); return j !== 0 && j !== 6 }
   if (debutApresMidi && ouvre(d)) n -= 0.5
   if (finMatin && ouvre(f)) n -= 0.5
   return Math.max(0, n)
 }
+
+// Jours fériés de la société (0311)
+export const chargerFeries = async (annee = null) => {
+  let q = supabase.from('hr_public_holidays').select('*').order('day')
+  if (annee) q = q.gte('day', `${annee}-01-01`).lte('day', `${annee}-12-31`)
+  const { data, error } = await q
+  if (error) return []
+  return data || []
+}
+export const feriesNonTravailles = (liste) => (liste || []).filter((h) => !h.is_worked).map((h) => h.day)
+export const marquerFerie = async (id, travaille) => must(await supabase.from('hr_public_holidays').update({ is_worked: travaille }).eq('id', id))
+export const ajouterFerie = async ({ day, label }) => must(await supabase.from('hr_public_holidays').insert({ day, label: label?.trim() || 'Jour non travaillé' }))
+export const supprimerFerie = async (id) => must(await supabase.from('hr_public_holidays').delete().eq('id', id))
+export const poserFeriesAnnee = async (annee) => must(await supabase.rpc('hr_feries_annee', { p_annee: annee }))
 
 export const chargerTypesAbsence = async () => must(await supabase.from('hr_absence_types').select('*').order('position'))
 export const chargerMaFiche = async () => {
