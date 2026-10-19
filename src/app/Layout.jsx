@@ -16,6 +16,7 @@ import { useUiPrefs } from '../core/branding/useUiPrefs'
 import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS } from '../core/branding/presets'
 import { visibleSections, visibleSettingsItems, accesPage, pageTitleFor, sectionIdFor } from '../core/modules/registry'
 import PageRefusee from '../core/rights/PageRefusee'
+import { SelecteurSociete, ChoixSociete, BandeauVueGroupe } from '../core/company/SelecteurSociete'
 
 const ROLE_LABELS = {
   superadmin: 'Super administrateur',
@@ -448,6 +449,8 @@ export default function Layout() {
               <Search className="w-4 h-4" /><span className="flex-1 text-left">Rechercher</span>
             </button>}
 
+            <SelecteurSociete />
+
             <div className="relative">
               <button type="button" onClick={() => { const v = !showDisplay; closeMenus(); setShowDisplay(v) }} aria-label="Affichage" title="Affichage"
                 className={`h-9 w-9 rounded-ui-sm flex items-center justify-center hover:bg-gray-100 ${showDisplay ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}>
@@ -513,12 +516,14 @@ export default function Layout() {
               <span>Les emails ne partent pas vers leurs destinataires : ils sont redirigés vers l'adresse de test.</span>
             </div>
           )}
+          <BandeauVueGroupe />
           {!fieldAllowed ? <Navigate to="/interventions" replace />
             : pageAutorisee ? <RouteErrorBoundary><Outlet /></RouteErrorBoundary>
             : <PageRefusee accueil={location.pathname !== '/'} />}
         </main>
       </div>
 
+      <ChoixSociete />
       <PostIt userId={user?.id} pageTitle={pageTitle} />
       <WelcomeSheet user={user} profile={profile} userRole={userRole} />
     </div>

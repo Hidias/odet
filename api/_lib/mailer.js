@@ -66,6 +66,28 @@ export async function getOrg(supabase) {
   return org
 }
 
+// Identité de la société d'un document (chantier C3) : la société qui porte l'instance garde les réglages de
+// l'organisme ; une autre société prend les champs juridiques, de contact et bancaires de sa fiche (comme
+// app.identite_societe en base). La marque des emails reste celle du groupe.
+export async function getOrgForCompany(supabase, companyId) {
+  const org = await getOrg(supabase)
+  if (!companyId) return org
+  const client = supabase || getSupabaseAdmin()
+  const { data: c } = await client.from('companies').select('*').eq('id', companyId).maybeSingle()
+  if (!c || c.is_instance_owner) return org
+  const { data: siege } = await client.from('company_establishments').select('siret').eq('company_id', c.id).eq('is_head_office', true).maybeSingle()
+  const city = c.city || ''
+  return {
+    ...org,
+    name: c.short_name || c.legal_name, legal_name: c.legal_name, forme_juridique: c.legal_form, capital_social: c.capital,
+    siren: c.siren, siret: siege?.siret || null, naf: c.naf, tva_intra: c.vat_number, tva_applicable: c.vat_applicable, rcs: c.rcs,
+    nda: c.nda, address: c.address, postal_code: c.postal_code, city, phone: c.phone || '', email: c.email || '',
+    website: c.website || '', websiteLabel: (c.website || '').replace(/^https?:\/\//, '').replace(/\/$/, ''),
+    bank_name: c.bank_name, iban: c.iban, bic: c.bic, logo_url: c.logo_url || org.logo_url, doc_prefix: c.doc_prefix,
+    addressLine: [c.address, [c.postal_code, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+  }
+}
+
 // ---- Expéditeur (profil de l'utilisateur) ----------------------------------
 /**
  * Personne qui signe l'email, d'après son adresse d'envoi (profiles.sender_email ou profiles.email).

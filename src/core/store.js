@@ -1,10 +1,11 @@
-import { setCurrentProfile, setTeamCache, profileName } from './org/currentOrg'
+import { setCurrentProfile, setTeamCache, profileName, setSocieteCache } from './org/currentOrg'
 import { create } from 'zustand'
 import { supabase, ADMIN_EMAILS } from './supabase'
 import { buildStorageFileName } from './storageUtils'
 import { fetchAll, fetchAllIn } from './fetchAll'
 import { configureCompanyContext } from './company/companyContext'
 import { chargerDroits, aLeDroit } from './rights/rights'
+import { chargerContexteSocietes, chargerIdentiteSociete } from './company/societes'
 
 // ─── Résolution du rôle et du profil d'un utilisateur connecté ─────
 // Source de vérité : la table profiles (rôle, identité affichée, préférences).
@@ -43,6 +44,10 @@ async function resolveAccess(authUser) {
   return null
 }
 
+// Champs de l'organisme remplacés par ceux de la société courante quand ce n'est pas celle de l'instance (C3)
+const IDENTITE_SOCIETE = ['name', 'legal_name', 'forme_juridique', 'capital_social', 'siren', 'siret', 'naf', 'tva_intra', 'tva_applicable',
+  'rcs', 'nda', 'address', 'postal_code', 'city', 'phone', 'email', 'website', 'bank_name', 'iban', 'bic', 'logo_url', 'doc_prefix']
+
 async function fetchEnabledModules() {
   const { data } = await supabase.from('org_modules').select('key, enabled, position').order('position')
   return (data || []).filter((m) => m.enabled).map((m) => m.key)
@@ -57,13 +62,15 @@ export const useAuthStore = create((set, get) => ({
   fieldOnly: false, // technicien de terrain (Interventions seulement)
   // Droits composés dans la société courante (C1b), lus en base par my_rights ; null = inconnus (comportement d'avant)
   rights: null,
+  // Sociétés du compte, société courante, vue groupe (C3) ; null tant que la base ne le propose pas
+  societes: null,
   loading: true,
   error: null,
 
   applySession: async (session) => {
     if (!session?.user) {
       configureCompanyContext({})
-      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null })
+      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null, societes: null })
       return false
     }
     let access = await resolveAccess(session.user)
@@ -78,7 +85,7 @@ export const useAuthStore = create((set, get) => ({
     }
     if (!access) {
       await supabase.auth.signOut()
-      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null })
+      set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null, societes: null })
       return false
     }
     const modules = await fetchEnabledModules()
@@ -103,7 +110,11 @@ export const useAuthStore = create((set, get) => ({
     configureCompanyContext({ role: access.role })
     // Droits composés (C1b) : une lecture en base ; en cas d'échec, null et rien ne change
     const rights = await chargerDroits(supabase)
-    set({ user: session.user, profile: access.profile, userRole: access.role, modules, fieldOnly, rights })
+    // Sociétés (C3) : modules actifs dans la société courante, identité de la société pour les documents
+    const societes = await chargerContexteSocietes(supabase)
+    setSocieteCache(await chargerIdentiteSociete(supabase, societes))
+    const modulesSociete = societes && Array.isArray(societes.modules) ? societes.modules : modules
+    set({ user: session.user, profile: access.profile, userRole: access.role, modules: modulesSociete, fieldOnly, rights, societes })
     return true
   },
 
@@ -116,7 +127,7 @@ export const useAuthStore = create((set, get) => ({
       supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_OUT') {
           configureCompanyContext({})
-          set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null })
+          set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null, societes: null })
           return
         }
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
@@ -157,15 +168,16 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     configureCompanyContext({})
     await supabase.auth.signOut()
-    set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null })
+    set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null, societes: null })
     // Les données chargées restent en mémoire : un rechargement complet évite que le compte suivant
     // les voie dans le même onglet avant que la base ne les filtre.
     try { window.location.replace(`${window.location.pathname}#/login`); window.location.reload() } catch { /* hors navigateur */ }
   },
 
   refreshModules: async () => {
-    const modules = await fetchEnabledModules()
-    set({ modules })
+    const societes = await chargerContexteSocietes(supabase)
+    const modules = societes && Array.isArray(societes.modules) ? societes.modules : await fetchEnabledModules()
+    set({ modules, societes: societes || get().societes })
   },
 
   // Préférences d'affichage : mémorisées sur le profil (et en cache local par le hook)
@@ -2254,7 +2266,10 @@ export const useDataStore = create((set, get) => ({
     if (!error && data) {
       // Référent handicap lu dans le rôle qualité (une seule source), pas dans une copie
       const ref = await supabase.rpc('referent_handicap_info').then((r) => r.data || null, () => null)
-      set({ organization: { ...data, referent_handicap_info: ref } })
+      // Société courante autre que celle de l'instance (C3) : identité juridique et bancaire de sa fiche
+      const identite = await chargerIdentiteSociete(supabase, useAuthStore.getState().societes)
+      const surcharge = identite ? Object.fromEntries(IDENTITE_SOCIETE.map((k) => [k, identite[k] ?? null])) : {}
+      set({ organization: { ...data, ...surcharge, referent_handicap_info: ref }, organizationSurchargee: !!identite })
     }
     return { data, error }
   },
@@ -2264,13 +2279,19 @@ export const useDataStore = create((set, get) => ({
     const payload = { ...updates, updated_at: new Date().toISOString() }
     delete payload.id
     delete payload.created_at
+    // Société courante autre que celle de l'instance : son identité se règle dans Paramètres › Sociétés, jamais ici
+    // (sinon elle écraserait celle de la société de l'instance)
+    if (get().organizationSurchargee) IDENTITE_SOCIETE.forEach((k) => { delete payload[k] })
     let result
     if (org?.id) {
       result = await supabase.from('organization_settings').update(payload).eq('id', org.id).select().single()
     } else {
       result = await supabase.from('organization_settings').insert([payload]).select().single()
     }
-    if (!result.error && result.data) set({ organization: { ...result.data, referent_handicap_info: get().organization?.referent_handicap_info || null } })
+    if (!result.error && result.data) {
+      if (get().organizationSurchargee) await get().fetchOrganization()
+      else set({ organization: { ...result.data, referent_handicap_info: get().organization?.referent_handicap_info || null } })
+    }
     return result
   },
 

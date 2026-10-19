@@ -82,10 +82,26 @@ node "$ICI/storage.mjs" envoyer "$D/storage"
 
 echo "5/5 Comparaison des lignes avec la sauvegarde"
 psql "$RESTORE_DB_URL" -X -v ON_ERROR_STOP=1 -At -F $'\t' -f "$ICI/comptage.sql" > "$TRAVAIL/apres.tsv"
-if diff <(sort "$D/comptage.tsv") <(sort "$TRAVAIL/apres.tsv") > "$TRAVAIL/ecarts.txt"; then
+# Sauvegarde récente : comptages avant et après l'export des données ; chaque table restaurée doit retomber entre les
+# deux (écritures de l'application pendant l'export). Sauvegarde ancienne : égalité stricte.
+if [ -s "$D/comptage_avant.tsv" ]; then
+  awk -F'\t' 'FILENAME == ARGV[1] { a[$1] = $2; next } FILENAME == ARGV[2] { p[$1] = $2; vu[$1] = 1; next }
+    { r[$1] = $2; vu[$1] = 1 }
+    END {
+      for (t in vu) {
+        if (!(t in a) || !(t in p) || !(t in r)) { print t " : absente d un côté (avant " a[t] ", après " p[t] ", restaurée " r[t] ")"; continue }
+        lo = (a[t] + 0 < p[t] + 0) ? a[t] + 0 : p[t] + 0; hi = (a[t] + 0 > p[t] + 0) ? a[t] + 0 : p[t] + 0
+        if (r[t] + 0 < lo || r[t] + 0 > hi) print t " : restaurée " r[t] " hors de [" lo " ; " hi "]"
+      }
+    }' "$D/comptage_avant.tsv" "$D/comptage.tsv" "$TRAVAIL/apres.tsv" > "$TRAVAIL/ecarts.txt"
+  [ ! -s "$TRAVAIL/ecarts.txt" ]; COMPARAISON=$?
+else
+  diff <(sort "$D/comptage.tsv") <(sort "$TRAVAIL/apres.tsv") > "$TRAVAIL/ecarts.txt"; COMPARAISON=$?
+fi
+if [ "$COMPARAISON" -eq 0 ]; then
   echo "OK : $(wc -l < "$D/comptage.tsv") tables identiques ligne pour ligne (comptes utilisateurs : $(awk -F'\t' '$1=="auth.users"{print $2}' "$TRAVAIL/apres.tsv"))"
 else
-  echo "ÉCARTS (< sauvegarde, > base restaurée) :"
+  echo "ÉCARTS (sauvegarde et base restaurée) :"
   cat "$TRAVAIL/ecarts.txt"
   exit 1
 fi

@@ -1,12 +1,13 @@
 // api/generate-facturx.js
 // Factur-X, profil EN 16931 : PDF/A-3b avec XML CII embarqué (factur-x.xml).
-// L'identité du vendeur vient uniquement de organization_settings (getOrg).
+// L'identité du vendeur vient de la société de la facture (getOrgForCompany : réglages de l'organisme pour la société
+// qui porte l'instance, fiche de la société sinon).
 // Si un champ obligatoire manque, la route répond 422 avec la liste des champs à compléter.
 // Usage : POST { invoice_id, pdf_base64 }
 
 import { PDFDocument, PDFName, PDFString, PDFNumber, AFRelationship } from 'pdf-lib'
-import { getSupabaseAdmin, getOrg } from './_lib/mailer.js'
-import { requireRight, BILLING } from './_lib/auth.js'
+import { getSupabaseAdmin, getOrgForCompany } from './_lib/mailer.js'
+import { requireRight, clientDeLAppelant, BILLING } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 import { computeDocumentTotals } from '../src/core/billing/totals.js'
 
@@ -705,6 +706,12 @@ async function handler(req, res) {
     const { invoice_id, pdf_base64 } = req.body || {}
     if (!invoice_id || !pdf_base64) return res.status(400).json({ error: 'invoice_id et pdf_base64 requis' })
 
+    // La facture doit être lisible par l'appelant (sa société, ses droits) avant toute lecture par le serveur
+    const moi = clientDeLAppelant(req)
+    if (moi) {
+      const { data: visible } = await moi.from('invoices').select('id').eq('id', invoice_id).maybeSingle()
+      if (!visible) return res.status(404).json({ error: 'Facture introuvable' })
+    }
     const supabase = getSupabaseAdmin()
     const { data: invoice, error: invErr } = await supabase.from('invoices').select('*').eq('id', invoice_id).single()
     if (invErr || !invoice) return res.status(404).json({ error: 'Facture introuvable' })
@@ -720,8 +727,8 @@ async function handler(req, res) {
     const { data: client, error: clientErr } = await supabase.from('clients').select('id,name,address,postal_code,city,siret,siren,tva,client_type').eq('id', clientId).single()
     if (clientErr || !client) return res.status(404).json({ error: 'Client introuvable' })
 
-    // Identité du vendeur : organization_settings uniquement
-    const org = await getOrg(supabase)
+    // Identité du vendeur : la société de la facture (réglages de l'organisme pour la société de l'instance)
+    const org = await getOrgForCompany(supabase, invoice.company_id)
     const seller = buildSeller(org, { needsIban: paymentMeansCode(invoice.payment_method) === 30 })
 
     // Avoir : référence et date de la facture d'origine
