@@ -207,6 +207,8 @@ ORDRE_PROD = (
     + ['0381']
     # Journal des tâches planifiées et interrupteurs des envois automatiques, 19/10
     + ['0382']
+    # Pièces de visite sorties du stock, camion par technicien, 19/10
+    + ['0383']
 )
 
 

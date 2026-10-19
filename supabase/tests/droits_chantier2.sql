@@ -4174,6 +4174,38 @@ begin
     end;
   end if;
 
+  -- Pièces de visite sorties du stock (0383) : la pièce notée est reliée à l'article et au camion du technicien ;
+  -- à la clôture, elle sort une fois du camion
+  if to_regprocedure('app.stock_piece_visite_lien()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare
+      z_co uuid := app.company_default(); z_part uuid; z_item uuid; z_v uuid; z_vp uuid; z_loc uuid; z_n int; z_lien uuid;
+    begin
+      insert into public.itv_parts (name, price_ht) values ('Joint essai 0383', 3) returning id into z_part;
+      insert into public.stock_items (company_id, label, reference, itv_part_id) values (z_co, 'Joint essai 0383', 'ESSAI-0383', z_part) returning id into z_item;
+      insert into public.itv_visits (company_id, technician_id, status, planned_on, client_id, site_id)
+      select z_co, u_tech, 'planifiee', current_date, st.client_id, st.id from public.sites st where st.client_id is not null limit 1
+      returning id into z_v;
+      insert into public.itv_visit_parts (visit_id, part_id, label, quantity, unit_price_ht, company_id)
+      values (z_v, z_part, 'Joint essai 0383', 2, 3, z_co) returning id, stock_item_id, stock_location_id into z_vp, z_lien, z_loc;
+      if z_lien = z_item and z_loc is not null then v_lines := v_lines || 'OK      base  0383 : pièce de visite reliée à l''article et au camion du technicien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0383 : lien de la pièce de visite au stock'::text; end if;
+      update public.itv_visits set status = 'terminee', finished_at = now() where id = z_v;
+      select count(*) into z_n from public.stock_movements where source_table = 'itv_visit_parts' and source_id = z_vp and kind = 'sortie' and from_location_id = z_loc and quantity = 2;
+      if z_n = 1 then v_lines := v_lines || 'OK      base  0383 : à la clôture, la pièce sort du camion'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0383 : sortie à la clôture (' || z_n || ')')::text; end if;
+      select count(*) into z_n from public.stock_locations where kind = 'technicien' and profile_id = u_tech and company_id = z_co;
+      if z_n = 1 then v_lines := v_lines || 'OK      base  0383 : un seul camion par technicien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0383 : camions du technicien (' || z_n || ')')::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0383 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
