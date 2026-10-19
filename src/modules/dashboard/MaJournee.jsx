@@ -12,10 +12,13 @@ const jour = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// Lignes lues (identifiants seuls, 500 au plus) : un comptage HEAD « exact » en parallèle peut être refusé par
+// l'API (503) quand le tableau de bord charge en même temps ; les sujets sont donc lus l'un après l'autre.
+const PLAFOND = 500
 async function compter(requete) {
   try {
-    const { count, error } = await requete
-    return error ? 0 : count || 0
+    const { data, error } = await requete.limit(PLAFOND)
+    return error ? 0 : (data || []).length
   } catch {
     return 0
   }
@@ -29,42 +32,46 @@ export default function MaJournee() {
   useEffect(() => {
     let vivant = true
     const auj = jour()
-    const tete = { count: 'exact', head: true }
     const a = (m) => modules.includes(m)
     const ok = (code) => can?.(code) !== false
     const sujets = [
       a('affaires') && ok('commercial.devis.voir') && {
         icon: KanbanSquare, to: '/affaires', libelle: (n) => `${n} affaire${n > 1 ? 's' : ''} à relancer (aujourd'hui ou en retard)`,
-        q: () => supabase.from('v_pipeline').select('id', tete).lte('next_action_on', auj),
+        q: () => supabase.from('v_pipeline').select('id').lte('next_action_on', auj),
       },
       a('affaires') && ok('commercial.devis.voir') && {
         icon: PhoneCall, to: '/affaires', etat: { onglet: 'appeler' }, libelle: (n) => `${n} client${n > 1 ? 's' : ''} avec une échéance dépassée à appeler`,
-        q: () => supabase.from('v_clients_a_appeler').select('client_id', tete).eq('depassee', true).eq('ne_pas_appeler', false),
+        q: () => supabase.from('v_clients_a_appeler').select('client_id').eq('depassee', true).eq('ne_pas_appeler', false),
       },
       ok('formation.convocations.envoyer') && {
         icon: Inbox, to: '/a-valider', libelle: (n) => `${n} relance${n > 1 ? 's' : ''} préparée${n > 1 ? 's' : ''} à valider`,
-        q: () => supabase.from('scheduled_actions').select('id', tete).eq('status', 'a_valider'),
+        q: () => supabase.from('scheduled_actions').select('id').eq('status', 'a_valider'),
       },
       a('formation') && {
         icon: Calendar, to: '/sessions', libelle: (n) => `${n} session${n > 1 ? 's' : ''} aujourd'hui`,
-        q: () => supabase.from('sessions').select('id', tete).lte('start_date', auj).gte('end_date', auj).not('status', 'in', '("cancelled","annulee")'),
+        q: () => supabase.from('sessions').select('id').lte('start_date', auj).gte('end_date', auj).not('status', 'in', '("cancelled","annulee")'),
       },
       a('interventions') && {
         icon: MapPin, to: '/interventions', libelle: (n) => `${n} visite${n > 1 ? 's' : ''} prévue${n > 1 ? 's' : ''} aujourd'hui`,
-        q: () => supabase.from('itv_visits').select('id', tete).eq('planned_on', auj).not('status', 'in', '("terminee","annulee")'),
+        q: () => supabase.from('itv_visits').select('id').eq('planned_on', auj).not('status', 'in', '("terminee","annulee")'),
       },
       a('commercial') && ok('commercial.devis.voir') && {
         icon: Receipt, to: '/devis', libelle: (n) => `${n} devis à relancer`,
-        q: () => supabase.from('quotes').select('id', tete).eq('status', 'sent').lte('next_followup_date', auj),
+        q: () => supabase.from('quotes').select('id').eq('status', 'sent').lte('next_followup_date', auj),
       },
       a('commercial') && ok('facturation.factures.voir') && {
         icon: CreditCard, to: '/factures', libelle: (n) => `${n} facture${n > 1 ? 's' : ''} en retard de paiement`,
-        q: () => supabase.from('invoices').select('id', tete).not('issued_at', 'is', null).lt('due_date', auj).gt('amount_due', 0).eq('type', 'invoice'),
+        q: () => supabase.from('invoices').select('id').not('issued_at', 'is', null).lt('due_date', auj).gt('amount_due', 0).eq('type', 'invoice'),
       },
     ].filter(Boolean)
-    Promise.all(sujets.map(async (s) => ({ ...s, n: await compter(s.q()) }))).then((r) => {
+    ;(async () => {
+      const r = []
+      for (const s of sujets) {
+        if (!vivant) return
+        r.push({ ...s, n: await compter(s.q()) })
+      }
       if (vivant) setLignes(r.filter((x) => x.n > 0))
-    })
+    })()
     return () => { vivant = false }
   }, [modules.join(','), can]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -83,7 +90,7 @@ export default function MaJournee() {
           {lignes.map((l) => (
             <li key={l.libelle(1)} className="px-4 py-3 flex items-center gap-3">
               <l.icon className="w-5 h-5 text-gray-500 flex-none" aria-hidden="true" />
-              <span className="flex-1 text-ui text-gray-900">{l.libelle(l.n)}</span>
+              <span className="flex-1 text-ui text-gray-900">{l.n >= PLAFOND ? l.libelle(l.n).replace(String(l.n), `${PLAFOND} ou plus`) : l.libelle(l.n)}</span>
               <Link to={l.to} state={l.etat} className="btn btn-secondary btn-sm">Voir</Link>
             </li>
           ))}
