@@ -9,12 +9,14 @@ import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
 import { EmptyState, Spinner } from '../../../ui/EmptyState'
 import { confirmer } from '../../../ui/Confirm'
+import { useAuthStore } from '../../../core/store'
+import PiloteReglages from '../../pilote/PiloteReglages'
 
 // Relances à valider (lot 2, 0043) : actions préparées chaque nuit par la base (recyclages à prévoir, puis
 // justificatifs des prestataires, rappels…). Rien ne part tout seul : on valide, on corrige ou on ignore ; une action validée se
 // transmet par sa messagerie (texte prêt à copier) puis se marque « envoyée ». Téléphone d'abord.
 
-const KINDS = { relance_recyclage: 'Recyclage', justificatif_prestataire: 'Justificatif', renouvellement_contrat: 'Renouvellement de contrat', visite_hors_contrat: 'Visite hors contrat', convocation: 'Convocation', rappel: 'Rappel', evaluation_froid: 'Évaluation à froid', relance_impaye: 'Impayé', autre: 'Autre' }
+const KINDS = { relance_recyclage: 'Recyclage', justificatif_prestataire: 'Justificatif', renouvellement_contrat: 'Renouvellement de contrat', visite_hors_contrat: 'Visite hors contrat', convocation: 'Convocation', rappel: 'Rappel', emargement_manquant: 'Émargement', eval_chaud: 'Évaluation à chaud', attestations: 'Attestations', evaluation_froid: 'Évaluation à froid', facture_brouillon: 'Facture', relance_impaye: 'Impayé', autre: 'Autre' }
 const STATUTS = { a_valider: ['warning', 'À valider'], valide: ['info', 'Validée'], envoye: ['success', 'Envoyée'], ignore: ['neutral', 'Ignorée'], erreur: ['danger', 'Erreur'] }
 const ONGLETS = [['a_valider', 'À valider'], ['valide', 'À envoyer'], ['envoye', 'Envoyées'], ['ignore', 'Ignorées']]
 
@@ -24,18 +26,40 @@ export default function AValider() {
   const [onglet, setOnglet] = useState('a_valider')
   const [ouvert, setOuvert] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [reglages, setReglages] = useState(false)
+  const can = useAuthStore((st) => st.can)
+  const role = useAuthStore((st) => st.userRole)
+  const droitModules = can('parametres.modules.gerer')
+  const peutRegler = droitModules === true || (droitModules == null && ['superadmin', 'admin'].includes(role))
 
   const load = async () => {
-    const { data, error } = await supabase.from('scheduled_actions')
-      .select('id, kind, client_id, target_table, target_id, due_on, title, payload, status, validated_at, sent_at, clients(name)')
+    let { data, error } = await supabase.from('scheduled_actions')
+      .select('id, kind, client_id, target_table, target_id, session_id, blocked_reason, due_on, title, payload, status, validated_at, sent_at, clients(name)')
       .order('due_on', { ascending: true }).limit(500)
+    // Avant 0160 (pilote des sessions) : ni session_id ni blocked_reason
+    if (error) ({ data, error } = await supabase.from('scheduled_actions')
+      .select('id, kind, client_id, target_table, target_id, due_on, title, payload, status, validated_at, sent_at, clients(name)')
+      .order('due_on', { ascending: true }).limit(500))
     if (error) { setIndispo(true); setItems([]); return }
     setItems(data || [])
   }
   useEffect(() => { load() }, [])
 
+  const [type, setType] = useState('')
   const compte = useMemo(() => Object.fromEntries(ONGLETS.map(([k]) => [k, (items || []).filter((i) => i.status === k).length])), [items])
-  const liste = (items || []).filter((i) => i.status === onglet)
+  const liste = (items || []).filter((i) => i.status === onglet && (!type || i.kind === type))
+  const types = useMemo(() => [...new Set((items || []).map((i) => i.kind))], [items])
+  const prets = liste.filter((i) => i.status === 'a_valider' && !i.blocked_reason)
+
+  const toutValider = async () => {
+    if (!(await confirmer(`Valider ${prets.length} relance${prets.length > 1 ? 's' : ''} « ${KINDS[type] || type} » ? Elles passeront « à envoyer ».`))) return
+    setBusy(true)
+    const { error } = await supabase.from('scheduled_actions').update({ status: 'valide' }).in('id', prets.map((i) => i.id))
+    setBusy(false)
+    if (error) return toast.error(error.message)
+    toast.success('Relances validées : à envoyer')
+    load()
+  }
 
   const changer = async (a, status, payload) => {
     if (status === 'ignore' && !(await confirmer('Ignorer cette relance ? Elle ne sera plus proposée.'))) return
@@ -65,7 +89,9 @@ export default function AValider() {
 
   return (
     <div className="space-y-4 max-w-3xl">
-      <PageHeader title="Relances à valider" meta={<span>Préparées chaque nuit par l'application ; rien n'est envoyé sans vous.</span>} />
+      <PageHeader title="Relances à valider" meta={<span>Préparées chaque nuit par l'application ; rien n'est envoyé sans vous.</span>}
+        actions={peutRegler ? <button type="button" className="btn btn-secondary" onClick={() => setReglages(true)}>Pilote des sessions</button> : null} />
+      {reglages && <PiloteReglages onClose={() => { setReglages(false); load() }} />}
       {indispo && <Banner tone="warning">Les relances ne sont pas encore disponibles sur cette instance (migration 0043).</Banner>}
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Relances">
         {ONGLETS.map(([k, l]) => (
@@ -73,6 +99,15 @@ export default function AValider() {
             className={`btn btn-sm ${onglet === k ? 'btn-primary' : 'btn-secondary'}`}>{l} ({compte[k] || 0})</button>
         ))}
       </div>
+      {types.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <select className="select w-auto" value={type} onChange={(e) => setType(e.target.value)} aria-label="Type de relance">
+            <option value="">Tous les types</option>
+            {types.map((k) => <option key={k} value={k}>{KINDS[k] || k}</option>)}
+          </select>
+          {type && onglet === 'a_valider' && prets.length > 1 && <button type="button" className="btn btn-sm btn-secondary" onClick={toutValider} disabled={busy}><Check className="w-4 h-4" /> Tout valider ({prets.length})</button>}
+        </div>
+      )}
       {items === null ? <Spinner /> : liste.length === 0 ? (
         <EmptyState icon={Inbox} title={onglet === 'a_valider' ? 'Rien à valider' : 'Aucune relance ici'} compact>
           {onglet === 'a_valider' ? 'Les recyclages à prévoir de vos clients et les justificatifs à demander aux prestataires apparaîtront ici, prêts à envoyer.' : null}
@@ -90,6 +125,7 @@ export default function AValider() {
                   {KINDS[a.kind]}{a.clients?.name ? ` · ${a.clients.name}` : ''}{a.due_on ? ` · échéance ${new Date(`${a.due_on}T12:00:00`).toLocaleDateString('fr-FR')}` : ''}
                   {a.payload?.depasse ? ' · dépassée' : ''}
                 </div>
+                {a.blocked_reason && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Bloquée : {a.blocked_reason}</div>}
               </button>
             </li>
           ))}
@@ -109,6 +145,8 @@ export default function AValider() {
           </>}>
           <div className="text-ui-sm text-gray-600">
             {ouvert.clients?.name && <Link to={`/clients/${ouvert.client_id}`} className="text-accent-700 hover:underline" onClick={() => setOuvert(null)}>{ouvert.clients.name}</Link>}
+            {ouvert.payload?.lien && <Link to={ouvert.payload.lien} className="text-accent-700 hover:underline ml-3" onClick={() => setOuvert(null)}>{ouvert.session_id ? 'Ouvrir la session' : 'Ouvrir'}</Link>}
+            {ouvert.blocked_reason && <p className="text-[rgb(var(--c-warning))] mt-1">Bloquée : {ouvert.blocked_reason}. Complétez la session : l'étape se débloque à la prochaine préparation (chaque nuit).</p>}
             {ouvert.target_table === 'subcontractors' && <Link to="/sous-traitants" className="text-accent-700 hover:underline" onClick={() => setOuvert(null)}>Voir les sous-traitants</Link>}
           </div>
           <div>

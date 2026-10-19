@@ -40,6 +40,7 @@ import { useDroits } from '../../../core/rights/useDroit'
 import { confirmer, demander } from '../../../ui/Confirm'
 import ChoixSiteSession from '../components/ChoixSiteSession'
 import SessionGroupes from '../components/SessionGroupes'
+import PiloteSession from '../../pilote/PiloteSession'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -3227,6 +3228,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       ]} />
 
       {/* TAB: Stagiaires */}
+      {/* Pilote des sessions (fonction 13) : étapes préparées pour cette session */}
+      {activeTab === 'overview' && session?.id && <PiloteSession sessionId={session.id} />}
       {activeTab === 'overview' && (
         <div className="card">
           <div className="flex items-center justify-between mb-4">

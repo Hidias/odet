@@ -9,7 +9,7 @@ export const NATURES = { formation: 'Formation', maintenance: 'Maintenance', con
 export async function chargerPrevisionnel() {
   const { data, error } = await fetchAll(() => supabase.from('v_recurring_revenue')
     .select('client_id, client_name, mois, nature, rule_id, label, nb_echeances, montant_attendu, nb_sans_prix, montant_devise, montant_planifie, nb_planifies, client_a_ne_pas_solliciter')
-    .order('mois').order('client_name'))
+    .order('mois').order('client_name'), { orderBy: ['client_id', 'nature', 'label', 'rule_id'] })
   if (error) throw error
   return data || []
 }

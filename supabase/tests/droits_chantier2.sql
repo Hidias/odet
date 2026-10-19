@@ -2735,6 +2735,73 @@ begin
     end;
   end if;
 
+  -- Fonction 13, pilote des sessions (0160) : étapes préparées une seule fois, blocage avec raison, session annulée
+  if to_regprocedure('public.pilote_generate()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 5;
+    declare
+      q_cli uuid; q_t1 uuid; q_t2 uuid; q_co uuid; q_a uuid; q_b uuid; q_c uuid; q_n int; q_j jsonb; q_ok boolean;
+    begin
+      update public.org_modules set enabled = false where key = 'pilote';
+      q_j := public.pilote_generate();
+      update public.org_modules set enabled = true where key = 'pilote';
+      insert into public.clients (name, contact_email) values ('Essai pilote', 'pilote@test.invalid') returning id into q_cli;
+      insert into public.trainees (first_name, last_name, client_id, email) values ('P1', 'Pilote', q_cli, 'p1@test.invalid') returning id into q_t1;
+      insert into public.trainees (first_name, last_name, client_id) values ('P2', 'Pilote', q_cli) returning id into q_t2;
+      insert into public.courses (title, code) values ('Essai pilote', 'ESSAI-PIL') returning id into q_co;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, start_time, location_name, attendance_token)
+      values ('SES-PIL-A', q_co, q_cli, current_date + 5, current_date + 5, '09:00', 'Salle 1', 'pil-a') returning id into q_a;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, start_time, attendance_token)
+      values ('SES-PIL-B', q_co, q_cli, current_date + 5, current_date + 5, '09:00', 'pil-b') returning id into q_b;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, start_time, location_name, attendance_token)
+      values ('SES-PIL-C', q_co, q_cli, current_date - 2, current_date - 2, '09:00', 'Salle 2', 'pil-c') returning id into q_c;
+      insert into public.session_trainees (session_id, trainee_id) values (q_a, q_t1), (q_a, q_t2), (q_b, q_t1), (q_c, q_t1);
+
+      perform public.pilote_generate();
+      perform public.pilote_generate();
+      if q_j ->> 'pilote' = 'inactif'
+         and (select count(*) from public.scheduled_actions where session_id = q_a and kind = 'convocation') = 1
+         and (select blocked_reason from public.scheduled_actions where session_id = q_a and kind = 'convocation') is null then
+        v_lines := v_lines || 'OK      base  0160 : module inactif, rien ; convocation préparée une seule fois'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0160 : convocation préparée une seule fois'::text; end if;
+
+      q_ok := (select blocked_reason from public.scheduled_actions where session_id = q_b and kind = 'convocation') = 'Lieu non renseigné';
+      update public.sessions set location_name = 'Salle 3' where id = q_b;
+      perform public.pilote_generate();
+      if q_ok and (select blocked_reason from public.scheduled_actions where session_id = q_b and kind = 'convocation') is null then
+        v_lines := v_lines || 'OK      base  0160 : convocation bloquée avec la raison, débloquée quand le lieu est saisi'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0160 : blocage avec raison'::text; end if;
+
+      if (select count(*) from public.scheduled_actions where session_id = q_c and kind = 'emargement_manquant') = 1
+         and (select blocked_reason from public.scheduled_actions where session_id = q_c and kind = 'attestations') = 'Émargement incomplet'
+         and (select blocked_reason from public.scheduled_actions where session_id = q_c and kind = 'facture_brouillon') = 'Prix non renseigné' then
+        v_lines := v_lines || 'OK      base  0160 : fin de session, émargement à compléter, attestations et facture bloquées avec la raison'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0160 : étapes de fin de session'::text; end if;
+
+      update public.sessions set status = 'cancelled' where id = q_a;
+      perform public.pilote_generate();
+      if (select status from public.scheduled_actions where session_id = q_a and kind = 'convocation') = 'ignore' then
+        v_lines := v_lines || 'OK      base  0160 : session annulée, ses actions à valider sont ignorées'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0160 : session annulée'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      q_n := (select count(*) from public.scheduled_actions where session_id in (q_b, q_c));
+      q_ok := false;
+      begin perform public.pilote_generate(); exception when insufficient_privilege then q_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      q_ok := q_ok and not exists (select 1 from public.scheduled_actions where session_id in (q_b, q_c));
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if q_n >= 4 and q_ok then v_lines := v_lines || 'OK      ges   0160 : le gestionnaire voit les étapes, ne lance pas la génération ; le formateur ne les voit pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ges   0160 : droits sur les étapes (' || q_n || ')'); end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
