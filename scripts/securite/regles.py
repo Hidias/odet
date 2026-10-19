@@ -910,6 +910,9 @@ tdx('0301', 'hr_qualifications', sel=f"({_RH_DOS} or {_RH_MOI})", ins=_RH_GER, u
 _RH_SANTE = f"({_RH_GER} and {_RH_RES})"
 tdx('0301', 'hr_medical_followups', sel=f"({_RH_RES} or {_RH_MOI})", ins=_RH_SANTE, upd=_RH_SANTE, dele=_RH_SANTE)
 
+# Chantier 12, RH jours fériés (0311) : lus avec « Voir le personnel », réglés avec « Configurer les RH ».
+tdx('0311', 'hr_public_holidays', sel=_RH_VOIR, ins=_RH_PAR, upd=_RH_PAR, dele=_RH_PAR)
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}

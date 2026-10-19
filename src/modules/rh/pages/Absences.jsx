@@ -9,7 +9,7 @@ import { Sheet } from '../../../ui/Sheet'
 import { confirmer, demander } from '../../../ui/Confirm'
 import {
   STATUTS_ABSENCE, CATEGORIES_ABSENCE, joursOuvres, nomComplet, chargerTypesAbsence, chargerMaFiche, chargerDemandes,
-  chargerSoldes, demanderAbsence, annulerAbsence, deciderAbsence, enregistrerTypeAbsence,
+  chargerSoldes, demanderAbsence, annulerAbsence, deciderAbsence, enregistrerTypeAbsence, chargerFeries, feriesNonTravailles,
 } from '../lib/rhData'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '')
@@ -21,8 +21,10 @@ export function DemandeSheet({ types, personId = null, soldes = [], onClose, onS
   const demain = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
   const [v, setV] = useState({ typeId: demandables[0]?.id || '', debut: demain, fin: demain, debutApresMidi: false, finMatin: false, commentaire: '' })
   const [busy, setBusy] = useState(false)
+  const [feries, setFeries] = useState([])
+  useEffect(() => { chargerFeries().then((l) => setFeries(feriesNonTravailles(l))) }, [])
   const type = types.find((t) => t.id === v.typeId)
-  const n = joursOuvres(v.debut, v.debutApresMidi, v.fin, v.finMatin)
+  const n = joursOuvres(v.debut, v.debutApresMidi, v.fin, v.finMatin, feries)
   const solde = soldes.find((s) => s.type_id === v.typeId)
   const envoyer = async (e) => {
     e.preventDefault()

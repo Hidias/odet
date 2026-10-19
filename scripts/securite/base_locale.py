@@ -181,6 +181,8 @@ ORDRE_PROD = (
     + ['0302']
     # RH : suppression des fichiers du bucket rh, 19/10
     + ['0303']
+    # RH : jours fériés par société, 19/10
+    + ['0311']
 )
 
 

@@ -20,6 +20,7 @@ import {
   chargerPersonnesChoix, enregistrerPersonne, archiverPersonne, enregistrerContrat, supprimerContrat,
   voirRemuneration, ajouterRemuneration, enregistrerEquipe, supprimerEquipe, enregistrerHoraire,
   chargerTypesAbsence, chargerSoldes, chargerMouvements, ajusterSolde,
+  chargerFeries, marquerFerie, ajouterFerie, supprimerFerie, poserFeriesAnnee,
 } from '../lib/rhData'
 import Absences, { DemandeSheet } from './Absences'
 import Heures from './Heures'
@@ -485,6 +486,71 @@ function Equipes({ peutGerer }) {
   )
 }
 
+// ─── Jours fériés (0311) ───
+function JoursFeries({ peutConfigurer }) {
+  const [annee, setAnnee] = useState(new Date().getFullYear())
+  const [liste, setListe] = useState(null)
+  const [ajout, setAjout] = useState(null)
+  const charger = useCallback(() => { chargerFeries(annee).then(setListe) }, [annee])
+  useEffect(() => { charger() }, [charger])
+  const basculer = async (h) => { try { await marquerFerie(h.id, !h.is_worked); charger() } catch (e) { toast.error(e.message) } }
+  const poser = async () => { try { const n = await poserFeriesAnnee(annee); toast.success(n ? `${n} jours fériés ajoutés` : 'Année déjà complète'); charger() } catch (e) { toast.error(e.message) } }
+  const enregistrer = async (e) => {
+    e.preventDefault()
+    try { await ajouterFerie(ajout); setAjout(null); charger() } catch (err) { toast.error(err.message) }
+  }
+  const retirer = async (h) => {
+    if (!(await confirmer(`Retirer « ${h.label} » du calendrier ?`))) return
+    try { await supprimerFerie(h.id); charger() } catch (e) { toast.error(e.message) }
+  }
+  if (!liste) return <Spinner />
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="section-title">Jours fériés</h2>
+        <div className="flex items-center gap-2">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAnnee(annee - 1)} aria-label="Année précédente">‹</button>
+          <span className="font-semibold tabular-nums">{annee}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAnnee(annee + 1)} aria-label="Année suivante">›</button>
+        </div>
+      </div>
+      <p className="text-ui-sm text-gray-600">Un jour férié ne compte pas dans les absences. Marquez « Travaillé » les jours où la société travaille (restaurant, journée de solidarité) : ils comptent alors comme des jours ouvrés.</p>
+      {liste.length === 0 && (
+        <EmptyState title={`Aucun jour férié pour ${annee}`} compact
+          action={peutConfigurer ? <button type="button" className="btn btn-secondary" onClick={poser}><Plus className="w-4 h-4" aria-hidden="true" />Ajouter les jours fériés de {annee}</button> : null}>
+          Les 11 jours fériés légaux se posent en un clic.
+        </EmptyState>
+      )}
+      {liste.length > 0 && (
+        <ul className="divide-y divide-gray-100 card card-flush">
+          {liste.map((h) => (
+            <li key={h.id} className="px-4 py-2 flex items-center gap-3">
+              <span className="w-28 flex-none text-ui-sm text-gray-600 tabular-nums">{fr(h.day)}</span>
+              <span className="flex-1 min-w-0 text-ui">{h.label}</span>
+              {peutConfigurer ? (
+                <label className="flex items-center gap-2 text-ui-sm min-h-[44px]">
+                  <input type="checkbox" className="w-5 h-5" checked={h.is_worked} onChange={() => basculer(h)} />Travaillé
+                </label>
+              ) : (h.is_worked && <span className="badge badge-neutral">Travaillé</span>)}
+              {peutConfigurer && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Retirer ${h.label}`} onClick={() => retirer(h)}><Trash2 className="w-4 h-4" /></button>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {peutConfigurer && !ajout && liste.length > 0 && (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAjout({ day: `${annee}-01-01`, label: '' })}><Plus className="w-4 h-4" aria-hidden="true" />Ajouter un jour non travaillé</button>
+      )}
+      {ajout && (
+        <form onSubmit={enregistrer} className="card grid gap-3 sm:grid-cols-[10rem_1fr_auto] items-end">
+          <Champ label="Date"><input className="input" type="date" required value={ajout.day} onChange={(e) => setAjout({ ...ajout, day: e.target.value })} /></Champ>
+          <Champ label="Libellé"><input className="input" value={ajout.label} onChange={(e) => setAjout({ ...ajout, label: e.target.value })} placeholder="Pont, fermeture annuelle…" /></Champ>
+          <div className="flex gap-2"><button type="submit" className="btn btn-primary">Ajouter</button><button type="button" className="btn btn-ghost" onClick={() => setAjout(null)}>Annuler</button></div>
+        </form>
+      )}
+    </section>
+  )
+}
+
 // ─── Horaires de référence ───
 function Horaires({ peutConfigurer }) {
   const [liste, setListe] = useState(null)
@@ -573,7 +639,7 @@ export default function Personnel() {
         <Route path="absences" element={<Absences peutValider={peutValider} peutVoirTout={peutVoirTout} peutConfigurer={peutConfigurer} />} />
         <Route path="heures" element={<Heures peutValider={peutValiderHeures} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
-        <Route path="horaires" element={<Horaires peutConfigurer={peutConfigurer} />} />
+        <Route path="horaires" element={<div className="space-y-6"><Horaires peutConfigurer={peutConfigurer} /><JoursFeries peutConfigurer={peutConfigurer} /></div>} />
         <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} peutRestreints={peutRestreints} />} />
       </Routes>
     </div>

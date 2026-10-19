@@ -3597,6 +3597,41 @@ begin
     end;
   end if;
 
+  -- RH, jours fériés (0311) : le 14 juillet ne compte pas dans une absence, sauf s'il est marqué travaillé ; seule la
+  -- configuration RH règle le calendrier
+  if to_regprocedure('app.hr_jours_ouvres_societe(uuid,date,text,date,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare
+      f_co uuid := app.company_default(); f_n numeric; f_n2 numeric; f_ok boolean := false; f_m int;
+    begin
+      perform app.hr_feries_poser(f_co, 2027);
+      f_n := app.hr_jours_ouvres_societe(f_co, date '2027-07-12', null, date '2027-07-16', null);
+      update public.hr_public_holidays set is_worked = true where company_id = f_co and day = date '2027-07-14';
+      f_n2 := app.hr_jours_ouvres_societe(f_co, date '2027-07-12', null, date '2027-07-16', 'matin');
+      update public.hr_public_holidays set is_worked = false where company_id = f_co and day = date '2027-07-14';
+      if f_n = 4 and f_n2 = 4.5 and app.paques(2027) = date '2027-03-28' then
+        v_lines := v_lines || 'OK      base  0311 : 14 juillet hors décompte (4 jours), compté s''il est travaillé ; Pâques 2027 le 28 mars'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0311 : décompte avec jours fériés (' || f_n || ', ' || f_n2 || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      update public.hr_public_holidays set is_worked = true where company_id = f_co and day = date '2027-07-14';
+      get diagnostics f_m = row_count;
+      begin perform public.hr_feries_annee(2030); exception when insufficient_privilege then f_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if f_m = 0 and f_ok then
+        v_lines := v_lines || 'OK      com   0311 : le commercial ne règle pas les jours fériés'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0311 : calendrier protégé'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0311 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
