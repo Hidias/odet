@@ -18,7 +18,7 @@ export default function Previsionnel() {
   const [ouvert, setOuvert] = useState(null)
 
   useEffect(() => {
-    chargerPrevisionnel().then(setLignes).catch(() => { setErreur('Le prévisionnel n\'est pas encore disponible sur cette instance (migration 0150).'); setLignes([]) })
+    chargerPrevisionnel().then(setLignes).catch(() => { setErreur('Le prévisionnel n\'est pas encore disponible. Prévenez le support.'); setLignes([]) })
   }, [])
 
   const mois = useMemo(() => parMois(lignes || [], nature), [lignes, nature])

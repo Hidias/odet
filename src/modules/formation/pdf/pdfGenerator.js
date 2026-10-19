@@ -3,7 +3,7 @@ import 'jspdf-autotable'
 import { format, eachDayOfInterval, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import QRCode from 'qrcode'
-import { buildORG, publicBaseUrl, prepareOrgForPDF, formatSiret } from '../../../core/org/orgUtils'
+import { buildORG, publicBaseUrl, prepareOrgForPDF, formatSiret, ligneNda, phraseNda } from '../../../core/org/orgUtils'
 import {
   PAGE_MARGIN, drawHeaderBand, drawRunningHeader, drawFooter, numberPages, drawDocTitle, drawSectionTitle,
   drawPartyCard, drawKeyValues, drawCheckmark, drawImageFitted, formatMoney, formatHour,
@@ -226,7 +226,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     ORG.nameFull || ORG.name,
     ORG.address,
     `SIRET ${ORG.siret}`,
-    `NDA ${ORG.nda}`,
+    ligneNda(ORG),
     `Représenté par ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}`,
   ]
   const clientAddr = [client.address, [client.postal_code, client.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
@@ -886,7 +886,7 @@ function generateCertificatContent(doc, session, trainee, trainer, { defaultAcqu
   const isAcquired = result === 'acquired'
   const isNotAcquired = result === 'not_acquired'
 
-  const nda = ORG.ndaFull ? (/^\d/.test(ORG.ndaFull) ? `, déclaration d'activité n° ${ORG.ndaFull}` : `, numéro de déclaration d'activité ${ORG.ndaFull}`) : ''
+  const nda = phraseNda(ORG) ? `, ${phraseNda(ORG)}` : ''
   f.para(`Je soussigné, ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}, représentant légal du dispensateur de l'action concourant au développement des compétences ${ORG.nameFull || ORG.name}${nda}, atteste que :`, { size: 10, after: 4 })
 
   f.cards([{ label: 'Bénéficiaire', lines: [fullNameOf(trainee), client.name ? `${salarieLabel(trainee)} l'entreprise ${client.name}` : ''].filter(Boolean) }])
@@ -1769,7 +1769,7 @@ function generateAttestationContent(doc, session, trainee, trainer) {
   const f = pageFlow(doc, { ref, docLabel, code: CODE, startY: y + 2 })
   const t = f.t
 
-  f.para(`Je soussigné, ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}, représentant l'organisme de formation ${ORG.nameFull || ORG.name}${ORG.ndaFull ? (/^\d/.test(ORG.ndaFull) ? ` (déclaration d'activité n° ${ORG.ndaFull})` : ` (numéro de déclaration d'activité ${ORG.ndaFull})`) : ''}, atteste que :`, { size: 10, after: 5 })
+  f.para(`Je soussigné, ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}, représentant l'organisme de formation ${ORG.nameFull || ORG.name}${phraseNda(ORG) ? ` (${phraseNda(ORG)})` : ''}, atteste que :`, { size: 10, after: 5 })
 
   const fullName = `${trainee?.first_name || ''} ${(trainee?.last_name || '').toUpperCase()}`.trim()
   const lines = [fullName, client.name ? `Entreprise : ${client.name}` : ''].filter(Boolean)

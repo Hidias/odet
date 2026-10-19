@@ -15,7 +15,7 @@ function check({ data, error }) {
 export async function loadFormat() {
   const data = check(await supabase.from('pp_format_versions').select('version, label, contrat, regles, sources')
     .eq('en_vigueur', true).order('created_at', { ascending: false }).limit(1).maybeSingle())
-  if (!data) throw new Error('Format officiel absent (migration 0190 non appliquée ?)')
+  if (!data) throw new Error("Le format officiel du Passeport n'est pas disponible. Prévenez le support.")
   return data
 }
 

@@ -49,7 +49,7 @@ export default function Affaires() {
       supabase.from('v_cadence_semaine').select('*'),
       supabase.from('activity_targets').select('*'),
     ])
-    if (p.error) { setErreur('Le suivi des affaires n\'est pas encore disponible sur cette instance (migration 0380).'); setPipeline([]); setAppeler([]); return }
+    if (p.error) { setErreur('Le suivi des affaires n\'est pas encore disponible. Prévenez le support.'); setPipeline([]); setAppeler([]); return }
     setPipeline(p.data || [])
     setAppeler(a.error ? [] : a.data || [])
     setCad({ reel: r.data || [], obj: o.data || [] })

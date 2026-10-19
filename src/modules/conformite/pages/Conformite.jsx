@@ -251,7 +251,7 @@ export default function Conformite() {
       lire('rgpd_traitements', 'nom_traitement'), lire('rgpd_sous_traitants', 'nom'), lire('rgpd_demandes', 'recue_le', false),
       lire('rgpd_violations', 'decouverte_le', false), lire('rgpd_informations', 'remise_le', false), lire('rgpd_aipd', 'created_at', false),
     ])
-    if (st.error && tr.error) { setErreur('La conformité RGPD n\'est pas encore disponible sur cette instance (migration 0340).'); setData({}); return }
+    if (st.error && tr.error) { setErreur('La conformité RGPD n\'est pas encore disponible. Prévenez le support.'); setData({}); return }
     const [pr, pp] = await Promise.all([lire('rgpd_purge_regles', 'cle'), lire('rgpd_purge_passages', 'cree_le', false)])
     setData({ traitements: tr.data || [], sous_traitants: st.data || [], demandes: de.data || [], violations: vi.data || [], informations: inf.data || [], aipd: ai.data || [],
       purge_regles: pr.error ? [] : pr.data || [], purge_passages: pp.error ? [] : pp.data || [] })
@@ -434,7 +434,7 @@ export default function Conformite() {
                 </label>
               </div>
             ))}
-            {(data.purge_regles || []).length === 0 && <div className="text-ui-sm text-gray-600">Les règles de conservation apparaîtront après la migration 0344.</div>}
+            {(data.purge_regles || []).length === 0 && <div className="text-ui-sm text-gray-600">Aucune règle de conservation n'est encore définie.</div>}
           </div>
         </div>
       ) : (

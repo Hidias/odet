@@ -4,6 +4,7 @@
 // d'organisme en dur ici. Les couleurs viennent de ORG.theme (marque de l'instance).
 
 import { APP_VERSION } from '../version'
+import { ligneNda } from '../org/orgUtils'
 
 export const PAGE_MARGIN = 15
 
@@ -75,7 +76,7 @@ export function drawHeaderBand(doc, ORG, { ref = null, docLabel = '' } = {}) {
   const lignesId = [
     ORG.adressePrincipale || ORG.address || '',
     [ORG.phone, ORG.email].filter(Boolean).join('   '),
-    [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.nda ? `NDA ${ORG.nda}` : ''].filter(Boolean).join('   '),
+    [ORG.siret ? `SIRET ${ORG.siret}` : '', ligneNda(ORG)].filter(Boolean).join('   '),
     ORG.siegeMention || null,
   ].filter((l) => l !== null)
   const pas = lignesId.length > 3 ? 3.3 : 4
@@ -118,7 +119,7 @@ export function drawFooter(doc, ORG, docCode, pageNum = null, totalPages = null)
   doc.line(M, ph - 16, pw - M, ph - 16)
   setF(doc, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
   const l1 = [ORG.nameFull || ORG.name, ORG.adressePrincipale || ORG.addressFull, ORG.siegeMention].filter(Boolean).join('  ·  ')
-  const l2 = [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.naf ? `NAF ${ORG.naf}` : '', ORG.tva ? `TVA ${ORG.tva}` : '', ORG.ndaFull ? `NDA ${ORG.ndaFull}` : ''].filter(Boolean).join('  ·  ')
+  const l2 = [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.naf ? `NAF ${ORG.naf}` : '', ORG.tva ? `TVA ${ORG.tva}` : '', ligneNda(ORG, { complet: true })].filter(Boolean).join('  ·  ')
   doc.text(l1, M, ph - 11.5)
   doc.text(l2, M, ph - 8)
   doc.text(`${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}${docCode}-${APP_VERSION}`, pw - M, ph - 8, { align: 'right' })

@@ -92,7 +92,7 @@ export default function AValider() {
       <PageHeader title="Relances à valider" meta={<span>Préparées chaque nuit par l'application ; rien n'est envoyé sans vous.</span>}
         actions={peutRegler ? <button type="button" className="btn btn-secondary" onClick={() => setReglages(true)}>Pilote des sessions</button> : null} />
       {reglages && <PiloteReglages onClose={() => { setReglages(false); load() }} />}
-      {indispo && <Banner tone="warning">Les relances ne sont pas encore disponibles sur cette instance (migration 0043).</Banner>}
+      {indispo && <Banner tone="warning">Les relances ne sont pas encore disponibles. Prévenez le support.</Banner>}
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Relances">
         {ONGLETS.map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={onglet === k} onClick={() => setOnglet(k)}

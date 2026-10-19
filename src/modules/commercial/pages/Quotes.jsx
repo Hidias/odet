@@ -353,7 +353,7 @@ export default function Quotes() {
   }, [])
 
   async function duplicateQuote(quote) {
-    if (!await confirmer(`Dupliquer le devis ${quote.reference} ?`)) return
+    // Plus de confirmation : dupliquer ne détruit rien, la copie peut être supprimée (audit du 19/10 au soir)
     const ref = await generateReference()
     const qDate = format(new Date(), 'yyyy-MM-dd')
     const vDate = calcValidityDate(qDate)
@@ -420,12 +420,21 @@ export default function Quotes() {
     setSaving(false)
   }
 
+  // Renvoie vrai si le devis a été supprimé : la fiche ne se referme qu'après la confirmation et la suppression réussie
   async function deleteQuote(id) {
-    if (!await confirmer('Supprimer ce devis ?')) return
-    await supabase.from('quote_items').delete().eq('quote_id', id)
-    await supabase.from('quotes').delete().eq('id', id)
+    if (!await confirmer('Supprimer ce devis ?')) return false
+    const { error: eItems } = await supabase.from('quote_items').delete().eq('quote_id', id)
+    const { error } = eItems ? { error: eItems } : await supabase.from('quotes').delete().eq('id', id)
+    if (error) {
+      toast.error(/foreign key|violates/i.test(error.message || '')
+        ? 'Ce devis est relié à une facture ou une session : il ne peut pas être supprimé. Passez-le plutôt en « Refusé ».'
+        : "Le devis n'a pas pu être supprimé.")
+      loadAll()
+      return false
+    }
     toast.success('Devis supprimé')
     loadAll()
+    return true
   }
 
   async function updateStatus(id, newStatus) {
@@ -1368,7 +1377,7 @@ export default function Quotes() {
                     </button>
                   )}
                   <div className="border-t border-gray-100 my-1" />
-                  <button onClick={() => { setActionMenuId(null); deleteQuote(q.id); setMode('list') }}
+                  <button onClick={async () => { setActionMenuId(null); if (await deleteQuote(q.id)) setMode('list') }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
                     <Trash2 size={15} /> Supprimer
                   </button>

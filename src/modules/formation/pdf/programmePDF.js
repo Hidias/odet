@@ -8,6 +8,7 @@
 
 import jsPDF from 'jspdf'
 import { setF, drawLogoFitted } from '../../../core/pdf/layout'
+import { ligneNda } from '../../../core/org/orgUtils'
 
 const A4 = { w: 210, h: 297 }
 const SIDE_W = 64
@@ -126,7 +127,7 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
     `${(ORG?.nameFull || ORG?.name || '').toUpperCase()}${(ORG?.adressePrincipale || ORG?.address) ? ` – ${ORG.adressePrincipale || ORG.address}` : ''}`,
     ORG?.siegeMention || null,
     [ORG?.phone ? `Tél : ${ORG.phone}` : null, ORG?.email ? `Mail : ${ORG.email}` : null].filter(Boolean).join(' – '),
-    [ORG?.siret ? `SIRET : ${ORG.siret}` : null, ORG?.ndaFull ? `NDA : ${ORG.ndaFull}` : null].filter(Boolean).join(' – '),
+    [ORG?.siret ? `SIRET : ${ORG.siret}` : null, ligneNda(ORG, { complet: true }) || null].filter(Boolean).join(' – '),
   ].filter(Boolean)
 
   // eS, eM : espace ajouté (mm) par unité d'écart, colonne de gauche et colonne principale
@@ -347,7 +348,7 @@ export function buildCataloguePDF(courses, ORG, contextePour = () => ({})) {
     y += titre.length * 4.6 + 3
   }
   const pied = [ORG?.nameFull || ORG?.name, ORG?.adressePrincipale || ORG?.address || null, ORG?.siegeMention || null,
-    [ORG?.phone, ORG?.email].filter(Boolean).join(' – '), ORG?.siret ? `SIRET : ${ORG.siret}` : null, ORG?.ndaFull ? `NDA : ${ORG.ndaFull}` : null].filter(Boolean)
+    [ORG?.phone, ORG?.email].filter(Boolean).join(' – '), ORG?.siret ? `SIRET : ${ORG.siret}` : null, ligneNda(ORG, { complet: true }) || null].filter(Boolean)
   setF(doc, 'normal'); doc.setFontSize(8); doc.setTextColor(...t.muted)
   pied.forEach((l, i) => doc.text(l, A4.w / 2, A4.h - 30 + i * 4, { align: 'center' }))
   for (const c of liste) {

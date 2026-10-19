@@ -260,7 +260,7 @@ export default function SetupWizard() {
                 <Field label="Code NAF"><input className="input" value={form.naf} onChange={(e) => set('naf', e.target.value)} placeholder="8559A" /></Field>
                 <Field label="TVA intracommunautaire"><input className="input" value={form.tva_intra} onChange={(e) => set('tva_intra', e.target.value)} placeholder="FR12345678901" /></Field>
                 <div className="pt-6"><Toggle checked={form.tva_applicable !== false} onChange={(v) => set('tva_applicable', v)} label="TVA applicable" hint="Décoché : mention d'exonération sur les factures" /></div>
-                <Field label="Numéro de déclaration d'activité (NDA)" hint="11 chiffres. Laissez vide tant qu'il n'est pas obtenu : les conventions seront bloquées jusque-là"><input className="input" value={form.nda} onChange={(e) => set('nda', e.target.value)} /></Field>
+                <Field label="Numéro de déclaration d'activité (NDA)" hint="11 chiffres. Laissez vide tant qu'il n'est pas obtenu : les documents de formation porteront la mention « Déclaration d'activité en cours d'enregistrement »"><input className="input" value={form.nda} onChange={(e) => set('nda', e.target.value)} /></Field>
                 <Field label="Région du préfet (NDA)"><input className="input" value={form.nda_region} onChange={(e) => set('nda_region', e.target.value)} placeholder="Région du siège" /></Field>
                 <div className="md:col-span-2"><Toggle checked={!!form.qualiopi_certified} onChange={(v) => set('qualiopi_certified', v)} label="Certifié Qualiopi" hint="Ajoute la mention sur les documents et le portail" /></div>
               </div>

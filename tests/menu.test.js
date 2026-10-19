@@ -55,7 +55,7 @@ describe('menu : mode simple et « + Nouveau »', () => {
     expect(simple).not.toContain('/audit-logs')
     const complet = vs(mods, 'admin', inconnus)
     expect(op('/pistes', complet).map((i) => i.to)).toEqual(['/affaires', '/pistes', '/previsionnel'])
-    expect(creationsVisibles(mods, 'admin', inconnus).map((c) => c.label)).toEqual(['Session', 'Client', 'Affaire', 'Devis', 'Facture', 'Intervention'])
+    expect(creationsVisibles(mods, 'admin', inconnus).map((c) => c.label)).toEqual(['Session', 'Client', 'Affaire', 'Devis', 'Facture', 'Stagiaire', 'Intervention'])
     expect(creationsVisibles(mods, 'formateur', (c) => c === 'formation.sessions.voir_siennes').map((c) => c.label)).toEqual([])
   })
 })

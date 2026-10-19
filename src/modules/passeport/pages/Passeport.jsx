@@ -116,7 +116,7 @@ export default function Passeport() {
       <div className="card text-center space-y-2 max-w-lg mx-auto mt-8">
         <BookUser className="w-8 h-8 text-gray-400 mx-auto" />
         <p className="font-semibold">Module « Passeport de prévention » désactivé</p>
-        <p className="muted text-ui-sm">Il s'active dans la Console, rubrique Modules.</p>
+        <p className="muted text-ui-sm">Le support peut l'activer sur demande.</p>
         <Link to="/" className="btn btn-secondary">Retour au tableau de bord</Link>
       </div>
     )

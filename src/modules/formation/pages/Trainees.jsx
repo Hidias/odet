@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
+import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 
 // Fonction de formatage des noms
 const formatName = (value, type) => {
@@ -189,6 +190,9 @@ export default function Trainees() {
     setShowForm(true)
   }
   
+  // « + Nouveau › Stagiaire » (barre du haut et accueil)
+  useOuvrirSiDemande(() => openForm())
+
   const openPreview = async (trainee) => {
     setSelectedTrainee(trainee)
     setDecryptedSSN(null)

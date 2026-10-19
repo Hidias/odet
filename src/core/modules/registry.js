@@ -247,6 +247,7 @@ export const CREATIONS = [
   { to: '/affaires', label: 'Affaire', module: 'affaires', right: 'commercial.devis.modifier' },
   { to: '/devis', label: 'Devis', module: 'commercial', right: 'commercial.devis.modifier' },
   { to: '/factures', label: 'Facture', module: 'commercial', right: 'facturation.factures.modifier' },
+  { to: '/stagiaires', label: 'Stagiaire', module: 'formation', right: 'formation.stagiaires.creer' },
   { to: '/interventions/planning', label: 'Intervention', module: 'interventions', right: 'interventions.visites.gerer', sansOuverture: true },
 ]
 
