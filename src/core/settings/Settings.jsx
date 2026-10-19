@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks, Network, Pencil, X,
+  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks, Network, Pencil, X, Power,
 } from 'lucide-react'
 import { useDataStore, useAuthStore } from '../store'
 import { supabase } from '../supabase'
@@ -455,39 +455,78 @@ function QualiteSection({ onReferentHandicap }) {
 
 // Agenda Google de l'utilisateur : ses sessions, RDV, rappels et événements y sont copiés chaque heure
 // (le compte de service Google doit avoir accès à cet agenda)
-// Prénom et nom du compte : une seule saisie. Le nom affiché partout se calcule à partir d'eux en base (0053).
-function NomCell({ profile, onSave }) {
-  const [edition, setEdition] = useState(false)
+// Prénom, nom et adresse du compte : une seule saisie. Le nom affiché partout se calcule en base (0053). L'adresse
+// se change par le serveur (même compte, même mot de passe, session conservée). Les actions sont dans la première
+// colonne, avec leur libellé : le tableau défile en largeur et une icône seule en bout de ligne ne se voyait pas.
+function NomCell({ profile, onSave, onEmail, actions = [] }) {
+  const [mode, setMode] = useState(null) // null | 'nom' | 'adresse'
   const [prenom, setPrenom] = useState(profile.first_name || '')
   const [nom, setNom] = useState(profile.last_name || '')
+  const [adresse, setAdresse] = useState('')
+  const [enCours, setEnCours] = useState(false)
   useEffect(() => { setPrenom(profile.first_name || ''); setNom(profile.last_name || '') }, [profile.first_name, profile.last_name])
-  if (!edition) {
+  const qui = profile.display_name || profile.email
+
+  if (mode === 'nom') {
+    const enregistrer = async () => {
+      await onSave({ first_name: prenom.trim() || null, last_name: nom.trim() || null })
+      setMode(null)
+    }
     return (
-      <div className="flex items-start gap-1" style={{ minWidth: 200 }}>
-        <div className="min-w-0">
-          <div className="font-medium">{profile.display_name || profile.email}</div>
-          <div className="text-ui-sm text-gray-500">{profile.email}</div>
+      <div className="flex flex-col gap-1.5" style={{ minWidth: 240 }}>
+        <input className="input" style={{ minHeight: 32 }} placeholder="Prénom" aria-label="Prénom" value={prenom} onChange={(e) => setPrenom(e.target.value)} autoFocus />
+        <input className="input" style={{ minHeight: 32 }} placeholder="Nom" aria-label="Nom" value={nom} onChange={(e) => setNom(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') enregistrer(); if (e.key === 'Escape') setMode(null) }} />
+        <div className="flex gap-1">
+          <button type="button" className="btn btn-primary btn-sm" onClick={enregistrer}><Check className="w-3.5 h-3.5" />Enregistrer</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode(null)}><X className="w-3.5 h-3.5" />Annuler</button>
         </div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdition(true)} aria-label={`Modifier le prénom et le nom de ${profile.display_name || profile.email}`} title="Modifier le prénom et le nom">
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
+        <div className="text-ui-sm text-gray-500">{profile.email}</div>
       </div>
     )
   }
-  const enregistrer = async () => {
-    await onSave({ first_name: prenom.trim() || null, last_name: nom.trim() || null })
-    setEdition(false)
-  }
-  return (
-    <div className="flex flex-col gap-1.5" style={{ minWidth: 220 }}>
-      <input className="input" style={{ minHeight: 32 }} placeholder="Prénom" aria-label="Prénom" value={prenom} onChange={(e) => setPrenom(e.target.value)} autoFocus />
-      <input className="input" style={{ minHeight: 32 }} placeholder="Nom" aria-label="Nom" value={nom} onChange={(e) => setNom(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') enregistrer(); if (e.key === 'Escape') setEdition(false) }} />
-      <div className="flex gap-1">
-        <button type="button" className="btn btn-primary btn-sm" onClick={enregistrer}><Check className="w-3.5 h-3.5" />Enregistrer</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdition(false)}><X className="w-3.5 h-3.5" />Annuler</button>
+
+  if (mode === 'adresse') {
+    const valider = async () => {
+      const cible = adresse.trim().toLowerCase()
+      if (!cible) return
+      if (!await confirmer(`Changer l'adresse de connexion de ${qui} ?\n\n${profile.email}\n→ ${cible}\n\nLe mot de passe ne change pas. La prochaine connexion se fait avec la nouvelle adresse.`)) return
+      setEnCours(true)
+      const ok = await onEmail(cible)
+      setEnCours(false)
+      if (ok) { setAdresse(''); setMode(null) }
+    }
+    return (
+      <div className="flex flex-col gap-1.5" style={{ minWidth: 260 }}>
+        <div className="font-medium">{qui}</div>
+        <div className="text-ui-sm text-gray-500">Adresse actuelle : {profile.email}</div>
+        <input type="email" className="input" style={{ minHeight: 32 }} placeholder="Nouvelle adresse" aria-label="Nouvelle adresse email" value={adresse}
+          onChange={(e) => setAdresse(e.target.value)} autoFocus
+          onKeyDown={(e) => { if (e.key === 'Enter') valider(); if (e.key === 'Escape') setMode(null) }} />
+        <div className="text-ui-sm text-gray-500">Même compte, même mot de passe, mêmes droits.</div>
+        <div className="flex gap-1">
+          <button type="button" className="btn btn-primary btn-sm" onClick={valider} disabled={enCours || !adresse.trim()}>{enCours ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}Changer l'adresse</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode(null)} disabled={enCours}><X className="w-3.5 h-3.5" />Annuler</button>
+        </div>
       </div>
-      <div className="text-ui-sm text-gray-500">{profile.email}</div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-1" style={{ minWidth: 240 }}>
+      <div>
+        <div className="font-medium">{qui}</div>
+        <div className="text-ui-sm text-gray-500">{profile.email}</div>
+      </div>
+      <div className="flex flex-wrap gap-x-1 -ml-2">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode('nom')} aria-label={`Modifier le prénom et le nom de ${qui}`}><Pencil className="w-3.5 h-3.5" />Nom</button>
+        {onEmail && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode('adresse')} aria-label={`Changer l'adresse de ${qui}`}><Mail className="w-3.5 h-3.5" />Adresse</button>}
+        {actions.map((a) => (
+          <button key={a.label} type="button" className={`btn btn-ghost btn-sm ${a.danger ? 'text-[rgb(var(--c-danger))]' : ''}`} onClick={a.onClick} disabled={a.disabled} title={a.title} aria-label={`${a.label} : ${qui}`}>
+            {a.icon}{a.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -517,6 +556,9 @@ function UsersSection({ isSuperadmin }) {
   const [resetLink, setResetLink] = useState(null)
   const me = useAuthStore((s) => s.profile)
 
+  // Dernière connexion de chaque compte (serveur) : un compte qui n'a jamais servi peut être supprimé, les autres
+  // se désactivent (historique conservé). Inconnu tant que la réponse n'est pas arrivée.
+  const [activite, setActivite] = useState(null)
   const load = async () => {
     const [{ data }, { data: tr }] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at'),
@@ -524,6 +566,9 @@ function UsersSection({ isSuperadmin }) {
     ])
     setProfiles(data || [])
     setTrainers(tr || [])
+    if (isSuperadmin) {
+      try { const r = await callApi('/api/admin-users', { action: 'activite' }); setActivite(r.activite || {}) } catch { setActivite({}) }
+    }
   }
   useEffect(() => { load() }, [])
 
@@ -552,8 +597,24 @@ function UsersSection({ isSuperadmin }) {
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
   const remove = async (p) => {
-    if (!await confirmer(`Supprimer définitivement le compte de ${p.email} ?`)) return
+    if (!await confirmer(`Supprimer définitivement le compte de ${p.display_name || p.email} (${p.email}) ?\n\nCe compte n'a jamais servi : rien d'autre n'est supprimé.`)) return
     try { await callApi('/api/admin-users', { action: 'delete', user_id: p.id }); toast.success('Compte supprimé'); load() } catch (e) { toast.error(e.message) }
+  }
+  const changerAdresse = async (p, nouvelle) => {
+    try {
+      await callApi('/api/admin-users', { action: 'email', user_id: p.id, new_email: nouvelle })
+      toast.success(p.id === me?.id ? 'Adresse changée : connectez-vous désormais avec la nouvelle, même mot de passe' : 'Adresse changée')
+      load()
+      return true
+    } catch (e) { toast.error(e.message); return false }
+  }
+  // Supprimer (compte jamais utilisé) ou désactiver (compte qui a servi) ; jamais son propre compte
+  const actionsCompte = (p) => {
+    if (!isSuperadmin || p.id === me?.id) return []
+    const a = activite?.[p.id]
+    if (activite && a && !a.derniere_connexion) return [{ label: 'Supprimer', icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => remove(p), title: 'Compte jamais utilisé : suppression possible' }]
+    if (p.is_active) return [{ label: 'Désactiver', icon: <Power className="w-3.5 h-3.5" />, onClick: () => update(p.id, { is_active: false }), title: 'Le compte a servi : il se désactive, son historique est conservé' }]
+    return []
   }
 
   return (
@@ -565,7 +626,7 @@ function UsersSection({ isSuperadmin }) {
           <tbody>
             {profiles.map((p) => (
               <tr key={p.id}>
-                <td><NomCell profile={p} onSave={(patch) => update(p.id, patch)} /></td>
+                <td><NomCell profile={p} onSave={(patch) => update(p.id, patch)} onEmail={isSuperadmin ? (v) => changerAdresse(p, v) : null} actions={actionsCompte(p)} /></td>
                 <td>
                   <select className="select" style={{ minHeight: 32, width: 190 }} value={p.role} disabled={p.id === me?.id || (p.role === 'superadmin' && !isSuperadmin)}
                     onChange={(e) => update(p.id, { role: e.target.value })}>
@@ -583,7 +644,6 @@ function UsersSection({ isSuperadmin }) {
                 <td><Toggle checked={p.is_active} onChange={(v) => update(p.id, { is_active: v })} label="" /></td>
                 <td className="text-right whitespace-nowrap">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => reset(p.email)} disabled={busy}><KeyRound className="w-4 h-4" />Mot de passe</button>
-                  {isSuperadmin && p.id !== me?.id && <button type="button" className="btn btn-ghost btn-sm text-[rgb(var(--c-danger))]" onClick={() => remove(p)}><Trash2 className="w-4 h-4" /></button>}
                 </td>
               </tr>
             ))}

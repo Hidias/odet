@@ -3337,7 +3337,7 @@ BEGIN
   END IF;
 
   SELECT net.http_get(
-    url := 'https://app.accessformation.pro' || p_path,
+    url := 'https://application.invalid' || p_path,
     headers := jsonb_build_object('Authorization', 'Bearer ' || v_secret),
     timeout_milliseconds := 60000
   ) INTO v_id;
@@ -4482,7 +4482,7 @@ CREATE OR REPLACE FUNCTION public.is_signature_admin()
  STABLE
 AS $function$
   SELECT lower(coalesce(current_setting('request.jwt.claims', true)::json ->> 'email', ''))
-         = 'hicham.saidi@accessformation.pro';
+         = 'compte-retire@application.invalid';
 $function$;
 
 --FN-- load_trainee_data
