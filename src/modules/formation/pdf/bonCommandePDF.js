@@ -6,6 +6,7 @@
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { startDocument, formatMoney } from '../../../core/pdf/layout'
+import { ligneNda } from '../../../core/org/orgUtils'
 
 const fr = (d) => (d ? new Date(String(d).length === 10 ? `${d}T12:00:00` : d).toLocaleDateString('fr-FR') : '')
 
@@ -23,7 +24,7 @@ export function buildBonCommandePDF(ORG, { order = {}, subcontractor = {}, sessi
 
   const st = subcontractor || {}
   f.cards([
-    { label: 'Donneur d\'ordres', lines: [ORG.nameFull || ORG.name, ORG.address, [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.nda ? `NDA ${ORG.nda}` : ''].filter(Boolean).join('  ·  ')] },
+    { label: 'Donneur d\'ordres', lines: [ORG.nameFull || ORG.name, ORG.address, [ORG.siret ? `SIRET ${ORG.siret}` : '', ligneNda(ORG)].filter(Boolean).join('  ·  ')] },
     { label: 'Prestataire', lines: [st.name, [st.address, [st.postal_code, st.city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
       [st.siret ? `SIRET ${st.siret}` : (st.siren ? `SIREN ${st.siren}` : ''), st.nda ? `NDA ${st.nda}` : ''].filter(Boolean).join('  ·  ')] },
   ])

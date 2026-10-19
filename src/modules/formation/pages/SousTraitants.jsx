@@ -42,7 +42,7 @@ export default function SousTraitants() {
       supabase.from('subcontractors').select('*').order('name'),
       supabase.from('v_subcontractor_compliance').select('subcontractor_id, code, label, status, valid_until'),
     ])
-    if (error) { setErreur('La sous-traitance n\'est pas encore disponible sur cette instance (migration 0045).'); setListe([]); return }
+    if (error) { setErreur('La sous-traitance n\'est pas encore disponible. Prévenez le support.'); setListe([]); return }
     setListe(data || [])
     setConformite(c || [])
   }

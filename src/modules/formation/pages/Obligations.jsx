@@ -34,7 +34,7 @@ export default function Obligations() {
       supabase.from('courses').select('id, code, title').order('title'),
       supabase.from('itv_equipment_types').select('family'),
     ])
-    if (error) { setErreur('Le référentiel n\'est pas encore disponible sur cette instance (migration 0042).'); setRegles([]); return }
+    if (error) { setErreur('Le référentiel n\'est pas encore disponible. Prévenez le support.'); setRegles([]); return }
     setRegles(data || [])
     setCours(c || [])
     setFamilles([...new Set((f || []).map((x) => x.family).filter(Boolean))].sort())

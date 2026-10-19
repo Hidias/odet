@@ -943,7 +943,7 @@ export default function Dashboard() {
           <div className="text-center py-2 space-y-2">
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto"><FileText className="w-5 h-5 text-gray-900" /></div>
             <p className="text-ui font-medium text-gray-700">BPF à générer</p>
-            <p className="text-ui-sm text-gray-400">NDA : {organization?.nda || "en cours d'attribution"}</p>
+            <p className="text-ui-sm text-gray-400">{organization?.nda ? `NDA : ${organization.nda}` : "Déclaration d'activité en cours d'enregistrement"}</p>
           </div>
         )
 

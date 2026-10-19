@@ -57,7 +57,7 @@ const escapeHtml = (s) => String(s)
 
 function formatNda(nda) {
   const d = String(nda || '').replace(/\s+/g, '')
-  if (!d) return "en cours d'attribution"
+  if (!d) return "en cours d'enregistrement"
   return /^\d{11}$/.test(d) ? `${d.slice(0, 2)} ${d.slice(2, 4)} ${d.slice(4, 9)} ${d.slice(9)}` : d
 }
 
