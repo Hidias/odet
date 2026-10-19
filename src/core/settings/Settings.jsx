@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks, Network,
+  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks, Network, Pencil, X,
 } from 'lucide-react'
 import { useDataStore, useAuthStore } from '../store'
 import { supabase } from '../supabase'
@@ -455,6 +455,43 @@ function QualiteSection({ onReferentHandicap }) {
 
 // Agenda Google de l'utilisateur : ses sessions, RDV, rappels et événements y sont copiés chaque heure
 // (le compte de service Google doit avoir accès à cet agenda)
+// Prénom et nom du compte : une seule saisie. Le nom affiché partout se calcule à partir d'eux en base (0053).
+function NomCell({ profile, onSave }) {
+  const [edition, setEdition] = useState(false)
+  const [prenom, setPrenom] = useState(profile.first_name || '')
+  const [nom, setNom] = useState(profile.last_name || '')
+  useEffect(() => { setPrenom(profile.first_name || ''); setNom(profile.last_name || '') }, [profile.first_name, profile.last_name])
+  if (!edition) {
+    return (
+      <div className="flex items-start gap-1" style={{ minWidth: 200 }}>
+        <div className="min-w-0">
+          <div className="font-medium">{profile.display_name || profile.email}</div>
+          <div className="text-ui-sm text-gray-500">{profile.email}</div>
+        </div>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdition(true)} aria-label={`Modifier le prénom et le nom de ${profile.display_name || profile.email}`} title="Modifier le prénom et le nom">
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    )
+  }
+  const enregistrer = async () => {
+    await onSave({ first_name: prenom.trim() || null, last_name: nom.trim() || null })
+    setEdition(false)
+  }
+  return (
+    <div className="flex flex-col gap-1.5" style={{ minWidth: 220 }}>
+      <input className="input" style={{ minHeight: 32 }} placeholder="Prénom" aria-label="Prénom" value={prenom} onChange={(e) => setPrenom(e.target.value)} autoFocus />
+      <input className="input" style={{ minHeight: 32 }} placeholder="Nom" aria-label="Nom" value={nom} onChange={(e) => setNom(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') enregistrer(); if (e.key === 'Escape') setEdition(false) }} />
+      <div className="flex gap-1">
+        <button type="button" className="btn btn-primary btn-sm" onClick={enregistrer}><Check className="w-3.5 h-3.5" />Enregistrer</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdition(false)}><X className="w-3.5 h-3.5" />Annuler</button>
+      </div>
+      <div className="text-ui-sm text-gray-500">{profile.email}</div>
+    </div>
+  )
+}
+
 function GcalCell({ profile, onSave }) {
   const [value, setValue] = useState(profile.gcal_id || '')
   useEffect(() => { setValue(profile.gcal_id || '') }, [profile.gcal_id])
@@ -474,7 +511,8 @@ function UsersSection({ isSuperadmin }) {
   const [profiles, setProfiles] = useState([])
   // Compte relié à sa fiche formateur : nom et téléphone identiques des deux côtés (migration 0038)
   const [trainers, setTrainers] = useState([])
-  const [invite, setInvite] = useState({ email: '', display_name: '', role: 'gestionnaire' })
+  const INVITE_VIDE = { email: '', first_name: '', last_name: '', role: 'gestionnaire' }
+  const [invite, setInvite] = useState(INVITE_VIDE)
   const [busy, setBusy] = useState(false)
   const [resetLink, setResetLink] = useState(null)
   const me = useAuthStore((s) => s.profile)
@@ -498,8 +536,11 @@ function UsersSection({ isSuperadmin }) {
     if (!invite.email) return
     setBusy(true)
     try {
-      await callApi('/api/admin-users', { action: 'invite', ...invite })
-      toast.success('Invitation envoyée'); setInvite({ email: '', display_name: '', role: 'gestionnaire' }); load()
+      const first_name = invite.first_name.trim() || undefined
+      const last_name = invite.last_name.trim() || undefined
+      const display_name = [first_name, last_name].filter(Boolean).join(' ') || undefined
+      await callApi('/api/admin-users', { action: 'invite', email: invite.email, role: invite.role, first_name, last_name, display_name })
+      toast.success('Invitation envoyée'); setInvite(INVITE_VIDE); load()
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
   const reset = async (email) => {
@@ -524,7 +565,7 @@ function UsersSection({ isSuperadmin }) {
           <tbody>
             {profiles.map((p) => (
               <tr key={p.id}>
-                <td><div className="font-medium">{p.display_name || p.email}</div><div className="text-ui-sm text-gray-500">{p.email}</div></td>
+                <td><NomCell profile={p} onSave={(patch) => update(p.id, patch)} /></td>
                 <td>
                   <select className="select" style={{ minHeight: 32, width: 190 }} value={p.role} disabled={p.id === me?.id || (p.role === 'superadmin' && !isSuperadmin)}
                     onChange={(e) => update(p.id, { role: e.target.value })}>
@@ -557,9 +598,10 @@ function UsersSection({ isSuperadmin }) {
         </div>
       )}
       <h2 className="section-title">Inviter un utilisateur</h2>
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_200px_auto] gap-3 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_200px_auto] gap-3 items-end">
         <Field label="Email"><input type="email" className="input" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} /></Field>
-        <Field label="Nom affiché"><input className="input" value={invite.display_name} onChange={(e) => setInvite({ ...invite, display_name: e.target.value })} /></Field>
+        <Field label="Prénom"><input className="input" value={invite.first_name} onChange={(e) => setInvite({ ...invite, first_name: e.target.value })} /></Field>
+        <Field label="Nom"><input className="input" value={invite.last_name} onChange={(e) => setInvite({ ...invite, last_name: e.target.value })} /></Field>
         <Field label="Rôle">
           <select className="select" value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>
             {ROLES.filter(([r]) => r !== 'superadmin' || isSuperadmin).map(([r, l]) => <option key={r} value={r}>{l}</option>)}
