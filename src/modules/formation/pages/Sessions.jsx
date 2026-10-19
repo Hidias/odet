@@ -484,7 +484,7 @@ export default function Sessions() {
           <h1 className="page-title">Sessions</h1>
           <p className="text-gray-500 mt-1">{sessions.length} session(s)</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Toggle Liste / Planning */}
           <div className="flex items-center bg-gray-100 rounded-ui-sm p-0.5 mr-2">
             <button

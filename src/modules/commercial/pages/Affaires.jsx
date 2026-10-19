@@ -123,7 +123,7 @@ export default function Affaires() {
       </div>
 
       {onglet === 'a_faire' && (
-        <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="card p-4">
             {enRetard > 0 && <div className="text-ui-sm mb-2" style={{ color: 'rgb(var(--c-danger))' }}>{enRetard} action{enRetard > 1 ? 's' : ''} en retard</div>}
             {pipeline === null ? <div className="text-gray-500 text-ui-sm">Chargement…</div>
@@ -156,7 +156,7 @@ export default function Affaires() {
             <span><span className="text-gray-500">Pondéré </span><b className="tabular-nums">{euros(totaux.pondere)}</b></span>
           </div>
           {totaux.nb === 0 ? <div className="card"><EmptyState icon={KanbanSquare} title="Aucune affaire ouverte" compact>Les affaires et les devis envoyés apparaissent ici.</EmptyState></div> : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               {colonnes.map((c) => (
                 <div key={c.code} className="card p-3 space-y-2">
                   <div className="flex items-baseline justify-between gap-2">

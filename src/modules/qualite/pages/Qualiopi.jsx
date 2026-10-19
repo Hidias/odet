@@ -485,8 +485,8 @@ export default function Qualiopi() {
       </div>
 
       {/* Navigation par onglets */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-4">
+      <div className="border-b border-gray-200 overflow-x-auto">
+        <nav className="flex gap-4 whitespace-nowrap">
           {[
             { id: 'dashboard', label: 'Tableau de bord', icon: TrendingUp },
             { id: 'documents', label: 'Documents', icon: FileText },
@@ -560,7 +560,7 @@ export default function Qualiopi() {
           </div>
 
           {/* État des documents et veilles */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Documents */}
             <div className="card">
               <div className="flex items-center justify-between mb-4">
@@ -672,7 +672,7 @@ export default function Qualiopi() {
             <a href="#/qualite" className="btn btn-primary flex items-center gap-2"><ExternalLink className="w-4 h-4" />Tous les documents qualité</a>
           </div>
           <p className="text-ui text-gray-600">Ces documents se rédigent, se valident et se téléchargent dans Documents qualité. Les convocations, conventions et le portail reprennent automatiquement la version validée.</p>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(DOCUMENT_TYPES).map(([key, config]) => {
               const doc = documents.find(d => d.type === key)
               const st = doc?.status
@@ -715,7 +715,7 @@ export default function Qualiopi() {
             </a>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {Object.entries(VEILLE_TYPES).map(([key, config]) => {
               const count = veilles.filter(v => v.type === key).length
               const pending = veilles.filter(v => v.type === key && v.statut === 'a_traiter').length
@@ -791,7 +791,7 @@ export default function Qualiopi() {
             Configurez vos sources de veille pour rester informé des évolutions réglementaires, pédagogiques et métiers.
           </p>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sources.map(source => (
               <div key={source.id || source.name} className="card border hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">

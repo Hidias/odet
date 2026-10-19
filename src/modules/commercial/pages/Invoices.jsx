@@ -1197,9 +1197,9 @@ export default function Invoices() {
   // ═══════════════════════════════════════
   if (mode === 'list') return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
         <h1 className="page-title">Facturation</h1>
-        <div className="flex gap-2 flex-wrap justify-end">
+        <div className="flex gap-2 flex-wrap lg:justify-end">
           <button onClick={() => setShowQuoteSelector(true)} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Depuis un devis</button>
           <button onClick={openSessionSelector} className="btn btn-secondary flex items-center gap-2 text-ui"><CheckCircle size={16} />Depuis une session</button>
           <button onClick={() => handleNew('invoice')} className="btn btn-primary flex items-center gap-2 text-ui"><Plus size={16} />Facture libre</button>
@@ -1272,7 +1272,7 @@ export default function Invoices() {
                 return (
                   <tr key={inv.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => handleView(inv)}>
                     <td className="px-4 py-3 font-medium">
-                      <span className={isCr ? 'text-[rgb(var(--c-warning))]' : 'text-gray-900'}>{inv.reference}</span>
+                      <span className={`whitespace-nowrap ${isCr ? 'text-[rgb(var(--c-warning))]' : 'text-gray-900'}`}>{inv.reference}</span>
                       <BadgeTest tbl="invoices" id={inv.id} className="ml-2" />
                       {isCr && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Avoir</span>}
                       {aValider.has(inv.id) && <span className="ml-2 badge badge-warning">À valider</span>}
