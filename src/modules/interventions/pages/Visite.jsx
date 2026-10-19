@@ -16,6 +16,8 @@ import {
 import { RESULTS, suggestedOperation, summarize, frShort } from '../lib/schedule'
 import { ResultBadge, VisitBadge, ScanButton, Sheet, Kpi } from '../components/ui'
 import { buildRapportPDF } from '../pdf/rapportPDF'
+import PontVisite from '../components/PontVisite'
+import { useAuthStore } from '../../../core/store'
 
 const MAIN = RESULTS.slice(0, 3)
 const OTHER = RESULTS.slice(3)
@@ -45,6 +47,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
   const equipmentById = useMemo(() => Object.fromEntries(equipment.map((e) => [e.id, e])), [equipment])
   const technician = technicians.find((t) => t.id === visit?.technician_id)
   const readOnly = !canWrite || visit?.status === 'terminee' || visit?.status === 'annulee'
+  const pontOn = useAuthStore((st) => (st.modules || []).includes('pont'))
   const started = visit?.status === 'en_cours' || visit?.status === 'terminee'
 
   const load = async () => {
@@ -273,6 +276,9 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
           <textarea id="itv-obs" className="textarea" rows={3} value={visit.observations || ''} onChange={(e) => setVisit((v) => ({ ...v, observations: e.target.value }))}
             onBlur={() => updateVisit(visit.id, { observations: visit.observations || null }).catch(() => {})} />
         </section>
+
+        {/* Pont formation et maintenance (fonction 10) : personnel du site, exercice, besoin de formation */}
+        {pontOn && <PontVisite visitId={visit.id} readOnly={readOnly} />}
 
         <section className="card space-y-2">
           <h2 className="section-title">Signature du client</h2>

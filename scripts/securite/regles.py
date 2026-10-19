@@ -819,6 +819,10 @@ for _n in ['client_accounts', 'client_account_sites']:
     tdx('0046', _n, sel=_ENT, ins=_ENT, upd=_ENT, dele=_ENT)
 tdx('0046', 'client_requests', sel=_CLI_VOIR, upd=f"company_id in {societes('clients.fiches.modifier')}", dele=_ENT)
 tdx('0046', 'client_news', sel=_CLI_VOIR, ins=_ENT, upd=_ENT, dele=_ENT)
+# Fonction 10, pont formation et maintenance (0130) : pistes lues avec les clients, tenues par qui modifie les
+# clients ; le technicien n'y écrit que par pont_signaler_besoin (fonction).
+_CLI_MOD = f"company_id in {societes('clients.fiches.modifier')}"
+tdx('0130', 'cross_sell_leads', sel=_CLI_VOIR, ins=_CLI_MOD, upd=_CLI_MOD, dele=_CLI_MOD)
 
 
 def build_suite(migration):

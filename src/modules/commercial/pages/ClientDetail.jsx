@@ -20,6 +20,7 @@ import RepertoireClient from '../components/RepertoireClient'
 import SitesClient from '../components/SitesClient'
 import EcheancesClient from '../components/EcheancesClient'
 import ComptesEntreprise from '../components/ComptesEntreprise'
+import PistesClient from '../components/PistesClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
@@ -64,6 +65,7 @@ export default function ClientDetail() {
   const [editForm, setEditForm] = useState({})
   const [detectingOpco, setDetectingOpco] = useState(false)
   const { user, userRole } = useAuthStore()
+  const modulesActifs = useAuthStore((st) => st.modules || [])
   const vcardAllowed = canExportVCard(userRole)
   // Gardes des boutons d'écriture (la base refuse de toute façon ce qui n'est pas permis)
   const d = useDroits({
@@ -1615,6 +1617,9 @@ export default function ClientDetail() {
 
           {/* Comptes de l'espace entreprise (lot 2, 0046) */}
           {d.espace && client && <ComptesEntreprise client={client} contacts={contacts} />}
+
+          {/* Pistes formation et maintenance (fonction 10) */}
+          {client && modulesActifs.includes('pont') && <PistesClient clientId={client.id} />}
 
           {rdvs.length > 0 && (
             <div className="bg-white rounded-ui border border-gray-200">

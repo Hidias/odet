@@ -2518,6 +2518,92 @@ begin
     end;
   end if;
 
+  -- Fonction 10, pont formation et maintenance (0130) : résumé sans noms pour le technicien, une seule piste ouverte
+  if to_regclass('public.cross_sell_leads') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 6;
+    declare
+      p_cli uuid; p_site uuid; p_vis uuid; p_vis2 uuid; p_tr1 uuid; p_tr2 uuid; p_tr3 uuid; p_rule uuid; p_course uuid; p_ses uuid;
+      p_j jsonb; p_l1 uuid; p_l2 uuid; p_ok boolean; p_n int;
+    begin
+      update public.org_modules set enabled = true where key in ('pont', 'interventions', 'formation');
+      insert into public.clients (name) values ('Essai pont') returning id into p_cli;
+      select id into p_site from public.sites where client_id = p_cli and is_default limit 1;
+      insert into public.trainees (first_name, last_name, client_id, site_id) values ('Pontus', 'Forme', p_cli, p_site) returning id into p_tr1;
+      insert into public.trainees (first_name, last_name, client_id, site_id) values ('Pontine', 'Nonforme', p_cli, p_site) returning id into p_tr2;
+      insert into public.trainees (first_name, last_name, client_id) values ('Sanssite', 'Pont', p_cli) returning id into p_tr3;
+      select id into p_rule from public.obligation_rules where code = 'incendie_equipier' and company_id = (select company_id from public.clients where id = p_cli);
+      insert into public.external_trainings (client_id, trainee_id, rule_id, provider_name, done_on, valid_until)
+      values (p_cli, p_tr1, p_rule, 'Autre organisme', current_date - 30, current_date + 200);
+      insert into public.itv_visits (client_id, site_id, technician_id, status, reference) values (p_cli, p_site, u_tech, 'planifiee', 'VIS-PONT') returning id into p_vis;
+      insert into public.itv_visits (client_id, site_id, technician_id, status) values (p_cli, p_site, u_ges, 'planifiee') returning id into p_vis2;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_j := public.itv_site_training_summary(p_vis);
+      execute 'reset role';
+      if (p_j ->> 'connus')::int = 2 and (p_j ->> 'formes')::int = 1 and (p_j ->> 'sans_site')::int = 1
+         and (p_j ->> 'prochaine_echeance')::date = current_date + 200 and position('Pontus' in p_j::text) = 0 then
+        v_lines := v_lines || 'OK      tech  0130 : personnel du site en nombres (2 connus, 1 formé, 1 sans site), sans noms'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0130 : personnel du site en nombres (' || p_j::text || ')'); end if;
+
+      execute 'set local role authenticated';
+      p_ok := false;
+      begin perform public.itv_site_training_summary(p_vis2); exception when insufficient_privilege then p_ok := true; end;
+      p_l1 := public.pont_signaler_besoin(p_vis, 'Nouveaux embauchés');
+      p_l2 := public.pont_signaler_besoin(p_vis, 'Encore un');
+      perform public.pont_declarer_exercice(p_vis, current_date - 10);
+      p_ok := p_ok and not exists (select 1 from public.cross_sell_leads);
+      execute 'reset role';
+      if p_ok and p_l1 = p_l2 and (select count(*) from public.cross_sell_leads where client_id = p_cli) = 1
+         and (select note from public.cross_sell_leads where id = p_l1) like '%Nouveaux embauchés%Encore un%' then
+        v_lines := v_lines || 'OK      tech  0130 : signale un besoin (une seule piste ouverte, notes ajoutées), pas la visite d''un autre ni les pistes'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0130 : signalement d''un besoin de formation'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_j := public.itv_site_training_summary(p_vis);
+      execute 'reset role';
+      if (p_j ->> 'dernier_exercice')::date = current_date - 10 and (p_j ->> 'piste_ouverte')::boolean
+         and exists (select 1 from public.client_safety_checks where client_id = p_cli and declared_by_client) then
+        v_lines := v_lines || 'OK      tech  0130 : exercice déclaré par le client, repris dans le résumé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0130 : exercice déclaré par le client'::text; end if;
+
+      -- Fin de session incendie chez un client sans contrat : piste vers la maintenance (une seule)
+      perform set_config('request.jwt.claims', '', true);
+      insert into public.courses (title, code) values ('Essai équipier incendie', 'ESSAI-EPI') returning id into p_course;
+      update public.obligation_rules set course_ids = array_append(coalesce(course_ids, '{}'), p_course) where id = p_rule;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token, status)
+      values ('SES-PONT', p_course, p_cli, current_date - 1, current_date - 1, 'pont-1', 'planned') returning id into p_ses;
+      update public.sessions set status = 'completed' where id = p_ses;
+      update public.sessions set status = 'planned' where id = p_ses;
+      update public.sessions set status = 'completed' where id = p_ses;
+      select count(*) into p_n from public.cross_sell_leads where client_id = p_cli and direction = 'vers_maintenance';
+      if p_n = 1 then v_lines := v_lines || 'OK      base  0130 : session incendie terminée sans contrat : une piste maintenance'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0130 : piste maintenance (' || p_n || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_ok := (select count(*) from public.cross_sell_leads where client_id = p_cli) = 2;
+      update public.cross_sell_leads set status = 'en_cours' where id = p_l1;
+      execute 'reset role';
+      if p_ok and (select status from public.cross_sell_leads where id = p_l1) = 'en_cours' then
+        v_lines := v_lines || 'OK      com   0130 : voit et suit les pistes'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0130 : voit et suit les pistes'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_ok := false;
+      begin perform public.pont_signaler_besoin(p_vis, 'Intrus'); exception when insufficient_privilege then p_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if p_ok then v_lines := v_lines || 'OK      form  0130 : ne signale rien sur une visite qui n''est pas la sienne'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   form  0130 : ne signale rien sur une visite qui n''est pas la sienne'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
