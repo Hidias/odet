@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Calendar, GraduationCap, Users, UserCheck, FileText, FileQuestion, ClipboardCheck,
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
-  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock,
+  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -49,6 +49,8 @@ export const NAV_SECTIONS = [
       { to: '/clients', right: 'clients.fiches.voir', icon: Building2, label: 'Clients', roles: STAFF },
       { to: '/devis', right: 'commercial.devis.voir', icon: Receipt, label: 'Devis', roles: SALES },
       { to: '/factures', right: 'facturation.factures.voir', icon: CreditCard, label: 'Factures', roles: [...SALES, 'comptable'] },
+      // Relances préparées chaque nuit, validées à la main (lot 2, 0043)
+      { to: '/a-valider', right: 'formation.convocations.envoyer', icon: Inbox, label: 'Relances à valider', roles: SALES },
       { to: '/prospection', right: 'commercial.prospection.voir', icon: Search, label: 'Suivi commercial', roles: SALES, module: 'prospection' },
       { to: '/mailing', right: 'communication.campagnes.gerer', icon: Mail, label: 'Campagnes email', roles: SALES, module: 'mailing' },
       { to: '/prospection-massive', right: 'commercial.prospection.voir', icon: Globe, label: 'Base prospects', roles: SALES, module: 'prospection' },

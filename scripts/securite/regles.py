@@ -792,6 +792,10 @@ tdx('0042', 'external_trainings', sel=f"company_id in {societes('formation.stagi
 tdx('0042', 'client_safety_checks', sel=f"company_id in {societes('clients.fiches.voir')}",
     ins=f"company_id in {societes('clients.fiches.modifier')}", upd=f"company_id in {societes('clients.fiches.modifier')}",
     dele=f"company_id in {societes('clients.fiches.modifier')}")
+# Lot 2, relances (0043) : actions préparées par la base chaque nuit, validées à la main par qui envoie aux clients ;
+# aucune création ni suppression par un compte (seulement la tâche de nuit), modification = valider, ignorer, corriger.
+tdx('0043', 'scheduled_actions', sel=f"company_id in {societes('formation.convocations.envoyer')}",
+    upd=f"company_id in {societes('formation.convocations.envoyer')}")
 
 
 def build_suite(migration):

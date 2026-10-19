@@ -2127,6 +2127,65 @@ begin
     end;
   end if;
 
+  -- Lot 2, relances (0043) : actions préparées la nuit, validées à la main, jamais deux fois
+  if to_regclass('public.scheduled_actions') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 4;
+    declare
+      r_cli uuid; r_tr uuid; r_course uuid; r_ses uuid; r_rule uuid; r_res jsonb; r_act public.scheduled_actions; r_ok boolean;
+    begin
+      insert into public.clients (name, client_type, contact_email) values ('Essai relances', 'entreprise', 'essai.relance@test.invalid') returning id into r_cli;
+      insert into public.trainees (first_name, last_name, client_id) values ('Essai', 'Relance', r_cli) returning id into r_tr;
+      insert into public.courses (title, code) values ('Essai relance', 'ESSAI-REL') returning id into r_course;
+      insert into public.obligation_rules (code, label, kind, validity_months, validity_group, course_ids, reminder_days)
+      values ('essai_rel', 'Essai relance', 'formation', 12, 'essai_rel', array[r_course], 90) returning id into r_rule;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-ESSAI-REL', r_course, r_cli, current_date - 330, current_date - 330, 'essai-rel') returning id into r_ses;
+      insert into public.session_trainees (session_id, trainee_id, result) values (r_ses, r_tr, 'acquired');
+      perform public.scheduled_actions_generate();
+      perform public.scheduled_actions_generate();
+      select * into r_act from public.scheduled_actions where client_id = r_cli and rule_id = r_rule;
+      if (select count(*) from public.scheduled_actions where client_id = r_cli) = 1 and r_act.status = 'a_valider'
+         and r_act.payload ->> 'destinataire' = 'essai.relance@test.invalid' and r_act.payload ->> 'texte' like '%Essai Relance%' then
+        v_lines := v_lines || 'OK      base  0043 : relance de recyclage préparée une seule fois, à valider'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0043 : relance de recyclage préparée une seule fois'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      update public.scheduled_actions set status = 'valide' where id = r_act.id;
+      r_ok := false;
+      begin
+        insert into public.scheduled_actions (kind, title, dedup_key) values ('autre', 'Intrus', 'intrus');
+      exception when insufficient_privilege then r_ok := true;
+      end;
+      execute 'reset role';
+      if (select validated_by from public.scheduled_actions where id = r_act.id) = u_ges and r_ok then
+        v_lines := v_lines || 'OK      ges   0043 : valide une relance (auteur noté), n''en crée pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0043 : valide une relance, n''en crée pas'::text; end if;
+
+      execute 'set local role authenticated';
+      update public.scheduled_actions set status = 'envoye' where id = r_act.id;
+      r_ok := false;
+      begin update public.scheduled_actions set status = 'a_valider' where id = r_act.id;
+      exception when sqlstate '22023' then r_ok := true;
+      end;
+      execute 'reset role';
+      if r_ok and (select sent_at is not null from public.scheduled_actions where id = r_act.id) then
+        v_lines := v_lines || 'OK      ges   0043 : action envoyée, datée, ne revient pas en arrière'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0043 : action envoyée ne revient pas en arrière'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      if not exists (select 1 from public.scheduled_actions where id = r_act.id) then
+        v_lines := v_lines || 'OK      form  0043 : le formateur ne voit pas les relances aux clients'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   form  0043 : le formateur ne voit pas les relances aux clients'::text; end if;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

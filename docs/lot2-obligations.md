@@ -30,3 +30,15 @@ Spec : `odet-lot2-spec.md` v2, section 3. Lot : `l2_0042`. Retour arrière : `su
   remplacé par `obligation_rules` (écrans DUERP à reprendre).
 - Moteur commun de relances (`scheduled_actions`, section 8) : branche suivante.
 - Nettoyage des tables vides remplacées (`client_providers`, `duerp_habilitations`, `duerp_verifications`) : chantier 8.
+
+## Moteur des relances (migration 0043, lot `l2_0043`)
+- `scheduled_actions` : actions préparées (type, client, obligation, échéance, titre, destinataire, objet, texte), statut
+  à valider / validée / envoyée / ignorée ; clé de déduplication par société (jamais deux fois la même relance).
+- `scheduled_actions_generate()` : appelée chaque nuit par `api/maintenance-nuit.js` après `daily_maintenance()` ;
+  prépare une relance de recyclage par client et par obligation quand une échéance de formation est à prévoir ou
+  dépassée (client archivé ou « ne pas solliciter » exclu). Rien n'est envoyé.
+- Droits : lire et valider = droit d'envoyer aux clients (`formation.convocations.envoyer`) ; créer et supprimer = la
+  tâche de nuit seulement ; une action envoyée ou ignorée ne revient pas en arrière ; auteur et date notés par la base.
+- Écran Commerce › Relances à valider (téléphone d'abord) : Valider (après correction éventuelle), Ignorer ; une relance
+  validée se copie ou s'ouvre dans la messagerie de la personne, puis « Marquer envoyée ». Envoi automatique : non activé
+  (à décider par H, avec une adresse d'envoi par société).
