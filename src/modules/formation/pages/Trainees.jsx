@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import PasseportTraineeBlock from '../../passeport/components/PasseportTraineeBlock'
 import { useDroits } from '../../../core/rights/useDroit'
+import AccesExterne from '../components/AccesExterne'
 import { PP_ROLES } from '../../passeport/lib/ppData'
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
@@ -813,6 +814,8 @@ export default function Trainees() {
                     )}
                   </div>
                 )}
+                {/* Compte stagiaire (lot 2, 0047) */}
+                <AccesExterne kind="stagiaire" id={selectedTrainee.id} email={selectedTrainee.email} peutGerer={d.modifier} />
               </div>
               <div className="flex justify-between gap-2 p-4 border-t">
                 <button 

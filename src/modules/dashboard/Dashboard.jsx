@@ -18,6 +18,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { qualiopiCycle } from '../certification/lib/certData'
 import InterventionsDashboardCard from '../interventions/components/DashboardCard'
+import CaAttenduCard from '../commercial/components/CaAttenduCard'
 import { useDroits } from '../../core/rights/useDroit'
 
 // ═══════════════════════════════════════════════════════════
@@ -117,6 +118,7 @@ export default function Dashboard() {
     session: 'formation.sessions.creer',
     client: 'clients.fiches.modifier',
     stagiaire: 'formation.stagiaires.creer',
+    devis: 'commercial.devis.voir',
   })
   
   
@@ -221,6 +223,16 @@ export default function Dashboard() {
     
     let purgeStats = null
     try { const { data: ps } = await getPurgeStats(); if (ps && ps.length > 0) purgeStats = ps[0] } catch {}
+
+    // Recyclages à prévoir (lot 2, 0042) : échéances calculées par la base selon le référentiel des obligations ;
+    // null tant que la vue n'existe pas (repli sur l'ancien calcul SST à 24 mois)
+    let recyclages = null
+    try {
+      const { data: rec, error: recErr } = await supabase.from('v_obligation_deadlines')
+        .select('objet_id, objet_label, rule_label, due_on, status, client_id')
+        .eq('kind', 'formation').in('status', ['a_prevoir', 'depasse']).order('due_on').limit(200)
+      if (!recErr) recyclages = rec || []
+    } catch { /* vue absente : ancien calcul */ }
     
     setDashData({
       nonConformites: ncR.data || [], qualityAlerts: enrichedAlerts, reclamations: enrichedRecl,
@@ -231,6 +243,7 @@ export default function Dashboard() {
       sstCertifications: sstR.data || [],
       trainingThemes: themesR.data || [],
       invoices: invoicesR.data || [],
+      recyclages,
     })
     setLoading(false)
   }
@@ -321,8 +334,13 @@ export default function Dashboard() {
     return { done: withEval.length, total: formed.length }
   }
   
-  // Certifications SST expirantes (24 mois)
+  // Recyclages à prévoir : référentiel des obligations (0042) quand il existe, sinon certifications SST à 24 mois
   const certifExpiring = useMemo(() => {
+    if (Array.isArray(dashData.recyclages)) {
+      return dashData.recyclages
+        .filter((r) => r.due_on && r.due_on >= format(today, 'yyyy-MM-dd'))
+        .map((r) => ({ id: `${r.objet_id}-${r.rule_label}`, expiry: new Date(`${r.due_on}T12:00:00`), nom: r.objet_label, libelle: r.rule_label }))
+    }
     const in3m = addDays(today, 90)
     return dashData.sstCertifications
       .filter(cert => {
@@ -338,7 +356,7 @@ export default function Dashboard() {
         return { ...cert, expiry, trainee }
       })
       .sort((a, b) => a.expiry - b.expiry)
-  }, [dashData.sstCertifications, trainees])
+  }, [dashData.sstCertifications, dashData.recyclages, trainees])
   
   // Documents manquants
   const documentsMissing = useMemo(() => {
@@ -716,8 +734,8 @@ export default function Dashboard() {
             return (
               <div key={cert.id} className="flex items-center justify-between p-2 rounded-ui-sm bg-gray-50 border border-gray-200 text-ui">
                 <div className="flex-1 min-w-0">
-                  <span className="truncate font-medium text-gray-800 block">{cert.trainee ? `${cert.trainee.first_name} ${cert.trainee.last_name}` : 'Stagiaire'}</span>
-                  <span className="text-ui-sm text-gray-400">{cert.formation_type === 'mac' ? 'MAC SST' : 'SST Initial'}</span>
+                  <span className="truncate font-medium text-gray-800 block">{cert.nom || (cert.trainee ? `${cert.trainee.first_name} ${cert.trainee.last_name}` : 'Stagiaire')}</span>
+                  <span className="text-ui-sm text-gray-400">{cert.libelle || (cert.formation_type === 'mac' ? 'MAC SST' : 'SST Initial')}</span>
                 </div>
                 <span className={`badge text-ui-sm flex-shrink-0 ml-2 ${d <= 30 ? 'badge-red' : 'badge-yellow'}`}>J-{d}</span>
               </div>
@@ -959,7 +977,7 @@ export default function Dashboard() {
             <div className="text-center p-2 bg-gray-50 rounded-ui-sm"><p className="text-2xl font-bold text-gray-900">{trainees.length}</p><p className="text-ui-sm text-gray-500">Inscrits</p></div>
             <div className="text-center p-2 bg-[rgb(var(--c-success-bg))] rounded-ui-sm"><p className="text-2xl font-bold text-[rgb(var(--c-success))]">{personnesFormees}</p><p className="text-ui-sm text-gray-500">Formés</p></div>
             <div className="text-center p-2 bg-gray-50 rounded-ui-sm"><p className="text-2xl font-bold text-gray-900">{sessionsInProgress.reduce((s, se) => s + (se.session_trainees?.length || 0), 0)}</p><p className="text-ui-sm text-gray-500">En formation</p></div>
-            <div className="text-center p-2 bg-[rgb(var(--c-warning-bg))] rounded-ui-sm"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{certifExpiring.length}</p><p className="text-ui-sm text-gray-500">SST à recycler</p></div>
+            <div className="text-center p-2 bg-[rgb(var(--c-warning-bg))] rounded-ui-sm"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{certifExpiring.length}</p><p className="text-ui-sm text-gray-500">Recyclages à prévoir</p></div>
           </div>
         )
 
@@ -1047,6 +1065,7 @@ export default function Dashboard() {
         ))}
       </div>
       {(modules || []).includes('interventions') && <InterventionsDashboardCard />}
+      {(modules || []).includes('previsionnel') && d.devis && <CaAttenduCard />}
       
 
       {/* Widget grid */}

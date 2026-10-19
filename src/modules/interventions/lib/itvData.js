@@ -95,8 +95,12 @@ export async function saveSite(site) {
   return must(await supabase.from('sites').insert(row).select().single())
 }
 
-/** Site par défaut créé depuis l'adresse de la fiche client (aucune ressaisie) */
+/** Site par défaut créé depuis l'adresse de la fiche client (aucune ressaisie).
+ *  Depuis 0041, la base crée elle-même ce site avec le client : s'il existe déjà (même archivé), il est réactivé
+ *  au lieu d'en créer un second (un seul site « adresse de la fiche » par client). */
 export async function createDefaultSite(client) {
+  const existant = must(await supabase.from('sites').select('id').eq('client_id', client.id).eq('is_default', true).limit(1))?.[0]
+  if (existant) return saveSite({ id: existant.id, client_id: client.id, is_active: true })
   return saveSite({ client_id: client.id, name: 'Site principal', address: client.address, postal_code: client.postal_code, city: client.city, is_default: true })
 }
 

@@ -194,22 +194,28 @@ function getLocation(session) {
 // Mise en page : core/pdf/layout.js. Références légales : L6353-1 et D6353-1 (convention),
 // L6354-1 (inexécution). Aucune donnée d'organisme en dur : tout vient de ORG.
 // ============================================================
-function generateConvention(session, trainees = [], trainer = null, costs = []) {
+// particulier (lot 2, 0044) : { group, client } pour le contrat de formation d'un particulier qui paie lui-même
+// (session inter) : mentions des articles L6353-4 à L6353-7 du Code du travail [OFFICIEL, consultés le 14/10/2026],
+// rétractation de 10 jours, aucune somme avant la fin du délai puis 30 % au plus, solde échelonné.
+function generateConvention(session, trainees = [], trainer = null, costs = [], particulier = null) {
   const doc = new jsPDF({ compress: true })
   const pw = doc.internal.pageSize.getWidth()
   const M = PAGE_MARGIN
   const W = pw - M * 2
   const t = T()
-  const client = session?.clients || {}
+  const P = particulier && particulier.client ? particulier : null
+  const client = P ? P.client : (session?.clients || {})
   const course = session?.courses || {}
   const ref = session?.reference || ''
   const lieu = getLocation(session)
-  const signatory = getSessionSignatory(session)
+  const signatory = P ? { name: client.name, role: '' } : getSessionSignatory(session)
   const CODE = DOC_CODES.convention
-  const docLabel = 'Convention de formation'
+  const docLabel = P ? 'Contrat de formation' : 'Convention de formation'
 
   let y = drawHeaderBand(doc, ORG, { ref, docLabel })
-  y = drawDocTitle(doc, ORG, 'Convention de formation professionnelle', 'Articles L6353-1 et D6353-1 du Code du travail', y)
+  y = P
+    ? drawDocTitle(doc, ORG, 'Contrat de formation professionnelle', 'Articles L6353-3 à L6353-7 du Code du travail', y)
+    : drawDocTitle(doc, ORG, 'Convention de formation professionnelle', 'Articles L6353-1 et D6353-1 du Code du travail', y)
 
   // ── Les parties, côte à côte ──
   const gap = 6
@@ -222,7 +228,12 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
     `Représenté par ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}`,
   ]
   const clientAddr = [client.address, [client.postal_code, client.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
-  const benefLines = [
+  const benefLines = P ? [
+    client.name || '',
+    clientAddr,
+    [client.email || client.contact_email, client.phone || client.contact_phone].filter(Boolean).join(' · '),
+    'Personne physique, à titre individuel et à ses frais',
+  ] : [
     client.name || '',
     clientAddr,
     client.siret ? `SIRET ${formatSiret(client.siret)}` : 'SIRET non renseigné',
@@ -230,7 +241,9 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
   ]
   while (benefLines.length < ofLines.length) benefLines.push('')
   const y1 = drawPartyCard(doc, ORG, M, y, colW, "L'organisme de formation", ofLines, "ci-après « l'Organisme de formation »")
-  const y2 = drawPartyCard(doc, ORG, M + colW + gap, y, colW, 'Le bénéficiaire', benefLines, 'ci-après « le Bénéficiaire »')
+  const y2 = P
+    ? drawPartyCard(doc, ORG, M + colW + gap, y, colW, 'Le stagiaire', benefLines, 'ci-après « le Stagiaire »')
+    : drawPartyCard(doc, ORG, M + colW + gap, y, colW, 'Le bénéficiaire', benefLines, 'ci-après « le Bénéficiaire »')
   y = Math.max(y1, y2) + 10
 
   // ── Synthèse de l'action ──
@@ -251,8 +264,9 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
     ['Effectif', `${trainees.length} participant${trainees.length > 1 ? 's' : ''}`],
     ['Public', course.target_audience || 'Tout public'],
     ['Prérequis', course.prerequisites || 'Aucun'],
-    ['Formateur', trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant],
+    ['Formateur', trainer ? `${trainer.first_name} ${trainer.last_name}${P && (trainer.qualifications || trainer.certifications) ? ` (${trainer.qualifications || trainer.certifications})` : ''}` : ORG.dirigeant],
   ]
+  if (P) rows.push(['Évaluation', course.evaluation_methods || 'Évaluation des acquis en fin de formation'])
   if (session?.funding_type && session.funding_type !== 'none') {
     rows.push(['Financement', `${fundingLabels[session.funding_type] || session.funding_type}${session.funding_details ? ` (${session.funding_details})` : ''}`])
   }
@@ -260,7 +274,10 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
   y += 8
 
   // ── Coûts ──
-  const coutFormationHT = parseFloat(session?.total_price || course.price_ht || course.price_per_day || 0)
+  const coutFormationHT = P && parseFloat(P.group?.price_total)
+    ? parseFloat(P.group.price_total)
+    : P && parseFloat(P.group?.price_per_person) ? parseFloat(P.group.price_per_person) * Math.max(1, trainees.length)
+      : parseFloat(session?.total_price || course.price_ht || course.price_per_day || 0)
   let totalCostsSupp = 0
   const costDetails = []
   ;(costs || []).forEach(c => {
@@ -284,14 +301,38 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
   }
   const tvaNote = ORG.tva_applicable === false ? 'Organisme non assujetti à la TVA.' : 'TVA en sus au taux en vigueur.'
   const bankNote = ORG.iban ? ` (IBAN ${ORG.iban}${ORG.bic ? `, BIC ${ORG.bic}` : ''})` : ''
-  const art3 = [
+  const art3 = P ? [
+    { kv },
+    { p: `${tvaNote} Aucune somme ne peut être exigée du Stagiaire avant l'expiration du délai de rétractation. À son expiration, il ne peut être payé plus de 30 % du prix convenu ; le solde est payé au fur et à mesure du déroulement de la formation (article L6353-6 du Code du travail). Règlement par virement bancaire${bankNote}.` },
+    { p: "Si, par suite de force majeure dûment reconnue, le Stagiaire est empêché de suivre la formation, il peut rompre le contrat : seules les prestations effectivement dispensées sont dues, au prorata temporis de leur valeur prévue au contrat (article L6353-7 du Code du travail). En cas d'inexécution totale ou partielle du fait de l'Organisme de formation, celui-ci rembourse les sommes indûment perçues (article L6354-1)." },
+  ] : [
     { kv },
     { p: `${tvaNote} Règlement par virement bancaire à réception de facture${bankNote}. Aucun acompte n'est demandé avant la formation.` },
     { p: "En cas d'inexécution totale ou partielle de la prestation, l'Organisme de formation rembourse au Bénéficiaire les sommes indûment perçues (article L6354-1 du Code du travail)." },
   ]
 
   const objectifs = (course.objectives || '').split('\n').map(s => s.trim()).filter(Boolean)
-  const articles = [
+  const articles = P ? [
+    { title: 'Objet, nature, durée et effectif', blocks: [
+      { p: `Le Stagiaire s'inscrit à l'action de formation « ${course.title || ''} » (action de formation au sens de l'article L6313-1 du Code du travail), d'une durée de ${dureeTxt}, ${datesTxt.charAt(0).toLowerCase() + datesTxt.slice(1)}, organisée en session inter-entreprises.` },
+      ...(objectifs.length ? [{ p: "À l'issue de la formation, le Stagiaire sera capable de :" }, { list: objectifs }] : []),
+      { p: `Prérequis : ${course.prerequisites || 'aucun'}. Le programme détaillé est remis avec le présent contrat.` },
+    ] },
+    { title: 'Délai de rétractation', blocks: [{ p: "À compter de la signature du présent contrat, le Stagiaire dispose d'un délai de dix jours pour se rétracter, par lettre recommandée avec avis de réception adressée à l'Organisme de formation. Dans ce cas, aucune somme ne peut être exigée du Stagiaire (article L6353-5 du Code du travail)." }] },
+    { title: 'Engagements des parties', blocks: [{ p: "Le Stagiaire s'engage à suivre la formation avec assiduité et à signer les feuilles d'émargement. L'Organisme de formation s'engage à mettre en oeuvre les moyens pédagogiques, techniques et d'encadrement nécessaires pour atteindre les objectifs visés et à délivrer les documents de fin de formation." }] },
+    { title: 'Dispositions financières', blocks: art3 },
+    { title: 'Moyens, modalités pédagogiques et intervenants', blocks: [
+      { p: course.teaching_methods || course.pedagogical_methods || "La formation est dispensée selon une approche active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues." },
+      { p: `Intervenant : ${trainer ? `${trainer.first_name} ${trainer.last_name}${trainer.qualifications || trainer.certifications ? `, ${trainer.qualifications || trainer.certifications}` : ''}` : (ORG.dirigeant || "formateur de l'Organisme")}.` },
+    ] },
+    { title: "Modalités d'évaluation et documents délivrés", blocks: [
+      { p: course.evaluation_methods || "Les acquis sont évalués en fin de formation selon le référentiel applicable." },
+      { p: "À l'issue de la formation, l'Organisme de formation remet une attestation de fin de formation et un certificat de réalisation." },
+    ] },
+    { title: 'Accessibilité', blocks: [{ p: `${ORG.name} s'engage à favoriser l'accès à ses formations aux personnes en situation de handicap. Toute demande d'adaptation est à signaler en amont${ORG.referent_handicap_email ? ` au référent handicap (${ORG.referent_handicap_email})` : ` à ${ORG.email}`}.` }] },
+    { title: 'Protection des données', blocks: [{ p: "Les données personnelles du Stagiaire sont utilisées exclusivement pour la gestion administrative et pédagogique de la formation, conservées 5 ans et accessibles sur demande, conformément au RGPD." }] },
+    { title: 'Litiges', blocks: [{ p: `En cas de différend, les parties recherchent une solution amiable ; le Stagiaire peut recourir gratuitement à un médiateur de la consommation. À défaut, le litige est porté devant ${ORG.tribunal_competent ? `le ${ORG.tribunal_competent}` : 'le tribunal compétent'}.` }] },
+  ] : [
     { title: 'Objet, durée et effectif', blocks: [
       { p: `Le Bénéficiaire confie à l'Organisme de formation la réalisation de l'action « ${course.title || ''} », d'une durée de ${dureeTxt}, ${datesTxt.charAt(0).toLowerCase() + datesTxt.slice(1)}, pour ${trainees.length} participant${trainees.length > 1 ? 's' : ''}.` },
       ...(objectifs.length ? [{ p: "À l'issue de la formation, les participants seront capables de :" }, { list: objectifs }] : []),
@@ -410,7 +451,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = []) 
     doc.setTextColor(...t.text)
   }
   sigCol(M, "Pour l'organisme de formation", ORG.dirigeant, ORG.dirigeant_title || 'Dirigeant')
-  sigCol(M + colW + gap, 'Pour le bénéficiaire', signatory.name || client.name || '', signatory.role)
+  sigCol(M + colW + gap, P ? 'Le stagiaire' : 'Pour le bénéficiaire', signatory.name || client.name || '', signatory.role)
   if (ORG.stamp_base64) drawImageFitted(doc, ORG.stamp_base64, M + 6, y + 12, 44, 19, 'JPEG')
   if (ORG.dirigeant_signature_base64) drawImageFitted(doc, ORG.dirigeant_signature_base64, M + 52, y + 13, 34, 17)
   y += boxH
@@ -1291,13 +1332,14 @@ function generateFicheRenseignements(session, trainee = null, isBlank = false, i
 // EXPORT
 // ============================================================
 export async function downloadDocument(docType, session, options = {}) {
-  if (['convention', 'reglement', 'livret'].includes(docType)) await ensureQualityTexts()
+  if (['convention', 'contratParticulier', 'reglement', 'livret'].includes(docType)) await ensureQualityTexts()
   const { trainees = [], trainee = null, trainer = null, isBlank = false, questions = [], costs = [], attendanceData = null } = options
   const ref = session?.reference || 'VIERGE'
   let doc, filename
   
   switch (docType) {
     case 'convention': doc = generateConvention(session, trainees, trainer, costs); filename = `Convention_${ref}.pdf`; break
+    case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
     case 'certificat': doc = generateCertificat(session, trainee, trainer); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
     case 'emargement': doc = generateEmargement(session, trainees, trainer, isBlank, attendanceData); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
     case 'convocation': {
@@ -1416,13 +1458,14 @@ export async function downloadAllDocuments(docType, session, trainees, options =
 
 // Même chose que downloadDocument mais retourne { base64, filename } au lieu de télécharger
 export async function generatePDF(docType, session, options = {}) {
-  if (['convention', 'reglement', 'livret'].includes(docType)) await ensureQualityTexts()
+  if (['convention', 'contratParticulier', 'reglement', 'livret'].includes(docType)) await ensureQualityTexts()
   const { trainees = [], trainee = null, trainer = null, isBlank = false, questions = [], costs = [], attendanceData = null } = options
   const ref = session?.reference || 'VIERGE'
   let doc, filename
   
   switch (docType) {
     case 'convention': doc = generateConvention(session, trainees, trainer, costs); filename = `Convention_${ref}.pdf`; break
+    case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
     case 'certificat': doc = generateCertificat(session, trainee, trainer); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
     case 'emargement': doc = generateEmargement(session, trainees, trainer, isBlank, attendanceData); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
     case 'convocation': {

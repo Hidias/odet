@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Calendar, GraduationCap, Users, UserCheck, FileText, FileQuestion, ClipboardCheck,
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
-  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote,
+  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -34,9 +34,13 @@ export const NAV_SECTIONS = [
       { to: '/stagiaires', right: ['formation.stagiaires.voir', 'formation.stagiaires.voir_siens'], icon: Users, label: 'Stagiaires', roles: STAFF },
       { to: '/passeport', right: 'passeport.declarations.gerer', icon: BookUser, label: 'Passeport de prévention', roles: MANAGERS, module: 'passeport' },
       { to: '/formateurs', right: 'formation.formateurs.gerer', icon: UserCheck, label: 'Formateurs', roles: MANAGERS },
+      // Sous-traitance, donneur d'ordres (lot 2, 0045) : prestataires, justificatifs, bons de commande
+      { to: '/sous-traitants', right: 'formation.formateurs.voir', icon: Briefcase, label: 'Sous-traitants', roles: MANAGERS },
       { to: '/documents', right: 'formation.documents.voir', icon: FileText, label: 'Documents', roles: STAFF },
       { to: '/documents-vierges', right: 'formation.documents.voir', icon: FileQuestion, label: 'Documents vierges', roles: STAFF },
       { to: '/tests-positionnement', right: 'formation.catalogue.voir', icon: ClipboardCheck, label: 'Tests et quiz', roles: STAFF },
+      // Référentiel des obligations (lot 2, 0042) : périodicités des formations, du matériel et des exercices
+      { to: '/obligations', right: 'formation.catalogue.voir', icon: CalendarClock, label: 'Obligations', roles: MANAGERS },
     ],
   },
   {
@@ -47,6 +51,14 @@ export const NAV_SECTIONS = [
       { to: '/clients', right: 'clients.fiches.voir', icon: Building2, label: 'Clients', roles: STAFF },
       { to: '/devis', right: 'commercial.devis.voir', icon: Receipt, label: 'Devis', roles: SALES },
       { to: '/factures', right: 'facturation.factures.voir', icon: CreditCard, label: 'Factures', roles: [...SALES, 'comptable'] },
+      // Relances préparées chaque nuit, validées à la main (lot 2, 0043)
+      { to: '/a-valider', right: 'formation.convocations.envoyer', icon: Inbox, label: 'Relances à valider', roles: SALES },
+      // Demandes des comptes entreprise et actualités publiées dans leurs espaces (lot 2, 0046)
+      { to: '/espace-entreprise', right: 'clients.fiches.voir', icon: Megaphone, label: 'Espace entreprise', roles: SALES },
+      // Pistes entre formation et maintenance (fonction 10, 0130)
+      { to: '/pistes', right: 'clients.fiches.voir', icon: Workflow, label: 'Pistes', roles: SALES, module: 'pont' },
+      // Chiffre d'affaires récurrent attendu sur 12 mois (fonction 12, 0150)
+      { to: '/previsionnel', right: 'commercial.devis.voir', icon: BarChart3, label: 'Prévisionnel', roles: SALES, module: 'previsionnel' },
       { to: '/prospection', right: 'commercial.prospection.voir', icon: Search, label: 'Suivi commercial', roles: SALES, module: 'prospection' },
       { to: '/mailing', right: 'communication.campagnes.gerer', icon: Mail, label: 'Campagnes email', roles: SALES, module: 'mailing' },
       { to: '/prospection-massive', right: 'commercial.prospection.voir', icon: Globe, label: 'Base prospects', roles: SALES, module: 'prospection' },

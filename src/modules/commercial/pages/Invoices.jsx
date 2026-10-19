@@ -284,6 +284,7 @@ export default function Invoices() {
       const fq = searchParams.get('from_quote')
       const fs = searchParams.get('from_session')
       const ff = searchParams.get('funding_id')
+      const fg = searchParams.get('group_id')
       const fo = searchParams.get('open')
       if (fo) {
         // Brouillon préparé ailleurs (ex. visite d'intervention) : ouvert directement
@@ -293,7 +294,7 @@ export default function Invoices() {
         const q = qs.find(x => x.id === fq)
         if (q) { handleFromQuote(q); setSearchParams({}) }
       } else if (fs) {
-        handleFromSession(fs, ff); setSearchParams({})
+        handleFromSession(fs, ff, fg); setSearchParams({})
       }
     })
   }, []) // eslint-disable-line
@@ -511,7 +512,7 @@ export default function Invoices() {
   }
 
   // ─── From session ───
-  const handleFromSession = async (sessionId, fundingId = null) => {
+  const handleFromSession = async (sessionId, fundingId = null, groupId = null) => {
     const { data: sess } = await supabase.from('sessions')
       .select('*, clients(id,name,siret,address,postal_code,city,contact_name,contact_email,billing_mode,default_payment_terms,billing_email), courses(title,code,price_ht,duration_hours)')
       .eq('id', sessionId).single()
@@ -530,9 +531,17 @@ export default function Invoices() {
     const bc = ccs?.find(c => c.is_billing) || ccs?.find(c => c.is_primary)
     setContacts(ccs || [])
 
-    const { data: stData } = await supabase.from('session_trainees')
-      .select('trainee_id, trainees(first_name,last_name,client_id,clients(name))')
+    // Groupe d'une session inter (lot 2, 0044) : ses stagiaires, son client, son prix, son payeur
+    let groupe = null
+    if (groupId) {
+      const { data: g } = await supabase.from('session_groups').select('*').eq('id', groupId).maybeSingle()
+      if (g?.invoice_id) { toast.error('Ce groupe a déjà sa facture'); return }
+      groupe = g || null
+    }
+    const { data: stAll } = await supabase.from('session_trainees')
+      .select('trainee_id, group_id, trainees(first_name,last_name,client_id,clients(name))')
       .eq('session_id', sessionId)
+    const stData = groupe ? (stAll || []).filter(st => st.group_id === groupe.id) : stAll
     const traineeNames = (stData || []).map(st => st.trainees).filter(Boolean)
       .map(t => {
         const fullName = `${t.first_name} ${(t.last_name || '').toUpperCase()}`
@@ -563,6 +572,13 @@ export default function Invoices() {
           quantity: 1, unit: 'forfait', unit_price_ht: price, tva_rate: 20, course_id: sess.course_id, position: 0
         }]
       }
+    }
+
+    if (groupe && invoiceItems.length === 1) {
+      const nb = Math.max(1, (stData || []).length)
+      const prixGroupe = parseFloat(groupe.price_total) || (parseFloat(groupe.price_per_person) ? parseFloat(groupe.price_per_person) * nb : 0)
+      if (prixGroupe > 0) invoiceItems[0] = { ...invoiceItems[0], quantity: 1, unit_price_ht: prixGroupe }
+      invoiceItems[0].description_detail = (invoiceItems[0].description_detail || '') + `\nSession inter-entreprises${groupe.dossier_number ? `, dossier ${groupe.dossier_number}` : ''}`
     }
 
     if (traineeSuffix && invoiceItems.length > 0) {
@@ -597,15 +613,26 @@ export default function Invoices() {
       }
     }
 
+    // Groupe : facturé à son client ; payé par un financeur = facturé au financeur pour le compte du client
+    if (groupe && !financement) {
+      const parFinanceur = ['opco', 'france_travail', 'autre'].includes(groupe.payer_kind) && groupe.payer_client_id
+      financement = {
+        id: null, client_id: groupe.client_id, billing_client_id: parFinanceur ? groupe.payer_client_id : '',
+        is_subrogation: !!parFinanceur, notes: parFinanceur ? `Facturé au financeur pour le compte du stagiaire ou de l'entreprise${groupe.dossier_number ? `, dossier ${groupe.dossier_number}` : ''}.` : '',
+      }
+      if (groupe.dossier_number) clientRef = groupe.dossier_number
+    }
+
     setCurrent({
-      reference: ref, type: 'invoice', client_id: financement?.client_id || sess.client_id, contact_id: bc?.id || sess.contact_id || '',
+      reference: ref, type: 'invoice', client_id: financement?.client_id || sess.client_id, contact_id: groupe ? '' : (bc?.id || sess.contact_id || ''),
       quote_id: isSubcontract ? '' : (sess.quote_id || ''), session_id: sess.id, sellsy_reference: '', client_reference: clientRef,
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: sess.start_date || '', service_end_date: sess.end_date || '', due_date: dd,
       object: objectTitle, payment_method: 'virement bancaire', payment_terms: clientPaymentTerms,
       discount_percent: 0, discount_label: '', tva_applicable: true,
       notes: financement?.notes || '', created_by: currentUserName(), status: 'draft', parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: true,
       is_subrogation: financement?.is_subrogation || false, billing_client_id: financement?.billing_client_id || '',
-      _funding_id: financement?.id || null
+      _funding_id: financement?.id || null,
+      _group_id: groupe?.id || null,
     })
     setItems(invoiceItems.length > 0 ? invoiceItems : [emptyItem()])
     setPayments([]); setMode('create')
@@ -882,6 +909,7 @@ export default function Invoices() {
       chorus_service_code: (current.chorus_service_code ?? clients.find(c => c.id === current.client_id)?.chorus_service_code) || null,
       chorus_engagement: current.chorus_engagement || null,
       ...(current.invoice_kind === 'acompte' ? { deposit_paid_on: current.deposit_paid_on || null } : {}),
+      ...(current._group_id && mode === 'create' ? { session_group_id: current._group_id } : {}),
       updated_at: new Date().toISOString(),
     }
     try {

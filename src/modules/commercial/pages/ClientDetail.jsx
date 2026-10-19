@@ -16,6 +16,13 @@ import { canExportVCard, buildVCard, buildVCards, clientAsContact, vcfFilename, 
 import { publicBaseUrl } from '../../../core/org/orgUtils'
 import { tvaFromSiren, pappersUrl, annuaireUrl } from '../../../core/org/tva'
 import AnnuaireClient from '../components/AnnuaireClient'
+import RepertoireClient from '../components/RepertoireClient'
+import SitesClient from '../components/SitesClient'
+import EcheancesClient from '../components/EcheancesClient'
+import ComptesEntreprise from '../components/ComptesEntreprise'
+import PistesClient from '../components/PistesClient'
+import RegistreClient from '../../registre/components/RegistreClient'
+import CaClient from '../components/CaClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
@@ -60,6 +67,7 @@ export default function ClientDetail() {
   const [editForm, setEditForm] = useState({})
   const [detectingOpco, setDetectingOpco] = useState(false)
   const { user, userRole } = useAuthStore()
+  const modulesActifs = useAuthStore((st) => st.modules || [])
   const vcardAllowed = canExportVCard(userRole)
   // Gardes des boutons d'écriture (la base refuse de toute façon ce qui n'est pas permis)
   const d = useDroits({
@@ -67,9 +75,11 @@ export default function ClientDetail() {
     supprimer: 'clients.fiches.supprimer',
     historique: 'clients.historique.ecrire',
     espace: 'clients.espace.gerer',
+    devisVoir: 'commercial.devis.voir',
     prospection: 'commercial.prospection.gerer',
     devis: 'commercial.devis.modifier',
     session: 'formation.sessions.creer',
+    stagiaires: 'formation.stagiaires.modifier',
   })
 
   function exportContactVCard(contact) {
@@ -1000,6 +1010,7 @@ export default function ClientDetail() {
                 )}
                 {client.siret && <p className="text-ui-sm sm:text-sm text-gray-500 font-mono mt-0.5">SIRET {client.siret}</p>}
                 {!editing && client.client_type !== 'particulier' && <AnnuaireClient client={client} peutModifier={d.modifier} onChange={loadClient} />}
+                {!editing && client.client_type !== 'particulier' && <div><RepertoireClient client={client} peutModifier={d.modifier} onChange={loadClient} /></div>}
                 {client.vat_exempt ? <p className="text-ui-sm text-gray-400 mt-0.5">Non assujetti à la TVA</p> : client.tva && <p className="text-ui-sm text-gray-400 font-mono mt-0.5">TVA {client.tva}</p>}
               </div>
             </div>
@@ -1484,8 +1495,12 @@ export default function ClientDetail() {
       {/* ══════ 2 COLONNES ══════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
-        {/* ──── GAUCHE : Contacts + RDV ──── */}
+        {/* ──── GAUCHE : Sites + Contacts + RDV ──── */}
         <div className="lg:col-span-1 space-y-6">
+
+          <SitesClient client={client} peutModifier={d.modifier} onClientChange={loadClient} />
+
+          <EcheancesClient client={client} peutModifier={d.modifier} peutStagiaires={d.stagiaires} />
 
           <div className="bg-white rounded-ui border border-gray-200">
             <button onClick={() => setSections(s => ({ ...s, contacts: !s.contacts }))}
@@ -1602,6 +1617,18 @@ export default function ClientDetail() {
               )}
             </div>
           </div>
+
+          {/* Comptes de l'espace entreprise (lot 2, 0046) */}
+          {d.espace && client && <ComptesEntreprise client={client} contacts={contacts} />}
+
+          {/* Pistes formation et maintenance (fonction 10) */}
+          {client && modulesActifs.includes('pont') && <PistesClient clientId={client.id} />}
+
+          {/* Registre de sécurité (fonction 11) */}
+          {client && modulesActifs.includes('registre') && <RegistreClient client={client} />}
+
+          {/* Chiffre d'affaires attendu (fonction 12) */}
+          {client && modulesActifs.includes('previsionnel') && d.devisVoir && <CaClient clientId={client.id} />}
 
           {rdvs.length > 0 && (
             <div className="bg-white rounded-ui border border-gray-200">

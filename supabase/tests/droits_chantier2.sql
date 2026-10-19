@@ -177,7 +177,7 @@ begin
       ('lec', 'lit les notifications', 'select count(*) from public.notifications', 'non_vide'),
       ('tech', 'ne lit pas les notifications', 'select count(*) from public.notifications', 'vide'),
       ('tech', 'lit les comptes (noms)', 'select count(*) from public.profiles', 'non_vide'),
-      ('ent', 'ne lit pas les comptes', 'select count(*) from public.profiles', 'vide'),
+      ('ent', 'ne lit que son propre compte', 'select count(*) from public.profiles where id <> auth.uid()', 'vide'),
       ('com', 'ne lit pas la certification', 'select count(*) from public.cert_indicators', 'vide'),
       ('ges', 'lit la certification', 'select count(*) from public.cert_indicators', 'non_vide'),
       -- Interventions
@@ -2012,6 +2012,726 @@ begin
 
       perform set_config('request.jwt.claims', '', true);
       -- Pas de suppression de la société fictive : elle porte une facture émise (verrou) ; l'erreur finale annule tout
+    end;
+  end if;
+
+  -- Lot 2, clients et sites (0041) : adresse de la fiche = site par défaut, dans les deux sens
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'sites'
+             and column_name = 'is_head_office') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 6;
+    declare
+      l_cli uuid; l_part uuid; l_site public.sites; l_ok boolean; l_com uuid := gen_random_uuid(); l_cli2 uuid;
+    begin
+      insert into public.clients (name, address, postal_code, city, client_type) values ('Essai lot 2', '1 rue A', '29900', 'Concarneau', 'entreprise') returning id into l_cli;
+      select * into l_site from public.sites where client_id = l_cli and is_default;
+      if l_site.id is not null and l_site.address = '1 rue A' and l_site.company_ids = (select company_ids from public.clients where id = l_cli) then
+        v_lines := v_lines || 'OK      base  0041 : client professionnel créé = site « adresse de la fiche »'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : client professionnel créé = site « adresse de la fiche »'::text; end if;
+
+      update public.clients set address = '2 rue B', city = 'Quimper' where id = l_cli;
+      update public.sites set postal_code = '29000' where id = l_site.id;
+      if (select address || '|' || city from public.sites where id = l_site.id) = '2 rue B|Quimper'
+         and (select postal_code from public.clients where id = l_cli) = '29000' then
+        v_lines := v_lines || 'OK      base  0041 : adresse de la fiche et site par défaut synchronisés dans les deux sens'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : adresse de la fiche et site par défaut synchronisés'::text; end if;
+
+      insert into public.clients (name, address, client_type) values ('Particulier lot 2', '3 rue C', 'particulier') returning id into l_part;
+      if not exists (select 1 from public.sites where client_id = l_part) then
+        v_lines := v_lines || 'OK      base  0041 : un particulier n''a pas de site'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : un particulier n''a pas de site'::text; end if;
+
+      l_ok := false;
+      begin
+        insert into public.sites (kind, name, client_id, is_default) values ('client', 'Doublon', l_cli, true);
+      exception when unique_violation then l_ok := true;
+      end;
+      if l_ok then v_lines := v_lines || 'OK      base  0041 : un seul site « adresse de la fiche » par client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : un seul site « adresse de la fiche » par client'::text; end if;
+
+      if public.tva_from_siren('830695649') = 'FR13830695649' then
+        v_lines := v_lines || 'OK      base  0041 : TVA calculée depuis le SIREN (même calcul que l''application)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : TVA calculée depuis le SIREN'::text; end if;
+
+      -- Un commercial crée un client : le site naît même sans droit d'écriture direct sur les sites
+      insert into auth.users (id, email, aud, role) values (l_com, 'l2.com@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (l_com, 'l2.com@test.invalid', 'commercial', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      perform set_config('request.jwt.claims', json_build_object('sub', l_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.clients (name, address, client_type) values ('Essai lot 2 commercial', '4 rue D', 'entreprise') returning id into l_cli2;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if exists (select 1 from public.sites where client_id = l_cli2 and is_default) then
+        v_lines := v_lines || 'OK      com   0041 : client créé par un commercial, site créé par la base'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0041 : client créé par un commercial, site créé par la base'::text; end if;
+    end;
+  end if;
+
+  -- Lot 2, obligations et échéances (0042)
+  if to_regclass('public.obligation_rules') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 5;
+    declare
+      o_own uuid := app.company_default(); o_cli uuid; o_tr uuid; o_course uuid; o_ses uuid; o_rule uuid; o_ex uuid;
+      o_v public.v_trainee_validities; o_x public.client_safety_checks; o_et public.external_trainings;
+    begin
+      if (select count(*) from public.obligation_rules where company_id = o_own) >= 13
+         and not exists (select 1 from public.obligation_rules where company_id = o_own and is_confirmed) then
+        v_lines := v_lines || 'OK      base  0042 : référentiel de départ posé pour la société, tout « à confirmer »'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0042 : référentiel de départ posé pour la société'::text; end if;
+
+      insert into public.clients (name, client_type) values ('Essai obligations', 'entreprise') returning id into o_cli;
+      insert into public.trainees (first_name, last_name, client_id) values ('Essai', 'Validité', o_cli) returning id into o_tr;
+      insert into public.courses (title, code) values ('Essai SST obligations', 'ESSAI-OBL') returning id into o_course;
+      insert into public.obligation_rules (code, label, kind, validity_months, validity_group, course_ids)
+      values ('essai_obl', 'Essai', 'formation', 24, 'essai_obl', array[o_course]) returning id into o_rule;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-ESSAI-OBL', o_course, o_cli, date '2025-03-01', date '2025-03-02', 'essai-obl') returning id into o_ses;
+      insert into public.session_trainees (session_id, trainee_id, result) values (o_ses, o_tr, 'acquired');
+      select * into o_v from public.v_trainee_validities where trainee_id = o_tr and rule_id = o_rule;
+      if o_v.echeance = date '2027-03-02' and o_v.client_id = o_cli then
+        v_lines := v_lines || 'OK      base  0042 : validité = fin de session réussie + périodicité de la règle'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0042 : validité calculée (' || coalesce(o_v.echeance::text, 'aucune') || ')'); end if;
+
+      insert into public.external_trainings (trainee_id, rule_id, provider_name, done_on) values (o_tr, o_rule, 'Autre organisme', date '2026-01-10')
+      returning * into o_et;
+      select * into o_v from public.v_trainee_validities where trainee_id = o_tr and validity_group = 'essai_obl';
+      if o_et.valid_until = date '2028-01-10' and o_et.company_id = (select company_id from public.trainees where id = o_tr)
+         and o_v.source = 'externe' and o_v.echeance = date '2028-01-10' then
+        v_lines := v_lines || 'OK      base  0042 : formation suivie ailleurs, plus récente, prise en compte jusqu''à son échéance'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0042 : formation suivie ailleurs prise en compte'::text; end if;
+
+      select id into o_ex from public.obligation_rules where company_id = o_own and code = 'exercice_evacuation';
+      insert into public.client_safety_checks (client_id, rule_id, done_on) values (o_cli, o_ex, current_date - 200) returning * into o_x;
+      if o_x.next_due_on = (current_date - 200 + interval '6 months')::date
+         and exists (select 1 from public.v_obligation_deadlines where objet_id = o_x.id and status = 'depasse' and kind = 'exercice') then
+        v_lines := v_lines || 'OK      base  0042 : exercice d''évacuation, échéance à 6 mois, dépassée signalée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0042 : exercice d''évacuation, échéance et statut'::text; end if;
+
+      -- Vue lue avec les droits de la personne : un technicien sans visite chez ce client ne voit rien
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      if not exists (select 1 from public.v_obligation_deadlines where client_id = o_cli)
+         and not exists (select 1 from public.v_trainee_validities where trainee_id = o_tr) then
+        v_lines := v_lines || 'OK      tech  0042 : échéances d''un client hors de ses missions : rien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0042 : échéances d''un client hors de ses missions'::text; end if;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
+  -- Lot 2, relances (0043) : actions préparées la nuit, validées à la main, jamais deux fois
+  if to_regclass('public.scheduled_actions') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 4;
+    declare
+      r_cli uuid; r_tr uuid; r_course uuid; r_ses uuid; r_rule uuid; r_res jsonb; r_act public.scheduled_actions; r_ok boolean;
+    begin
+      insert into public.clients (name, client_type, contact_email) values ('Essai relances', 'entreprise', 'essai.relance@test.invalid') returning id into r_cli;
+      insert into public.trainees (first_name, last_name, client_id) values ('Essai', 'Relance', r_cli) returning id into r_tr;
+      insert into public.courses (title, code) values ('Essai relance', 'ESSAI-REL') returning id into r_course;
+      insert into public.obligation_rules (code, label, kind, validity_months, validity_group, course_ids, reminder_days)
+      values ('essai_rel', 'Essai relance', 'formation', 12, 'essai_rel', array[r_course], 90) returning id into r_rule;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-ESSAI-REL', r_course, r_cli, current_date - 330, current_date - 330, 'essai-rel') returning id into r_ses;
+      insert into public.session_trainees (session_id, trainee_id, result) values (r_ses, r_tr, 'acquired');
+      perform public.scheduled_actions_generate();
+      perform public.scheduled_actions_generate();
+      select * into r_act from public.scheduled_actions where client_id = r_cli and rule_id = r_rule;
+      if (select count(*) from public.scheduled_actions where client_id = r_cli) = 1 and r_act.status = 'a_valider'
+         and r_act.payload ->> 'destinataire' = 'essai.relance@test.invalid' and r_act.payload ->> 'texte' like '%Essai Relance%' then
+        v_lines := v_lines || 'OK      base  0043 : relance de recyclage préparée une seule fois, à valider'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0043 : relance de recyclage préparée une seule fois'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      update public.scheduled_actions set status = 'valide' where id = r_act.id;
+      r_ok := false;
+      begin
+        insert into public.scheduled_actions (kind, title, dedup_key) values ('autre', 'Intrus', 'intrus');
+      exception when insufficient_privilege then r_ok := true;
+      end;
+      execute 'reset role';
+      if (select validated_by from public.scheduled_actions where id = r_act.id) = u_ges and r_ok then
+        v_lines := v_lines || 'OK      ges   0043 : valide une relance (auteur noté), n''en crée pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0043 : valide une relance, n''en crée pas'::text; end if;
+
+      execute 'set local role authenticated';
+      update public.scheduled_actions set status = 'envoye' where id = r_act.id;
+      r_ok := false;
+      begin update public.scheduled_actions set status = 'a_valider' where id = r_act.id;
+      exception when sqlstate '22023' then r_ok := true;
+      end;
+      execute 'reset role';
+      if r_ok and (select sent_at is not null from public.scheduled_actions where id = r_act.id) then
+        v_lines := v_lines || 'OK      ges   0043 : action envoyée, datée, ne revient pas en arrière'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0043 : action envoyée ne revient pas en arrière'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      if not exists (select 1 from public.scheduled_actions where id = r_act.id) then
+        v_lines := v_lines || 'OK      form  0043 : le formateur ne voit pas les relances aux clients'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   form  0043 : le formateur ne voit pas les relances aux clients'::text; end if;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
+  -- Lot 2, sessions inter et groupes (0044) : rétractation et paiements d'un particulier (L6353-5, L6353-6)
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'session_groups'
+             and column_name = 'retractation_end') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 4;
+    declare
+      g_part uuid; g_ses uuid; g_grp public.session_groups; g_inv uuid; g_ok boolean; g_err text;
+    begin
+      insert into public.clients (name, client_type) values ('Particulier inter', 'particulier') returning id into g_part;
+      insert into public.sessions (reference, session_type, start_date, end_date, attendance_token)
+      values ('SES-ESSAI-INTER', 'inter', current_date + 30, current_date + 31, 'essai-inter') returning id into g_ses;
+      insert into public.session_groups (session_id, client_id, kind, payer_kind, doc_status, doc_signed_at)
+      values (g_ses, g_part, 'particulier', 'particulier', 'signe', timestamptz '2026-10-01 10:00+02') returning * into g_grp;
+      if g_grp.retractation_end = date '2026-10-11' and g_grp.is_individual then
+        v_lines := v_lines || 'OK      base  0044 : particulier, fin de rétractation = signature + 10 jours'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0044 : fin de rétractation (' || coalesce(g_grp.retractation_end::text, 'vide') || ')'); end if;
+
+      insert into public.invoices (reference, type, client_id, session_group_id, invoice_date, due_date, total_ttc)
+      values ('x', 'invoice', g_part, g_grp.id, current_date, current_date + 30, 1000) returning id into g_inv;
+      if (select invoice_id from public.session_groups where id = g_grp.id) = g_inv then
+        v_lines := v_lines || 'OK      base  0044 : facture du groupe reliée au groupe'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0044 : facture du groupe reliée au groupe'::text; end if;
+
+      g_ok := false;
+      begin
+        insert into public.invoice_payments (invoice_id, amount, payment_date) values (g_inv, 100, date '2026-10-05');
+      exception when sqlstate '22023' then g_ok := true;
+      end;
+      if g_ok then v_lines := v_lines || 'OK      base  0044 : aucun paiement d''un particulier avant la fin de la rétractation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0044 : aucun paiement avant la fin de la rétractation'::text; end if;
+
+      insert into public.invoice_payments (invoice_id, amount, payment_date) values (g_inv, 300, date '2026-10-12');
+      g_ok := false;
+      begin
+        insert into public.invoice_payments (invoice_id, amount, payment_date) values (g_inv, 1, date '2026-10-13');
+      exception when sqlstate '22023' then g_ok := true;
+      end;
+      if g_ok then v_lines := v_lines || 'OK      base  0044 : 30 % au plus avant le début de la formation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0044 : 30 % au plus avant le début de la formation'::text; end if;
+    end;
+  end if;
+
+  -- Lot 2, sous-traitance (0045) : justificatifs des prestataires (D8222-5, R8222-1), bons de commande, relances
+  if to_regclass('public.subcontractors') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 6;
+    declare
+      s_st uuid; s_doc public.subcontractor_documents; s_cmd public.subcontract_orders; s_n int; s_ok boolean; s_id uuid;
+    begin
+      insert into public.subcontractors (name, kind, email) values ('Essai prestataire', 'organisme', 'essai.st@test.invalid') returning id into s_st;
+      insert into public.subcontractor_documents (subcontractor_id, doc_type_id, issued_on)
+      select s_st, t.id, current_date - 200 from public.subcontractor_doc_types t
+      where t.code = 'vigilance_urssaf' and t.company_id = (select company_id from public.subcontractors where id = s_st)
+      returning * into s_doc;
+      if s_doc.valid_until = (current_date - 200 + interval '6 months')::date then
+        v_lines := v_lines || 'OK      base  0045 : attestation de vigilance valable six mois (D8222-5)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0045 : validité de l''attestation de vigilance (' || coalesce(s_doc.valid_until::text, 'vide') || ')'); end if;
+
+      insert into public.subcontract_orders (subcontractor_id, start_date, end_date, days, daily_rate)
+      values (s_st, current_date + 10, current_date + 11, 2, 3000) returning * into s_cmd;
+      if s_cmd.amount_ht = 6000 and s_cmd.reference like 'BC-%'
+         and (select status from public.v_subcontractor_compliance where subcontractor_id = s_st and code = 'vigilance_urssaf') = 'perime'
+         and (select status from public.v_subcontractor_compliance where subcontractor_id = s_st and code = 'immatriculation') = 'manquant' then
+        v_lines := v_lines || 'OK      base  0045 : bon de commande chiffré, justificatifs périmé et manquant au-delà de 5 000 € HT'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0045 : bon de commande et état des justificatifs'::text; end if;
+
+      perform public.scheduled_actions_generate();
+      perform public.scheduled_actions_generate();
+      select count(*) into s_n from public.scheduled_actions where kind = 'justificatif_prestataire' and target_id = s_st
+        and payload ->> 'destinataire' = 'essai.st@test.invalid' and payload ->> 'texte' like '%vigilance%';
+      if s_n = 1 then v_lines := v_lines || 'OK      base  0045 : relance des justificatifs préparée une seule fois'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0045 : relance des justificatifs (' || s_n || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.subcontractors (name) values ('Essai prestataire direction') returning id into s_id;
+      s_ok := exists (select 1 from public.subcontract_orders where id = s_cmd.id);
+      execute 'reset role';
+      if s_id is not null and s_ok then v_lines := v_lines || 'OK      dir   0045 : crée un prestataire, voit les bons de commande'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0045 : crée un prestataire, voit les bons de commande'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      s_ok := not exists (select 1 from public.subcontract_orders where id = s_cmd.id);
+      begin
+        insert into public.subcontractors (name) values ('Intrus');
+        s_ok := false;
+      exception when insufficient_privilege then null;
+      end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if s_ok then v_lines := v_lines || 'OK      form  0045 : le formateur ne voit pas les montants, ne crée pas de prestataire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   form  0045 : le formateur ne voit pas les montants, ne crée pas de prestataire'::text; end if;
+
+      if exists (select 1 from storage.buckets where id = 'prestataires' and not public)
+         and (select count(*) from pg_policies where schemaname = 'storage' and policyname like 'prestataires\_%') = 3 then
+        v_lines := v_lines || 'OK      base  0045 : justificatifs dans un bucket privé, règles par droits'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0045 : justificatifs dans un bucket privé, règles par droits'::text; end if;
+    end;
+  end if;
+
+  -- Lot 2, espace entreprise (0046) : un compte entreprise ne voit que son client, par les fonctions ent_* seulement
+  if to_regclass('public.client_accounts') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 7;
+    declare
+      e_u uuid := gen_random_uuid(); e_c1 uuid; e_c2 uuid; e_site_a uuid; e_site_b uuid; e_tr1 uuid; e_tr1b uuid; e_tr2 uuid;
+      e_course uuid; e_s1 uuid; e_s2 uuid; e_inter uuid; e_g1 uuid; e_g2 uuid; e_acc uuid; e_j jsonb; e_ok boolean; e_n int; e_req uuid;
+    begin
+      insert into auth.users (id, email, aud, role) values (e_u, 'ent.compte@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (e_u, 'ent.compte@test.invalid', 'entreprise', true)
+      on conflict (id) do update set role = 'entreprise', is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.clients (name, client_type, address, postal_code, city, siret, siren, tva) values ('Essai espace 1', 'entreprise', '1 rue Essai', '29000', 'Quimper', '12345678900011', '123456789', 'FR00123456789') returning id into e_c1;
+      insert into public.clients (name, client_type) values ('Essai espace 2', 'entreprise') returning id into e_c2;
+      select id into e_site_a from public.sites where client_id = e_c1 and is_default limit 1;
+      insert into public.sites (client_id, name, kind) values (e_c1, 'Site B', 'client') returning id into e_site_b;
+      insert into public.trainees (first_name, last_name, client_id, site_id) values ('Alice', 'Espace', e_c1, e_site_a) returning id into e_tr1;
+      insert into public.trainees (first_name, last_name, client_id, site_id) values ('Bruno', 'Espace', e_c1, e_site_b) returning id into e_tr1b;
+      insert into public.trainees (first_name, last_name, client_id) values ('Chloé', 'Autre', e_c2) returning id into e_tr2;
+      insert into public.courses (title, code) values ('Essai espace', 'ESSAI-ENT') returning id into e_course;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-ENT-1', e_course, e_c1, current_date + 5, current_date + 5, 'ent-1') returning id into e_s1;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-ENT-2', e_course, e_c2, current_date + 5, current_date + 5, 'ent-2') returning id into e_s2;
+      insert into public.sessions (reference, course_id, session_type, is_public, start_date, end_date, attendance_token, max_participants)
+      values ('SES-ENT-INTER', e_course, 'inter', true, current_date + 20, current_date + 20, 'ent-inter', 8) returning id into e_inter;
+      insert into public.session_groups (session_id, client_id, kind) values (e_inter, e_c1, 'entreprise') returning id into e_g1;
+      insert into public.session_groups (session_id, client_id, kind) values (e_inter, e_c2, 'entreprise') returning id into e_g2;
+      insert into public.session_trainees (session_id, trainee_id) values (e_s1, e_tr1), (e_s1, e_tr1b), (e_s2, e_tr2);
+      insert into public.session_trainees (session_id, trainee_id, group_id) values (e_inter, e_tr1, e_g1), (e_inter, e_tr2, e_g2);
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date, siret_check_motif, siret_motif_at)
+      values ('x', 'invoice', e_c1, current_date, current_date + 30, 'essai des droits', now()) returning id into e_req;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (e_req, 0, 'Ligne', 1, 100, 20);
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', e_c1, current_date, current_date + 30);
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.billing_issue(e_req);
+      execute 'reset role';
+      e_req := null;
+      insert into public.client_accounts (profile_id, client_id, email, can_see_invoices) values (e_u, e_c1, 'ent.compte@test.invalid', false)
+      returning id into e_acc;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', e_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_j := public.ent_sessions();
+      e_ok := jsonb_array_length(e_j -> 'sessions') = 2
+        and not exists (select 1 from jsonb_array_elements(e_j -> 'sessions') x where x ->> 'id' = e_s2::text)
+        and (select jsonb_array_length(x -> 'session_trainees') from jsonb_array_elements(e_j -> 'sessions') x where x ->> 'id' = e_inter::text) = 1
+        and public.ent_org() ? 'referent_handicap_nom';
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      ent   0046 : ses formations seulement, et ses salariés seuls dans l''inter'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0046 : ses formations seulement'::text; end if;
+
+      execute 'set local role authenticated';
+      e_ok := not exists (select 1 from public.clients) and not exists (select 1 from public.sessions)
+        and not exists (select 1 from public.trainees) and not exists (select 1 from public.client_accounts);
+      e_n := jsonb_array_length(public.ent_factures());
+      execute 'reset role';
+      if e_ok and e_n = 0 then v_lines := v_lines || 'OK      ent   0046 : aucune table lisible, factures masquées sans l''option'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0046 : aucune table lisible, factures masquées sans l''option'::text; end if;
+
+      update public.client_accounts set can_see_invoices = true, all_sites = false where id = e_acc;
+      insert into public.client_account_sites (account_id, site_id) values (e_acc, e_site_a);
+      execute 'set local role authenticated';
+      e_n := jsonb_array_length(public.ent_factures());
+      e_j := public.ent_salaries();
+      execute 'reset role';
+      if e_n = 1 and jsonb_array_length(e_j) = 1 and e_j -> 0 ->> 'first_name' = 'Alice' then
+        v_lines := v_lines || 'OK      ent   0046 : factures avec l''option, salariés de ses sites seulement'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ent   0046 : factures avec l''option, salariés de ses sites (' || e_n || ' facture(s), ' || jsonb_array_length(e_j) || ' salarié(s), site ' || coalesce(e_site_a::text, 'vide') || ')'); end if;
+
+      execute 'set local role authenticated';
+      e_req := public.ent_demander('inscription_inter', 'Deux salariés', e_inter, null, '{"stagiaires": [{"nom": "Essai"}]}'::jsonb);
+      e_ok := false;
+      begin
+        perform public.ent_demander('remplacement', 'Intrus', e_s2);
+      exception when sqlstate '22023' then e_ok := true;
+      end;
+      execute 'reset role';
+      if e_req is not null and e_ok and exists (select 1 from public.notifications where metadata ->> 'request_id' = e_req::text) then
+        v_lines := v_lines || 'OK      ent   0046 : demande d''inscription notifiée, rien sur la session d''un autre client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0046 : demandes de l''espace entreprise'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := exists (select 1 from public.client_requests where id = e_req);
+      begin
+        insert into public.client_requests (client_id, kind) values (e_c1, 'message');
+        e_ok := false;
+      exception when insufficient_privilege then null;
+      end;
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      ges   0046 : voit les demandes, n''en crée pas à la place du client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0046 : voit les demandes, n''en crée pas'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := not exists (select 1 from public.client_accounts where id = e_acc);
+      begin
+        perform public.client_accounts_etat(e_c1);
+        e_ok := false;
+      exception when insufficient_privilege then null;
+      end;
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      form  0046 : ne voit pas les comptes de l''espace entreprise'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   form  0046 : ne voit pas les comptes de l''espace entreprise'::text; end if;
+
+      update public.client_accounts set is_active = false where id = e_acc;
+      perform set_config('request.jwt.claims', json_build_object('sub', e_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := false;
+      begin
+        perform public.ent_accueil();
+      exception when insufficient_privilege then e_ok := true;
+      end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if e_ok then v_lines := v_lines || 'OK      ent   0046 : compte désactivé, plus aucun accès'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0046 : compte désactivé, plus aucun accès'::text; end if;
+    end;
+  end if;
+
+  -- Lot 2, comptes externes (0047) : formateur externe et stagiaire par leurs fonctions seulement ; liens du profil gardés
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'trainee_id') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 6;
+    declare
+      x_fe uuid := gen_random_uuid(); x_st uuid := gen_random_uuid(); x_t1 uuid; x_t2 uuid; x_tr1 uuid; x_tr2 uuid; x_c uuid;
+      x_s1 uuid; x_s2 uuid; x_s3 uuid; x_j jsonb; x_ok boolean;
+    begin
+      insert into public.trainers (first_name, last_name, is_internal) values ('Externe', 'Essai', false) returning id into x_t1;
+      insert into public.trainers (first_name, last_name, is_internal) values ('Autre', 'Formateur', false) returning id into x_t2;
+      insert into public.clients (name) values ('Essai comptes externes') returning id into x_c;
+      insert into public.trainees (first_name, last_name, client_id) values ('Sam', 'Stagiaire', x_c) returning id into x_tr1;
+      insert into public.trainees (first_name, last_name, client_id) values ('Zoé', 'Autre', x_c) returning id into x_tr2;
+      insert into public.sessions (reference, client_id, trainer_id, start_date, end_date, attendance_token, total_price)
+      values ('SES-EXT-1', x_c, x_t1, current_date + 3, current_date + 3, 'ext-1', 1500) returning id into x_s1;
+      insert into public.sessions (reference, client_id, trainer_id, start_date, end_date, attendance_token)
+      values ('SES-EXT-2', x_c, x_t2, current_date + 4, current_date + 4, 'ext-2') returning id into x_s2;
+      insert into public.sessions (reference, client_id, trainer_id, start_date, end_date, attendance_token)
+      values ('SES-EXT-3', x_c, x_t2, current_date + 5, current_date + 5, 'ext-3') returning id into x_s3;
+      insert into public.session_trainers (session_id, trainer_id) values (x_s3, x_t1);
+      insert into public.session_trainees (session_id, trainee_id) values (x_s1, x_tr1), (x_s2, x_tr2), (x_s3, x_tr2);
+      insert into auth.users (id, email, aud, role) values (x_fe, 'ext.fe@test.invalid', 'authenticated', 'authenticated'),
+        (x_st, 'ext.st@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active, trainer_id) values (x_fe, 'ext.fe@test.invalid', 'formateur_externe', true, x_t1)
+      on conflict (id) do update set role = excluded.role, trainer_id = excluded.trainer_id, is_active = true;
+      insert into public.profiles (id, email, role, is_active, trainee_id) values (x_st, 'ext.st@test.invalid', 'stagiaire', true, x_tr1)
+      on conflict (id) do update set role = excluded.role, trainee_id = excluded.trainee_id, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', x_fe, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_j := public.ext_sessions();
+      x_ok := jsonb_array_length(x_j -> 'sessions') = 2
+        and not exists (select 1 from jsonb_array_elements(x_j -> 'sessions') e where e ->> 'id' = x_s2::text)
+        and position('total_price' in (x_j)::text) = 0 and position('1500' in (x_j)::text) = 0
+        and not exists (select 1 from public.sessions) and not exists (select 1 from public.trainees);
+      execute 'reset role';
+      if x_ok then v_lines := v_lines || 'OK      ext   0047 : formateur externe, ses sessions (principal ou associé), sans prix ni table lisible'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ext   0047 : formateur externe, ses sessions sans prix'::text; end if;
+
+      execute 'set local role authenticated';
+      x_ok := false;
+      begin perform public.stg_sessions(); exception when insufficient_privilege then x_ok := true; end;
+      execute 'reset role';
+      if x_ok then v_lines := v_lines || 'OK      ext   0047 : le formateur externe n''ouvre pas l''espace stagiaire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ext   0047 : le formateur externe n''ouvre pas l''espace stagiaire'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', x_st, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_j := public.stg_sessions();
+      x_ok := jsonb_array_length(x_j -> 'sessions') = 1 and x_j -> 'sessions' -> 0 ->> 'id' = x_s1::text
+        and x_j -> 'trainee' ->> 'first_name' = 'Sam' and position('ssn' in (x_j)::text) = 0
+        and (select count(*) from public.profiles) = 1 and exists (select 1 from public.profiles where id = x_st);
+      execute 'reset role';
+      if x_ok then v_lines := v_lines || 'OK      stg   0047 : stagiaire, ses sessions seulement, sans numéro de sécurité sociale ; lit son seul profil'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   stg   0047 : stagiaire, ses sessions seulement'::text; end if;
+
+      -- Liens du profil : ni le stagiaire ni un formateur ne changent leur fiche reliée ou leur activation
+      execute 'set local role authenticated';
+      x_ok := false;
+      begin update public.profiles set trainee_id = x_tr2 where id = x_st; exception when insufficient_privilege then x_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_ok := x_ok and exists (select 1 from public.profiles where id = u_dir);
+      begin update public.profiles set trainer_id = x_t2 where id = u_dir; x_ok := false; exception when insufficient_privilege then null; end;
+      begin update public.profiles set trainee_id = x_tr2 where id = u_dir; x_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if x_ok then v_lines := v_lines || 'OK      dir   0047 : fiche reliée non modifiable par soi-même (stagiaire, direction)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0047 : fiche reliée non modifiable par soi-même'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_ok := true;
+      begin update public.profiles set trainee_id = x_tr2 where id = x_st; exception when others then x_ok := false; end;
+      execute 'reset role';
+      x_ok := x_ok and (public.acces_externe_etat('formateur', x_t1) ->> 'profile_id') = x_fe::text;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.acces_externe_etat('stagiaire', x_tr2); x_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if x_ok and (select trainee_id from public.profiles where id = x_st) = x_tr2 then
+        v_lines := v_lines || 'OK      sa    0047 : le super administrateur relie un compte à une fiche et voit le compte d''une fiche (pas le formateur)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0047 : le super administrateur relie un compte à une fiche'::text; end if;
+
+      perform set_config('request.jwt.claims', '', true);
+      update public.profiles set is_active = false where id = x_st;
+      perform set_config('request.jwt.claims', json_build_object('sub', x_st, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      x_ok := false;
+      begin perform public.stg_sessions(); exception when insufficient_privilege then x_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if x_ok then v_lines := v_lines || 'OK      stg   0047 : compte désactivé, plus aucun accès'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   stg   0047 : compte désactivé, plus aucun accès'::text; end if;
+    end;
+  end if;
+
+  -- Fonction 10, pont formation et maintenance (0130) : résumé sans noms pour le technicien, une seule piste ouverte
+  if to_regclass('public.cross_sell_leads') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 6;
+    declare
+      p_cli uuid; p_site uuid; p_vis uuid; p_vis2 uuid; p_tr1 uuid; p_tr2 uuid; p_tr3 uuid; p_rule uuid; p_course uuid; p_ses uuid;
+      p_j jsonb; p_l1 uuid; p_l2 uuid; p_ok boolean; p_n int;
+    begin
+      update public.org_modules set enabled = true where key in ('pont', 'interventions', 'formation');
+      insert into public.clients (name) values ('Essai pont') returning id into p_cli;
+      select id into p_site from public.sites where client_id = p_cli and is_default limit 1;
+      insert into public.trainees (first_name, last_name, client_id, site_id) values ('Pontus', 'Forme', p_cli, p_site) returning id into p_tr1;
+      insert into public.trainees (first_name, last_name, client_id, site_id) values ('Pontine', 'Nonforme', p_cli, p_site) returning id into p_tr2;
+      insert into public.trainees (first_name, last_name, client_id) values ('Sanssite', 'Pont', p_cli) returning id into p_tr3;
+      select id into p_rule from public.obligation_rules where code = 'incendie_equipier' and company_id = (select company_id from public.clients where id = p_cli);
+      insert into public.external_trainings (client_id, trainee_id, rule_id, provider_name, done_on, valid_until)
+      values (p_cli, p_tr1, p_rule, 'Autre organisme', current_date - 30, current_date + 200);
+      insert into public.itv_visits (client_id, site_id, technician_id, status, reference) values (p_cli, p_site, u_tech, 'planifiee', 'VIS-PONT') returning id into p_vis;
+      insert into public.itv_visits (client_id, site_id, technician_id, status) values (p_cli, p_site, u_ges, 'planifiee') returning id into p_vis2;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_j := public.itv_site_training_summary(p_vis);
+      execute 'reset role';
+      if (p_j ->> 'connus')::int = 2 and (p_j ->> 'formes')::int = 1 and (p_j ->> 'sans_site')::int = 1
+         and (p_j ->> 'prochaine_echeance')::date = current_date + 200 and position('Pontus' in p_j::text) = 0 then
+        v_lines := v_lines || 'OK      tech  0130 : personnel du site en nombres (2 connus, 1 formé, 1 sans site), sans noms'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0130 : personnel du site en nombres (' || p_j::text || ')'); end if;
+
+      execute 'set local role authenticated';
+      p_ok := false;
+      begin perform public.itv_site_training_summary(p_vis2); exception when insufficient_privilege then p_ok := true; end;
+      p_l1 := public.pont_signaler_besoin(p_vis, 'Nouveaux embauchés');
+      p_l2 := public.pont_signaler_besoin(p_vis, 'Encore un');
+      perform public.pont_declarer_exercice(p_vis, current_date - 10);
+      p_ok := p_ok and not exists (select 1 from public.cross_sell_leads);
+      execute 'reset role';
+      if p_ok and p_l1 = p_l2 and (select count(*) from public.cross_sell_leads where client_id = p_cli) = 1
+         and (select note from public.cross_sell_leads where id = p_l1) like '%Nouveaux embauchés%Encore un%' then
+        v_lines := v_lines || 'OK      tech  0130 : signale un besoin (une seule piste ouverte, notes ajoutées), pas la visite d''un autre ni les pistes'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0130 : signalement d''un besoin de formation'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_j := public.itv_site_training_summary(p_vis);
+      execute 'reset role';
+      if (p_j ->> 'dernier_exercice')::date = current_date - 10 and (p_j ->> 'piste_ouverte')::boolean
+         and exists (select 1 from public.client_safety_checks where client_id = p_cli and declared_by_client) then
+        v_lines := v_lines || 'OK      tech  0130 : exercice déclaré par le client, repris dans le résumé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0130 : exercice déclaré par le client'::text; end if;
+
+      -- Fin de session incendie chez un client sans contrat : piste vers la maintenance (une seule)
+      perform set_config('request.jwt.claims', '', true);
+      insert into public.courses (title, code) values ('Essai équipier incendie', 'ESSAI-EPI') returning id into p_course;
+      update public.obligation_rules set course_ids = array_append(coalesce(course_ids, '{}'), p_course) where id = p_rule;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token, status)
+      values ('SES-PONT', p_course, p_cli, current_date - 1, current_date - 1, 'pont-1', 'planned') returning id into p_ses;
+      update public.sessions set status = 'completed' where id = p_ses;
+      update public.sessions set status = 'planned' where id = p_ses;
+      update public.sessions set status = 'completed' where id = p_ses;
+      select count(*) into p_n from public.cross_sell_leads where client_id = p_cli and direction = 'vers_maintenance';
+      if p_n = 1 then v_lines := v_lines || 'OK      base  0130 : session incendie terminée sans contrat : une piste maintenance'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0130 : piste maintenance (' || p_n || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_ok := (select count(*) from public.cross_sell_leads where client_id = p_cli) = 2;
+      update public.cross_sell_leads set status = 'en_cours' where id = p_l1;
+      execute 'reset role';
+      if p_ok and (select status from public.cross_sell_leads where id = p_l1) = 'en_cours' then
+        v_lines := v_lines || 'OK      com   0130 : voit et suit les pistes'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0130 : voit et suit les pistes'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_ok := false;
+      begin perform public.pont_signaler_besoin(p_vis, 'Intrus'); exception when insufficient_privilege then p_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if p_ok then v_lines := v_lines || 'OK      form  0130 : ne signale rien sur une visite qui n''est pas la sienne'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   form  0130 : ne signale rien sur une visite qui n''est pas la sienne'::text; end if;
+    end;
+  end if;
+
+  -- Fonction 11, registre de sécurité (0140) : sites du compte entreprise, exercices et documents, dossier de contrôle
+  if to_regclass('public.client_documents') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 5;
+    declare
+      g_u uuid := gen_random_uuid(); g_cli uuid; g_sa uuid; g_sb uuid; g_acc uuid; g_rule uuid; g_j jsonb; g_ok boolean; g_id uuid;
+    begin
+      update public.org_modules set enabled = true where key = 'registre';
+      insert into auth.users (id, email, aud, role) values (g_u, 'reg.ent@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (g_u, 'reg.ent@test.invalid', 'entreprise', true)
+      on conflict (id) do update set role = 'entreprise', is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.clients (name) values ('Essai registre') returning id into g_cli;
+      select id into g_sa from public.sites where client_id = g_cli and is_default limit 1;
+      insert into public.sites (client_id, name, kind) values (g_cli, 'Entrepôt', 'client') returning id into g_sb;
+      insert into public.client_accounts (profile_id, client_id, all_sites) values (g_u, g_cli, false) returning id into g_acc;
+      insert into public.client_account_sites (account_id, site_id) values (g_acc, g_sa);
+      select id into g_rule from public.obligation_rules where code = 'exercice_evacuation' and company_id = (select company_id from public.clients where id = g_cli);
+
+      perform set_config('request.jwt.claims', json_build_object('sub', g_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      g_j := public.ent_registre(null);
+      g_ok := jsonb_array_length(g_j -> 'sites') = 1 and g_j -> 'sites' -> 0 ->> 'id' = g_sa::text;
+      begin perform public.ent_registre(g_sb); g_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if g_ok then v_lines := v_lines || 'OK      ent   0140 : registre des seuls sites du compte, autre site refusé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0140 : registre des seuls sites du compte'::text; end if;
+
+      execute 'set local role authenticated';
+      g_id := public.ent_exercice_ajouter(g_sa, g_rule, current_date - 5, 12, 'Évacuation en 3 minutes');
+      g_ok := true;
+      begin perform public.ent_exercice_ajouter(g_sb, g_rule, current_date - 5); g_ok := false; exception when insufficient_privilege then null; end;
+      begin perform public.ent_document_ajouter(g_sa, 'consigne_incendie', 'Consigne', 'autre/chemin.pdf', 'c.pdf'); g_ok := false; exception when sqlstate '22023' then null; end;
+      g_j := public.ent_registre(g_sa);
+      execute 'reset role';
+      if g_ok and g_id is not null and jsonb_array_length(g_j -> 'exercices') = 1
+         and (select x ->> 'etat' from jsonb_array_elements(g_j -> 'dossier') x where x ->> 'piece' like 'Exercices%') = 'a_jour'
+         and (select x ->> 'etat' from jsonb_array_elements(g_j -> 'dossier') x where x ->> 'piece' like 'Consigne%') = 'manquant' then
+        v_lines := v_lines || 'OK      ent   0140 : exercice ajouté sur son site, fichier d''ailleurs refusé, dossier de contrôle à jour'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ent   0140 : exercice et dossier (' || coalesce((g_j -> 'dossier')::text, 'vide') || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.client_documents (client_id, site_id, kind, title) values (g_cli, g_sa, 'consigne_incendie', 'Consigne incendie');
+      g_j := public.registre_client(g_cli, g_sa);
+      execute 'reset role';
+      if (select x ->> 'etat' from jsonb_array_elements(g_j -> 'dossier') x where x ->> 'piece' like 'Consigne%') = 'a_jour'
+         and jsonb_array_length(g_j -> 'sites') = 2 then
+        v_lines := v_lines || 'OK      ges   0140 : dépose une consigne, voit le registre de tous les sites'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0140 : registre du client depuis la fiche'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      g_ok := false;
+      begin perform public.ent_registre(null); exception when insufficient_privilege then g_ok := true; end;
+      g_ok := g_ok and not exists (select 1 from public.client_documents where client_id = g_cli);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if g_ok then v_lines := v_lines || 'OK      tech  0140 : ni espace entreprise ni documents du registre'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0140 : ni espace entreprise ni documents du registre'::text; end if;
+
+      if exists (select 1 from storage.buckets where id = 'registre' and not public)
+         and (select count(*) from pg_policies where schemaname = 'storage' and policyname like 'registre\_%') = 3 then
+        v_lines := v_lines || 'OK      base  0140 : pièces du registre dans un bucket privé, règles par droits et par client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0140 : bucket privé du registre'::text; end if;
+    end;
+  end if;
+
+  -- Fonction 12, prévisionnel (0150) : montants calculés, sans prix comptés à part, pas de double comptage
+  if to_regclass('public.v_recurring_revenue') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 4;
+    declare
+      w_cli uuid; w_t1 uuid; w_t2 uuid; w_t3 uuid; w_sst uuid; w_gp uuid; w_c1 uuid; w_c2 uuid; w_ses uuid; w_k uuid;
+      w_r record; w_n int; w_res jsonb;
+    begin
+      insert into public.clients (name) values ('Essai prévisionnel') returning id into w_cli;
+      insert into public.trainees (first_name, last_name, client_id) values ('A', 'Prev', w_cli) returning id into w_t1;
+      insert into public.trainees (first_name, last_name, client_id) values ('B', 'Prev', w_cli) returning id into w_t2;
+      insert into public.trainees (first_name, last_name, client_id) values ('C', 'Prev', w_cli) returning id into w_t3;
+      insert into public.courses (title, code, price_ht) values ('Essai SST prévisionnel', 'ESSAI-PREV-SST', 200) returning id into w_c1;
+      insert into public.courses (title, code) values ('Essai gestes sans prix', 'ESSAI-PREV-GP') returning id into w_c2;
+      select id into w_sst from public.obligation_rules where code = 'sst' and company_id = (select company_id from public.clients where id = w_cli);
+      select id into w_gp from public.obligation_rules where code = 'gestes_postures' and company_id = (select company_id from public.clients where id = w_cli);
+      update public.obligation_rules set course_ids = array[w_c1] where id = w_sst;
+      update public.obligation_rules set course_ids = array[w_c2], validity_months = coalesce(validity_months, 24) where id = w_gp;
+      insert into public.external_trainings (client_id, trainee_id, rule_id, provider_name, done_on, valid_until) values
+        (w_cli, w_t1, w_sst, 'Ailleurs', current_date - 600, current_date + 100),
+        (w_cli, w_t1, w_sst, 'Ailleurs', current_date - 650, current_date + 50),
+        (w_cli, w_t2, w_sst, 'Ailleurs', current_date - 600, current_date + 100),
+        (w_cli, w_t3, w_sst, 'Ailleurs', current_date - 600, current_date + 100),
+        (w_cli, w_t1, w_gp, 'Ailleurs', current_date - 600, current_date + 120);
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-PREV', w_c1, w_cli, current_date + 20, current_date + 20, 'prev-1') returning id into w_ses;
+      insert into public.session_trainees (session_id, trainee_id) values (w_ses, w_t2);
+
+      select sum(nb_echeances) as nb, sum(montant_attendu) as m, sum(nb_planifies) as np, sum(montant_planifie) as mp
+        into w_r from public.v_recurring_revenue where client_id = w_cli and nature = 'formation' and rule_id = w_sst;
+      if w_r.nb = 3 and w_r.m = 600 and w_r.np = 1 and w_r.mp = 200 then
+        v_lines := v_lines || 'OK      base  0150 : recyclages chiffrés au prix du catalogue, un stagiaire compté une fois, part planifiée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0150 : recyclages chiffrés (' || coalesce(w_r.nb, 0) || ' / ' || coalesce(w_r.m, 0) || ' / ' || coalesce(w_r.np, 0) || ')'); end if;
+
+      select sum(nb_sans_prix) as sp, sum(montant_attendu) as m into w_r from public.v_recurring_revenue where client_id = w_cli and rule_id = w_gp;
+      if w_r.sp = 1 and w_r.m = 0 then
+        v_lines := v_lines || 'OK      base  0150 : échéance sans prix comptée à part, jamais estimée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0150 : échéance sans prix comptée à part'::text; end if;
+
+      insert into public.itv_contracts (client_id, reference, label, start_on, end_on, annual_price_ht, status)
+      values (w_cli, 'CTR-PREV', 'Contrat essai', current_date - 335, current_date + 30, 1200, 'actif') returning id into w_k;
+      perform public.scheduled_actions_generate();
+      perform public.scheduled_actions_generate();
+      select count(*) into w_n from public.scheduled_actions where kind = 'renouvellement_contrat' and target_id = w_k;
+      if w_n = 1 and (select sum(montant_attendu) from public.v_recurring_revenue where client_id = w_cli and nature = 'contrat') = 1200 then
+        v_lines := v_lines || 'OK      base  0150 : contrat à renouveler chiffré, relance préparée une seule fois'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0150 : contrat à renouveler (' || w_n || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      w_n := (select count(*) from public.v_recurring_revenue where client_id = w_cli);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if w_n >= 2 then v_lines := v_lines || 'OK      com   0150 : le commercial lit le prévisionnel'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   com   0150 : le commercial lit le prévisionnel (' || w_n || ')'); end if;
     end;
   end if;
 

@@ -316,7 +316,7 @@ select pg_temp.regles(array['positioning_results', 'sst_certifications', 'traine
 
 -- profiles
 select pg_temp.regles(array['profiles'], null,
-  $r$(select app.a_le_droit('organisation.comptes.voir'))$r$,
+  $r$(id = (select auth.uid()) or (select app.a_le_droit('organisation.comptes.voir')))$r$,
   $r$(select app.a_le_droit('parametres.utilisateurs.gerer'))$r$,
   $r$(id = (select auth.uid()) or (select app.a_le_droit('plateforme.administrer')) or ((select app.a_le_droit('parametres.utilisateurs.gerer')) and role <> 'superadmin'))$r$,
   $r$((select app.a_le_droit('plateforme.administrer')) or ((select app.a_le_droit('parametres.utilisateurs.gerer')) and role <> 'superadmin'))$r$);

@@ -389,7 +389,7 @@ export default function Sessions() {
         return
       }
     } else {
-      if (!formData.course_id || !formData.client_id || !formData.start_date || !formData.end_date) {
+      if (!formData.course_id || (formData.session_type !== 'inter' && !formData.client_id) || !formData.start_date || !formData.end_date) {
         toast.error('Veuillez remplir tous les champs obligatoires')
         return
       }
@@ -407,7 +407,7 @@ export default function Sessions() {
     const sessionData = {
       session_type: formData.session_type,
       course_id: isSub ? null : formData.course_id,
-      client_id: formData.client_id,
+      client_id: formData.client_id || null,
       contact_id: formData.contact_id || null,
       signatory_name: isSub ? null : (formData.signatory_name || null),
       signatory_role: isSub ? null : (formData.signatory_role || null),
@@ -1033,6 +1033,12 @@ export default function Sessions() {
               {/* ═══ FORMULAIRE STANDARD (formation directe) ═══ */}
               {formData.session_type !== 'subcontract' && (
                 <>
+              {/* Session inter (lot 2, 0044) : plusieurs entreprises ou particuliers, un groupe chacun */}
+              <label className="flex items-start gap-2 text-ui text-gray-800">
+                <input type="checkbox" className="mt-0.5" checked={formData.session_type === 'inter'}
+                  onChange={(e) => setFormData({ ...formData, session_type: e.target.checked ? 'inter' : 'intra', is_intra: e.target.checked ? false : formData.is_intra })} />
+                <span>Session inter : plusieurs entreprises ou particuliers inscrits<span className="block text-ui-sm text-gray-500">Chaque inscription devient un groupe (onglet Groupes de la session) avec sa convention ou son contrat et sa facture.</span></span>
+              </label>
               {/* Formation et Client */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
@@ -1046,11 +1052,11 @@ export default function Sessions() {
                 </div>
                 
                 <div>
-                  <label className="label">Client *</label>
+                  <label className="label">{formData.session_type === 'inter' ? 'Client principal (facultatif)' : 'Client *'}</label>
                   <SearchSelect
                     value={formData.client_id}
                     onChange={(v) => setFormData({ ...formData, client_id: v })}
-                    required
+                    required={formData.session_type !== 'inter'}
                     options={clientOptions(clients)}
                     emptyLabel="Sélectionner..." searchPlaceholder="Nom, ville, SIRET..." aria-label="Client" />
                 </div>

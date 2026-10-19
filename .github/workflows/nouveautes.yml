@@ -39,8 +39,25 @@ jobs:
             echo "Migration 0262 pas encore appliquée : aucune entrée proposée."
             exit 0
           fi
+          # Texte proposé : la section « Ce qui change » de la description si elle existe (puces en phrases),
+          # sinon la description entière ; la base en garde le premier paragraphe
+          texte="$(PR_TEXTE="${PR_TEXTE:-}" python3 - <<'PY'
+          import os, re
+          t = os.environ.get('PR_TEXTE', '').replace('\r', '')
+          m = re.search(r'^#+\s*Ce qui change\s*$(.*?)(?=^#+\s|\Z)', t, re.M | re.S)
+          if m:
+              lignes = []
+              for l in m.group(1).splitlines():
+                  l = re.sub(r'^\s*[-*]\s*', '', l).strip()
+                  l = re.sub(r'\*\*(.+?)\*\*', r'\1', l)
+                  if l:
+                      lignes.append(l if l.endswith(('.', '!', '?')) else l + '.')
+              t = ' '.join(lignes)
+          print(t)
+          PY
+          )"
           id="$(psql "$SUPABASE_DB_URL" -X -At -v ON_ERROR_STOP=1 \
-            -v numero="$PR_NUMERO" -v titre="$PR_TITRE" -v texte="${PR_TEXTE:-}" -v url="$PR_URL" <<'SQL'
+            -v numero="$PR_NUMERO" -v titre="$PR_TITRE" -v texte="$texte" -v url="$PR_URL" <<'SQL'
           select coalesce(public.notice_from_pull_request(:'numero'::int, :'titre', :'texte', :'url')::text, 'déjà proposée');
           SQL
           )"

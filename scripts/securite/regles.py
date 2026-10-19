@@ -217,7 +217,8 @@ t('quality_roles', sel=REGL(), ins=D('parametres.referents.gerer', ADM), upd=D('
 ADMIN_COMPTES = RAW(is_role('admin'), "(select app.a_le_droit('parametres.utilisateurs.gerer'))")
 SUPERADMIN_COMPTES = RAW(is_role('superadmin'), "(select app.a_le_droit('plateforme.administrer'))")
 profile_admin = any_of(own('id'), SUPERADMIN_COMPTES, f"({ADMIN_COMPTES} and role <> 'superadmin')")
-t('profiles', sel=D('organisation.comptes.voir', ALL), ins=D('parametres.utilisateurs.gerer', ADM), upd=profile_admin,
+# Lecture : sa propre ligne (comptes externes, 0047 : sans elle, la connexion échoue) ou le droit de voir les comptes.
+t('profiles', sel=any_of(own('id'), D('organisation.comptes.voir', ALL)), ins=D('parametres.utilisateurs.gerer', ADM), upd=profile_admin,
   dele=any_of(SUPERADMIN_COMPTES, f"({ADMIN_COMPTES} and role <> 'superadmin')"))
 t('app_versions', sel=REGL(), ins=D('plateforme.administrer', SA), upd=D('plateforme.administrer', SA),
   dele=D('plateforme.administrer', SA))
@@ -781,6 +782,50 @@ tdx('0368', 'invoice_deposit_links', sel=f"company_id in {societes('facturation.
 # restrictives qui laissent passer les lignes sans société).
 tdx('0262', 'platform_notices', sel=f"((status = 'publie' and {REGL_D}) or {PLAT_D})", ins=PLAT_D, upd=PLAT_D,
     dele=PLAT_D)
+# Lot 2, obligations (0042) : référentiel par société, formations suivies ailleurs (données des stagiaires),
+# exercices et essais de l'exploitant (fiche client).
+tdx('0042', 'obligation_rules', sel=f"company_id in {societes('organisation.reglages.voir')}",
+    ins=f"company_id in {societes('formation.catalogue.gerer')}", upd=f"company_id in {societes('formation.catalogue.gerer')}",
+    dele=f"company_id in {societes('formation.catalogue.gerer')}")
+tdx('0042', 'external_trainings', sel=f"company_id in {societes('formation.stagiaires.voir')}",
+    ins=f"company_id in {societes('formation.stagiaires.modifier')}", upd=f"company_id in {societes('formation.stagiaires.modifier')}",
+    dele=f"company_id in {societes('formation.stagiaires.modifier')}")
+tdx('0042', 'client_safety_checks', sel=f"company_id in {societes('clients.fiches.voir')}",
+    ins=f"company_id in {societes('clients.fiches.modifier')}", upd=f"company_id in {societes('clients.fiches.modifier')}",
+    dele=f"company_id in {societes('clients.fiches.modifier')}")
+# Lot 2, relances (0043) : actions préparées par la base chaque nuit, validées à la main par qui envoie aux clients ;
+# aucune création ni suppression par un compte (seulement la tâche de nuit), modification = valider, ignorer, corriger.
+tdx('0043', 'scheduled_actions', sel=f"company_id in {societes('formation.convocations.envoyer')}",
+    upd=f"company_id in {societes('formation.convocations.envoyer')}")
+# Lot 2, sessions inter (0044) : demandes d'inscription de la page publique (écrites par une fonction publique à venir),
+# lues et traitées par qui inscrit les stagiaires.
+tdx('0044', 'inter_requests', sel=f"company_id in {societes('formation.inscriptions.gerer')}",
+    upd=f"company_id in {societes('formation.inscriptions.gerer')}", dele=f"company_id in {societes('formation.inscriptions.gerer')}")
+# Lot 2, sous-traitance (0045) : prestataires et leurs justificatifs, bons de commande ; gérés avec les formateurs
+# (dossier des formateurs), montants des commandes avec les coûts des sessions.
+_ST_VOIR = f"company_id in {societes('formation.formateurs.voir')}"
+_ST_GERER = f"company_id in {societes('formation.formateurs.dossier')}"
+for _n in ['subcontractors', 'subcontractor_doc_types', 'subcontractor_documents']:
+    tdx('0045', _n, sel=_ST_VOIR, ins=_ST_GERER, upd=_ST_GERER, dele=_ST_GERER)
+tdx('0045', 'subcontract_orders', sel=f"company_id in {societes('formation.couts.gerer')}",
+    ins=f"company_id in {societes('formation.couts.gerer')}", upd=f"company_id in {societes('formation.couts.gerer')}",
+    dele=f"company_id in {societes('formation.couts.gerer')}")
+# Lot 2, espace entreprise (0046) : comptes et sites des comptes gérés avec l'espace entreprise ; demandes lues avec
+# les clients, traitées par qui modifie les clients (créées seulement par ent_demander) ; actualités lues avec les
+# clients, rédigées avec l'espace entreprise. Les comptes entreprise n'ont aucun droit : ils passent par les ent_*.
+_ENT = f"company_id in {societes('clients.espace.gerer')}"
+_CLI_VOIR = f"company_id in {societes('clients.fiches.voir')}"
+for _n in ['client_accounts', 'client_account_sites']:
+    tdx('0046', _n, sel=_ENT, ins=_ENT, upd=_ENT, dele=_ENT)
+tdx('0046', 'client_requests', sel=_CLI_VOIR, upd=f"company_id in {societes('clients.fiches.modifier')}", dele=_ENT)
+tdx('0046', 'client_news', sel=_CLI_VOIR, ins=_ENT, upd=_ENT, dele=_ENT)
+# Fonction 10, pont formation et maintenance (0130) : pistes lues avec les clients, tenues par qui modifie les
+# clients ; le technicien n'y écrit que par pont_signaler_besoin (fonction).
+_CLI_MOD = f"company_id in {societes('clients.fiches.modifier')}"
+tdx('0130', 'cross_sell_leads', sel=_CLI_VOIR, ins=_CLI_MOD, upd=_CLI_MOD, dele=_CLI_MOD)
+# Fonction 11, registre de sécurité (0140) : documents du client lus avec les clients, tenus par qui modifie les
+# clients ; l'entreprise dépose par ent_document_ajouter (fonction).
+tdx('0140', 'client_documents', sel=_CLI_VOIR, ins=_CLI_MOD, upd=_CLI_MOD, dele=_CLI_MOD)
 
 
 def build_suite(migration):

@@ -76,6 +76,9 @@ export async function loadEvidence() {
     supabase.from('formative_sheets').select('session_id').then(({ data }) => new Set((data || []).map((r) => r.session_id)).size, () => 0),
     supabase.from('org_modules').select('enabled').eq('key', 'suivi_formatif').maybeSingle().then(({ data }) => !!data?.enabled, () => false),
   ])
+  // Sous-traitance (lot 2, 0045) : prestataires actifs et état de leurs justificatifs ; vide si la migration manque
+  const stCompliance = await supabase.from('v_subcontractor_compliance').select('subcontractor_id, status')
+    .then(({ data, error }) => (error ? [] : data || []), () => [])
 
   const c = courses.data || []
   const v = veille.data || []
@@ -134,6 +137,13 @@ export async function loadEvidence() {
       formativeSheets, formativeSessions,
     },
     formativeOn,
+    subcontracting: {
+      providers: new Set(stCompliance.map((r) => r.subcontractor_id)).size,
+      docs: stCompliance.length,
+      upToDate: stCompliance.filter((r) => r.status === 'a_jour' || r.status === 'a_renouveler').length,
+      missing: stCompliance.filter((r) => r.status === 'manquant').length,
+      expired: stCompliance.filter((r) => r.status === 'perime').length,
+    },
   }
 }
 
@@ -141,6 +151,7 @@ const L = {
   catalogue: '/formations', sessions: '/sessions', formateurs: '/formateurs', qualite: '/qualite', qualiopi: '/qualiopi',
   veille: '/veille-qualiopi', psh: '/registre-psh', nc: '/non-conformites', indicateurs: '/indicateurs',
   parametres: '/parametres', methode: '/certification/methode', bpf: '/bpf', completude: '/qualite/completude',
+  sousTraitants: '/sous-traitants',
 }
 const ok = (label, link) => ({ label, ok: true, link })
 const ko = (label, link) => ({ label, ok: false, link })
@@ -288,8 +299,13 @@ export const RULES = {
       e.docs.contratSt ? ok('Contrat de sous-traitance type', L.qualite) : ko('Contrat de sous-traitance type absent', L.qualite),
       e.docs.contratSt && e.docs.contratStClause ? ok('Clause de conformité au référentiel national qualité dans le contrat', L.qualite) : ko('Clause de conformité au référentiel absente du contrat (exigence 2026)', L.qualite),
       e.docs.charteSt ? ok('Charte qualité prestataire', L.qualite) : ko('Charte qualité prestataire absente', L.qualite),
+      ...(e.subcontracting?.providers ? [
+        e.subcontracting.missing + e.subcontracting.expired === 0
+          ? ok(`Justificatifs des prestataires à jour : ${e.subcontracting.upToDate} sur ${e.subcontracting.docs} (${plural(e.subcontracting.providers, 'prestataire')})`, L.sousTraitants)
+          : ko(`Justificatifs des prestataires : ${plural(e.subcontracting.missing, 'manquant')}, ${plural(e.subcontracting.expired, 'périmé')} (${plural(e.subcontracting.providers, 'prestataire')})`, L.sousTraitants),
+      ] : []),
     ],
-    missing: ['Garder les preuves de contrôle des sous-traitants (certificat Qualiopi, CV, attestations)'],
+    missing: e.subcontracting?.providers ? [] : ['Garder les preuves de contrôle des sous-traitants (certificat Qualiopi, CV, attestations) : page Sous-traitants'],
   }),
   30: (e) => ({
     items: [

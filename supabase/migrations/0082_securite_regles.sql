@@ -378,7 +378,7 @@ select pg_temp.regles(array['positioning_results', 'sst_certifications', 'traine
 
 -- profiles
 select pg_temp.regles(array['profiles'], null,
-  $r$(select app.grp('all'))$r$,
+  $r$(id = (select auth.uid()) or (select app.grp('all')))$r$,
   $r$(select app.grp('adm'))$r$,
   $r$(id = (select auth.uid()) or (select app.role()) = 'superadmin' or ((select app.role()) = 'admin' and role <> 'superadmin'))$r$,
   $r$((select app.role()) = 'superadmin' or ((select app.role()) = 'admin' and role <> 'superadmin'))$r$);
