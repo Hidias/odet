@@ -159,6 +159,8 @@ ORDRE_PROD = (
     + ['0041', '0042', '0043', '0044', '0045', '0046', '0047']
     # Fonctions 10 à 13 (0130 et suivantes), appliquées après le lot 2
     + ['0130', '0140', '0150', '0160']
+    # Chantier 10, suivi des affaires (19/10)
+    + ['0380']
 )
 
 
