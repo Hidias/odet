@@ -9,6 +9,7 @@ import { useAuthStore } from '../../../core/store'
 import PublicLayout from '../../../app/PublicLayout'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
+import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 
 // Espaces des comptes formateur externe et stagiaire (lot 2, 0047). Les données passent par les fonctions ext_* et
 // stg_* de la base (aucun accès aux tables). Formateur externe : ses sessions (programme, lieu, stagiaires, feuille
@@ -143,7 +144,7 @@ function EspaceStagiaire({ logout }) {
           </button>
         )}
         {fichierDeLInstance(s.courses?.program_url) && (
-          <a href={fichierDeLInstance(s.courses?.program_url)} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300">
+          <a href={fichierDeLInstance(s.courses?.program_url)} onClick={(e) => { e.preventDefault(); ouvrirFichier(fichierDeLInstance(s.courses?.program_url)).catch((err) => toast.error(err.message)) }} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300">
             <FileText className="w-4 h-4" />Programme<ExternalLink className="w-3.5 h-3.5 ml-auto text-gray-400" />
           </a>
         )}
@@ -225,7 +226,7 @@ function EspaceFormateur({ logout }) {
             </button>
           )}
           {fichierDeLInstance(s.courses?.program_url) && (
-            <a href={fichierDeLInstance(s.courses?.program_url)} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300">
+            <a href={fichierDeLInstance(s.courses?.program_url)} onClick={(e) => { e.preventDefault(); ouvrirFichier(fichierDeLInstance(s.courses?.program_url)).catch((err) => toast.error(err.message)) }} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300">
               <FileText className="w-4 h-4" />Programme<ExternalLink className="w-3.5 h-3.5 ml-auto text-gray-400" />
             </a>
           )}

@@ -10,7 +10,7 @@ import { generateSatisfactionEntreprisePDF } from '../pdf/satisfactionEntreprise
 import { useDataStore } from '../../../core/store'
 import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPasseportPrevention'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
-import { readableUrl } from '../../../core/storageUtils'
+import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 
 // ════════════════════════════════════════════════════════════
@@ -499,7 +499,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
           const url = fichierDeLInstance(course?.program_url)
           let ajoute = false
           if (url) {
-            const response = await fetch(url)
+            const response = await fetch(await readableUrl(url))
             if (response.ok) {
               const blob = await response.blob()
               const base64 = await blobToBase64(blob)

@@ -15,6 +15,7 @@ import { downloadDocument, downloadCatalogue, setOrganization } from '../pdf/pdf
 import { PICTOGRAMMES } from '../pdf/pictogrammes'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { currentUserName } from '../../../core/org/currentOrg'
+import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 
 // Champs du programme (fiche formation, migration 0048)
 const PROGRAMME_VIDE = {
@@ -784,7 +785,7 @@ export default function Courses() {
                   </button>
                   {fichierDeLInstance(course.program_url) && (
                     <a
-                      href={fichierDeLInstance(course.program_url)}
+                      href={fichierDeLInstance(course.program_url)} onClick={(e) => { e.preventDefault(); ouvrirFichier(fichierDeLInstance(course.program_url)).catch((err) => toast.error(err.message)) }}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
@@ -1151,7 +1152,7 @@ export default function Courses() {
                 {fichierDeLInstance(form.program_url) ? (
                   <div className="flex items-center gap-2 flex-1">
                     <a
-                      href={fichierDeLInstance(form.program_url)}
+                      href={fichierDeLInstance(form.program_url)} onClick={(e) => { e.preventDefault(); ouvrirFichier(fichierDeLInstance(form.program_url)).catch((err) => toast.error(err.message)) }}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-primary-600 hover:underline"

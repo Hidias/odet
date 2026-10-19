@@ -31,6 +31,7 @@ import AcompteDevis from '../components/AcompteDevis'
 
 import { confirmer } from '../../../ui/Confirm'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
+import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 const STATUS_CONFIG = {
   draft: { label: 'Brouillon', class: 'bg-gray-100 text-gray-700', icon: '' },
   sent: { label: 'Envoyé', class: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', icon: '' },
@@ -810,6 +811,8 @@ export default function Quotes() {
       const programUrls = sendAttachments
         .filter(att => att.type === 'program' && att.enabled && att.url)
         .map(att => ({ filename: att.filename, url: att.url }))
+      // Stockage privé (audit du 19/10) : le serveur lit le programme par un lien signé de 10 minutes
+      for (const u of programUrls) u.url = (await readableUrl(u.url, 600)) || u.url
       const manualAttachments = sendAttachments
         .filter(att => (att.type === 'manual' || (att.type === 'program' && !att.url)) && att.enabled && att.base64)
         .map(att => ({ filename: att.filename, base64: att.base64 }))

@@ -4378,6 +4378,14 @@ begin
     end;
   end if;
 
+  -- Stockage « documents » privé (0389)
+  if exists (select 1 from storage.buckets where id = 'documents') then
+    v_total := v_total + 1;
+    if not (select public from storage.buckets where id = 'documents') then
+      v_lines := v_lines || 'OK      base  0389 : stockage « documents » privé (liens signés)'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0389 : stockage « documents » encore public'::text; end if;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

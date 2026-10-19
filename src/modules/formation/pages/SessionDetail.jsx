@@ -20,7 +20,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import QRCode from 'qrcode'
 import { supabase } from '../../../core/supabase'
-import { buildStorageFileName } from '../../../core/storageUtils'
+import { buildStorageFileName, ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import SessionDocumentAccess from '../components/SessionDocumentAccess'
 import SSTCertificationTab from '../../prevention/components/SSTCertificationTab'
 import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
@@ -35,7 +35,6 @@ import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionDOPDF } from '../pdf/satisfactionDOPDF'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
-import { readableUrl } from '../../../core/storageUtils'
 import { useDroits } from '../../../core/rights/useDroit'
 
 import { confirmer, demander } from '../../../ui/Confirm'
@@ -2375,7 +2374,7 @@ export default function SessionDetail() {
         for (const doc of sessionDocs) {
           if (!doc.file_url) continue
           try {
-            const res = await fetch(doc.file_url)
+            const res = await fetch(await readableUrl(doc.file_url))
             if (res.ok) {
               const cleanName = doc.file_name?.replace(/^\d+_/, '') || `scan_${doc.id}.pdf`
               zip.file(`Scans/${cleanName}`, await res.blob())
@@ -3338,7 +3337,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <>
                           {hasForprevCard ? (
                             <a 
-                              href={stData.forprev_card_url} 
+                              href={stData.forprev_card_url} onClick={(e) => { e.preventDefault(); ouvrirFichier(stData.forprev_card_url).catch((err) => toast.error(err.message)) }} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="btn btn-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] flex items-center gap-1"
