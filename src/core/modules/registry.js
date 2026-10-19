@@ -3,6 +3,7 @@ import {
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
   MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
+  Home, Store, Wrench, ClipboardList,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -22,13 +23,25 @@ const SALES = ['superadmin', 'admin', 'direction', 'gestionnaire', 'commercial']
 const FINANCE = ['superadmin', 'admin', 'direction', 'comptable']
 const ADMINS = ['superadmin', 'admin']
 
+// Chaque section porte son icône (barre d'icônes) ; `flat` : affichée sans titre ni repli (une seule entrée).
+// L'accueil n'appartient à aucun module : il reste visible quels que soient les modules actifs.
 export const NAV_SECTIONS = [
+  {
+    id: 'accueil',
+    module: null,
+    label: 'Accueil',
+    icon: Home,
+    flat: true,
+    items: [
+      { to: '/', icon: LayoutDashboard, label: 'Tableau de bord', roles: STAFF },
+    ],
+  },
   {
     id: 'formation',
     module: 'formation',
     label: 'Formation',
+    icon: GraduationCap,
     items: [
-      { to: '/', icon: LayoutDashboard, label: 'Tableau de bord', roles: STAFF },
       { to: '/sessions', right: ['formation.sessions.voir', 'formation.sessions.voir_siennes'], icon: Calendar, label: 'Sessions', roles: STAFF },
       { to: '/formations', right: 'formation.catalogue.voir', icon: GraduationCap, label: 'Catalogue', roles: STAFF },
       { to: '/stagiaires', right: ['formation.stagiaires.voir', 'formation.stagiaires.voir_siens'], icon: Users, label: 'Stagiaires', roles: STAFF },
@@ -47,6 +60,7 @@ export const NAV_SECTIONS = [
     id: 'commerce',
     module: 'commercial',
     label: 'Commerce',
+    icon: Store,
     items: [
       { to: '/clients', right: 'clients.fiches.voir', icon: Building2, label: 'Clients', roles: STAFF },
       { to: '/devis', right: 'commercial.devis.voir', icon: Receipt, label: 'Devis', roles: SALES },
@@ -70,6 +84,7 @@ export const NAV_SECTIONS = [
     id: 'prestations',
     module: 'duerp',
     label: 'Prestations',
+    icon: ClipboardList,
     items: [
       { to: '/duerp', right: 'prestations.duerp.gerer', icon: Shield, label: 'DUERP', roles: MANAGERS },
     ],
@@ -78,6 +93,7 @@ export const NAV_SECTIONS = [
     id: 'finance',
     module: 'finance',
     label: 'Finance',
+    icon: Wallet,
     items: [
       { to: '/budget', right: 'finance.budget.gerer', icon: Wallet, label: 'Budget', roles: FINANCE },
       { to: '/comptable', right: 'facturation.export.comptable', icon: Calculator, label: 'Espace comptable', roles: FINANCE, module: 'comptabilite' },
@@ -87,6 +103,7 @@ export const NAV_SECTIONS = [
     id: 'communication',
     module: 'social',
     label: 'Communication',
+    icon: Megaphone,
     items: [
       { to: '/social', right: 'communication.reseaux.gerer', icon: Megaphone, label: 'Réseaux sociaux', roles: SALES },
     ],
@@ -95,6 +112,7 @@ export const NAV_SECTIONS = [
     id: 'qualite',
     module: 'qualite',
     label: 'Qualité',
+    icon: Award,
     items: [
       { to: '/qualite', right: 'qualite.registres.gerer', icon: FolderCheck, label: 'Processus qualité', roles: MANAGERS },
       { to: '/qualite/completude', right: 'qualite.completude.suivre', icon: CheckCircle, label: 'Complétude', roles: MANAGERS },
@@ -113,6 +131,7 @@ export const NAV_SECTIONS = [
     id: 'entreprise',
     module: 'interventions',
     label: 'Entreprise',
+    icon: Wrench,
     items: [
       { to: '/interventions', right: ['interventions.visites.voir', 'interventions.missions.voir'], icon: MapPin, label: 'Interventions', roles: STAFF },
       { to: '/collaborateurs', right: 'rh.personnel.voir', icon: Briefcase, label: 'Collaborateurs', roles: MANAGERS, module: 'rh', soon: true },
@@ -122,18 +141,18 @@ export const NAV_SECTIONS = [
 
 export const SETTINGS_ITEMS = [
   // Quoi de neuf (module « nouveautes », chantier A) : tout compte interne qui voit les réglages de l'organisme
-  { to: '/nouveautes', icon: Sparkles, label: 'Quoi de neuf', module: 'nouveautes', right: 'organisation.reglages.voir' },
+  { to: '/nouveautes', icon: Sparkles, label: 'Quoi de neuf', short: 'Nouveautés', module: 'nouveautes', right: 'organisation.reglages.voir' },
   // Paramètres : super administrateur ; administrateur seulement avec la licence totale (droit parametres.ouvrir,
   // filtré par la base) ; direction jamais (décision du 17/10). Droits inconnus : super administrateur seulement.
-  { to: '/parametres', icon: Settings, label: 'Paramètres', roles: ADMINS, right: 'parametres.ouvrir', fallbackRoles: ['superadmin'] },
+  { to: '/parametres', icon: Settings, label: 'Paramètres', short: 'Paramètres', roles: ADMINS, right: 'parametres.ouvrir', fallbackRoles: ['superadmin'] },
   // Règles de gestion : circuits de validation et comptable externe, hors Paramètres (la direction y accède)
-  { to: '/regles-gestion', icon: Workflow, label: 'Règles de gestion', roles: ['superadmin', 'admin', 'direction', 'membre'],
+  { to: '/regles-gestion', icon: Workflow, label: 'Règles de gestion', short: 'Règles', roles: ['superadmin', 'admin', 'direction', 'membre'],
     right: ['validations.circuits.configurer', 'facturation.comptable_externe.regler'], fallbackRoles: [] },
   // Suivi des retours (module « retours », chantier A) : super administrateur et administrateur ; droits inconnus :
   // super administrateur seulement
-  { to: '/retours', icon: StickyNote, label: 'Retours des utilisateurs', module: 'retours', roles: ['superadmin', 'admin', 'membre'],
+  { to: '/retours', icon: StickyNote, label: 'Retours des utilisateurs', short: 'Retours', module: 'retours', roles: ['superadmin', 'admin', 'membre'],
     right: 'organisation.retours.suivre', fallbackRoles: ['superadmin'] },
-  { to: '/console', right: 'plateforme.administrer', icon: Sliders, label: 'Console', roles: ['superadmin'] },
+  { to: '/console', right: 'plateforme.administrer', icon: Sliders, label: 'Console', short: 'Console', roles: ['superadmin'] },
 ]
 
 // Le compte peut-il ouvrir cette entrée ? `can(code)` renvoie true, false, ou null quand les droits sont inconnus.
@@ -154,7 +173,7 @@ export function itemAutorise(item, role, can) {
 export function visibleSections(enabledModules, role, can) {
   const enabled = new Set(enabledModules || [])
   return NAV_SECTIONS
-    .filter((s) => enabled.has(s.module))
+    .filter((s) => !s.module || enabled.has(s.module))
     .map((s) => ({
       ...s,
       items: s.items.filter((i) => (!i.module || enabled.has(i.module)) && itemAutorise(i, role, can)),

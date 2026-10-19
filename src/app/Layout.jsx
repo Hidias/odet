@@ -43,6 +43,8 @@ const NOTIF_ICONS = {
   rappel_phoning: Phone,
 }
 
+const MENU_KEY = 'menu.sections.v1'
+
 function initials(profile, user) {
   const name = profile?.display_name || user?.email || ''
   const parts = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean)
@@ -105,10 +107,17 @@ export default function Layout() {
     return () => { delete el.dataset.bottomNav }
   }, [showBottomNav])
 
-  const [openSections, setOpenSections] = useState({})
+  // Sections ouvertes du menu : choix de la personne, gardés sur cet appareil (confort, jamais indispensable).
+  // Par défaut seule la section de la page en cours est ouverte ; changer de page ouvre sa section sans refermer les autres.
+  const [openSections, setOpenSections] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem(MENU_KEY) || '{}') || {} } catch { return {} }
+  })
   useEffect(() => {
-    if (activeSectionId) setOpenSections((prev) => ({ ...prev, [activeSectionId]: true }))
+    if (activeSectionId) setOpenSections((prev) => (prev[activeSectionId] === true ? prev : { ...prev, [activeSectionId]: true }))
   }, [activeSectionId])
+  useEffect(() => {
+    try { window.localStorage.setItem(MENU_KEY, JSON.stringify(openSections)) } catch { /* stockage indisponible */ }
+  }, [openSections])
 
   // Barre d'icônes : section sélectionnée dans le rail
   const [railSection, setRailSection] = useState(activeSectionId)
@@ -175,7 +184,9 @@ export default function Layout() {
   const navBg = navIsDark ? 'bg-nav' : 'bg-white border-r border-gray-200'
 
   // ─── Blocs communs ─────────────────────────────────────────
-  const Brand = ({ compact = false }) => (
+  // Les blocs ci-dessous sont des fonctions appelées, pas des composants : un composant déclaré dans le rendu
+  // est recréé à chaque rendu, React démonte alors tout le menu (défilement remis en haut, sections redéployées).
+  const brand = (compact = false) => (
     <div className={`flex items-center gap-3 ${compact ? '' : 'px-2'}`}>
       {icon ? (
         <img src={icon} alt={branding.app_name || 'Logo'} className={`${compact ? 'h-7 w-7' : 'h-9 w-9'} rounded-ui-sm object-cover flex-none`} />
@@ -199,8 +210,9 @@ export default function Layout() {
     </div>
   )
 
-  const NavItem = ({ item, indent = false }) => (
+  const navItem = (item, indent = false) => (
     <NavLink
+      key={item.to}
       to={item.to}
       end={item.to === '/'}
       className={({ isActive }) => `flex items-center gap-3 ${indent ? 'pl-5 pr-3' : 'px-3'} py-2 rounded-ui-sm text-ui transition-colors ${
@@ -214,26 +226,32 @@ export default function Layout() {
     </NavLink>
   )
 
-  const SectionedNav = () => (
+  const sectionedNav = () => (
     <nav className="flex-1 overflow-y-auto min-h-0 px-2 py-2">
       {sections.map((section) => {
-        const isOpen = openSections[section.id] !== false
+        const isOpen = openSections[section.id] === true
         const isActiveSection = activeSectionId === section.id
+        // Accueil, ou section réduite à une seule page (selon les modules et les droits) : la page directement, sans repli
+        if (section.flat || section.items.length === 1) return <div key={section.id} className="mb-1 space-y-0.5">{section.items.map((item) => navItem(item))}</div>
+        const SectionIcon = section.icon
         return (
           <div key={section.id} className="mb-1">
             <button
               type="button"
               onClick={() => setOpenSections((prev) => ({ ...prev, [section.id]: !isOpen }))}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-ui-sm ${navHover}`}
+              aria-expanded={isOpen}
+              className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-ui-sm ${navHover}`}
             >
-              <span className={`text-ui-sm font-semibold uppercase tracking-[0.12em] ${isActiveSection ? (navIsDark ? 'text-nav-fg' : 'text-gray-900') : navMuted}`}>
+              <span className={`flex items-center gap-2 text-ui-sm font-semibold uppercase tracking-[0.12em] ${isActiveSection ? (navIsDark ? 'text-nav-fg' : 'text-gray-900') : navMuted}`}>
+                {SectionIcon && <SectionIcon className="w-4 h-4 flex-none" aria-hidden="true" />}
                 {section.label}
+                {!isOpen && <span className="font-normal normal-case tracking-normal opacity-70">({section.items.length})</span>}
               </span>
               <ChevronDown className={`w-4 h-4 ${navMuted} transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             {isOpen && (
               <div className="mt-0.5 space-y-0.5">
-                {section.items.map((item) => <NavItem key={item.to} item={item} indent />)}
+                {section.items.map((item) => navItem(item, true))}
               </div>
             )}
           </div>
@@ -241,13 +259,13 @@ export default function Layout() {
       })}
       {settingsItems.length > 0 && (
         <div className={`mt-2 pt-2 border-t ${navIsDark ? 'border-nav-fg/10' : 'border-gray-200'} space-y-0.5`}>
-          {settingsItems.map((item) => <NavItem key={item.to} item={item} />)}
+          {settingsItems.map((item) => navItem(item))}
         </div>
       )}
     </nav>
   )
 
-  const UserBlock = () => (
+  const userBlock = () => (
     <div className={`px-3 py-3 border-t ${navIsDark ? 'border-nav-fg/10' : 'border-gray-200'} flex items-center gap-3`}>
       <div className="w-9 h-9 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase">
         {initials(profile, user)}
@@ -262,44 +280,45 @@ export default function Layout() {
     </div>
   )
 
-  // ─── Variante rail : barre d'icônes + sous-menu ───────────
+  // ─── Variante rail : barre d'icônes avec libellés + sous-menu ───────────
+  // Une section à une seule entrée ouvre directement sa page ; les autres affichent leurs pages à côté, sans changer de page.
   const railSectionObj = sections.find((s) => s.id === railSection) || sections[0]
-  const Rail = () => (
+  const railBtn = (on) => `w-[68px] min-h-[52px] py-1.5 px-1 rounded-ui-sm flex flex-col items-center justify-center gap-1 transition-colors ${on ? 'bg-accent-500 text-accent-fg' : 'text-nav-fg/70 hover:bg-nav-fg/10 hover:text-nav-fg'}`
+  const railLabel = 'text-[10.5px] leading-tight text-center w-full truncate'
+  const rail = () => (
     <>
-      <div className="w-16 bg-nav flex flex-col items-center py-3 gap-1.5 flex-none">
-        {icon ? <img src={icon} alt="" className="w-11 h-11 rounded-ui-sm object-cover mb-2" /> : <div className="bg-white rounded-ui-sm p-1 mb-2 flex items-center justify-center w-11 h-11">
+      <div className="w-[76px] bg-nav flex flex-col items-center py-3 gap-1 flex-none overflow-y-auto">
+        {icon ? <img src={icon} alt="" className="w-11 h-11 rounded-ui-sm object-cover mb-2 flex-none" /> : <div className="bg-white rounded-ui-sm p-1 mb-2 flex items-center justify-center w-11 h-11 flex-none">
           {logo ? <img src={logo} alt="" className="max-h-9 max-w-9 object-contain" /> : <span className="font-display font-bold">{(branding.app_name || 'O').slice(0, 1)}</span>}
         </div>}
         {sections.map((s) => {
-          const Icon = s.items[0]?.icon
-          const on = railSection === s.id
+          const Icon = s.icon || s.items[0]?.icon
+          const seule = s.items.length === 1
+          const on = seule ? activeSectionId === s.id : railSection === s.id
           return (
             <button
               key={s.id}
               type="button"
               title={s.label}
-              aria-label={s.label}
-              onClick={() => { setRailSection(s.id); if (s.items[0]) navigate(s.items[0].to) }}
-              className={`w-11 h-11 rounded-ui-sm flex items-center justify-center transition-colors ${on ? 'bg-accent-500 text-accent-fg' : 'text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg'}`}
+              aria-current={activeSectionId === s.id ? 'page' : undefined}
+              onClick={() => { setRailSection(s.id); if (seule) navigate(s.items[0].to) }}
+              className={railBtn(on)}
             >
-              {Icon ? <Icon className="w-5 h-5" /> : null}
+              {Icon ? <Icon className="w-5 h-5 flex-none" aria-hidden="true" /> : null}
+              <span className={railLabel}>{s.label}</span>
             </button>
           )
         })}
-        <div className="flex-1" />
+        <div className="flex-1 min-h-2" />
         {settingsItems.map((item) => (
-          <NavLink key={item.to} to={item.to} title={item.label} aria-label={item.label}
-            className={({ isActive }) => `relative w-11 h-11 rounded-ui-sm flex items-center justify-center ${isActive ? 'bg-nav-fg/15 text-nav-fg' : 'text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg'}`}>
-            <item.icon className="w-5 h-5" />
-            {item.dot && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-accent-500" aria-label="nouveau" />}
+          <NavLink key={item.to} to={item.to} title={item.label}
+            className={({ isActive }) => `relative ${railBtn(false)} ${isActive ? '!bg-nav-fg/15 !text-nav-fg' : ''}`}>
+            <item.icon className="w-5 h-5 flex-none" aria-hidden="true" />
+            <span className={railLabel}>{item.short || item.label}</span>
+            {item.dot && <span className="absolute top-1.5 right-3 w-2.5 h-2.5 rounded-full bg-accent-500" aria-label="nouveau" />}
           </NavLink>
         ))}
-        <button type="button" onClick={handleLogout} aria-label="Se déconnecter" className="w-11 h-11 rounded-ui-sm flex items-center justify-center text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg">
-          <LogOut className="w-5 h-5" />
-        </button>
-        <div className="w-9 h-9 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase mt-1" title={profile?.display_name || user?.email}>
-          {initials(profile, user)}
-        </div>
+        {/* Compte, mot de passe et déconnexion : menu des initiales, en haut à droite */}
       </div>
       <div className="w-52 bg-white border-r border-gray-200 flex flex-col flex-none">
         <div className="px-3 pt-4 pb-2">
@@ -309,8 +328,9 @@ export default function Layout() {
         <nav className="flex-1 overflow-y-auto px-2 space-y-0.5">
           {railSectionObj?.items.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'}
-              className={({ isActive }) => `flex items-center justify-between px-2.5 py-1.5 rounded-ui-sm text-ui ${isActive ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
-              <span className="truncate">{item.label}</span>
+              className={({ isActive }) => `flex items-center gap-2.5 px-2.5 py-1.5 rounded-ui-sm text-ui ${isActive ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+              <item.icon className="w-4 h-4 flex-none" aria-hidden="true" />
+              <span className="truncate flex-1">{item.label}</span>
               {item.soon && <span className="badge badge-neutral" style={{ height: 18, fontSize: 10.5 }}>bientôt</span>}
             </NavLink>
           ))}
@@ -320,8 +340,8 @@ export default function Layout() {
   )
 
   // ─── Menu Affichage ────────────────────────────────────────
-  const Choice = ({ label, options, value, onChange, render }) => (
-    <div className="flex items-center justify-between gap-3 py-1.5">
+  const choice = ({ label, options, value, onChange, render }) => (
+    <div key={label} className="flex items-center justify-between gap-3 py-1.5">
       <span className="text-ui-sm text-gray-500">{label}</span>
       <div className="flex rounded-ui-sm border border-gray-200 overflow-hidden">
         {options.map((o) => (
@@ -333,7 +353,7 @@ export default function Layout() {
       </div>
     </div>
   )
-  const DisplayMenu = () => (
+  const displayMenu = () => (
     <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-md z-50 p-3 animate-fadeIn">
       <div className="font-display font-semibold mb-2">Affichage</div>
       <div className="grid grid-cols-3 gap-2 mb-3">
@@ -346,20 +366,20 @@ export default function Layout() {
         ))}
       </div>
       <div className="border-t border-gray-100 pt-2">
-        <Choice label="Densité" options={DENSITIES} value={prefs.density} onChange={(v) => update({ density: v })}
-          render={(o) => ({ compact: 'Compacte', normal: 'Normale', large: 'Large' })[o]} />
-        <Choice label="Navigation" options={NAVS} value={prefs.nav} onChange={(v) => update({ nav: v })}
-          render={(o) => ({ dark: 'Sombre', light: 'Claire', rail: 'Icônes' })[o]} />
-        <Choice label="Arrondis" options={RADII} value={prefs.radius} onChange={(v) => update({ radius: v })}
-          render={(o) => ({ sm: 'Nets', md: 'Moyens', lg: 'Ronds' })[o]} />
-        <Choice label="Listes" options={LISTS} value={prefs.lists} onChange={(v) => update({ lists: v })}
-          render={(o) => ({ table: 'Tableaux', cards: 'Cartes' })[o]} />
+        {choice({ label: 'Densité', options: DENSITIES, value: prefs.density, onChange: (v) => update({ density: v }),
+          render: (o) => ({ compact: 'Compacte', normal: 'Normale', large: 'Large' })[o] })}
+        {choice({ label: 'Navigation', options: NAVS, value: prefs.nav, onChange: (v) => update({ nav: v }),
+          render: (o) => ({ dark: 'Sombre', light: 'Claire', rail: 'Icônes' })[o] })}
+        {choice({ label: 'Arrondis', options: RADII, value: prefs.radius, onChange: (v) => update({ radius: v }),
+          render: (o) => ({ sm: 'Nets', md: 'Moyens', lg: 'Ronds' })[o] })}
+        {choice({ label: 'Listes', options: LISTS, value: prefs.lists, onChange: (v) => update({ lists: v }),
+          render: (o) => ({ table: 'Tableaux', cards: 'Cartes' })[o] })}
       </div>
       <div className="text-ui-sm text-gray-400 mt-2">Réglages personnels, mémorisés sur votre compte.</div>
     </div>
   )
 
-  const NotificationsMenu = () => (
+  const notificationsMenu = () => (
     <div className="absolute right-0 top-11 w-[360px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-md z-50 overflow-hidden animate-fadeIn">
       <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
         <span className="font-display font-semibold">Notifications</span>
@@ -407,12 +427,12 @@ export default function Layout() {
       {/* Navigation bureau */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 z-30">
         {prefs.nav === 'rail' ? (
-          <div className="flex h-full"><Rail /></div>
+          <div className="flex h-full">{rail()}</div>
         ) : (
           <div className={`w-64 h-full flex flex-col ${navBg}`}>
-            <div className="px-3 pt-4 pb-3"><Brand /></div>
-            <SectionedNav />
-            <UserBlock />
+            <div className="px-3 pt-4 pb-3">{brand()}</div>
+            {sectionedNav()}
+            {userBlock()}
           </div>
         )}
       </aside>
@@ -438,24 +458,24 @@ export default function Layout() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} />
           <div className={`absolute left-0 top-0 bottom-0 w-72 flex flex-col ${navBg}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="px-3 pt-4 pb-3 flex items-center justify-between">
-              <Brand />
+              {brand()}
               <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Fermer" className={`p-2 ${navMuted}`}><X className="w-5 h-5" /></button>
             </div>
-            <SectionedNav />
-            <UserBlock />
+            {sectionedNav()}
+            {userBlock()}
           </div>
         </div>
       )}
 
       {/* Contenu */}
-      <div className={`flex-1 min-w-0 ${prefs.nav === 'rail' ? 'lg:pl-[272px]' : 'lg:pl-64'}`}>
+      <div className={`flex-1 min-w-0 ${prefs.nav === 'rail' ? 'lg:pl-[284px]' : 'lg:pl-64'}`}>
         <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-gray-200" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="flex items-center gap-2 sm:gap-3 h-14" style={{ paddingLeft: 'var(--page-px)', paddingRight: 'var(--page-px)' }}>
             <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Menu" className="lg:hidden p-2 -ml-2 rounded-ui-sm text-gray-700 hover:bg-gray-100">
               <Menu className="w-5 h-5" />
             </button>
             <div className="lg:hidden flex items-center gap-2 min-w-0">
-              <Brand compact />
+              {brand(true)}
               {pageTitle && <span className="font-display font-semibold text-gray-900 truncate">{pageTitle}</span>}
             </div>
             <h1 className="hidden lg:block font-display font-semibold text-gray-900 truncate" style={{ fontSize: 'calc(var(--text-ui) * 1.15)' }}>{pageTitle}</h1>
@@ -471,7 +491,7 @@ export default function Layout() {
                 className={`h-9 w-9 rounded-ui-sm flex items-center justify-center hover:bg-gray-100 ${showDisplay ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}>
                 <SlidersHorizontal className="w-5 h-5" />
               </button>
-              {showDisplay && <DisplayMenu />}
+              {showDisplay && displayMenu()}
             </div>
 
             {!fieldOnly && <div className="relative">
@@ -484,7 +504,7 @@ export default function Layout() {
                   </span>
                 )}
               </button>
-              {showNotifications && <NotificationsMenu />}
+              {showNotifications && notificationsMenu()}
             </div>}
 
             <div className="relative">
