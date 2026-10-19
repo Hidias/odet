@@ -2115,7 +2115,7 @@ export default function SessionDetail() {
 
       // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
       let programmeAdded = false
-      const programUrl = session?.courses?.program_url
+      const programUrl = fichierDeLInstance(session?.courses?.program_url) // fichier d'un autre outil écarté : programme généré
       if (programUrl) {
         try {
           const res = await fetch(programUrl)
@@ -2250,7 +2250,7 @@ export default function SessionDetail() {
 
       // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
       let programmeAdded = false
-      const programUrl = session?.courses?.program_url
+      const programUrl = fichierDeLInstance(session?.courses?.program_url) // fichier d'un autre outil écarté : programme généré
       if (programUrl) {
         try {
           const res = await fetch(programUrl)
@@ -2457,7 +2457,7 @@ export default function SessionDetail() {
     
     // Pour le programme : utiliser le fichier uploadé sur la formation si disponible
     if (docType === 'programme') {
-      const programUrl = session?.courses?.program_url
+      const programUrl = fichierDeLInstance(session?.courses?.program_url) // fichier d'un autre outil écarté : programme généré
       if (programUrl) {
         try {
           const response = await fetch(programUrl)
