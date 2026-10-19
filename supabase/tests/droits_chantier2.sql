@@ -2015,6 +2015,125 @@ begin
     end;
   end if;
 
+  -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
+  if to_regclass('public.platform_notices') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 11;
+    declare
+      a_sa uuid := gen_random_uuid(); a_ad uuid := gen_random_uuid(); a_dir uuid := gen_random_uuid();
+      a_brouillon uuid; a_pub uuid; a_n int; a_ok boolean; a_st jsonb; a_id uuid; a_id2 uuid;
+    begin
+      insert into auth.users (id, email, aud, role) values
+        (a_sa, 'ma.sa@test.invalid', 'authenticated', 'authenticated'), (a_ad, 'ma.ad@test.invalid', 'authenticated', 'authenticated'),
+        (a_dir, 'ma.dir@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (a_sa, 'ma.sa@test.invalid', 'superadmin', true),
+        (a_ad, 'ma.ad@test.invalid', 'admin', true), (a_dir, 'ma.dir@test.invalid', 'direction', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+
+      -- Registre : 0190 inscrite dès que ses objets existent
+      if to_regclass('public.pp_lignes') is null
+         or exists (select 1 from public.schema_migrations where version = '0190_passeport_prevention') then
+        v_lines := v_lines || 'OK      base  0261 : 0190 inscrite au registre (objets présents)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0261 : 0190 inscrite au registre (objets présents)'::text; end if;
+
+      -- Super administrateur : écrit un brouillon et une entrée publiée
+      perform set_config('request.jwt.claims', json_build_object('sub', a_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.platform_notices (kind, status, title, body) values ('nouveaute', 'brouillon', 'Essai brouillon', 'Texte') returning id into a_brouillon;
+      insert into public.platform_notices (kind, status, title, body) values ('nouveaute', 'publie', 'Essai publié', 'Texte') returning id into a_pub;
+      execute 'reset role';
+      if (select published_at from public.platform_notices where id = a_pub) is not null
+         and (select published_at from public.platform_notices where id = a_brouillon) is null
+         and (select created_by from public.platform_notices where id = a_pub) = a_sa then
+        v_lines := v_lines || 'OK      sa    0262 : nouveautés écrites, date de publication posée par la base'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0262 : nouveautés écrites, date de publication posée par la base'::text; end if;
+
+      -- Direction : lit les publiées, jamais les brouillons ; n'écrit pas
+      perform set_config('request.jwt.claims', json_build_object('sub', a_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into a_n from public.platform_notices where id in (a_brouillon, a_pub);
+      a_ok := false;
+      begin
+        insert into public.platform_notices (kind, status, body) values ('nouveaute', 'publie', 'Intrus');
+      exception when insufficient_privilege then a_ok := true;
+      end;
+      execute 'reset role';
+      if a_n = 1 and a_ok then v_lines := v_lines || 'OK      dir   0262 : lit les nouveautés publiées seulement, n''écrit pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0262 : lit les nouveautés publiées seulement (' || a_n || ', ' || a_ok || ')'); end if;
+
+      -- Bandeau et pastille : état lu par la direction, puis « Quoi de neuf » ouvert
+      execute 'set local role authenticated';
+      a_st := public.notices_state();
+      execute 'reset role';
+      if a_st -> 'banner' ->> 'body' is not null and (a_st ->> 'unseen')::boolean then
+        v_lines := v_lines || 'OK      dir   0262 : bandeau affiché, pastille « nouveau » tant que la page n''est pas ouverte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0262 : bandeau et pastille (' || coalesce(a_st::text, 'null') || ')'); end if;
+      execute 'set local role authenticated';
+      perform public.notices_mark_seen();
+      a_st := public.notices_state();
+      execute 'reset role';
+      if not (a_st ->> 'unseen')::boolean and (select notices_seen_at from public.profiles where id = a_dir) is not null then
+        v_lines := v_lines || 'OK      dir   0262 : « Quoi de neuf » ouvert, pastille retirée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0262 : « Quoi de neuf » ouvert, pastille retirée'::text; end if;
+
+      -- Brouillon proposé par une pull request : jamais par un compte connecté, une seule fois par pull request
+      execute 'set local role authenticated';
+      a_ok := false;
+      begin perform public.notice_from_pull_request(9999, 'Essai', 'Texte', null);
+      exception when insufficient_privilege then a_ok := true;
+      end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      a_id := public.notice_from_pull_request(9999, 'Essai PR', E'## Résumé\nPremier **paragraphe**.\n\nDétail technique.', 'https://exemple.invalid/pr/9999');
+      a_id2 := public.notice_from_pull_request(9999, 'Essai PR', 'Autre', null);
+      if a_ok and a_id is not null and a_id2 is null
+         and (select status = 'brouillon' and body = 'Premier paragraphe.' from public.platform_notices where id = a_id) then
+        v_lines := v_lines || 'OK      base  0262 : pull request fusionnée = un brouillon, une seule fois, jamais par un compte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0262 : brouillon proposé par une pull request (' || coalesce((select body from public.platform_notices where id = a_id), 'aucun') || ')'); end if;
+
+      -- Retours : table toujours fermée aux comptes connectés ; droit de suivi à l'administrateur, pas à la direction
+      perform set_config('request.jwt.claims', json_build_object('sub', a_ad, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_ok := false;
+      begin perform 1 from public.user_feedback limit 1; exception when insufficient_privilege then a_ok := true; end;
+      a_st := to_jsonb(app.rights());
+      execute 'reset role';
+      if a_ok then v_lines := v_lines || 'OK      ad    0263 : retours lus seulement par le serveur'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0263 : retours lus seulement par le serveur'::text; end if;
+      if a_st ? 'organisation.retours.suivre' then v_lines := v_lines || 'OK      ad    0263 : droit de suivi des retours'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0263 : droit de suivi des retours'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', a_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_st := to_jsonb(app.rights());
+      execute 'reset role';
+      if not (a_st ? 'organisation.retours.suivre') then v_lines := v_lines || 'OK      dir   0263 : pas de droit de suivi des retours'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0263 : pas de droit de suivi des retours'::text; end if;
+      if exists (select 1 from storage.buckets where id = 'retours' and not public)
+         and not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
+                         and coalesce(qual, '') || coalesce(with_check, '') like '%''retours''%') then
+        v_lines := v_lines || 'OK      base  0263 : captures dans un bucket privé, sans règle de stockage'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0263 : captures dans un bucket privé, sans règle de stockage'::text; end if;
+
+      -- Lignes réelles rattachées au fictif : réservé au super administrateur
+      execute 'set local role authenticated';
+      a_ok := false;
+      begin perform public.demo_real_links(); exception when insufficient_privilege then a_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', a_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_st := public.demo_real_links();
+      execute 'reset role';
+      if a_ok and a_st ? 'lignes' and a_st ? 'total' then
+        v_lines := v_lines || 'OK      sa    0264 : lignes réelles rattachées au fictif (super administrateur seulement)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0264 : lignes réelles rattachées au fictif'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end

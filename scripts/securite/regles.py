@@ -775,6 +775,12 @@ tdx('0360', 'billing_sequences', sel=f"company_id in {societes('facturation.fact
 # Acomptes (0368) : liens entre facture de solde et factures d'acompte, lus avec les factures, écrits seulement par
 # billing_create_final (aucune règle d'écriture).
 tdx('0368', 'invoice_deposit_links', sel=f"company_id in {societes('facturation.factures.voir')}")
+# Mise en service (0262) : bandeau d'information et entrées « Quoi de neuf ». Une ligne sans société (company_id
+# vide) vaut pour toutes les sociétés. Lues publiées par tout compte qui voit les réglages de l'organisme ; brouillons,
+# écriture et suppression réservées au super administrateur. L'isolement par société est posé par 0262 (règles
+# restrictives qui laissent passer les lignes sans société).
+tdx('0262', 'platform_notices', sel=f"((status = 'publie' and {REGL_D}) or {PLAT_D})", ins=PLAT_D, upd=PLAT_D,
+    dele=PLAT_D)
 
 
 def build_suite(migration):

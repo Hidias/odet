@@ -8,8 +8,8 @@ Drapeaux : **P** périmètre de la personne (ses sessions, ses visites…) ; **�
 
 | Clé | Profil | Rôle actuel repris | Droits | Description |
 |---|---|---|---|---|
-| SA `superadmin` | Super administrateur | superadmin | 121 | Éditeur de la plateforme : tous les droits ; voit une société par l'accès de support (C1a) |
-| AD `admin` | Administrateur | admin | 117 | Associés : tout sauf la plateforme ; les Paramètres seulement avec la licence totale de la société |
+| SA `superadmin` | Super administrateur | superadmin | 122 | Éditeur de la plateforme : tous les droits ; voit une société par l'accès de support (C1a) |
+| AD `admin` | Administrateur | admin | 118 | Associés : tout sauf la plateforme ; les Paramètres seulement avec la licence totale de la société |
 | DIR `direction` | Direction | direction | 106 | Direction de la société : toutes les données de gestion, jamais les Paramètres |
 | GES `gestionnaire` | Gestionnaire | gestionnaire | 76 | Organisation des sessions, des clients et des interventions |
 | FOR `formateur` | Formateur | formateur | 29 | Ses sessions et leurs stagiaires seulement ; ni devis ni factures |
@@ -184,3 +184,5 @@ Drapeaux : **P** périmètre de la personne (ses sessions, ses visites…) ; **�
 | **Gérer les objectifs** `manager.objectifs.gerer` | Objectifs suivis dans le cockpit | objectifs (prévu) |  |  | x | x | x |  |  |  |  |  |  |  |  |  |  |  |
 | **validations** | | | | | | | | | | | | | | | | | | |
 | **Déléguer ses validations** `validations.deleguer` | Confier ses validations à une autre personne pendant une période | approval_delegations |  |  | x | x | x |  |  |  |  |  |  |  |  |  |  |  |
+| **organisation** | | | | | | | | | | | | | | | | | | |
+| **Suivre les retours des utilisateurs** `organisation.retours.suivre` | Lire tous les retours (post-it), voir les captures, changer leur statut et répondre à l'auteur ; chacun voit toujours ses propres retours | user_feedback (par le serveur, /api/retours) |  |  | x | x |  |  |  |  |  |  |  |  |  |  |  |  |

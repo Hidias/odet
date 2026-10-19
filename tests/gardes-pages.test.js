@@ -48,7 +48,18 @@ describe('gardes des pages (ecrans/gardes)', () => {
     expect(items).toContain('/devis')
     expect(items).not.toContain('/factures')
     expect(visibleSettingsItems('admin', avec()).map((i) => i.to)).toEqual([])
-    expect(visibleSettingsItems('superadmin', inconnus).map((i) => i.to)).toEqual(['/parametres', '/console'])
+    expect(visibleSettingsItems('superadmin', inconnus).map((i) => i.to)).toEqual(['/nouveautes', '/parametres', '/retours', '/console'])
+  })
+
+  it('mise en service : Quoi de neuf pour tous, suivi des retours avec son droit, modules respectés', () => {
+    expect(visibleSettingsItems('lecture', avec('organisation.reglages.voir'), ['nouveautes', 'retours']).map((i) => i.to)).toEqual(['/nouveautes'])
+    expect(visibleSettingsItems('admin', avec('organisation.reglages.voir', 'organisation.retours.suivre'), ['nouveautes', 'retours']).map((i) => i.to))
+      .toEqual(['/nouveautes', '/retours'])
+    expect(visibleSettingsItems('direction', avec('organisation.reglages.voir', 'organisation.retours.suivre'), ['retours']).map((i) => i.to)).toEqual([])
+    expect(visibleSettingsItems('admin', avec('organisation.reglages.voir', 'organisation.retours.suivre'), []).map((i) => i.to)).toEqual([])
+    expect(accesPage('/retours', 'admin', inconnus)).toBe(false)
+    expect(accesPage('/retours', 'superadmin', inconnus)).toBe(true)
+    expect(accesPage('/nouveautes', 'lecture', avec('organisation.reglages.voir'))).toBe(true)
   })
 
   it('chaque entrée du menu (sauf l\'accueil) a un droit', () => {

@@ -13,6 +13,7 @@ import { APP_VERSION } from '../version'
 import { CHANGELOG } from '../changelog'
 import { ModulesSection, Toggle } from '../settings/shared'
 import RetoursConsole from '../feedback/RetoursConsole'
+import { BandeauConsole, NouveautesConsole } from '../notices/AvisConsole'
 
 // Console technique de l'instance, réservée au super administrateur :
 // état, migrations à appliquer, modules, mode démo, accès, exports, notes de version.
@@ -194,6 +195,10 @@ export default function Console() {
 
       <RetoursConsole />
 
+      <BandeauConsole />
+
+      <NouveautesConsole />
+
       <Section icon={Activity} title="État de l'instance">
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-ui">
           <Row k="Base de données" v={supabaseHost || 'non configurée'} />
@@ -316,19 +321,42 @@ const DEMO_LABELS = {
 }
 const CONFIRM_WORD = 'EFFACER'
 
+// Tables où une saisie réelle peut être rattachée à du fictif : libellés pour le super administrateur
+const LIEN_LABELS = {
+  invoices: 'factures', quotes: 'devis', sessions: 'sessions', session_trainees: 'inscriptions à une session',
+  itv_visits: 'visites', itv_contracts: 'contrats de maintenance', itv_equipment: 'appareils du parc',
+  client_contacts: 'contacts', client_interactions: 'notes et échanges client', prospect_calls: 'appels',
+  prospect_rdv: 'rendez-vous', attendance_halfdays: 'émargements', invoice_payments: 'paiements',
+  invoice_items: 'lignes de facture', quote_items: 'lignes de devis', trainee_evaluations: 'évaluations',
+  duerp_projects: 'DUERP', notifications: 'notifications', sites: 'sites',
+}
+
+const COLONNE_LABELS = {
+  client_id: 'le client', billing_client_id: 'le client facturé', session_id: 'la session', trainee_id: 'le stagiaire',
+  quote_id: 'le devis', invoice_id: 'la facture', parent_invoice_id: 'la facture d\'origine', rdv_id: 'le rendez-vous',
+}
+
 function DemoDataSection({ onPurged }) {
   const [summary, setSummary] = useState(null)
   const [confirmText, setConfirmText] = useState('')
   const [purging, setPurging] = useState(false)
+  const [liens, setLiens] = useState(null)
+  const [liensVus, setLiensVus] = useState(false)
 
   async function loadSummary() {
     const { data, error } = await supabase.rpc('demo_data_summary')
     setSummary(error ? {} : (data || {}))
+    // Lignes probablement réelles rattachées au fictif (0264) : absentes tant que la migration n'est pas appliquée
+    const { data: l, error: lErr } = await supabase.rpc('demo_real_links')
+    setLiens(lErr ? { indisponible: true } : (l || { total: 0, lignes: [] }))
   }
   useEffect(() => { loadSummary() }, [])
 
+  const reelles = liens && !liens.indisponible ? (liens.total || 0) : 0
+  const purgeBloquee = reelles > 0 && !liensVus
+
   async function purge() {
-    if (confirmText.trim().toUpperCase() !== CONFIRM_WORD) return
+    if (confirmText.trim().toUpperCase() !== CONFIRM_WORD || purgeBloquee) return
     setPurging(true)
     try {
       const { data, error } = await supabase.rpc('purge_demo_data')
@@ -364,11 +392,41 @@ function DemoDataSection({ onPurged }) {
           <div className="flex flex-wrap gap-2">
             {entries.map(([k, n]) => <span key={k} className="badge badge-neutral">{n} {DEMO_LABELS[k] || k}</span>)}
           </div>
+          {liens?.indisponible && (
+            <p className="text-ui-sm text-gray-500">Contrôle des saisies réelles rattachées au fictif : disponible après la migration 0264.</p>
+          )}
+          {liens && !liens.indisponible && reelles === 0 && (
+            <p className="text-ui-sm text-[rgb(var(--c-success))] flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Aucune saisie récente rattachée aux données fictives : la purge n'emportera rien de réel.</p>
+          )}
+          {reelles > 0 && (
+            <div className="rounded-ui p-3 space-y-2" style={{ background: 'rgb(var(--c-warning-bg))' }}>
+              <p className="text-ui font-semibold text-gray-900 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-[rgb(var(--c-warning))]" /> {reelles} ligne{reelles > 1 ? 's' : ''} probablement réelle{reelles > 1 ? 's' : ''} rattachée{reelles > 1 ? 's' : ''} à des données fictives
+              </p>
+              <p className="text-ui-sm text-gray-700">
+                Créées après le jeu de démonstration (après le {liens.seuil ? new Date(liens.seuil).toLocaleString('fr-FR') : '…'}), elles pointent vers un client,
+                une session, un stagiaire, un devis ou une facture fictifs : la purge les effacerait. Rattachez-les d'abord à un client ou une session réels
+                (ou recréez-les), puis revenez ici.
+              </p>
+              <ul className="text-ui-sm text-gray-800 space-y-0.5">
+                {liens.lignes.map((l) => (
+                  <li key={`${l.table}.${l.colonne}`}>
+                    <span className="font-semibold">{l.nombre} {LIEN_LABELS[l.table] || l.table}</span>
+                    <span className="text-gray-500"> · liées par {COLONNE_LABELS[l.colonne] || l.colonne} · dernière le {new Date(l.derniere).toLocaleDateString('fr-FR')}</span>
+                  </li>
+                ))}
+              </ul>
+              <label className="flex items-start gap-2 text-ui-sm text-gray-800">
+                <input type="checkbox" className="mt-0.5" checked={liensVus} onChange={(e) => setLiensVus(e.target.checked)} />
+                J'ai vérifié ces lignes : elles peuvent être effacées avec les données de démonstration.
+              </label>
+            </div>
+          )}
           <div className="rounded-ui border border-gray-200 p-3 space-y-2">
             <label className="label" htmlFor="demo-confirm">Pour effacer, tapez {CONFIRM_WORD}</label>
             <div className="flex flex-wrap gap-2">
               <input id="demo-confirm" className="input max-w-xs" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder={CONFIRM_WORD} autoComplete="off" />
-              <button type="button" onClick={purge} disabled={purging || confirmText.trim().toUpperCase() !== CONFIRM_WORD} className="btn btn-danger">
+              <button type="button" onClick={purge} disabled={purging || purgeBloquee || confirmText.trim().toUpperCase() !== CONFIRM_WORD} className="btn btn-danger">
                 {purging ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Effacer les données de démonstration
               </button>
             </div>

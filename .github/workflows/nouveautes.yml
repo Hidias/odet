@@ -1,0 +1,47 @@
+# Nouveautés : à chaque pull request fusionnée dans main, une entrée « Quoi de neuf » est proposée en BROUILLON
+# (titre de la PR, premier paragraphe de sa description). Rien n'est montré aux utilisateurs : le super
+# administrateur relit, réécrit en français simple et publie dans Console › Quoi de neuf.
+# Fonction appelée : public.notice_from_pull_request (migration 0262), réservée au serveur ; une même PR ne crée
+# jamais deux entrées. Tant que la migration 0262 n'est pas appliquée, l'étape ne fait rien.
+# Les textes passent par des variables psql (jamais collés dans la requête).
+
+name: Nouveautés
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  brouillon:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Client PostgreSQL
+        run: psql --version
+
+      - name: Brouillon « Quoi de neuf »
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PR_NUMERO: ${{ github.event.pull_request.number }}
+          PR_TITRE: ${{ github.event.pull_request.title }}
+          PR_TEXTE: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          [ -n "$SUPABASE_DB_URL" ] || { echo "Secret SUPABASE_DB_URL absent : rien à faire."; exit 0; }
+          present="$(psql "$SUPABASE_DB_URL" -X -At -v ON_ERROR_STOP=1 \
+            -c "select to_regprocedure('public.notice_from_pull_request(integer,text,text,text)') is not null")"
+          if [ "$present" != "t" ]; then
+            echo "Migration 0262 pas encore appliquée : aucune entrée proposée."
+            exit 0
+          fi
+          id="$(psql "$SUPABASE_DB_URL" -X -At -v ON_ERROR_STOP=1 \
+            -v numero="$PR_NUMERO" -v titre="$PR_TITRE" -v texte="${PR_TEXTE:-}" -v url="$PR_URL" <<'SQL'
+          select coalesce(public.notice_from_pull_request(:'numero'::int, :'titre', :'texte', :'url')::text, 'déjà proposée');
+          SQL
+          )"
+          echo "Entrée « Quoi de neuf » en brouillon : $id" | tee -a "$GITHUB_STEP_SUMMARY"

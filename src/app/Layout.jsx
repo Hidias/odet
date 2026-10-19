@@ -10,6 +10,8 @@ import { useAuthStore } from '../core/store'
 import { RouteErrorBoundary } from '../core/errors/ErrorBoundary'
 import PostIt from '../core/feedback/PostIt'
 import WelcomeSheet from '../core/feedback/WelcomeSheet'
+import BandeauInfo from '../core/notices/BandeauInfo'
+import { useNotices } from '../core/notices/notices'
 import { supabase } from '../core/supabase'
 import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
@@ -66,7 +68,18 @@ export default function Layout() {
     if (!fieldOnly) return all
     return all.map((s) => ({ ...s, items: s.items.filter((i) => i.to === '/interventions') })).filter((s) => s.items.length > 0)
   }, [modules, userRole, fieldOnly, rights, can])
-  const settingsItems = useMemo(() => (fieldOnly ? [] : visibleSettingsItems(userRole, can)), [userRole, fieldOnly, rights, can])
+  // Bandeau d'information et « Quoi de neuf » (chantier A) : état lu par la base, relu toutes les 15 minutes
+  const notices = useNotices()
+  const chargerNotices = notices.charger
+  useEffect(() => {
+    if (!user?.id) return undefined
+    chargerNotices()
+    const t = setInterval(chargerNotices, 900000)
+    return () => clearInterval(t)
+  }, [user?.id, chargerNotices])
+  const retoursActif = notices.disponible ? (modules || []).includes('retours') : null
+  const settingsItems = useMemo(() => (fieldOnly ? [] : visibleSettingsItems(userRole, can, modules)
+    .map((i) => (i.to === '/nouveautes' ? { ...i, dot: notices.unseen } : i))), [userRole, fieldOnly, rights, can, modules, notices.unseen])
   // Garde de l'adresse directe : même table que le menu (rôle et droits)
   const pageAutorisee = useMemo(() => accesPage(location.pathname, userRole, can), [location.pathname, userRole, rights, can])
   const fieldAllowed = !fieldOnly || location.pathname.startsWith('/interventions') || location.pathname === '/mot-de-passe'
@@ -197,6 +210,7 @@ export default function Layout() {
       <item.icon className="w-[18px] h-[18px] flex-none" />
       <span className="truncate">{item.label}</span>
       {item.soon && <span className="ml-auto badge badge-neutral" style={{ height: 18, fontSize: 10.5 }}>bientôt</span>}
+      {item.dot && <span className="ml-auto badge badge-warning" style={{ height: 18, fontSize: 10.5 }}>nouveau</span>}
     </NavLink>
   )
 
@@ -275,8 +289,9 @@ export default function Layout() {
         <div className="flex-1" />
         {settingsItems.map((item) => (
           <NavLink key={item.to} to={item.to} title={item.label} aria-label={item.label}
-            className={({ isActive }) => `w-11 h-11 rounded-ui-sm flex items-center justify-center ${isActive ? 'bg-nav-fg/15 text-nav-fg' : 'text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg'}`}>
+            className={({ isActive }) => `relative w-11 h-11 rounded-ui-sm flex items-center justify-center ${isActive ? 'bg-nav-fg/15 text-nav-fg' : 'text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg'}`}>
             <item.icon className="w-5 h-5" />
+            {item.dot && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-accent-500" aria-label="nouveau" />}
           </NavLink>
         ))}
         <button type="button" onClick={handleLogout} aria-label="Se déconnecter" className="w-11 h-11 rounded-ui-sm flex items-center justify-center text-nav-fg/60 hover:bg-nav-fg/10 hover:text-nav-fg">
@@ -475,7 +490,10 @@ export default function Layout() {
             <div className="relative">
               <button type="button" onClick={() => { const v = !showUserMenu; closeMenus(); setShowUserMenu(v) }} aria-label="Compte"
                 className="h-9 pl-1 pr-2 rounded-ui-sm flex items-center gap-2 hover:bg-gray-100">
-                <span className="w-7 h-7 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase">{initials(profile, user)}</span>
+                <span className="relative w-7 h-7 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase">
+                  {initials(profile, user)}
+                  {notices.unseen && !fieldOnly && (modules || []).includes('nouveautes') && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent-500 ring-2 ring-white" aria-label="Nouveautés à voir" />}
+                </span>
                 <ChevronDown className="w-4 h-4 text-gray-500 hidden sm:block" />
               </button>
               {showUserMenu && (
@@ -489,6 +507,7 @@ export default function Layout() {
                     {settingsItems.map((item) => (
                       <NavLink key={item.to} to={item.to} onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                         <item.icon className="w-4 h-4" />{item.label}
+                        {item.dot && <span className="ml-auto badge badge-warning" style={{ height: 18, fontSize: 10.5 }}>nouveau</span>}
                       </NavLink>
                     ))}
                     <NavLink to="/settings/email" onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
@@ -516,6 +535,9 @@ export default function Layout() {
               <span>Les emails ne partent pas vers leurs destinataires : ils sont redirigés vers l'adresse de test.</span>
             </div>
           )}
+          {notices.disponible && (
+            <BandeauInfo nouveautes={!fieldOnly && (modules || []).includes('nouveautes')} retours={retoursActif !== false} />
+          )}
           <BandeauVueGroupe />
           {!fieldAllowed ? <Navigate to="/interventions" replace />
             : pageAutorisee ? <RouteErrorBoundary><Outlet /></RouteErrorBoundary>
@@ -524,7 +546,7 @@ export default function Layout() {
       </div>
 
       <ChoixSociete />
-      <PostIt userId={user?.id} pageTitle={pageTitle} />
+      {retoursActif !== false && <PostIt userId={user?.id} pageTitle={pageTitle} complet={retoursActif === true} />}
       <WelcomeSheet user={user} profile={profile} userRole={userRole} />
     </div>
   )

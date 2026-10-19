@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Calendar, GraduationCap, Users, UserCheck, FileText, FileQuestion, ClipboardCheck,
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
-  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow,
+  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -109,12 +109,18 @@ export const NAV_SECTIONS = [
 ]
 
 export const SETTINGS_ITEMS = [
+  // Quoi de neuf (module « nouveautes », chantier A) : tout compte interne qui voit les réglages de l'organisme
+  { to: '/nouveautes', icon: Sparkles, label: 'Quoi de neuf', module: 'nouveautes', right: 'organisation.reglages.voir' },
   // Paramètres : super administrateur ; administrateur seulement avec la licence totale (droit parametres.ouvrir,
   // filtré par la base) ; direction jamais (décision du 17/10). Droits inconnus : super administrateur seulement.
   { to: '/parametres', icon: Settings, label: 'Paramètres', roles: ADMINS, right: 'parametres.ouvrir', fallbackRoles: ['superadmin'] },
   // Règles de gestion : circuits de validation et comptable externe, hors Paramètres (la direction y accède)
   { to: '/regles-gestion', icon: Workflow, label: 'Règles de gestion', roles: ['superadmin', 'admin', 'direction', 'membre'],
     right: ['validations.circuits.configurer', 'facturation.comptable_externe.regler'], fallbackRoles: [] },
+  // Suivi des retours (module « retours », chantier A) : super administrateur et administrateur ; droits inconnus :
+  // super administrateur seulement
+  { to: '/retours', icon: StickyNote, label: 'Retours des utilisateurs', module: 'retours', roles: ['superadmin', 'admin', 'membre'],
+    right: 'organisation.retours.suivre', fallbackRoles: ['superadmin'] },
   { to: '/console', right: 'plateforme.administrer', icon: Sliders, label: 'Console', roles: ['superadmin'] },
 ]
 
@@ -144,8 +150,10 @@ export function visibleSections(enabledModules, role, can) {
     .filter((s) => s.items.length > 0)
 }
 
-export function visibleSettingsItems(role, can) {
-  return SETTINGS_ITEMS.filter((i) => itemAutorise(i, role, can))
+// `modules` (facultatif) : une entrée rattachée à un module n'apparaît que si le module est actif
+export function visibleSettingsItems(role, can, modules = null) {
+  const actifs = modules ? new Set(modules) : null
+  return SETTINGS_ITEMS.filter((i) => (!i.module || !actifs || actifs.has(i.module)) && itemAutorise(i, role, can))
 }
 
 // Pages hors menu, rattachées à une entrée (même garde)
