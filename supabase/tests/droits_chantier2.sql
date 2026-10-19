@@ -1822,6 +1822,45 @@ begin
       if y_n >= 2 then v_lines := v_lines || 'OK      ent   C2 : compte externe limité par ses règles propres, pas par la société'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   C2 : compte externe limité par ses règles propres, pas par la société'::text; end if;
 
+      -- Fonctions qui contournent les règles (0276) : objet d'une autre société refusé
+      if to_regprocedure('app.exiger_societe(text,uuid,boolean)') is not null then
+        v_total := v_total + 3;
+        perform set_config('request.jwt.claims', json_build_object('sub', y_ux, 'role', 'authenticated')::text, true);
+        execute 'set local role authenticated';
+        y_ok := not app.societe_permise(y_own) and app.societe_permise(y_x) and app.societe_permise(y_x, true);
+        execute 'reset role';
+        perform set_config('request.jwt.claims', json_build_object('sub', y_ug, 'role', 'authenticated')::text, true);
+        execute 'set local role authenticated';
+        y_ok := y_ok and app.societe_permise(y_own) and not app.societe_permise(y_x);
+        execute 'reset role';
+        if y_ok then v_lines := v_lines || 'OK      ges   C2 : société permise (lecture et écriture) selon le compte'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   C2 : société permise (lecture et écriture) selon le compte'::text; end if;
+        perform set_config('request.jwt.claims', json_build_object('sub', y_ux, 'role', 'authenticated')::text, true);
+        execute 'set local role authenticated';
+        y_ok := false;
+        begin perform public.billing_deposit_summary(y_q); exception when insufficient_privilege then y_ok := true; end;
+        execute 'reset role';
+        if y_ok then v_lines := v_lines || 'OK      ges   C2 : suivi des acomptes d''un devis d''une autre société refusé'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   C2 : suivi des acomptes d''un devis d''une autre société refusé'::text; end if;
+        perform set_config('request.jwt.claims', json_build_object('sub', y_ux, 'role', 'authenticated')::text, true);
+        execute 'set local role authenticated';
+        y_ok := false;
+        execute 'reset role';
+        y_cli := (select id from public.clients where name = 'Client C2 société 1');
+        execute 'set local role authenticated';
+        y_err := '';
+        begin perform public.client_contact_sync_primary(y_cli);
+          y_ok := true; exception when others then y_ok := false; y_err := sqlerrm; end;
+        execute 'reset role';
+        update public.clients set company_ids = array[y_own] where id = y_cli;
+        execute 'set local role authenticated';
+        begin perform public.client_contact_sync_primary(y_cli);
+          y_ok := false; y_err := 'non refusé'; exception when insufficient_privilege then y_ok := y_ok; end;
+        execute 'reset role';
+        if y_ok then v_lines := v_lines || 'OK      ges   C2 : fiche partagée traitée, fiche non partagée refusée'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ges   C2 : fiche partagée traitée, fiche non partagée refusée ' || coalesce(y_err, '')); end if;
+      end if;
+
       perform set_config('request.jwt.claims', '', true);
       delete from public.quote_items where company_id = y_x;
       delete from public.quotes where company_id = y_x;

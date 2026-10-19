@@ -72,6 +72,13 @@ Générées par `scripts/securite/societes_c2.py` (classes de la spec § 3, list
   sociétés, création rattachée à la société courante, création forcée ailleurs refusée, ligne fille, fiche partagée,
   super administrateur sans support, compte externe).
 - Retour arrière : `supabase/rollback/0274-0275_societes_retour.sql` (refusé s'il existe plus d'une société).
-- Reste pour C2 : fonctions `security definer` qui lisent des listes (filtre par société), vues, routes `/api` à clé de
-  service (société en paramètre contrôlé), numérotation des sessions et devis par société, identité des PDF et emails
-  par société, rangement des fichiers par société.
+- **0276** (généré par `scripts/securite/societes_c2_fonctions.py` à partir des définitions de production) : les
+  fonctions `security definer` qui traitent un objet (facture, devis, visite, stagiaire, client, fichier du Passeport)
+  vérifient sa société (`app.exiger_societe`) ; `app.can_read_session`, `app.can_edit_session` et
+  `app.itv_can_edit_visit_parts` (feuilles d'émargement, tests, pièces de visite, stockage) aussi ; les comptages et
+  listes (journal d'audit, handicap, PSH, tableau de bord des interventions, purge, Passeport) ne lisent que les
+  sociétés du compte ; alertes de complétude rattachées à la société de l'élément. Tâches du serveur non concernées.
+- Reste, traité avec C3 (visible seulement à partir de deux sociétés) : routes `/api` à clé de service (lecture de
+  l'objet sous la session de l'appelant avant traitement), numérotation des sessions et devis par société, identité des
+  PDF et emails par société, rangement des nouveaux fichiers par société, échéances de certification par société
+  (`cert_settings` est aujourd'hui une ligne unique).
