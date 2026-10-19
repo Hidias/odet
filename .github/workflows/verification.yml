@@ -41,3 +41,40 @@ jobs:
 
       - name: Tests
         run: npm test
+
+  # Factur-X : cas fictifs (facture, remise et deux taux, avoir, client public Chorus Pro, particulier, ligne exonérée,
+  # autoliquidation, franchise) validés par Mustang (schéma CII et règles EN 16931). Outil libre, aucun service payant.
+  facturx:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      MUSTANG_VERSION: 2.26.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Installation
+        run: npm ci
+
+      - name: Cas fictifs
+        run: node scripts/facturx/cas.mjs "$RUNNER_TEMP/facturx"
+
+      - name: Validation Mustang
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/mustang.jar" "https://repo1.maven.org/maven2/org/mustangproject/Mustang-CLI/$MUSTANG_VERSION/Mustang-CLI-$MUSTANG_VERSION.jar"
+          echsec=0
+          for f in "$RUNNER_TEMP"/facturx/*.xml; do
+            r=$(java -jar "$RUNNER_TEMP/mustang.jar" --action validate --source "$f" --disable-file-logging 2>/dev/null | grep -oE 'status="(valid|invalid)"' | tail -1)
+            echo "$(basename "$f") : $r"
+            [ "$r" = 'status="valid"' ] || echsec=1
+          done
+          exit $echsec

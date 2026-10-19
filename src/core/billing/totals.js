@@ -37,7 +37,9 @@ export function lineTotal(item) {
  * Totaux d'un document.
  * @param {Array} items lignes { quantity, unit_price_ht, tva_rate }
  * @param {Object} opts { discountPercent, vatApplicable, defaultRate }
- * Catégorie de TVA (Factur-X) : S = taux positif, E = exonéré ou taux nul, ou TVA non applicable.
+ * Catégorie de TVA (Factur-X) : S = taux positif, E = exonéré ou taux nul, ou TVA non applicable,
+ * AE = autoliquidation (régime de la ligne, 0363). Les montants ne dépendent que des taux : le régime ne change que la
+ * catégorie (l'écran met le taux à 0 % quand on choisit un régime autre que normal).
  */
 export function computeDocumentTotals(items, opts = {}) {
   const dp = num(opts.discountPercent)
@@ -45,12 +47,15 @@ export function computeDocumentTotals(items, opts = {}) {
   const defaultRate = opts.defaultRate === undefined ? DEFAULT_VAT_RATE : opts.defaultRate
   const lines = (items || []).map((it) => {
     const rate = vatApplicable ? parseRate(it?.tva_rate, defaultRate) : 0
-    return { it, q: num(it?.quantity), pu: num(it?.unit_price_ht), rate, cat: rate > 0 ? 'S' : 'E', net: lineTotal(it) }
+    const regime = vatApplicable ? (it?.vat_regime || 'normal') : 'normal'
+    const cat = regime === 'autoliquidation' ? 'AE' : (regime === 'exonere' || rate <= 0 ? 'E' : 'S')
+    return { it, q: num(it?.quantity), pu: num(it?.unit_price_ht), rate, cat, regime, net: lineTotal(it) }
   })
   const groups = new Map()
   for (const l of lines) {
     const key = `${l.cat}|${l.rate}`
-    if (!groups.has(key)) groups.set(key, { cat: l.cat, rate: l.rate, lines: 0 })
+    if (!groups.has(key)) groups.set(key, { cat: l.cat, rate: l.rate, lines: 0, exonere: false })
+    if (l.regime === 'exonere') groups.get(key).exonere = true
     groups.get(key).lines = round2(groups.get(key).lines + l.net)
   }
   let allowanceTotal = 0
