@@ -32,7 +32,15 @@ end $$;
 delete from public.permission_profile_rights where right_code = 'organisation.retours.suivre';
 delete from public.company_member_rights where right_code = 'organisation.retours.suivre';
 delete from public.permissions where code = 'organisation.retours.suivre';
-delete from storage.buckets where id = 'retours';
+-- Bucket vide : retiré si le stockage l'autorise par SQL ; sinon laissé (vide, privé, sans effet) et à supprimer
+-- dans Supabase › Storage
+do $$
+begin
+  perform set_config('storage.allow_delete_query', 'true', true);
+  delete from storage.buckets where id = 'retours';
+exception when others then
+  raise notice 'Bucket « retours » laissé en place (vide) : %', sqlerrm;
+end $$;
 
 drop index if exists public.user_feedback_author_idx;
 alter table public.user_feedback drop constraint if exists user_feedback_status_check;
