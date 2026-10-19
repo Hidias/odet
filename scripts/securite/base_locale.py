@@ -150,13 +150,16 @@ ORDRE_PROD = (
     + ['0111', '0190', '0250', '0260']
     + [f'{n:04d}' for n in range(80, 88)]
     + ['0070', '0270', '0271', '0272', '0273']
+    # 18 et 19/10/2026 : droits composés (C1b), maintenance de nuit, puis Facturation fiable, dans l'ordre réel
+    + [f'{n:04d}' for n in range(370, 380)]
+    + ['0360', '0361', '0362', '0369', '0363', '0364', '0365', '0366', '0367', '0368']
 )
 
 
 def migrations(jusqu_a=None):
     fichiers = {f.name[:4]: f for f in MIG.glob('[0-9][0-9][0-9][0-9]_*.sql')}
     ordre = [n for n in ORDRE_PROD if n in fichiers]
-    # Migrations plus récentes que 0273 (chantier en cours), dans l'ordre des numéros
+    # Migrations pas encore dans l'ordre de production (chantier en cours, dont C2 0274 et suivantes), dans l'ordre des numéros
     ordre += sorted(n for n in fichiers if n > '0273' and n not in ordre)
     out = []
     for n in ordre:

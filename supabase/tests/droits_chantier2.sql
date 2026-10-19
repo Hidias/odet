@@ -34,6 +34,15 @@ declare
 begin
   set local lock_timeout = '5s';
 
+  -- Isolement par société (C2, 0275) : le super administrateur ne lit les données d'une société que par l'accès de
+  -- support. Les tests du super administrateur se jouent avec l'accès permanent sur la société de l'instance (réglage
+  -- de GLD), quel que soit le réglage de la base d'essai ; annulé avec le reste.
+  if to_regprocedure('app.societes_lisibles()') is not null then
+    alter table public.companies disable trigger companies_guard;
+    update public.companies set support_access_mode = 'permanent' where is_instance_owner;
+    alter table public.companies enable trigger companies_guard;
+  end if;
+
   -- Comptes ------------------------------------------------------------------------------------------
   insert into auth.users (id, email, aud, role)
   select x.id, x.email, 'authenticated', 'authenticated' from (values
@@ -429,7 +438,7 @@ begin
        and not has_table_privilege('authenticated', 'public.pp_nir', 'SELECT') then
       v_lines := v_lines || 'OK      base  pp_nir : aucune règle, aucun droit pour les comptes connectés'::text;
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  pp_nir : aucune règle, aucun droit pour les comptes connectés'::text; end if;
-    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename like 'pp\_%'
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename like 'pp\_%' and policyname not like '%\_societe\_%'
                    and ((coalesce(qual, '') || coalesce(with_check, '')) not like '%pp_can%'
                         or (coalesce(qual, '') || coalesce(with_check, '')) not like '%app.role()%')) then
       v_lines := v_lines || 'OK      base  tables pp_* : règles du Passeport (direction et gestion), compte actif'::text;
@@ -588,6 +597,16 @@ begin
       end loop;
 
       -- Sociétés fictives supprimées (l'erreur finale annule de toute façon toute la transaction)
+      -- Lignes rattachées aux sociétés fictives (C2 : company_id sur les tables métier)
+      declare v_ct text;
+      begin
+        for v_ct in select distinct tc.relname from pg_constraint k join pg_class tc on tc.oid = k.conrelid
+                    join pg_namespace n on n.oid = tc.relnamespace
+                    where k.contype = 'f' and k.confrelid = 'public.companies'::regclass and n.nspname = 'public'
+                      and tc.relname like '%' and exists (select 1 from pg_constraint k2 where k2.oid = k.oid and k2.conname = tc.relname || '_company_fk') loop
+          execute format('delete from public.%I where company_id = any ($1)', v_ct) using array[c_a, c_b];
+        end loop;
+      end;
       delete from public.support_access_grants where company_id in (c_a, c_b);
       delete from public.company_modules where company_id in (c_a, c_b);
       delete from public.company_members where company_id in (c_a, c_b);
@@ -864,6 +883,16 @@ begin
       delete from public.approval_rules where company_id in (c1, c_y) and validator_right in ('stock.commandes.valider', 'frais.notes.valider');
       delete from public.offers where code = 'essai_offre';
       delete from public.permission_profiles where company_id = c1 and key = 'comptable_externe';
+      -- Lignes rattachées aux sociétés fictives (C2 : company_id sur les tables métier)
+      declare v_ct text;
+      begin
+        for v_ct in select distinct tc.relname from pg_constraint k join pg_class tc on tc.oid = k.conrelid
+                    join pg_namespace n on n.oid = tc.relnamespace
+                    where k.contype = 'f' and k.confrelid = 'public.companies'::regclass and n.nspname = 'public'
+                      and tc.relname like '%' and exists (select 1 from pg_constraint k2 where k2.oid = k.oid and k2.conname = tc.relname || '_company_fk') loop
+          execute format('delete from public.%I where company_id = any ($1)', v_ct) using array[c_x, c_y];
+        end loop;
+      end;
       delete from public.company_members where company_id in (c_x, c_y);
       delete from public.companies where id in (c_x, c_y);
     end;
@@ -1673,6 +1702,134 @@ begin
       if x_ok then v_lines := v_lines || 'OK      dir   0368 : pas d''acompte sur un devis non accepté'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0368 : pas d''acompte sur un devis non accepté'::text; end if;
       perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
+  -- Données rattachées aux sociétés, isolement entre sociétés (C2, 0274 et 0275)
+  if to_regprocedure('app.societes_lisibles()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 9;
+    declare
+      y_x uuid; y_own uuid := (select id from public.companies where is_instance_owner limit 1);
+      y_ux uuid := gen_random_uuid(); y_ug uuid := gen_random_uuid(); y_cli uuid; y_q uuid; y_qx uuid; y_it uuid;
+      y_ok boolean; y_n int; y_err text;
+    begin
+      insert into public.companies (legal_name, support_access_mode) values ('Essai société C2', 'none') returning id into y_x;
+      insert into auth.users (id, email, aud, role) values
+        (y_ux, 'c2.x@test.invalid', 'authenticated', 'authenticated'), (y_ug, 'c2.g@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (y_ux, 'c2.x@test.invalid', 'gestionnaire', true), (y_ug, 'c2.g@test.invalid', 'gestionnaire', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      delete from public.company_members where profile_id in (y_ux, y_ug);
+      insert into public.company_members (company_id, profile_id, role, is_default) values (y_x, y_ux, 'gestionnaire', true), (y_own, y_ug, 'gestionnaire', true);
+      insert into public.clients (name) values ('Client C2 société 1') returning id into y_cli;
+      insert into public.quotes (reference, client_id, status) values ('DEV-C2-1', y_cli, 'draft') returning id into y_q;
+
+      -- Structure : toutes les tables rattachées ont une société non nulle avec clé étrangère
+      select count(*) into y_n from pg_attribute a join pg_class c on c.oid = a.attrelid join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and a.attname = 'company_id' and not a.attnotnull and c.relkind = 'r'
+        and exists (select 1 from pg_constraint k where k.conrelid = c.oid and k.conname = c.relname || '_company_fk');
+      if y_n = 0 and (select company_id = y_own and company_ids = array[y_own] from public.clients where id = y_cli)
+         and (select company_id = y_own from public.quotes where id = y_q) then
+        v_lines := v_lines || 'OK      base  C2 : société non nulle, remplie par la société n° 1, fiches partageables'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C2 : société non nulle, remplie par la société n° 1, fiches partageables'::text; end if;
+
+      -- Compte de la société n° 1 : voit le devis ; compte de l'autre société : ne le voit pas
+      perform set_config('request.jwt.claims', json_build_object('sub', y_ug, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into y_n from public.quotes where id = y_q;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', y_ux, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      y_ok := y_n = 1 and (select count(*) from public.quotes where id = y_q) = 0 and (select count(*) from public.clients where id = y_cli) = 0;
+      execute 'reset role';
+      if y_ok then v_lines := v_lines || 'OK      ges   C2 : devis et client d''une autre société invisibles'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   C2 : devis et client d''une autre société invisibles'::text; end if;
+
+      -- Création dans sa société : société courante par défaut, invisible de la société n° 1
+      perform set_config('request.jwt.claims', json_build_object('sub', y_ux, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.clients (name) values ('Client C2 société X') returning id into y_cli;
+      insert into public.quotes (reference, client_id, status) values ('DEV-C2-X', y_cli, 'draft') returning id into y_qx;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', y_ug, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into y_n from public.quotes where id = y_qx;
+      execute 'reset role';
+      if (select company_id = y_x from public.quotes where id = y_qx) and y_n = 0 then
+        v_lines := v_lines || 'OK      ges   C2 : création rattachée à la société courante, invisible ailleurs'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   C2 : création rattachée à la société courante, invisible ailleurs'::text; end if;
+
+      -- Création forcée dans une autre société : refusée
+      perform set_config('request.jwt.claims', json_build_object('sub', y_ux, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      y_ok := false;
+      begin insert into public.quotes (reference, client_id, status, company_id) values ('DEV-C2-F', y_cli, 'draft', y_own);
+      exception when insufficient_privilege then y_ok := true; end;
+      execute 'reset role';
+      if y_ok then v_lines := v_lines || 'OK      ges   C2 : création dans une autre société refusée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   C2 : création dans une autre société refusée'::text; end if;
+
+      -- Ligne fille : société du parent, jamais une autre
+      perform set_config('request.jwt.claims', json_build_object('sub', y_ux, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.quote_items (quote_id, position, description_title, quantity, unit_price_ht, company_id)
+        values (y_qx, 0, 'Ligne', 1, 10, y_own) returning id into y_it;
+      y_ok := false;
+      begin insert into public.quote_items (quote_id, position, description_title, quantity, unit_price_ht) values (y_q, 0, 'Ligne', 1, 10);
+      exception when insufficient_privilege then y_ok := true; end;
+      execute 'reset role';
+      if y_ok and (select company_id = y_x from public.quote_items where id = y_it) then
+        v_lines := v_lines || 'OK      ges   C2 : ligne fille rattachée à la société de son parent'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   C2 : ligne fille rattachée à la société de son parent'::text; end if;
+
+      -- Modification et suppression d'une ligne d'une autre société : sans effet
+      perform set_config('request.jwt.claims', json_build_object('sub', y_ux, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      with x as (update public.quotes set object = 'essai' where id = y_q returning 1) select count(*) into y_n from x;
+      with x as (delete from public.quotes where id = y_q returning 1) select y_n + count(*) into y_n from x;
+      execute 'reset role';
+      if y_n = 0 and exists (select 1 from public.quotes where id = y_q and object is distinct from 'essai') then
+        v_lines := v_lines || 'OK      ges   C2 : aucune modification ni suppression dans une autre société'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   C2 : aucune modification ni suppression dans une autre société'::text; end if;
+
+      -- Fiche partagée : visible et modifiable dans les sociétés cochées
+      update public.clients set company_ids = array[y_own, y_x] where name = 'Client C2 société 1';
+      perform set_config('request.jwt.claims', json_build_object('sub', y_ux, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      with x as (update public.clients set notes = 'vu de X' where name = 'Client C2 société 1' returning 1) select count(*) into y_n from x;
+      execute 'reset role';
+      if y_n = 1 and (select company_id = y_own from public.clients where name = 'Client C2 société 1') then
+        v_lines := v_lines || 'OK      ges   C2 : fiche partagée visible et modifiable dans une société cochée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   C2 : fiche partagée visible et modifiable dans une société cochée'::text; end if;
+
+      -- Super administrateur : société sans accès de support, données invisibles
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into y_n from public.quotes where id = y_qx;
+      execute 'reset role';
+      if y_n = 0 then v_lines := v_lines || 'OK      sa    C2 : société fermée au support, données invisibles'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    C2 : société fermée au support, données invisibles'::text; end if;
+
+      -- Compte externe (entreprise) : sa règle propre décide, la société ne le bloque pas
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ent, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into y_n from (select app.societes_lisibles()) s;
+      execute 'reset role';
+      if y_n >= 2 then v_lines := v_lines || 'OK      ent   C2 : compte externe limité par ses règles propres, pas par la société'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   C2 : compte externe limité par ses règles propres, pas par la société'::text; end if;
+
+      perform set_config('request.jwt.claims', '', true);
+      delete from public.quote_items where company_id = y_x;
+      delete from public.quotes where company_id = y_x;
+      delete from public.clients where company_id = y_x;
+      update public.clients set company_ids = array[y_own] where name = 'Client C2 société 1';
+      delete from public.audit_logs where company_id = y_x;
+      delete from public.company_members where company_id = y_x;
+      delete from public.companies where id = y_x;
     end;
   end if;
 
