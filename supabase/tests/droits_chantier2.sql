@@ -4206,6 +4206,31 @@ begin
     end;
   end if;
 
+  -- Bascule (0384) : pas d'émission de facture avec le RIB de démonstration ; un avoir reste possible
+  if to_regprocedure('app.rib_demo(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare
+      z_co uuid := app.company_default(); z_inv uuid; z_ok boolean := false;
+    begin
+      update public.organization_settings set bic = 'DEMOFRPPXXX', iban = 'FR7630006000011234567890189';
+      update public.companies set bic = null, iban = null where id = z_co;
+      insert into public.invoices (company_id, type, status, client_id, invoice_date)
+      select z_co, 'invoice', 'draft', c.id, current_date from public.clients c limit 1 returning id into z_inv;
+      begin update public.invoices set issued_at = now() where id = z_inv; exception when check_violation then z_ok := true; end;
+      if z_ok then v_lines := v_lines || 'OK      base  0384 : émission refusée avec le RIB de démonstration'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0384 : émission avec le RIB de démonstration'::text; end if;
+      update public.organization_settings set bic = 'CMBRFR2BXXX', iban = 'FR7615589297060008906894048';
+      if not app.rib_demo(z_co) then v_lines := v_lines || 'OK      base  0384 : RIB réel reconnu'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0384 : RIB réel pris pour celui de la démonstration'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0384 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

@@ -209,6 +209,8 @@ ORDRE_PROD = (
     + ['0382']
     # Pièces de visite sorties du stock, camion par technicien, 19/10
     + ['0383']
+    # Bascule : émission refusée avec le RIB de démonstration, 19/10
+    + ['0384']
 )
 
 
