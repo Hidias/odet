@@ -81,7 +81,9 @@ export default function Affaires() {
       <li key={`${l.origine}-${l.id}`} className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <StatusBadge tone={URGENCES[u][0]}>{u === 'retard' || u === 'aujourdhui' ? URGENCES[u][1] : fr(l.next_action_on)}</StatusBadge>
+            {l.next_action_on
+              ? <StatusBadge tone={URGENCES[u][0]}>{u === 'retard' || u === 'aujourdhui' ? URGENCES[u][1] : fr(l.next_action_on)}</StatusBadge>
+              : <StatusBadge tone="warning">Relance à dater</StatusBadge>}
             <Link to={`/clients/${l.client_id}`} className="font-semibold text-gray-900 hover:underline truncate">{l.client_name}</Link>
           </div>
           <div className="text-ui-sm text-gray-600 truncate">
