@@ -2,6 +2,7 @@ import { apiFetch } from '../../core/api'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore, useDataStore } from '../../core/store'
+import RappelNda from '../../core/org/RappelNda'
 import { fetchAll } from '../../core/fetchAll'
 import { supabase } from '../../core/supabase'
 import { 
@@ -1088,6 +1089,7 @@ export default function Dashboard() {
       </div>
       {(modules || []).includes('interventions') && <InterventionsDashboardCard />}
       {(modules || []).includes('previsionnel') && d.devis && <CaAttenduCard />}
+      {(modules || []).includes('formation') && ['superadmin', 'admin', 'direction'].includes(userRole) && <RappelNda organization={organization} />}
       
 
       {/* Widget grid */}
