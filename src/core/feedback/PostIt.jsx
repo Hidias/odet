@@ -131,6 +131,17 @@ export default function PostIt({ userId, pageTitle, complet = false }) {
     return () => clearInterval(t)
   }, [complet, userId])
   useEffect(() => { if (open && onglet === 'mes') chargerMesRetours() }, [open, onglet])
+  // Échap réduit le post-it, sauf si une fenêtre est ouverte par-dessus (elle se ferme d'abord)
+  useEffect(() => {
+    if (!open) return undefined
+    const surEchap = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (document.querySelector('[aria-modal="true"]')) return
+      setOpen(false)
+    }
+    window.addEventListener('keydown', surEchap)
+    return () => window.removeEventListener('keydown', surEchap)
+  }, [open])
 
   const marquerLu = async (id) => {
     try {
@@ -200,11 +211,11 @@ export default function PostIt({ userId, pageTitle, complet = false }) {
       <button
         type="button"
         onClick={() => { setOpen(true); if (nonLues > 0) setOnglet('mes') }}
-        className="postit-float is-closed fixed z-30 h-11 pl-3 pr-4 rounded-ui flex items-center gap-2 text-ui-sm font-semibold shadow-md border border-highlight-300 bg-highlight-100 text-highlight-900 hover:bg-highlight-200 print:hidden"
+        className="postit-float is-closed fixed z-30 h-11 px-3 lg:pl-3 lg:pr-4 rounded-ui flex items-center gap-2 text-ui-sm font-semibold shadow-md border border-highlight-300 bg-highlight-100 text-highlight-900 hover:bg-highlight-200 print:hidden"
         aria-label={nonLues > 0 ? `Ouvrir le post-it : ${nonLues} réponse(s) à lire` : 'Ouvrir le post-it pour noter une remarque'}
       >
         <StickyNote className="w-4 h-4" aria-hidden="true" />
-        <span>Une remarque ?</span>
+        <span className="hidden lg:inline">Une remarque ?</span>
         {hasText && <span className="w-2 h-2 rounded-full bg-highlight-600" aria-label="Note en cours" />}
         {nonLues > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-accent-500 text-accent-fg text-[11px] flex items-center justify-center">{nonLues}</span>}
       </button>

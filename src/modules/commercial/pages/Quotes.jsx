@@ -1062,8 +1062,8 @@ export default function Quotes() {
             <Plus size={18} /> Nouveau devis
           </button>
         </div>
-        <div className="flex gap-3 mb-4">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          <div className="relative flex-1 sm:max-w-md">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" placeholder="Référence, client, ville, SIRET, objet..."
               value={search} onChange={(e) => setSearch(e.target.value)}
@@ -1106,12 +1106,12 @@ export default function Quotes() {
             </div>
             <div className="space-y-1.5">
               {quotesRelance.slice(0, 5).map(q => (
-                <div key={q.id} className="flex items-center justify-between bg-white rounded-ui-sm px-3 py-2 border border-[rgb(var(--c-warning)/0.3)]">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-ui-sm font-mono text-gray-400">{q.reference}</span>
+                <div key={q.id} className="flex flex-wrap items-center justify-between gap-2 bg-white rounded-ui-sm px-3 py-2 border border-[rgb(var(--c-warning)/0.3)]">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 flex-1">
+                    <span className="text-ui-sm font-mono text-gray-400 whitespace-nowrap">{q.reference}</span>
                     <BadgeTest tbl="quotes" id={q.id} />
                     <span className="font-medium text-gray-900 text-ui truncate">{q.clients?.name || '?'}</span>
-                    <span className="text-ui font-semibold text-gray-700">{money(q.total_ht)} HT</span>
+                    <span className="text-ui font-semibold text-gray-700 whitespace-nowrap">{money(q.total_ht)} HT</span>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <span className={`text-ui-sm font-medium px-2 py-0.5 rounded-full ${q.daysSinceSent >= 15 ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>

@@ -886,7 +886,7 @@ export default function Clients() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex bg-gray-100 rounded-ui-sm p-1 gap-0.5">
+          <div className="flex bg-gray-100 rounded-ui-sm p-1 gap-0.5 max-w-full overflow-x-auto">
             {[
               { key: 'all', label: 'Tous', count: kindClients.filter(c => c.status !== 'archive').length },
               { key: 'actif', label: 'Actif', count: kindClients.filter(c => c.status === 'actif').length, cls: 'text-[rgb(var(--c-success))]' },
