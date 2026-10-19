@@ -17,7 +17,9 @@ import {
   chargerAnnuaire, chargerPersonne, chargerContrats, chargerEquipes, chargerHoraires, chargerEtablissements,
   chargerPersonnesChoix, enregistrerPersonne, archiverPersonne, enregistrerContrat, supprimerContrat,
   voirRemuneration, ajouterRemuneration, enregistrerEquipe, supprimerEquipe, enregistrerHoraire,
+  chargerTypesAbsence, chargerSoldes, chargerMouvements, ajusterSolde,
 } from '../lib/rhData'
+import Absences, { DemandeSheet } from './Absences'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const euros = (n) => Number(n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -264,6 +266,62 @@ function Remuneration({ contrat, peutSaisir, peutVoir }) {
   )
 }
 
+// Soldes d'absence d'une personne : soldes calculés, mouvements, ajustement et saisie par la RH
+function SoldesFiche({ personId, peutGerer }) {
+  const [types, setTypes] = useState([])
+  const [soldes, setSoldes] = useState([])
+  const [mouv, setMouv] = useState([])
+  const [ajust, setAjust] = useState(null)
+  const [saisie, setSaisie] = useState(false)
+  const charger = useCallback(() => {
+    Promise.all([chargerTypesAbsence(), chargerSoldes(personId), chargerMouvements(personId)])
+      .then(([t, s, m]) => { setTypes(t); setSoldes(s); setMouv(m) }).catch(() => {})
+  }, [personId])
+  useEffect(() => { charger() }, [charger])
+  const avecSolde = types.filter((t) => t.counts_balance && t.is_active)
+  const enregistrer = async (e) => {
+    e.preventDefault()
+    try { await ajusterSolde({ personId, ...ajust }); setAjust(null); charger() } catch (err) { toast.error(err.message) }
+  }
+  if (!avecSolde.length && !mouv.length && !peutGerer) return null
+  const nom = Object.fromEntries(types.map((t) => [t.id, t.label]))
+  return (
+    <section className="card space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="section-title">Absences et soldes</h2>
+        {peutGerer && (
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSaisie(true)}>Saisir une absence</button>
+            {avecSolde.length > 0 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAjust({ typeId: avecSolde[0].id, kind: 'acquisition', days: '', note: '', periodLabel: '' })}>Ajuster un solde</button>}
+          </div>
+        )}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {avecSolde.map((t) => {
+          const s = soldes.find((x) => x.type_id === t.id)
+          return <span key={t.id} className="badge badge-neutral" style={{ height: 28 }}>{t.label} : {String(s?.solde ?? 0).replace('.', ',')} j</span>
+        })}
+      </div>
+      {ajust && (
+        <form onSubmit={enregistrer} className="grid gap-2 sm:grid-cols-[1fr_9rem_7rem_1fr_auto] items-end">
+          <Champ label="Type"><select className="select" value={ajust.typeId} onChange={(e) => setAjust({ ...ajust, typeId: e.target.value })}>{avecSolde.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></Champ>
+          <Champ label="Mouvement"><select className="select" value={ajust.kind} onChange={(e) => setAjust({ ...ajust, kind: e.target.value })}><option value="acquisition">Acquisition</option><option value="report">Report</option><option value="ajustement">Ajustement</option></select></Champ>
+          <Champ label="Jours (+ ou −)"><input className="input" required inputMode="decimal" value={ajust.days} onChange={(e) => setAjust({ ...ajust, days: e.target.value.replace(',', '.') })} /></Champ>
+          <Champ label="Période ou note"><input className="input" value={ajust.note} onChange={(e) => setAjust({ ...ajust, note: e.target.value })} placeholder="Octobre 2026" /></Champ>
+          <div className="flex gap-1"><button type="submit" className="btn btn-primary btn-sm">Enregistrer</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAjust(null)}>Annuler</button></div>
+        </form>
+      )}
+      {mouv.length > 0 && (
+        <details className="text-ui-sm">
+          <summary className="cursor-pointer text-gray-600">Mouvements ({mouv.length})</summary>
+          <ul className="mt-1 space-y-0.5">{mouv.slice(0, 30).map((m) => <li key={m.id}>{fr(m.created_at)} · {nom[m.type_id] || m.hr_absence_types?.label} · {m.days > 0 ? '+' : ''}{String(m.days).replace('.', ',')} j · {m.kind}{m.note ? ` · ${m.note}` : ''}</li>)}</ul>
+        </details>
+      )}
+      {saisie && <DemandeSheet types={types} personId={personId} soldes={soldes} onClose={() => setSaisie(false)} onSaved={() => { setSaisie(false); charger() }} />}
+    </section>
+  )
+}
+
 function FichePersonne({ peutGerer, peutSalaires }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -344,6 +402,8 @@ function FichePersonne({ peutGerer, peutSalaires }) {
           )
         })}
       </section>
+
+      <SoldesFiche personId={p.id} peutGerer={peutGerer} />
 
       {edition && <FichePersonneSheet personne={p} onClose={() => setEdition(false)} onSaved={() => { setEdition(false); charger() }} />}
       {contratEdite && <ContratSheet personId={p.id} contrat={contratEdite.id ? contratEdite : null} onClose={() => setContratEdite(null)} onSaved={() => { setContratEdite(null); charger() }} />}
@@ -455,21 +515,25 @@ export default function Personnel() {
   const peutGerer = can('rh.dossiers.gerer') === true
   const peutSalaires = can('rh.salaires.voir') === true
   const peutConfigurer = can('rh.parametres.gerer') === true
+  const peutValider = can('rh.absences.valider') === true
+  const peutVoirTout = can('rh.dossiers.voir') === true
   const chemin = location.pathname.replace(/^\/collaborateurs\/?/, '').split('/')[0]
-  const onglet = ['equipes', 'horaires'].includes(chemin) ? chemin : 'annuaire'
-  const enFiche = chemin && !['equipes', 'horaires'].includes(chemin)
+  const ONGLETS = ['absences', 'equipes', 'horaires']
+  const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
+  const enFiche = chemin && !ONGLETS.includes(chemin)
 
   return (
     <div className="space-y-4">
       {!enFiche && (
         <>
           <PageHeader eyebrow="Ressources humaines" title="Personnel" />
-          <Tabs tabs={[{ id: 'annuaire', label: 'Annuaire' }, { id: 'equipes', label: 'Équipes' }, { id: 'horaires', label: 'Horaires' }]}
+          <Tabs tabs={[{ id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'equipes', label: 'Équipes' }, { id: 'horaires', label: 'Horaires' }]}
             value={onglet} onChange={(id) => navigate(id === 'annuaire' ? '/collaborateurs' : `/collaborateurs/${id}`)} />
         </>
       )}
       <Routes>
         <Route index element={<Annuaire peutGerer={peutGerer} />} />
+        <Route path="absences" element={<Absences peutValider={peutValider} peutVoirTout={peutVoirTout} peutConfigurer={peutConfigurer} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
         <Route path="horaires" element={<Horaires peutConfigurer={peutConfigurer} />} />
         <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} />} />

@@ -3289,6 +3289,89 @@ begin
     end;
   end if;
 
+  -- Chantier 12, RH absences (0294) : demande pour soi (profil salarié), circuit commun, validation par un autre,
+  -- prise écrite au solde ; personne ne valide sa propre demande ; rien pour le commercial
+  if to_regprocedure('public.hr_absence_demander(uuid,date,text,date,text,text,uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare
+      a_co uuid := app.company_default(); a_p uuid; a_cp uuid; a_lundi date; a_req uuid; a_req2 uuid; a_appro uuid;
+      a_ok boolean; a_ok2 boolean; a_n numeric; a_m int; a_st text;
+    begin
+      a_lundi := (date_trunc('week', current_date + 14))::date;
+      insert into public.hr_people (first_name, last_name, profile_id) values ('Essai', 'Absences', u_lec) on conflict do nothing;
+      select id into a_p from public.hr_people where profile_id = u_lec and company_id = a_co limit 1;
+      insert into public.company_member_roles (member_id, role_key)
+      select m.id, 'salarie' from public.company_members m where m.profile_id = u_lec and m.company_id = a_co
+      on conflict do nothing;
+      select id into a_cp from public.hr_absence_types where company_id = a_co and code = 'CP';
+      insert into public.hr_leave_ledger (company_id, person_id, type_id, kind, days, note) values (a_co, a_p, a_cp, 'acquisition', 10, 'Essai');
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_req := public.hr_absence_demander(a_cp, a_lundi, 'apres_midi', a_lundi + 4, 'matin', 'Essai');
+      select approval_id, days into a_appro, a_n from public.hr_absence_requests where id = a_req;
+      a_ok := false;
+      begin perform public.approval_decide(a_appro, 'approved', null); exception when insufficient_privilege then a_ok := true; end;
+      a_ok2 := false;
+      begin perform public.hr_absence_demander(a_cp, a_lundi + 2, null, a_lundi + 2, null, 'Doublon'); exception when unique_violation then a_ok2 := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if a_n = 4 and a_appro is not null and a_ok and a_ok2 then
+        v_lines := v_lines || 'OK      lec   0294 : demande pour soi (4 jours ouvrés avec demi-journées), envoyée au circuit, sans doublon ni auto-validation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0294 : demande d''absence pour soi'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ad, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_st := public.approval_decide(a_appro, 'approved', null);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if a_st = 'approved' and (select status from public.hr_absence_requests where id = a_req) = 'validee'
+         and (select sum(days) from public.hr_leave_ledger where person_id = a_p and type_id = a_cp) = 6 then
+        v_lines := v_lines || 'OK      ad    0294 : validation dans le circuit commun, prise de 4 jours écrite au solde (10 → 6)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0294 : validation et solde'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_st := public.hr_absence_annuler(a_req);
+      a_m := (select count(*) from public.hr_absence_requests where person_id = a_p);
+      a_n := (select solde from public.v_hr_soldes where person_id = a_p and type_id = a_cp);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if a_st = 'annulee' and a_m >= 1 and a_n = 10 then
+        v_lines := v_lines || 'OK      lec   0294 : la personne annule une absence validée à venir, le solde revient (6 → 10)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0294 : annulation et solde'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_req2 := public.hr_absence_demander(a_cp, a_lundi + 7, null, a_lundi + 7, null, 'Saisie RH', a_p);
+      select approval_id into a_appro from public.hr_absence_requests where id = a_req2;
+      a_ok := false;
+      begin perform public.approval_decide(a_appro, 'approved', null); exception when insufficient_privilege then a_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if a_ok and (select requested_by from public.hr_absence_requests where id = a_req2) = u_dir then
+        v_lines := v_lines || 'OK      dir   0294 : la direction saisit pour une personne mais ne valide pas sa propre saisie'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0294 : saisie pour autrui'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_m := (select count(*) from public.hr_absence_requests) + (select count(*) from public.hr_leave_ledger);
+      a_ok := false;
+      begin perform public.hr_absence_demander(a_cp, a_lundi + 9, null, a_lundi + 9, null, null, a_p); exception when insufficient_privilege then a_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if a_m = 0 and a_ok then
+        v_lines := v_lines || 'OK      com   0294 : le commercial ne voit ni ne saisit d''absence'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0294 : absences cachées au commercial'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0294 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

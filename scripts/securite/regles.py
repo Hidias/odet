@@ -874,6 +874,16 @@ tdx('0290', 'hr_compensation',
     sel="employment_id in (select e.id from public.hr_employments e where e.person_id in (select app.hr_mes_personnes()))",
     ins=_RH_SAL, upd=_RH_SAL, dele=_RH_SAL)
 
+# Chantier 12, RH absences (0294) : types lus avec « Voir le personnel », réglés avec « Configurer les RH » ; demandes
+# et mouvements lus par la personne, ou avec « Voir les dossiers » ou « Valider les absences » ; demandes écrites
+# seulement par les fonctions (hr_absence_demander, hr_absence_annuler, décision du circuit commun) ; ajustements de
+# solde avec « Tenir les dossiers ».
+_RH_VAL = f"company_id in {societes('rh.absences.valider')}"
+tdx('0294', 'hr_absence_types', sel=_RH_VOIR, ins=_RH_PAR, upd=_RH_PAR, dele=_RH_PAR)
+tdx('0294', 'hr_absence_requests', sel=f"({_RH_DOS} or {_RH_VAL} or person_id in (select app.hr_mes_personnes()))")
+tdx('0294', 'hr_leave_ledger', sel=f"({_RH_DOS} or {_RH_VAL} or person_id in (select app.hr_mes_personnes()))",
+    ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}
