@@ -964,6 +964,14 @@ tdx('0245', 'purchase_order_lines', sel=f"({_ST_CMD_TOUT} or ({_ST_CMD} and {_ST
     dele=f"({_ST_CMD} and ({_ST_VAL} or {_ST_CMD_MIENNES}))")
 tdx('0245', 'purchase_receipts', sel=f"({_ST_CMD_TOUT} or ({_ST_CMD} and {_ST_CMD_MIENNES}))")
 
+# Stock, inventaires et numéros de série (0247) : inventaires lus avec « Voir tout le stock » ou par qui compte son
+# propre emplacement ; ouverts, comptés et validés seulement par les fonctions (comptage : « Gérer les articles » ou son
+# emplacement ; validation : « Valider un inventaire ») ; numéros de série lus avec « Voir tout le stock » ou ceux de son
+# emplacement, tenus avec « Gérer les articles et les seuils ».
+tdx('0247', 'stock_counts', sel=f"({_ST_VOIR} or location_id in (select app.stock_mes_emplacements()))")
+tdx('0247', 'stock_count_lines', sel=f"({_ST_VOIR} or count_id in (select c.id from public.stock_counts c where c.location_id in (select app.stock_mes_emplacements())))")
+tdx('0247', 'stock_serials', sel=f"({_ST_VOIR} or location_id in (select app.stock_mes_emplacements()))", ins=_ST_GER, upd=_ST_GER, dele=_ST_GER)
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}

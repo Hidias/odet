@@ -137,3 +137,21 @@ export const deciderCommande = async (approvalId, decision, motif) => must(await
   p_request: approvalId, p_decision: decision, p_comment: motif || null }))
 export const recevoirLigne = async ({ lineId, quantity, locationId = null, note = null }) => must(await supabase.rpc('stock_commande_recevoir', {
   p_line: lineId, p_quantity: nombre(quantity), p_location: locationId || null, p_note: note || null }))
+
+// ─── Inventaires et numéros de série (0247) ───
+export const chargerInventaires = async () => must(await supabase.from('stock_counts')
+  .select('*, stock_locations(name, kind)').order('started_at', { ascending: false }).limit(100))
+export const chargerLignesInventaire = async (countId) => must(await supabase.from('stock_count_lines')
+  .select('*').eq('count_id', countId).order('created_at'))
+export const ouvrirInventaire = async (locationId, note = null) => must(await supabase.rpc('stock_inventaire_ouvrir', { p_location: locationId, p_note: note || null }))
+export const compterArticle = async (countId, itemId, quantity) => must(await supabase.rpc('stock_inventaire_compter', {
+  p_count: countId, p_item: itemId, p_quantity: quantity === '' || quantity == null ? null : Number(String(quantity).replace(',', '.')) }))
+export const validerInventaire = async (countId) => must(await supabase.rpc('stock_inventaire_valider', { p_count: countId }))
+export const annulerInventaire = async (countId) => must(await supabase.rpc('stock_inventaire_annuler', { p_count: countId }))
+export const chargerSeries = async (itemId) => must(await supabase.from('stock_serials')
+  .select('*, stock_locations(name)').eq('item_id', itemId).order('serial'))
+export async function enregistrerSerie(s) {
+  const { id, stock_locations: _l, ...reste } = nettoyer(s)
+  if (id) return must(await supabase.from('stock_serials').update(reste).eq('id', id))
+  return must(await supabase.from('stock_serials').insert(reste))
+}
