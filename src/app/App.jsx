@@ -33,6 +33,8 @@ const Console = lazy(() => import('../core/console/Console'))
 const DesignReference = lazy(() => import('../ui/DesignReference'))
 const ReglesGestion = lazy(() => import('../core/rights/ReglesGestion'))
 const ConsoleErreurs = lazy(() => import('../core/console/ConsoleErreurs'))
+const QuoiDeNeuf = lazy(() => import('../core/notices/QuoiDeNeuf'))
+const RetoursSuivi = lazy(() => import('../core/feedback/RetoursSuivi'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
 const Indicateurs = lazy(() => import('../modules/qualite/pages/Indicateurs'))
@@ -278,6 +280,8 @@ export default function App() {
             <Route path="regles-gestion" element={<ReglesGestion />} />
             <Route path="design-systeme" element={<DesignReference />} />
             <Route path="console/erreurs" element={<ConsoleErreurs />} />
+            <Route path="nouveautes" element={<QuoiDeNeuf />} />
+            <Route path="retours" element={<RetoursSuivi />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />
           </Route>

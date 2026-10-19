@@ -153,6 +153,8 @@ ORDRE_PROD = (
     # 18 et 19/10/2026 : droits composés (C1b), maintenance de nuit, puis Facturation fiable, dans l'ordre réel
     + [f'{n:04d}' for n in range(370, 380)]
     + ['0360', '0361', '0362', '0369', '0363', '0364', '0365', '0366', '0367', '0368']
+    # 19/10/2026 : sociétés (C2 puis C3), puis mise en service (chantier A, 0261 à 0264, appliqués après 0277)
+    + ['0274', '0275', '0276', '0277', '0261', '0262', '0263', '0264']
 )
 
 
@@ -161,6 +163,7 @@ def migrations(jusqu_a=None):
     ordre = [n for n in ORDRE_PROD if n in fichiers]
     # Migrations pas encore dans l'ordre de production (chantier en cours, dont C2 0274 et suivantes), dans l'ordre des numéros
     ordre += sorted(n for n in fichiers if n > '0273' and n not in ordre)
+    # 0110 (finance générique) n'est pas appliquée en production (constat du 19/10) : jamais rejouée ici
     out = []
     for n in ordre:
         out.append(fichiers[n])

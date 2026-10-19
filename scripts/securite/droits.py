@@ -368,6 +368,10 @@ CATALOGUE = [
      'objectifs (prévu)', ''),
     ('validations.deleguer', None, 'Déléguer ses validations',
      'Confier ses validations à une autre personne pendant une période', 'approval_delegations', ''),
+    # ── Mise en service (chantier A, 0263) ──────────────────────────────────────────────────────
+    ('organisation.retours.suivre', 'retours', 'Suivre les retours des utilisateurs',
+     'Lire tous les retours (post-it), voir les captures, changer leur statut et répondre à l\'auteur ; '
+     'chacun voit toujours ses propres retours', 'user_feedback (par le serveur, /api/retours)', ''),
 ]
 
 # Profils types (modèles de plateforme, copiables et modifiables par société).
@@ -395,7 +399,7 @@ PROFILS = {
     'admin': ('Administrateur', 'Associés : tout sauf la plateforme ; les Paramètres seulement avec la licence '
               'totale de la société', 'admin',
               _GESTION_FUTURE + ['parametres.ouvrir', 'parametres.profils.gerer', 'parametres.droits.attribuer',
-                                 'vehicules.geolocalisation.configurer']),
+                                 'vehicules.geolocalisation.configurer', 'organisation.retours.suivre']),
     'direction': ('Direction', 'Direction de la société : toutes les données de gestion, jamais les Paramètres',
                   'direction', _GESTION_FUTURE),
     'gestionnaire': ('Gestionnaire', 'Organisation des sessions, des clients et des interventions', 'gestionnaire',
