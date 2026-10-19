@@ -15,6 +15,7 @@ import { getSupabaseAdmin } from './_lib/mailer.js'
 import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { internalRecipients, internalMailer, appUrl } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
+import { withJobLog } from './_lib/taches.js'
 
 export const config = { maxDuration: 60 }
 
@@ -120,4 +121,4 @@ async function handler(req, res) {
   }
 }
 
-export default withErrorLog(handler, 'signature-alert')
+export default withErrorLog(withJobLog(handler, 'signature-alert'), 'signature-alert')

@@ -10,6 +10,7 @@ import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { getImapHost } from './_lib/save-to-sent.js'
 import { loadTeam, findProfileByEmail, profileFirstName, loadInternalMatcher } from './_lib/team.js'
 import { withErrorLog } from './_lib/errors.js'
+import { withJobLog } from './_lib/taches.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -362,4 +363,4 @@ async function handler(req, res) {
   }
 }
 
-export default withErrorLog(handler, 'sync-sent-emails')
+export default withErrorLog(withJobLog(handler, 'sync-sent-emails'), 'sync-sent-emails')

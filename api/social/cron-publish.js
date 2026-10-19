@@ -9,6 +9,7 @@ import { requireCronOrRole, ADMINS } from '../_lib/auth.js'
 import { appUrl } from '../_lib/internal.js'
 import { isTestEnvironment } from '../_lib/mailer.js'
 import { withErrorLog } from '../_lib/errors.js'
+import { withJobLog } from '../_lib/taches.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -112,4 +113,4 @@ async function handler(req, res) {
   }
 }
 
-export default withErrorLog(handler, 'social/cron-publish')
+export default withErrorLog(withJobLog(handler, 'social/cron-publish'), 'social/cron-publish')

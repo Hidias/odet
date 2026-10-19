@@ -24,6 +24,7 @@ import * as cheerio from 'cheerio'
 import { requireCronOrRight, SALES } from './_lib/auth.js'
 import { safeFetch } from './_lib/safeFetch.js'
 import { withErrorLog } from './_lib/errors.js'
+import { withJobLog } from './_lib/taches.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Clé serveur : la table prospection_massive est protégée (RLS, accès connecté uniquement)
@@ -503,4 +504,4 @@ async function handler(req, res) {
   }
 }
 
-export default withErrorLog(handler, 'enrich-prospects')
+export default withErrorLog(withJobLog(handler, 'enrich-prospects'), 'enrich-prospects')

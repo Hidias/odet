@@ -4127,6 +4127,53 @@ begin
     end;
   end if;
 
+  -- Journal des tâches et interrupteurs des envois automatiques (0382) : seul le super administrateur ouvre un envoi ;
+  -- un administrateur suspend 24 h avec la confirmation recopiée ; le journal des tâches n'est lu que par la plateforme
+  if to_regprocedure('public.envoi_auto_regler(uuid,text,boolean)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 6;
+    declare
+      z_co uuid := app.company_default(); z_ok boolean := false; z_ok2 boolean := false; z_n int;
+    begin
+      insert into public.job_runs (job, status) values ('essai-0382', 'ok');
+      -- direction : ni ouverture, ni lecture du journal des tâches
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.envoi_auto_regler(z_co, 'convocation', true); exception when insufficient_privilege then z_ok := true; end;
+      select count(*) into z_n from public.job_runs where job = 'essai-0382';
+      execute 'reset role';
+      if z_ok then v_lines := v_lines || 'OK      dir   0382 : la direction n''ouvre pas un envoi automatique'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0382 : ouverture d''un envoi par la direction'::text; end if;
+      if z_n = 0 then v_lines := v_lines || 'OK      dir   0382 : journal des tâches invisible hors plateforme'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0382 : journal des tâches visible'::text; end if;
+      -- super administrateur : ouvre
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.envoi_auto_regler(z_co, 'convocation', true);
+      execute 'reset role';
+      if app.envoi_auto_autorise(z_co, 'convocation') then v_lines := v_lines || 'OK      sa    0382 : envoi ouvert par le super administrateur'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0382 : ouverture d''un envoi'::text; end if;
+      -- administrateur : confirmation fausse refusée, puis suspension 24 h
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ad, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.envoi_auto_suspendre(z_co, 'convocation', 'oui'); exception when invalid_parameter_value then z_ok2 := true; end;
+      perform public.envoi_auto_suspendre(z_co, 'convocation', 'suspendre 24 h', 'essai');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if z_ok2 then v_lines := v_lines || 'OK      ad    0382 : suspension refusée sans la confirmation recopiée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0382 : confirmation de suspension'::text; end if;
+      if not app.envoi_auto_autorise(z_co, 'convocation') then v_lines := v_lines || 'OK      ad    0382 : envoi suspendu 24 h par un administrateur'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0382 : suspension d''un envoi'::text; end if;
+      if not app.envoi_auto_autorise(z_co, 'attestation') then v_lines := v_lines || 'OK      base  0382 : envoi fermé par défaut'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0382 : envoi ouvert par défaut'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 6; v_lines := v_lines || ('ÉCHEC   base  0382 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
