@@ -11,8 +11,8 @@ describe('programme de formation', () => {
     ])
   })
   it('écrit effectif, durée et référence', () => {
-    expect(effectifTexte({ min_participants: 1, max_participants: 10 })).toBe('1 minimum – 10 maximum')
-    expect(effectifTexte({ max_participants: 12 })).toBe('12 maximum')
+    expect(effectifTexte({ min_participants: 1, max_participants: 10 })).toBe('De 1 à 10 personnes')
+    expect(effectifTexte({ max_participants: 12 })).toBe('12 personnes maximum')
     expect(effectifTexte({})).toBe('')
     expect(heuresTexte({ duration_hours: 2 })).toBe('2 heures')
     expect(heuresTexte({ duration_hours: 14, duration_days: 2 })).toBe('14 heures (2 jours)')
