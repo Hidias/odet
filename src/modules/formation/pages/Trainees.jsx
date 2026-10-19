@@ -282,13 +282,11 @@ export default function Trainees() {
       delete dataToSave.social_security_number
       delete dataToSave.refused_ssn
     }
-    console.log('Sauvegarde stagiaire avec:', dataToSave)
     
     const traineeName = `${form.first_name} ${form.last_name}`
     
     if (selectedTrainee) {
       const { error } = await updateTrainee(selectedTrainee.id, dataToSave)
-      console.log('Résultat updateTrainee:', { error })
       if (error) {
         console.error('Erreur modification:', error)
         toast.error('Erreur lors de la modification')
@@ -299,7 +297,6 @@ export default function Trainees() {
       toast.success('Modifications enregistrées')
     } else {
       const { data, error } = await createTrainee(dataToSave)
-      console.log('Résultat createTrainee:', { data, error })
       if (error) {
         console.error('Erreur création:', error)
         toast.error('Erreur lors de la création')
@@ -311,9 +308,7 @@ export default function Trainees() {
     }
     
     // Rafraîchir la liste pour récupérer les données à jour
-    console.log('Rechargement des stagiaires...')
     await fetchTrainees()
-    console.log('Stagiaires rechargés')
     setShowForm(false)
     setSelectedTrainee(null)
   }
