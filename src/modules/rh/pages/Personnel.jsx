@@ -27,6 +27,7 @@ import Heures from './Heures'
 import { DocumentsFiche, HabilitationsFiche, SanteFiche } from './DocumentsSante'
 import MonEspace from './MonEspace'
 import TableauRH from './TableauRH'
+import RegistrePaie from './RegistrePaie'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const euros = (n) => Number(n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -115,7 +116,8 @@ function Annuaire({ peutGerer }) {
 const VIDE = {
   first_name: '', last_name: '', usage_name: '', birth_date: '', work_phone: '', work_email: '', personal_phone: '',
   personal_email: '', personal_address: '', personal_postal_code: '', personal_city: '', emergency_name: '',
-  emergency_relation: '', emergency_phone: '', notes: '', profile_id: '',
+  emergency_relation: '', emergency_phone: '', notes: '', profile_id: '', nationality: '', gender: '',
+  work_permit_type: '', work_permit_ref: '',
 }
 function FichePersonneSheet({ personne = null, onClose, onSaved }) {
   const [v, setV] = useState(() => ({ ...VIDE, ...Object.fromEntries(Object.entries(personne || {}).filter(([k]) => k in VIDE).map(([k, x]) => [k, x ?? ''])) }))
@@ -164,7 +166,18 @@ function FichePersonneSheet({ personne = null, onClose, onSaved }) {
               <Champ label="Date de naissance"><input className="input" type="date" value={v.birth_date} onChange={m('birth_date')} /></Champ>
               <Champ label="Téléphone personnel"><input className="input" type="tel" value={v.personal_phone} onChange={m('personal_phone')} /></Champ>
               <Champ label="Email personnel"><input className="input" type="email" value={v.personal_email} onChange={m('personal_email')} /></Champ>
+              <Champ label="Nationalité"><input className="input" value={v.nationality} onChange={m('nationality')} placeholder="Française" /></Champ>
+              <Champ label="Sexe">
+                <select className="select" value={v.gender} onChange={m('gender')}><option value="">Non renseigné</option><option value="F">Femme</option><option value="M">Homme</option></select>
+              </Champ>
             </div>
+            <details className="text-ui-sm">
+              <summary className="cursor-pointer text-gray-600">Travailleur étranger soumis à autorisation de travail</summary>
+              <div className="grid gap-3 sm:grid-cols-2 mt-2">
+                <Champ label="Type d'autorisation"><input className="input" value={v.work_permit_type} onChange={m('work_permit_type')} placeholder="Titre de séjour salarié" /></Champ>
+                <Champ label="Numéro"><input className="input" value={v.work_permit_ref} onChange={m('work_permit_ref')} /></Champ>
+              </div>
+            </details>
             <Champ label="Adresse"><input className="input" value={v.personal_address} onChange={m('personal_address')} /></Champ>
             <div className="grid gap-3 grid-cols-[8rem_1fr]">
               <Champ label="Code postal"><input className="input" value={v.personal_postal_code} onChange={m('personal_postal_code')} /></Champ>
@@ -189,7 +202,7 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
   const [v, setV] = useState(() => ({
     contract_type: 'cdi', start_on: new Date().toISOString().slice(0, 10), end_on: '', trial_end_on: '', end_reason: '',
     job_title: '', qualification: '', team_id: '', manager_person_id: '', weekly_hours: '35', days_per_year: '',
-    schedule_id: '', establishment_id: '', job_description: '',
+    schedule_id: '', establishment_id: '', job_description: '', agency_name: '', agency_address: '', authorization_on: '',
     ...Object.fromEntries(Object.entries(contrat || {}).map(([k, x]) => [k, x ?? ''])),
   }))
   const [listes, setListes] = useState({ equipes: [], horaires: [], etablissements: [], personnes: [] })
@@ -211,6 +224,7 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
         qualification: v.qualification, team_id: nul(v.team_id), manager_person_id: nul(v.manager_person_id),
         weekly_hours: v.weekly_hours, days_per_year: v.days_per_year, schedule_id: nul(v.schedule_id),
         establishment_id: nul(v.establishment_id), job_description: v.job_description,
+        agency_name: v.agency_name, agency_address: v.agency_address, authorization_on: nul(v.authorization_on),
       })
       toast.success('Contrat enregistré')
       onSaved()
@@ -248,6 +262,12 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
           <Champ label="Forfait jours (par an)"><input className="input" inputMode="numeric" value={v.days_per_year} onChange={m('days_per_year')} placeholder="Si forfait" /></Champ>
         </div>
         {v.end_on && <Champ label="Motif de fin"><input className="input" value={v.end_reason} onChange={m('end_reason')} /></Champ>}
+        {v.contract_type === 'interim' && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Champ label="Entreprise de travail temporaire"><input className="input" value={v.agency_name} onChange={m('agency_name')} /></Champ>
+            <Champ label="Son adresse"><input className="input" value={v.agency_address} onChange={m('agency_address')} /></Champ>
+          </div>
+        )}
         <Champ label="Fiche de poste (résumé)"><textarea className="input" rows={2} value={v.job_description} onChange={m('job_description')} /></Champ>
       </form>
     </Sheet>
@@ -393,6 +413,9 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
         {ligne('Email personnel', p.personal_email)}
         {ligne('Adresse', [p.personal_address, [p.personal_postal_code, p.personal_city].filter(Boolean).join(' ')].filter(Boolean).join(', '))}
         {ligne('Contact d\'urgence', [p.emergency_name, p.emergency_relation, p.emergency_phone].filter(Boolean).join(' · '))}
+        {ligne('Nationalité', p.nationality)}
+        {ligne('Sexe', p.gender === 'F' ? 'Femme' : p.gender === 'M' ? 'Homme' : null)}
+        {ligne('Autorisation de travail', [p.work_permit_type, p.work_permit_ref].filter(Boolean).join(' n° '))}
         {ligne('Notes', p.notes)}
         {ligne('Compte relié', p.profile_id ? 'Oui, la personne a son espace' : null)}
       </section>
@@ -617,7 +640,7 @@ export default function Personnel() {
   const peutValiderAbs = peutValider || responsable
   const peutValiderHeures = can('rh.heures.valider') === true || responsable
   const peutTableau = peutVoirTout || peutValiderAbs || peutValiderHeures
-  const ONGLETS = ['tableau', 'mon-espace', 'absences', 'heures', 'equipes', 'horaires']
+  const ONGLETS = ['tableau', 'mon-espace', 'absences', 'heures', 'equipes', 'horaires', 'registre']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
   const enFiche = chemin && !ONGLETS.includes(chemin)
   const tabs = [
@@ -625,6 +648,7 @@ export default function Personnel() {
     { id: 'mon-espace', label: 'Mon espace' },
     { id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'heures', label: 'Heures' },
     { id: 'equipes', label: 'Équipes' }, { id: 'horaires', label: 'Horaires' },
+    ...(peutVoirTout ? [{ id: 'registre', label: 'Registre et paie' }] : []),
   ]
 
   return (
@@ -640,6 +664,7 @@ export default function Personnel() {
         <Route index element={<Annuaire peutGerer={peutGerer} />} />
         {peutTableau && <Route path="tableau" element={<TableauRH peutValiderAbsences={peutValiderAbs} peutValiderHeures={peutValiderHeures} peutRestreints={peutRestreints} />} />}
         <Route path="mon-espace" element={<MonEspace />} />
+        {peutVoirTout && <Route path="registre" element={<RegistrePaie />} />}
         <Route path="absences" element={<Absences peutValider={peutValiderAbs} peutVoirTout={peutVoirTout} peutConfigurer={peutConfigurer} />} />
         <Route path="heures" element={<Heures peutValider={peutValiderHeures} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
