@@ -4,7 +4,7 @@
 import { getSupabaseAdmin, getMailer, sendWithRetry, buildSignatureHTML, getOrg, getSender } from './_lib/mailer.js'
 import { loadTeam, payerLabel } from './_lib/team.js'
 import { getComptableConfig } from './_lib/comptable.js'
-import { requireRight, FINANCE } from './_lib/auth.js'
+import { requireRight, clientDeLAppelant, FINANCE } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 export const config = {
@@ -23,7 +23,8 @@ async function handler(req, res) {
   let transporter = null
 
   try {
-    const { userId, invoices, attachments, monthLabel, notes } = req.body
+    const { userId, monthLabel, notes } = req.body
+    let { invoices, attachments } = req.body
 
     // invoices = [{ id, reference, type, client_name, invoice_date, due_date, total_ht, total_tva, total_ttc, amount_paid, amount_due, status, tva_applicable, tvaByRate }]
     // attachments = [{ filename, base64, contentType }]
@@ -38,6 +39,25 @@ async function handler(req, res) {
     const comptable = await getComptableConfig(supabase)
     if (comptable.error) {
       return res.status(400).json({ error: comptable.error })
+    }
+
+    // 0 bis. Mode de transmission de la société (0366) : rien n'est supposé, et seuls les documents émis partent.
+    const moi = clientDeLAppelant(req)
+    const { data: mode, error: em } = moi ? await moi.rpc('billing_transmission_mode') : { data: null, error: null }
+    const fonctionAbsente = em && (em.code === 'PGRST202' || /could not find the function/i.test(em.message || ''))
+    if (!fonctionAbsente) {
+      if (em) return res.status(400).json({ error: em.message })
+      if (!mode) {
+        return res.status(400).json({ error: "Mode de transmission au comptable non réglé : Paramètres › Banque et facturation › Transmission au comptable." })
+      }
+      const ids = invoices.map((i) => i.id).filter(Boolean)
+      const { data: emis, error: ee } = await moi.from('invoices').select('id, reference').in('id', ids).not('issued_at', 'is', null)
+      if (ee) return res.status(400).json({ error: ee.message })
+      const okIds = new Set((emis || []).map((i) => i.id))
+      const okRefs = new Set((emis || []).map((i) => i.reference))
+      invoices = invoices.filter((i) => okIds.has(i.id))
+      attachments = (attachments || []).filter((a) => [...okRefs].some((r) => String(a.filename || '').startsWith(r + '_') || String(a.filename || '').startsWith(r + '.')))
+      if (!invoices.length) return res.status(400).json({ error: 'Aucune facture émise dans la sélection : un brouillon ne part jamais au comptable.' })
     }
 
     // 1. Compte d'envoi de l'utilisateur (adresse d'envoi par défaut de Paramètres si elle lui appartient)

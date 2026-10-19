@@ -13,6 +13,7 @@ import { missingOrgFields, ORG_REQUIRED } from '../org/orgUtils'
 import EmailSettings from './EmailSettings'
 import NumerotationFactures from './facturation/NumerotationFactures'
 import MentionsFactures from './facturation/MentionsFactures'
+import TransmissionComptable from './facturation/TransmissionComptable'
 import DroitsPersonnes from './droits/DroitsPersonnes'
 import ProfilsDroits from './droits/ProfilsDroits'
 import { peut } from '../rights/useDroit'
@@ -328,6 +329,7 @@ export default function Settings() {
               </div>
               <NumerotationFactures />
               <MentionsFactures />
+              <TransmissionComptable />
               <h2 className="section-title">Emails et exercice</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Copie cachée systématique" hint="Adresse d'archivage recevant tous les envois"><input className="input" value={form.email_bcc || ''} onChange={(e) => set('email_bcc', e.target.value)} /></Field>

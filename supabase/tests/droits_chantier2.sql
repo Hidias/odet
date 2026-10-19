@@ -1455,6 +1455,42 @@ begin
     end;
   end if;
 
+  -- Transmission au comptable réglée par société (0366)
+  if to_regprocedure('public.billing_transmission_mode()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare
+      t_dir uuid := gen_random_uuid(); t_mode text; t_ok boolean;
+    begin
+      insert into auth.users (id, email, aud, role) values (t_dir, 'tra.dir@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (t_dir, 'tra.dir@test.invalid', 'direction', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.billing_settings (company_id) values (app.billing_company()) on conflict do nothing;
+      update public.billing_settings set comptable_transmission = null where company_id = app.billing_company();
+      perform set_config('request.jwt.claims', json_build_object('sub', t_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      t_mode := public.billing_transmission_mode();
+      execute 'reset role';
+      if t_mode is null then v_lines := v_lines || 'OK      dir   0366 : sans réglage, aucun mode supposé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0366 : sans réglage, aucun mode supposé'::text; end if;
+      t_ok := false;
+      begin update public.billing_settings set comptable_transmission = 'courrier' where company_id = app.billing_company();
+      exception when check_violation then t_ok := true; end;
+      if t_ok then v_lines := v_lines || 'OK      base  0366 : mode de transmission inconnu refusé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0366 : mode de transmission inconnu refusé'::text; end if;
+      update public.billing_settings set comptable_transmission = 'email_pdf' where company_id = app.billing_company();
+      execute 'set local role authenticated';
+      t_mode := public.billing_transmission_mode();
+      execute 'reset role';
+      if t_mode = 'email_pdf' then v_lines := v_lines || 'OK      dir   0366 : mode réglé lu pour la société'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0366 : mode réglé lu pour la société'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end
