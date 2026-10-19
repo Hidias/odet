@@ -14,8 +14,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- brouillon ; la base exige seulement un contrôle de moins de 24 h pour le SIRET actuel du client, ou un motif.
 --   invoices : siret_checked_at, siret_check_result (résultat de l'annuaire), siret_check_motif, siret_motif_at ;
 --   clients : siret_checked_at, siret_check_result (contrôle depuis la fiche client) ;
---   app.siret_controle_garde : ces colonnes ne s'écrivent pas depuis l'application (seulement par le serveur
---     après lecture sous la session de l'appelant, ou par billing_siret_motif) ;
+--   app.siret_controle_garde : ces colonnes ne s'écrivent pas depuis l'application (valeurs envoyées ignorées) ;
+--     seulement par le serveur après lecture sous la session de l'appelant, ou par billing_siret_motif ;
 --   billing_siret_motif(facture, motif) : motif saisi quand l'annuaire ne répond pas (brouillon seulement) ;
 --   app.billing_check : point bloquant « vérification du SIRET » et alertes de l'annuaire (redéfinie, reste identique).
 -- Aucune nouvelle table. Idempotente. Retour arrière : supabase/rollback/0365_facturation_annuaire_retour.sql
@@ -48,10 +48,13 @@ begin
     end if;
     return new;
   end if;
-  if new.siret_checked_at is distinct from old.siret_checked_at or new.siret_check_result is distinct from old.siret_check_result
-     or (tg_table_name = 'invoices' and (to_jsonb(new) -> 'siret_check_motif' is distinct from to_jsonb(old) -> 'siret_check_motif'
-                                         or to_jsonb(new) -> 'siret_motif_at' is distinct from to_jsonb(old) -> 'siret_motif_at')) then
-    raise exception 'Le contrôle de l''annuaire ne se saisit pas à la main' using errcode = '42501';
+  -- Mise à jour depuis l'application : le contrôle reste celui du serveur (valeurs envoyées ignorées, jamais d'erreur,
+  -- pour qu'un écran qui renvoie toute la fiche ne soit pas bloqué).
+  new.siret_checked_at := old.siret_checked_at;
+  new.siret_check_result := old.siret_check_result;
+  if tg_table_name = 'invoices' then
+    new.siret_check_motif := old.siret_check_motif;
+    new.siret_motif_at := old.siret_motif_at;
   end if;
   return new;
 end
@@ -1660,9 +1663,10 @@ begin
         v_lines := v_lines || 'OK      dir   0365 : émission refusée sans contrôle de l''annuaire'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0365 : émission refusée sans contrôle de l''annuaire'::text; end if;
       -- Le contrôle ne se saisit pas à la main
-      s_ok := false;
-      begin update public.invoices set siret_checked_at = now() where id = s_f; exception when insufficient_privilege then s_ok := true; end;
-      if s_ok then v_lines := v_lines || 'OK      dir   0365 : contrôle de l''annuaire non modifiable à la main'::text;
+      update public.invoices set siret_checked_at = now(), siret_check_result = '{"identifiant": "12345678900011", "etat": "actif"}' where id = s_f;
+      update public.clients set siret_checked_at = now() where id = s_cli;
+      if (select siret_checked_at is null and siret_check_result is null from public.invoices where id = s_f)
+         and (select siret_checked_at is null from public.clients where id = s_cli) then v_lines := v_lines || 'OK      dir   0365 : contrôle de l''annuaire non modifiable à la main'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0365 : contrôle de l''annuaire non modifiable à la main'::text; end if;
       execute 'reset role';
       -- Contrôle du serveur : établissement fermé = alerte, pas de blocage ; autre SIRET = à refaire ; plus de 24 h = à refaire

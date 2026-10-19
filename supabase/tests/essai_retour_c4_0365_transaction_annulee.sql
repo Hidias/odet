@@ -61,8 +61,8 @@ create temp table etat_essai_avant as select * from etat_essai;
 -- brouillon ; la base exige seulement un contrôle de moins de 24 h pour le SIRET actuel du client, ou un motif.
 --   invoices : siret_checked_at, siret_check_result (résultat de l'annuaire), siret_check_motif, siret_motif_at ;
 --   clients : siret_checked_at, siret_check_result (contrôle depuis la fiche client) ;
---   app.siret_controle_garde : ces colonnes ne s'écrivent pas depuis l'application (seulement par le serveur
---     après lecture sous la session de l'appelant, ou par billing_siret_motif) ;
+--   app.siret_controle_garde : ces colonnes ne s'écrivent pas depuis l'application (valeurs envoyées ignorées) ;
+--     seulement par le serveur après lecture sous la session de l'appelant, ou par billing_siret_motif ;
 --   billing_siret_motif(facture, motif) : motif saisi quand l'annuaire ne répond pas (brouillon seulement) ;
 --   app.billing_check : point bloquant « vérification du SIRET » et alertes de l'annuaire (redéfinie, reste identique).
 -- Aucune nouvelle table. Idempotente. Retour arrière : supabase/rollback/0365_facturation_annuaire_retour.sql
@@ -95,10 +95,13 @@ begin
     end if;
     return new;
   end if;
-  if new.siret_checked_at is distinct from old.siret_checked_at or new.siret_check_result is distinct from old.siret_check_result
-     or (tg_table_name = 'invoices' and (to_jsonb(new) -> 'siret_check_motif' is distinct from to_jsonb(old) -> 'siret_check_motif'
-                                         or to_jsonb(new) -> 'siret_motif_at' is distinct from to_jsonb(old) -> 'siret_motif_at')) then
-    raise exception 'Le contrôle de l''annuaire ne se saisit pas à la main' using errcode = '42501';
+  -- Mise à jour depuis l'application : le contrôle reste celui du serveur (valeurs envoyées ignorées, jamais d'erreur,
+  -- pour qu'un écran qui renvoie toute la fiche ne soit pas bloqué).
+  new.siret_checked_at := old.siret_checked_at;
+  new.siret_check_result := old.siret_check_result;
+  if tg_table_name = 'invoices' then
+    new.siret_check_motif := old.siret_check_motif;
+    new.siret_motif_at := old.siret_motif_at;
   end if;
   return new;
 end
