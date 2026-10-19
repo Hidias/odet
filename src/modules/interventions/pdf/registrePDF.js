@@ -17,7 +17,7 @@ export async function buildRegistrePDF({ client, site, equipment, visits, settin
   })
   f.cards([
     { label: 'Établissement', lines: [client?.name || '', site?.name || '', [site?.address, site?.postal_code, site?.city].filter(Boolean).join(' ')] },
-    { label: 'Entreprise de maintenance', lines: [ORG.name || '', ORG.address || '', [ORG.phone, ORG.email].filter(Boolean).join(', ')] },
+    { label: 'Entreprise de maintenance', lines: [ORG.name || '', ORG.adressePrincipale || ORG.address || '', [ORG.phone, ORG.email].filter(Boolean).join(', ')] },
   ])
   f.callout('À joindre au registre de sécurité', 'Ce document récapitule le matériel de sécurité suivi sur le site et les vérifications réalisées. Le détail de chaque visite figure sur son rapport d\'intervention. Les essais à la charge de l\'exploitant (essais périodiques de l\'éclairage de sécurité et de l\'alarme, exercices) se consignent à part.', { tone: 'muted' })
 

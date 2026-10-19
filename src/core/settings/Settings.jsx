@@ -462,20 +462,26 @@ function NomCell({ profile, onSave, onEmail, actions = [] }) {
   const [mode, setMode] = useState(null) // null | 'nom' | 'adresse'
   const [prenom, setPrenom] = useState(profile.first_name || '')
   const [nom, setNom] = useState(profile.last_name || '')
+  const [fonction, setFonction] = useState(profile.fonction || '')
+  const [tel, setTel] = useState(profile.phone || '')
   const [adresse, setAdresse] = useState('')
   const [enCours, setEnCours] = useState(false)
-  useEffect(() => { setPrenom(profile.first_name || ''); setNom(profile.last_name || '') }, [profile.first_name, profile.last_name])
+  useEffect(() => {
+    setPrenom(profile.first_name || ''); setNom(profile.last_name || ''); setFonction(profile.fonction || ''); setTel(profile.phone || '')
+  }, [profile.first_name, profile.last_name, profile.fonction, profile.phone])
   const qui = profile.display_name || profile.email
 
   if (mode === 'nom') {
     const enregistrer = async () => {
-      await onSave({ first_name: prenom.trim() || null, last_name: nom.trim() || null })
+      await onSave({ first_name: prenom.trim() || null, last_name: nom.trim() || null, fonction: fonction.trim() || null, phone: tel.trim() || null })
       setMode(null)
     }
     return (
       <div className="flex flex-col gap-1.5" style={{ minWidth: 240 }}>
         <input className="input" style={{ minHeight: 32 }} placeholder="Prénom" aria-label="Prénom" value={prenom} onChange={(e) => setPrenom(e.target.value)} autoFocus />
-        <input className="input" style={{ minHeight: 32 }} placeholder="Nom" aria-label="Nom" value={nom} onChange={(e) => setNom(e.target.value)}
+        <input className="input" style={{ minHeight: 32 }} placeholder="Nom" aria-label="Nom" value={nom} onChange={(e) => setNom(e.target.value)} />
+        <input className="input" style={{ minHeight: 32 }} placeholder="Fonction (signature des emails)" aria-label="Fonction" value={fonction} onChange={(e) => setFonction(e.target.value)} />
+        <input className="input" style={{ minHeight: 32 }} placeholder="Téléphone (signature des emails)" aria-label="Téléphone" value={tel} onChange={(e) => setTel(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') enregistrer(); if (e.key === 'Escape') setMode(null) }} />
         <div className="flex gap-1">
           <button type="button" className="btn btn-primary btn-sm" onClick={enregistrer}><Check className="w-3.5 h-3.5" />Enregistrer</button>
@@ -517,9 +523,10 @@ function NomCell({ profile, onSave, onEmail, actions = [] }) {
       <div>
         <div className="font-medium">{qui}</div>
         <div className="text-ui-sm text-gray-500">{profile.email}</div>
+        {(profile.fonction || profile.phone) && <div className="text-ui-sm text-gray-500">{[profile.fonction, profile.phone].filter(Boolean).join(' · ')}</div>}
       </div>
       <div className="flex flex-wrap gap-x-1 -ml-2">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode('nom')} aria-label={`Modifier le prénom et le nom de ${qui}`}><Pencil className="w-3.5 h-3.5" />Nom</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode('nom')} aria-label={`Modifier le nom, la fonction et le téléphone de ${qui}`}><Pencil className="w-3.5 h-3.5" />Fiche</button>
         {onEmail && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode('adresse')} aria-label={`Changer l'adresse de ${qui}`}><Mail className="w-3.5 h-3.5" />Adresse</button>}
         {actions.map((a) => (
           <button key={a.label} type="button" className={`btn btn-ghost btn-sm ${a.danger ? 'text-[rgb(var(--c-danger))]' : ''}`} onClick={a.onClick} disabled={a.disabled} title={a.title} aria-label={`${a.label} : ${qui}`}>
@@ -550,7 +557,7 @@ function UsersSection({ isSuperadmin }) {
   const [profiles, setProfiles] = useState([])
   // Compte relié à sa fiche formateur : nom et téléphone identiques des deux côtés (migration 0038)
   const [trainers, setTrainers] = useState([])
-  const INVITE_VIDE = { email: '', first_name: '', last_name: '', role: 'gestionnaire' }
+  const INVITE_VIDE = { email: '', first_name: '', last_name: '', fonction: '', phone: '', role: 'gestionnaire' }
   const [invite, setInvite] = useState(INVITE_VIDE)
   const [busy, setBusy] = useState(false)
   const [resetLink, setResetLink] = useState(null)
@@ -584,7 +591,8 @@ function UsersSection({ isSuperadmin }) {
       const first_name = invite.first_name.trim() || undefined
       const last_name = invite.last_name.trim() || undefined
       const display_name = [first_name, last_name].filter(Boolean).join(' ') || undefined
-      await callApi('/api/admin-users', { action: 'invite', email: invite.email, role: invite.role, first_name, last_name, display_name })
+      await callApi('/api/admin-users', { action: 'invite', email: invite.email, role: invite.role, first_name, last_name, display_name,
+        fonction: invite.fonction.trim() || undefined, phone: invite.phone.trim() || undefined })
       toast.success('Invitation envoyée'); setInvite(INVITE_VIDE); load()
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
@@ -658,10 +666,12 @@ function UsersSection({ isSuperadmin }) {
         </div>
       )}
       <h2 className="section-title">Inviter un utilisateur</h2>
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_200px_auto] gap-3 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
         <Field label="Email"><input type="email" className="input" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} /></Field>
         <Field label="Prénom"><input className="input" value={invite.first_name} onChange={(e) => setInvite({ ...invite, first_name: e.target.value })} /></Field>
         <Field label="Nom"><input className="input" value={invite.last_name} onChange={(e) => setInvite({ ...invite, last_name: e.target.value })} /></Field>
+        <Field label="Fonction"><input className="input" placeholder="Ex. : Technicien de maintenance" value={invite.fonction} onChange={(e) => setInvite({ ...invite, fonction: e.target.value })} /></Field>
+        <Field label="Téléphone"><input className="input" value={invite.phone} onChange={(e) => setInvite({ ...invite, phone: e.target.value })} /></Field>
         <Field label="Rôle">
           <select className="select" value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>
             {ROLES.filter(([r]) => r !== 'superadmin' || isSuperadmin).map(([r, l]) => <option key={r} value={r}>{l}</option>)}

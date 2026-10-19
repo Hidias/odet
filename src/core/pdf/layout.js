@@ -71,12 +71,12 @@ export function drawHeaderBand(doc, ORG, { ref = null, docLabel = '' } = {}) {
   setF(doc, 'bold'); doc.setFontSize(8.5); doc.setTextColor(...t.primary)
   doc.text((ORG.nameFull || ORG.name || '').toUpperCase(), pw - M, 12, { align: 'right' })
   setF(doc, 'normal'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
-  // Site d'exploitation (0049) : une ligne de plus, lignes resserrées pour garder le filet à la même hauteur
+  // Adresse principale = site d'exploitation (0049) ; le siège en mention, en dernière ligne
   const lignesId = [
-    ORG.exploitationFull ? `Siège : ${ORG.address || ''}` : (ORG.address || ''),
-    ORG.exploitationFull ? `Site d'exploitation : ${ORG.exploitationFull}` : null,
+    ORG.adressePrincipale || ORG.address || '',
     [ORG.phone, ORG.email].filter(Boolean).join('   '),
     [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.nda ? `NDA ${ORG.nda}` : ''].filter(Boolean).join('   '),
+    ORG.siegeMention || null,
   ].filter((l) => l !== null)
   const pas = lignesId.length > 3 ? 3.3 : 4
   lignesId.forEach((l, i) => doc.text(l, pw - M, 16.5 + i * pas, { align: 'right' }))
@@ -117,7 +117,7 @@ export function drawFooter(doc, ORG, docCode, pageNum = null, totalPages = null)
   doc.setDrawColor(...t.line); doc.setLineWidth(0.3)
   doc.line(M, ph - 16, pw - M, ph - 16)
   setF(doc, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
-  const l1 = [ORG.nameFull || ORG.name, ORG.addressFull].filter(Boolean).join('  ·  ')
+  const l1 = [ORG.nameFull || ORG.name, ORG.adressePrincipale || ORG.addressFull, ORG.siegeMention].filter(Boolean).join('  ·  ')
   const l2 = [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.naf ? `NAF ${ORG.naf}` : '', ORG.tva ? `TVA ${ORG.tva}` : '', ORG.ndaFull ? `NDA ${ORG.ndaFull}` : ''].filter(Boolean).join('  ·  ')
   doc.text(l1, M, ph - 11.5)
   doc.text(l2, M, ph - 8)
