@@ -213,7 +213,12 @@ export default function Quotes() {
     quantity: 1, unit: 'unité', unit_price_ht: 0, tva_rate: 20, course_id: '', nature: 'service', vat_regime: 'normal'
   }
 
+  // Lignes prêtes à l'emploi (bouton « Matériel et frais ») : matériel de formation et forfaits de déplacement.
+  // Zones de déplacement : tarifs 2 et 3 à fixer (le prix reste modifiable sur la ligne).
   const predefinedMaterials = [
+    { code: 'DEP-Z1', description_title: 'Forfait frais de déplacement zone 1', description_detail: '', unit_price_ht: 30, unit: 'forfait', nature: 'service' },
+    { code: 'DEP-Z2', description_title: 'Forfait frais de déplacement zone 2', description_detail: 'Tarif à fixer', unit_price_ht: 0, unit: 'forfait', nature: 'service' },
+    { code: 'DEP-Z3', description_title: 'Forfait frais de déplacement zone 3', description_detail: 'Tarif à fixer', unit_price_ht: 0, unit: 'forfait', nature: 'service' },
     { code: 'MAT-EXT-EAU', description_title: 'Extincteur de formation à eau', description_detail: '1 pour 3 personnes', unit_price_ht: 20, unit: 'unité' },
     { code: 'MAT-EXT-CO2', description_title: 'Extincteur CO2', description_detail: '1 pour 2 personnes', unit_price_ht: 20, unit: 'unité' }
   ]
@@ -848,7 +853,7 @@ export default function Quotes() {
     setItems([...items, {
       ...emptyItem, code: mat.code, description_title: mat.description_title,
       description_detail: mat.description_detail, unit_price_ht: mat.unit_price_ht,
-      unit: mat.unit, position: items.length, nature: 'bien'
+      unit: mat.unit, position: items.length, nature: mat.nature || 'bien'
     }])
   }
   function handleClientChange(clientId) {
@@ -1736,12 +1741,12 @@ export default function Quotes() {
                 </PickerMenu>
                 <PickerMenu
                   buttonClassName="text-ui px-3 py-1.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm hover:bg-[rgb(var(--c-warning-bg))] transition-colors flex items-center gap-1"
-                  searchPlaceholder="Rechercher du matériel..."
-                  emptyText="Aucun matériel"
+                  searchPlaceholder="Rechercher du matériel ou des frais..."
+                  emptyText="Aucune ligne"
                   items={predefinedMaterials.map((mat, i) => ({ key: i, label: mat.description_title, hint: [mat.code, mat.description_detail, money(mat.unit_price_ht)].filter(Boolean).join(' · '), mat }))}
                   onPick={it => addFromMaterial(it.mat)}
                 >
-                  <Plus size={14} /> Matériel
+                  <Plus size={14} /> Matériel et frais
                 </PickerMenu>
                 <button onClick={addItem}
                   className="text-ui px-3 py-1.5 bg-primary-50 text-primary-600 rounded-ui-sm hover:bg-primary-100 transition-colors flex items-center gap-1">
