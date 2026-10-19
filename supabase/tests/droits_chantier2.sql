@@ -2291,6 +2291,131 @@ begin
     end;
   end if;
 
+  -- Lot 2, espace entreprise (0046) : un compte entreprise ne voit que son client, par les fonctions ent_* seulement
+  if to_regclass('public.client_accounts') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 7;
+    declare
+      e_u uuid := gen_random_uuid(); e_c1 uuid; e_c2 uuid; e_site_a uuid; e_site_b uuid; e_tr1 uuid; e_tr1b uuid; e_tr2 uuid;
+      e_course uuid; e_s1 uuid; e_s2 uuid; e_inter uuid; e_g1 uuid; e_g2 uuid; e_acc uuid; e_j jsonb; e_ok boolean; e_n int; e_req uuid;
+    begin
+      insert into auth.users (id, email, aud, role) values (e_u, 'ent.compte@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (e_u, 'ent.compte@test.invalid', 'entreprise', true)
+      on conflict (id) do update set role = 'entreprise', is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.clients (name, client_type, address, postal_code, city, siret, siren, tva) values ('Essai espace 1', 'entreprise', '1 rue Essai', '29000', 'Quimper', '12345678900011', '123456789', 'FR00123456789') returning id into e_c1;
+      insert into public.clients (name, client_type) values ('Essai espace 2', 'entreprise') returning id into e_c2;
+      select id into e_site_a from public.sites where client_id = e_c1 and is_default limit 1;
+      insert into public.sites (client_id, name, kind) values (e_c1, 'Site B', 'client') returning id into e_site_b;
+      insert into public.trainees (first_name, last_name, client_id, site_id) values ('Alice', 'Espace', e_c1, e_site_a) returning id into e_tr1;
+      insert into public.trainees (first_name, last_name, client_id, site_id) values ('Bruno', 'Espace', e_c1, e_site_b) returning id into e_tr1b;
+      insert into public.trainees (first_name, last_name, client_id) values ('Chloé', 'Autre', e_c2) returning id into e_tr2;
+      insert into public.courses (title, code) values ('Essai espace', 'ESSAI-ENT') returning id into e_course;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-ENT-1', e_course, e_c1, current_date + 5, current_date + 5, 'ent-1') returning id into e_s1;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-ENT-2', e_course, e_c2, current_date + 5, current_date + 5, 'ent-2') returning id into e_s2;
+      insert into public.sessions (reference, course_id, session_type, is_public, start_date, end_date, attendance_token, max_participants)
+      values ('SES-ENT-INTER', e_course, 'inter', true, current_date + 20, current_date + 20, 'ent-inter', 8) returning id into e_inter;
+      insert into public.session_groups (session_id, client_id, kind) values (e_inter, e_c1, 'entreprise') returning id into e_g1;
+      insert into public.session_groups (session_id, client_id, kind) values (e_inter, e_c2, 'entreprise') returning id into e_g2;
+      insert into public.session_trainees (session_id, trainee_id) values (e_s1, e_tr1), (e_s1, e_tr1b), (e_s2, e_tr2);
+      insert into public.session_trainees (session_id, trainee_id, group_id) values (e_inter, e_tr1, e_g1), (e_inter, e_tr2, e_g2);
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date, siret_check_motif, siret_motif_at)
+      values ('x', 'invoice', e_c1, current_date, current_date + 30, 'essai des droits', now()) returning id into e_req;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (e_req, 0, 'Ligne', 1, 100, 20);
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', e_c1, current_date, current_date + 30);
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.billing_issue(e_req);
+      execute 'reset role';
+      e_req := null;
+      insert into public.client_accounts (profile_id, client_id, email, can_see_invoices) values (e_u, e_c1, 'ent.compte@test.invalid', false)
+      returning id into e_acc;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', e_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_j := public.ent_sessions();
+      e_ok := jsonb_array_length(e_j -> 'sessions') = 2
+        and not exists (select 1 from jsonb_array_elements(e_j -> 'sessions') x where x ->> 'id' = e_s2::text)
+        and (select jsonb_array_length(x -> 'session_trainees') from jsonb_array_elements(e_j -> 'sessions') x where x ->> 'id' = e_inter::text) = 1
+        and public.ent_org() ? 'referent_handicap_nom';
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      ent   0046 : ses formations seulement, et ses salariés seuls dans l''inter'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0046 : ses formations seulement'::text; end if;
+
+      execute 'set local role authenticated';
+      e_ok := not exists (select 1 from public.clients) and not exists (select 1 from public.sessions)
+        and not exists (select 1 from public.trainees) and not exists (select 1 from public.client_accounts);
+      e_n := jsonb_array_length(public.ent_factures());
+      execute 'reset role';
+      if e_ok and e_n = 0 then v_lines := v_lines || 'OK      ent   0046 : aucune table lisible, factures masquées sans l''option'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0046 : aucune table lisible, factures masquées sans l''option'::text; end if;
+
+      update public.client_accounts set can_see_invoices = true, all_sites = false where id = e_acc;
+      insert into public.client_account_sites (account_id, site_id) values (e_acc, e_site_a);
+      execute 'set local role authenticated';
+      e_n := jsonb_array_length(public.ent_factures());
+      e_j := public.ent_salaries();
+      execute 'reset role';
+      if e_n = 1 and jsonb_array_length(e_j) = 1 and e_j -> 0 ->> 'first_name' = 'Alice' then
+        v_lines := v_lines || 'OK      ent   0046 : factures avec l''option, salariés de ses sites seulement'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ent   0046 : factures avec l''option, salariés de ses sites (' || e_n || ' facture(s), ' || jsonb_array_length(e_j) || ' salarié(s), site ' || coalesce(e_site_a::text, 'vide') || ')'); end if;
+
+      execute 'set local role authenticated';
+      e_req := public.ent_demander('inscription_inter', 'Deux salariés', e_inter, null, '{"stagiaires": [{"nom": "Essai"}]}'::jsonb);
+      e_ok := false;
+      begin
+        perform public.ent_demander('remplacement', 'Intrus', e_s2);
+      exception when sqlstate '22023' then e_ok := true;
+      end;
+      execute 'reset role';
+      if e_req is not null and e_ok and exists (select 1 from public.notifications where metadata ->> 'request_id' = e_req::text) then
+        v_lines := v_lines || 'OK      ent   0046 : demande d''inscription notifiée, rien sur la session d''un autre client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0046 : demandes de l''espace entreprise'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := exists (select 1 from public.client_requests where id = e_req);
+      begin
+        insert into public.client_requests (client_id, kind) values (e_c1, 'message');
+        e_ok := false;
+      exception when insufficient_privilege then null;
+      end;
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      ges   0046 : voit les demandes, n''en crée pas à la place du client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0046 : voit les demandes, n''en crée pas'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := not exists (select 1 from public.client_accounts where id = e_acc);
+      begin
+        perform public.client_accounts_etat(e_c1);
+        e_ok := false;
+      exception when insufficient_privilege then null;
+      end;
+      execute 'reset role';
+      if e_ok then v_lines := v_lines || 'OK      form  0046 : ne voit pas les comptes de l''espace entreprise'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   form  0046 : ne voit pas les comptes de l''espace entreprise'::text; end if;
+
+      update public.client_accounts set is_active = false where id = e_acc;
+      perform set_config('request.jwt.claims', json_build_object('sub', e_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_ok := false;
+      begin
+        perform public.ent_accueil();
+      exception when insufficient_privilege then e_ok := true;
+      end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if e_ok then v_lines := v_lines || 'OK      ent   0046 : compte désactivé, plus aucun accès'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0046 : compte désactivé, plus aucun accès'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

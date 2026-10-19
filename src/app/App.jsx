@@ -38,6 +38,8 @@ const QuoiDeNeuf = lazy(() => import('../core/notices/QuoiDeNeuf'))
 const Obligations = lazy(() => import('../modules/formation/pages/Obligations'))
 const AValider = lazy(() => import('../modules/commercial/pages/AValider'))
 const SousTraitants = lazy(() => import('../modules/formation/pages/SousTraitants'))
+const EspaceEntrepriseAdmin = lazy(() => import('../modules/commercial/pages/EspaceEntrepriseAdmin'))
+const EspaceEntreprise = lazy(() => import('../modules/portail/pages/EspaceEntreprise'))
 const RetoursSuivi = lazy(() => import('../core/feedback/RetoursSuivi'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
@@ -122,6 +124,11 @@ function PrivateRoute({ children }) {
     return <Navigate to="/comptable" replace />
   }
 
+  // Compte entreprise (lot 2, 0046) : son espace seulement
+  if (userRole === 'entreprise') {
+    return <Navigate to="/mon-entreprise" replace />
+  }
+
   if (needsSetup) return <PageLoader />
 
   return children
@@ -133,6 +140,15 @@ function GardeRoute({ chemin, children }) {
   useAuthStore((st) => st.rights)
   if (loading) return <PageLoader />
   if (!accesPage(chemin, userRole, can)) return <PageRefusee />
+  return children
+}
+
+// Espace d'un compte entreprise : connecté et au rôle entreprise, sinon retour à l'application
+function EntrepriseRoute({ children }) {
+  const { user, loading, userRole } = useAuthStore()
+  if (loading) return <PageLoader />
+  if (!user) return <Navigate to="/login" state={{ from: '/mon-entreprise' }} replace />
+  if (userRole !== 'entreprise') return <Navigate to="/" replace />
   return children
 }
 
@@ -209,6 +225,13 @@ export default function App() {
 
           <Route path="/portail/:token" element={<TraineePortal />} />
           <Route path="/entreprise/:token" element={<ClientPortal />} />
+
+          {/* ─── Espace entreprise avec compte (rôle entreprise, lot 2) ─── */}
+          <Route path="/mon-entreprise" element={
+            <EntrepriseRoute>
+              <EspaceEntreprise />
+            </EntrepriseRoute>
+          } />
 
           {/* ─── Route Espace Comptable (comptable + admins) ─── */}
           <Route path="/comptable" element={
@@ -289,6 +312,7 @@ export default function App() {
             <Route path="obligations" element={<Obligations />} />
             <Route path="a-valider" element={<AValider />} />
             <Route path="sous-traitants" element={<SousTraitants />} />
+            <Route path="espace-entreprise" element={<EspaceEntrepriseAdmin />} />
             <Route path="retours" element={<RetoursSuivi />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />

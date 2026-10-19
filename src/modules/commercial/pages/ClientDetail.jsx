@@ -19,6 +19,7 @@ import AnnuaireClient from '../components/AnnuaireClient'
 import RepertoireClient from '../components/RepertoireClient'
 import SitesClient from '../components/SitesClient'
 import EcheancesClient from '../components/EcheancesClient'
+import ComptesEntreprise from '../components/ComptesEntreprise'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
@@ -1611,6 +1612,9 @@ export default function ClientDetail() {
               )}
             </div>
           </div>
+
+          {/* Comptes de l'espace entreprise (lot 2, 0046) */}
+          {d.espace && client && <ComptesEntreprise client={client} contacts={contacts} />}
 
           {rdvs.length > 0 && (
             <div className="bg-white rounded-ui border border-gray-200">

@@ -809,6 +809,15 @@ for _n in ['subcontractors', 'subcontractor_doc_types', 'subcontractor_documents
 tdx('0045', 'subcontract_orders', sel=f"company_id in {societes('formation.couts.gerer')}",
     ins=f"company_id in {societes('formation.couts.gerer')}", upd=f"company_id in {societes('formation.couts.gerer')}",
     dele=f"company_id in {societes('formation.couts.gerer')}")
+# Lot 2, espace entreprise (0046) : comptes et sites des comptes gérés avec l'espace entreprise ; demandes lues avec
+# les clients, traitées par qui modifie les clients (créées seulement par ent_demander) ; actualités lues avec les
+# clients, rédigées avec l'espace entreprise. Les comptes entreprise n'ont aucun droit : ils passent par les ent_*.
+_ENT = f"company_id in {societes('clients.espace.gerer')}"
+_CLI_VOIR = f"company_id in {societes('clients.fiches.voir')}"
+for _n in ['client_accounts', 'client_account_sites']:
+    tdx('0046', _n, sel=_ENT, ins=_ENT, upd=_ENT, dele=_ENT)
+tdx('0046', 'client_requests', sel=_CLI_VOIR, upd=f"company_id in {societes('clients.fiches.modifier')}", dele=_ENT)
+tdx('0046', 'client_news', sel=_CLI_VOIR, ins=_ENT, upd=_ENT, dele=_ENT)
 
 
 def build_suite(migration):
