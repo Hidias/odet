@@ -5,6 +5,7 @@ import { supabase } from '../../../core/supabase'
 import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, User, Eye, Users, Upload, FileSpreadsheet, FileText, RefreshCw, CheckCircle, AlertCircle, Archive, MoreVertical, Smartphone, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SirenConflictModal from '../components/SirenConflictModal'
+import RechercheRepertoire from '../components/RechercheRepertoire'
 import { useSirenCheck } from '../lib/useSirenCheck'
 import { canExportVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
@@ -1108,6 +1109,10 @@ export default function Clients() {
                 <button onClick={() => setShowForm(false)}><X className="w-5 h-5" /></button>
               </div>
               <div className="p-6 space-y-4">
+                {!selectedClient && form.client_type !== 'particulier' && (
+                  <RechercheRepertoire clientsExistants={clients}
+                    onChoisir={(v) => { setForm((f) => ({ ...f, ...v, tva: f.vat_exempt ? '' : v.tva })); setAutoFilled(true) }} />
+                )}
                 <div>
                   <label className="label">{form.client_type === 'particulier' ? 'Nom et prénom *' : "Nom de l'entreprise *"}</label>
                   <input className="input" value={form.name} onChange={(e) => setForm({...form, name: formatCompanyName(e.target.value)})} />

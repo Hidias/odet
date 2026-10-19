@@ -255,6 +255,11 @@ export const useDataStore = create((set, get) => ({
       status: client.status || 'prospect',
       client_type: client.client_type || 'entreprise',
     }
+    // Lot 2 (0041) : informations reprises du répertoire, envoyées seulement quand elles existent
+    for (const k of ['legal_name', 'forme_juridique', 'naf_code', 'naf', 'naf_label', 'effectif', 'dirigeant_nom', 'dirigeant_qualite',
+      'date_creation', 'etat_administratif', 'registry_snapshot', 'registry_synced_at']) {
+      if (client[k] != null && client[k] !== '') validClient[k] = client[k]
+    }
     console.log('Creating client:', validClient)
     const { data, error } = await supabase
       .from('clients')
@@ -848,6 +853,7 @@ export const useDataStore = create((set, get) => ({
     if (rest.location_address !== undefined) sessionUpdates.location_address = rest.location_address
     if (rest.location_postal_code !== undefined) sessionUpdates.location_postal_code = rest.location_postal_code
     if (rest.location_city !== undefined) sessionUpdates.location_city = rest.location_city
+    if (rest.site_id !== undefined) sessionUpdates.site_id = rest.site_id || null
     if (rest.is_intra !== undefined) sessionUpdates.is_intra = rest.is_intra
     if (rest.is_remote !== undefined) sessionUpdates.is_remote = rest.is_remote
     if (rest.day_type !== undefined) sessionUpdates.day_type = rest.day_type

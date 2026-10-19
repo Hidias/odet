@@ -155,6 +155,8 @@ ORDRE_PROD = (
     + ['0360', '0361', '0362', '0369', '0363', '0364', '0365', '0366', '0367', '0368']
     # 19/10/2026 : sociétés (C2 puis C3), puis mise en service (chantier A, 0261 à 0264, appliqués après 0277)
     + ['0274', '0275', '0276', '0277', '0261', '0262', '0263', '0264']
+    # Lot 2 (0041 et suivantes), appliqués après le chantier A
+    + ['0041']
 )
 
 

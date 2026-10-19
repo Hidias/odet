@@ -38,6 +38,7 @@ import { readableUrl } from '../../../core/storageUtils'
 import { useDroits } from '../../../core/rights/useDroit'
 
 import { confirmer, demander } from '../../../ui/Confirm'
+import ChoixSiteSession from '../components/ChoixSiteSession'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -559,6 +560,7 @@ export default function SessionDetail() {
         start_time: found.start_time || '09:00',
         end_time: found.end_time || '17:00',
         location_name: found.location_name || found.location || '',
+        site_id: found.site_id || null,
         status: found.status,
         notes: found.notes || '',
         total_price: found.total_price || '',
@@ -5408,6 +5410,17 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     disabled={editForm.is_intra}
                   />
                 </div>
+                {editForm.is_intra && (
+                  <ChoixSiteSession clientId={session?.client_id} siteId={editForm.site_id}
+                    onChoisir={(st) => setEditForm({
+                      ...editForm,
+                      site_id: st ? st.id : null,
+                      location_name: st ? st.name : '',
+                      location_address: st ? st.address || '' : '',
+                      location_postal_code: st ? st.postal_code || '' : '',
+                      location_city: st ? st.city || '' : '',
+                    })} />
+                )}
                 
                 {/* Formateur */}
                 <div>

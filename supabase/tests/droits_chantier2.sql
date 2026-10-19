@@ -2015,6 +2015,63 @@ begin
     end;
   end if;
 
+  -- Lot 2, clients et sites (0041) : adresse de la fiche = site par défaut, dans les deux sens
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'sites'
+             and column_name = 'is_head_office') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 6;
+    declare
+      l_cli uuid; l_part uuid; l_site public.sites; l_ok boolean; l_com uuid := gen_random_uuid(); l_cli2 uuid;
+    begin
+      insert into public.clients (name, address, postal_code, city, client_type) values ('Essai lot 2', '1 rue A', '29900', 'Concarneau', 'entreprise') returning id into l_cli;
+      select * into l_site from public.sites where client_id = l_cli and is_default;
+      if l_site.id is not null and l_site.address = '1 rue A' and l_site.company_ids = (select company_ids from public.clients where id = l_cli) then
+        v_lines := v_lines || 'OK      base  0041 : client professionnel créé = site « adresse de la fiche »'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : client professionnel créé = site « adresse de la fiche »'::text; end if;
+
+      update public.clients set address = '2 rue B', city = 'Quimper' where id = l_cli;
+      update public.sites set postal_code = '29000' where id = l_site.id;
+      if (select address || '|' || city from public.sites where id = l_site.id) = '2 rue B|Quimper'
+         and (select postal_code from public.clients where id = l_cli) = '29000' then
+        v_lines := v_lines || 'OK      base  0041 : adresse de la fiche et site par défaut synchronisés dans les deux sens'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : adresse de la fiche et site par défaut synchronisés'::text; end if;
+
+      insert into public.clients (name, address, client_type) values ('Particulier lot 2', '3 rue C', 'particulier') returning id into l_part;
+      if not exists (select 1 from public.sites where client_id = l_part) then
+        v_lines := v_lines || 'OK      base  0041 : un particulier n''a pas de site'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : un particulier n''a pas de site'::text; end if;
+
+      l_ok := false;
+      begin
+        insert into public.sites (kind, name, client_id, is_default) values ('client', 'Doublon', l_cli, true);
+      exception when unique_violation then l_ok := true;
+      end;
+      if l_ok then v_lines := v_lines || 'OK      base  0041 : un seul site « adresse de la fiche » par client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : un seul site « adresse de la fiche » par client'::text; end if;
+
+      if public.tva_from_siren('830695649') = 'FR13830695649' then
+        v_lines := v_lines || 'OK      base  0041 : TVA calculée depuis le SIREN (même calcul que l''application)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : TVA calculée depuis le SIREN'::text; end if;
+
+      -- Un commercial crée un client : le site naît même sans droit d'écriture direct sur les sites
+      insert into auth.users (id, email, aud, role) values (l_com, 'l2.com@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (l_com, 'l2.com@test.invalid', 'commercial', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      perform set_config('request.jwt.claims', json_build_object('sub', l_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.clients (name, address, client_type) values ('Essai lot 2 commercial', '4 rue D', 'entreprise') returning id into l_cli2;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if exists (select 1 from public.sites where client_id = l_cli2 and is_default) then
+        v_lines := v_lines || 'OK      com   0041 : client créé par un commercial, site créé par la base'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0041 : client créé par un commercial, site créé par la base'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

@@ -16,6 +16,8 @@ import { canExportVCard, buildVCard, buildVCards, clientAsContact, vcfFilename, 
 import { publicBaseUrl } from '../../../core/org/orgUtils'
 import { tvaFromSiren, pappersUrl, annuaireUrl } from '../../../core/org/tva'
 import AnnuaireClient from '../components/AnnuaireClient'
+import RepertoireClient from '../components/RepertoireClient'
+import SitesClient from '../components/SitesClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
@@ -1000,6 +1002,7 @@ export default function ClientDetail() {
                 )}
                 {client.siret && <p className="text-ui-sm sm:text-sm text-gray-500 font-mono mt-0.5">SIRET {client.siret}</p>}
                 {!editing && client.client_type !== 'particulier' && <AnnuaireClient client={client} peutModifier={d.modifier} onChange={loadClient} />}
+                {!editing && client.client_type !== 'particulier' && <div><RepertoireClient client={client} peutModifier={d.modifier} onChange={loadClient} /></div>}
                 {client.vat_exempt ? <p className="text-ui-sm text-gray-400 mt-0.5">Non assujetti à la TVA</p> : client.tva && <p className="text-ui-sm text-gray-400 font-mono mt-0.5">TVA {client.tva}</p>}
               </div>
             </div>
@@ -1484,8 +1487,10 @@ export default function ClientDetail() {
       {/* ══════ 2 COLONNES ══════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
-        {/* ──── GAUCHE : Contacts + RDV ──── */}
+        {/* ──── GAUCHE : Sites + Contacts + RDV ──── */}
         <div className="lg:col-span-1 space-y-6">
+
+          <SitesClient client={client} peutModifier={d.modifier} onClientChange={loadClient} />
 
           <div className="bg-white rounded-ui border border-gray-200">
             <button onClick={() => setSections(s => ({ ...s, contacts: !s.contacts }))}
