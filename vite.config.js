@@ -21,6 +21,18 @@ export default defineConfig({
   define: {
     __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
+  // Noms des fichiers : suffixe « -r2 » (incident du 19/10). Des réponses de secours (page HTML à la place d'un
+  // fichier) ont été gardées en cache, chez Vercel et dans les navigateurs, sous des noms de fichiers existants :
+  // un suffixe nouveau garantit qu'aucun nom déjà vu n'est redemandé. À changer de nouveau si cela se reproduisait.
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name]-[hash]-r2.js',
+        chunkFileNames: 'assets/[name]-[hash]-r2.js',
+        assetFileNames: 'assets/[name]-[hash]-r2[extname]',
+      },
+    },
+  },
   server: {
     port: 5173
   }
