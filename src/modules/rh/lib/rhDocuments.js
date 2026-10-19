@@ -45,6 +45,38 @@ export const TYPES_VISITE = {
   prereprise: 'Visite de préreprise',
   mi_carriere: 'Visite de mi-carrière',
   demande: 'Visite à la demande',
+  non_contre_indication: 'Attestation de non contre-indication (5 ans)',
+}
+
+// Symboles d'habilitation électrique (NF C18-510) et catégories de conduite (recommandations CNAM R489, R486, R482)
+export const SYMBOLES_HABILITATION = ['B0', 'H0', 'H0V', 'BF', 'HF', 'BS', 'BE manœuvre', 'HE manœuvre', 'BR', 'B1', 'B1V', 'B2', 'B2V', 'BC', 'HC', 'H1', 'H1V', 'H2', 'H2V', 'BE essai', 'BE mesurage', 'BE vérification', 'BP']
+export const CATEGORIES_CONDUITE = ['R489 1A', 'R489 1B', 'R489 2A', 'R489 2B', 'R489 3', 'R489 4', 'R489 5', 'R489 6', 'R489 7', 'R485 1', 'R485 2', 'R486 A', 'R486 B', 'R486 C', 'R482 A', 'R482 B1', 'R482 C1', 'R482 F']
+
+// Consignes de travail du service de santé au travail, sans motif médical (0386)
+export const TYPES_CONSIGNE = {
+  hauteur: 'Pas de travail en hauteur',
+  charges: 'Pas de port de charges lourdes',
+  electrique: 'Pas de travaux électriques',
+  conduite: 'Pas de conduite (engins, véhicules)',
+  travail_isole: 'Pas de travail isolé',
+  nuit: 'Pas de travail de nuit',
+  autre: 'Autre consigne',
+}
+export const ISSUES_INAPTITUDE = { reclassement: 'Reclassement', licenciement: 'Licenciement', reprise_salaire: 'Reprise du salaire', autre: 'Autre' }
+
+export const chargerConsignes = async (personId) => must(await supabase.from('hr_work_restrictions')
+  .select('*').eq('person_id', personId).order('starts_on', { ascending: false }))
+export async function enregistrerConsigne(c) {
+  const { id, ...reste } = c
+  const ligne = { ...reste, label: reste.label?.trim() || null, ends_on: reste.ends_on || null, starts_on: reste.starts_on || new Date().toISOString().slice(0, 10) }
+  if (id) return must(await supabase.from('hr_work_restrictions').update(ligne).eq('id', id))
+  return must(await supabase.from('hr_work_restrictions').insert(ligne))
+}
+export const supprimerConsigne = async (id) => must(await supabase.from('hr_work_restrictions').delete().eq('id', id))
+export async function chargerVigilance() {
+  const { data, error } = await supabase.from('v_hr_vigilance').select('*').order('echeance')
+  if (error) return []
+  return data || []
 }
 export const CONCLUSIONS = {
   apte: { label: 'Apte', badge: 'badge-success' },
@@ -132,6 +164,8 @@ export async function enregistrerHabilitation(h) {
     obtained_on: reste.obtained_on || null,
     expires_on: reste.expires_on || null,
     document_id: reste.document_id || null,
+    symbols: Array.isArray(reste.symbols) && reste.symbols.length ? reste.symbols : null,
+    scope: reste.scope?.trim() || null,
   }
   if (id) return must(await supabase.from('hr_qualifications').update(ligne).eq('id', id))
   return must(await supabase.from('hr_qualifications').insert(ligne))
@@ -151,6 +185,9 @@ export async function enregistrerSuiviSante(s) {
     conclusion: reste.conclusion || null,
     accommodation: reste.accommodation?.trim() || null,
     document_id: reste.document_id || null,
+    nci_scope: reste.visit_type === 'non_contre_indication' && Array.isArray(reste.nci_scope) && reste.nci_scope.length ? reste.nci_scope : null,
+    inaptitude_outcome: reste.conclusion === 'inapte' ? (reste.inaptitude_outcome || null) : null,
+    inaptitude_closed_on: reste.conclusion === 'inapte' ? (reste.inaptitude_closed_on || null) : null,
   }
   if (id) return must(await supabase.from('hr_medical_followups').update(ligne).eq('id', id))
   return must(await supabase.from('hr_medical_followups').insert(ligne))

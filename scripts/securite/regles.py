@@ -1313,3 +1313,13 @@ if __name__ == '__main__':
 tdx('0382', 'job_runs', sel=PLAT_D)
 tdx('0382', 'auto_send_switches', sel=f"(company_id in {societes('parametres.organisme.modifier')} or {PLAT_D})")
 tdx('0382', 'auto_send_switch_log', sel=f"(company_id in {societes('parametres.organisme.modifier')} or {PLAT_D})")
+
+# Contrôle d'affectation et inaptitude (0386, audit du 19/10) : consignes de travail (sans motif médical) lues par la RH,
+# par la personne elle-même et par qui planifie les interventions, écrites par la RH santé ; règles d'affectation lues par
+# qui planifie, réglées par la RH ou la direction de l'organisme ; levées de blocage lues par la RH et qui planifie,
+# écrites seulement par affectation_lever.
+tdx('0386', 'hr_work_restrictions', sel=f"({_RH_DOS} or {_RH_MOI} or company_id in {societes('interventions.visites.gerer')})",
+    ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
+tdx('0386', 'assignment_requirements', sel=f"(company_id in {societes('interventions.visites.gerer')} or {_RH_DOS})",
+    ins=_RH_PAR, upd=_RH_PAR, dele=_RH_PAR)
+tdx('0386', 'assignment_overrides', sel=f"(company_id in {societes('interventions.visites.gerer')} or {_RH_DOS})")

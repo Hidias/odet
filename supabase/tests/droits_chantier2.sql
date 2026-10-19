@@ -4274,6 +4274,55 @@ begin
     end;
   end if;
 
+  -- Contrôle d'affectation et inaptitude (0386) : consigne « pas de hauteur » qui bloque un site avec désenfumage,
+  -- levée par la direction avec motif ; un avis d'inaptitude suspend l'habilitation électrique
+  if to_regprocedure('app.affectation_motifs(uuid,uuid,date)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare
+      z_co uuid := app.company_default(); z_p uuid; z_site uuid; z_type uuid; z_v uuid; z_ok boolean := false; z_q uuid;
+      z_mod boolean;
+    begin
+      select coalesce(enabled, false) into z_mod from public.company_modules where company_id = z_co and key = 'rh';
+      insert into public.company_modules (company_id, key, enabled) values (z_co, 'rh', true)
+        on conflict (company_id, key) do update set enabled = true;
+      insert into public.hr_people (company_id, first_name, last_name, profile_id) values (z_co, 'Essai', 'Technicien 0386', u_tech) returning id into z_p;
+      insert into public.hr_work_restrictions (company_id, person_id, kind, starts_on) values (z_co, z_p, 'hauteur', current_date - 1);
+      insert into public.itv_equipment_types (company_id, name, family) values (z_co, 'Désenfumage essai 0386', 'Désenfumage') returning id into z_type;
+      select id into z_site from public.sites where client_id is not null limit 1;
+      insert into public.itv_equipment (site_id, client_id, type_id, company_id, label_code) select z_site, st.client_id, z_type, z_co, 'ESSAI-0386' from public.sites st where st.id = z_site;
+      perform app.affectation_regles_depart(z_co);
+      insert into public.itv_visits (company_id, status, planned_on, client_id, site_id)
+      select z_co, 'planifiee', current_date, st.client_id, st.id from public.sites st where st.id = z_site returning id into z_v;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      begin update public.itv_visits set technician_id = u_tech where id = z_v; exception when check_violation then z_ok := true; end;
+      if z_ok then v_lines := v_lines || 'OK      dir   0386 : affectation refusée (consigne « pas de hauteur », désenfumage)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0386 : affectation contraire à une consigne'::text; end if;
+      z_ok := false;
+      begin perform public.affectation_lever(z_v, u_tech, 'non'); exception when invalid_parameter_value then z_ok := true; end;
+      perform public.affectation_lever(z_v, u_tech, 'Intervention au sol seulement, nacelle par un collègue');
+      update public.itv_visits set technician_id = u_tech where id = z_v;
+      if z_ok and (select technician_id from public.itv_visits where id = z_v) = u_tech then
+        v_lines := v_lines || 'OK      dir   0386 : levée par la direction, motif obligatoire, affectation passée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0386 : levée du blocage'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+      if exists (select 1 from public.assignment_overrides where object_id = z_v and profile_id = u_tech) then
+        v_lines := v_lines || 'OK      base  0386 : levée tracée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0386 : trace de la levée'::text; end if;
+      insert into public.hr_qualifications (company_id, person_id, kind, label, symbols) values (z_co, z_p, 'habilitation_electrique', 'BS BE manœuvre', array['BS']) returning id into z_q;
+      insert into public.hr_medical_followups (company_id, person_id, visit_type, visit_on, conclusion) values (z_co, z_p, 'periodique', current_date, 'inapte');
+      if (select suspended_at from public.hr_qualifications where id = z_q) is not null then
+        v_lines := v_lines || 'OK      base  0386 : avis d''inaptitude, habilitation suspendue'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0386 : suspension après inaptitude'::text; end if;
+      update public.company_modules set enabled = coalesce(z_mod, false) where company_id = z_co and key = 'rh';
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0386 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

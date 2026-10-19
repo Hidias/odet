@@ -9,7 +9,7 @@ import { MapContainer, TileLayer, CircleMarker, Marker, Polyline, Popup, useMap 
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { ChevronLeft, ChevronRight, GripVertical, Loader2, X, Plus } from 'lucide-react'
-import { loadDueSites, loadVisits, planSite, reorderVisits, updateVisit } from '../lib/itvData'
+import { loadDueSites, loadVisits, planSite, reorderVisits, updateVisit, affecterVisite, AffectationRefusee, verifierAffectation, leverAffectation } from '../lib/itvData'
 import { todayIso, isoDay, parseDay, daysBetween, routeKm, frShort } from '../lib/schedule'
 import { Empty, Sheet } from '../components/ui'
 
@@ -37,12 +37,53 @@ function FitBounds({ points }) {
   return null
 }
 
+// Fenêtre du refus d'affectation : raisons en clair ; la direction peut lever le blocage avec un motif (tracé)
+function RefusAffectation({ refus, technicians, onClose, onDone }) {
+  const [info, setInfo] = useState(null)
+  const [motif, setMotif] = useState('')
+  const [busy, setBusy] = useState(false)
+  const tech = technicians.find((t) => t.id === refus.technicianId)
+  useEffect(() => { verifierAffectation(refus.visitId, refus.technicianId, refus.patch?.planned_on || null).then(setInfo) }, [refus])
+  const lever = async () => {
+    if (motif.trim().length < 5) { toast.error('Indiquez le motif (5 caractères au moins)'); return }
+    setBusy(true)
+    try {
+      await leverAffectation(refus.visitId, refus.technicianId, motif.trim())
+      await updateVisit(refus.visitId, refus.patch)
+      toast.success('Affectation autorisée, motif noté')
+      onDone()
+    } catch (e) { toast.error(e.message) }
+    setBusy(false)
+  }
+  const motifs = (info?.motifs?.length ? info.motifs : refus.motifs) || []
+  return (
+    <Sheet title="Affectation refusée" onClose={onClose}
+      footer={<><button type="button" className="btn btn-secondary" onClick={onClose}>Fermer</button>{info?.peut_lever && <button type="button" className="btn btn-primary" onClick={lever} disabled={busy}>Autoriser quand même</button>}</>}>
+      <div className="space-y-3 text-ui">
+        <p className="text-gray-800">{tech ? (tech.name || tech.label || 'Ce technicien') : 'Ce technicien'} ne peut pas faire cette visite{refus.nom ? ` (${refus.nom})` : ''} :</p>
+        <ul className="list-disc pl-5 space-y-1 text-gray-800">{motifs.map((m) => <li key={m} className="break-words">{m}</li>)}</ul>
+        <p className="text-ui-sm text-gray-600">Choisissez un autre technicien, ou mettez sa fiche à jour (Personnel : habilitations, santé au travail, consignes). La visite reste à planifier.</p>
+        {info?.peut_lever && (
+          <label className="block">
+            <span className="label">Motif pour autoriser quand même (direction)</span>
+            <textarea className="input" rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Ex. : intervention au sol seulement, accompagné d'un collègue habilité" />
+            <span className="text-ui-sm text-gray-500">Le motif, votre nom et la date sont gardés au journal.</span>
+          </label>
+        )}
+        {info && !info.peut_lever && <p className="text-ui-sm text-gray-600">Seule la direction peut autoriser une affectation malgré ces raisons.</p>}
+      </div>
+    </Sheet>
+  )
+}
+
 export default function Planning({ technicians }) {
   const [day, setDay] = useState(todayIso())
   const [due, setDue] = useState(null)
   const [visits, setVisits] = useState([])
   const [sector, setSector] = useState('')
   const [placing, setPlacing] = useState(null)
+  // Affectation refusée par le contrôle (titres, aptitude, consignes, absence) : raisons et levée par la direction
+  const [refus, setRefus] = useState(null)
   const [dragOver, setDragOver] = useState(null)
 
   const load = async () => {
@@ -72,7 +113,10 @@ export default function Planning({ technicians }) {
       await planSite(d, { day, technicianId: techId, order: n + 1 })
       toast.success(`${d.client?.name} placé le ${frShort(day, { year: false })}`)
       setPlacing(null); await load()
-    } catch (e) { toast.error(e.message) }
+    } catch (e) {
+      if (e instanceof AffectationRefusee) { setPlacing(null); setRefus({ ...e, patch: { planned_on: day, technician_id: techId, route_order: (byTech[techId] || []).length + 1, status: 'planifiee' }, nom: d.client?.name }); await load(); return }
+      toast.error(e.message)
+    }
   }
   const unplan = async (v) => {
     try { await updateVisit(v.id, { status: 'a_planifier', planned_on: null, technician_id: null, route_order: 0 }); await load() } catch (e) { toast.error(e.message) }
@@ -85,9 +129,13 @@ export default function Planning({ technicians }) {
     list.splice(idx < 0 ? list.length : idx, 0, v)
     setVisits((all) => all.map((x) => (x.id === visitId ? { ...x, technician_id: techId } : x)).map((x) => { const i = list.findIndex((y) => y.id === x.id); return i >= 0 ? { ...x, route_order: i + 1 } : x }))
     try {
-      if (v.technician_id !== techId) await updateVisit(visitId, { technician_id: techId })
+      if (v.technician_id !== techId) await affecterVisite(visitId, { technician_id: techId })
       await reorderVisits(list.map((x) => x.id))
-    } catch (e) { toast.error(e.message); load() }
+    } catch (e) {
+      if (e instanceof AffectationRefusee) setRefus({ ...e, motifs: e.motifs, visitId, technicianId: techId, patch: { technician_id: techId }, nom: v.clients?.name || v.sites?.name })
+      else toast.error(e.message)
+      load()
+    }
   }
   const onDrop = async (e, techId, beforeId = null) => {
     e.preventDefault(); setDragOver(null)
@@ -108,6 +156,7 @@ export default function Planning({ technicians }) {
 
   return (
     <div className="space-y-3">
+      {refus && <RefusAffectation refus={refus} technicians={technicians} onClose={() => setRefus(null)} onDone={() => { setRefus(null); load() }} />}
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-secondary btn-icon" onClick={() => setDay(plusDays(ws, -7))} aria-label="Semaine précédente"><ChevronLeft className="w-5 h-5" /></button>
         <div className="flex gap-1 flex-wrap">

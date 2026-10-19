@@ -14,7 +14,7 @@ import {
   nomComplet, heures, ajouterJours, chargerAnnuaire, chargerDemandes, chargerSemainesAValider, chargerAbsencesPeriode,
   chargerMaFiche, deciderAbsence,
 } from '../lib/rhData'
-import { etatEcheance, chargerEcheances } from '../lib/rhDocuments'
+import { etatEcheance, chargerEcheances, chargerVigilance } from '../lib/rhDocuments'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '')
 const jours = (n) => `${String(n).replace('.', ',')} j`
@@ -51,13 +51,14 @@ export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peut
 
   const charger = useCallback(async () => {
     try {
-      const [annuaire, fiche, demandes, semaines, absences, echeances] = await Promise.all([
+      const [annuaire, fiche, demandes, semaines, absences, echeances, vigilance] = await Promise.all([
         chargerAnnuaire().catch(() => []),
         chargerMaFiche().catch(() => null),
         peutValiderAbsences ? chargerDemandes({ statut: 'demandee' }).catch(() => []) : [],
         peutValiderHeures ? chargerSemainesAValider().catch(() => []) : [],
         chargerAbsencesPeriode(aujourdhui, dans30).catch(() => []),
         chargerEcheances({ jusquAu: dans60 }).catch(() => []),
+        peutRestreints ? chargerVigilance() : [],
       ])
       setD({
         annuaire,
@@ -65,9 +66,10 @@ export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peut
         semaines: semaines.filter((s) => s.person_id !== fiche?.id),
         absences,
         echeances: echeances.filter((e) => e.kind !== 'fin_essai' || e.due_on >= aujourdhui),
+        vigilance: vigilance || [],
       })
     } catch (e) { toast.error(e.message) }
-  }, [peutValiderAbsences, peutValiderHeures, aujourdhui, dans30, dans60])
+  }, [peutValiderAbsences, peutValiderHeures, peutRestreints, aujourdhui, dans30, dans60])
   useEffect(() => { charger() }, [charger])
 
   const noms = useMemo(() => Object.fromEntries((d?.annuaire || []).map((p) => [p.id, nomComplet(p)])), [d])
@@ -107,6 +109,23 @@ export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peut
         <Chiffre label="Congés à venir" valeur={aVenir.length} aide="30 prochains jours" />
         <Chiffre label="Échéances" valeur={d.echeances.length} aide="dépassées ou à 60 jours" />
       </div>
+
+      {d.vigilance.length > 0 && (
+        <Bloc titre="Vigilance : inaptitudes et visites de reprise" icone={Hourglass} compte={d.vigilance.length}>
+          <ul className="divide-y divide-gray-100">
+            {d.vigilance.map((v) => (
+              <li key={`${v.kind}-${v.person_id}-${v.depuis}`} className="px-4 py-3 flex items-center gap-3 flex-wrap">
+                <div className="flex-1 min-w-[12rem]">
+                  <div className="font-semibold text-ui">{noms[v.person_id] || 'Personne'} · {v.kind === 'inaptitude' ? 'Avis d\'inaptitude' : 'Visite de reprise'}</div>
+                  <div className="text-ui-sm text-gray-600">{v.libelle} : avant le {fr(v.echeance)}</div>
+                </div>
+                <span className={`badge ${v.echeance < aujourdhui ? 'badge-danger' : 'badge-warning'}`}>{v.echeance < aujourdhui ? 'Dépassé' : 'À faire'}</span>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/collaborateurs/${v.person_id}`)}>Fiche</button>
+              </li>
+            ))}
+          </ul>
+        </Bloc>
+      )}
 
       {(peutValiderAbsences || peutValiderHeures) && (
         <Bloc titre="Validations en attente" icone={Hourglass} compte={nbValidations}>

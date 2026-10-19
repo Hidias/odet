@@ -289,10 +289,45 @@ export async function loadDueSites(horizonIso) {
     .sort((a, b) => (a.first_due || '9999').localeCompare(b.first_due || '9999'))
 }
 
-/** Place un site sur un jour et un technicien : reprend la visite à planifier si elle existe, sinon en crée une */
+// Affectation refusée par la base (contrôle d'affectation, 0386) : raisons lisibles, visite concernée
+export class AffectationRefusee extends Error {
+  constructor(message, visitId, technicianId) {
+    super(message)
+    this.name = 'AffectationRefusee'
+    this.visitId = visitId
+    this.technicianId = technicianId
+    this.motifs = String(message || '').replace(/^.*Affectation refusée\s*:\s*/, '').split(/\s*;\s*/).filter(Boolean)
+  }
+}
+const estRefus = (e) => /Affectation refusée/.test(e?.message || '')
+
+/** Affecte une visite existante ; un refus du contrôle d'affectation devient AffectationRefusee */
+export async function affecterVisite(visitId, patch) {
+  try { return await updateVisit(visitId, patch) } catch (e) {
+    if (estRefus(e)) throw new AffectationRefusee(e.message, visitId, patch.technician_id)
+    throw e
+  }
+}
+
+/** Vérifie une affectation sans l'enregistrer : raisons, levée existante, droit de lever (direction) */
+export async function verifierAffectation(visitId, technicianId, day = null) {
+  const { data, error } = await supabase.rpc('affectation_verifier', { p_visit: visitId, p_profile: technicianId, p_date: day })
+  if (error) return null
+  return data
+}
+
+/** Levée d'un blocage par la direction, motif obligatoire */
+export async function leverAffectation(visitId, technicianId, motif) {
+  return must(await supabase.rpc('affectation_lever', { p_visit: visitId, p_profile: technicianId, p_motif: motif }))
+}
+
+/** Place un site sur un jour et un technicien : reprend la visite à planifier si elle existe, sinon en crée une
+ * (créée d'abord sans technicien : si l'affectation est refusée, la visite reste « à planifier » et peut être levée) */
 export async function planSite(due, { day, technicianId, order = 99, time = null }) {
-  if (due.pending_visit) return updateVisit(due.pending_visit.id, { planned_on: day, technician_id: technicianId, route_order: order, planned_time: time, status: 'planifiee' })
-  return createVisit({ client_id: due.client_id, site_id: due.site_id, due_on: due.first_due, planned_on: day, technician_id: technicianId, route_order: order, planned_time: time, status: 'planifiee' })
+  const patch = { planned_on: day, technician_id: technicianId, route_order: order, planned_time: time, status: 'planifiee' }
+  if (due.pending_visit) return affecterVisite(due.pending_visit.id, patch)
+  const v = await createVisit({ client_id: due.client_id, site_id: due.site_id, due_on: due.first_due, status: 'a_planifier' })
+  return affecterVisite(v.id, patch)
 }
 
 /** Nouvel ordre de passage d'une journée : ids dans l'ordre */
