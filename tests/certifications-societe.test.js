@@ -62,3 +62,15 @@ describe('Face interne regroupée par certification', () => {
     expect(g.map((d) => [d.v, d.aConfirmer])).toEqual([['apsad', 1], ['nda', 0]])
   })
 })
+
+describe('Remplacement d\'un appareil (même règle que la clôture en base)', async () => {
+  const { replaceMissing, replaceBlockers } = await import('../src/modules/interventions/lib/schedule')
+  it('motif obligatoire, précision si « autre », client informé si une opération périodique était due', () => {
+    expect(replaceMissing({ result: 'conforme' })).toEqual([])
+    expect(replaceMissing({ result: 'remplace', operation: 'verification' })).toEqual(['motif'])
+    expect(replaceMissing({ result: 'remplace', operation: 'verification', replace_reason: 'autre' })).toEqual(['précision du motif'])
+    expect(replaceMissing({ result: 'remplace', operation: 'maa', replace_reason: 'fin_de_vie' })).toEqual(['information du client'])
+    expect(replaceMissing({ result: 'remplace', operation: 'revision', replace_reason: 'cout', client_informed: true })).toEqual([])
+    expect(replaceBlockers([{ result: 'remplace' }, { result: 'conforme' }])).toHaveLength(1)
+  })
+})

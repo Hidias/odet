@@ -13,7 +13,7 @@ import {
   addVisitItem, addVisitPart, updateVisitPart, removeVisitPart, updateVisit, closeVisit, uploadPhoto, shrinkImage,
   saveEquipment, photoUrl, createInvoiceDraft, createReplacementQuote, loadPrimaryContact,
 } from '../lib/itvData'
-import { RESULTS, suggestedOperation, summarize, frShort } from '../lib/schedule'
+import { RESULTS, suggestedOperation, summarize, frShort, REPLACE_REASONS, PERIODIC_OPERATIONS, replaceMissing, replaceBlockers } from '../lib/schedule'
 import { ResultBadge, VisitBadge, ScanButton, Sheet, Kpi } from '../components/ui'
 import { buildRapportPDF } from '../pdf/rapportPDF'
 import PontVisite from '../components/PontVisite'
@@ -182,6 +182,14 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
     }
     const finish = async () => {
       if (s.todo) { toast.error(`${s.todo} appareils ne sont pas encore contrôlés`); setStep('controle'); setFilter('todo'); return }
+      const bloquants = replaceBlockers(items)
+      if (bloquants.length) {
+        const b = bloquants[0]
+        toast.error(`Appareil remplacé : il manque ${b.missing.join(' et ')}`)
+        setStep('controle'); setFilter('all'); setHighlight(b.item.equipment_id)
+        setTimeout(() => document.getElementById(`itv-eq-${b.item.equipment_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+        return
+      }
       if (!visit.client_signature && !noSignOk) { setNoSignOk(true); toast('Le client n\'a pas signé : appuyez encore une fois pour terminer sans signature'); return }
       setBusy(true)
       try {
@@ -366,6 +374,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
                   <Camera className="w-4 h-4" />{r.photo_path ? 'Remplacer la photo' : 'Photo de l\'appareil'}
                 </button>
                 {r.photo_path && photoUrls[r.photo_path] && <img src={photoUrls[r.photo_path]} alt="Photo de l'appareil" className="h-24 rounded-ui-sm object-cover" />}
+                {r.result === 'remplace' && <Remplacement r={r} patchItem={patchItem} operationLabel={settings.operation_labels[r.operation] || r.operation} />}
               </div>
             )}
           </div>
@@ -388,6 +397,44 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
       )}
       <input ref={itemFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { takePhoto(e.target.files?.[0], photoTarget); e.target.value = '' }} />
       {adding && <AddOnSite visit={visit} types={types} onClose={() => setAdding(false)} onAdded={(eq, it) => { setEquipment((l) => [...l, eq]); setItems((l) => [...l, it]); setAdding(false) }} />}
+    </div>
+  )
+}
+
+// Remplacement d'un appareil : motif obligatoire, information du client si une opération périodique était due,
+// numéro de série du nouvel appareil (repris dans le parc à la clôture). La base refuse la clôture sinon (0354).
+function Remplacement({ r, patchItem, operationLabel }) {
+  const manque = replaceMissing(r)
+  const periodique = PERIODIC_OPERATIONS.includes(r.operation)
+  return (
+    <div className={`rounded-ui-sm border p-3 space-y-2 ${manque.length ? 'border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))]' : 'border-gray-200'}`}>
+      {periodique && (
+        <p className="text-ui-sm text-gray-900">
+          <span className="font-semibold">{operationLabel}</span> était prévue : remplacer à la place demande un motif écrit et l'accord du client.
+        </p>
+      )}
+      <div>
+        <label className="label" htmlFor={`itv-rr-${r.id}`}>Pourquoi le remplacer ?</label>
+        <select id={`itv-rr-${r.id}`} className="select" value={r.replace_reason || ''} onChange={(e) => patchItem(r, { replace_reason: e.target.value || null })}>
+          <option value="">Choisir</option>
+          {REPLACE_REASONS.map((m) => <option key={m.code} value={m.code}>{m.label}</option>)}
+        </select>
+      </div>
+      {r.replace_reason === 'autre' && (
+        <div>
+          <label className="label" htmlFor={`itv-rn-${r.id}`}>Précisez</label>
+          <input id={`itv-rn-${r.id}`} className="input" defaultValue={r.replace_note || ''} onBlur={(e) => e.target.value !== (r.replace_note || '') && patchItem(r, { replace_note: e.target.value || null })} />
+        </div>
+      )}
+      <label className="flex items-center gap-2 min-h-[44px]">
+        <input type="checkbox" className="w-5 h-5" checked={!!r.client_informed} onChange={(e) => patchItem(r, { client_informed: e.target.checked })} />
+        <span className="text-ui">Client informé et d'accord{periodique ? ' (obligatoire)' : ''}</span>
+      </label>
+      <div>
+        <label className="label" htmlFor={`itv-sn-${r.id}`}>Numéro de série du nouvel appareil</label>
+        <input id={`itv-sn-${r.id}`} className="input" maxLength={60} defaultValue={r.new_serial_number || ''} onBlur={(e) => e.target.value !== (r.new_serial_number || '') && patchItem(r, { new_serial_number: e.target.value.trim() || null })} />
+      </div>
+      {manque.length > 0 && <p className="text-ui-sm font-semibold text-[rgb(var(--c-warning))]">À compléter avant la clôture : {manque.join(', ')}.</p>}
     </div>
   )
 }

@@ -14,6 +14,7 @@ export default function EquipmentForm({ equipment = null, clientId, siteId = nul
     site_id: equipment?.site_id || siteId || '',
     location: equipment?.location || '',
     brand: equipment?.brand || '',
+    serial_number: equipment?.serial_number || '',
     manufactured_year: equipment?.manufactured_year || '',
     installed_on: equipment?.installed_on || '',
     next_check_on: equipment?.next_check_on || '',
@@ -30,7 +31,7 @@ export default function EquipmentForm({ equipment = null, clientId, siteId = nul
     try {
       const row = {
         ...(equipment?.id ? { id: equipment.id } : {}), client_id: clientId, site_id: f.site_id, type_id: f.type_id,
-        location: f.location || null, brand: f.brand || null, manufactured_year: f.manufactured_year ? Number(f.manufactured_year) : null,
+        location: f.location || null, brand: f.brand || null, serial_number: f.serial_number.trim() || null, manufactured_year: f.manufactured_year ? Number(f.manufactured_year) : null,
         installed_on: f.installed_on || null, next_check_on: f.next_check_on || (equipment ? null : new Date().toISOString().slice(0, 10)), details: f.details, notes: f.notes || null,
         ...(f.label_code ? { label_code: f.label_code.trim().toUpperCase() } : {}),
       }
@@ -66,6 +67,7 @@ export default function EquipmentForm({ equipment = null, clientId, siteId = nul
         <div><label className="label" htmlFor="eq-brand">Marque</label><input id="eq-brand" className="input" value={f.brand} onChange={(e) => setF({ ...f, brand: e.target.value })} /></div>
         <div><label className="label" htmlFor="eq-year">Année de fabrication</label><input id="eq-year" className="input" inputMode="numeric" value={f.manufactured_year} onChange={(e) => setF({ ...f, manufactured_year: e.target.value.replace(/\D/g, '').slice(0, 4) })} /></div>
       </div>
+      <div><label className="label" htmlFor="eq-serial">Numéro de série</label><input id="eq-serial" className="input" maxLength={60} value={f.serial_number} onChange={(e) => setF({ ...f, serial_number: e.target.value })} /></div>
       {(type?.fields || []).length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {type.fields.map((k) => (

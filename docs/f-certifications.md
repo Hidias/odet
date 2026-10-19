@@ -32,8 +32,20 @@
 `supabase/rollback/0350_certifications_generiques_retour.sql`. Refusé si une société a un référentiel propre ou si
 des exigences APSAD ont été importées (sans la colonne company_id, elles deviendraient lisibles par toutes).
 
+## Interventions (migration 0354)
+
+- Visite : quand un appareil est « Remplacé », le technicien choisit le motif (durée de vie atteinte, endommagé,
+  réparation impossible, modèle retiré, coût, demande du client, autre à préciser), coche « Client informé et
+  d'accord » et peut saisir le numéro de série du nouvel appareil.
+- Si une opération périodique était due (maintenance additionnelle, révision, requalification, épreuve), l'écran le
+  rappelle et l'accord du client devient obligatoire (erreur A1).
+- La base refuse la clôture d'une visite tant qu'un remplacement est incomplet (`app.itv_visite_cloture_garde`), quel
+  que soit le chemin de clôture ; l'écran ramène sur l'appareil concerné.
+- À la clôture, le numéro de série saisi devient celui de l'appareil ; numéro de série modifiable dans la fiche de
+  l'appareil ; motif imprimé dans le rapport de visite.
+- Les opérations dues (5, 10, 15 ans, fin de vie) étaient déjà proposées au démarrage de la visite (`suggestedOperation`).
+
 ## Reste à faire
 
-- Interventions (0354) : motif de remplacement obligatoire, numéro de série, opérations dues (5, 10, 15, 20 ans).
 - « Préparer l'audit » : liste de contrôle avant l'audit, construite depuis les points confirmés.
 - Création d'un référentiel interne depuis l'écran (aujourd'hui : import sur un référentiel commun « à saisir »).
