@@ -2335,11 +2335,15 @@ export default function SessionDetail() {
       }
 
       // 9. Certificats de réalisation
-      const certificats = await generateAllPDF('certificat', session, traineesWithResult, { trainer })
+      // (seulement les stagiaires présents dont le résultat est saisi : jamais de certificat par défaut)
+      const absentsIds = getAbsentTraineeIds()
+      const evalues = traineesWithResult.filter(t => t.result && !absentsIds.includes(t.id))
+      const certificats = evalues.length ? await generateAllPDF('certificat', session, evalues, { trainer }) : null
       if (certificats) zip.file(`Certificats_${ref}.pdf`, certificats.base64, { base64: true })
 
-      // 10. Attestations de présence
-      const attestations = await generateAllPDF('attestation', session, traineesWithResult, { trainer })
+      // 10. Attestations de présence (pas pour un stagiaire absent sur toute la session)
+      const presents = traineesWithResult.filter(t => !absentsIds.includes(t.id))
+      const attestations = presents.length ? await generateAllPDF('attestation', session, presents, { trainer }) : null
       if (attestations) zip.file(`Attestations_${ref}.pdf`, attestations.base64, { base64: true })
 
       // 11. Tests de positionnement - rempli si fait, sinon vierge
@@ -2443,6 +2447,15 @@ export default function SessionDetail() {
       const stData = session.session_trainees?.find(st => st.trainee_id === trainee.id)
       const result = stData?.result || traineeResults[trainee.id] || null
       
+      // Pas de certificat sans résultat saisi, ni pour un stagiaire absent sur toute la session
+      if (getAbsentTraineeIds().includes(trainee.id)) {
+        toast.error('Stagiaire absent sur toute la session : pas de certificat de réalisation')
+        return
+      }
+      if (!result) {
+        toast.error('Saisissez d\'abord le résultat du stagiaire (acquis ou non acquis)')
+        return
+      }
       // Si Non Acquis, ouvrir la modal pour saisir la proposition de remédiation
       if (result === 'not_acquired') {
         openCertificatNonAcquisModal(trainee)
@@ -2533,7 +2546,17 @@ export default function SessionDetail() {
       result: st.result || traineeResults[st.trainee_id] || null,
       access_code: st.access_code
     })) || []
-    await downloadAllDocuments(docType, session, traineesWithResult, { trainer, questions })
+    // Certificats et attestations : jamais pour un absent ; certificat seulement si le résultat est saisi
+    const absentsIds = getAbsentTraineeIds()
+    let liste = traineesWithResult
+    if (docType === 'certificat' || docType === 'attestation') liste = liste.filter(t => !absentsIds.includes(t.id))
+    if (docType === 'certificat') {
+      const sansResultat = liste.filter(t => !t.result).length
+      liste = liste.filter(t => t.result)
+      if (sansResultat) toast(`${sansResultat} stagiaire${sansResultat > 1 ? 's' : ''} sans résultat saisi : pas de certificat pour ${sansResultat > 1 ? 'eux' : 'lui'}`, { icon: '⚠️' })
+    }
+    if (!liste.length) { toast.error('Aucun document à générer'); return }
+    await downloadAllDocuments(docType, session, liste, { trainer, questions })
     toast.success('Documents générés')
 
     // Marquer convocation_sent_at pour tous les stagiaires

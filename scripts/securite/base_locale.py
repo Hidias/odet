@@ -203,6 +203,8 @@ ORDRE_PROD = (
     + ['0320']
     # Purge de démonstration étendue aux véhicules et aux emprunts, 19/10
     + ['0321']
+    # Correctifs de l'audit (visite terminée figée), 19/10
+    + ['0381']
 )
 
 

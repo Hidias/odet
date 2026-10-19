@@ -57,13 +57,20 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     ...bankRows(L),
   ].filter(r => r[1])
 
+  // Mentions du devis : pénalités au taux BCE + 10 points (L441-10) et indemnité de 40 € seulement envers un
+  // professionnel ; pas de mention d'exigibilité de la TVA sur un devis (elle dépend des lignes : biens ou services,
+  // et de l'option sur les débits ; la facture la porte, calculée par la base) ; l'exonération de TVA de la formation
+  // (261-4-4° du CGI) seulement pour un devis de formation
+  const particulier = client && client.client_type === 'particulier'
+  const formation = (items || []).some(it => !!it.course_id) || !!quote.session_id
   const legal = [
-    "En cas de retard de paiement, des pénalités sont exigibles au taux légal majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
-    tvaOn ? "TVA exigible d'après les encaissements (article 269, 2-c du CGI)." : 'TVA non applicable, article 261-4-4° du CGI.',
+    particulier ? null : "En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
+    tvaOn ? null : (formation ? 'TVA non applicable, article 261-4-4° du CGI.' : 'TVA non applicable.'),
     companyLegalLine(L),
-  ]
+  ].filter(Boolean)
 
   renderCommercialDoc(doc, L, {
+    formation,
     ref: partial ? quote.reference + '-P' : quote.reference,
     docLabel: partial ? 'Bon de commande' : 'Devis',
     code: partial ? 'BDC' : 'DEV',

@@ -5,10 +5,11 @@ import { jsPDF } from 'jspdf'
 import 'jspdf-autotable'
 import { startDocument, numberPages } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { RESULT_LABEL, summarize, frShort, frMonthYear, todayIso } from '../lib/schedule'
 
 export async function buildRegistrePDF({ client, site, equipment, visits, settings, org = null }) {
-  const ORG = org || await loadPdfOrg()
+  const ORG = orgHorsFormation(org || await loadPdfOrg())
   const doc = new jsPDF({ compress: true })
   const f = startDocument(doc, ORG, {
     docLabel: 'Registre des vérifications', code: 'REG',

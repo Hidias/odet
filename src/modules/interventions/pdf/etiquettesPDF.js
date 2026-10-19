@@ -4,6 +4,7 @@
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { setF } from '../../../core/pdf/layout'
 
 export const LABEL = { w: 70, h: 37, cols: 3, rows: 8, top: 0.5, left: 0 }
@@ -15,7 +16,7 @@ export function equipmentUrl(code, base = null) {
 }
 
 export async function buildEtiquettesPDF(equipment, { client = null, org = null, base = null, startAt = 0 } = {}) {
-  const ORG = org || await loadPdfOrg()
+  const ORG = orgHorsFormation(org || await loadPdfOrg())
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const t = ORG.theme
   const perPage = LABEL.cols * LABEL.rows

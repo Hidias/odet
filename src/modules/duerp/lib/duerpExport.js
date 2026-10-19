@@ -16,6 +16,7 @@ const ORGN = () => orgName() || "l'organisme"
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { startDocument, numberPages, setF, PAGE_MARGIN, drawDocTitle } from '../../../core/pdf/layout'
 import * as XLSX from 'xlsx-js-style'
 // Logo de l'organisme : fourni par l'appelant via setDuerpLogo(org.logo_base64)
@@ -126,7 +127,7 @@ const DISCLAIMER_PDF = (orgN) => [
 ]
 
 export async function generateDuerpPDF({ project, units, risks, actions, categories, userEmail }) {
-  const ORG = await loadPdfOrg(true)
+  const ORG = orgHorsFormation(await loadPdfOrg(true))
   const orgN = ORG.name || ORGN()
   const t = ORG.theme
   const doc = new jsPDF({ compress: true })

@@ -165,7 +165,7 @@ export async function saveContract(c) {
 export const generateContractVisits = async (contractId, year) => must(await supabase.rpc('itv_generate_contract_visits', { p_contract: contractId, p_year: year }))
 
 // ─── Visites ───
-const VISIT_COLS = '*, clients(id, name, city), sites(id, name, address, postal_code, city, latitude, longitude, access_notes), itv_contracts(id, label, annual_price_ht)'
+const VISIT_COLS = '*, clients(id, name, city), sites(id, name, address, postal_code, city, latitude, longitude, access_notes), itv_contracts(id, label, annual_price_ht, visit_months, site_ids)'
 export async function loadVisits({ from = null, to = null, technicianId = null, status = null, clientId = null, siteId = null } = {}) {
   return mustAll(() => {
     let q = supabase.from('itv_visits').select(VISIT_COLS)
@@ -321,13 +321,21 @@ async function currentUserName() {
   return data ? profileName(data) : null
 }
 
-/** Lignes de facture d'une visite : forfait du contrat ou forfait de visite, puis pièces fournies */
-export function invoiceLinesForVisit(visit, parts, settings) {
+/**
+ * Lignes de facture d'une visite : part de la visite dans le forfait annuel du contrat (jamais le forfait annuel
+ * entier à chaque visite), ou forfait de visite hors contrat, puis pièces fournies.
+ * nbVisitesAn : nombre de visites prévues par an par le contrat (mois de visite × sites couverts).
+ */
+export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1) {
   const tva = Number(settings?.tva_rate ?? 20)
   const lines = []
   const day = (visit.started_at || visit.planned_on || '').slice(0, 10)
   if (visit.itv_contracts) {
-    lines.push({ description_title: visit.itv_contracts.label || 'Contrat de maintenance', description_detail: `Visite du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}`, quantity: 1, unit: 'forfait', unit_price_ht: Number(visit.itv_contracts.annual_price_ht || 0), tva_rate: tva })
+    const annuel = Number(visit.itv_contracts.annual_price_ht || 0)
+    const n = Math.max(1, Number(nbVisitesAn) || 1)
+    const part = Math.round((annuel / n) * 100) / 100
+    const detail = [`Visite du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}`, n > 1 ? `Forfait annuel ${annuel.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} € HT, ${n} visites par an` : null].filter(Boolean).join('\n')
+    lines.push({ description_title: visit.itv_contracts.label || 'Contrat de maintenance', description_detail: detail, quantity: 1, unit: 'forfait', unit_price_ht: part, tva_rate: tva })
   } else {
     lines.push({ description_title: 'Visite de vérification du matériel de sécurité', description_detail: `${visit.reference || ''} du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}`, quantity: 1, unit: 'forfait', unit_price_ht: Number(settings?.visit_fee_ht || 0), tva_rate: tva })
   }
@@ -336,8 +344,20 @@ export function invoiceLinesForVisit(visit, parts, settings) {
   return lines
 }
 
+/** Visites prévues par an par un contrat : mois de visite × sites couverts (tous les sites du client si aucun) */
+async function visitesParAn(contract, clientId) {
+  if (!contract) return 1
+  const mois = (contract.visit_months || []).length || 1
+  let sites = (contract.site_ids || []).length
+  if (!sites) {
+    const { count } = await supabase.from('sites').select('id', { count: 'exact', head: true }).eq('client_id', clientId)
+    sites = count || 1
+  }
+  return mois * sites
+}
+
 export async function createInvoiceDraft(visit, parts, settings) {
-  const lines = invoiceLinesForVisit(visit, parts, settings)
+  const lines = invoiceLinesForVisit(visit, parts, settings, await visitesParAn(visit.itv_contracts, visit.client_id))
   const t = totals(lines, settings?.tva_rate ?? 20)
   const contact = await loadPrimaryContact(visit.client_id)
   const inv = must(await supabase.from('invoices').insert({

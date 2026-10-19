@@ -12,6 +12,7 @@ import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { startDocument, numberPages } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { CONTRATS, joursOuvres, nomComplet, chargerFeries, feriesNonTravailles } from './rhData'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
@@ -60,7 +61,7 @@ export function lignesRegistre(rows) {
 }
 
 export async function telechargerRegistrePDF(rows, { enregistrer = true } = {}) {
-  const ORG = await loadPdfOrg(true)
+  const ORG = orgHorsFormation(await loadPdfOrg(true))
   const doc = new jsPDF({ orientation: 'landscape', compress: true })
   const f = startDocument(doc, ORG, {
     docLabel: 'Registre unique du personnel', code: 'RUP',

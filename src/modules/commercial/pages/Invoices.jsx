@@ -448,7 +448,7 @@ export default function Invoices() {
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: '', service_end_date: '', due_date: dd,
       object: '', payment_method: 'virement bancaire', payment_terms: 'à 30 jours', discount_percent: 0, discount_label: '',
       tva_applicable: true, notes: '', created_by: currentUserName(), status: 'draft',
-      parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: true,
+      parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: false,
       is_subrogation: false, billing_client_id: ''
     })
     setItems([emptyItem()]); setPayments([]); setContacts([]); setMode('create')
@@ -488,10 +488,12 @@ export default function Invoices() {
       object: quote.object || '', payment_method: quote.payment_method || 'virement bancaire', payment_terms: quote.payment_terms || 'à 30 jours',
       discount_percent: quote.discount_percent || 0, discount_label: quote.discount_label || '', tva_applicable: quote.tva_applicable !== false,
       notes: '', created_by: currentUserName(), status: 'draft', parent_reference: quote.reference, parent_invoice_id: null,
-      amount_paid: 0, is_formation_pro: true, session_reference: sRef, is_subrogation: false, billing_client_id: '',
+      // Formation professionnelle (BPF, NDA sur la facture) seulement si le devis porte une formation du catalogue ou une session
+      amount_paid: 0, is_formation_pro: !!quote.session_id || (qItems || []).some(it => it.course_id), session_reference: sRef, is_subrogation: false, billing_client_id: '',
       _from_quote: true
     })
-    setItems((qItems || []).map((it, i) => ({...it, id: undefined, quote_id: undefined, invoice_id: undefined, position: i})))
+    // Lignes refusées par le client : jamais facturées (même règle que la facture de solde préparée par la base, 0368)
+    setItems((qItems || []).filter(it => it.accepted !== false).map((it, i) => ({...it, id: undefined, quote_id: undefined, invoice_id: undefined, position: i})))
     setPayments([]); setShowQuoteSelector(false); setMode('create')
   }
 

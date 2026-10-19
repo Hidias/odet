@@ -234,3 +234,16 @@ export function publicBaseUrl() {
   if (typeof window !== 'undefined') return window.location.origin
   return ''
 }
+
+/**
+ * Identité pour un document hors formation (maintenance, vente de matériel, DUERP, documents internes) :
+ * ni numéro de déclaration d'activité, ni mention « Organisme de formation certifié Qualiopi ». Ces mentions ne
+ * valent que pour les actions de formation ; sur un rapport de vérification ou un devis de matériel, elles
+ * induiraient le client en erreur. Le reste de l'identité est inchangé.
+ */
+export function orgHorsFormation(ORG) {
+  if (!ORG) return ORG
+  const suffixe = ' - Organisme de formation certifié Qualiopi'
+  const nameFull = ORG.nameFull && ORG.nameFull.endsWith(suffixe) ? ORG.nameFull.slice(0, -suffixe.length) : ORG.nameFull
+  return { ...ORG, nameFull, nda: '', ndaFull: '', horsFormation: true }
+}

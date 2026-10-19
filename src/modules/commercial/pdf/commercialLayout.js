@@ -4,6 +4,7 @@
 // Aucune valeur d'organisme en dur : tout vient de l'objet L (buildORG + logo préchargé).
 
 import { startDocument, setF, numberPages, PAGE_MARGIN, drawImageFitted, drawKeyValues } from '../../../core/pdf/layout'
+import { orgHorsFormation } from '../../../core/org/orgUtils'
 
 export function fmtMoney(v) {
   var n = Math.abs(parseFloat(v) || 0).toFixed(2).split('.')
@@ -43,7 +44,9 @@ export function itemRow(it) {
  * @param {object} L identité (buildORG + logo_base64 prêt)
  * @param {object} p voir les appelants (invoiceGenerator, quoteGenerator)
  */
-export function renderCommercialDoc(doc, L, p) {
+export function renderCommercialDoc(doc, Lsource, p) {
+  // Devis ou facture sans aucune formation (maintenance, matériel) : ni NDA ni mention Qualiopi
+  const L = p.formation === false ? orgHorsFormation(Lsource) : Lsource
   const t = L.theme
   const M = PAGE_MARGIN
   const f = startDocument(doc, L, { ref: p.ref, docLabel: p.docLabel, code: p.code, title: p.title, subtitle: p.subtitle || null })
