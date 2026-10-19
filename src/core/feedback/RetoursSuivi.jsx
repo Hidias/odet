@@ -69,15 +69,17 @@ export default function RetoursSuivi() {
   const maj = (id, champs) => setItems((l) => (l || []).map((it) => (it.id === id ? { ...it, ...champs } : it)))
 
   // Ouvrir un retour nouveau le passe en « vu »
+  // (le passage en « vu » est fait avant l'ouverture : la fiche part du bon statut)
   const ouvrir = async (r) => {
-    setOuvert(r)
     if (r.status === 'nouveau') {
       try {
         await callApi('/api/retours', { id: r.id, status: 'vu' }, { method: 'PATCH' })
         maj(r.id, { status: 'vu' })
         setOuvert({ ...r, status: 'vu' })
+        return
       } catch (_) { /* le statut reste « nouveau » */ }
     }
+    setOuvert(r)
   }
 
   return (
