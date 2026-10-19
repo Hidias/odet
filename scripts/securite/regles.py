@@ -823,6 +823,9 @@ tdx('0046', 'client_news', sel=_CLI_VOIR, ins=_ENT, upd=_ENT, dele=_ENT)
 # clients ; le technicien n'y écrit que par pont_signaler_besoin (fonction).
 _CLI_MOD = f"company_id in {societes('clients.fiches.modifier')}"
 tdx('0130', 'cross_sell_leads', sel=_CLI_VOIR, ins=_CLI_MOD, upd=_CLI_MOD, dele=_CLI_MOD)
+# Fonction 11, registre de sécurité (0140) : documents du client lus avec les clients, tenus par qui modifie les
+# clients ; l'entreprise dépose par ent_document_ajouter (fonction).
+tdx('0140', 'client_documents', sel=_CLI_VOIR, ins=_CLI_MOD, upd=_CLI_MOD, dele=_CLI_MOD)
 
 
 def build_suite(migration):

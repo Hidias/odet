@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import {
   Home, GraduationCap, Users, MessageSquare, MoreHorizontal, Calendar, MapPin, FileText, FileSignature, ClipboardList,
-  Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, BookOpen, Receipt, Megaphone, ExternalLink, Send, Plus, Trash2,
+  Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, BookOpen, Receipt, Megaphone, ExternalLink, Send, Plus, Trash2, ShieldCheck,
 } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr as frLocale } from 'date-fns/locale'
@@ -12,6 +12,8 @@ import { useAuthStore } from '../../../core/store'
 import PublicLayout from '../../../app/PublicLayout'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
+import { pdfOrgFrom } from '../../../core/pdf/pdfOrg'
+import RegistreVue from '../../registre/components/RegistreVue'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
 // salariés et validités, demandes (inscription inter, formation intra, remplacement, message), catalogue, factures
@@ -48,6 +50,9 @@ export default function EspaceEntreprise() {
   const [onglet, setOnglet] = useState('accueil')
   const [accueil, setAccueil] = useState(null)
   const [erreur, setErreur] = useState(null)
+  // Registre de sécurité (fonction 11) : proposé si le module est actif ; dossier de dépôt du compte
+  const [mods, setMods] = useState({ registre: false })
+  useEffect(() => { supabase.rpc('ent_modules').then(({ data }) => { if (data) setMods(data) }) }, [])
 
   const charger = async () => {
     const { data, error } = await supabase.rpc('ent_accueil')
@@ -57,7 +62,8 @@ export default function EspaceEntreprise() {
   useEffect(() => { charger() }, [])
 
   const ONGLETS = [
-    ['accueil', 'Accueil', Home], ['formations', 'Formations', GraduationCap], ['salaries', 'Salariés', Users],
+    ['accueil', 'Accueil', Home], ['formations', 'Formations', GraduationCap],
+    mods.registre ? ['registre', 'Registre', ShieldCheck] : ['salaries', 'Salariés', Users],
     ['demandes', 'Demandes', MessageSquare], ['plus', 'Plus', MoreHorizontal],
   ]
 
@@ -86,8 +92,13 @@ export default function EspaceEntreprise() {
         {onglet === 'accueil' && <Accueil a={accueil} aller={setOnglet} />}
         {onglet === 'formations' && <Formations />}
         {onglet === 'salaries' && <Salaries />}
+        {onglet === 'registre' && (
+          <RegistreVue mode="entreprise" clientId={mods.client_id} companyId={mods.company_id}
+            charger={async (site) => { const { data, error } = await supabase.rpc('ent_registre', { p_site: site }); if (error) throw error; return data }}
+            orgPourPdf={async () => { const { data } = await supabase.rpc('ent_org'); return pdfOrgFrom(data || {}) }} />
+        )}
         {onglet === 'demandes' && <Demandes compte={accueil.compte} onChange={charger} />}
-        {onglet === 'plus' && <Plus_ compte={accueil.compte} org={accueil.org} />}
+        {onglet === 'plus' && <Plus_ compte={accueil.compte} org={accueil.org} salaries={mods.registre} />}
       </div>
       <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} aria-label="Espace entreprise">
         <div className="max-w-3xl mx-auto grid grid-cols-5">
@@ -431,7 +442,7 @@ function Demandes({ compte, onChange }) {
   )
 }
 
-function Plus_({ compte, org }) {
+function Plus_({ compte, org, salaries }) {
   const [vue, setVue] = useState('catalogue')
   const [catalogue, setCatalogue] = useState(null)
   const [factures, setFactures] = useState(null)
@@ -441,7 +452,7 @@ function Plus_({ compte, org }) {
     if (vue === 'factures' && !factures) supabase.rpc('ent_factures').then(({ data }) => setFactures(data || []))
     if (vue === 'actus' && !actus) supabase.rpc('ent_actus').then(({ data }) => setActus(data || []))
   }, [vue])
-  const VUES = [['catalogue', 'Catalogue', BookOpen], ...(compte?.can_see_invoices ? [['factures', 'Factures', Receipt]] : []), ['actus', 'Actualités', Megaphone]]
+  const VUES = [['catalogue', 'Catalogue', BookOpen], ...(salaries ? [['salaries', 'Salariés', Users]] : []), ...(compte?.can_see_invoices ? [['factures', 'Factures', Receipt]] : []), ['actus', 'Actualités', Megaphone]]
   const chargement = <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
   return (
     <div className="space-y-4">
@@ -482,6 +493,7 @@ function Plus_({ compte, org }) {
           </section>
         </div>
       ))}
+      {vue === 'salaries' && <Salaries />}
       {vue === 'factures' && (!factures ? chargement : factures.length === 0 ? <p className="text-sm text-gray-500 text-center py-6">Aucune facture.</p> : (
         <div className="space-y-2">
           {factures.map((f) => (

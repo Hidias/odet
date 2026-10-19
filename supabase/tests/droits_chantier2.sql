@@ -2604,6 +2604,77 @@ begin
     end;
   end if;
 
+  -- Fonction 11, registre de sécurité (0140) : sites du compte entreprise, exercices et documents, dossier de contrôle
+  if to_regclass('public.client_documents') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 5;
+    declare
+      g_u uuid := gen_random_uuid(); g_cli uuid; g_sa uuid; g_sb uuid; g_acc uuid; g_rule uuid; g_j jsonb; g_ok boolean; g_id uuid;
+    begin
+      update public.org_modules set enabled = true where key = 'registre';
+      insert into auth.users (id, email, aud, role) values (g_u, 'reg.ent@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (g_u, 'reg.ent@test.invalid', 'entreprise', true)
+      on conflict (id) do update set role = 'entreprise', is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.clients (name) values ('Essai registre') returning id into g_cli;
+      select id into g_sa from public.sites where client_id = g_cli and is_default limit 1;
+      insert into public.sites (client_id, name, kind) values (g_cli, 'Entrepôt', 'client') returning id into g_sb;
+      insert into public.client_accounts (profile_id, client_id, all_sites) values (g_u, g_cli, false) returning id into g_acc;
+      insert into public.client_account_sites (account_id, site_id) values (g_acc, g_sa);
+      select id into g_rule from public.obligation_rules where code = 'exercice_evacuation' and company_id = (select company_id from public.clients where id = g_cli);
+
+      perform set_config('request.jwt.claims', json_build_object('sub', g_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      g_j := public.ent_registre(null);
+      g_ok := jsonb_array_length(g_j -> 'sites') = 1 and g_j -> 'sites' -> 0 ->> 'id' = g_sa::text;
+      begin perform public.ent_registre(g_sb); g_ok := false; exception when insufficient_privilege then null; end;
+      execute 'reset role';
+      if g_ok then v_lines := v_lines || 'OK      ent   0140 : registre des seuls sites du compte, autre site refusé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0140 : registre des seuls sites du compte'::text; end if;
+
+      execute 'set local role authenticated';
+      g_id := public.ent_exercice_ajouter(g_sa, g_rule, current_date - 5, 12, 'Évacuation en 3 minutes');
+      g_ok := true;
+      begin perform public.ent_exercice_ajouter(g_sb, g_rule, current_date - 5); g_ok := false; exception when insufficient_privilege then null; end;
+      begin perform public.ent_document_ajouter(g_sa, 'consigne_incendie', 'Consigne', 'autre/chemin.pdf', 'c.pdf'); g_ok := false; exception when sqlstate '22023' then null; end;
+      g_j := public.ent_registre(g_sa);
+      execute 'reset role';
+      if g_ok and g_id is not null and jsonb_array_length(g_j -> 'exercices') = 1
+         and (select x ->> 'etat' from jsonb_array_elements(g_j -> 'dossier') x where x ->> 'piece' like 'Exercices%') = 'a_jour'
+         and (select x ->> 'etat' from jsonb_array_elements(g_j -> 'dossier') x where x ->> 'piece' like 'Consigne%') = 'manquant' then
+        v_lines := v_lines || 'OK      ent   0140 : exercice ajouté sur son site, fichier d''ailleurs refusé, dossier de contrôle à jour'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ent   0140 : exercice et dossier (' || coalesce((g_j -> 'dossier')::text, 'vide') || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.client_documents (client_id, site_id, kind, title) values (g_cli, g_sa, 'consigne_incendie', 'Consigne incendie');
+      g_j := public.registre_client(g_cli, g_sa);
+      execute 'reset role';
+      if (select x ->> 'etat' from jsonb_array_elements(g_j -> 'dossier') x where x ->> 'piece' like 'Consigne%') = 'a_jour'
+         and jsonb_array_length(g_j -> 'sites') = 2 then
+        v_lines := v_lines || 'OK      ges   0140 : dépose une consigne, voit le registre de tous les sites'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0140 : registre du client depuis la fiche'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      g_ok := false;
+      begin perform public.ent_registre(null); exception when insufficient_privilege then g_ok := true; end;
+      g_ok := g_ok and not exists (select 1 from public.client_documents where client_id = g_cli);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if g_ok then v_lines := v_lines || 'OK      tech  0140 : ni espace entreprise ni documents du registre'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0140 : ni espace entreprise ni documents du registre'::text; end if;
+
+      if exists (select 1 from storage.buckets where id = 'registre' and not public)
+         and (select count(*) from pg_policies where schemaname = 'storage' and policyname like 'registre\_%') = 3 then
+        v_lines := v_lines || 'OK      base  0140 : pièces du registre dans un bucket privé, règles par droits et par client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0140 : bucket privé du registre'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

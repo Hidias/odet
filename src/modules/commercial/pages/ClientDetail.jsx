@@ -21,6 +21,7 @@ import SitesClient from '../components/SitesClient'
 import EcheancesClient from '../components/EcheancesClient'
 import ComptesEntreprise from '../components/ComptesEntreprise'
 import PistesClient from '../components/PistesClient'
+import RegistreClient from '../../registre/components/RegistreClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
@@ -1620,6 +1621,9 @@ export default function ClientDetail() {
 
           {/* Pistes formation et maintenance (fonction 10) */}
           {client && modulesActifs.includes('pont') && <PistesClient clientId={client.id} />}
+
+          {/* Registre de sécurité (fonction 11) */}
+          {client && modulesActifs.includes('registre') && <RegistreClient client={client} />}
 
           {rdvs.length > 0 && (
             <div className="bg-white rounded-ui border border-gray-200">
