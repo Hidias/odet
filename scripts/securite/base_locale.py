@@ -166,7 +166,7 @@ ORDRE_PROD = (
     # Performance : droits calculés une fois par requête (19/10)
     + ['0090']
     # Chantier 12, RH socle et absences (19/10)
-    + ['0290', '0294']
+    + ['0290', '0294', '0297']
 )
 
 

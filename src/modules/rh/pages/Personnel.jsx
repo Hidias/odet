@@ -20,6 +20,7 @@ import {
   chargerTypesAbsence, chargerSoldes, chargerMouvements, ajusterSolde,
 } from '../lib/rhData'
 import Absences, { DemandeSheet } from './Absences'
+import Heures from './Heures'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const euros = (n) => Number(n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -518,7 +519,7 @@ export default function Personnel() {
   const peutValider = can('rh.absences.valider') === true
   const peutVoirTout = can('rh.dossiers.voir') === true
   const chemin = location.pathname.replace(/^\/collaborateurs\/?/, '').split('/')[0]
-  const ONGLETS = ['absences', 'equipes', 'horaires']
+  const ONGLETS = ['absences', 'heures', 'equipes', 'horaires']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
   const enFiche = chemin && !ONGLETS.includes(chemin)
 
@@ -527,13 +528,14 @@ export default function Personnel() {
       {!enFiche && (
         <>
           <PageHeader eyebrow="Ressources humaines" title="Personnel" />
-          <Tabs tabs={[{ id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'equipes', label: 'Équipes' }, { id: 'horaires', label: 'Horaires' }]}
+          <Tabs tabs={[{ id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'heures', label: 'Heures' }, { id: 'equipes', label: 'Équipes' }, { id: 'horaires', label: 'Horaires' }]}
             value={onglet} onChange={(id) => navigate(id === 'annuaire' ? '/collaborateurs' : `/collaborateurs/${id}`)} />
         </>
       )}
       <Routes>
         <Route index element={<Annuaire peutGerer={peutGerer} />} />
         <Route path="absences" element={<Absences peutValider={peutValider} peutVoirTout={peutVoirTout} peutConfigurer={peutConfigurer} />} />
+        <Route path="heures" element={<Heures peutValider={can('rh.heures.valider') === true} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
         <Route path="horaires" element={<Horaires peutConfigurer={peutConfigurer} />} />
         <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} />} />

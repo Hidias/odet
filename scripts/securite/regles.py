@@ -884,6 +884,15 @@ tdx('0294', 'hr_absence_requests', sel=f"({_RH_DOS} or {_RH_VAL} or person_id in
 tdx('0294', 'hr_leave_ledger', sel=f"({_RH_DOS} or {_RH_VAL} or person_id in (select app.hr_mes_personnes()))",
     ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
 
+# Chantier 12, RH heures (0297) : lignes et semaines lues par la personne, ou avec « Voir les dossiers » ou « Valider
+# les heures » ; lignes écrites par la personne (« Saisir ses heures ») ou avec « Tenir les dossiers » ; semaines
+# écrites seulement par les fonctions (soumission, décision du circuit commun).
+_RH_HVAL = f"company_id in {societes('rh.heures.valider')}"
+_RH_HSAI = f"(person_id in (select app.hr_mes_personnes()) and company_id in {societes('rh.heures.saisir')})"
+tdx('0297', 'hr_time_entries', sel=f"({_RH_DOS} or {_RH_HVAL} or person_id in (select app.hr_mes_personnes()))",
+    ins=f"({_RH_HSAI} or {_RH_GER})", upd=f"({_RH_HSAI} or {_RH_GER})", dele=f"({_RH_HSAI} or {_RH_GER})")
+tdx('0297', 'hr_timesheets', sel=f"({_RH_DOS} or {_RH_HVAL} or person_id in (select app.hr_mes_personnes()))")
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}
