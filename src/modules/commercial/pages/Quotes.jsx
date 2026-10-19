@@ -1481,7 +1481,6 @@ export default function Quotes() {
                 {q.client_reference && <div className="flex justify-between"><span className="text-gray-500">Réf. client</span><span>{q.client_reference}</span></div>}
                 <div className="flex justify-between"><span className="text-gray-500">Paiement</span><span className="text-right text-ui-sm">{q.payment_method || '-'}</span></div>
                 {q.validity_date && <div className="flex justify-between"><span className="text-gray-500">Validité</span><span>{format(new Date(q.validity_date), 'dd/MM/yyyy')}</span></div>}
-                {q.payment_deadline && <div className="flex justify-between"><span className="text-gray-500">Échéance</span><span>{format(new Date(q.payment_deadline), 'dd/MM/yyyy')}</span></div>}
               </div>
             </div>
           </div>
