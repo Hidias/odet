@@ -2072,6 +2072,61 @@ begin
     end;
   end if;
 
+  -- Lot 2, obligations et échéances (0042)
+  if to_regclass('public.obligation_rules') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 5;
+    declare
+      o_own uuid := app.company_default(); o_cli uuid; o_tr uuid; o_course uuid; o_ses uuid; o_rule uuid; o_ex uuid;
+      o_v public.v_trainee_validities; o_x public.client_safety_checks; o_et public.external_trainings;
+    begin
+      if (select count(*) from public.obligation_rules where company_id = o_own) >= 13
+         and not exists (select 1 from public.obligation_rules where company_id = o_own and is_confirmed) then
+        v_lines := v_lines || 'OK      base  0042 : référentiel de départ posé pour la société, tout « à confirmer »'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0042 : référentiel de départ posé pour la société'::text; end if;
+
+      insert into public.clients (name, client_type) values ('Essai obligations', 'entreprise') returning id into o_cli;
+      insert into public.trainees (first_name, last_name, client_id) values ('Essai', 'Validité', o_cli) returning id into o_tr;
+      insert into public.courses (title, code) values ('Essai SST obligations', 'ESSAI-OBL') returning id into o_course;
+      insert into public.obligation_rules (code, label, kind, validity_months, validity_group, course_ids)
+      values ('essai_obl', 'Essai', 'formation', 24, 'essai_obl', array[o_course]) returning id into o_rule;
+      insert into public.sessions (reference, course_id, client_id, start_date, end_date, attendance_token)
+      values ('SES-ESSAI-OBL', o_course, o_cli, date '2025-03-01', date '2025-03-02', 'essai-obl') returning id into o_ses;
+      insert into public.session_trainees (session_id, trainee_id, result) values (o_ses, o_tr, 'acquired');
+      select * into o_v from public.v_trainee_validities where trainee_id = o_tr and rule_id = o_rule;
+      if o_v.echeance = date '2027-03-02' and o_v.client_id = o_cli then
+        v_lines := v_lines || 'OK      base  0042 : validité = fin de session réussie + périodicité de la règle'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0042 : validité calculée (' || coalesce(o_v.echeance::text, 'aucune') || ')'); end if;
+
+      insert into public.external_trainings (trainee_id, rule_id, provider_name, done_on) values (o_tr, o_rule, 'Autre organisme', date '2026-01-10')
+      returning * into o_et;
+      select * into o_v from public.v_trainee_validities where trainee_id = o_tr and validity_group = 'essai_obl';
+      if o_et.valid_until = date '2028-01-10' and o_et.company_id = (select company_id from public.trainees where id = o_tr)
+         and o_v.source = 'externe' and o_v.echeance = date '2028-01-10' then
+        v_lines := v_lines || 'OK      base  0042 : formation suivie ailleurs, plus récente, prise en compte jusqu''à son échéance'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0042 : formation suivie ailleurs prise en compte'::text; end if;
+
+      select id into o_ex from public.obligation_rules where company_id = o_own and code = 'exercice_evacuation';
+      insert into public.client_safety_checks (client_id, rule_id, done_on) values (o_cli, o_ex, current_date - 200) returning * into o_x;
+      if o_x.next_due_on = (current_date - 200 + interval '6 months')::date
+         and exists (select 1 from public.v_obligation_deadlines where objet_id = o_x.id and status = 'depasse' and kind = 'exercice') then
+        v_lines := v_lines || 'OK      base  0042 : exercice d''évacuation, échéance à 6 mois, dépassée signalée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0042 : exercice d''évacuation, échéance et statut'::text; end if;
+
+      -- Vue lue avec les droits de la personne : un technicien sans visite chez ce client ne voit rien
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      if not exists (select 1 from public.v_obligation_deadlines where client_id = o_cli)
+         and not exists (select 1 from public.v_trainee_validities where trainee_id = o_tr) then
+        v_lines := v_lines || 'OK      tech  0042 : échéances d''un client hors de ses missions : rien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0042 : échéances d''un client hors de ses missions'::text; end if;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

@@ -18,6 +18,7 @@ import { tvaFromSiren, pappersUrl, annuaireUrl } from '../../../core/org/tva'
 import AnnuaireClient from '../components/AnnuaireClient'
 import RepertoireClient from '../components/RepertoireClient'
 import SitesClient from '../components/SitesClient'
+import EcheancesClient from '../components/EcheancesClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
@@ -72,6 +73,7 @@ export default function ClientDetail() {
     prospection: 'commercial.prospection.gerer',
     devis: 'commercial.devis.modifier',
     session: 'formation.sessions.creer',
+    stagiaires: 'formation.stagiaires.modifier',
   })
 
   function exportContactVCard(contact) {
@@ -1491,6 +1493,8 @@ export default function ClientDetail() {
         <div className="lg:col-span-1 space-y-6">
 
           <SitesClient client={client} peutModifier={d.modifier} onClientChange={loadClient} />
+
+          <EcheancesClient client={client} peutModifier={d.modifier} peutStagiaires={d.stagiaires} />
 
           <div className="bg-white rounded-ui border border-gray-200">
             <button onClick={() => setSections(s => ({ ...s, contacts: !s.contacts }))}

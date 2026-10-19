@@ -781,6 +781,17 @@ tdx('0368', 'invoice_deposit_links', sel=f"company_id in {societes('facturation.
 # restrictives qui laissent passer les lignes sans société).
 tdx('0262', 'platform_notices', sel=f"((status = 'publie' and {REGL_D}) or {PLAT_D})", ins=PLAT_D, upd=PLAT_D,
     dele=PLAT_D)
+# Lot 2, obligations (0042) : référentiel par société, formations suivies ailleurs (données des stagiaires),
+# exercices et essais de l'exploitant (fiche client).
+tdx('0042', 'obligation_rules', sel=f"company_id in {societes('organisation.reglages.voir')}",
+    ins=f"company_id in {societes('formation.catalogue.gerer')}", upd=f"company_id in {societes('formation.catalogue.gerer')}",
+    dele=f"company_id in {societes('formation.catalogue.gerer')}")
+tdx('0042', 'external_trainings', sel=f"company_id in {societes('formation.stagiaires.voir')}",
+    ins=f"company_id in {societes('formation.stagiaires.modifier')}", upd=f"company_id in {societes('formation.stagiaires.modifier')}",
+    dele=f"company_id in {societes('formation.stagiaires.modifier')}")
+tdx('0042', 'client_safety_checks', sel=f"company_id in {societes('clients.fiches.voir')}",
+    ins=f"company_id in {societes('clients.fiches.modifier')}", upd=f"company_id in {societes('clients.fiches.modifier')}",
+    dele=f"company_id in {societes('clients.fiches.modifier')}")
 
 
 def build_suite(migration):

@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Calendar, GraduationCap, Users, UserCheck, FileText, FileQuestion, ClipboardCheck,
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
-  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote,
+  MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -37,6 +37,8 @@ export const NAV_SECTIONS = [
       { to: '/documents', right: 'formation.documents.voir', icon: FileText, label: 'Documents', roles: STAFF },
       { to: '/documents-vierges', right: 'formation.documents.voir', icon: FileQuestion, label: 'Documents vierges', roles: STAFF },
       { to: '/tests-positionnement', right: 'formation.catalogue.voir', icon: ClipboardCheck, label: 'Tests et quiz', roles: STAFF },
+      // Référentiel des obligations (lot 2, 0042) : périodicités des formations, du matériel et des exercices
+      { to: '/obligations', right: 'formation.catalogue.voir', icon: CalendarClock, label: 'Obligations', roles: MANAGERS },
     ],
   },
   {
