@@ -45,7 +45,14 @@ des exigences APSAD ont été importées (sans la colonne company_id, elles devi
   l'appareil ; motif imprimé dans le rapport de visite.
 - Les opérations dues (5, 10, 15 ans, fin de vie) étaient déjà proposées au démarrage de la visite (`suggestedOperation`).
 
+## Préparer l'audit (onglet de Certification, sans migration)
+
+- Sites à proposer à l'auditeur : maintenances additionnelles, révisions, requalifications réellement faites sur la
+  période (6, 12 ou 24 mois), avec les visites ; opérations dues non faites par client ; remplacements sans motif.
+- Sessions terminées : complètes (aucune alerte ouverte) ou à reprendre (alertes de complétude), l'auditeur choisissant
+  lui-même son échantillon (erreurs A0 et Q13).
+- Lecture seule, droits de la base ; rien de la face interne.
+
 ## Reste à faire
 
-- « Préparer l'audit » : liste de contrôle avant l'audit, construite depuis les points confirmés.
 - Création d'un référentiel interne depuis l'écran (aujourd'hui : import sur un référentiel commun « à saisir »).

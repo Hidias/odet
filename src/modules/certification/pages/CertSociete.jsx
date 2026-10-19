@@ -92,7 +92,7 @@ function ImportTexte({ refe, copie, onFini }) {
   )
 }
 
-export default function CertSociete({ canWrite }) {
+export default function CertSociete({ canWrite, settings }) {
   const [data, setData] = useState(null)
   const [ouvert, setOuvert] = useState(null) // { code, mode: 'certif' | 'import' }
   const [erreur, setErreur] = useState(null)
@@ -136,6 +136,12 @@ export default function CertSociete({ canWrite }) {
               <span className={`badge ${certif ? st.badge : 'badge-neutral'}`}>{certif ? st.label : 'Non suivie'}</span>
               {certValide(certif) && <span className="badge badge-success">Valide</span>}
             </div>
+            {!certif && r.kind === 'qualiopi' && settings?.referential_code === r.code && (settings.certified_at || settings.certifier_name) && (
+              <p className="text-ui-sm text-gray-700">
+                Onglet Qualiopi : {settings.certified_at ? `certifié depuis le ${frDate(settings.certified_at)}` : 'avant l\'audit initial'}
+                {settings.certifier_name ? `, ${settings.certifier_name}` : ''}. Cliquez sur « Suivre cette certification » pour les dates d'audit et la validité.
+              </p>
+            )}
             {certif && (
               <p className="text-ui-sm text-gray-700">
                 {[certif.certificateur, certif.numero ? `n° ${certif.numero}` : null,
