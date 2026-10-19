@@ -88,16 +88,22 @@ export const useAuthStore = create((set, get) => ({
       set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null, societes: null })
       return false
     }
-    const modules = await fetchEnabledModules()
     setCurrentProfile(access.profile)
-    try {
-      const { data: members } = await supabase.from('profiles').select('id, first_name, last_name, display_name, email, sender_email, role, is_active')
-      setTeamCache((members || [])
-        .filter((m) => m.is_active !== false && !['comptable', 'lecture'].includes(m.role))
-        .map((m) => ({ id: m.id, name: profileName(m), firstName: m.first_name || profileName(m).split(' ')[0], email: m.sender_email || m.email, role: m.role })))
-    } catch {
-      setTeamCache([])
+    // Lectures indépendantes lancées ensemble (performance, 19/10) : modules, équipe, droits (C1b), sociétés (C3).
+    // Chacune garde son comportement en cas d'échec (liste vide, null).
+    const chargerEquipe = async () => {
+      try {
+        const { data: members } = await supabase.from('profiles').select('id, first_name, last_name, display_name, email, sender_email, role, is_active')
+        setTeamCache((members || [])
+          .filter((m) => m.is_active !== false && !['comptable', 'lecture'].includes(m.role))
+          .map((m) => ({ id: m.id, name: profileName(m), firstName: m.first_name || profileName(m).split(' ')[0], email: m.sender_email || m.email, role: m.role })))
+      } catch {
+        setTeamCache([])
+      }
     }
+    const [modules, , rights, societes] = await Promise.all([
+      fetchEnabledModules(), chargerEquipe(), chargerDroits(supabase), chargerContexteSocietes(supabase),
+    ])
     // Technicien de terrain : compte en lecture coché technicien dans le module Interventions.
     // Il ne voit que ses interventions (menu, pages et recherche limités dans Layout).
     let fieldOnly = false
@@ -108,10 +114,7 @@ export const useAuthStore = create((set, get) => ({
       } catch { fieldOnly = false }
     }
     configureCompanyContext({ role: access.role })
-    // Droits composés (C1b) : une lecture en base ; en cas d'échec, null et rien ne change
-    const rights = await chargerDroits(supabase)
     // Sociétés (C3) : modules actifs dans la société courante, identité de la société pour les documents
-    const societes = await chargerContexteSocietes(supabase)
     setSocieteCache(await chargerIdentiteSociete(supabase, societes))
     const modulesSociete = societes && Array.isArray(societes.modules) ? societes.modules : modules
     set({ user: session.user, profile: access.profile, userRole: access.role, modules: modulesSociete, fieldOnly, rights, societes })

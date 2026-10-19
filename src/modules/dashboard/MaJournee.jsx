@@ -13,8 +13,10 @@ const jour = () => {
 }
 
 // Lignes lues (identifiants seuls, 500 au plus) : un comptage HEAD « exact » en parallèle peut être refusé par
-// l'API (503) quand le tableau de bord charge en même temps ; les sujets sont donc lus l'un après l'autre.
+// l'API (503) quand le tableau de bord charge en même temps ; les sujets sont donc lus par petits groupes (PAR_GROUPE),
+// depuis que les droits sont calculés une fois par requête (0090, environ 10 ms par lecture).
 const PLAFOND = 500
+const PAR_GROUPE = 3
 async function compter(requete) {
   try {
     const { data, error } = await requete.limit(PLAFOND)
@@ -66,9 +68,11 @@ export default function MaJournee() {
     ].filter(Boolean)
     ;(async () => {
       const r = []
-      for (const s of sujets) {
+      for (let i = 0; i < sujets.length; i += PAR_GROUPE) {
         if (!vivant) return
-        r.push({ ...s, n: await compter(s.q()) })
+        const groupe = sujets.slice(i, i + PAR_GROUPE)
+        const n = await Promise.all(groupe.map((s) => compter(s.q())))
+        groupe.forEach((s, j) => r.push({ ...s, n: n[j] }))
       }
       if (vivant) setLignes(r.filter((x) => x.n > 0))
     })()
