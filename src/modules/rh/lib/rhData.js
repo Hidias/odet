@@ -161,18 +161,34 @@ export const chargerMaFiche = async () => {
   const { data } = await supabase.from('hr_people').select('id, company_id, first_name, last_name, usage_name').eq('profile_id', u.user.id).maybeSingle()
   return data || null
 }
+// Noms des personnes : la fiche (hr_people) n'est lisible qu'avec « Voir les dossiers » ; un responsable d'équipe
+// (0312) lit seulement l'annuaire. Les noms manquants sont repris de l'annuaire.
+async function completerNoms(rows) {
+  const manquants = [...new Set((rows || []).filter((r) => !r.hr_people && r.person_id).map((r) => r.person_id))]
+  if (!manquants.length) return rows
+  const { data } = await supabase.from('v_hr_annuaire').select('id, first_name, last_name, usage_name').in('id', manquants)
+  const parId = Object.fromEntries((data || []).map((p) => [p.id, p]))
+  return rows.map((r) => (r.hr_people || !parId[r.person_id] ? r : { ...r, hr_people: parId[r.person_id] }))
+}
+
+/** Le compte connecté est-il responsable d'une équipe ? (0312 ; faux si la base ne le sait pas encore) */
+export const suisResponsable = async () => {
+  const { data, error } = await supabase.rpc('hr_suis_responsable')
+  return !error && data === true
+}
+
 export const chargerDemandes = async ({ personId = null, statut = null } = {}) => {
-  return must(await fetchAll(() => {
+  return completerNoms(must(await fetchAll(() => {
     let q = supabase.from('hr_absence_requests').select('*, hr_absence_types(label, code, category), hr_people(first_name, last_name, usage_name)')
     if (personId) q = q.eq('person_id', personId)
     if (statut) q = q.eq('status', statut)
     return q.order('start_on', { ascending: false })
-  }))
+  })))
 }
 /** Absences validées qui touchent une période (absents du jour, congés à venir) */
-export const chargerAbsencesPeriode = async (debut, fin) => must(await fetchAll(() => supabase.from('hr_absence_requests')
+export const chargerAbsencesPeriode = async (debut, fin) => completerNoms(must(await fetchAll(() => supabase.from('hr_absence_requests')
   .select('id, person_id, start_on, end_on, start_half, end_half, days, status, hr_absence_types(label, category), hr_people(first_name, last_name, usage_name)')
-  .eq('status', 'validee').gte('end_on', debut).lte('start_on', fin).order('start_on')))
+  .eq('status', 'validee').gte('end_on', debut).lte('start_on', fin).order('start_on'))))
 export const chargerSoldes = async (personId) => must(await supabase.from('v_hr_soldes').select('*').eq('person_id', personId))
 export const chargerMouvements = async (personId) => must(await supabase.from('hr_leave_ledger').select('*, hr_absence_types(label)').eq('person_id', personId).order('created_at', { ascending: false }))
 
@@ -241,7 +257,7 @@ export function totauxSemaine(lignes, contratMinutes = 35 * 60) {
 export const chargerLignes = async (personId, lundi) => must(await supabase.from('hr_time_entries').select('*, clients(name)')
   .eq('person_id', personId).gte('work_date', lundi).lte('work_date', ajouterJours(lundi, 6)).order('work_date').order('start_time'))
 export const chargerSemaine = async (personId, lundi) => must(await supabase.from('hr_timesheets').select('*').eq('person_id', personId).eq('week_start', lundi).maybeSingle())
-export const chargerSemainesAValider = async () => must(await supabase.from('hr_timesheets').select('*, hr_people(first_name, last_name, usage_name)').eq('status', 'soumise').order('week_start'))
+export const chargerSemainesAValider = async () => completerNoms(must(await supabase.from('hr_timesheets').select('*, hr_people(first_name, last_name, usage_name)').eq('status', 'soumise').order('week_start')))
 export const chargerContratEnCours = async (personId, lundi) => {
   const { data } = await supabase.from('hr_employments').select('weekly_hours, start_on, end_on').eq('person_id', personId).lte('start_on', ajouterJours(lundi, 6)).order('start_on', { ascending: false }).limit(1)
   const c = (data || [])[0]

@@ -20,7 +20,7 @@ import {
   chargerPersonnesChoix, enregistrerPersonne, archiverPersonne, enregistrerContrat, supprimerContrat,
   voirRemuneration, ajouterRemuneration, enregistrerEquipe, supprimerEquipe, enregistrerHoraire,
   chargerTypesAbsence, chargerSoldes, chargerMouvements, ajusterSolde,
-  chargerFeries, marquerFerie, ajouterFerie, supprimerFerie, poserFeriesAnnee,
+  chargerFeries, marquerFerie, ajouterFerie, supprimerFerie, poserFeriesAnnee, suisResponsable,
 } from '../lib/rhData'
 import Absences, { DemandeSheet } from './Absences'
 import Heures from './Heures'
@@ -611,8 +611,12 @@ export default function Personnel() {
   const peutVoirTout = can('rh.dossiers.voir') === true
   const peutRestreints = can('rh.documents.restreints') === true
   const chemin = location.pathname.replace(/^\/collaborateurs\/?/, '').split('/')[0]
-  const peutValiderHeures = can('rh.heures.valider') === true
-  const peutTableau = peutVoirTout || peutValider || peutValiderHeures
+  const [responsable, setResponsable] = useState(false)
+  useEffect(() => { suisResponsable().then(setResponsable) }, [])
+  // Responsable d'équipe (0312) : valide les absences et les semaines de son équipe, quel que soit son profil
+  const peutValiderAbs = peutValider || responsable
+  const peutValiderHeures = can('rh.heures.valider') === true || responsable
+  const peutTableau = peutVoirTout || peutValiderAbs || peutValiderHeures
   const ONGLETS = ['tableau', 'mon-espace', 'absences', 'heures', 'equipes', 'horaires']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
   const enFiche = chemin && !ONGLETS.includes(chemin)
@@ -634,9 +638,9 @@ export default function Personnel() {
       )}
       <Routes>
         <Route index element={<Annuaire peutGerer={peutGerer} />} />
-        {peutTableau && <Route path="tableau" element={<TableauRH peutValiderAbsences={peutValider} peutValiderHeures={peutValiderHeures} peutRestreints={peutRestreints} />} />}
+        {peutTableau && <Route path="tableau" element={<TableauRH peutValiderAbsences={peutValiderAbs} peutValiderHeures={peutValiderHeures} peutRestreints={peutRestreints} />} />}
         <Route path="mon-espace" element={<MonEspace />} />
-        <Route path="absences" element={<Absences peutValider={peutValider} peutVoirTout={peutVoirTout} peutConfigurer={peutConfigurer} />} />
+        <Route path="absences" element={<Absences peutValider={peutValiderAbs} peutVoirTout={peutVoirTout} peutConfigurer={peutConfigurer} />} />
         <Route path="heures" element={<Heures peutValider={peutValiderHeures} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
         <Route path="horaires" element={<div className="space-y-6"><Horaires peutConfigurer={peutConfigurer} /><JoursFeries peutConfigurer={peutConfigurer} /></div>} />

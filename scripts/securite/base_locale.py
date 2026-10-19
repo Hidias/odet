@@ -183,6 +183,8 @@ ORDRE_PROD = (
     + ['0303']
     # RH : jours fériés par société, 19/10
     + ['0311']
+    # RH : validation par le responsable d'équipe, 19/10
+    + ['0312']
 )
 
 

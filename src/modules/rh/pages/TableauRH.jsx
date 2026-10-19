@@ -115,7 +115,7 @@ export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peut
               {d.demandes.map((r) => (
                 <li key={r.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
                   <div className="flex-1 min-w-[12rem]">
-                    <div className="font-semibold text-ui">{nomComplet(r.hr_people)} · {r.hr_absence_types?.label}</div>
+                    <div className="font-semibold text-ui">{nomComplet(r.hr_people) || noms[r.person_id]} · {motifAbsence(r)}</div>
                     <div className="text-ui-sm text-gray-600">{fr(r.start_on)}{r.end_on !== r.start_on ? ` au ${fr(r.end_on)}` : ''} · {jours(r.days)}{r.comment ? ` · ${r.comment}` : ''}</div>
                   </div>
                   {boutons(r.approval_id, 'absence')}

@@ -3632,6 +3632,63 @@ begin
     end;
   end if;
 
+  -- RH, validation par le responsable d'équipe (0312) : le formateur responsable valide l'absence de son équipier
+  -- sans droit « Valider les absences » ; il ne voit pas la fiche personnelle ; un autre compte ne peut pas décider
+  if to_regprocedure('app.hr_responsable_peut_decider(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare
+      r_co uuid := app.company_default(); r_chef uuid; r_eq uuid; r_cp uuid; r_req uuid; r_appro uuid; r_n int; r_m int;
+      r_st text; r_ok boolean := false; r_resp boolean; r_lundi date := (date_trunc('week', current_date + 70))::date;
+    begin
+      insert into public.hr_people (company_id, first_name, last_name, profile_id) values (r_co, 'Chef', 'Essai0312', u_for) returning id into r_chef;
+      insert into public.hr_people (company_id, first_name, last_name, personal_phone) values (r_co, 'Equipier', 'Essai0312', '0600000000') returning id into r_eq;
+      insert into public.hr_employments (company_id, person_id, start_on, manager_person_id) values (r_co, r_eq, current_date - 30, r_chef);
+      select id into r_cp from public.hr_absence_types where company_id = r_co and code = 'CP';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      r_req := public.hr_absence_demander(r_cp, r_lundi, null, r_lundi + 1, null, 'Essai 0312', r_eq);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      select approval_id into r_appro from public.hr_absence_requests where id = r_req;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.approval_decide(r_appro, 'approved', null); exception when insufficient_privilege then r_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if r_ok then
+        v_lines := v_lines || 'OK      com   0312 : un compte hors de l''équipe ne décide pas l''absence'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0312 : décision hors équipe refusée'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      r_resp := public.hr_suis_responsable();
+      r_n := (select count(*) from public.hr_absence_requests where id = r_req);
+      r_m := (select count(*) from public.hr_people where id = r_eq);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if r_resp and r_n = 1 and r_m = 0 then
+        v_lines := v_lines || 'OK      for   0312 : le responsable voit la demande de son équipier, pas sa fiche personnelle'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   for   0312 : lecture par le responsable (' || r_resp || ', ' || r_n || ', ' || r_m || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      r_st := public.approval_decide(r_appro, 'approved', null);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if r_st = 'approved' and (select status from public.hr_absence_requests where id = r_req) = 'validee' then
+        v_lines := v_lines || 'OK      for   0312 : le responsable valide l''absence de son équipier sans droit « Valider »'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   for   0312 : validation par le responsable'::text; end if;
+      delete from public.hr_people where id in (r_chef, r_eq);
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0312 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
