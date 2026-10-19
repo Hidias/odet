@@ -489,7 +489,6 @@ export default function TraineePortal() {
     if (!infoForm.csp) errors.csp = 'CSP requise'
     if (!infoForm.job_title) errors.job_title = 'Intitulé du poste requis'
     if (!infoForm.training_expectations || infoForm.training_expectations.trim().length === 0) errors.training_expectations = 'Vos attentes sont requises'
-    if (!infoForm.rgpd_consent) errors.rgpd = 'Veuillez accepter les conditions'
     setFormErrors(errors)
     if (Object.keys(errors).length > 0) return
 
@@ -543,7 +542,9 @@ export default function TraineePortal() {
           csp: infoForm.csp || null,
           job_title: infoForm.job_title || null,
           training_expectations: infoForm.training_expectations,
-          rgpd_consent: infoForm.rgpd_consent,
+          // Mention d'information affichée (chantier F, décision de H du 17/10) : plus de case obligatoire ; le champ
+          // garde la date à laquelle la fiche a été remplie avec la mention sous les yeux
+          rgpd_consent: true,
           rgpd_consent_date: new Date().toISOString(),
           filled_at: new Date().toISOString(),
           filled_online: true,
@@ -1057,15 +1058,17 @@ export default function TraineePortal() {
                   {formErrors.training_expectations && <p className={errorClass}>{formErrors.training_expectations}</p>}
                 </div>
 
-                <div className="bg-primary-50 rounded-ui-lg p-3">
-                  <label className="flex items-start gap-2 text-ui-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox" checked={infoForm.rgpd_consent} onChange={(e) => setInfoForm({ ...infoForm, rgpd_consent: e.target.checked })} className="mt-0.5 w-4 h-4 accent-[rgb(var(--c-accent-500))]" />
-                    <span>
-                      J'accepte que mes données personnelles soient collectées et traitées par {orgName || "l'organisme de formation"} conformément au RGPD.
-                      Elles servent uniquement à la gestion de ma formation.
-                    </span>
-                  </label>
-                  {formErrors.rgpd && <p className={errorClass}>{formErrors.rgpd}</p>}
+                <div className="bg-primary-50 rounded-ui-lg p-3 text-ui-sm text-gray-700 space-y-1">
+                  <p className="font-semibold">Vos données</p>
+                  <p>
+                    {orgName || 'L\'organisme de formation'} utilise ces informations pour organiser votre formation, établir les documents
+                    obligatoires (émargement, attestations, certificats) et répondre aux financeurs : c'est nécessaire à votre formation
+                    et imposé par le code du travail. Elles sont gardées 5 ans après votre dernière formation (6 ans pour les preuves de réalisation).
+                  </p>
+                  <p>
+                    Vous pouvez y accéder, les faire corriger ou effacer quand la loi le permet, et vous opposer à certains usages, en écrivant
+                    à l'organisme (coordonnées sur votre convocation). Vous pouvez aussi saisir la CNIL (cnil.fr).
+                  </p>
                 </div>
 
                 <button type="submit" disabled={submitting}

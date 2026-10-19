@@ -17,15 +17,9 @@ async function sha256(text) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// Récupérer l'IP publique (best effort)
+// Adresse IP du signataire : lue par la base dans les en-têtes de la requête (0346), plus aucun service tiers
 async function getPublicIP() {
-  try {
-    const res = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(3000) })
-    const data = await res.json()
-    return data.ip || 'unknown'
-  } catch {
-    return 'unknown'
-  }
+  return null
 }
 
 /**
@@ -227,14 +221,15 @@ export default function SignaturePad({
       if (error) throw error
 
       setSaved(true)
-      setSavedAudit(auditTrail)
+      // Adresse IP posée par la base (0346) : celle de l'enregistrement fait foi
+      setSavedAudit({ ...auditTrail, ip_address: data?.ip_address || auditTrail.ip_address || '—' })
       setSignatureId(data.id)
 
       if (onSigned) {
         onSigned({
           signatureId: data.id,
           signatureData: signatureDataUrl,
-          auditTrail,
+          auditTrail: { ...auditTrail, ip_address: data?.ip_address || null },
         })
       }
     } catch (err) {

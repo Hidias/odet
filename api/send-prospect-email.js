@@ -45,7 +45,13 @@ async function handler(req, res) {
     const sender = await getSender(supabase, emailConfig.email)
     const senderEmail = emailConfig.email
 
-    const html = wrapEmailHTML(body, sender, org, signatureVariant || 'standard')
+    const htmlBase = wrapEmailHTML(body, sender, org, signatureVariant || 'standard')
+    // Prospection (RGPD art. 14 et 21) : origine des coordonnées et opposition simple, dans chaque email à un prospect
+    // (pas pour un client déjà suivi). Texte neutre, nom de l'organisme réglé dans l'identité.
+    const mention = !clientId
+      ? `<p style="margin-top:24px;font-size:11px;line-height:1.4;color:#6b7280">Vos coordonnées professionnelles proviennent de sources publiques (répertoire des entreprises, annuaires professionnels) ou d'un échange précédent. ${String(org.name || '').replace(/[<>&"]/g, '')} les utilise pour vous présenter ses services. Pour ne plus recevoir de messages, répondez simplement « Ne plus me contacter ».</p>`
+      : ''
+    const html = mention ? (htmlBase.includes('</body>') ? htmlBase.replace('</body>', `${mention}</body>`) : htmlBase + mention) : htmlBase
     const bccSet = new Set([senderEmail, org.email_bcc].filter(Boolean))
     bccSet.delete(to)
 

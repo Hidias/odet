@@ -3062,6 +3062,23 @@ begin
     end;
   end if;
 
+  -- Chantier F, IP de la signature lue par la base (0346)
+  if to_regprocedure('app.signature_ip()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 1;
+    declare s_id uuid;
+    begin
+      perform set_config('request.headers', '{"x-forwarded-for": "198.51.100.4", "user-agent": "Essai signature"}', true);
+      insert into public.document_signatures (document_type, signer_type, signer_name, signature_data, ip_address, status)
+      values ('emargement', 'trainee', 'Essai IP', 'data:image/png;base64,AA', '10.9.9.9', 'valid') returning id into s_id;
+      perform set_config('request.headers', '', true);
+      if (select ip_address = '198.51.100.4' and user_agent = 'Essai signature' from public.document_signatures where id = s_id) then
+        v_lines := v_lines || 'OK      base  0346 : adresse IP de la signature lue dans la requête, pas celle envoyée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0346 : adresse IP de la signature'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
