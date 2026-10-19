@@ -160,3 +160,24 @@ describe('Devis : calcTotals', () => {
     expect(t.totalTva).toBe(0)
   })
 })
+
+import { computeDocumentTotals as calcul } from '../src/core/billing/totals'
+
+describe('catégories de TVA par régime de ligne (0363)', () => {
+  it('autoliquidation : catégorie AE, aucune TVA ; exonérée : catégorie E', () => {
+    const t = calcul([
+      { quantity: 1, unit_price_ht: 1200, tva_rate: 0, vat_regime: 'autoliquidation' },
+      { quantity: 1, unit_price_ht: 690, tva_rate: 0, vat_regime: 'exonere' },
+      { quantity: 2, unit_price_ht: 10, tva_rate: 20 },
+    ])
+    const cats = t.breakdown.map((g) => g.cat).sort()
+    expect(cats).toEqual(['AE', 'E', 'S'])
+    expect(t.breakdown.find((g) => g.cat === 'E').exonere).toBe(true)
+    expect(t.taxTotal).toBe(4)
+    expect(t.grandTotal).toBe(1914)
+  })
+  it('sans régime : comportement d\'avant (S si taux positif, E sinon)', () => {
+    const t = calcul([{ quantity: 1, unit_price_ht: 100, tva_rate: 0 }, { quantity: 1, unit_price_ht: 100, tva_rate: 20 }])
+    expect(t.breakdown.map((g) => g.cat).sort()).toEqual(['E', 'S'])
+  })
+})

@@ -126,6 +126,9 @@ export function buildSeller(org, { needsIban }) {
     iban,
     bic,
     softwareName: String(o.app_name || o.name || legalName).trim(),
+    // Mentions légales du vendeur (BT-33) : forme, capital, RCS
+    legalInfo: [legalName + (o.forme_juridique ? ', ' + String(o.forme_juridique).trim() : '') + (o.capital_social ? ' au capital de ' + String(o.capital_social).trim() + ' €' : ''),
+      String(o.rcs || '').trim()].filter(Boolean).join(', '),
     // Organisme exonéré par défaut (franchise) : tva_applicable = false dans les paramètres
     orgVatApplicable: o.tva_applicable !== false,
   }
@@ -149,17 +152,28 @@ export function generateCIIXML(invoice, items, client, seller) {
   const vatApplicable = invoice.tva_applicable !== false && seller.orgVatApplicable
   const t = computeTotals(invoice, items, vatApplicable)
 
-  // Motif d'exonération (BT-120 / BT-121)
-  let exemption = null
-  if (!vatApplicable || t.breakdown.some((g) => g.cat === 'E')) {
-    if (!seller.orgVatApplicable) {
-      exemption = { code: 'VATEX-FR-FRANCHISE', reason: 'TVA non applicable, article 293 B du CGI' }
-    } else if (!vatApplicable && invoice.is_formation_pro !== false) {
-      exemption = { code: 'VATEX-EU-132-1I', reason: 'Exonération de TVA, article 261-4-4° a du CGI (formation professionnelle continue)' }
-    } else {
-      exemption = { code: '', reason: 'Exonération de TVA' }
+  // Motifs d'exonération (BT-120 / BT-121) par catégorie : franchise du vendeur, ligne exonérée (formation),
+  // autoliquidation (AE). Texte repris des mentions figées à l'émission quand il y en a une.
+  const mentions = Array.isArray(invoice.legal_mentions) ? invoice.legal_mentions.map(String) : []
+  const mention = (re, defaut) => mentions.find((m) => re.test(m)) || defaut
+  const exemptionFor = (g) => {
+    if (g.cat === 'AE') return { code: 'VATEX-EU-AE', reason: mention(/autoliquidation/i, 'Autoliquidation') }
+    if (g.cat !== 'E') return null
+    if (!seller.orgVatApplicable) return { code: 'VATEX-FR-FRANCHISE', reason: mention(/293 ?B/i, 'TVA non applicable, article 293 B du CGI') }
+    if (g.exonere || (!vatApplicable && invoice.is_formation_pro !== false)) {
+      return { code: 'VATEX-EU-132-1I', reason: mention(/exon[ée]ration/i, 'Exonération de TVA, article 261-4-4° a du CGI (formation professionnelle continue)') }
     }
+    return { code: '', reason: 'Exonération de TVA' }
   }
+
+  // Cadre de facturation (BT-23) : biens, services ou mixte (spécifications externes DGFiP, annexe 7)
+  const nature = invoice.nature_operation || (() => {
+    const b = t.lines.some((l) => l.it.nature === 'bien'); const sv = t.lines.some((l) => l.it.nature !== 'bien')
+    return b && sv ? 'mixte' : b ? 'biens' : 'services'
+  })()
+  const cadre = { biens: 'B1', mixte: 'M1' }[nature] || 'S1'
+  // Exigibilité de la TVA (BT-8) : débits (date de facture), biens (livraison), services (encaissement)
+  const dueDateCode = mentions.some((m) => /d[ée]bits/i.test(m)) ? '5' : nature === 'biens' ? '29' : '72'
 
   const linesXml = t.lines.map((l, idx) => {
     const name = String(l.it.description_title || '').trim() || String(l.it.code || '').trim() || 'Prestation'
@@ -191,11 +205,16 @@ export function generateCIIXML(invoice, items, client, seller) {
     </ram:IncludedSupplyChainTradeLineItem>`
   }).join('\n')
 
-  // Notes d'en-tête (BG-1)
+  // Notes d'en-tête (BG-1) : notes libres, mentions légales figées avec leur code (AAB escompte, PMD pénalités,
+  // PMT indemnité de recouvrement), mentions légales du vendeur (REG, BT-33)
   const notes = []
-  if (invoice.notes && String(invoice.notes).trim()) notes.push(String(invoice.notes).trim())
-  if (vatApplicable) notes.push("TVA exigible d'après les encaissements (article 269-2-c du CGI)")
-  const notesXml = notes.map((n) => `    <ram:IncludedNote><ram:Content>${esc(n)}</ram:Content></ram:IncludedNote>`).join('\n')
+  if (invoice.notes && String(invoice.notes).trim()) notes.push({ text: String(invoice.notes).trim(), code: 'AAI' })
+  for (const m of mentions) {
+    const code = /escompte/i.test(m) ? 'AAB' : /p[ée]nalit/i.test(m) ? 'PMD' : /indemnit/i.test(m) ? 'PMT' : 'AAI'
+    notes.push({ text: m, code })
+  }
+  if (seller.legalInfo) notes.push({ text: seller.legalInfo, code: 'REG' })
+  const notesXml = notes.map((n) => `    <ram:IncludedNote><ram:Content>${esc(n.text)}</ram:Content><ram:SubjectCode>${n.code}</ram:SubjectCode></ram:IncludedNote>`).join('\n')
 
   // Vendeur (BG-4)
   const sellerXml = `      <ram:SellerTradeParty>
@@ -210,26 +229,35 @@ export function generateCIIXML(invoice, items, client, seller) {
           <ram:CityName>${esc(seller.city)}</ram:CityName>
           <ram:CountryID>FR</ram:CountryID>
         </ram:PostalTradeAddress>
+        <ram:URIUniversalCommunication><ram:URIID schemeID="0225">${seller.siren}</ram:URIID></ram:URIUniversalCommunication>
         <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(seller.vat)}</ram:ID></ram:SpecifiedTaxRegistration>
       </ram:SellerTradeParty>`
 
-  // Acheteur (BG-7) : SIREN sous le schéma 0002
+  // Acheteur (BG-7) : SIREN (schéma 0002), SIRET (0009) pour un client public (Chorus Pro), adresse électronique (BT-49)
   const buyerSiren = digits(client.siren).length === 9 ? digits(client.siren) : (digits(client.siret).length >= 9 ? digits(client.siret).slice(0, 9) : '')
+  const buyerSiret = digits(client.siret).length === 14 ? digits(client.siret) : ''
+  const buyerPublic = client.client_type === 'public' && buyerSiret
+  const buyerLegal = buyerPublic ? `<ram:ID schemeID="0009">${buyerSiret}</ram:ID>` : buyerSiren ? `<ram:ID schemeID="0002">${buyerSiren}</ram:ID>` : ''
   const buyerVat = String(client.tva || '').replace(/\s/g, '').toUpperCase()
   const buyerXml = `      <ram:BuyerTradeParty>
-        <ram:Name>${esc(client.name || '')}</ram:Name>${buyerSiren ? `
-        <ram:SpecifiedLegalOrganization><ram:ID schemeID="0002">${buyerSiren}</ram:ID></ram:SpecifiedLegalOrganization>` : ''}
+        <ram:Name>${esc(client.name || '')}</ram:Name>${buyerLegal ? `
+        <ram:SpecifiedLegalOrganization>${buyerLegal}</ram:SpecifiedLegalOrganization>` : ''}
         <ram:PostalTradeAddress>${client.postal_code ? `
           <ram:PostcodeCode>${esc(client.postal_code)}</ram:PostcodeCode>` : ''}${client.address && String(client.address).trim() ? `
           <ram:LineOne>${esc(String(client.address).trim())}</ram:LineOne>` : ''}${client.city ? `
           <ram:CityName>${esc(String(client.city).toUpperCase())}</ram:CityName>` : ''}
           <ram:CountryID>FR</ram:CountryID>
-        </ram:PostalTradeAddress>${buyerVat ? `
+        </ram:PostalTradeAddress>${buyerSiren && client.client_type !== 'particulier' ? `
+        <ram:URIUniversalCommunication><ram:URIID schemeID="0225">${buyerSiren}</ram:URIID></ram:URIUniversalCommunication>` : ''}${buyerVat ? `
         <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(buyerVat)}</ram:ID></ram:SpecifiedTaxRegistration>` : ''}
       </ram:BuyerTradeParty>`
 
-  const buyerOrderXml = invoice.client_reference && String(invoice.client_reference).trim()
-    ? `      <ram:BuyerOrderReferencedDocument><ram:IssuerAssignedID>${esc(String(invoice.client_reference).trim())}</ram:IssuerAssignedID></ram:BuyerOrderReferencedDocument>`
+  // Chorus Pro : code service (BT-10) ; numéro d'engagement ou bon de commande (BT-13)
+  const buyerRef = String(invoice.chorus_service_code || '').trim()
+  const buyerRefXml = buyerRef ? `      <ram:BuyerReference>${esc(buyerRef)}</ram:BuyerReference>` : ''
+  const orderRef = String(invoice.chorus_engagement || '').trim() || String(invoice.client_reference || '').trim()
+  const buyerOrderXml = orderRef
+    ? `      <ram:BuyerOrderReferencedDocument><ram:IssuerAssignedID>${esc(orderRef)}</ram:IssuerAssignedID></ram:BuyerOrderReferencedDocument>`
     : ''
 
   // Livraison : date de fin de la prestation (BT-72)
@@ -250,16 +278,19 @@ export function generateCIIXML(invoice, items, client, seller) {
       </ram:SpecifiedTradeSettlementPaymentMeans>`
 
   // Ventilation de TVA (BG-23)
-  const taxXml = t.breakdown.map((g) => `      <ram:ApplicableTradeTax>
+  const taxXml = t.breakdown.map((g) => {
+    const ex = exemptionFor(g)
+    return `      <ram:ApplicableTradeTax>
         <ram:CalculatedAmount>${amt(g.tax)}</ram:CalculatedAmount>
-        <ram:TypeCode>VAT</ram:TypeCode>${g.cat === 'E' ? `
-        <ram:ExemptionReason>${esc(exemption.reason)}</ram:ExemptionReason>` : ''}
+        <ram:TypeCode>VAT</ram:TypeCode>${ex ? `
+        <ram:ExemptionReason>${esc(ex.reason)}</ram:ExemptionReason>` : ''}
         <ram:BasisAmount>${amt(g.base)}</ram:BasisAmount>
-        <ram:CategoryCode>${g.cat}</ram:CategoryCode>${g.cat === 'E' && exemption.code ? `
-        <ram:ExemptionReasonCode>${exemption.code}</ram:ExemptionReasonCode>` : ''}${vatApplicable ? `
-        <ram:DueDateTypeCode>72</ram:DueDateTypeCode>` : ''}
+        <ram:CategoryCode>${g.cat}</ram:CategoryCode>${ex && ex.code ? `
+        <ram:ExemptionReasonCode>${ex.code}</ram:ExemptionReasonCode>` : ''}${g.cat === 'S' ? `
+        <ram:DueDateTypeCode>${dueDateCode}</ram:DueDateTypeCode>` : ''}
         <ram:RateApplicablePercent>${rateStr(g.rate)}</ram:RateApplicablePercent>
-      </ram:ApplicableTradeTax>`).join('\n')
+      </ram:ApplicableTradeTax>`
+  }).join('\n')
 
   // Période de facturation (BG-14)
   const periodXml = invoice.service_start_date && invoice.service_end_date && invoice.service_end_date !== invoice.service_start_date
@@ -317,7 +348,7 @@ export function generateCIIXML(invoice, items, client, seller) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" xmlns:qdt="urn:un:unece:uncefact:data:standard:QualifiedDataType:100" xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
   <rsm:ExchangedDocumentContext>
-    <ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>A1</ram:ID></ram:BusinessProcessSpecifiedDocumentContextParameter>
+    <ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>${cadre}</ram:ID></ram:BusinessProcessSpecifiedDocumentContextParameter>
     <ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter>
   </rsm:ExchangedDocumentContext>
   <rsm:ExchangedDocument>
@@ -331,7 +362,7 @@ ${join([
   <rsm:SupplyChainTradeTransaction>
 ${linesXml}
     <ram:ApplicableHeaderTradeAgreement>
-${join([sellerXml, buyerXml, buyerOrderXml])}
+${join([buyerRefXml, sellerXml, buyerXml, buyerOrderXml])}
     </ram:ApplicableHeaderTradeAgreement>
 ${deliveryXml}
     <ram:ApplicableHeaderTradeSettlement>
@@ -680,7 +711,7 @@ async function handler(req, res) {
     if (!items || items.length === 0) return res.status(422).json({ error: 'La facture ne contient aucune ligne' })
 
     const clientId = invoice.billing_client_id || invoice.client_id
-    const { data: client, error: clientErr } = await supabase.from('clients').select('id,name,address,postal_code,city,siret,siren,tva').eq('id', clientId).single()
+    const { data: client, error: clientErr } = await supabase.from('clients').select('id,name,address,postal_code,city,siret,siren,tva,client_type').eq('id', clientId).single()
     if (clientErr || !client) return res.status(404).json({ error: 'Client introuvable' })
 
     // Identité du vendeur : organization_settings uniquement
