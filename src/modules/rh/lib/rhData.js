@@ -142,7 +142,7 @@ export const chargerTypesAbsence = async () => must(await supabase.from('hr_abse
 export const chargerMaFiche = async () => {
   const { data: u } = await supabase.auth.getUser()
   if (!u?.user?.id) return null
-  const { data } = await supabase.from('hr_people').select('id, first_name, last_name, usage_name').eq('profile_id', u.user.id).maybeSingle()
+  const { data } = await supabase.from('hr_people').select('id, company_id, first_name, last_name, usage_name').eq('profile_id', u.user.id).maybeSingle()
   return data || null
 }
 export const chargerDemandes = async ({ personId = null, statut = null } = {}) => {
@@ -153,6 +153,10 @@ export const chargerDemandes = async ({ personId = null, statut = null } = {}) =
     return q.order('start_on', { ascending: false })
   }))
 }
+/** Absences validées qui touchent une période (absents du jour, congés à venir) */
+export const chargerAbsencesPeriode = async (debut, fin) => must(await fetchAll(() => supabase.from('hr_absence_requests')
+  .select('id, person_id, start_on, end_on, start_half, end_half, days, status, hr_absence_types(label, category), hr_people(first_name, last_name, usage_name)')
+  .eq('status', 'validee').gte('end_on', debut).lte('start_on', fin).order('start_on')))
 export const chargerSoldes = async (personId) => must(await supabase.from('v_hr_soldes').select('*').eq('person_id', personId))
 export const chargerMouvements = async (personId) => must(await supabase.from('hr_leave_ledger').select('*, hr_absence_types(label)').eq('person_id', personId).order('created_at', { ascending: false }))
 

@@ -54,7 +54,7 @@ export function DemandeSheet({ types, personId = null, soldes = [], onClose, onS
           </div>
         )}
         <p className="text-ui font-semibold">{n ? jours(n) : 'Aucun jour ouvré sur ces dates'}{type?.counts_balance && solde ? ` · solde ${String(solde.solde).replace('.', ',')} j, restera ${String(solde.solde - n).replace('.', ',')} j` : ''}</p>
-        {type?.requires_proof && <p className="text-ui-sm text-[rgb(var(--c-warning))]">Ce type demande un justificatif : remettez-le à la RH (le dépôt dans l'outil arrive avec les documents RH).</p>}
+        {type?.requires_proof && <p className="text-ui-sm text-[rgb(var(--c-warning))]">Ce type demande un justificatif : déposez-le dans Mon espace › Mes documents (visible de vous et de la RH seulement).</p>}
         <label className="block"><span className="label">Commentaire (facultatif)</span><input className="input" value={v.commentaire} onChange={(e) => setV({ ...v, commentaire: e.target.value })} /></label>
       </form>
     </Sheet>
