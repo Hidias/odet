@@ -112,6 +112,9 @@ export function buildSeller(org, { needsIban }) {
   if (!/^[A-Z]{2}[A-Z0-9]{2,13}$/.test(vat)) invalid.push(`numéro de TVA « ${vat} »`)
   if (iban && !ibanIsValid(iban)) invalid.push('IBAN (clé de contrôle incorrecte)')
   if (bic && !/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(bic)) invalid.push(`BIC « ${bic} » (8 ou 11 caractères)`)
+  // Coordonnées bancaires de démonstration (BIC DEMO…, IBAN d'exemple) : jamais sur une facture électronique
+  // (décision de H du 19/10 au soir : émission et Factur-X refusés tant que le RIB réel n'est pas saisi)
+  if (/^DEMO/.test(bic) || iban === 'FR7630006000011234567890189') invalid.push('coordonnées bancaires de démonstration : saisissez le RIB réel de la société')
   if (invalid.length) {
     throw new FacturXConfigError('Paramètres invalides pour la facture électronique : ' + invalid.join(' ; ') + '. À corriger dans Paramètres.', invalid)
   }

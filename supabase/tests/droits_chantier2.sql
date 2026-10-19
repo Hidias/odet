@@ -945,6 +945,11 @@ begin
         address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
         forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
         tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+      -- RIB de démonstration (0384) : remplacé le temps de l'essai, pour que l'émission soit possible (tout est annulé)
+      if to_regprocedure('app.rib_demo(uuid)') is not null and app.rib_demo(app.company_default()) then
+        update public.organization_settings set bic = 'CMBRFR2BXXX', iban = 'FR7615589297060008906894048';
+        update public.companies set bic = null, iban = null;
+      end if;
       perform set_config('request.jwt.claims', json_build_object('sub', b_dir, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
       insert into public.invoices (reference, type, client_id, invoice_date, due_date, status)
@@ -4203,6 +4208,33 @@ begin
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
       v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0383 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
+  -- Bascule (0384) : pas d'émission de facture avec le RIB de démonstration ; un avoir reste possible
+  if to_regprocedure('app.rib_demo(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare
+      z_co uuid := app.company_default(); z_inv uuid; z_ok boolean := false;
+    begin
+      update public.organization_settings set bic = 'DEMOFRPPXXX', iban = 'FR7630006000011234567890189';
+      update public.companies set bic = null, iban = null where id = z_co;
+      insert into public.invoices (company_id, type, status, client_id, invoice_date)
+      select z_co, 'invoice', 'draft', c.id, current_date from public.clients c limit 1 returning id into z_inv;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      begin update public.invoices set issued_at = now() where id = z_inv; exception when check_violation then z_ok := true; end;
+      perform set_config('request.jwt.claims', '', true);
+      if z_ok then v_lines := v_lines || 'OK      base  0384 : émission refusée avec le RIB de démonstration'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0384 : émission avec le RIB de démonstration'::text; end if;
+      update public.organization_settings set bic = 'CMBRFR2BXXX', iban = 'FR7615589297060008906894048';
+      if not app.rib_demo(z_co) then v_lines := v_lines || 'OK      base  0384 : RIB réel reconnu'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0384 : RIB réel pris pour celui de la démonstration'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0384 : erreur ' || sqlerrm)::text;
     end;
   end if;
 
