@@ -231,7 +231,8 @@ export default function Layout() {
       {sections.map((section) => {
         const isOpen = openSections[section.id] === true
         const isActiveSection = activeSectionId === section.id
-        if (section.flat) return <div key={section.id} className="mb-1 space-y-0.5">{section.items.map((item) => navItem(item))}</div>
+        // Accueil, ou section réduite à une seule page (selon les modules et les droits) : la page directement, sans repli
+        if (section.flat || section.items.length === 1) return <div key={section.id} className="mb-1 space-y-0.5">{section.items.map((item) => navItem(item))}</div>
         const SectionIcon = section.icon
         return (
           <div key={section.id} className="mb-1">
@@ -317,13 +318,7 @@ export default function Layout() {
             {item.dot && <span className="absolute top-1.5 right-3 w-2.5 h-2.5 rounded-full bg-accent-500" aria-label="nouveau" />}
           </NavLink>
         ))}
-        <button type="button" onClick={handleLogout} title="Se déconnecter" className={railBtn(false)}>
-          <LogOut className="w-5 h-5 flex-none" aria-hidden="true" />
-          <span className={railLabel}>Quitter</span>
-        </button>
-        <div className="w-9 h-9 rounded-full bg-highlight-500 text-highlight-fg flex items-center justify-center font-semibold text-ui-sm uppercase mt-1 flex-none" title={profile?.display_name || user?.email}>
-          {initials(profile, user)}
-        </div>
+        {/* Compte, mot de passe et déconnexion : menu des initiales, en haut à droite */}
       </div>
       <div className="w-52 bg-white border-r border-gray-200 flex flex-col flex-none">
         <div className="px-3 pt-4 pb-2">
