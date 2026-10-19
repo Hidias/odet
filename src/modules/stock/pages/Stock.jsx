@@ -581,6 +581,7 @@ function NouvelleCommandeSheet({ onClose, onCree }) {
 }
 
 function DetailCommande({ commande, voirPrix, peutPreparer, peutValider, emplacements, onClose, onChange }) {
+  const { user } = useAuthStore()
   const [lignes, setLignes] = useState(null)
   const [recs, setRecs] = useState([])
   const [articles, setArticles] = useState([])
@@ -716,7 +717,8 @@ function DetailCommande({ commande, voirPrix, peutPreparer, peutValider, emplace
             const r = await soumettreCommande(c.id)
             toast.success(r === 'validee' ? 'Commande validée (aucune validation demandée)' : 'Commande envoyée à la validation')
           })}><Check className="w-4 h-4" aria-hidden="true" />Soumettre</button>}
-          {peutValider && c.status === 'a_valider' && c.approval_id && <>
+          {c.status === 'a_valider' && (!peutValider || c.created_by === user?.id) && <p className="text-ui-sm muted flex-1">En attente de validation{c.created_by === user?.id && peutValider ? ' : vous ne validez pas votre propre commande, un autre valideur s\'en charge' : ' par un responsable'}.</p>}
+          {peutValider && c.status === 'a_valider' && c.approval_id && c.created_by !== user?.id && <>
             <button type="button" className="btn btn-primary" disabled={busy} onClick={() => agir(() => deciderCommande(c.approval_id, 'approved'), 'Commande validée')}><Check className="w-4 h-4" aria-hidden="true" />Valider</button>
             <button type="button" className="btn btn-secondary" disabled={busy} onClick={refuser}><X className="w-4 h-4" aria-hidden="true" />Refuser</button>
           </>}
@@ -746,7 +748,10 @@ function DetailCommande({ commande, voirPrix, peutPreparer, peutValider, emplace
   )
 }
 
-function Commandes({ voirPrix, peutPreparer, peutValider, ouvrir = null, onOuvert = null }) {
+function Commandes({ voirPrix, peutPreparer, peutValider }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const ouvrir = new URLSearchParams(location.search).get('ouvrir')
   const [liste, setListe] = useState(null)
   const [emplacements, setEmplacements] = useState([])
   const [filtre, setFiltre] = useState('en_cours')
@@ -759,9 +764,13 @@ function Commandes({ voirPrix, peutPreparer, peutValider, ouvrir = null, onOuver
       return c
     } catch (e) { toast.error(e.message); setListe([]); return [] }
   }, [])
+  useEffect(() => { charger() }, [charger])
   useEffect(() => {
-    charger().then((c) => { if (ouvrir) { const x = c.find((o) => o.id === ouvrir); if (x) setDetail(x); onOuvert?.() } })
-  }, [charger, ouvrir, onOuvert])
+    if (!ouvrir || !liste) return
+    const x = liste.find((o) => o.id === ouvrir)
+    if (x) setDetail(x)
+    navigate('/stock/commandes', { replace: true })
+  }, [ouvrir, liste, navigate])
   if (!liste) return <Spinner />
   const enCours = (o) => !['recue', 'annulee'].includes(o.status)
   const visibles = liste.filter((o) => (filtre === 'en_cours' ? enCours(o) : filtre === 'a_valider' ? o.status === 'a_valider' : true))
@@ -881,8 +890,6 @@ export default function Stock() {
   const voirPrix = can('stock.valeur.voir') === true
   const preparer = can('stock.commandes.preparer') === true && voir
   const valider = can('stock.commandes.valider') === true
-  const [ouvrir, setOuvrir] = useState(null)
-  const ouvert = useCallback(() => setOuvrir(null), [])
   const tabs = [
     ...((sien || gerer) ? [{ id: 'mon-stock', label: 'Mon stock' }] : []),
     ...(voir ? [{ id: 'articles', label: 'Articles' }, { id: 'mouvements', label: 'Mouvements' }, { id: 'alertes', label: 'Alertes' }] : []),
@@ -900,8 +907,8 @@ export default function Stock() {
       {onglet === 'mon-stock' && <MonStock />}
       {onglet === 'articles' && <Articles peutGerer={gerer} voirPrix={voirPrix} />}
       {onglet === 'mouvements' && <Journal />}
-      {onglet === 'alertes' && <Alertes peutCommander={preparer} onCommande={(id) => { setOuvrir(id); navigate('/stock/commandes') }} />}
-      {onglet === 'commandes' && <Commandes voirPrix={voirPrix} peutPreparer={preparer} peutValider={valider} ouvrir={ouvrir} onOuvert={ouvert} />}
+      {onglet === 'alertes' && <Alertes peutCommander={preparer} onCommande={(id) => navigate(`/stock/commandes?ouvrir=${id}`)} />}
+      {onglet === 'commandes' && <Commandes voirPrix={voirPrix} peutPreparer={preparer} peutValider={valider} />}
       {onglet === 'inventaires' && <Inventaires peutValider={can('stock.inventaires.valider') === true} voirTout={voir} />}
       {onglet === 'emplacements' && <Emplacements peutGerer={gerer} />}
       {onglet === 'fournisseurs' && <Fournisseurs peutGerer={gerer} />}
