@@ -1136,6 +1136,54 @@ begin
     end;
   end if;
 
+  -- Compteur des numéros en démonstration (0369)
+  if to_regprocedure('public.billing_counter_reset()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare
+      k_sa uuid := gen_random_uuid(); k_ad uuid := gen_random_uuid(); k_demo boolean; k_ok boolean; k_c uuid := app.billing_company();
+    begin
+      select coalesce(demo_mode, false) into k_demo from public.organization_settings limit 1;
+      insert into auth.users (id, email, aud, role) values
+        (k_sa, 'cpt.sa@test.invalid', 'authenticated', 'authenticated'), (k_ad, 'cpt.ad@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (k_sa, 'cpt.sa@test.invalid', 'superadmin', true), (k_ad, 'cpt.ad@test.invalid', 'admin', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.billing_sequences (company_id, series, last_number) values (k_c, 'invoice', 7)
+      on conflict (company_id, series) do update set last_number = 7;
+      -- Administrateur : refusé
+      perform set_config('request.jwt.claims', json_build_object('sub', k_ad, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_ok := false;
+      begin perform public.billing_counter_reset(); exception when insufficient_privilege then k_ok := true; end;
+      execute 'reset role';
+      if k_ok then v_lines := v_lines || 'OK      ad    0369 : remise à zéro du compteur refusée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0369 : remise à zéro du compteur refusée'::text; end if;
+      -- Super administrateur hors démonstration : refusé
+      update public.organization_settings set demo_mode = false;
+      perform set_config('request.jwt.claims', json_build_object('sub', k_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_ok := false;
+      begin perform public.billing_counter_reset(); exception when insufficient_privilege then k_ok := true; end;
+      execute 'reset role';
+      if k_ok and exists (select 1 from public.billing_sequences where company_id = k_c) then
+        v_lines := v_lines || 'OK      sa    0369 : hors démonstration, le compteur ne recule jamais'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0369 : hors démonstration, le compteur ne recule jamais'::text; end if;
+      -- Super administrateur en démonstration : accepté
+      update public.organization_settings set demo_mode = true;
+      execute 'set local role authenticated';
+      perform public.billing_counter_reset();
+      execute 'reset role';
+      if not exists (select 1 from public.billing_sequences where company_id = k_c) then
+        v_lines := v_lines || 'OK      sa    0369 : en démonstration, compteur remis à zéro'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0369 : en démonstration, compteur remis à zéro'::text; end if;
+      update public.organization_settings set demo_mode = k_demo;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end
