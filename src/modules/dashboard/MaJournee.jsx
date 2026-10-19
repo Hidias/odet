@@ -15,6 +15,10 @@ const jour = () => {
 // Lignes lues (identifiants seuls, 500 au plus) : un comptage HEAD « exact » en parallèle peut être refusé par
 // l'API (503) quand le tableau de bord charge en même temps ; les sujets sont donc lus l'un après l'autre.
 const PLAFOND = 500
+<<<<<<< Updated upstream
+=======
+const PAR_GROUPE = 4
+>>>>>>> Stashed changes
 async function compter(requete) {
   try {
     const { data, error } = await requete.limit(PLAFOND)

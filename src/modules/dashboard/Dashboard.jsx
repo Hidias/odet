@@ -995,9 +995,27 @@ export default function Dashboard() {
   // ═══════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════
+  // En-tête et « Ma journée » affichés tout de suite, à la même place pendant et après le chargement (pas de second
+  // montage de « Ma journée ») : ses lectures partent avec celles du tableau de bord (performance, 19/10).
+  const entete = (
+    <div className="flex items-end justify-between flex-wrap gap-4">
+      <div className="grid gap-1 min-w-0">
+        <span className="eyebrow first-letter:uppercase">{format(today, "EEEE d MMMM yyyy", { locale: fr })}</span>
+        <h1 className="page-title leading-tight">Tableau de bord</h1>
+      </div>
+      <div className="flex items-center gap-2">
+        <button onClick={() => { setLoading(true); loadData() }} className="btn btn-ghost btn-icon" title="Rafraîchir" aria-label="Rafraîchir"><RefreshCw className="w-5 h-5" /></button>
+        {d.preferences && <button onClick={() => setShowSettings(true)} className="btn btn-secondary"><Settings className="w-4 h-4" />Personnaliser</button>}
+      </div>
+    </div>
+  )
   if (loading || !configLoaded) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-500 mx-auto"></div><p className="text-ui text-gray-500 mt-3">Chargement...</p></div>
+    <div className="space-y-6">
+      {entete}
+      <MaJournee />
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-500 mx-auto"></div><p className="text-ui text-gray-500 mt-3">Chargement...</p></div>
+      </div>
     </div>
   )
   
@@ -1010,18 +1028,7 @@ export default function Dashboard() {
   
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-end justify-between flex-wrap gap-4">
-        <div className="grid gap-1 min-w-0">
-          <span className="eyebrow first-letter:uppercase">{format(today, "EEEE d MMMM yyyy", { locale: fr })}</span>
-          <h1 className="page-title leading-tight">Tableau de bord</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => { setLoading(true); loadData() }} className="btn btn-ghost btn-icon" title="Rafraîchir" aria-label="Rafraîchir"><RefreshCw className="w-5 h-5" /></button>
-          {d.preferences && <button onClick={() => setShowSettings(true)} className="btn btn-secondary"><Settings className="w-4 h-4" />Personnaliser</button>}
-        </div>
-      </div>
-      
+      {entete}
       <MaJournee />
 
       {/* ═══ Aujourd'hui : faire signer les stagiaires ═══ */}
