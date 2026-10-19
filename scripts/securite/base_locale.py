@@ -171,6 +171,8 @@ ORDRE_PROD = (
     + ['0048', '0049']
     # Badge « Test » sur les fiches de démonstration (19/10)
     + ['0052']
+    # Nom affiché calculé (prénom et nom), 19/10
+    + ['0053']
 )
 
 
