@@ -11,7 +11,7 @@ import { EmptyState, Spinner } from '../../../ui/EmptyState'
 import { confirmer } from '../../../ui/Confirm'
 import {
   CONTRATS, STATUTS_ABSENCE, STATUTS_SEMAINE, nomComplet, statutContrat, lundiDe, heures, chargerMaFiche, chargerContrats,
-  chargerTypesAbsence, chargerSoldes, chargerDemandes, chargerSemaine, annulerAbsence,
+  chargerTypesAbsence, chargerSoldes, chargerDemandes, chargerSemaine, chargerLignes, totauxSemaine, annulerAbsence,
 } from '../lib/rhData'
 import { etatEcheance, chargerEcheances } from '../lib/rhDocuments'
 import { DemandeSheet } from './Absences'
@@ -29,6 +29,7 @@ export default function MonEspace() {
   const [soldes, setSoldes] = useState([])
   const [demandes, setDemandes] = useState([])
   const [semaine, setSemaine] = useState(null)
+  const [minutesSemaine, setMinutesSemaine] = useState(0)
   const [echeances, setEcheances] = useState([])
   const [demande, setDemande] = useState(false)
   const lundi = lundiDe(new Date().toISOString().slice(0, 10))
@@ -39,13 +40,15 @@ export default function MonEspace() {
       const f = await chargerMaFiche()
       setFiche(f)
       if (!f) return
-      const [c, t, s, d, sem, ech] = await Promise.all([
+      const [c, t, s, d, sem, ech, lignes] = await Promise.all([
         chargerContrats(f.id).catch(() => []), chargerTypesAbsence().catch(() => []), chargerSoldes(f.id).catch(() => []),
         chargerDemandes({ personId: f.id }).catch(() => []), chargerSemaine(f.id, lundi).catch(() => null),
-        chargerEcheances({ personId: f.id }).catch(() => []),
+        chargerEcheances({ personId: f.id }).catch(() => []), chargerLignes(f.id, lundi).catch(() => []),
       ])
       setContrat((c || []).find((x) => statutContrat(x) === 'actif') || (c || [])[0] || null)
       setTypes(t); setSoldes(s); setDemandes(d); setSemaine(sem); setEcheances(ech)
+      // Total calculé depuis les lignes saisies : la semaine n'a de total enregistré qu'une fois soumise
+      setMinutesSemaine(totauxSemaine(lignes || []).total)
     } catch (e) { toast.error(e.message); setFiche(null) }
   }, [lundi])
   useEffect(() => { charger() }, [charger])
@@ -114,7 +117,7 @@ export default function MonEspace() {
         <Clock className="w-5 h-5 text-gray-400 flex-none" aria-hidden="true" />
         <span className="flex-1 min-w-0">
           <span className="block section-title">Mes heures</span>
-          <span className="block text-ui-sm text-gray-600">Semaine du {fr(lundi)}{semaine ? ` · ${heures(semaine.total_minutes)}` : ''}</span>
+          <span className="block text-ui-sm text-gray-600">Semaine du {fr(lundi)}{(semaine?.total_minutes || minutesSemaine) ? ` · ${heures(semaine?.status === 'soumise' || semaine?.status === 'validee' ? semaine.total_minutes : minutesSemaine)} saisies` : ' · rien de saisi'}</span>
         </span>
         <span className={`badge ${stSem.badge}`}>{stSem.label}</span>
         <ChevronRight className="w-4 h-4 text-gray-400" aria-hidden="true" />
