@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 
+import toast from 'react-hot-toast'
 export default function DateTimePickerModal({ isOpen, onClose, onSave, title, currentDate = null }) {
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -24,7 +25,7 @@ export default function DateTimePickerModal({ isOpen, onClose, onSave, title, cu
 
   const handleSave = () => {
     if (!date || !time) {
-      alert('Veuillez sélectionner une date et une heure')
+      toast.error('Veuillez sélectionner une date et une heure')
       return
     }
 

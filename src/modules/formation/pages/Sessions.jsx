@@ -15,6 +15,7 @@ import MultiSiretWizard from '../components/MultiSiretWizard'
 import SessionPlanning from '../components/SessionPlanning'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 
+import { confirmer } from '../../../ui/Confirm'
 // Type de journée déduit des horaires : ≤ 4h30 = demi-journée (même règle que Quotes / MultiSiretWizard)
 const dayTypeFromTimes = (startTime, endTime) => {
   const [sh, sm] = (startTime || '09:00').split(':').map(Number)
@@ -443,7 +444,7 @@ export default function Sessions() {
     e.preventDefault()
     e.stopPropagation()
     
-    if (!confirm('Supprimer cette session ?')) return
+    if (!await confirmer('Supprimer cette session ?')) return
     
     const { error } = await deleteSession(id)
     if (error) {

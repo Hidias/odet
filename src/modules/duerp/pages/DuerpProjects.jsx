@@ -13,6 +13,7 @@ import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
+import { confirmer } from '../../../ui/Confirm'
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
@@ -386,7 +387,7 @@ export default function DuerpProjects() {
   // ACTIONS
   // ═══════════════════════════════════════════════════════════
   const deleteProject = async (id) => {
-    if (!confirm('Supprimer ce projet DUERP et toutes ses données ?')) return
+    if (!await confirmer('Supprimer ce projet DUERP et toutes ses données ?')) return
     await supabase.from('duerp_projects').delete().eq('id', id)
     toast.success('Projet supprimé')
     setContextMenu(null)

@@ -7,6 +7,7 @@ import { downloadNeedsAnalysisPDF } from '../pdf/needsAnalysisPDF'
 import { sanitizeStorageKey } from '../../../core/storageUtils'
 import { useDroits } from '../../../core/rights/useDroit'
 
+import { confirmer } from '../../../ui/Confirm'
 const CONTEXT_REASONS = [
   { value: 'reglementation', label: 'Réglementation / Obligations légales' },
   { value: 'accident', label: 'Suite à un accident / incident' },
@@ -366,7 +367,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
 
   const handleDeleteScan = async () => {
     if (!scanDoc) return
-    if (!confirm('Supprimer ce scan ?')) return
+    if (!await confirmer('Supprimer ce scan ?')) return
     try {
       await supabase.storage.from('documents').remove([scanDoc.file_path])
       await supabase.from('session_documents').delete().eq('id', scanDoc.id)

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+import { confirmer, demander } from '../../../ui/Confirm'
 // Expéditeurs possibles : les membres de l'équipe (profils), avec leur adresse d'envoi
 const sigOptions = () => team().filter((t) => t.email).map((t) => ({ value: t.firstName, label: t.name, email: t.email }))
 export const senderEmailFor = (value) => sigOptions().find((s) => s.value === value)?.email || currentUserEmail()
@@ -80,11 +81,11 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
   }
 
   // ── Modèles ──
-  function applyTemplate(id) {
+  async function applyTemplate(id) {
     setTemplateId(id)
     const t = templates.find(x => x.id === id)
     if (!t) return
-    if ((form.subject || form.body_html) && !confirm(`Remplacer l'objet et le message par le modèle « ${t.name} » ?`)) { setTemplateId(''); return }
+    if ((form.subject || form.body_html) && !await confirmer(`Remplacer l'objet et le message par le modèle « ${t.name} » ?`)) { setTemplateId(''); return }
     setForm(f => ({ ...f, subject: t.subject, body_html: t.body_html, signature_caller: t.signature_caller || f.signature_caller }))
   }
   async function saveTemplate(asNew) {
@@ -97,7 +98,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
       if (error) { toast.error(error.message); return }
       toast.success(`Modèle « ${current.name} » mis à jour`)
     } else {
-      const name = prompt('Nom du modèle :', form.name || '')
+      const name = await demander('Nom du modèle :', { defaut: form.name || '' })
       if (!name?.trim()) return
       const { data, error } = await supabase.from('mailing_templates')
         .insert({ name: name.trim(), subject: form.subject, body_html: form.body_html, signature_caller: form.signature_caller, created_by: user?.email || null })
@@ -110,7 +111,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
   }
   async function deleteTemplate() {
     const t = templates.find(x => x.id === templateId)
-    if (!t || !confirm(`Supprimer le modèle « ${t.name} » ?`)) return
+    if (!t || !await confirmer(`Supprimer le modèle « ${t.name} » ?`)) return
     await supabase.from('mailing_templates').delete().eq('id', t.id)
     setTemplateId('')
     loadTemplates()

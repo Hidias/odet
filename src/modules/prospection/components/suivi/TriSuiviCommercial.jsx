@@ -18,6 +18,7 @@ import {
   callers, fmtDate, callbackLateDays, isCallbackToDecide, rdvRefDate,
 } from './suiviUtils'
 
+import { confirmer } from '../../../../ui/Confirm'
 function Section({ title, count, hint, children }) {
   return (
     <section className="bg-white border border-gray-200 rounded-ui">
@@ -72,7 +73,7 @@ export default function TriSuiviCommercial({
 
   const bulkSansSuite = async () => {
     if (selected.size === 0) return
-    if (!confirm(`Classer ${selected.size} ligne(s) « sans suite - déjà traité » ?`)) return
+    if (!await confirmer(`Classer ${selected.size} ligne(s) « sans suite - déjà traité » ?`)) return
     setBulkSaving(true)
     let done = 0
     try {
@@ -109,7 +110,7 @@ export default function TriSuiviCommercial({
   }
 
   const pasEuLieu = async (rdv) => {
-    if (!confirm('Ce RDV n\'a pas eu lieu : le passer en « Annulé » ?')) return
+    if (!await confirmer('Ce RDV n\'a pas eu lieu : le passer en « Annulé » ?')) return
     const now = new Date().toISOString()
     const { error } = await supabase.from('prospect_rdv')
       .update({ status: 'annule', triaged_at: now, updated_at: now })

@@ -18,6 +18,7 @@ import {
   getEquipmentAutoStatus, getHabilitationStatus
 } from '../lib/duerpConformiteData'
 
+import { confirmer } from '../../../ui/Confirm'
 const VERIFICATION_TYPES = [
   { id: 'exercice_evacuation', label: 'Exercice d\'évacuation', icon: '', periodicite: '6 mois' },
   { id: 'verification_extincteurs', label: 'Vérification extincteurs', icon: '', periodicite: '12 mois' },
@@ -142,7 +143,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
   }
 
   const deleteEquipement = async (eqId) => {
-    if (!confirm('Supprimer cet équipement ?')) return
+    if (!await confirmer('Supprimer cet équipement ?')) return
     await supabase.from('duerp_equipements').delete().eq('id', eqId)
     toast.success('Supprimé')
     loadData()
@@ -193,7 +194,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
   }
 
   const deleteHabilitation = async (hId) => {
-    if (!confirm('Supprimer cette habilitation ?')) return
+    if (!await confirmer('Supprimer cette habilitation ?')) return
     await supabase.from('duerp_habilitations').delete().eq('id', hId)
     toast.success('Supprimée')
     loadData()
@@ -233,7 +234,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
   }
 
   const deleteVerification = async (vId) => {
-    if (!confirm('Supprimer ?')) return
+    if (!await confirmer('Supprimer ?')) return
     await supabase.from('duerp_verifications').delete().eq('id', vId)
     toast.success('Supprimée')
     loadData()

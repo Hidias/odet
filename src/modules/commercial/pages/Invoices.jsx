@@ -22,6 +22,7 @@ import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
 import { calcDueDate } from '../lib/echeances'
 
+import { confirmer } from '../../../ui/Confirm'
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
   draft:    { label: 'Brouillon',  color: 'gray',   icon: FileText },
@@ -519,7 +520,7 @@ export default function Invoices() {
     const isSubcontract = sess.session_type === 'subcontract'
     if (isSubcontract && sess.subcontract_invoiced) { toast.error('Cette session a déjà été facturée'); return }
     if (sess.clients?.billing_mode === 'monthly') {
-      if (!confirm(`Ce client préfère la facturation groupée (fin de mois).\n\nCréer quand même une facture individuelle ?`)) return
+      if (!await confirmer(`Ce client préfère la facturation groupée (fin de mois).\n\nCréer quand même une facture individuelle ?`)) return
     }
 
     const ref = await generateReference('invoice')
@@ -1432,7 +1433,7 @@ export default function Invoices() {
                       <input type="checkbox" checked={isChecked} onChange={toggle} className="w-4 h-4 rounded text-[rgb(var(--c-success))]" />
                     </label>
                   )}
-                  <button onClick={() => { if (s.already_invoiced) { if (!confirm('Cette session a déjà une facture associée. Créer quand même ?')) return }; setShowSessionSelector(false); handleFromSession(s.id) }}
+                  <button onClick={async () => { if (s.already_invoiced) { if (!await confirmer('Cette session a déjà une facture associée. Créer quand même ?')) return }; setShowSessionSelector(false); handleFromSession(s.id) }}
                     className="flex-1 text-left p-3 min-w-0">
                   <div className="flex justify-between items-start">
                     <div><span className="font-medium text-ui">{s.reference}</span><span className="text-gray-500 text-ui ml-2">{s.clients?.name}</span></div>
@@ -1453,11 +1454,11 @@ export default function Invoices() {
                 <span className="text-ui text-gray-600">{selectedSessionIds.length} session{selectedSessionIds.length > 1 ? 's' : ''} sélectionnée{selectedSessionIds.length > 1 ? 's' : ''} - facture globale (même client)</span>
                 <div className="flex gap-2">
                   <button onClick={() => setSelectedSessionIds([])} className="px-3 py-1.5 text-ui border rounded-ui-sm hover:bg-gray-50">Vider</button>
-                  <button onClick={() => {
+                  <button onClick={async () => {
                     const chosen = completedSessions.filter(x => selectedSessionIds.includes(x.id))
                     if (new Set(chosen.map(x => x.client_id)).size > 1) { toast.error('Les sessions sélectionnées doivent appartenir au même client'); return }
                     const already = chosen.filter(x => x.already_invoiced)
-                    if (already.length > 0 && !confirm(`${already.map(x => x.reference).join(', ')} ${already.length > 1 ? 'ont' : 'a'} déjà une facture associée. Créer quand même ?`)) return
+                    if (already.length > 0 && !await confirmer(`${already.map(x => x.reference).join(', ')} ${already.length > 1 ? 'ont' : 'a'} déjà une facture associée. Créer quand même ?`)) return
                     setShowSessionSelector(false); handleFromSessions(selectedSessionIds)
                   }} className="px-3 py-1.5 text-ui bg-[rgb(var(--c-success))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-success))]">Facturer la sélection</button>
                 </div>

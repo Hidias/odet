@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+import { confirmer, demander } from '../../../ui/Confirm'
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
@@ -259,7 +260,7 @@ export default function ProcessEditor() {
   }
   
   const handleDeleteStep = async (stepId) => {
-    if (!confirm('Supprimer cette étape ?')) return
+    if (!await confirmer('Supprimer cette étape ?')) return
     
     await supabase
       .from('process_connections')
@@ -309,7 +310,7 @@ export default function ProcessEditor() {
     const fromStep = steps.find(s => s.id === fromId)
     let label = ''
     if (fromStep?.type === 'decision') {
-      label = prompt('Label (Oui/Non) :') || ''
+      label = (await demander('Libellé de la flèche (Oui ou Non) :', { placeholder: 'Oui' })) || ''
     }
     
     const { data, error } = await supabase
@@ -801,7 +802,7 @@ export default function ProcessEditor() {
     
     return (
       <g key={conn.id}>
-        <path d={path} fill="none" stroke="#6B7280" strokeWidth={2} markerEnd="url(#arrow)" className="cursor-pointer hover:stroke-[rgb(var(--c-danger))]" onClick={() => { if (confirm('Supprimer ?')) handleDeleteConnection(conn.id) }} />
+        <path d={path} fill="none" stroke="#6B7280" strokeWidth={2} markerEnd="url(#arrow)" className="cursor-pointer hover:stroke-[rgb(var(--c-danger))]" onClick={async () => { if (await confirmer('Supprimer ?')) handleDeleteConnection(conn.id) }} />
         {conn.label && (
           <text x={fromX + (conn.label.toLowerCase() === 'non' ? -15 : 15)} y={fromY + 15} fontSize="10" fontWeight="bold" fill="#374151" textAnchor={conn.label.toLowerCase() === 'non' ? 'end' : 'start'}>{conn.label}</text>
         )}

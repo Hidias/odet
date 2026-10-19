@@ -13,6 +13,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import SearchSelect from '../../../ui/SearchSelect'
 
+import { confirmer } from '../../../ui/Confirm'
 const getUserName = (email) => teamFirstNameByEmail(email) || 'Utilisateur'
 
 // ===== CONFIG NC =====
@@ -161,7 +162,7 @@ export default function NonConformites() {
   }
   
   const handleDeleteNC = async (id) => {
-    if (!confirm('Supprimer cette NC ?')) return
+    if (!await confirmer('Supprimer cette NC ?')) return
     const { error } = await supabase.from('non_conformites').delete().eq('id', id)
     if (!error) { toast.success('NC supprimée'); loadNonConformites() }
     else toast.error(error.message)
@@ -227,7 +228,7 @@ export default function NonConformites() {
   }
   
   const handleDeleteRecl = async (id) => {
-    if (!confirm('Supprimer cette réclamation ?')) return
+    if (!await confirmer('Supprimer cette réclamation ?')) return
     const { error } = await supabase.from('reclamations').delete().eq('id', id)
     if (!error) { toast.success('Réclamation supprimée'); loadReclamations() }
     else toast.error(error.message)

@@ -13,6 +13,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../../../core/supabase'
 import { callers, SANS_SUITE_REASONS, quickDates, todayStr, fmtDate, logInteraction } from './suiviUtils'
 
+import { confirmer } from '../../../../ui/Confirm'
 function ModalShell({ title, subtitle, onClose, children, footer }) {
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -251,7 +252,7 @@ export function DeplacerRappelModal({ callback, clientName, author, onClose, onD
   }
 
   const abandon = async () => {
-    if (!confirm('Abandonner ce rappel ? Le contact ne sera plus proposé.')) return
+    if (!await confirmer('Abandonner ce rappel ? Le contact ne sera plus proposé.')) return
     setSaving(true)
     try {
       const stamp = `Rappel abandonné le ${new Date().toLocaleDateString('fr-FR')} par ${author}`

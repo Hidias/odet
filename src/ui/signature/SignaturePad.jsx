@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { RotateCcw, Check, AlertCircle, Shield } from 'lucide-react'
 import { supabase } from '../../core/supabase'
 
+import toast from 'react-hot-toast'
 // ═══════════════════════════════════════════════════════════════
 // SignaturePad - Composant réutilisable signature électronique
 // Avec piste d'audit complète (hash, IP, user-agent, horodatage)
@@ -238,7 +239,7 @@ export default function SignaturePad({
       }
     } catch (err) {
       console.error('Erreur sauvegarde signature:', err)
-      alert('Erreur lors de la sauvegarde de la signature. Veuillez réessayer.')
+      toast.error('Erreur lors de la sauvegarde de la signature. Veuillez réessayer.')
     } finally {
       setSaving(false)
     }

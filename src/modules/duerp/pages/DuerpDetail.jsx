@@ -16,6 +16,7 @@ import { generateDuerpPDF, generateDuerpExcel } from '../lib/duerpExport'
 import DuerpConformiteTab from '../components/DuerpConformiteTab'
 import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
+import { confirmer } from '../../../ui/Confirm'
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES - alignées sur le schéma SQL déployé
 // ═══════════════════════════════════════════════════════════
@@ -245,9 +246,9 @@ export default function DuerpDetail() {
   const deleteUnit = async (unitId) => {
     const linkedRisks = risks.filter(r => r.unit_id === unitId).length
     if (linkedRisks > 0) {
-      if (!confirm(` ATTENTION : ${linkedRisks} risque(s) lié(s) à cette unité seront DÉFINITIVEMENT SUPPRIMÉS (cascade SQL).\n\nPour les conserver, rattachez-les d'abord à une autre unité.\n\nContinuer ?`)) return
+      if (!await confirmer(` ATTENTION : ${linkedRisks} risque(s) lié(s) à cette unité seront DÉFINITIVEMENT SUPPRIMÉS (cascade SQL).\n\nPour les conserver, rattachez-les d'abord à une autre unité.\n\nContinuer ?`)) return
     } else {
-      if (!confirm('Supprimer cette unité de travail ?')) return
+      if (!await confirmer('Supprimer cette unité de travail ?')) return
     }
     const { error } = await supabase.from('duerp_units').delete().eq('id', unitId)
     if (error) return toast.error('Erreur suppression : ' + error.message)
@@ -291,7 +292,7 @@ export default function DuerpDetail() {
   }
 
   const deleteRisk = async (riskId) => {
-    if (!confirm('Supprimer ce risque ?')) return
+    if (!await confirmer('Supprimer ce risque ?')) return
     const { error } = await supabase.from('duerp_risks').delete().eq('id', riskId)
     if (error) return toast.error('Erreur : ' + error.message)
     toast.success('Risque supprimé')
@@ -370,7 +371,7 @@ export default function DuerpDetail() {
   }
 
   const deleteAction = async (actionId) => {
-    if (!confirm('Supprimer cette action ?')) return
+    if (!await confirmer('Supprimer cette action ?')) return
     const { error } = await supabase.from('duerp_actions').delete().eq('id', actionId)
     if (error) return toast.error('Erreur : ' + error.message)
     toast.success('Action supprimée')

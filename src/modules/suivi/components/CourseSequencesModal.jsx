@@ -7,6 +7,7 @@ import { X, Plus, Trash2, ArrowUp, ArrowDown, Loader2, Save, ChevronDown, Chevro
 import { loadCourseSequences, saveCourseSequences, setCourseFormativeEnabled } from '../lib/sfData'
 import { SEQUENCE_TEMPLATES, MODALITIES, templateByKey } from '../lib/sequenceTemplates'
 
+import { confirmer } from '../../../ui/Confirm'
 const toText = (arr) => (arr || []).join(', ')
 const fromText = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean)
 const linesToArr = (s) => String(s || '').split('\n').map((x) => x.trim()).filter(Boolean)
@@ -38,10 +39,10 @@ export default function CourseSequencesModal({ course, canEdit, onClose, onSaved
   const remove = (i) => setList((l) => l.filter((_, j) => j !== i))
   const add = () => { setList((l) => [...l, { title: '', competences: [], modality: 'oral', roles: [], success_indicators: [] }]); setOpen(list.length) }
 
-  const applyTemplate = () => {
+  const applyTemplate = async () => {
     const t = templateByKey(tpl)
     if (!t) return
-    if (list.length && !window.confirm(`Remplacer les ${list.length} séquences actuelles par le modèle « ${t.label} » ? (rien n'est enregistré avant « Enregistrer »)`)) return
+    if (list.length && !await confirmer(`Remplacer les ${list.length} séquences actuelles par le modèle « ${t.label} » ? (rien n'est enregistré avant « Enregistrer »)`)) return
     setList(t.sequences.map((s) => ({ ...s, competences: [...s.competences], roles: [...s.roles], success_indicators: [...s.success_indicators] })))
     setOpen(null)
   }

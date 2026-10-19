@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Check, ChevronRight, Zap, RotateCcw, Trophy, Target, Loader2, ArrowUp, ArrowDown, Flame } from 'lucide-react'
 
+import toast from 'react-hot-toast'
 // Moteur de quiz du portail stagiaire : une question à la fois, plein écran, pensé pour le téléphone.
 //   mode 'positioning' : pas de correction affichée, on enregistre les réponses (questions ouvertes acceptées)
 //   mode 'training'    : correction immédiate avec explication, rejouable
@@ -116,7 +117,7 @@ export default function QuizEngine({ questions, mode = 'training', title, onChec
       }
     } catch (err) {
       console.error('Vérification impossible :', err)
-      alert('Impossible de vérifier la réponse. Vérifiez votre connexion.')
+      toast.error('Impossible de vérifier la réponse. Vérifiez votre connexion.')
     } finally {
       setChecking(false)
     }
@@ -132,7 +133,7 @@ export default function QuizEngine({ questions, mode = 'training', title, onChec
         setFinished(true)
       } catch (err) {
         console.error('Enregistrement impossible :', err)
-        alert("Impossible d'enregistrer le quiz. Réessayez.")
+        toast.error("Impossible d'enregistrer le quiz. Réessayez.")
       } finally {
         setFinishing(false)
       }

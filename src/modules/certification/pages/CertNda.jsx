@@ -12,6 +12,7 @@ import {
 import { buildNdaProgrammePDF, buildNdaIntervenantsPDF } from '../pdf/ndaPiecesPDF'
 import SearchSelect from '../../../ui/SearchSelect'
 
+import { confirmer } from '../../../ui/Confirm'
 const STATUS = [
   ['preparation', 'En préparation'], ['depose', 'Déposée'], ['complet', 'Dossier complet (accusé reçu)'], ['enregistre', 'Enregistrée'], ['refuse', 'Refusée'],
 ]
@@ -82,7 +83,7 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
   }
 
   const delDoc = async (d) => {
-    if (!window.confirm(`Retirer « ${d.file_name} » du dossier ?`)) return
+    if (!await confirmer(`Retirer « ${d.file_name} » du dossier ?`)) return
     setBusy(d.id)
     try { await removeDocument(d); await reloadSettings() } catch (e) { toast.error(e.message) }
     setBusy(null)

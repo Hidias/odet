@@ -15,6 +15,7 @@ import { ModulesSection, Toggle } from '../settings/shared'
 import RetoursConsole from '../feedback/RetoursConsole'
 import { BandeauConsole, NouveautesConsole } from '../notices/AvisConsole'
 
+import { confirmer } from '../../ui/Confirm'
 // Console technique de l'instance, réservée au super administrateur :
 // état, migrations à appliquer, modules, mode démo, accès, exports, notes de version.
 
@@ -124,7 +125,7 @@ export default function Console() {
   }
 
   const relaunchSetup = async () => {
-    if (!confirm("Relancer l'assistant de configuration ? Les réglages actuels sont conservés et proposés à chaque étape.")) return
+    if (!await confirmer("Relancer l'assistant de configuration ? Les réglages actuels sont conservés et proposés à chaque étape.")) return
     const { error } = await updateOrganization({ setup_completed: false, setup_step: 0 })
     if (error) return toast.error(error.message)
     await refreshBranding()

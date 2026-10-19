@@ -12,6 +12,7 @@ import { supabase } from '../../../../core/supabase'
 import { buildStorageFileName } from '../../../../core/storageUtils'
 import { KIT_CATEGORIES, kitCategoryLabel } from './suiviUtils'
 
+import { confirmer } from '../../../../ui/Confirm'
 const BUCKET = 'documents'
 const FOLDER = 'rdv-kit'
 
@@ -115,7 +116,7 @@ export default function KitRdvPanel({ author }) {
   }
 
   const remove = async (doc) => {
-    if (!confirm(`Supprimer définitivement « ${doc.title} » ?`)) return
+    if (!await confirmer(`Supprimer définitivement « ${doc.title} » ?`)) return
     const { error } = await supabase.from('rdv_kit_documents').delete().eq('id', doc.id)
     if (error) { toast.error('Suppression impossible'); return }
     await supabase.storage.from(BUCKET).remove([doc.file_path])

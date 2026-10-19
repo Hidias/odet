@@ -19,6 +19,7 @@ import AnnuaireClient from '../components/AnnuaireClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 
+import { confirmer } from '../../../ui/Confirm'
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
@@ -542,7 +543,7 @@ export default function ClientDetail() {
   }
 
   async function deleteContact(contactId) {
-    if (!confirm('Supprimer ce contact ?')) return
+    if (!await confirmer('Supprimer ce contact ?')) return
     await supabase.from('client_contacts').delete().eq('id', contactId)
     await supabase.rpc('client_contact_sync_primary', { p_client_id: id }).then(() => {}, () => {})
     toast.success('Contact supprimé')
@@ -580,7 +581,7 @@ export default function ClientDetail() {
   }
 
   async function deleteInteraction(intId) {
-    if (!confirm('Supprimer cette interaction ?')) return
+    if (!await confirmer('Supprimer cette interaction ?')) return
     await supabase.from('client_interactions').delete().eq('id', intId)
     toast.success('Supprimé')
     loadInteractions()

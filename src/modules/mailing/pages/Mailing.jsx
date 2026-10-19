@@ -22,6 +22,7 @@ import MailingComposer, { senderEmailFor } from '../components/MailingComposer'
 import { loadMailingExclusions, getExclusionReason, normNaf } from '../lib/mailingExclusions'
 import { applyMailingVars } from '../lib/mailingVars'
 
+import { confirmer } from '../../../ui/Confirm'
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const STATUS_BADGE = {
@@ -480,7 +481,7 @@ export default function Mailing() {
   }, 'Envoi repris par le serveur (1er mail dans la minute)')
   const startNow = (c) => updateCampaign(c, { scheduled_at: new Date().toISOString() }, 'Démarrage dans la minute')
   async function cancelCampaign(c) {
-    if (!confirm(`Annuler « ${c.name} » ? Les mails non envoyés ne partiront pas.`)) return
+    if (!await confirmer(`Annuler « ${c.name} » ? Les mails non envoyés ne partiront pas.`)) return
     stopRef.current = true
     await updateCampaign(c, { status: 'annulée' }, 'Campagne annulée')
   }

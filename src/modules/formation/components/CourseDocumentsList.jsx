@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { buildStorageFileName } from '../../../core/storageUtils'
 import { useDroits } from '../../../core/rights/useDroit'
 
+import { confirmer } from '../../../ui/Confirm'
 const DOCUMENT_TYPES = {
   support_formateur: {
     label: 'Support pédagogique formateur',
@@ -197,7 +198,7 @@ export default function CourseDocumentsList() {
     const doc = documents[courseId]?.[type]
     if (!doc) return
 
-    if (showToast && !confirm('Supprimer ce document ?')) {
+    if (showToast && !await confirmer('Supprimer ce document ?')) {
       return
     }
 

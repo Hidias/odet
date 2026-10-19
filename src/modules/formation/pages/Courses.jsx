@@ -9,6 +9,7 @@ import CourseSequencesModal from '../../suivi/components/CourseSequencesModal'
 import { countSequencesByCourse, canEditCatalog } from '../../suivi/lib/sfData'
 import { useDroits } from '../../../core/rights/useDroit'
 
+import { confirmer } from '../../../ui/Confirm'
 // Thèmes du matériel
 const EQUIPMENT_THEMES = {
   SECOURISME: { label: 'Secourisme', color: 'green' },
@@ -472,7 +473,7 @@ export default function Courses() {
   }, {})
   
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer cette formation ?')) return
+    if (!await confirmer('Supprimer cette formation ?')) return
     await deleteCourse(id)
     toast.success('Formation supprimée')
   }

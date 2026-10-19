@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+import { confirmer, demander } from '../../../ui/Confirm'
 const STATUS_STYLE = {
   ok:         { label: 'OK',          cls: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
   a_verifier: { label: 'À vérifier',  cls: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
@@ -99,7 +100,7 @@ export default function MailingQualite({ user, onBack }) {
   // ── Actions qualité ──
   async function setStatus(row, status, note) {
     if (status === 'invalide' && row.is_protected) {
-      if (!confirm(`${row.email} est utilisée par un client ou un contact.\n\nElle sera seulement exclue du mailing : la fiche client n'est pas modifiée.\n\nContinuer ?`)) return
+      if (!await confirmer(`${row.email} est utilisée par un client ou un contact.\n\nElle sera seulement exclue du mailing : la fiche client n'est pas modifiée.\n\nContinuer ?`)) return
     }
     setBusy(row.email)
     const { error } = await supabase
@@ -130,7 +131,7 @@ export default function MailingQualite({ user, onBack }) {
     if (!newEmail) return
     if (row.is_protected) { toast.error('Adresse de client : à corriger depuis la fiche client'); return }
     const n = row.nb_prospects || 0
-    if (!confirm(`Remplacer « ${row.email} » par « ${newEmail.toLowerCase()} » ?\n\nCela modifie ${n} fiche${n > 1 ? 's' : ''} prospect${n > 1 ? 's' : ''} (une note est ajoutée sur chaque fiche).`)) return
+    if (!await confirmer(`Remplacer « ${row.email} » par « ${newEmail.toLowerCase()} » ?\n\nCela modifie ${n} fiche${n > 1 ? 's' : ''} prospect${n > 1 ? 's' : ''} (une note est ajoutée sur chaque fiche).`)) return
     setBusy(row.email)
     const { data, error } = await supabase.rpc('mailing_fix_email', { p_old: row.email, p_new: newEmail, p_by: by })
     setBusy(null)
@@ -141,7 +142,7 @@ export default function MailingQualite({ user, onBack }) {
   }
 
   async function blockEmail(row) {
-    const note = prompt(`Bloquer ${row.email} pour tous les mailings ?\nMotif (facultatif) :`, '')
+    const note = await demander(`Bloquer ${row.email} pour tous les mailings ?\nMotif (facultatif) :`, { title: 'Bloquer une adresse' })
     if (note === null) return
     const { error } = await supabase.from('mailing_blocklist').insert({
       kind: 'email', value: row.email, category: 'manuel', note: note || null, created_by: by,
@@ -160,7 +161,7 @@ export default function MailingQualite({ user, onBack }) {
     if (blForm.kind === 'domaine' && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(value)) { toast.error('Domaine invalide (ex : apave.com)'); return }
     if (blForm.kind === 'nom' && value.length < 3) { toast.error('3 caractères minimum'); return }
     if (blForm.kind === 'domaine' && ['gmail.com', 'orange.fr', 'wanadoo.fr', 'yahoo.fr', 'hotmail.fr', 'hotmail.com', 'outlook.fr', 'free.fr', 'laposte.net', 'sfr.fr'].includes(value)) {
-      if (!confirm(`« ${value} » est un webmail utilisé par beaucoup d'entreprises différentes.\nBloquer tout le domaine ?`)) return
+      if (!await confirmer(`« ${value} » est un webmail utilisé par beaucoup d'entreprises différentes.\nBloquer tout le domaine ?`)) return
     }
     const { error } = await supabase.from('mailing_blocklist').insert({
       kind: blForm.kind, value, category: blForm.category, note: blForm.note.trim() || null, created_by: by,
@@ -175,7 +176,7 @@ export default function MailingQualite({ user, onBack }) {
     const msg = b.category === 'desabonne'
       ? `${b.value} s'est désabonné(e).\n\nNe le retirer QUE si cette personne a redonné son accord pour recevoir vos mails.\n\nRetirer quand même ?`
       : `Retirer « ${b.value} » de la liste de blocage ?`
-    if (!confirm(msg)) return
+    if (!await confirmer(msg)) return
     const { error } = await supabase.from('mailing_blocklist').delete().eq('id', b.id)
     if (error) { toast.error(error.message); return }
     toast.success('Retiré de la liste')

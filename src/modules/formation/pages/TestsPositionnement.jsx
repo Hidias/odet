@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import QuizEngine, { parseOptions } from '../quiz/QuizEngine'
 import { useDroits } from '../../../core/rights/useDroit'
 
+import { confirmer } from '../../../ui/Confirm'
 // Banque de questions par thème de formation.
 // Une question sert au positionnement et/ou à l'évaluation (entraînement + évaluation des acquis).
 // Le niveau de difficulté compose les quiz mais n'est jamais montré aux stagiaires.
@@ -188,7 +189,7 @@ export default function TestsPositionnement() {
   }
 
   const deleteQuestion = async (questionId) => {
-    if (!confirm('Supprimer cette question ? Les réponses déjà enregistrées sont conservées.')) return
+    if (!await confirmer('Supprimer cette question ? Les réponses déjà enregistrées sont conservées.')) return
     const { error } = await supabase.from('theme_questions').delete().eq('id', questionId)
     if (error) {
       // Des réponses y font référence : on la désactive plutôt

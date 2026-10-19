@@ -14,6 +14,7 @@ import toast from 'react-hot-toast'
 import SearchSelect from '../../../ui/SearchSelect'
 import { Banner } from '../../../ui'
 
+import { confirmer } from '../../../ui/Confirm'
 // ===== LABELS & ICÔNES =====
 const sourceLabels = {
   stagiaire: { label: 'Stagiaire',  icon: User },
@@ -167,7 +168,7 @@ export default function RegistrePSH() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer cette demande PSH ?')) return
+    if (!await confirmer('Supprimer cette demande PSH ?')) return
     const { error } = await supabase.from('psh_requests').delete().eq('id', id)
     if (!error) { toast.success('Demande supprimée'); loadRequests() }
     else toast.error(error.message)
