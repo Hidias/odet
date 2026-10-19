@@ -162,7 +162,7 @@ ORDRE_PROD = (
     # Chantier 10, suivi des affaires (19/10)
     + ['0380']
     # Chantier F : RGPD, journal d'audit, purges, IP des signatures, certifications (19/10)
-    + ['0340', '0345', '0344', '0346', '0350']
+    + ['0340', '0345', '0344', '0346', '0350', '0354']
 )
 
 

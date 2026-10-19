@@ -4,7 +4,7 @@ import { jsPDF } from 'jspdf'
 import 'jspdf-autotable'
 import { startDocument, numberPages, drawImageFitted } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
-import { RESULT_LABEL, summarize, frShort, frMonthYear } from '../lib/schedule'
+import { RESULT_LABEL, REPLACE_REASON_LABEL, summarize, frShort, frMonthYear } from '../lib/schedule'
 import { photoDataUrl } from '../lib/itvData'
 
 const hour = (ts) => (ts ? new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).replace(':', 'h') : '')
@@ -51,7 +51,7 @@ export async function buildRapportPDF({ visit, items, parts, equipmentById, sett
       e.location || '',
       i.operation && i.operation !== 'verification' ? opLabel(i.operation) : 'Vérification',
       RESULT_LABEL[i.result] || 'Non contrôlé',
-      [i.defect, i.observation].filter(Boolean).join('. '),
+      [i.defect, i.result === 'remplace' && i.replace_reason ? `Remplacé : ${i.replace_reason === 'autre' && i.replace_note ? i.replace_note : REPLACE_REASON_LABEL[i.replace_reason]}` : null, i.observation].filter(Boolean).join('. '),
       i.result === 'conforme' || i.result === 'remplace' ? frMonthYear(e.next_check_on) : i.result === 'a_remplacer' ? 'Remplacement' : 'À revoir',
     ])
   f.table(['Étiquette', 'Appareil', 'Emplacement', 'Opération', 'Résultat', 'Observation', 'Prochaine'], rows, {

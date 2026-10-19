@@ -3165,6 +3165,48 @@ begin
     end;
   end if;
 
+  -- Chantier F, Interventions (0354) : clôture refusée sans motif de remplacement, sans information du client quand
+  -- le remplacement prend la place d'une opération périodique ; numéro de série du nouvel appareil repris
+  if to_regprocedure('app.itv_visite_cloture_garde()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare
+      i_v uuid; i_it uuid; i_err1 text; i_err2 text; i_ok boolean := false;
+    begin
+      insert into public.itv_visits (client_id, site_id, technician_id, status, started_at)
+      values (v_client_tech, v_site, u_tech, 'en_cours', now()) returning id into i_v;
+      insert into public.itv_visit_items (visit_id, equipment_id, operation, result, checked_at)
+      values (i_v, v_eq, 'maa', 'remplace', now()) returning id into i_it;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.itv_close_visit(i_v); exception when check_violation then i_err1 := sqlerrm; end;
+      update public.itv_visit_items set replace_reason = 'fin_de_vie' where id = i_it;
+      begin perform public.itv_close_visit(i_v); exception when check_violation then i_err2 := sqlerrm; end;
+      update public.itv_visit_items set client_informed = true, new_serial_number = 'SN-ESSAI-0354' where id = i_it;
+      perform public.itv_close_visit(i_v);
+      i_ok := true;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+
+      if i_err1 like '%sans motif%' then
+        v_lines := v_lines || 'OK      tech  0354 : visite non clôturée tant qu''un appareil remplacé n''a pas de motif'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0354 : motif de remplacement obligatoire'::text; end if;
+      if i_err2 like '%information du client%' then
+        v_lines := v_lines || 'OK      tech  0354 : remplacement au lieu d''une maintenance : information du client exigée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0354 : information du client exigée'::text; end if;
+      if i_ok and (select status = 'terminee' from public.itv_visits where id = i_v)
+         and (select serial_number = 'SN-ESSAI-0354' from public.itv_equipment where id = v_eq) then
+        v_lines := v_lines || 'OK      tech  0354 : visite clôturée, numéro de série du nouvel appareil repris'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0354 : clôture et numéro de série'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   tech  0354 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

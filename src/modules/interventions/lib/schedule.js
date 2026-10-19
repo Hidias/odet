@@ -154,3 +154,35 @@ export function frMonthYear(iso) {
   if (!d) return ''
   return d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })
 }
+
+// ─── Remplacement d'un appareil (chantier F, 0354) ───
+// Mêmes règles que la garde de clôture en base (app.itv_visite_cloture_garde).
+
+export const REPLACE_REASONS = [
+  { code: 'fin_de_vie', label: 'Durée de vie atteinte' },
+  { code: 'hors_service', label: 'Endommagé ou hors d\'usage' },
+  { code: 'non_reparable', label: 'Non conforme, réparation impossible' },
+  { code: 'obsolete', label: 'Modèle retiré ou pièces introuvables' },
+  { code: 'cout', label: 'Maintenance plus chère que le remplacement' },
+  { code: 'demande_client', label: 'Demande du client' },
+  { code: 'autre', label: 'Autre motif (à préciser)' },
+]
+export const REPLACE_REASON_LABEL = Object.fromEntries(REPLACE_REASONS.map((r) => [r.code, r.label]))
+
+/** Opérations périodiques : un remplacement à leur place demande l'information du client */
+export const PERIODIC_OPERATIONS = ['maa', 'revision', 'requalification', 'epreuve']
+
+/** Ce qui manque à une ligne « remplacé » pour pouvoir clôturer la visite (liste vide si rien) */
+export function replaceMissing(item) {
+  if (!item || item.result !== 'remplace') return []
+  const out = []
+  if (!item.replace_reason) out.push('motif')
+  else if (item.replace_reason === 'autre' && !String(item.replace_note || '').trim()) out.push('précision du motif')
+  if (PERIODIC_OPERATIONS.includes(item.operation) && !item.client_informed) out.push('information du client')
+  return out
+}
+
+/** Lignes qui empêchent la clôture, avec ce qui leur manque */
+export function replaceBlockers(items) {
+  return (items || []).map((i) => ({ item: i, missing: replaceMissing(i) })).filter((x) => x.missing.length > 0)
+}

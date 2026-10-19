@@ -71,6 +71,7 @@ export default function Appareil({ settings, types, canWrite, profile }) {
         {row('Site', [eq.sites?.name, eq.sites?.city].filter(Boolean).join(', '))}
         {row('Emplacement', eq.location)}
         {row('Marque, année', [eq.brand, eq.manufactured_year].filter(Boolean).join(', '))}
+        {eq.serial_number && row('Numéro de série', eq.serial_number)}
         {Object.entries(eq.details || {}).filter(([, v]) => v).map(([k, v]) => row(k, String(v)))}
         {row('Dernière vérification', eq.last_check_on ? frShort(eq.last_check_on) : 'Jamais')}
         {row('Prochaine vérification', eq.next_check_on ? frShort(eq.next_check_on) : 'À définir', true)}
