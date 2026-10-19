@@ -3,7 +3,7 @@ import {
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
   MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
-  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint, Package,
+  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint, Package, Landmark,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -161,6 +161,17 @@ export const NAV_SECTIONS = [
     icon: Package,
     items: [
       { simple: true, to: '/stock', right: ['stock.voir', 'stock.sien.mouvementer'], icon: Package, label: 'Stock', roles: [...STAFF, 'membre'] },
+    ],
+  },
+  {
+    // Module Manager (0220 et suivantes) : emprunts et crédits d'abord ; le cockpit et le centre de validations suivent.
+    // Coupé tant que la société ne l'a pas activé ; réservé à « Gérer les emprunts » (direction, administrateur).
+    id: 'manager',
+    module: 'manager',
+    label: 'Manager',
+    icon: Landmark,
+    items: [
+      { simple: true, to: '/emprunts', right: 'manager.emprunts.gerer', icon: Landmark, label: 'Emprunts et crédits', roles: [...FINANCE, 'membre'] },
     ],
   },
 ]
