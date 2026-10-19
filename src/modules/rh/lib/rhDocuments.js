@@ -109,10 +109,13 @@ export async function ouvrirDocument(id) {
   }
 }
 
+/** Efface le fichier puis la ligne : le stockage ne laisse effacer un fichier que tant que sa ligne est lisible (0303) */
 export async function supprimerDocument(doc) {
   const path = must(await supabase.from('hr_documents').select('file_path').eq('id', doc.id).single()).file_path
+  const { data: effaces, error } = await supabase.storage.from(BUCKET).remove([path])
+  if (error) throw error
+  if (!effaces?.length) throw new Error('Le fichier n\'a pas pu être effacé : document conservé')
   must(await supabase.from('hr_documents').delete().eq('id', doc.id))
-  await supabase.storage.from(BUCKET).remove([path]).catch(() => {})
 }
 
 // ─── Habilitations ───

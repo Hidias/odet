@@ -179,6 +179,8 @@ ORDRE_PROD = (
     + ['0301']
     # RH : suppression d'une fiche du personnel (gardes en cascade), 19/10
     + ['0302']
+    # RH : suppression des fichiers du bucket rh, 19/10
+    + ['0303']
 )
 
 
