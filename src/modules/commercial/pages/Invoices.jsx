@@ -211,6 +211,11 @@ export default function Invoices() {
   const [groupedClientOpen, setGroupedClientOpen] = useState(false)
   // ─── Envoi / relance email ───
   const [invoiceRelancesMap, setInvoiceRelancesMap] = useState({})
+  // Circuit de facturation (0367) : brouillons en attente de validation, état du brouillon ouvert, refus en cours
+  const [aValider, setAValider] = useState(() => new Set())
+  const [circuit, setCircuit] = useState(null) // { required, demande }
+  const [refus, setRefus] = useState(null) // { motif, enCours }
+  const moiId = useAuthStore((st) => st.user?.id)
   const [showSendModal, setShowSendModal] = useState(false)
   const [sendModalInv, setSendModalInv] = useState(null)
   const [sendModalRelances, setSendModalRelances] = useState([])
@@ -238,6 +243,8 @@ export default function Invoices() {
       relMap[r.invoice_id].push(r)
     }
     setInvoiceRelancesMap(relMap)
+    supabase.from('approval_requests').select('object_id').eq('object_table', 'invoices').eq('status', 'pending')
+      .then(({ data, error }) => setAValider(new Set(error ? [] : (data || []).map((r) => r.object_id))))
 
     // Convertir sent → due ou overdue selon due_date
     // (comparaison par chaînes : une facture due aujourd'hui n'est PAS en retard)
@@ -748,6 +755,35 @@ export default function Invoices() {
     await ouvrirBrouillon(data, '')
   }
 
+  // ─── Circuit de facturation (0367) ───
+  const chargerCircuit = async (inv, lignes) => {
+    setCircuit(null)
+    if (!inv?.id || inv.type !== 'invoice' || !isDraftDoc(inv)) return
+    const net = calcInvoiceTotals(lignes || [], inv.discount_percent, inv.tva_applicable).netHt
+    const [{ data: req, error: e1 }, { data: dem }] = await Promise.all([
+      supabase.rpc('approval_required', { p_scope: 'invoice', p_amount: net, p_client: inv.client_id }),
+      supabase.from('approval_requests').select('id, status, requested_by, requested_at, decision_comment, decided_at')
+        .eq('object_table', 'invoices').eq('object_id', inv.id).order('requested_at', { ascending: false }).limit(1),
+    ])
+    if (e1) return
+    setCircuit({ required: !!req?.required, demande: (dem || [])[0] || null })
+  }
+  const demanderValidation = async () => {
+    const { data, error } = await supabase.rpc('billing_request_validation', { p_invoice: current.id })
+    if (error) { toast.error(error.message); return }
+    toast.success(data?.required ? 'Validation demandée' : 'Aucune validation requise pour ce client')
+    await loadAll(); await chargerCircuit(current, items)
+  }
+  const refuserValidation = async () => {
+    if (!circuit?.demande || (refus?.motif || '').trim().length < 3) return
+    setRefus((r) => ({ ...r, enCours: true }))
+    const { error } = await supabase.rpc('approval_decide', { p_request: circuit.demande.id, p_decision: 'rejected', p_comment: refus.motif.trim() })
+    if (error) { setRefus((r) => ({ ...r, enCours: false })); toast.error(error.message); return }
+    setRefus(null)
+    toast.success('Validation refusée, motif transmis')
+    await loadAll(); await chargerCircuit(current, items)
+  }
+
   // ─── Edit / View ───
   const handleEdit = async (inv) => {
     setCurrent({...inv, parent_reference: inv.parent_invoice_id ? (invoices.find(i => i.id === inv.parent_invoice_id)?.reference || '') : ''})
@@ -756,6 +792,10 @@ export default function Invoices() {
   const handleView = async (inv) => {
     setCurrent({...inv, parent_reference: inv.parent_invoice_id ? (invoices.find(i => i.id === inv.parent_invoice_id)?.reference || '') : ''})
     await loadContacts(inv.client_id); await loadItems(inv.id); await loadPayments(inv.id); setMode('view')
+    if (inv.type === 'invoice' && isDraftDoc(inv)) {
+      const { data: lignes } = await supabase.from('invoice_items').select('*').eq('invoice_id', inv.id)
+      chargerCircuit(inv, lignes || [])
+    } else setCircuit(null)
   }
 
   // ─── Save ───
@@ -1155,6 +1195,7 @@ export default function Invoices() {
                     <td className="px-4 py-3 font-medium">
                       <span className={isCr ? 'text-[rgb(var(--c-warning))]' : 'text-gray-900'}>{inv.reference}</span>
                       {isCr && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Avoir</span>}
+                      {aValider.has(inv.id) && <span className="ml-2 badge badge-warning">À valider</span>}
                       {inv.is_subrogation && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">OPCO</span>}
                       <RelanceBadge inv={inv} />
                     </td>
@@ -1509,6 +1550,12 @@ export default function Invoices() {
                 <Eye size={14} />Aperçu
               </button>
               {droitsFac.modifier && <button onClick={() => handleEdit(current)} className="btn btn-secondary text-ui flex items-center gap-1"><Pencil size={14} />Modifier</button>}
+              {!isCr && circuit?.required && !droitsFac.valider && droitsFac.modifier && circuit.demande?.status !== 'pending' && (
+                <button onClick={demanderValidation} className="btn btn-secondary text-ui flex items-center gap-1"><Send size={14} />Demander la validation</button>
+              )}
+              {!isCr && circuit?.demande?.status === 'pending' && droitsFac.valider && circuit.demande.requested_by !== moiId && (
+                <button onClick={() => setRefus({ motif: '', enCours: false })} className="btn btn-secondary text-ui flex items-center gap-1"><X size={14} />Refuser</button>
+              )}
               {(isCr ? droitsFac.avoir : droitsFac.valider) && (
                 <button onClick={() => ouvrirEmission(current, items)} className="btn btn-primary text-ui flex items-center gap-1">
                   <Stamp size={14} />{isCr ? "Émettre l'avoir" : 'Émettre la facture'}
@@ -1543,6 +1590,14 @@ export default function Invoices() {
       </div>
 
       <div className="space-y-6">
+        {mode === 'view' && isDraftDoc(current) && circuit?.demande && (
+          <div className={`rounded-ui-sm border px-4 py-3 text-ui ${circuit.demande.status === 'rejected' ? 'border-[rgb(var(--c-danger)/0.4)]' : ''}`}>
+            {circuit.demande.status === 'pending' && <>En attente de validation depuis le {fmtDateShort(circuit.demande.requested_at)}.</>}
+            {circuit.demande.status === 'rejected' && <>Validation refusée le {fmtDateShort(circuit.demande.decided_at)} : {circuit.demande.decision_comment}. Corrigez le brouillon puis redemandez la validation.</>}
+            {circuit.demande.status === 'approved' && <>Validée le {fmtDateShort(circuit.demande.decided_at)} : la facture peut être émise.</>}
+            {circuit.demande.status === 'cancelled' && <>Demande de validation retirée.</>}
+          </div>
+        )}
         {/* Info principale */}
         <div className="bg-white rounded-ui border p-5">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1880,6 +1935,19 @@ export default function Invoices() {
             <input type="checkbox" className="mt-1" checked={emission.verifie} onChange={(e) => setEmission((x) => ({ ...x, verifie: e.target.checked }))} />
             <span>J'ai vérifié le client, les lignes et les montants.</span>
           </label>
+        </Sheet>
+      )}
+
+      {/* Refus d'une validation : motif obligatoire, transmis à la personne qui a préparé */}
+      {refus && (
+        <Sheet title="Refuser la validation" size="sm" onClose={() => !refus.enCours && setRefus(null)}
+          footer={<>
+            <button type="button" className="btn btn-secondary" disabled={refus.enCours} onClick={() => setRefus(null)}>Revenir</button>
+            <button type="button" className="btn btn-primary" disabled={refus.enCours || (refus.motif || '').trim().length < 3} onClick={refuserValidation}>Refuser</button>
+          </>}>
+          <p className="text-gray-700">Le brouillon reste modifiable ; la personne qui l'a préparé voit le motif.</p>
+          <textarea className="input" rows={3} value={refus.motif} aria-label="Motif du refus" placeholder="Motif"
+            onChange={(e) => setRefus((r) => ({ ...r, motif: e.target.value }))} />
         </Sheet>
       )}
 

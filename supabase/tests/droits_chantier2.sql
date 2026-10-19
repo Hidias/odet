@@ -1491,6 +1491,85 @@ begin
     end;
   end if;
 
+  -- Circuit de facturation branché sur les règles de gestion (0367)
+  if to_regprocedure('public.billing_request_validation(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 6;
+    declare
+      k_dir uuid := gen_random_uuid(); k_com uuid := gen_random_uuid(); k_cli uuid; k_cli2 uuid; k_f uuid; k_g uuid;
+      k_r jsonb; k_r2 jsonb; k_ok boolean; k_pts jsonb;
+    begin
+      insert into auth.users (id, email, aud, role) values
+        (k_dir, 'cir.dir@test.invalid', 'authenticated', 'authenticated'), (k_com, 'cir.com@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (k_dir, 'cir.dir@test.invalid', 'direction', true), (k_com, 'cir.com@test.invalid', 'commercial', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+      delete from public.approval_rules where company_id = app.billing_company() and scope = 'invoice';
+      insert into public.clients (name, address, postal_code, city, client_type) values ('Circuit essai', '1 rue', '29000', 'Quimper', 'particulier') returning id into k_cli;
+      insert into public.clients (name, address, postal_code, city, client_type) values ('Circuit libre essai', '2 rue', '29000', 'Quimper', 'particulier') returning id into k_cli2;
+      insert into public.approval_rules (company_id, scope, client_id, mode, validator_right) values (app.billing_company(), 'invoice', k_cli2, 'none', 'facturation.factures.valider');
+      perform set_config('request.jwt.claims', json_build_object('sub', k_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', k_cli, current_date, current_date + 30) returning id into k_f;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (k_f, 0, 'Formation', 1, 100, 20);
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', k_cli2, current_date, current_date + 30) returning id into k_g;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (k_g, 0, 'Formation', 1, 100, 20);
+      k_pts := public.billing_missing_mentions(k_f) -> 'points';
+      k_ok := exists (select 1 from jsonb_array_elements(k_pts) p where p ->> 'code' = 'circuit' and (p ->> 'bloquant')::boolean)
+              and not exists (select 1 from jsonb_array_elements(public.billing_missing_mentions(k_g) -> 'points') p where p ->> 'code' = 'circuit');
+      execute 'reset role';
+      if k_ok then v_lines := v_lines || 'OK      com   0367 : validation requise par défaut, pas pour un client réglé sans validation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0367 : validation requise par défaut, pas pour un client réglé sans validation'::text; end if;
+      -- Demande de validation, une seule en attente
+      execute 'set local role authenticated';
+      k_r := public.billing_request_validation(k_f);
+      k_r2 := public.billing_request_validation(k_f);
+      execute 'reset role';
+      if (k_r ->> 'required')::boolean and k_r ->> 'request_id' = k_r2 ->> 'request_id' and (k_r2 ->> 'deja')::boolean then
+        v_lines := v_lines || 'OK      com   0367 : demande de validation déposée une seule fois'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   com   0367 : demande de validation déposée une seule fois (' || coalesce(k_r::text, '') || ')'); end if;
+      -- Le valideur voit la demande ; l'auteur ne valide pas sa propre demande
+      execute 'set local role authenticated';
+      k_ok := false;
+      begin perform public.approval_decide((k_r ->> 'request_id')::uuid, 'approved'); exception when insufficient_privilege then k_ok := true; end;
+      execute 'reset role';
+      if k_ok then v_lines := v_lines || 'OK      com   0367 : l''auteur ne valide pas sa propre demande'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0367 : l''auteur ne valide pas sa propre demande'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', k_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_ok := exists (select 1 from public.approval_requests where id = (k_r ->> 'request_id')::uuid);
+      -- Émission par le valideur : demande close comme validée
+      perform public.billing_issue(k_f);
+      execute 'reset role';
+      if k_ok and (select status = 'approved' and decided_by = k_dir from public.approval_requests where id = (k_r ->> 'request_id')::uuid) then
+        v_lines := v_lines || 'OK      dir   0367 : le valideur voit la demande, l''émission la clôt'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0367 : le valideur voit la demande, l''émission la clôt'::text; end if;
+      -- Circuit à deux étapes : même le valideur passe par une demande validée
+      update public.approval_rules set mode = 'always', extra_steps = '["facturation.export.comptable"]' where client_id = k_cli2;
+      execute 'set local role authenticated';
+      k_ok := false;
+      begin perform public.billing_issue(k_g); exception when sqlstate '22023' then k_ok := sqlerrm like '%validation%'; end;
+      execute 'reset role';
+      if k_ok then v_lines := v_lines || 'OK      dir   0367 : circuit à deux étapes, émission refusée sans demande validée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0367 : circuit à deux étapes, émission refusée sans demande validée'::text; end if;
+      -- Commercial : n'émet pas
+      perform set_config('request.jwt.claims', json_build_object('sub', k_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_ok := false;
+      begin perform public.billing_issue(k_g); exception when insufficient_privilege then k_ok := true; end;
+      execute 'reset role';
+      if k_ok then v_lines := v_lines || 'OK      com   0367 : la personne qui prépare n''émet pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0367 : la personne qui prépare n''émet pas'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end
