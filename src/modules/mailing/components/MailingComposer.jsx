@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-import { confirmer } from '../../../ui/Confirm'
+import { confirmer, demander } from '../../../ui/Confirm'
 // Expéditeurs possibles : les membres de l'équipe (profils), avec leur adresse d'envoi
 const sigOptions = () => team().filter((t) => t.email).map((t) => ({ value: t.firstName, label: t.name, email: t.email }))
 export const senderEmailFor = (value) => sigOptions().find((s) => s.value === value)?.email || currentUserEmail()
@@ -98,7 +98,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
       if (error) { toast.error(error.message); return }
       toast.success(`Modèle « ${current.name} » mis à jour`)
     } else {
-      const name = prompt('Nom du modèle :', form.name || '')
+      const name = await demander('Nom du modèle :', { defaut: form.name || '' })
       if (!name?.trim()) return
       const { data, error } = await supabase.from('mailing_templates')
         .insert({ name: name.trim(), subject: form.subject, body_html: form.body_html, signature_caller: form.signature_caller, created_by: user?.email || null })

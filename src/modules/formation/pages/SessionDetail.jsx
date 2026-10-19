@@ -37,7 +37,7 @@ import PickerMenu from '../../../ui/PickerMenu'
 import { readableUrl } from '../../../core/storageUtils'
 import { useDroits } from '../../../core/rights/useDroit'
 
-import { confirmer } from '../../../ui/Confirm'
+import { confirmer, demander } from '../../../ui/Confirm'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -1538,7 +1538,7 @@ export default function SessionDetail() {
   // Marquer / annuler l'absence d'un stagiaire sur toute la session
   const handleToggleAbsent = async (trainee, absent) => {
     if (absent) {
-      const motif = prompt(`Noter ${trainee.first_name} ${trainee.last_name?.toUpperCase()} absent sur toute la session ?\n\nMotif (facultatif) :`, '')
+      const motif = await demander(`Noter ${trainee.first_name} ${trainee.last_name?.toUpperCase()} absent sur toute la session ?\n\nMotif (facultatif) :`, { title: 'Absence sur toute la session' })
       if (motif === null) return
       const { data, error } = await supabase.rpc('set_trainee_absent', {
         p_session_id: session.id, p_trainee_id: trainee.id, p_absent: true,
@@ -3279,7 +3279,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             setShowPositioningTest(true)
                           } catch (err) {
                             console.error('Erreur chargement test:', err)
-                            alert('Erreur lors du chargement du test')
+                            toast.error('Erreur lors du chargement du test')
                           } finally {
                             setLoadingPositioningTest(false)
                           }

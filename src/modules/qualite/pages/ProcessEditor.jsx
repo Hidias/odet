@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-import { confirmer } from '../../../ui/Confirm'
+import { confirmer, demander } from '../../../ui/Confirm'
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
@@ -310,7 +310,7 @@ export default function ProcessEditor() {
     const fromStep = steps.find(s => s.id === fromId)
     let label = ''
     if (fromStep?.type === 'decision') {
-      label = prompt('Label (Oui/Non) :') || ''
+      label = (await demander('Libellé de la flèche (Oui ou Non) :', { placeholder: 'Oui' })) || ''
     }
     
     const { data, error } = await supabase

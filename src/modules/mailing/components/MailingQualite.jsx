@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-import { confirmer } from '../../../ui/Confirm'
+import { confirmer, demander } from '../../../ui/Confirm'
 const STATUS_STYLE = {
   ok:         { label: 'OK',          cls: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
   a_verifier: { label: 'À vérifier',  cls: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
@@ -142,7 +142,7 @@ export default function MailingQualite({ user, onBack }) {
   }
 
   async function blockEmail(row) {
-    const note = prompt(`Bloquer ${row.email} pour tous les mailings ?\nMotif (facultatif) :`, '')
+    const note = await demander(`Bloquer ${row.email} pour tous les mailings ?\nMotif (facultatif) :`, { title: 'Bloquer une adresse' })
     if (note === null) return
     const { error } = await supabase.from('mailing_blocklist').insert({
       kind: 'email', value: row.email, category: 'manuel', note: note || null, created_by: by,

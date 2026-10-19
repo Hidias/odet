@@ -31,7 +31,7 @@ import { useDataStore } from '../../../core/store'
 import { DEPARTEMENTS_FR as DEPARTEMENTS, zoneCodes } from '../../../core/org/departements'
 
 
-import { confirmer } from '../../../ui/Confirm'
+import { confirmer, demander } from '../../../ui/Confirm'
 const EFFECTIFS = [
   { code: '01', label: '1-2' }, { code: '02', label: '3-5' }, { code: '03', label: '6-9' },
   { code: '11', label: '10-19' }, { code: '12', label: '20-49' }, { code: '21', label: '50-99' },
@@ -297,7 +297,7 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
 
   // ── Segments ──
   async function saveSegment() {
-    const name = prompt('Nom du segment (les filtres actuels sont enregistrés) :')
+    const name = await demander('Nom du segment (les filtres actuels sont enregistrés) :')
     if (!name?.trim()) return
     const { error } = await supabase.from('mailing_segments').insert({ name: name.trim(), filters: f, created_by: user?.email || null })
     if (error) { toast.error(error.message); return }

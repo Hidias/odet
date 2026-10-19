@@ -7,7 +7,8 @@ import { Sheet } from './Sheet'
 //  - useConfirm() : const ok = await confirm({ title, message, confirmLabel, danger }) ; nécessite <ConfirmProvider> ;
 //  - confirmer(message | options) : même fenêtre, appelable hors d'un composant ou dans un gestionnaire existant
 //    (`if (!(await confirmer('Supprimer ce devis ?'))) return`). Sans fournisseur monté : repli sur la confirmation
-//    du navigateur (jamais de « oui » donné à la place de l'utilisateur).
+//    du navigateur (jamais de « oui » donné à la place de l'utilisateur) ;
+//  - demander(question, { defaut, placeholder }) : remplace window.prompt (texte saisi, ou null si annulé).
 
 export function ConfirmInline({ label, question = 'Confirmer ?', confirmLabel = 'Confirmer', danger = false, onConfirm, className = '', buttonClassName = 'btn btn-secondary' }) {
   const [asking, setAsking] = useState(false)
@@ -56,16 +57,30 @@ export async function confirmer(question) {
   return typeof window !== 'undefined' && typeof window.confirm === 'function' ? window.confirm(opts.message || 'Confirmer ?') : false
 }
 
+export async function demander(question, { defaut = '', placeholder = '', title = 'Saisir' } = {}) {
+  const opts = { title, message: String(question ?? ''), saisie: true, defaut: String(defaut ?? ''), placeholder, confirmLabel: 'Valider' }
+  if (confirmGlobal) return confirmGlobal(opts)
+  return typeof window !== 'undefined' && typeof window.prompt === 'function' ? window.prompt(opts.message, opts.defaut) : null
+}
+
 export function ConfirmProvider({ children }) {
   const [req, setReq] = useState(null)
+  const [valeur, setValeur] = useState('')
   const resolver = useRef(null)
+  const enCours = useRef(null)
   const confirm = useCallback((opts) => new Promise((resolve) => {
     // Une question déjà ouverte est refusée avant d'en poser une autre (jamais deux réponses mélangées)
-    resolver.current?.(false)
+    resolver.current?.(enCours.current?.saisie ? null : false)
     resolver.current = resolve
+    enCours.current = opts || {}
+    setValeur(opts?.saisie ? opts.defaut || '' : '')
     setReq(opts || {})
   }), [])
-  const close = (value) => { resolver.current?.(value); resolver.current = null; setReq(null) }
+  // Saisie : Valider rend le texte, Annuler rend null (comme window.prompt) ; question : true ou false
+  const close = (ok) => {
+    const reponse = req?.saisie ? (ok ? valeur : null) : ok
+    resolver.current?.(reponse); resolver.current = null; enCours.current = null; setReq(null)
+  }
   useEffect(() => {
     confirmGlobal = confirm
     return () => { if (confirmGlobal === confirm) confirmGlobal = null }
@@ -80,6 +95,10 @@ export function ConfirmProvider({ children }) {
             <button type="button" className={`btn ${req.danger ? 'btn-danger' : 'btn-primary'}`} onClick={() => close(true)}>{req.confirmLabel || 'Confirmer'}</button>
           </>}>
           {req.message && <p className="text-gray-700 whitespace-pre-line break-words">{req.message}</p>}
+          {req.saisie && (
+            <input className="input" autoFocus value={valeur} placeholder={req.placeholder || ''} aria-label={req.message || req.title}
+              onChange={(e) => setValeur(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); close(true) } }} />
+          )}
         </Sheet>
       )}
     </ConfirmContext.Provider>
