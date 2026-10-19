@@ -236,6 +236,7 @@ export default function Conformite() {
     registre: can('conformite.rgpd.gerer') !== false,
     demandes: can('conformite.demandes.gerer') !== false,
     violations: can('conformite.violations.gerer') !== false,
+    purges: can('conformite.purges.valider') !== false,
   }
   const [onglet, setOnglet] = useState('registre')
   const [data, setData] = useState({})
@@ -251,7 +252,9 @@ export default function Conformite() {
       lire('rgpd_violations', 'decouverte_le', false), lire('rgpd_informations', 'remise_le', false), lire('rgpd_aipd', 'created_at', false),
     ])
     if (st.error && tr.error) { setErreur('La conformité RGPD n\'est pas encore disponible sur cette instance (migration 0340).'); setData({}); return }
-    setData({ traitements: tr.data || [], sous_traitants: st.data || [], demandes: de.data || [], violations: vi.data || [], informations: inf.data || [], aipd: ai.data || [] })
+    const [pr, pp] = await Promise.all([lire('rgpd_purge_regles', 'cle'), lire('rgpd_purge_passages', 'cree_le', false)])
+    setData({ traitements: tr.data || [], sous_traitants: st.data || [], demandes: de.data || [], violations: vi.data || [], informations: inf.data || [], aipd: ai.data || [],
+      purge_regles: pr.error ? [] : pr.data || [], purge_passages: pp.error ? [] : pp.data || [] })
   }, [])
   useEffect(() => { charger() }, [charger])
 
@@ -341,6 +344,7 @@ export default function Conformite() {
     d.registre && { id: 'sous_traitants', label: 'Sous-traitants' },
     d.registre && { id: 'informations', label: 'Information des personnes' },
     d.registre && { id: 'aipd', label: 'Analyses d\'impact' },
+    (d.purges || d.registre) && { id: 'purges', label: 'Durées et purges', count: (data.purge_passages || []).filter((p) => p.statut === 'a_valider').length || null },
   ].filter(Boolean)
   const actif = onglets.some((o) => o.id === onglet) ? onglet : onglets[0]?.id
   const kindOnglet = { registre: 'traitement', demandes: 'demande', violations: 'violation', sous_traitants: 'sous_traitant', informations: 'information', aipd: 'aipd' }
@@ -352,6 +356,23 @@ export default function Conformite() {
     sous_traitants: 'Les services utilisés par l\'outil apparaissent ici.',
     informations: 'Enregistrez ici chaque notice d\'information remise (salariés, stagiaires, prospects) et sa preuve.',
     aipd: 'Une analyse d\'impact est nécessaire quand au moins deux critères du CEPD sont réunis (par exemple suivi des véhicules en direct).',
+  }
+
+  const decider = async (passage, decision) => {
+    const question = decision === 'executer'
+      ? `${passage.nb} ligne${passage.nb > 1 ? 's' : ''} seront ${regleDe(passage)?.action === 'anonymiser' ? 'anonymisées' : 'supprimées'} définitivement. Continuer ?`
+      : 'Ignorer ce passage ? Il sera proposé de nouveau la nuit prochaine si les lignes sont toujours concernées.'
+    if (!(await confirmer(question))) return
+    const { data: r, error } = await supabase.rpc('rgpd_purge_decider', { p_passage: passage.id, p_decision: decision })
+    if (error) return toast.error(error.message)
+    toast.success(decision === 'executer' ? `${r?.traites ?? 0} ligne(s) traitée(s)` : 'Passage ignoré')
+    charger()
+  }
+  const regleDe = (passage) => (data.purge_regles || []).find((r) => r.id === passage.regle_id)
+  const majRegle = async (regle, patch) => {
+    const { error } = await supabase.from('rgpd_purge_regles').update(patch).eq('id', regle.id)
+    if (error) return toast.error(error.message.includes('delai') ? `Délai minimum : ${regle.delai_minimum} mois` : error.message)
+    charger()
   }
 
   if (onglets.length === 0) return <Banner tone="warning">Cette page demande un droit de conformité (registre, demandes ou violations).</Banner>
@@ -368,19 +389,61 @@ export default function Conformite() {
         <Banner tone="danger">Une violation ouverte arrive au délai de 72 h : évaluez le risque et notifiez la CNIL si nécessaire (cnil.fr, téléservice de notification).</Banner>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <Tabs tabs={onglets} value={actif} onChange={setOnglet} />
+        <Tabs tabs={onglets} value={actif} onChange={setOnglet} visible={7} />
         {actif === 'registre' && <label className="ml-auto inline-flex items-center gap-2 text-ui-sm text-gray-600">
           <input type="checkbox" checked={archives} onChange={(e) => setArchives(e.target.checked)} />Afficher les archivés
         </label>}
-        <button type="button" className={`btn btn-primary btn-sm ${actif === 'registre' ? '' : 'ml-auto'}`} onClick={() => ouvrir(kindOnglet[actif])}>
+        {actif !== 'purges' && <button type="button" className={`btn btn-primary btn-sm ${actif === 'registre' ? '' : 'ml-auto'}`} onClick={() => ouvrir(kindOnglet[actif])}>
           <Plus className="w-4 h-4" />{actif === 'violations' ? 'Déclarer une violation' : actif === 'demandes' ? 'Nouvelle demande' : 'Ajouter'}
-        </button>
+        </button>}
       </div>
+      {actif === 'purges' ? (
+        <div className="space-y-4">
+          <div className="card p-4 space-y-2">
+            <div className="font-semibold">Passages à valider</div>
+            <p className="text-ui-sm text-gray-500">Préparés chaque nuit : rien n'est supprimé ni anonymisé sans votre décision. Les lignes sont recalculées au moment d'exécuter.</p>
+            {(data.purge_passages || []).filter((p) => p.statut === 'a_valider').length === 0
+              ? <div className="text-ui-sm text-gray-600">Aucun passage à valider.</div>
+              : (data.purge_passages || []).filter((p) => p.statut === 'a_valider').map((p) => (
+                <div key={p.id} className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{regleDe(p)?.libelle || p.cle} : {p.nb} ligne{p.nb > 1 ? 's' : ''}</div>
+                    <div className="text-ui-sm text-gray-500">{regleDe(p)?.objet} · préparé le {fr(p.cree_le)}</div>
+                  </div>
+                  {d.purges && <>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => decider(p, 'ignorer')}>Ignorer</button>
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => decider(p, 'executer')}>{regleDe(p)?.action === 'anonymiser' ? 'Anonymiser' : 'Supprimer'}</button>
+                  </>}
+                </div>
+              ))}
+          </div>
+          <div className="card p-4 space-y-2">
+            <div className="font-semibold">Règles de conservation</div>
+            {(data.purge_regles || []).map((r) => (
+              <div key={r.id} className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">{r.libelle}</div>
+                  <div className="text-ui-sm text-gray-500">{r.objet}{r.derniere_validation_le ? ` · dernière purge validée le ${fr(r.derniere_validation_le)}` : ''}</div>
+                </div>
+                <label className="text-ui-sm text-gray-600 inline-flex items-center gap-1.5">Délai
+                  <input type="number" min={r.delai_minimum} className="input w-20" defaultValue={r.delai_mois} disabled={!(d.purges || d.registre)}
+                    onBlur={(e) => { const v = parseInt(e.target.value, 10); if (v && v !== r.delai_mois) majRegle(r, { delai_mois: v }) }} />mois
+                </label>
+                <label className="text-ui-sm text-gray-600 inline-flex items-center gap-1.5">
+                  <input type="checkbox" checked={r.active} disabled={!(d.purges || d.registre)} onChange={(e) => majRegle(r, { active: e.target.checked })} />Active
+                </label>
+              </div>
+            ))}
+            {(data.purge_regles || []).length === 0 && <div className="text-ui-sm text-gray-600">Les règles de conservation apparaîtront après la migration 0344.</div>}
+          </div>
+        </div>
+      ) : (
       <div className="card">
         <DataTable columns={colonnes[actif]} rows={lignes[actif] || []} loading={!data.traitements && !erreur} onRowClick={(l) => ouvrir(kindOnglet[actif], l)}
           caption={onglets.find((o) => o.id === actif)?.label}
           empty={<EmptyState icon={ShieldCheck} title="Rien pour l'instant" compact>{vides[actif]}</EmptyState>} />
       </div>
+      )}
       {fiche && <FicheSheet kind={fiche.kind} ligne={fiche.ligne} options={options} onClose={() => setFiche(null)} onSaved={charger}
         peut={fiche.kind === 'demande' ? d.demandes : fiche.kind === 'violation' ? d.violations : d.registre} />}
     </div>

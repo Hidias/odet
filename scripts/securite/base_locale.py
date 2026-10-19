@@ -161,6 +161,8 @@ ORDRE_PROD = (
     + ['0130', '0140', '0150', '0160']
     # Chantier 10, suivi des affaires (19/10)
     + ['0380']
+    # Chantier F : RGPD puis journal d'audit (19/10)
+    + ['0340', '0345']
 )
 
 

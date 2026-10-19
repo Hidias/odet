@@ -3006,6 +3006,62 @@ begin
     end;
   end if;
 
+  -- Chantier F, purges (0344) : passage préparé la nuit, décision réservée, lignes recalculées, stagiaire anonymisé
+  if to_regprocedure('public.rgpd_purges_generer()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 4;
+    declare
+      p_co uuid := app.company_default(); p_log uuid; p_t uuid; p_pass uuid; p_ok boolean; p_n int; p_r jsonb;
+    begin
+      insert into public.audit_logs (action, entity_type, entity_name, company_id, timestamp)
+      values ('view', 'system', 'Essai purge', p_co, now() - interval '3 years') returning id into p_log;
+      insert into public.trainees (first_name, last_name, email, created_at) values ('Purge', 'Ancien', 'purge@test.invalid', now() - interval '7 years')
+      returning id into p_t;
+      perform public.rgpd_purges_generer();
+      perform public.rgpd_purges_generer();
+      if (select count(*) from public.rgpd_purge_passages where company_id = p_co and cle = 'journal' and statut = 'a_valider') = 1
+         and exists (select 1 from public.rgpd_purge_passages where cle = 'journal' and statut = 'a_valider' and p_log = any (candidats))
+         and exists (select 1 from public.rgpd_purge_passages where cle = 'stagiaires' and statut = 'a_valider' and p_t = any (candidats)) then
+        v_lines := v_lines || 'OK      base  0344 : passages préparés la nuit, un seul ouvert par règle'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0344 : passages préparés'::text; end if;
+
+      select id into p_pass from public.rgpd_purge_passages where company_id = p_co and cle = 'journal' and statut = 'a_valider';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_ok := false;
+      begin perform public.rgpd_purge_decider(p_pass, 'executer'); exception when insufficient_privilege then p_ok := true; end;
+      p_n := (select count(*) from public.rgpd_purge_passages);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if p_ok and p_n = 0 and exists (select 1 from public.audit_logs where id = p_log) then
+        v_lines := v_lines || 'OK      com   0344 : le commercial ne voit ni ne décide les purges'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0344 : purges réservées'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_r := public.rgpd_purge_decider(p_pass, 'executer');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if not exists (select 1 from public.audit_logs where id = p_log)
+         and (select statut = 'execute' and decide_par = u_dir from public.rgpd_purge_passages where id = p_pass)
+         and (select derniere_validation_le is not null from public.rgpd_purge_regles where company_id = p_co and cle = 'journal') then
+        v_lines := v_lines || 'OK      dir   0344 : la direction exécute la purge du journal, décision tracée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0344 : exécution de la purge'::text; end if;
+
+      select id into p_pass from public.rgpd_purge_passages where company_id = p_co and cle = 'stagiaires' and statut = 'a_valider';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      p_r := public.rgpd_purge_decider(p_pass, 'executer');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if (select first_name = 'Anonymisé' and email is null from public.trainees where id = p_t) then
+        v_lines := v_lines || 'OK      dir   0344 : stagiaire sans session depuis 5 ans anonymisé (fiche gardée sans nom)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0344 : anonymisation des stagiaires'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

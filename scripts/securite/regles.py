@@ -835,6 +835,11 @@ _DEM = f"company_id in {societes('conformite.demandes.gerer')}"
 tdx('0340', 'rgpd_demandes', sel=_DEM, ins=_DEM, upd=_DEM, dele=_DEM)
 _VIO = f"company_id in {societes('conformite.violations.gerer')}"
 tdx('0340', 'rgpd_violations', sel=_VIO, ins=_VIO, upd=_VIO, dele=_VIO)
+# Purges (0344) : règles lues et réglées avec le registre ou le droit de valider ; passages lus par qui valide, écrits
+# seulement par les fonctions (génération de nuit, décision).
+_PUR = f"company_id in {societes('conformite.purges.valider')}"
+tdx('0344', 'rgpd_purge_regles', sel=f"({_PUR} or {_RGPD})", upd=f"({_PUR} or {_RGPD})")
+tdx('0344', 'rgpd_purge_passages', sel=_PUR)
 # Chantier 10, suivi des affaires (0380) : listes lues avec les clients, réglées par qui prépare les devis ; affaires
 # (montants) lues avec les devis, tenues par qui prépare les devis ; objectifs de cadence lus avec les clients, réglés
 # par qui prépare les devis.
