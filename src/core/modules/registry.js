@@ -64,7 +64,7 @@ export const NAV_SECTIONS = [
     items: [
       { to: '/clients', right: 'clients.fiches.voir', icon: Building2, label: 'Clients', roles: STAFF },
       // Suivi des affaires (chantier 10, 0380) : à faire, pipeline, clients à appeler
-      { to: '/affaires', right: 'commercial.devis.voir', icon: KanbanSquare, label: 'Affaires', roles: SALES, module: 'affaires' },
+      { to: '/affaires', right: 'commercial.devis.voir', icon: KanbanSquare, label: 'Affaires', roles: SALES, module: 'affaires', groupe: 'affaires' },
       { to: '/devis', right: 'commercial.devis.voir', icon: Receipt, label: 'Devis', roles: SALES },
       { to: '/factures', right: 'facturation.factures.voir', icon: CreditCard, label: 'Factures', roles: [...SALES, 'comptable'] },
       // Relances préparées chaque nuit, validées à la main (lot 2, 0043)
@@ -72,9 +72,9 @@ export const NAV_SECTIONS = [
       // Demandes des comptes entreprise et actualités publiées dans leurs espaces (lot 2, 0046)
       { to: '/espace-entreprise', right: 'clients.fiches.voir', icon: Megaphone, label: 'Espace entreprise', roles: SALES },
       // Pistes entre formation et maintenance (fonction 10, 0130)
-      { to: '/pistes', right: 'clients.fiches.voir', icon: Workflow, label: 'Pistes', roles: SALES, module: 'pont' },
+      { to: '/pistes', right: 'clients.fiches.voir', icon: Workflow, label: 'Pistes', roles: SALES, module: 'pont', groupe: 'affaires' },
       // Chiffre d'affaires récurrent attendu sur 12 mois (fonction 12, 0150)
-      { to: '/previsionnel', right: 'commercial.devis.voir', icon: BarChart3, label: 'Prévisionnel', roles: SALES, module: 'previsionnel' },
+      { to: '/previsionnel', right: 'commercial.devis.voir', icon: BarChart3, label: 'Prévisionnel', roles: SALES, module: 'previsionnel', groupe: 'affaires' },
       { to: '/prospection', right: 'commercial.prospection.voir', icon: Search, label: 'Suivi commercial', roles: SALES, module: 'prospection' },
       { to: '/mailing', right: 'communication.campagnes.gerer', icon: Mail, label: 'Campagnes email', roles: SALES, module: 'mailing' },
       { to: '/prospection-massive', right: 'commercial.prospection.voir', icon: Globe, label: 'Base prospects', roles: SALES, module: 'prospection' },
@@ -145,6 +145,7 @@ export const NAV_SECTIONS = [
 // L'entrée du menu porte le nom du groupe et mène à la première page du groupe que le compte peut ouvrir.
 export const GROUPES = {
   catalogue: { label: 'Catalogue', icon: GraduationCap },
+  affaires: { label: 'Affaires', icon: KanbanSquare },
   formateurs: { label: 'Formateurs', icon: UserCheck },
   documents: { label: 'Documents', icon: FileText },
   qualiopi: { label: 'Qualiopi', icon: Award },
