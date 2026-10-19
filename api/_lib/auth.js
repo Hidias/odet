@@ -94,6 +94,21 @@ export async function requireRole(req, res, roles) {
  * L'en-tête x-company-id éventuel est transmis (la base le contrôle). Retourne un tableau de codes, ou null si
  * les droits sont inconnus (fonction absente, erreur) : l'appelant retombe alors sur les rôles.
  */
+/**
+ * Client Supabase au nom de l'appelant (sa session, sa société) : les règles de la base s'appliquent.
+ * Sert à vérifier qu'il voit bien la ligne qu'il demande de traiter avant toute écriture par le client serveur.
+ */
+export function clientDeLAppelant(req) {
+  const token = bearerToken(req)
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+  const apikey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!token || !url || !apikey) return null
+  const headers = { Authorization: `Bearer ${token}` }
+  const societe = req.headers?.['x-company-id']
+  if (typeof societe === 'string' && /^[0-9a-f-]{36}$/i.test(societe)) headers['x-company-id'] = societe
+  return createClient(url, apikey, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers } })
+}
+
 export async function droitsDeLAppelant(req) {
   const token = bearerToken(req)
   if (!token) return null

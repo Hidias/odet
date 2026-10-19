@@ -869,6 +869,29 @@ begin
     end;
   end if;
 
+  -- Contrôle de l'annuaire (0365) : l'annuaire ne s'appelle pas pendant les tests ; jusqu'au bloc 0365, un déclencheur
+  -- d'essai (annulé avec le reste) marque chaque nouvelle facture comme vérifiée pour le SIRET actuel de son client.
+  if to_regprocedure('public.billing_siret_motif(uuid, text)') is not null then
+    execute 'reset role';
+    execute $f$create or replace function app.zz_essai_siret() returns trigger language plpgsql set search_path = '' as $c$
+      begin
+        new.siret_checked_at := now();
+        new.siret_check_result := jsonb_build_object('etat', 'actif', 'ecarts', '[]'::jsonb, 'identifiant',
+          (select regexp_replace(coalesce(nullif(btrim(c.siret), ''), c.siren, ''), '\s', '', 'g') from public.clients c
+            where c.id = coalesce(new.billing_client_id, new.client_id)));
+        return new;
+      end $c$$f$;
+    execute 'create trigger zz_essai_siret before insert on public.invoices for each row execute function app.zz_essai_siret()';
+    execute $f$create or replace function app.zz_essai_siret_client() returns trigger language plpgsql security definer set search_path = '' as $c$
+      begin
+        update public.invoices set siret_checked_at = now(), siret_check_result = jsonb_build_object('etat', 'actif', 'ecarts', '[]'::jsonb,
+          'identifiant', regexp_replace(coalesce(nullif(btrim(new.siret), ''), new.siren, ''), '\s', '', 'g'))
+        where issued_at is null and coalesce(billing_client_id, client_id) = new.id;
+        return new;
+      end $c$$f$;
+    execute 'create trigger zz_essai_siret after update on public.clients for each row execute function app.zz_essai_siret_client()';
+  end if;
+
   -- Facturation fiable : numérotation par la base, émission, verrou (0360 à 0362)
   if to_regprocedure('public.billing_issue(uuid)') is not null then
     execute 'reset role';
@@ -1337,6 +1360,97 @@ begin
       execute 'reset role';
       if a_ok then v_lines := v_lines || 'OK      com   0364 : préparer un avoir refusé sans le droit'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0364 : préparer un avoir refusé sans le droit'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
+  -- Revérification du SIRET dans l'annuaire avant émission (0365)
+  if to_regprocedure('public.billing_siret_motif(uuid, text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    execute 'drop trigger if exists zz_essai_siret on public.invoices';
+    execute 'drop trigger if exists zz_essai_siret on public.clients';
+    v_total := v_total + 7;
+    declare
+      s_dir uuid := gen_random_uuid(); s_com uuid := gen_random_uuid(); s_cli uuid; s_par uuid; s_f uuid; s_g uuid; s_p uuid; s_ok boolean; s_pts jsonb;
+    begin
+      insert into auth.users (id, email, aud, role) values
+        (s_dir, 'sir.dir@test.invalid', 'authenticated', 'authenticated'), (s_com, 'sir.com@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (s_dir, 'sir.dir@test.invalid', 'direction', true), (s_com, 'sir.com@test.invalid', 'commercial', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+      insert into public.clients (name, siret, siren, address, postal_code, city, tva) values
+        ('Client annuaire essai', '12345678900011', '123456789', '1 rue', '29000', 'Quimper', 'FR00123456789') returning id into s_cli;
+      insert into public.clients (name, address, postal_code, city, client_type) values
+        ('Particulier essai', '3 rue', '29000', 'Quimper', 'particulier') returning id into s_par;
+      perform set_config('request.jwt.claims', json_build_object('sub', s_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date, siret_checked_at, siret_check_result)
+        values ('x', 'invoice', s_cli, current_date, current_date + 30, now(), '{"identifiant": "12345678900011", "etat": "actif"}') returning id into s_f;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (s_f, 0, 'Formation', 1, 100, 20);
+      -- Sans contrôle : émission refusée (le contrôle passé à la création est effacé)
+      s_ok := false;
+      begin perform public.billing_issue(s_f); exception when sqlstate '22023' then s_ok := sqlerrm like '%annuaire%'; end;
+      if s_ok and (select siret_checked_at is null from public.invoices where id = s_f) then
+        v_lines := v_lines || 'OK      dir   0365 : émission refusée sans contrôle de l''annuaire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0365 : émission refusée sans contrôle de l''annuaire'::text; end if;
+      -- Le contrôle ne se saisit pas à la main
+      update public.invoices set siret_checked_at = now(), siret_check_result = '{"identifiant": "12345678900011", "etat": "actif"}' where id = s_f;
+      update public.clients set siret_checked_at = now() where id = s_cli;
+      if (select siret_checked_at is null and siret_check_result is null from public.invoices where id = s_f)
+         and (select siret_checked_at is null from public.clients where id = s_cli) then v_lines := v_lines || 'OK      dir   0365 : contrôle de l''annuaire non modifiable à la main'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0365 : contrôle de l''annuaire non modifiable à la main'::text; end if;
+      execute 'reset role';
+      -- Contrôle du serveur : établissement fermé = alerte, pas de blocage ; autre SIRET = à refaire ; plus de 24 h = à refaire
+      update public.invoices set siret_checked_at = now(),
+        siret_check_result = '{"identifiant": "12345678900011", "etat": "ferme", "message": "Établissement fermé dans l''annuaire", "ecarts": []}' where id = s_f;
+      s_pts := app.billing_check(s_f) -> 'points';
+      if exists (select 1 from jsonb_array_elements(s_pts) p where p ->> 'code' = 'siret_ferme' and not (p ->> 'bloquant')::boolean)
+         and not exists (select 1 from jsonb_array_elements(s_pts) p where p ->> 'code' = 'siret_controle') then
+        v_lines := v_lines || 'OK      srv   0365 : établissement fermé signalé sans bloquer'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   srv   0365 : établissement fermé signalé sans bloquer'::text; end if;
+      update public.invoices set siret_check_result = jsonb_set(siret_check_result, '{identifiant}', '"99999999900011"') where id = s_f;
+      s_ok := exists (select 1 from jsonb_array_elements(app.billing_check(s_f) -> 'points') p where p ->> 'code' = 'siret_controle');
+      update public.invoices set siret_checked_at = now() - interval '25 hours',
+        siret_check_result = jsonb_set(siret_check_result, '{identifiant}', '"12345678900011"') where id = s_f;
+      if s_ok and exists (select 1 from jsonb_array_elements(app.billing_check(s_f) -> 'points') p where p ->> 'code' = 'siret_controle') then
+        v_lines := v_lines || 'OK      srv   0365 : contrôle d''un autre SIRET ou de plus de 24 h à refaire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   srv   0365 : contrôle d''un autre SIRET ou de plus de 24 h à refaire'::text; end if;
+      -- Commercial sans le droit d'émettre : pas de motif
+      perform set_config('request.jwt.claims', json_build_object('sub', s_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      s_ok := false;
+      begin perform public.billing_siret_motif(s_f, 'Annuaire en panne'); exception when insufficient_privilege then s_ok := true; end;
+      execute 'reset role';
+      if s_ok then v_lines := v_lines || 'OK      com   0365 : motif refusé sans le droit d''émettre'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0365 : motif refusé sans le droit d''émettre'::text; end if;
+      -- Annuaire indisponible : motif trop court refusé, motif valable = émission permise et motif rappelé
+      perform set_config('request.jwt.claims', json_build_object('sub', s_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      s_ok := false;
+      begin perform public.billing_siret_motif(s_f, 'ko'); exception when sqlstate '22023' then s_ok := true; end;
+      perform public.billing_siret_motif(s_f, 'Annuaire injoignable, fiche client vérifiée le matin');
+      s_pts := public.billing_missing_mentions(s_f) -> 'points';
+      perform public.billing_issue(s_f);
+      execute 'reset role';
+      if s_ok and exists (select 1 from jsonb_array_elements(s_pts) p where p ->> 'code' = 'siret_motif')
+         and (select issued_at is not null from public.invoices where id = s_f) then
+        v_lines := v_lines || 'OK      dir   0365 : émission avec un motif si l''annuaire ne répond pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0365 : émission avec un motif si l''annuaire ne répond pas'::text; end if;
+      -- Particulier : pas de contrôle de l'annuaire
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', s_par, current_date, current_date + 30) returning id into s_p;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (s_p, 0, 'Formation', 1, 100, 20);
+      s_pts := public.billing_missing_mentions(s_p) -> 'points';
+      execute 'reset role';
+      if not exists (select 1 from jsonb_array_elements(s_pts) p where p ->> 'code' like 'siret%') then
+        v_lines := v_lines || 'OK      dir   0365 : pas de contrôle de l''annuaire pour un particulier'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0365 : pas de contrôle de l''annuaire pour un particulier'::text; end if;
       perform set_config('request.jwt.claims', '', true);
     end;
   end if;
