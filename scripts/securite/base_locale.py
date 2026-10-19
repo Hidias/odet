@@ -185,6 +185,8 @@ ORDRE_PROD = (
     + ['0311']
     # RH : validation par le responsable d'équipe, 19/10
     + ['0312']
+    # RH : registre unique du personnel, 19/10
+    + ['0313']
 )
 
 
