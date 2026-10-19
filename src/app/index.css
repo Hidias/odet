@@ -120,7 +120,7 @@ html[data-radius='lg'] { --radius-ui-sm: 8px; --radius-ui: 12px; --radius-ui-lg:
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 font-medium transition-colors select-none;
+    @apply inline-flex items-center justify-center gap-2 font-medium transition-colors select-none whitespace-nowrap;
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2;
     height: var(--control-h);
     padding: 0 calc(var(--space-3) - 0.125rem);

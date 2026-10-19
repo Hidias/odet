@@ -435,7 +435,7 @@ export default function ProfilStagiaires() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title flex items-center gap-2">
             <Users className="w-7 h-7 text-primary-600" />
@@ -445,7 +445,7 @@ export default function ProfilStagiaires() {
             Statistiques démographiques RGPD-compliant pour OPCO et BPF
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={exportCSV}
             className="btn btn-secondary flex items-center gap-2"
