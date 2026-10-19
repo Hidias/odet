@@ -48,7 +48,7 @@ async function handler(req, res) {
     }
 
     if (method === 'POST') {
-      const { email, password, signatureImage, testConnection } = req.body || {}
+      const { email, password: motDePasse, signatureImage, testConnection } = req.body || {}
       if (!email) return res.status(400).json({ error: 'Adresse email requise' })
       const cleanEmail = String(email).trim().toLowerCase()
 
@@ -56,6 +56,10 @@ async function handler(req, res) {
         .from('user_email_configs').select('*').eq('user_id', userId).eq('email', cleanEmail).maybeSingle()
       const smtp = smtpSettings(req.body || {}, existing)
       if (!smtp.smtp_host) return res.status(400).json({ error: 'Serveur SMTP requis' })
+      // Gmail : le mot de passe d'application s'affiche en 4 blocs séparés par des espaces ; collé tel quel, il est
+      // refusé (535 BadCredentials). Il ne contient jamais d'espace : on les retire.
+      const password = /(^|\.)gmail\.com$|(^|\.)googlemail\.com$/i.test(smtp.smtp_host) && motDePasse
+        ? String(motDePasse).replace(/\s+/g, '') : motDePasse
 
       if (testConnection) {
         if (!password) return res.status(400).json({ error: 'Mot de passe requis pour tester' })
@@ -68,7 +72,10 @@ async function handler(req, res) {
           await transporter.verify()
           return res.status(200).json({ success: true, message: 'Connexion SMTP réussie' })
         } catch (error) {
-          return res.status(400).json({ success: false, error: `SMTP : ${error.message}` })
+          const gmail = /gmail\.com$/i.test(smtp.smtp_host) && /535|BadCredentials|Username and Password not accepted/i.test(error.message || '')
+          return res.status(400).json({ success: false, error: gmail
+            ? 'Gmail refuse la connexion : utilisez un mot de passe d\'application (validation en deux étapes activée, puis compte Google › Sécurité › Mots de passe des applications), pas le mot de passe habituel du compte.'
+            : `SMTP : ${error.message}` })
         } finally {
           try { transporter.close() } catch {}
         }
