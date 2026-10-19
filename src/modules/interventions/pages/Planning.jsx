@@ -30,7 +30,9 @@ function FitBounds({ points }) {
   const map = useMap()
   useEffect(() => {
     const pts = points.filter((p) => p[0] != null)
-    if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 12 })
+    // Sans animation, et arrêt au démontage : quitter la page pendant un zoom levait « _leaflet_pos » (19/10)
+    if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 12, animate: false })
+    return () => { try { map.stop() } catch { /* carte déjà retirée */ } }
   }, [JSON.stringify(points)]) // eslint-disable-line react-hooks/exhaustive-deps
   return null
 }

@@ -139,7 +139,17 @@ export const NAV_SECTIONS = [
     icon: Wrench,
     items: [
       { simple: true, to: '/interventions', right: ['interventions.visites.voir', 'interventions.missions.voir'], icon: MapPin, label: 'Interventions', roles: STAFF },
-      { to: '/collaborateurs', right: 'rh.personnel.voir', icon: Briefcase, label: 'Collaborateurs', roles: MANAGERS, module: 'rh', soon: true },
+    ],
+  },
+  {
+    // Module RH, socle (chantier 12, 0290) : annuaire, fiches, contrats, équipes, horaires. Coupé tant que la
+    // société ne l'a pas activé ; le profil « Ressources humaines » ou « Salarié » (rôle de base membre) y donne accès.
+    id: 'personnel',
+    module: 'rh',
+    label: 'Personnel',
+    icon: Briefcase,
+    items: [
+      { simple: true, to: '/collaborateurs', right: 'rh.personnel.voir', icon: Briefcase, label: 'Personnel', roles: [...MANAGERS, 'membre'] },
     ],
   },
 ]

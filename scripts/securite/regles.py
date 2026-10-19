@@ -856,6 +856,24 @@ tdx('0350', 'cert_company_certifications', sel=_CERT, ins=_CERT, upd=_CERT, dele
 _COCKPIT = f"company_id in {societes('manager.cockpit.voir')}"
 tdx('0350', 'cert_pitfalls', sel=_COCKPIT, ins=_COCKPIT, upd=_COCKPIT, dele=_COCKPIT)
 
+# Chantier 12, RH socle (0290) : fiche et contrats lus avec « Voir les dossiers » ou par la personne elle-même (compte
+# relié) ; équipes et horaires lus avec « Voir le personnel » ; écriture « Tenir les dossiers » (horaires : « Configurer
+# les RH ») ; rémunération lue seulement par la personne (la RH passe par hr_remuneration, journalisée), écrite avec
+# « Voir les salaires » et « Tenir les dossiers ».
+_RH_VOIR = f"company_id in {societes('rh.personnel.voir')}"
+_RH_DOS = f"company_id in {societes('rh.dossiers.voir')}"
+_RH_GER = f"company_id in {societes('rh.dossiers.gerer')}"
+_RH_PAR = f"company_id in {societes('rh.parametres.gerer')}"
+_RH_SAL = f"(company_id in {societes('rh.salaires.voir')} and company_id in {societes('rh.dossiers.gerer')})"
+tdx('0290', 'hr_people', sel=f"({_RH_DOS} or id in (select app.hr_mes_personnes()))", ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
+tdx('0290', 'hr_employments', sel=f"({_RH_DOS} or person_id in (select app.hr_mes_personnes()))", ins=_RH_GER, upd=_RH_GER,
+    dele=_RH_GER)
+tdx('0290', 'hr_teams', sel=_RH_VOIR, ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
+tdx('0290', 'hr_schedules', sel=_RH_VOIR, ins=_RH_PAR, upd=_RH_PAR, dele=_RH_PAR)
+tdx('0290', 'hr_compensation',
+    sel="employment_id in (select e.id from public.hr_employments e where e.person_id in (select app.hr_mes_personnes()))",
+    ins=_RH_SAL, upd=_RH_SAL, dele=_RH_SAL)
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}
