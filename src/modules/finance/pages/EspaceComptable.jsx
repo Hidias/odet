@@ -336,7 +336,7 @@ export default function EspaceComptable() {
       <KPISummary invoices={invoices} />
 
       {/* Tabs */}
-      <nav className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
+      <nav className="flex gap-1 overflow-x-auto pb-1 max-w-full min-w-0">
         {TABS.map(t => (
           <button
             key={t.key}

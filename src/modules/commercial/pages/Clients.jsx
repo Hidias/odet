@@ -906,7 +906,7 @@ export default function Clients() {
 
       <p className="text-ui-sm text-gray-400 mb-2">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</p>
 
-      <div className="bg-white rounded-ui border border-gray-200">
+      <div className="bg-white rounded-ui border border-gray-200 overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b text-ui-sm text-gray-500 uppercase tracking-wider rounded-t-xl [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">

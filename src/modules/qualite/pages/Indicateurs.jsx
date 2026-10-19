@@ -1015,8 +1015,8 @@ export default function Indicateurs() {
         </div>
       </div>
       
-      {/* Tabs */}
-      <div className="flex gap-2 border-b">
+      {/* Tabs (défilent sur téléphone au lieu de dépasser) */}
+      <div className="flex gap-2 border-b overflow-x-auto max-w-full [&>button]:whitespace-nowrap [&>button]:flex-none">
         <button 
           onClick={() => setActiveTab('hot')}
           className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'hot' ? 'border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
