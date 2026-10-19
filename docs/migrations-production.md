@@ -32,3 +32,10 @@ Le lot `temoin` n'applique rien : il rejoue les tests de droits sur la productio
 4. Rejoue les tests ; s'ils ne sont pas tous verts, joue immédiatement le retour arrière et finit en rouge.
 
 L'adresse de la base n'apparaît jamais dans les journaux (elle est masquée par GitHub et par le script).
+
+## Incident du 19/10/2026 : 0312 retirée par l'Action après une course
+
+L'application de la 0312 (PR #98) a été retirée automatiquement : le second passage des tests de droits a compté un
+échec sur la pastille « Quoi de neuf » (0262), parce que deux nouveautés ont été publiées pendant la transaction de
+test. Ce n'était pas un défaut de la 0312. Elle est réappliquée par une PR dédiée (« Lot : rh_0312 »).
+Règle : ne rien publier dans « Quoi de neuf » pendant qu'une Action de migration tourne.
