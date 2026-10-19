@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf'
 import 'jspdf-autotable'
 import { startDocument, numberPages, drawImageFitted } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { RESULT_LABEL, REPLACE_REASON_LABEL, summarize, frShort, frMonthYear } from '../lib/schedule'
 import { photoDataUrl } from '../lib/itvData'
 
@@ -13,7 +14,7 @@ const hour = (ts) => (ts ? new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-d
  * @param {object} p visit (avec clients, sites), items, parts, equipmentById, settings, technicianName, org (facultatif, pour les tests)
  */
 export async function buildRapportPDF({ visit, items, parts, equipmentById, settings, technicianName, org = null, photos = null }) {
-  const ORG = org || await loadPdfOrg()
+  const ORG = orgHorsFormation(org || await loadPdfOrg())
   const doc = new jsPDF({ compress: true })
   const day = (visit.started_at || visit.finished_at || visit.planned_on || '').slice(0, 10)
   const f = startDocument(doc, ORG, {

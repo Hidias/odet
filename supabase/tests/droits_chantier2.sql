@@ -4096,6 +4096,37 @@ begin
     end;
   end if;
 
+  -- Correctifs de l'audit (0381) : une visite terminée est figée (contrôles, signature, technicien) ; seuls le devis,
+  -- la facture, l'envoi du rapport et les notes changent ensuite
+  if to_regprocedure('app.itv_visite_figee()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare
+      z_co uuid := app.company_default(); z_v uuid; z_ok boolean := false; z_ok2 boolean := false; z_n text;
+    begin
+      insert into public.itv_visits (company_id, technician_id, status, planned_on, client_id, site_id, finished_at)
+      select z_co, u_tech, 'terminee', current_date, st.client_id, st.id, now() from public.sites st where st.client_id is not null limit 1
+      returning id into z_v;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin update public.itv_visits set observations = 'modifié après coup' where id = z_v; exception when check_violation then z_ok := true; end;
+      begin update public.itv_visits set notes = 'Note interne après clôture' where id = z_v; z_ok2 := true; exception when others then z_ok2 := false; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if z_ok then
+        v_lines := v_lines || 'OK      dir   0381 : une visite terminée ne se modifie plus (observations refusées)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0381 : visite terminée figée'::text; end if;
+      if z_ok2 then
+        v_lines := v_lines || 'OK      dir   0381 : après clôture, la note interne reste modifiable'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0381 : note interne après clôture'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0381 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

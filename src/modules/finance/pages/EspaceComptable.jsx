@@ -1773,7 +1773,8 @@ function generateFEC(invoices, payments, transactions, exercice, org) {
     const pieceRef = sanitize(inv.reference)
     const clientName = sanitize(inv.clients?.name || 'CLIENT INCONNU')
     const clientCode = `C${(inv.client_id || '').replace(/-/g,'').substring(0,8).toUpperCase()}`
-    const htAmt = parseFloat(inv.total_ht) || 0
+    // Net après remise (sinon l'écriture est déséquilibrée dès qu'une remise existe : le client est débité du TTC net)
+    const htAmt = parseFloat(inv.total_net_ht ?? inv.total_ht) || 0
     const tvaAmt = parseFloat(inv.total_tva) || 0
     const ttcAmt = parseFloat(inv.total_ttc) || 0
     const isCreditNote = inv.type === 'credit_note'

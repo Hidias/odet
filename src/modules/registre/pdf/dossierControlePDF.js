@@ -2,6 +2,7 @@
 // présenter en cas de contrôle. Mise en page commune (core/pdf/layout.js). Des faits datés et des échéances, jamais
 // une note de conformité ; le registre alimente les registres légaux, il ne les remplace pas.
 
+import { orgHorsFormation } from '../../../core/org/orgUtils'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { startDocument } from '../../../core/pdf/layout'
@@ -14,7 +15,8 @@ const ETATS = { a_jour: 'À jour', a_prevoir: 'À prévoir', manquant: 'Manquant
  * @param {object} r données du registre (ent_registre ou registre_client)
  * @returns jsPDF
  */
-export function buildDossierControlePDF(ORG, r) {
+export function buildDossierControlePDF(ORGsource, r) {
+  const ORG = orgHorsFormation(ORGsource)
   const doc = new jsPDF({ compress: true })
   const site = r.site ? (r.sites || []).find((s) => s.id === r.site) : null
   const f = startDocument(doc, ORG, {

@@ -161,7 +161,7 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
     payment.push(['Délai', invoice.payment_terms || 'à 30 jours'])
     if (invoice.due_date) payment.push(['Échéance', fd(invoice.due_date)])
     bankRows(L).forEach(function (r) { payment.push(r) })
-    if (!Array.isArray(invoice.legal_mentions)) legal.push("En cas de retard de paiement, des pénalités sont exigibles au taux légal majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce). Pas d'escompte pour paiement anticipé.")
+    if (!Array.isArray(invoice.legal_mentions)) legal.push("En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce). Pas d'escompte pour paiement anticipé.")
   }
   // Mentions légales : celles figées à l'émission (ou calculées par la base pour l'aperçu d'un brouillon, 0363).
   // Documents d'avant 0363 sans mentions figées : texte d'origine, inchangé.
@@ -194,7 +194,11 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
       ['Session', invoice.session_reference || null],
     ],
     object: invoice.object || null,
-    nature: "Nature de l'opération : prestation de services",
+    // Nature de l'opération : déjà dans les mentions quand elle est connue (biens, services ou mixte) ; jamais figée
+    nature: invoice.nature_operation ? null : "Nature de l'opération : prestation de services",
+    // Identité de formation (NDA, Qualiopi) seulement pour une facture de formation professionnelle ; une facture de
+    // maintenance ou de matériel (case décochée) ne les porte pas
+    formation: invoice.is_formation_pro !== false,
     rows: items.map(itemRow),
     totals: totalRows,
     vatRecap: vatRecap,

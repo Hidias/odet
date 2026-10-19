@@ -873,7 +873,7 @@ function identityFields(f, session, trainee, isBlank, { withClient = false, with
 // ── Certificat de réalisation ──
 function generateCertificat(session, trainee, trainer = null) {
   const doc = new jsPDF({ compress: true })
-  generateCertificatContent(doc, session, trainee, trainer, { defaultAcquired: true })
+  generateCertificatContent(doc, session, trainee, trainer)
   return doc
 }
 
