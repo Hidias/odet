@@ -5782,8 +5782,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         <p className="font-medium">{selectedTraineeInfo.info.highest_diploma || '-'}</p>
                       </div>
                       <div className="bg-gray-50 p-3 rounded">
-                        <p className="text-ui-sm text-gray-500 mb-1">Consentement RGPD</p>
-                        <p className="font-medium">{selectedTraineeInfo.info.rgpd_consent ? ' Accepté' : ' Non'}</p>
+                        <p className="text-ui-sm text-gray-500 mb-1">Information RGPD</p>
+                        <p className="font-medium">{selectedTraineeInfo.info.rgpd_consent ? 'Mention affichée' : '-'}</p>
                       </div>
                     </div>
                   </div>
