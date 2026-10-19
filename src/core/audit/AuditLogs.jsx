@@ -31,6 +31,22 @@ const ENTITY_CONFIG = {
   evaluation: { label: 'Évaluation', emoji: '' },
   attendance: { label: 'Émargement', emoji: '' },
   system: { label: 'Système', emoji: '' },
+  // Écrits par la base (0345)
+  stagiaire_handicap: { label: 'Handicap d\'un stagiaire', emoji: '' },
+  passeport: { label: 'Passeport de prévention', emoji: '' },
+  compte: { label: 'Compte utilisateur', emoji: '' },
+  societe: { label: 'Société', emoji: '' },
+  reglages: { label: 'Réglages', emoji: '' },
+  module: { label: 'Module', emoji: '' },
+  facture: { label: 'Facture', emoji: '' },
+  rgpd: { label: 'RGPD', emoji: '' },
+}
+
+// Ligne écrite par la base : table et champs modifiés (jamais les valeurs)
+const detailBase = (log) => {
+  if (log.source !== 'base' || !log.details) return null
+  const champs = Array.isArray(log.details.champs) && log.details.champs.length ? ` : ${log.details.champs.join(', ')}` : ''
+  return `${log.details.table || ''}${champs}`
 }
 
 export default function AuditLogs() {
@@ -291,7 +307,8 @@ export default function AuditLogs() {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="text-ui text-gray-900">{log.entity_name || '-'}</span>
+                        <span className="text-ui text-gray-900">{log.entity_name || (log.source === 'base' ? '' : '-')}</span>
+                        {detailBase(log) && <span className="block text-ui-sm text-gray-500">{detailBase(log)}</span>}
                       </td>
                     </tr>
                   )

@@ -610,6 +610,7 @@ begin
       delete from public.support_access_grants where company_id in (c_a, c_b);
       delete from public.company_modules where company_id in (c_a, c_b);
       delete from public.company_members where company_id in (c_a, c_b);
+      delete from public.audit_logs where company_id in (c_a, c_b);
       delete from public.companies where id in (c_a, c_b);
       v_total := v_total + 1;
       if not exists (select 1 from public.companies where legal_name like 'Essai société %') then
@@ -894,6 +895,7 @@ begin
         end loop;
       end;
       delete from public.company_members where company_id in (c_x, c_y);
+      delete from public.audit_logs where company_id in (c_x, c_y);
       delete from public.companies where id in (c_x, c_y);
     end;
   end if;
@@ -1868,6 +1870,7 @@ begin
       update public.clients set company_ids = array[y_own] where name = 'Client C2 société 1';
       delete from public.audit_logs where company_id = y_x;
       delete from public.company_members where company_id = y_x;
+      delete from public.audit_logs where company_id = y_x;
       delete from public.companies where id = y_x;
     end;
   end if;
@@ -2948,6 +2951,58 @@ begin
       if k_r.client_id is not null and k_r.ne_pas_appeler and 'contrat' = any (k_r.natures) and k_r.devis_en_cours then
         v_lines := v_lines || 'OK      com   0380 : client à appeler sur son échéance, opposition à l''appel et devis en cours signalés'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0380 : clients à appeler'::text; end if;
+    end;
+  end if;
+
+  -- Chantier F, journal d'audit commun (0345) : auteur posé par la base, champs modifiés sans valeurs, rien sans compte
+  if to_regprocedure('app.audit_row()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 4;
+    declare
+      j_t uuid; j_n int; j_r record; j_id uuid;
+    begin
+      insert into public.trainees (first_name, last_name) values ('Journal', 'Essai') returning id into j_t;
+      update public.trainees set city = 'Quimper' where id = j_t;
+      if not exists (select 1 from public.audit_logs where entity_id = j_t and source = 'base') then
+        v_lines := v_lines || 'OK      base  0345 : écriture sans compte (tâche, service) non tracée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0345 : écriture sans compte tracée'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      perform set_config('request.headers', '{"x-forwarded-for": "203.0.113.7, 10.0.0.1", "user-agent": "Essai"}', true);
+      execute 'set local role authenticated';
+      update public.trainees set city = 'Brest', job_title = 'Cariste' where id = j_t;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      perform set_config('request.headers', '', true);
+      select * into j_r from public.audit_logs where entity_id = j_t and source = 'base' order by timestamp desc limit 1;
+      if j_r.user_id = u_ges and j_r.action = 'update' and j_r.entity_type = 'trainee' and j_r.ip_address = '203.0.113.7'
+         and j_r.details -> 'champs' = '["city", "job_title"]'::jsonb and j_r.details::text not like '%Brest%' then
+        v_lines := v_lines || 'OK      ges   0345 : modification d''un stagiaire tracée par la base (auteur, IP, champs sans valeurs)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ges   0345 : trace de modification (' || coalesce(j_r.details::text, 'aucune') || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.audit_logs (user_id, user_email, action, entity_type, entity_name, source)
+      values (u_dir, 'faux@test.invalid', 'view', 'system', 'Essai usurpation 0345', 'base');
+      perform public.log_audit(u_dir, 'faux@test.invalid', 'view', 'client', null, 'Essai', null);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if (select user_id = u_ges and source = 'application' from public.audit_logs where entity_name = 'Essai usurpation 0345')
+         and not exists (select 1 from public.audit_logs where user_id = u_dir and user_email = 'faux@test.invalid') then
+        v_lines := v_lines || 'OK      ges   0345 : impossible d''écrire au journal au nom d''un autre compte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0345 : auteur imposé par la base'::text; end if;
+
+      j_n := (select count(*) from public.audit_logs where entity_id = u_ges and source = 'base');
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      update public.profiles set ui_prefs = '{"nav": "rail"}'::jsonb where id = u_ges;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if (select count(*) from public.audit_logs where entity_id = u_ges and source = 'base') = j_n then
+        v_lines := v_lines || 'OK      ges   0345 : préférences d''affichage seules, rien au journal'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0345 : bruit des préférences au journal'::text; end if;
     end;
   end if;
 
