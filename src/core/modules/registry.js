@@ -3,7 +3,7 @@ import {
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
   MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
-  Home, Store, Wrench, ClipboardList,
+  Home, Store, Wrench, ClipboardList, KanbanSquare,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -63,6 +63,8 @@ export const NAV_SECTIONS = [
     icon: Store,
     items: [
       { to: '/clients', right: 'clients.fiches.voir', icon: Building2, label: 'Clients', roles: STAFF },
+      // Suivi des affaires (chantier 10, 0380) : à faire, pipeline, clients à appeler
+      { to: '/affaires', right: 'commercial.devis.voir', icon: KanbanSquare, label: 'Affaires', roles: SALES, module: 'affaires' },
       { to: '/devis', right: 'commercial.devis.voir', icon: Receipt, label: 'Devis', roles: SALES },
       { to: '/factures', right: 'facturation.factures.voir', icon: CreditCard, label: 'Factures', roles: [...SALES, 'comptable'] },
       // Relances préparées chaque nuit, validées à la main (lot 2, 0043)
