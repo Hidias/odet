@@ -16,7 +16,7 @@ const jour = () => {
 // l'API (503) quand le tableau de bord charge en même temps ; les sujets sont donc lus par petits groupes (PAR_GROUPE),
 // depuis que les droits sont calculés une fois par requête (0090, environ 10 ms par lecture).
 const PLAFOND = 500
-const PAR_GROUPE = 3
+const PAR_GROUPE = 4
 async function compter(requete) {
   try {
     const { data, error } = await requete.limit(PLAFOND)
