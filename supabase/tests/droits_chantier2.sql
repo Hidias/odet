@@ -2864,6 +2864,9 @@ begin
       if g_r.statut = 'valide' and g_r.valide_par = u_dir and g_r.actif then
         v_lines := v_lines || 'OK      dir   0340 : traitement validé, validation tracée par la base'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0340 : validation d''un traitement'::text; end if;
+    end;
+  end if;
+
   -- Chantier 10, suivi des affaires (0380) : prochaine action obligatoire, devis lié qui fait avancer l'affaire,
   -- opposition synchronisée avec « ne pas solliciter », montants cachés au technicien, clients à appeler
   if to_regclass('public.opportunities') is not null then

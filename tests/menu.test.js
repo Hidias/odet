@@ -28,7 +28,7 @@ describe('menu : groupes de pages', () => {
   it('une entrée par groupe, au nom du groupe, qui mène à sa première page visible', () => {
     const qualite = NAV_SECTIONS.find((s) => s.id === 'qualite')
     const e = entreesMenu(qualite.items)
-    expect(e.map((i) => i.label)).toEqual(['Qualiopi', 'Indicateurs', 'Registres', 'Journal d\'audit'])
+    expect(e.map((i) => i.label)).toEqual(['Qualiopi', 'Indicateurs', 'Registres', 'RGPD', 'Journal d\'audit'])
     expect(e[0].to).toBe('/qualiopi')
     expect(e[0].routes).toContain('/qualite/completude')
     const formation = NAV_SECTIONS.find((s) => s.id === 'formation')

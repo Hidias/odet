@@ -3452,6 +3452,90 @@ begin
     end;
   end if;
 
+  -- Chantier 10, suivi des affaires (0380) : prochaine action obligatoire, devis lié qui fait avancer l'affaire,
+  -- opposition synchronisée avec « ne pas solliciter », montants cachés au technicien, clients à appeler
+  if to_regclass('public.opportunities') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 7;
+    declare
+      k_cli uuid; k_cli2 uuid; k_q uuid; k_q2 uuid; k_q3 uuid; k_o uuid; k_o2 uuid; k_n int; k_ok boolean; k_r record;
+    begin
+      insert into public.clients (name, status) values ('Essai affaires', 'actif') returning id into k_cli;
+      insert into public.clients (name, status) values ('Essai affaires bis', 'actif') returning id into k_cli2;
+      if (select count(*) from public.commercial_lists where company_id = (select company_id from public.clients where id = k_cli) and kind = 'etape') >= 6
+         and exists (select 1 from public.commercial_lists where company_id = (select company_id from public.clients where id = k_cli)
+                     and kind = 'etape' and code = 'gagnee' and probability = 100) then
+        v_lines := v_lines || 'OK      base  0380 : étapes posées pour la société, « Gagnée » à 100 %'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0380 : étapes posées pour la société'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_ok := false;
+      begin
+        insert into public.opportunities (client_id, title) values (k_cli, 'Sans prochaine action');
+      exception when check_violation then k_ok := true; end;
+      insert into public.opportunities (client_id, title, next_action_on, amount_ht) values (k_cli, 'Formation SST', current_date + 3, 1000)
+      returning id into k_o;
+      begin
+        delete from public.commercial_lists where code = 'gagnee' and kind = 'etape';
+        k_ok := false;
+      exception when invalid_parameter_value then null; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if k_ok and (select probability from public.opportunities where id = k_o) = 10 then
+        v_lines := v_lines || 'OK      com   0380 : affaire refusée sans prochaine action, créée avec la probabilité de son étape ; « Gagnée » non supprimable'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0380 : prochaine action obligatoire'::text; end if;
+
+      insert into public.quotes (reference, client_id, status, total_ht) values ('DEV-AFF-1', k_cli, 'draft', 1200) returning id into k_q;
+      update public.opportunities set quote_id = k_q where id = k_o;
+      update public.quotes set status = 'sent' where id = k_q;
+      select stage, probability into k_r from public.opportunities where id = k_o;
+      k_ok := k_r.stage = 'devis_envoye' and k_r.probability = 50;
+      update public.quotes set status = 'accepted' where id = k_q;
+      if k_ok and (select stage = 'gagnee' and probability = 100 and closed_at is not null and amount_ht = 1000 from public.opportunities where id = k_o) then
+        v_lines := v_lines || 'OK      base  0380 : devis envoyé puis accepté : l''affaire passe à « Devis envoyé » puis « Gagnée »'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0380 : devis lié qui fait avancer l''affaire'::text; end if;
+
+      insert into public.quotes (reference, client_id, status, total_ht) values ('DEV-AFF-2', k_cli, 'sent', 500) returning id into k_q2;
+      insert into public.opportunities (client_id, title, next_action_on, quote_id) values (k_cli, 'Extincteurs', current_date + 1, k_q2) returning id into k_o2;
+      update public.quotes set status = 'refused' where id = k_q2;
+      insert into public.quotes (reference, client_id, status, total_ht) values ('DEV-AFF-3', k_cli2, 'sent', 800) returning id into k_q3;
+      if (select stage = 'perdue' and lost_reason is not null and amount_ht = 500 and next_action_on is not null from public.opportunities where id = k_o2)
+         and (select count(*) from public.v_pipeline where id = k_q3 and origine = 'devis' and montant_pondere = 400) = 1 then
+        v_lines := v_lines || 'OK      base  0380 : devis refusé : affaire perdue avec motif ; devis envoyé sans affaire compté au pipeline (pondéré)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0380 : devis refusé et pipeline'::text; end if;
+
+      update public.clients set opposition_canaux = array['email', 'appel'] where id = k_cli2;
+      k_ok := (select do_not_mail and opposition_at is not null from public.clients where id = k_cli2);
+      update public.clients set do_not_mail = false where id = k_cli2;
+      if k_ok and (select opposition_canaux = array['appel'] and not do_not_mail from public.clients where id = k_cli2) then
+        v_lines := v_lines || 'OK      base  0380 : opposition par email et « ne pas solliciter » suivis dans les deux sens'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0380 : opposition synchronisée'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_n := (select count(*) from public.opportunities where client_id in (k_cli, k_cli2))
+           + (select count(*) from public.v_pipeline where client_id in (k_cli, k_cli2));
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if k_n = 0 then v_lines := v_lines || 'OK      tech  0380 : le technicien ne lit ni les affaires ni le pipeline (montants)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0380 : affaires cachées au technicien (' || k_n || ')'); end if;
+
+      insert into public.itv_contracts (client_id, reference, label, start_on, end_on, annual_price_ht, status)
+      values (k_cli2, 'CTR-AFF', 'Contrat essai affaires', current_date - 300, current_date + 30, 600, 'actif');
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select * into k_r from public.v_clients_a_appeler where client_id = k_cli2;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if k_r.client_id is not null and k_r.ne_pas_appeler and 'contrat' = any (k_r.natures) and k_r.devis_en_cours then
+        v_lines := v_lines || 'OK      com   0380 : client à appeler sur son échéance, opposition à l''appel et devis en cours signalés'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0380 : clients à appeler'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
