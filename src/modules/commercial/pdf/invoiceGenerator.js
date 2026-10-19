@@ -175,9 +175,9 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
 
   renderCommercialDoc(doc, L, {
     ref: isDraftDoc(invoice) ? 'Brouillon' : invoice.reference,
-    docLabel: isCredit ? 'Avoir' : 'Facture',
+    docLabel: isCredit ? 'Avoir' : invoice.invoice_kind === 'acompte' ? "Facture d'acompte" : 'Facture',
     code: isCredit ? 'AVR' : 'FACT',
-    title: isCredit ? 'Avoir' : 'Facture',
+    title: isCredit ? 'Avoir' : invoice.invoice_kind === 'acompte' ? "Facture d'acompte" : invoice.invoice_kind === 'solde' ? 'Facture de solde' : 'Facture',
     subtitle: subtitle,
     issuerLabel: 'Émetteur',
     issuerLines: issuerLines(L, cb),
@@ -189,6 +189,7 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
       ['Date', fd(invoice.invoice_date)],
       [isCredit ? null : 'Échéance', isCredit ? null : fd(invoice.due_date)],
       ['Période de service', invoice.service_start_date ? fd(invoice.service_start_date) + (invoice.service_end_date && invoice.service_end_date !== invoice.service_start_date ? ' au ' + fd(invoice.service_end_date) : '') : null],
+      [invoice.invoice_kind === 'acompte' && invoice.deposit_paid_on ? 'Date du versement' : null, invoice.invoice_kind === 'acompte' && invoice.deposit_paid_on ? fd(invoice.deposit_paid_on) : null],
       ['Réf. client', invoice.client_reference || null],
       ['Session', invoice.session_reference || null],
     ],

@@ -282,6 +282,7 @@ export default function Invoices() {
     loadAll().then(({ quotes: qs }) => {
       const fq = searchParams.get('from_quote')
       const fs = searchParams.get('from_session')
+      const ff = searchParams.get('funding_id')
       const fo = searchParams.get('open')
       if (fo) {
         // Brouillon préparé ailleurs (ex. visite d'intervention) : ouvert directement
@@ -291,7 +292,7 @@ export default function Invoices() {
         const q = qs.find(x => x.id === fq)
         if (q) { handleFromQuote(q); setSearchParams({}) }
       } else if (fs) {
-        handleFromSession(fs); setSearchParams({})
+        handleFromSession(fs, ff); setSearchParams({})
       }
     })
   }, []) // eslint-disable-line
@@ -449,6 +450,19 @@ export default function Invoices() {
 
   // ─── From quote ───
   const handleFromQuote = async (quote) => {
+    // Acomptes déjà facturés sur ce devis (0368) : la facture de solde est préparée par la base, acomptes déduits
+    const { data: suivi, error: es } = await supabase.rpc('billing_deposit_summary', { p_quote: quote.id })
+    if (!es && suivi && Array.isArray(suivi.acomptes) && suivi.acomptes.length > 0) {
+      if (suivi.acomptes.some((a) => !a.emise)) { toast.error("Un acompte de ce devis est encore en brouillon : émettez-le ou supprimez-le d'abord"); return }
+      if (suivi.acomptes.some((a) => !a.deduite && Number(a.credite) <= 0.01)) {
+        const { data: id, error } = await supabase.rpc('billing_create_final', { p_quote: quote.id })
+        if (error) { toast.error(error.message); return }
+        setShowQuoteSelector(false)
+        toast.success('Facture de solde préparée, acomptes déduits')
+        await ouvrirBrouillon(id, quote.reference)
+        return
+      }
+    }
     const ref = await generateReference('invoice'), dd = format(addDays(new Date(), 30), 'yyyy-MM-dd')
     const { data: qItems } = await supabase.from('quote_items').select('*').eq('quote_id', quote.id).order('position')
     let sStart = '', sEnd = '', sRef = ''
@@ -496,7 +510,7 @@ export default function Invoices() {
   }
 
   // ─── From session ───
-  const handleFromSession = async (sessionId) => {
+  const handleFromSession = async (sessionId, fundingId = null) => {
     const { data: sess } = await supabase.from('sessions')
       .select('*, clients(id,name,siret,address,postal_code,city,contact_name,contact_email,billing_mode,default_payment_terms,billing_email), courses(title,code,price_ht,duration_hours)')
       .eq('id', sessionId).single()
@@ -555,16 +569,42 @@ export default function Invoices() {
     }
 
     const objectTitle = isSubcontract ? (sess.subcontract_course_title || 'Prestation de formation') : (sess.courses?.title || '')
-    const clientRef = isSubcontract ? (sess.subcontract_client_ref || '') : ''
+    let clientRef = isSubcontract ? (sess.subcontract_client_ref || '') : ''
+
+    // Facture selon l'accord de financement (0368) : subrogation (facturé à l'OPCO pour le compte de l'entreprise),
+    // sans subrogation (l'entreprise est facturée, l'OPCO la rembourse), autre financeur (sa part).
+    let financement = null
+    if (fundingId) {
+      const { data: f } = await supabase.from('session_fundings').select('*').eq('id', fundingId).maybeSingle()
+      if (f) {
+        const montant = parseFloat(f.amount_ht) || 0
+        const opco = f.funder_type === 'opco'
+        const subro = opco && f.subrogation && f.funder_client_id
+        if ((subro || !opco) && montant > 0 && invoiceItems.length === 1) {
+          invoiceItems[0] = { ...invoiceItems[0], quantity: 1, unit_price_ht: montant,
+            description_detail: (invoiceItems[0].description_detail || '') + (f.percentage ? `\nPart financée : ${f.percentage} %` : '') }
+        }
+        clientRef = f.dossier_number || clientRef
+        financement = {
+          id: f.id,
+          client_id: !opco && f.funder_client_id ? f.funder_client_id : sess.client_id,
+          billing_client_id: subro ? f.funder_client_id : '',
+          is_subrogation: !!subro,
+          notes: subro ? `Facturé à ${f.funder_name || 'l\'OPCO'} pour le compte de ${sess.clients?.name || 'l\'entreprise'}${f.dossier_number ? `, dossier ${f.dossier_number}` : ''}.`
+            : opco ? `Financement ${f.funder_name || 'OPCO'}${f.dossier_number ? ` (dossier ${f.dossier_number})` : ''} : l'OPCO rembourse l'entreprise sur le montant HT.` : '',
+        }
+      }
+    }
 
     setCurrent({
-      reference: ref, type: 'invoice', client_id: sess.client_id, contact_id: bc?.id || sess.contact_id || '',
+      reference: ref, type: 'invoice', client_id: financement?.client_id || sess.client_id, contact_id: bc?.id || sess.contact_id || '',
       quote_id: isSubcontract ? '' : (sess.quote_id || ''), session_id: sess.id, sellsy_reference: '', client_reference: clientRef,
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: sess.start_date || '', service_end_date: sess.end_date || '', due_date: dd,
       object: objectTitle, payment_method: 'virement bancaire', payment_terms: clientPaymentTerms,
       discount_percent: 0, discount_label: '', tva_applicable: true,
-      notes: '', created_by: currentUserName(), status: 'draft', parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: true,
-      is_subrogation: false, billing_client_id: ''
+      notes: financement?.notes || '', created_by: currentUserName(), status: 'draft', parent_reference: '', parent_invoice_id: null, amount_paid: 0, is_formation_pro: true,
+      is_subrogation: financement?.is_subrogation || false, billing_client_id: financement?.billing_client_id || '',
+      _funding_id: financement?.id || null
     })
     setItems(invoiceItems.length > 0 ? invoiceItems : [emptyItem()])
     setPayments([]); setMode('create')
@@ -840,6 +880,7 @@ export default function Invoices() {
       is_subrogation: current.is_subrogation || false, billing_client_id: current.is_subrogation ? current.billing_client_id || null : null,
       chorus_service_code: (current.chorus_service_code ?? clients.find(c => c.id === current.client_id)?.chorus_service_code) || null,
       chorus_engagement: current.chorus_engagement || null,
+      ...(current.invoice_kind === 'acompte' ? { deposit_paid_on: current.deposit_paid_on || null } : {}),
       updated_at: new Date().toISOString(),
     }
     try {
@@ -862,6 +903,9 @@ export default function Invoices() {
       if (toIns.length > 0) { const { error: ie } = await supabase.from('invoice_items').insert(toIns); if (ie) throw ie }
       // Devis → « facturé » uniquement quand la facture est créée depuis le devis
       // (un devis peut couvrir plusieurs sessions facturées séparément)
+      if (current._funding_id && mode === 'create') {
+        await supabase.from('session_fundings').update({ invoice_id: iid, status: 'invoiced', updated_at: new Date().toISOString() }).eq('id', current._funding_id)
+      }
       if (current.quote_id && current._from_quote && mode === 'create' && !isCreditNote) { await supabase.from('quotes').update({status: 'invoiced'}).eq('id', current.quote_id) }
       // Liaison facture ↔ sessions (mono, globale ou groupée sous-traitance)
       if (mode === 'create' && !isCreditNote) {
@@ -1196,6 +1240,8 @@ export default function Invoices() {
                       <span className={isCr ? 'text-[rgb(var(--c-warning))]' : 'text-gray-900'}>{inv.reference}</span>
                       {isCr && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Avoir</span>}
                       {aValider.has(inv.id) && <span className="ml-2 badge badge-warning">À valider</span>}
+                      {inv.invoice_kind === 'acompte' && <span className="ml-2 badge">Acompte</span>}
+                      {inv.invoice_kind === 'solde' && <span className="ml-2 badge">Solde</span>}
                       {inv.is_subrogation && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">OPCO</span>}
                       <RelanceBadge inv={inv} />
                     </td>
@@ -1688,6 +1734,9 @@ export default function Invoices() {
             )}
             <div><label className="text-ui-sm text-gray-500 block mb-1">Début prestation</label><input type="date" value={current?.service_start_date || ''} onChange={e => setCurrent({...current, service_start_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
             <div><label className="text-ui-sm text-gray-500 block mb-1">Fin prestation</label><input type="date" value={current?.service_end_date || ''} onChange={e => setCurrent({...current, service_end_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
+            {current?.invoice_kind === 'acompte' && (
+              <div><label className="text-ui-sm text-gray-500 block mb-1">Date du versement</label><input type="date" value={current?.deposit_paid_on || ''} onChange={e => setCurrent({...current, deposit_paid_on: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
+            )}
           </div>
           {client?.client_type === 'public' && (
             <div className="grid grid-cols-2 gap-4 mt-4">

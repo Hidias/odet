@@ -24,6 +24,7 @@ import { quoteDay, nextQuoteReference } from '../lib/references'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useRelanceIA } from '../lib/useRelanceIA'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
+import AcompteDevis from '../components/AcompteDevis'
 
 const STATUS_CONFIG = {
   draft: { label: 'Brouillon', class: 'bg-gray-100 text-gray-700', icon: '' },
@@ -175,6 +176,7 @@ export default function Quotes() {
   const [generatingPdf, setGeneratingPdf] = useState(false)
   const [generatingPartialPdf, setGeneratingPartialPdf] = useState(false)
   const [actionMenuId, setActionMenuId] = useState(null)
+  const [acompteDevis, setAcompteDevis] = useState(null) // devis dont on facture un acompte (0368)
   const actionMenuRef = useRef(null)
 
   // === Relance IA ===
@@ -935,6 +937,7 @@ export default function Quotes() {
       {mode === 'list' ? renderList() : mode === 'view' ? renderView() : renderForm()}
       {sendWizard && renderSendWizard()}
       {sessionWizard && renderSessionWizard()}
+      {acompteDevis && <AcompteDevis quote={acompteDevis} onClose={() => setAcompteDevis(null)} />}
 
       {/* Modale relance IA - preview + édition avant envoi */}
       {previewData && (
@@ -1197,6 +1200,12 @@ export default function Quotes() {
                             </button>
                           )}
                           {(q.status === 'accepted' || q.status === 'partial') && (
+                            <button onClick={() => { setActionMenuId(null); setAcompteDevis(q) }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
+                              <FileText size={15} /> Facture d'acompte
+                            </button>
+                          )}
+                          {(q.status === 'accepted' || q.status === 'partial') && (
                             <button onClick={() => { setActionMenuId(null); openSessionWizard(q) }}
                               className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]">
                               <GraduationCap size={15} /> Générer une session
@@ -1305,6 +1314,12 @@ export default function Quotes() {
                     <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'refused') }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
                       <X size={15} /> Marquer refusé
+                    </button>
+                  )}
+                  {(q.status === 'accepted' || q.status === 'partial') && (
+                    <button onClick={() => { setActionMenuId(null); setAcompteDevis(q) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
+                      <FileText size={15} /> Facture d'acompte
                     </button>
                   )}
                   {q.status === 'accepted' && (

@@ -171,7 +171,8 @@ export function generateCIIXML(invoice, items, client, seller) {
     const b = t.lines.some((l) => l.it.nature === 'bien'); const sv = t.lines.some((l) => l.it.nature !== 'bien')
     return b && sv ? 'mixte' : b ? 'biens' : 'services'
   })()
-  const cadre = { biens: 'B1', mixte: 'M1' }[nature] || 'S1'
+  // Facture de solde après acomptes (0368) : cadre 4 (B4, S4, M4)
+  const cadre = invoice.invoice_kind === 'solde' ? ({ biens: 'B4', mixte: 'M4' }[nature] || 'S4') : ({ biens: 'B1', mixte: 'M1' }[nature] || 'S1')
   // Exigibilité de la TVA (BT-8) : débits (date de facture), biens (livraison), services (encaissement)
   const dueDateCode = mentions.some((m) => /d[ée]bits/i.test(m)) ? '5' : nature === 'biens' ? '29' : '72'
 
@@ -179,6 +180,10 @@ export function generateCIIXML(invoice, items, client, seller) {
     const name = String(l.it.description_title || '').trim() || String(l.it.code || '').trim() || 'Prestation'
     const detail = String(l.it.description_detail || '').trim()
     const sellerId = String(l.it.code || '').trim()
+    // Prix net jamais négatif (BR-27) : une ligne de remise ou de reprise d'acompte passe en quantité négative
+    const negatif = Number(l.pu) < 0
+    const pu = negatif ? -Number(l.pu) : l.pu
+    const q = negatif ? -Number(l.q) : l.q
     return `    <ram:IncludedSupplyChainTradeLineItem>
       <ram:AssociatedDocumentLineDocument><ram:LineID>${idx + 1}</ram:LineID></ram:AssociatedDocumentLineDocument>
       <ram:SpecifiedTradeProduct>${sellerId ? `
@@ -187,10 +192,10 @@ export function generateCIIXML(invoice, items, client, seller) {
         <ram:Description>${esc(detail)}</ram:Description>` : ''}
       </ram:SpecifiedTradeProduct>
       <ram:SpecifiedLineTradeAgreement>
-        <ram:NetPriceProductTradePrice><ram:ChargeAmount>${amt(l.pu)}</ram:ChargeAmount></ram:NetPriceProductTradePrice>
+        <ram:NetPriceProductTradePrice><ram:ChargeAmount>${amt(pu)}</ram:ChargeAmount></ram:NetPriceProductTradePrice>
       </ram:SpecifiedLineTradeAgreement>
       <ram:SpecifiedLineTradeDelivery>
-        <ram:BilledQuantity unitCode="${unitCode(l.it.unit)}">${amt(l.q)}</ram:BilledQuantity>
+        <ram:BilledQuantity unitCode="${unitCode(l.it.unit)}">${amt(q)}</ram:BilledQuantity>
       </ram:SpecifiedLineTradeDelivery>
       <ram:SpecifiedLineTradeSettlement>
         <ram:ApplicableTradeTax>
@@ -335,13 +340,14 @@ export function generateCIIXML(invoice, items, client, seller) {
         <ram:DuePayableAmount>${amt(t.due)}</ram:DuePayableAmount>
       </ram:SpecifiedTradeSettlementHeaderMonetarySummation>`
 
-  // Facture d'origine d'un avoir (BG-3)
-  const precedingXml = isCredit && invoice.parent_reference
-    ? `      <ram:InvoiceReferencedDocument>
-        <ram:IssuerAssignedID>${esc(invoice.parent_reference)}</ram:IssuerAssignedID>${invoice.parent_invoice_date ? `
-        <ram:FormattedIssueDateTime><qdt:DateTimeString format="102">${ciiDate(invoice.parent_invoice_date)}</qdt:DateTimeString></ram:FormattedIssueDateTime>` : ''}
+  // Factures citées (BG-3, BT-25 et BT-26) : facture d'origine d'un avoir, factures d'acompte déduites d'un solde
+  const refDoc = (ref, date) => `      <ram:InvoiceReferencedDocument>
+        <ram:IssuerAssignedID>${esc(ref)}</ram:IssuerAssignedID>${date ? `
+        <ram:FormattedIssueDateTime><qdt:DateTimeString format="102">${ciiDate(date)}</qdt:DateTimeString></ram:FormattedIssueDateTime>` : ''}
       </ram:InvoiceReferencedDocument>`
-    : ''
+  const precedingXml = isCredit && invoice.parent_reference
+    ? refDoc(invoice.parent_reference, invoice.parent_invoice_date)
+    : (Array.isArray(invoice.deposit_refs) ? invoice.deposit_refs.map((d) => refDoc(d.reference, d.invoice_date)).join('\n') : '')
 
   const join = (parts) => parts.filter(Boolean).join('\n')
 
@@ -354,7 +360,7 @@ export function generateCIIXML(invoice, items, client, seller) {
   <rsm:ExchangedDocument>
 ${join([
   `    <ram:ID>${esc(invoice.reference)}</ram:ID>`,
-  `    <ram:TypeCode>${isCredit ? '381' : '380'}</ram:TypeCode>`,
+  `    <ram:TypeCode>${isCredit ? '381' : invoice.invoice_kind === 'acompte' ? '386' : '380'}</ram:TypeCode>`,
   `    <ram:IssueDateTime><udt:DateTimeString format="102">${ciiDate(invoice.invoice_date)}</udt:DateTimeString></ram:IssueDateTime>`,
   notesXml,
 ])}
@@ -725,6 +731,16 @@ async function handler(req, res) {
       if (parentInv) {
         enriched.parent_reference = parentInv.reference
         enriched.parent_invoice_date = parentInv.invoice_date
+      }
+    }
+
+    // Facture de solde : factures d'acompte déduites (0368)
+    if (invoice.invoice_kind === 'solde') {
+      const { data: liens } = await supabase.from('invoice_deposit_links').select('deposit_invoice_id').eq('final_invoice_id', invoice.id)
+      const ids = (liens || []).map((l) => l.deposit_invoice_id)
+      if (ids.length) {
+        const { data: deps } = await supabase.from('invoices').select('reference,invoice_date').in('id', ids).order('invoice_date')
+        enriched.deposit_refs = deps || []
       }
     }
 
