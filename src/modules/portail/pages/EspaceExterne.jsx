@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
 import { Calendar, MapPin, Users, Download, Loader2, LogOut, AlertCircle, BadgeCheck, Award, ClipboardList, FileText, ExternalLink, ShieldCheck, GraduationCap } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
@@ -141,8 +142,8 @@ function EspaceStagiaire({ logout }) {
             {busy === `${s.id}:certificat` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Award className="w-4 h-4" />}Certificat de réalisation<Download className="w-3.5 h-3.5 ml-auto text-gray-400" />
           </button>
         )}
-        {s.courses?.program_url && (
-          <a href={s.courses.program_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300">
+        {fichierDeLInstance(s.courses?.program_url) && (
+          <a href={fichierDeLInstance(s.courses?.program_url)} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300">
             <FileText className="w-4 h-4" />Programme<ExternalLink className="w-3.5 h-3.5 ml-auto text-gray-400" />
           </a>
         )}
@@ -223,8 +224,8 @@ function EspaceFormateur({ logout }) {
               {busy === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}Feuille d'émargement<Download className="w-3.5 h-3.5 ml-auto text-gray-400" />
             </button>
           )}
-          {s.courses?.program_url && (
-            <a href={s.courses.program_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300">
+          {fichierDeLInstance(s.courses?.program_url) && (
+            <a href={fichierDeLInstance(s.courses?.program_url)} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300">
               <FileText className="w-4 h-4" />Programme<ExternalLink className="w-3.5 h-3.5 ml-auto text-gray-400" />
             </a>
           )}

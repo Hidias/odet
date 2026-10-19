@@ -1,4 +1,5 @@
 import { Tabs } from '../../../ui/Tabs'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { orgName, orgEmail } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
@@ -2565,6 +2566,10 @@ export default function SessionDetail() {
       }
       
       const programme = data[0]
+      if (!fichierDeLInstance(programme.file_url)) {
+        toast.error('Le programme déposé vient d\'un autre outil : utilisez le programme généré par l\'outil.')
+        return
+      }
       console.log('Programme trouvé:', programme.file_name, programme.file_url)
       
       // Méthode 1: Fetch + Blob (contourne les blocages popup)

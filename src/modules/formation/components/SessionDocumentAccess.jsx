@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { supabase } from '../../../core/supabase'
 import { FileText, CheckCircle, XCircle, Eye, Download, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -36,7 +37,8 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
         .maybeSingle()
 
       if (docError) throw docError
-      setDocument(docData)
+      // Document d'un autre outil (stockage Supabase d'une autre instance) : jamais remis aux stagiaires
+      setDocument(docData && fichierDeLInstance(docData.file_url) ? docData : null)
 
       if (docData) {
         // Charger l'état d'activation pour cette session
