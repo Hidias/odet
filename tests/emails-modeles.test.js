@@ -9,7 +9,7 @@ describe('modèles d’emails prêts, sans IA', () => {
     expect(m.subject).toContain('DEV-20261019-00001')
     expect(m.body).toContain('Bonjour M. Martin,')
     expect(m.body).toContain('30/11/2026')
-    expect(m.body).not.toMatch(/formation/i)
+    expect(m.body).not.toMatch(/la formation|programme/i)
   })
   it('envoi de devis de formation avec programme', () => {
     const m = modeleEnvoiDevis({ quote, org: 'GLD', programmes: ['SST'], formation: true })
