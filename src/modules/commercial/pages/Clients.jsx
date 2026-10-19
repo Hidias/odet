@@ -539,7 +539,14 @@ export default function Clients() {
   
   const handleDelete = async () => {
     if (confirmDelete) {
-      await deleteClient(confirmDelete.id)
+      const { error } = await deleteClient(confirmDelete.id)
+      if (error) {
+        // 23503 : des factures, des devis ou des emails envoyés gardent ce client (obligation de conservation)
+        toast.error(error.code === '23503'
+          ? 'Ce client a des factures ou des devis : il ne peut pas être supprimé. Vous pouvez l\'archiver.'
+          : 'La suppression a échoué. Réessayez ou signalez-le.', { duration: 6000 })
+        return
+      }
       toast.success('Client supprimé')
       setConfirmDelete(null)
     }
