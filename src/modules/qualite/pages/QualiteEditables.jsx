@@ -848,7 +848,7 @@ export default function QualiteEditables() {
         <p className="text-gray-500">Procédures, documents remis aux stagiaires et aux clients, gouvernance et pilotage : modèles à adapter, versions validées</p>
       </div>
       
-      <div className="flex gap-2 border-b">
+      <div className="flex gap-2 border-b overflow-x-auto whitespace-nowrap">
         {[
           { id: 'documents', icon: FileText, label: 'Documents' }, 
           { id: 'registres', icon: Table, label: 'Registres' }, 

@@ -3256,16 +3256,16 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 const hasInfoSheet = infoSheets[t.id]?.filled_at
                 
                 return (
-                  <div key={t.id} className="py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div>
+                  <div key={t.id} className="py-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="min-w-0">
                         <p className="font-medium">{t.first_name} {t.last_name}</p>
-                        <p className="text-ui text-gray-500">{t.email}</p>
+                        <p className="text-ui text-gray-500 truncate">{t.email}</p>
                       </div>
                       {result === 'acquis' && <span className="badge badge-green text-ui-sm"> Acquis</span>}
                       {result === 'non_acquis' && <span className="badge badge-red text-ui-sm"> Non acquis</span>}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {/* Bouton fiche de renseignement */}
                       <button 
                         onClick={() => {

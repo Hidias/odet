@@ -1196,10 +1196,10 @@ export default function Invoices() {
   // LIST
   // ═══════════════════════════════════════
   if (mode === 'list') return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto">
+    <div className="md:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
         <h1 className="page-title">Facturation</h1>
-        <div className="flex gap-2 flex-wrap lg:justify-end">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
           <button onClick={() => setShowQuoteSelector(true)} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Depuis un devis</button>
           <button onClick={openSessionSelector} className="btn btn-secondary flex items-center gap-2 text-ui"><CheckCircle size={16} />Depuis une session</button>
           <button onClick={() => handleNew('invoice')} className="btn btn-primary flex items-center gap-2 text-ui"><Plus size={16} />Facture libre</button>

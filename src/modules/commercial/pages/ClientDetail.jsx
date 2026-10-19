@@ -1000,7 +1000,7 @@ export default function ClientDetail() {
       <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
         <div className="bg-gray-50/50 px-4 sm:px-6 py-4 border-b">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-600 rounded-ui-sm flex items-center justify-center shadow-sm flex-shrink-0">
                 <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
@@ -1009,7 +1009,7 @@ export default function ClientDetail() {
                   <input value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value.toUpperCase() })}
                     className="text-lg sm:text-xl font-bold bg-white border rounded px-2 py-1 w-full sm:w-80" />
                 ) : (
-                  <h1 className="page-title truncate">{client.name} <BadgeTest tbl="clients" id={client.id} /></h1>
+                  <h1 className="page-title break-words sm:truncate">{client.name} <BadgeTest tbl="clients" id={client.id} /></h1>
                 )}
                 {client.siret && <p className="text-ui-sm sm:text-sm text-gray-500 font-mono mt-0.5">SIRET {client.siret}</p>}
                 {!editing && client.client_type !== 'particulier' && <AnnuaireClient client={client} peutModifier={d.modifier} onChange={loadClient} />}

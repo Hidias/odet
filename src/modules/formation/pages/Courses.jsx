@@ -590,7 +590,7 @@ export default function Courses() {
           <p className="text-gray-500 mt-1">Catalogue et tests de positionnement</p>
         </div>
         {activeTab === 'formations' && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <input 
               ref={fileInputRef}
               type="file" 
@@ -622,7 +622,7 @@ export default function Courses() {
       
       {/* Onglets */}
       <div className="border-b border-gray-200">
-        <nav className="flex gap-4">
+        <nav className="flex overflow-x-auto whitespace-nowrap gap-4">
           <button
             onClick={() => setActiveTab('formations')}
             className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${

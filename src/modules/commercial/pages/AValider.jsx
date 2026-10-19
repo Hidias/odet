@@ -110,7 +110,7 @@ export default function AValider() {
       )}
       {items === null ? <Spinner /> : liste.length === 0 ? (
         <EmptyState icon={Inbox} title={onglet === 'a_valider' ? 'Rien à valider' : 'Aucune relance ici'} compact>
-          {onglet === 'a_valider' ? 'Les recyclages à prévoir de vos clients et les justificatifs à demander aux prestataires apparaîtront ici, prêts à envoyer.' : null}
+          {onglet === 'a_valider' ? 'Chaque nuit, l\'outil prépare ici les relances utiles : recyclages à prévoir (formation arrivée à échéance), devis sans réponse, justificatifs à demander aux prestataires. Rien n\'est dû aujourd\'hui : la liste se remplit dès qu\'une échéance approche.' : null}
         </EmptyState>
       ) : (
         <ul className="space-y-2">

@@ -574,12 +574,12 @@ export default function Trainees() {
   
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Stagiaires</h1>
           <p className="text-gray-500">{trainees.length} stagiaire(s)</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {d.creer && (
           <button onClick={() => setShowBulkAdd(true)} className="btn btn-secondary flex items-center gap-2">
             <Plus className="w-4 h-4" />Ajouter plusieurs

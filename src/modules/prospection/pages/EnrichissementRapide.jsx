@@ -848,7 +848,7 @@ export default function EnrichissementRapide() {
     <div className="max-w-5xl mx-auto">
       {/* ─── Header + Stats ─────────────────────────────────────────── */}
       <div className="mb-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <div>
             <h1 className="page-title flex items-center gap-2">
               <Zap className="w-6 h-6 text-[rgb(var(--c-warning))]" />

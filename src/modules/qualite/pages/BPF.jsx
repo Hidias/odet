@@ -594,15 +594,15 @@ export default function BPF() {
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <FileText className="w-6 h-6 text-[rgb(var(--c-info))]" />
             Bilan Pédagogique et Financier
           </h1>
           <p className="text-ui text-gray-500 mt-1">Cerfa 10443*17 - Exercice {year}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={year}
             onChange={(e) => setYear(parseInt(e.target.value))}
@@ -752,7 +752,7 @@ export default function BPF() {
         <SectionHeader id="E" icon={Users} title="E. PERSONNES DISPENSANT DES HEURES DE FORMATION" />
         {openSections.E && (
           <div className="p-3">
-            <table className="w-full text-ui">
+            <div className="overflow-x-auto"><table className="w-full text-ui">
               <thead>
                 <tr className="border-b text-ui-sm text-gray-500">
                   <th className="text-left py-2">Type</th>
@@ -772,7 +772,7 @@ export default function BPF() {
                   <td className="py-2"><input type="text" inputMode="decimal" className="input text-ui text-right w-28 ml-auto block" value={form.e_externes_heures} onChange={(e) => updateForm('e_externes_heures', parseFloat(e.target.value) || 0)} /></td>
                 </tr>
               </tbody>
-            </table>
+            </table></div>
           </div>
         )}
       </div>
@@ -782,7 +782,7 @@ export default function BPF() {
         <SectionHeader id="F1" icon={GraduationCap} title="F-1. TYPE DE STAGIAIRES" color="purple" />
         {openSections.F1 && (
           <div className="p-3">
-            <table className="w-full text-ui">
+            <div className="overflow-x-auto"><table className="w-full text-ui">
               <thead>
                 <tr className="border-b text-ui-sm text-gray-500">
                   <th className="text-left py-2">Type de stagiaire</th>
@@ -810,7 +810,7 @@ export default function BPF() {
                   <td className="py-2 text-right pr-2">{getF1Total('heures').toFixed(1)}</td>
                 </tr>
               </tbody>
-            </table>
+            </table></div>
           </div>
         )}
       </div>
@@ -834,7 +834,7 @@ export default function BPF() {
         <SectionHeader id="F3" icon={ClipboardCheck} title="F-3. OBJECTIF GÉNÉRAL DES PRESTATIONS" color="purple" />
         {openSections.F3 && (
           <div className="p-3">
-            <table className="w-full text-ui">
+            <div className="overflow-x-auto"><table className="w-full text-ui">
               <thead>
                 <tr className="border-b text-ui-sm text-gray-500">
                   <th className="text-left py-2">Objectif</th>
@@ -863,7 +863,7 @@ export default function BPF() {
                   <td className="py-2 text-right pr-2">{getF3Total('heures').toFixed(1)}</td>
                 </tr>
               </tbody>
-            </table>
+            </table></div>
             <div className="bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded p-2 mt-2">
               <p className="text-ui-sm text-[rgb(var(--c-success))]">
                 <Info className="w-3 h-3 inline mr-1" />
@@ -879,7 +879,7 @@ export default function BPF() {
         <SectionHeader id="F4" icon={ClipboardCheck} title="F-4. SPÉCIALITÉS DE FORMATION (codes NSF)" color="purple" />
         {openSections.F4 && (
           <div className="p-3">
-            <table className="w-full text-ui">
+            <div className="overflow-x-auto"><table className="w-full text-ui">
               <thead>
                 <tr className="border-b text-ui-sm text-gray-500">
                   <th className="text-left py-2 w-16">Code</th>
@@ -932,7 +932,7 @@ export default function BPF() {
                   <td className="py-2 text-right pr-2">{getF4Total('heures').toFixed(1)}</td>
                 </tr>
               </tbody>
-            </table>
+            </table></div>
           </div>
         )}
       </div>

@@ -1052,7 +1052,7 @@ export default function Quotes() {
   function renderList() {
     return (
       <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
             <h1 className="page-title">Devis</h1>
             <p className="text-ui text-gray-500 mt-1">{filteredQuotes.length} devis</p>
@@ -1140,10 +1140,10 @@ export default function Quotes() {
           <div className="space-y-2">
             {filteredQuotes.map(q => (
               <div key={q.id} onClick={() => openView(q)} className="bg-white rounded-ui border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
-                <div className="flex items-center justify-between">
+                <div className="flex items-start sm:items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className="text-ui font-mono text-gray-500">{q.reference}</span>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
+                      <span className="text-ui font-mono text-gray-500 whitespace-nowrap">{q.reference}</span>
                       <BadgeTest tbl="quotes" id={q.id} />
                       <span className={`px-2 py-0.5 rounded text-ui-sm font-medium ${STATUS_CONFIG[q.status]?.class || 'bg-gray-100'}`}>
                         {STATUS_CONFIG[q.status]?.icon} {STATUS_CONFIG[q.status]?.label || q.status}
@@ -1158,14 +1158,14 @@ export default function Quotes() {
                     </div>
                     <h3 className="font-semibold text-gray-900">{q.clients?.name || 'Client inconnu'}</h3>
                     {q.object && <p className="text-ui text-gray-500 truncate mt-0.5">{q.object}</p>}
-                    <div className="flex items-center gap-4 mt-2 text-ui-sm text-gray-400">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-2 text-ui-sm text-gray-400">
                       <span> {q.quote_date ? format(new Date(q.quote_date), 'dd MMM yyyy', { locale: fr }) : '-'}</span>
                       {q.validity_date && <span> Valide jusqu'au {format(new Date(q.validity_date), 'dd/MM/yyyy')}</span>}
                       <span> {q.created_by}</span>
                     </div>
                   </div>
-                  <div className="text-right ml-4 flex-shrink-0">
-                    <p className="text-lg font-bold text-gray-900">{money(q.total_ttc)}</p>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-lg font-bold text-gray-900 whitespace-nowrap">{money(q.total_ttc)}</p>
                     <p className="text-ui-sm text-gray-400">{money(q.total_ht)} HT</p>
                     <div className="relative mt-2 flex justify-end" ref={actionMenuId === q.id ? actionMenuRef : null}>
                       <button onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === q.id ? null : q.id) }}

@@ -311,7 +311,7 @@ export default function EspaceComptable() {
     <FiscalContext.Provider value={fiscal}>
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title flex items-center gap-2">
             <Calculator className="w-7 h-7 text-gray-800" />
@@ -319,7 +319,7 @@ export default function EspaceComptable() {
           </h1>
           <p className="text-ui text-gray-500 mt-1">{orgDisplayName ? `${orgDisplayName} - ` : ''}{new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-ui text-gray-400 hidden sm:block">{user?.email}</span>
           <button onClick={loadAll} className="flex items-center gap-2 px-3 py-2 border rounded-ui-sm text-ui hover:bg-gray-50 transition-colors">
             <RefreshCw className="w-4 h-4" />

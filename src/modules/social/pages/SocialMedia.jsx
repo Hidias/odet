@@ -207,9 +207,9 @@ export default function SocialMedia() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#0F2D35]"> Social & Communication</h1>
+          <h1 className="page-title"> Social & Communication</h1>
           <p className="text-ui text-gray-500 mt-1">Générez et planifiez vos publications sur tous vos réseaux</p>
         </div>
       </div>
@@ -218,12 +218,12 @@ export default function SocialMedia() {
       <ConnectionPanel connections={connections} onRefresh={loadConnections} />
 
       {/* Onglets */}
-      <div className="flex gap-1 bg-gray-100 rounded-ui p-1">
+      <div className="flex gap-1 bg-gray-100 rounded-ui p-1 overflow-x-auto">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`flex-1 py-2 px-3 rounded-ui-sm text-ui font-medium transition-all ${
+            className={`flex-1 py-2 px-3 rounded-ui-sm text-ui font-medium transition-all whitespace-nowrap ${
               activeTab === t.id
                 ? 'bg-white text-[#0F2D35] shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'

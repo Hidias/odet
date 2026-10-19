@@ -271,7 +271,7 @@ export default function Documents() {
       
       {/* Onglets */}
       <div className="border-b border-gray-200">
-        <nav className="flex gap-4">
+        <nav className="flex overflow-x-auto whitespace-nowrap gap-4">
           <button
             onClick={() => setActiveTab('uploaded')}
             className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
