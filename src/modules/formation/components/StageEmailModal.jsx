@@ -6,7 +6,8 @@ import { supabase } from '../../../core/supabase'
 import { X, Send, Loader, CheckCircle, AlertCircle, Mail, FileText, Upload, Trash2, Eye, ChevronLeft, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { generatePDF } from '../pdf/pdfGenerator'
-import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
+import { readableUrl } from '../../../core/storageUtils'
+import { useCapacites } from '../../../core/capacites'
 
 // ── Constantes ──────────────────────────────────────────────────────────────
 const SST_LINE = '- Certificat SST (INRS / Forprev)'
@@ -61,6 +62,7 @@ export default function StageEmailModal({ session, onClose }) {
   const [evalsLoaded, setEvalsLoaded] = useState(false)
   const [compteRendu, setCompteRendu] = useState('')
   const [crGenerating, setCrGenerating] = useState(false)
+  const capacites = useCapacites()
   const [crError, setCrError] = useState(null)
 
   // Document stagiaire lié à la formation
@@ -689,7 +691,7 @@ export default function StageEmailModal({ session, onClose }) {
                             : 'Aucune évaluation à chaud disponible'}
                         </p>
                       </div>
-                      {evals.length > 0 && (
+                      {evals.length > 0 && capacites.ia && (
                         <button onClick={generateCompteRendu} disabled={crGenerating}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 text-white text-ui-sm font-semibold rounded-ui-sm hover:bg-gray-700 disabled:opacity-50">
                           {crGenerating ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <span></span>}

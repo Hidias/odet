@@ -247,6 +247,7 @@ export const CREATIONS = [
   { to: '/affaires', label: 'Affaire', module: 'affaires', right: 'commercial.devis.modifier' },
   { to: '/devis', label: 'Devis', module: 'commercial', right: 'commercial.devis.modifier' },
   { to: '/factures', label: 'Facture', module: 'commercial', right: 'facturation.factures.modifier' },
+  { to: '/stagiaires', label: 'Stagiaire', module: 'formation', right: 'formation.stagiaires.creer' },
   { to: '/interventions/planning', label: 'Intervention', module: 'interventions', right: 'interventions.visites.gerer', sansOuverture: true },
 ]
 
@@ -266,6 +267,9 @@ const ALIASES = [
   { prefix: '/setup', to: '/parametres' },
   { prefix: '/settings/email', to: null }, // sa propre boîte d'envoi : tout compte connecté
   { prefix: '/mot-de-passe', to: null },
+  // Mon espace (congés, heures, documents) : toute personne du personnel, technicien compris ; la base ne montre que
+  // ses propres données (audit du 19/10 au soir)
+  { prefix: '/collaborateurs/mon-espace', to: null },
   { prefix: '/design-systeme', to: null },
 ]
 

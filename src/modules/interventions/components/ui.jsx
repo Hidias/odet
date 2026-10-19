@@ -67,7 +67,7 @@ export function ScanButton({ className = 'btn btn-primary', label = 'Scanner', o
   )
 }
 
-function ScanModal({ onClose, onCode }) {
+export function ScanModal({ onClose, onCode }) {
   const navigate = useNavigate()
   const videoRef = useRef(null)
   const [code, setCode] = useState('')

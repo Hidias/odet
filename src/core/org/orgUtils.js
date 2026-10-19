@@ -126,9 +126,12 @@ export function buildORG(o) {
     tva_applicable: s.tva_applicable !== false,
     rcs: s.rcs || '',
     tribunal_competent: s.tribunal_competent || '',
-    nda: ndaFormatted || (s.name ? 'en cours d\'attribution' : ''),
+    nda: ndaFormatted || (s.name ? 'en cours d\'enregistrement' : ''),
     // NDA pas encore attribué : mention explicite plutôt qu'un champ vide (un organisme peut former avant l'enregistrement)
-    ndaFull: ndaFormatted ? `${ndaFormatted}${s.nda_region ? ` auprès du préfet de la région ${s.nda_region}` : ''}` : (s.name ? 'en cours d\'attribution' : ''),
+    ndaFull: ndaFormatted ? `${ndaFormatted}${s.nda_region ? ` auprès du préfet de la région ${s.nda_region}` : ''}` : (s.name ? 'en cours d\'enregistrement' : ''),
+    // Vrai quand le numéro est attribué. Sinon les documents de formation portent la mention obligatoire
+    // « Déclaration d'activité en cours d'enregistrement » (décision de H du 19/10 à 23h20), via ligneNda().
+    ndaAttribue: !!ndaFormatted,
     nda_region: s.nda_region || '',
     // Banque
     bank_name: s.bank_name || '',
@@ -246,4 +249,19 @@ export function orgHorsFormation(ORG) {
   const suffixe = ' - Organisme de formation certifié Qualiopi'
   const nameFull = ORG.nameFull && ORG.nameFull.endsWith(suffixe) ? ORG.nameFull.slice(0, -suffixe.length) : ORG.nameFull
   return { ...ORG, nameFull, nda: '', ndaFull: '', horsFormation: true }
+}
+
+// Ligne d'identification à imprimer sur un document de formation (en-tête, pied de page, parties d'une convention) :
+// « NDA 53 29 10261 29 » quand le numéro est attribué, la mention obligatoire sinon, rien pour un document hors formation.
+export function ligneNda(ORG, { complet = false } = {}) {
+  if (!ORG || ORG.horsFormation || !ORG.nda) return ''
+  if (ORG.ndaAttribue === false || /en cours/.test(ORG.nda)) return "Déclaration d'activité en cours d'enregistrement"
+  return `NDA ${complet ? (ORG.ndaFull || ORG.nda) : ORG.nda}`
+}
+
+// Même chose dans une phrase : « , déclaration d'activité n° … » ou « , déclaration d'activité en cours d'enregistrement »
+export function phraseNda(ORG) {
+  if (!ORG || ORG.horsFormation || !ORG.nda) return ''
+  if (ORG.ndaAttribue === false || /en cours/.test(ORG.nda)) return "déclaration d'activité en cours d'enregistrement"
+  return `déclaration d'activité n° ${ORG.ndaFull || ORG.nda}`
 }

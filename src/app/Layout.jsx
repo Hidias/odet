@@ -2,7 +2,7 @@ import toast from 'react-hot-toast'
 import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  Menu, X, Bell, Check, LogOut, ChevronDown, Plus, Settings, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
+  Menu, X, Bell, Check, LogOut, ChevronDown, Plus, Settings, ScanLine, Package, Car, UserRound, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -12,12 +12,14 @@ import PostIt from '../core/feedback/PostIt'
 import WelcomeSheet from '../core/feedback/WelcomeSheet'
 import BandeauInfo from '../core/notices/BandeauInfo'
 import { useNotices } from '../core/notices/notices'
+import { useEtatBoite } from '../core/settings/etatBoite'
 import { supabase } from '../core/supabase'
 import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
 import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS, modeParDefaut, OPTIONS_ADAPTE } from '../core/branding/presets'
 import { visibleSections, visibleSettingsItems, accesPage, pageTitleFor, sectionIdFor, entreesMenu, ongletsPour, entreePourChemin, creationsVisibles } from '../core/modules/registry'
 import PageRefusee from '../core/rights/PageRefusee'
+import { ScanModal } from '../modules/interventions/components/ui'
 import { SelecteurSociete, ChoixSociete, BandeauVueGroupe } from '../core/company/SelecteurSociete'
 
 const ROLE_LABELS = {
@@ -71,13 +73,24 @@ export default function Layout() {
   // Mode simple ou complet (réglage personnel ; par défaut selon le rôle)
   const mode = prefs.mode || modeParDefaut(userRole)
   const simple = mode === 'simple'
-  // Technicien de terrain : seulement l'entrée Interventions, ni paramètres, ni recherche, ni notifications.
+  // Technicien de terrain : ses interventions et ses espaces personnels (Mon stock, Mon véhicule, Mon espace), ni
+  // paramètres, ni recherche, ni notifications (audit du 19/10 au soir : il était enfermé dans Interventions).
   // sectionsCompletes : tout ce que le compte peut ouvrir (onglets des groupes) ; sections : le menu (simple ou complet)
+  const espacesTerrain = useMemo(() => {
+    if (!fieldOnly) return []
+    const m = new Set(modules || [])
+    return [
+      { to: '/interventions', icon: MapPin, label: 'Ma tournée', court: 'Tournée' },
+      ...(m.has('stock') ? [{ to: '/stock/mon-stock', icon: Package, label: 'Mon stock', court: 'Stock' }] : []),
+      ...(m.has('vehicules') ? [{ to: '/vehicules/mon-vehicule', icon: Car, label: 'Mon véhicule', court: 'Véhicule' }] : []),
+      ...(m.has('rh') ? [{ to: '/collaborateurs/mon-espace', icon: UserRound, label: 'Mon espace', court: 'Moi' }] : []),
+    ]
+  }, [fieldOnly, modules])
   const sectionsCompletes = useMemo(() => {
     const all = visibleSections(modules, userRole, can)
     if (!fieldOnly) return all
-    return all.map((s) => ({ ...s, items: s.items.filter((i) => i.to === '/interventions') })).filter((s) => s.items.length > 0)
-  }, [modules, userRole, fieldOnly, rights, can])
+    return [{ id: 'terrain', label: 'Terrain', icon: MapPin, items: espacesTerrain.map(({ court, ...i }) => i) }]
+  }, [modules, userRole, fieldOnly, rights, can, espacesTerrain])
   const sections = useMemo(() => {
     if (!simple || fieldOnly) return sectionsCompletes
     return visibleSections(modules, userRole, can, { simple: true })
@@ -85,6 +98,8 @@ export default function Layout() {
   const creations = useMemo(() => (fieldOnly ? [] : creationsVisibles(modules, userRole, can)), [fieldOnly, modules, userRole, rights, can])
   // Bandeau d'information et « Quoi de neuf » (chantier A) : état lu par la base, relu toutes les 15 minutes
   const notices = useNotices()
+  // Boîte d'envoi non configurée : bandeau clair (comptes qui envoient des emails seulement)
+  const boiteEnvoi = useEtatBoite(!!user?.id && !fieldOnly && can?.('organisation.preferences.gerer') !== false && !['lecture', 'entreprise', 'stagiaire', 'formateur_externe'].includes(userRole))
   const chargerNotices = notices.charger
   useEffect(() => {
     if (!user?.id) return undefined
@@ -97,7 +112,8 @@ export default function Layout() {
     .map((i) => (i.to === '/nouveautes' ? { ...i, dot: notices.unseen } : i))), [userRole, fieldOnly, rights, can, modules, notices.unseen])
   // Garde de l'adresse directe : même table que le menu (rôle et droits)
   const pageAutorisee = useMemo(() => accesPage(location.pathname, userRole, can), [location.pathname, userRole, rights, can])
-  const fieldAllowed = !fieldOnly || location.pathname.startsWith('/interventions') || location.pathname === '/mot-de-passe'
+  const fieldAllowed = !fieldOnly || location.pathname === '/mot-de-passe'
+    || espacesTerrain.some((e) => { const base = e.to.startsWith('/collaborateurs') ? e.to : '/' + e.to.split('/')[1]; return location.pathname === base || location.pathname.startsWith(base + '/') })
   const activeSectionId = useMemo(() => sectionIdFor(location.pathname) || sections[0]?.id, [location.pathname, sections])
   const basculerMode = () => update({ mode: simple ? 'complet' : 'simple' })
   const pageTitle = useMemo(() => pageTitleFor(location.pathname), [location.pathname])
@@ -107,7 +123,8 @@ export default function Layout() {
 
   // Barre de navigation en bas sur téléphone : les 4 destinations principales disponibles pour ce rôle et ces modules, puis « Plus » (menu complet)
   const bottomItems = useMemo(() => {
-    if (fieldOnly) return []
+    // Technicien : Ma tournée · Scanner · Mon stock · Mon véhicule · Moi (pas de « Plus »)
+    if (fieldOnly) return espacesTerrain.map((e) => ({ ...e, label: e.court }))
     const available = new Set(sections.flatMap((s) => s.items.map((i) => i.to)))
     return [
       { to: '/', icon: LayoutDashboard, label: 'Accueil' },
@@ -115,8 +132,13 @@ export default function Layout() {
       { to: '/interventions', icon: MapPin, label: 'Journée' },
       { to: '/clients', icon: Building2, label: 'Clients' },
     ].filter((i) => available.has(i.to)).slice(0, 4)
-  }, [sections, fieldOnly])
+  }, [sections, fieldOnly, espacesTerrain])
   const showBottomNav = bottomItems.length > 0
+  const [scanOuvert, setScanOuvert] = useState(false)
+  // Technicien : affichage agrandi par défaut (boutons et textes plus grands), tant qu'il n'a pas choisi lui-même
+  useEffect(() => {
+    if (fieldOnly && !profile?.ui_prefs?.density) document.documentElement.dataset.density = 'large'
+  }, [fieldOnly, profile?.ui_prefs?.density])
   useEffect(() => {
     const el = document.documentElement
     if (showBottomNav) el.dataset.bottomNav = '1'
@@ -486,18 +508,30 @@ export default function Layout() {
 
       {showBottomNav && (
         <nav aria-label="Navigation principale" className="bottom-nav lg:hidden">
-          {bottomItems.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `bottom-nav-item ${isActive ? 'is-active' : ''}`}>
-              <item.icon className="w-[22px] h-[22px]" aria-hidden="true" />
-              <span>{item.label}</span>
-            </NavLink>
+          {bottomItems.map((item, idx) => (
+            <span key={item.to} className="contents">
+              <NavLink to={item.to} end={item.to === '/'} className={({ isActive }) => `bottom-nav-item ${isActive ? 'is-active' : ''}`}>
+                <item.icon className="w-[22px] h-[22px]" aria-hidden="true" />
+                <span>{item.label}</span>
+              </NavLink>
+              {fieldOnly && idx === 0 && (
+                <button type="button" onClick={() => setScanOuvert(true)} className="bottom-nav-item" aria-label="Scanner une étiquette">
+                  <ScanLine className="w-[22px] h-[22px]" aria-hidden="true" />
+                  <span>Scanner</span>
+                </button>
+              )}
+            </span>
           ))}
-          <button type="button" onClick={() => setDrawerOpen(true)} className={`bottom-nav-item ${drawerOpen ? 'is-active' : ''}`} aria-label="Plus de rubriques">
-            <MoreHorizontal className="w-[22px] h-[22px]" aria-hidden="true" />
-            <span>Plus</span>
-          </button>
+          {!fieldOnly && (
+            <button type="button" onClick={() => setDrawerOpen(true)} className={`bottom-nav-item ${drawerOpen ? 'is-active' : ''}`} aria-label="Plus de rubriques">
+              <MoreHorizontal className="w-[22px] h-[22px]" aria-hidden="true" />
+              <span>Plus</span>
+            </button>
+          )}
         </nav>
       )}
+
+      {scanOuvert && <ScanModal onClose={() => setScanOuvert(false)} />}
 
       {/* Tiroir mobile */}
       {drawerOpen && (
@@ -574,7 +608,7 @@ export default function Layout() {
                   <div className="px-3 py-3 border-b border-gray-100">
                     <div className="text-ui font-semibold text-gray-900 truncate">{profile?.display_name || user?.email}</div>
                     <div className="text-ui-sm text-gray-500 truncate">{user?.email}</div>
-                    <div className="mt-1"><span className="badge badge-neutral">{ROLE_LABELS[userRole] || userRole}</span></div>
+                    <div className="mt-1"><span className="badge badge-neutral">{fieldOnly ? 'Technicien' : (ROLE_LABELS[userRole] || userRole)}</span></div>
                   </div>
                   <div className="py-1">
                     {settingsItems.map((item) => (
@@ -587,7 +621,7 @@ export default function Layout() {
                       <SlidersHorizontal className="w-4 h-4" />Affichage
                     </button>
                     <NavLink to="/settings/email" onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
-                      <Mail className="w-4 h-4" />Mes comptes email
+                      <Mail className="w-4 h-4" />Ma boîte d'envoi
                     </NavLink>
                     <NavLink to="/mot-de-passe" onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                       <KeyRound className="w-4 h-4" />Changer mon mot de passe
@@ -613,6 +647,13 @@ export default function Layout() {
           )}
           {notices.disponible && (
             <BandeauInfo nouveautes={!fieldOnly && (modules || []).includes('nouveautes')} retours={retoursActif !== false} />
+          )}
+          {boiteEnvoi === false && location.pathname !== '/settings/email' && (
+            <div className="mb-3 rounded-ui border border-[rgb(var(--c-warning)/0.4)] bg-[rgb(var(--c-warning-bg))] px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 text-ui text-gray-800" role="status">
+              <Mail className="w-4 h-4 flex-none text-[rgb(var(--c-warning))]" aria-hidden="true" />
+              <span className="flex-1 min-w-[12rem]">Votre boîte d'envoi n'est pas configurée : vos devis, factures et convocations ne peuvent pas partir par email.</span>
+              <NavLink to="/settings/email" className="btn btn-secondary btn-sm">Configurer ma boîte</NavLink>
+            </div>
           )}
           <BandeauVueGroupe />
           {onglets.length > 1 && (

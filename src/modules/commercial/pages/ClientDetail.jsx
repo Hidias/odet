@@ -29,6 +29,7 @@ import { useDroits } from '../../../core/rights/useDroit'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 
 import { confirmer } from '../../../ui/Confirm'
+import { useCapacites } from '../../../core/capacites'
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
@@ -123,6 +124,7 @@ export default function ClientDetail() {
   const [emailForm, setEmailForm] = useState({ to: '', subject: '', body: '', brief: '', sender: currentUserFirstName() })
   const [emailAttachments, setEmailAttachments] = useState([]) // { file, name, size, base64 }
   const [emailGenerating, setEmailGenerating] = useState(false)
+  const capacites = useCapacites()
   const [emailSending, setEmailSending] = useState(false)
 
   // Formations
@@ -1742,8 +1744,8 @@ export default function ClientDetail() {
                       </div>
                     </div>
 
-                    {/* Brief IA */}
-                    <div>
+                    {/* Brief IA : seulement quand l'assistant de rédaction est activé (décision de H du 19/10) */}
+                    {capacites.ia && <div>
                       <label className="text-ui-sm font-medium text-gray-500 mb-1 flex items-center justify-between">
                          Décrivez votre email en quelques mots
                         <SpeechToTextButton onTranscript={(text) => setEmailForm(f => ({ ...f, brief: f.brief ? f.brief + ' ' + text : text }))} />
@@ -1757,7 +1759,7 @@ export default function ClientDetail() {
                           {emailGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : ''} Générer
                         </button>
                       </div>
-                    </div>
+                    </div>}
 
                     {/* Objet */}
                     <div>

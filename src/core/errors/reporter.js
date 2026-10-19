@@ -5,7 +5,11 @@
 // même erreur envoyée une seule fois par minute, 20 envois au plus par page ouverte.
 import { supabase } from '../supabase'
 import { APP_VERSION } from '../version'
-import { CHUNK_ERROR } from './chunkReload'
+import { CHUNK_ERROR, rechargementEnCours } from './chunkReload'
+
+/* global __BUILD_ID__ */
+// Version journalisée : identifiant de la construction déployée (commit), pour relier chaque erreur à son déploiement
+const VERSION = typeof __BUILD_ID__ !== 'undefined' ? `${APP_VERSION}+${__BUILD_ID__}` : APP_VERSION
 // Règle commune aux routes /api : aucune donnée personnelle dans le suivi des erreurs
 import { redact } from '../../../api/_lib/redact.js'
 
@@ -43,6 +47,7 @@ function normalize(err) {
 
 export function reportError(err, extra = {}) {
   try {
+    if (rechargementEnCours()) return // la page se recharge : rien n'est journalisé
     const { message, stack } = normalize(err)
     // Chargement d'un fichier : ignoré quand un rechargement automatique suit ; remonté quand l'erreur persiste
     if (!message || (!(extra.force && CHUNK_ERROR.test(message)) && IGNORED.some((re) => re.test(message)))) return
@@ -59,7 +64,7 @@ export function reportError(err, extra = {}) {
       p_stack: redact(stack + componentStack) || null,
       p_page: currentPage(),
       p_user_agent: navigator.userAgent,
-      p_app_version: APP_VERSION,
+      p_app_version: VERSION,
     }).then(() => {}, () => {})
   } catch { /* le signalement ne doit jamais provoquer d'erreur */ }
 }

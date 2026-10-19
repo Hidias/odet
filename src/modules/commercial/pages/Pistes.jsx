@@ -39,7 +39,7 @@ export default function Pistes() {
     const { data, error } = await supabase.from('cross_sell_leads')
       .select('*, clients(id, name, city), sites(name, city), quotes(id, reference, status)')
       .order('created_at', { ascending: false }).limit(500)
-    if (error) { setErreur('Les pistes ne sont pas encore disponibles sur cette instance (migration 0130).'); setPistes([]); return }
+    if (error) { setErreur('Les pistes ne sont pas encore disponibles. Prévenez le support.'); setPistes([]); return }
     setPistes(data || [])
   }
   useEffect(() => { load() }, [])

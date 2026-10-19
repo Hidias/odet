@@ -82,7 +82,7 @@ export default function EspaceEntrepriseAdmin() {
   return (
     <div className="space-y-4 max-w-3xl">
       <PageHeader title="Espace entreprise" meta={<span>Demandes des clients et actualités publiées dans leurs espaces. Les comptes se créent sur la fiche client.</span>} />
-      {indispo && <Banner tone="warning">L'espace entreprise n'est pas encore disponible sur cette instance (migration 0046).</Banner>}
+      {indispo && <Banner tone="warning">L'espace entreprise n'est pas encore disponible. Prévenez le support.</Banner>}
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Espace entreprise">
         <button type="button" role="tab" aria-selected={onglet === 'demandes'} onClick={() => setOnglet('demandes')} className={`btn btn-sm ${onglet === 'demandes' ? 'btn-primary' : 'btn-secondary'}`}>Demandes ({nbOuvertes})</button>
         <button type="button" role="tab" aria-selected={onglet === 'actus'} onClick={() => setOnglet('actus')} className={`btn btn-sm ${onglet === 'actus' ? 'btn-primary' : 'btn-secondary'}`}>Actualités ({actus.length})</button>

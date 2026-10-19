@@ -9,6 +9,8 @@ import { useState } from 'react'
 import { supabase } from '../../../core/supabase'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
+import { chargerCapacites } from '../../../core/capacites'
+import { modeleRelanceDevis } from '../../../core/emails/modeles'
 
 /**
  * Hook pour gérer les relances de devis avec génération IA
@@ -41,6 +43,14 @@ export function useRelanceIA() {
     }
 
     setGenerating(quote.id)
+
+    // Sans assistant de rédaction : texte modèle directement, sans message d'erreur (décision de H du 19/10)
+    const modele = () => {
+      const m = modeleRelanceDevis({ quote, contactName: quote.clients?.contact_name || '', org: orgName(), numero: relanceNum })
+      setPreviewData({ quote, clientEmail, subject: m.subject, body: m.body, tone: 'courtois', relanceNum, isFallback: true })
+    }
+    const { ia } = await chargerCapacites()
+    if (!ia) { modele(); setGenerating(null); return }
 
     try {
       // Charger le contexte enrichi
@@ -99,25 +109,8 @@ export function useRelanceIA() {
       })
     } catch (err) {
       console.error('Relance IA error:', err)
-      toast.error('Erreur IA: ' + err.message)
-
-      // Fallback : générer un email simple sans IA
-      const montant = parseFloat(quote.total_ht).toLocaleString('fr-FR', { minimumFractionDigits: 2 })
-      const fallbackBody = relanceNum === 1
-        ? `Bonjour,\n\nJe me permets de revenir vers vous concernant notre devis ${quote.reference} d'un montant de ${montant} € HT, envoyé le ${new Date(quote.quote_date).toLocaleDateString('fr-FR')}.\n\nAvez-vous eu l'occasion d'en prendre connaissance ? Je reste à votre disposition pour en discuter.`
-        : relanceNum === 2
-        ? `Bonjour,\n\nJe reviens vers vous au sujet du devis ${quote.reference} (${montant} € HT). N'ayant pas eu de retour, je souhaitais savoir si cette proposition vous convenait ou si des ajustements seraient nécessaires.\n\nJe peux vous rappeler si vous préférez en discuter de vive voix.`
-        : `Bonjour,\n\nDernière relance concernant notre proposition ${quote.reference} (${montant} € HT). Si ce projet n'est plus d'actualité, n'hésitez pas à me le signaler.\n\nDans le cas contraire, je reste disponible pour finaliser les modalités.`
-
-      setPreviewData({
-        quote,
-        clientEmail,
-        subject: `${relanceNum > 1 ? 'Relance - ' : ''}Devis ${quote.reference} - ${orgName()}`,
-        body: fallbackBody,
-        tone: 'courtois',
-        relanceNum,
-        isFallback: true,
-      })
+      toast.error("L'assistant n'a pas répondu : le texte modèle est proposé à la place.")
+      modele()
     } finally {
       setGenerating(null)
     }
@@ -159,7 +152,7 @@ export function useRelanceIA() {
       await supabase.from('quotes').update({
         relance_count: relanceNum,
         last_relance_date: format(new Date(), 'yyyy-MM-dd'),
-        notes: (quote.notes ? quote.notes + '\n' : '') + ` ${relanceLabel} relance IA envoyée le ${noteDate} à ${clientEmail}`,
+        notes: (quote.notes ? quote.notes + '\n' : '') + ` ${relanceLabel} relance envoyée le ${noteDate} à ${clientEmail}`,
         updated_at: new Date().toISOString(),
       }).eq('id', quote.id)
 

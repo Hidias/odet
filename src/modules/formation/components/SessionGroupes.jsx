@@ -112,7 +112,7 @@ export default function SessionGroupes({ session, peutModifier }) {
     }
   }
 
-  if (indispo) return <Banner tone="warning">Les groupes ne sont pas encore disponibles sur cette instance (migration 0044).</Banner>
+  if (indispo) return <Banner tone="warning">Les groupes ne sont pas encore disponibles. Prévenez le support.</Banner>
   if (groupes === null) return <p className="text-ui-sm text-gray-400">Chargement…</p>
 
   const sansGroupe = parGroupe.sans || []
