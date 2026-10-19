@@ -81,6 +81,10 @@ export function buildORG(o) {
   // Site d'exploitation (0049) : affiché avec le siège, qui reste l'adresse légale
   const exploitationFull = [s.exploitation_address || '', [s.exploitation_postal_code || '', s.exploitation_city || ''].filter(Boolean).join(' ')]
     .filter(Boolean).join(', ')
+  // Adresse mise en avant sur les documents : le site d'exploitation s'il existe, sinon le siège. Le siège reste
+  // l'adresse légale : il figure en mention (« Siège social : ... ») et dans les blocs juridiques (parties, vendeur).
+  const adressePrincipale = exploitationFull || address
+  const siegeMention = exploitationFull && address ? `Siège social : ${address}` : ''
   const qualiopi = !!s.qualiopi_certified
   const legalWithForm = s.forme_juridique && !legalName.toLowerCase().includes(s.forme_juridique.toLowerCase())
     ? `${s.forme_juridique} ${legalName}`
@@ -108,6 +112,8 @@ export function buildORG(o) {
     postal_code: postal,
     lieu_signature: s.lieu_signature || city,
     exploitationFull,
+    adressePrincipale,
+    siegeMention,
     // Contact
     phone: s.phone || '',
     email: s.email || '',

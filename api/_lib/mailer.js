@@ -52,6 +52,9 @@ export async function getOrg(supabase) {
     name: o.name || '',
     legal_name: o.legal_name || o.name || '',
     addressLine: [o.address, [o.postal_code, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+    // Adresse mise en avant (signatures, rendez-vous) : le site d'exploitation s'il existe, sinon le siège (0049)
+    siteLine: [o.exploitation_address, [o.exploitation_postal_code, o.exploitation_city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+      || [o.address, [o.postal_code, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
     website: o.website || '',
     websiteLabel: (o.website || '').replace(/^https?:\/\//, '').replace(/\/$/, ''),
     phone: o.phone || '',
@@ -85,6 +88,8 @@ export async function getOrgForCompany(supabase, companyId) {
     website: c.website || '', websiteLabel: (c.website || '').replace(/^https?:\/\//, '').replace(/\/$/, ''),
     bank_name: c.bank_name, iban: c.iban, bic: c.bic, logo_url: c.logo_url || org.logo_url, doc_prefix: c.doc_prefix,
     addressLine: [c.address, [c.postal_code, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+    // Une autre société n'a pas (encore) de site d'exploitation propre : son adresse sert d'adresse principale
+    siteLine: [c.address, [c.postal_code, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
   }
 }
 
@@ -256,7 +261,10 @@ export async function sendWithRetry(transporter, mailOptions, maxRetries = 3) {
 
 // ---- HTML : signature et habillage -----------------------------------------
 /**
- * Bloc de signature aux couleurs de l'organisme.
+ * Bloc de signature (modèle « sobre », choisi par H le 19/10) : logo à gauche, filet de la couleur d'accent,
+ * nom, fonction et organisme, téléphones, adresse email et site, adresse du site d'exploitation.
+ * Tout vient des réglages : logo et couleurs (Paramètres › Identité), fonction et téléphone du compte
+ * (Paramètres › Utilisateurs), adresse et téléphone de l'organisme (Paramètres › Coordonnées).
  * @param {object} sender résultat de getSender()
  * @param {object} org résultat de getOrg()
  * @param {string} variant 'standard' | 'chaud' (bandeau de prise en charge)
@@ -264,6 +272,7 @@ export async function sendWithRetry(transporter, mailOptions, maxRetries = 3) {
 export function buildSignatureHTML(sender, org, variant = 'standard') {
   const s = sender || {}
   const o = org || {}
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
   const chaudBanner = variant === 'chaud' ? `
     <table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; margin-bottom: 8px; border-collapse: collapse; width: 440px;">
       <tr>
@@ -273,32 +282,28 @@ export function buildSignatureHTML(sender, org, variant = 'standard') {
       </tr>
     </table>` : ''
   const nav = o.brand_nav || '#1C2024'
-  const highlight = o.brand_highlight || '#D9A62E'
-  const contact = [
-    s.phone ? `Tél. ${s.phone}` : '',
-    s.email ? `<a href="mailto:${s.email}" style="color: #2563eb; text-decoration: none;">${s.email}</a>` : '',
-  ].filter(Boolean).join(' &middot; ')
+  const accent = o.brand_accent || '#C8102E'
+  const logo = o.logo_url && /^https:\/\//.test(o.logo_url) ? o.logo_url : ''
+  const lien = (href, texte) => `<a href="${esc(href)}" style="color: ${nav}; text-decoration: none;">${esc(texte)}</a>`
+  // Téléphone de la personne, puis celui de l'organisme s'il est différent
+  const telPerso = s.isOrg ? '' : (s.phone || '')
+  const norm = (v) => String(v || '').replace(/\D/g, '')
+  const telOrg = o.phone && norm(o.phone) !== norm(telPerso) ? o.phone : ''
+  const tels = [telPerso ? `Mobile ${esc(telPerso)}` : '', telOrg ? `${telPerso ? 'Agence' : 'Tél.'} ${esc(telOrg)}` : ''].filter(Boolean).join(' &middot; ')
+  const liens = [s.email ? lien(`mailto:${s.email}`, s.email) : '', o.website ? lien(o.website, o.websiteLabel || o.website) : ''].filter(Boolean).join(' &middot; ')
+  const fonction = [s.isOrg ? '' : s.title, s.isOrg ? '' : o.name].filter(Boolean).join(' &middot; ')
+  const lignes = [tels, liens, esc(o.siteLine || o.addressLine || '')].filter(Boolean).join('<br>')
   return `${chaudBanner}
-    <table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; margin-top: 16px; border-collapse: collapse; width: 440px;">
+    <table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; margin-top: 16px; border-collapse: collapse;">
       <tr>
-        <td bgcolor="${nav}" style="background-color: ${nav}; padding: 14px 18px; border-radius: 8px 8px 0 0;">
-          <p style="margin: 0; font-size: 15px; font-weight: bold; color: #ffffff;">${s.name || o.name || ''}</p>
-          ${s.title ? `<p style="margin: 2px 0 0 0; font-size: 11px; color: rgba(255,255,255,0.7);">${s.title}</p>` : ''}
+        ${logo ? `<td style="padding: 4px 16px 4px 0; vertical-align: middle;"><img src="${esc(logo)}" alt="${esc(o.name || '')}" width="112" style="display: block; width: 112px; height: auto; border: 0;"></td>` : ''}
+        <td style="border-left: 3px solid ${accent}; padding: 2px 0 2px 16px; vertical-align: middle;">
+          <p style="margin: 0; font-size: 16px; font-weight: bold; color: ${nav};">${esc(s.name || o.name || '')}</p>
+          ${fonction ? `<p style="margin: 1px 0 6px 0; font-size: 12px; font-weight: bold; color: ${accent};">${fonction}</p>` : '<p style="margin: 0 0 6px 0;"></p>'}
+          ${lignes ? `<p style="margin: 0; font-size: 12px; line-height: 1.55; color: #444;">${lignes}</p>` : ''}
+          ${o.qualiopi ? `<p style="margin: 6px 0 0 0; font-size: 10px; font-weight: bold; color: ${nav}; text-transform: uppercase; letter-spacing: 1px;">Organisme de formation certifié Qualiopi</p>` : ''}
         </td>
       </tr>
-      <tr>
-        <td bgcolor="#f8f9fa" style="background-color: #f8f9fa; padding: 12px 18px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;${o.qualiopi ? '' : ' border-bottom: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;'}">
-          <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: bold; color: ${nav};">${(o.name || '').toUpperCase()}</p>
-          ${contact ? `<p style="margin: 0 0 1px 0; font-size: 12px; color: #555;">${contact}</p>` : ''}
-          ${o.addressLine ? `<p style="margin: 0 0 1px 0; font-size: 12px; color: #555;">${o.addressLine}</p>` : ''}
-          ${o.website ? `<p style="margin: 0; font-size: 12px;"><a href="${o.website}" style="color: #2563eb; text-decoration: none;">${o.websiteLabel}</a></p>` : ''}
-        </td>
-      </tr>
-      ${o.qualiopi ? `<tr>
-        <td bgcolor="${highlight}" style="background-color: ${highlight}; padding: 5px 18px; border-radius: 0 0 8px 8px;">
-          <p style="margin: 0; font-size: 10px; color: ${nav}; font-weight: bold; text-transform: uppercase; letter-spacing: 1.2px; text-align: center;">Organisme de formation certifié Qualiopi</p>
-        </td>
-      </tr>` : ''}
     </table>`
 }
 

@@ -123,8 +123,8 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
   const tarif = strip(c.price_mention) || TARIF_DEFAUT
   const refProg = referenceProgramme(c)
   const pied = [
-    `${(ORG?.nameFull || ORG?.name || '').toUpperCase()}${ORG?.address ? ` – Siège : ${ORG.address}` : ''}`,
-    ORG?.exploitationFull ? `Site d'exploitation : ${ORG.exploitationFull}` : null,
+    `${(ORG?.nameFull || ORG?.name || '').toUpperCase()}${(ORG?.adressePrincipale || ORG?.address) ? ` – ${ORG.adressePrincipale || ORG.address}` : ''}`,
+    ORG?.siegeMention || null,
     [ORG?.phone ? `Tél : ${ORG.phone}` : null, ORG?.email ? `Mail : ${ORG.email}` : null].filter(Boolean).join(' – '),
     [ORG?.siret ? `SIRET : ${ORG.siret}` : null, ORG?.ndaFull ? `NDA : ${ORG.ndaFull}` : null].filter(Boolean).join(' – '),
   ].filter(Boolean)
@@ -346,7 +346,7 @@ export function buildCataloguePDF(courses, ORG, contextePour = () => ({})) {
     doc.text([referenceProgramme(c), c.program_version ? `v${c.program_version}` : null].filter(Boolean).join(' · '), 165, y)
     y += titre.length * 4.6 + 3
   }
-  const pied = [ORG?.nameFull || ORG?.name, ORG?.address ? `Siège : ${ORG.address}` : null, ORG?.exploitationFull ? `Site d'exploitation : ${ORG.exploitationFull}` : null,
+  const pied = [ORG?.nameFull || ORG?.name, ORG?.adressePrincipale || ORG?.address || null, ORG?.siegeMention || null,
     [ORG?.phone, ORG?.email].filter(Boolean).join(' – '), ORG?.siret ? `SIRET : ${ORG.siret}` : null, ORG?.ndaFull ? `NDA : ${ORG.ndaFull}` : null].filter(Boolean)
   setF(doc, 'normal'); doc.setFontSize(8); doc.setTextColor(...t.muted)
   pied.forEach((l, i) => doc.text(l, A4.w / 2, A4.h - 30 + i * 4, { align: 'center' }))

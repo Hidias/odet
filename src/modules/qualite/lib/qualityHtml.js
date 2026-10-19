@@ -138,11 +138,11 @@ export function brandQualityHtml(html, ORG, { title = '', version = '', code = '
   const logo = ORG.logo_base64 || ORG.logo_url
   const ident = [
     `<strong>${esc(ORG.nameFull || ORG.name || '')}</strong>`,
-    esc(ORG.address || ''),
+    esc(ORG.adressePrincipale || ORG.address || ''),
     esc([ORG.phone, ORG.email].filter(Boolean).join('   ')),
     esc([ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.nda ? `NDA ${ORG.nda}` : ''].filter(Boolean).join('   ')),
   ].filter(Boolean).join('<br>')
-  const foot1 = [ORG.nameFull || ORG.name, ORG.addressFull].filter(Boolean).join('  ·  ')
+  const foot1 = [ORG.nameFull || ORG.name, ORG.adressePrincipale || ORG.addressFull, ORG.siegeMention].filter(Boolean).join('  ·  ')
   const foot2 = [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.naf ? `NAF ${ORG.naf}` : '', ORG.tva ? `TVA ${ORG.tva}` : '', ORG.ndaFull ? `NDA ${ORG.ndaFull}` : ''].filter(Boolean).join('  ·  ')
   const docRef = `${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}${code}`
 

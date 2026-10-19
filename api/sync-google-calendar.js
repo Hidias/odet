@@ -781,7 +781,7 @@ async function handler(req, res) {
       return res.status(200).json({ success: true, skipped: true, reason: 'Compte de service Google absent (GOOGLE_SERVICE_ACCOUNT_KEY)' })
     }
     const org = await getOrg(supabase)
-    Object.values(CALENDAR_MAP).forEach(c => { c.orgName = org.name; c.orgAddress = org.addressLine })
+    Object.values(CALENDAR_MAP).forEach(c => { c.orgName = org.name; c.orgAddress = org.siteLine || org.addressLine })
     const accessToken = await getAccessToken()
     const results = {}
 

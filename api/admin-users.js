@@ -31,7 +31,7 @@ async function handler(req, res) {
   const ctx = await requireRight(req, res, 'parametres.utilisateurs.gerer', ['superadmin'])
   if (!ctx) return
   const { admin, profile } = ctx
-  const { action, email, role, user_id, display_name, first_name, last_name, new_email } = req.body || {}
+  const { action, email, role, user_id, display_name, first_name, last_name, new_email, fonction, phone } = req.body || {}
   const appUrl = (process.env.APP_URL || '').replace(/\/$/, '')
 
   try {
@@ -46,6 +46,13 @@ async function handler(req, res) {
         redirectTo: appUrl ? `${appUrl}/?auth=welcome` : undefined,
       })
       if (error) return res.status(400).json({ error: error.message })
+      // Fonction et téléphone (signature des emails) : posés sur la fiche créée par la base à l'invitation
+      if (data.user?.id && (fonction || phone)) {
+        const fiche = {}
+        if (fonction) fiche.fonction = String(fonction).trim().slice(0, 120)
+        if (phone) fiche.phone = String(phone).trim().slice(0, 30)
+        await admin.from('profiles').update(fiche).eq('id', data.user.id)
+      }
       return res.status(200).json({ ok: true, user_id: data.user?.id })
     }
 
