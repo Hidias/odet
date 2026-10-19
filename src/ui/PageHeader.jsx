@@ -18,7 +18,7 @@ export function PageHeader({ crumbs = null, eyebrow = null, title, meta = null, 
         </nav>
       )}
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-        <div className="min-w-0 flex-1 grid gap-1">
+        <div className="min-w-0 flex-1 basis-[16rem] grid gap-1">
           {eyebrow && <div className="eyebrow">{eyebrow}</div>}
           <h1 className="page-title leading-tight" style={{ textWrap: 'balance' }}>{title}</h1>
           {meta && <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-ui-sm text-gray-500">{meta}</div>}

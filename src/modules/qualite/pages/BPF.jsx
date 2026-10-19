@@ -561,9 +561,9 @@ export default function BPF() {
   )
 
   const NumField = ({ label, field, suffix = '€', disabled = false, bold = false, sub = false }) => (
-    <div className={`flex items-center justify-between gap-2 ${sub ? 'ml-6' : ''} ${bold ? 'font-semibold bg-gray-50 p-2 rounded' : ''}`}>
-      <span className={`text-ui ${bold ? 'text-gray-900' : 'text-gray-700'} flex-1`}>{label}</span>
-      <div className="flex items-center gap-1">
+    <div className={`flex items-center justify-between gap-2 ${sub ? 'ml-3 sm:ml-6' : ''} ${bold ? 'font-semibold bg-gray-50 p-2 rounded' : ''}`}>
+      <span className={`text-ui ${bold ? 'text-gray-900' : 'text-gray-700'} flex-1 min-w-0`}>{label}</span>
+      <div className="flex items-center gap-1 flex-none">
         <input
           type="text"
           inputMode="decimal"
@@ -571,7 +571,7 @@ export default function BPF() {
           defaultValue={form[field] || 0}
           onBlur={(e) => updateForm(field, parseFloat(e.target.value) || 0)}
           disabled={disabled}
-          className={`w-32 text-right text-ui border rounded px-2 py-1 ${disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'} ${bold ? 'font-semibold' : ''}`}
+          className={`w-24 sm:w-32 text-right text-ui border rounded px-2 py-1 ${disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'} ${bold ? 'font-semibold' : ''}`}
         />
         <span className="text-ui-sm text-gray-400 w-6">{suffix}</span>
       </div>
@@ -582,7 +582,7 @@ export default function BPF() {
     <div className="flex items-center justify-between gap-2 font-bold bg-[rgb(var(--c-info-bg))] p-2 rounded border border-[rgb(var(--c-info)/0.3)]">
       <span className="text-ui text-[rgb(var(--c-info))]">{label}</span>
       <div className="flex items-center gap-1">
-        <span className="w-32 text-right text-ui font-bold text-[rgb(var(--c-info))]">{typeof value === 'number' ? value.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : value}</span>
+        <span className="w-24 sm:w-32 text-right text-ui font-bold text-[rgb(var(--c-info))]">{typeof value === 'number' ? value.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : value}</span>
         <span className="text-ui-sm text-[rgb(var(--c-info))] w-6">{suffix}</span>
       </div>
     </div>

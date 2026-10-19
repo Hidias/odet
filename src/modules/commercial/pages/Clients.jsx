@@ -823,7 +823,7 @@ export default function Clients() {
               title="Exporter les contacts des clients affichés vers le téléphone (fichier vCard)"
             >
               <Smartphone className="w-4 h-4" />
-              {exportingVcf ? 'Export...' : <><span className="hidden sm:inline">Contacts vCard</span><span className="sm:hidden">vCard</span></>}
+              {exportingVcf ? 'Export...' : <><span className="hidden sm:inline">Contacts vers le téléphone</span><span className="sm:hidden">Contacts</span></>}
             </button>
           )}
           {/* L'import de prospects crée des fiches clients : il faut aussi le droit de modifier les clients */}
@@ -833,7 +833,7 @@ export default function Clients() {
               className="btn btn-secondary flex items-center gap-2"
             >
               <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">Import prospects</span><span className="sm:hidden">Prospects</span>
+              <span className="hidden sm:inline">Importer des prospects</span><span className="sm:hidden">Prospects</span>
             </button>
           )}
           {d.modifier && (
@@ -844,7 +844,7 @@ export default function Clients() {
                 disabled={importing}
               >
                 <FileSpreadsheet className="w-4 h-4" />
-                <span className="hidden sm:inline">Import CSV</span><span className="sm:hidden">CSV</span>
+                <span className="hidden sm:inline">Importer un fichier</span><span className="sm:hidden">Importer</span>
               </button>
               <input 
                 ref={fileInputRef} 
