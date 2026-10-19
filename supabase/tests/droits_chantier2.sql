@@ -3446,6 +3446,114 @@ begin
     end;
   end if;
 
+  -- Chantier 12, RH documents et santé (0301) : la personne voit ses documents et dépose ses justificatifs ; la
+  -- direction voit les documents « normal » seulement ; la RH voit les restreints (consultation journalisée) ; rien
+  -- pour le commercial
+  if to_regprocedure('public.hr_document_ouvrir(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare
+      d_co uuid := app.company_default(); d_p uuid; d_norm uuid; d_res uuid; d_ok boolean; d_ok2 boolean; d_n int; d_m int; d_q int;
+      d_chemin text; d_avant int;
+    begin
+      insert into public.hr_people (first_name, last_name, profile_id) values ('Essai', 'Documents', u_lec) on conflict do nothing;
+      select id into d_p from public.hr_people where profile_id = u_lec and company_id = d_co limit 1;
+      insert into public.company_member_roles (member_id, role_key)
+      select m.id, 'salarie' from public.company_members m where m.profile_id = u_lec and m.company_id = d_co
+      on conflict do nothing;
+      insert into public.company_member_roles (member_id, role_key)
+      select m.id, 'rh' from public.company_members m where m.profile_id = u_ges and m.company_id = d_co
+      on conflict do nothing;
+      insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (d_co, d_p, 'contrat', 'normal', 'Contrat essai', d_co || '/' || d_p || '/contrat.pdf') returning id into d_norm;
+      insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (d_co, d_p, 'sante', 'restreint', 'Avis essai', d_co || '/' || d_p || '/avis.pdf') returning id into d_res;
+      insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (d_co, d_p, 'bulletin', 'prive', 'Bulletin essai', d_co || '/' || d_p || '/bulletin.pdf');
+      insert into public.hr_qualifications (company_id, person_id, kind, label, expires_on) values (d_co, d_p, 'sst', 'SST', current_date + 60);
+      insert into public.hr_medical_followups (company_id, person_id, visit_type, visit_on, next_due_on, conclusion)
+      values (d_co, d_p, 'embauche', current_date - 10, current_date + 700, 'apte');
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      d_n := (select count(*) from public.hr_documents where person_id = d_p);
+      d_m := (select count(*) from public.hr_medical_followups where person_id = d_p);
+      insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (d_co, d_p, 'justificatif', 'restreint', 'Justificatif essai', d_co || '/' || d_p || '/justif.pdf');
+      d_ok := false;
+      begin
+        insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+        values (d_co, d_p, 'contrat', 'normal', 'Faux contrat', d_co || '/' || d_p || '/faux.pdf');
+      exception when insufficient_privilege then d_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if d_n = 3 and d_m = 1 and d_ok then
+        v_lines := v_lines || 'OK      lec   0301 : la personne voit ses documents (dont restreint et bulletin) et son suivi, dépose un justificatif, pas un contrat'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   lec   0301 : documents de la personne (' || d_n || ', ' || d_m || ', ' || d_ok || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      d_n := (select count(*) from public.hr_documents where person_id = d_p);
+      d_m := (select count(*) from public.hr_medical_followups where person_id = d_p);
+      d_q := (select count(*) from public.hr_qualifications where person_id = d_p);
+      d_chemin := public.hr_document_ouvrir(d_norm);
+      d_ok := false;
+      begin perform public.hr_document_ouvrir(d_res); exception when insufficient_privilege then d_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if d_n = 1 and d_m = 0 and d_q = 1 and d_chemin like '%/contrat.pdf' and d_ok then
+        v_lines := v_lines || 'OK      dir   0301 : la direction voit le contrat et les habilitations, ni restreint, ni bulletin, ni suivi de santé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0301 : documents pour la direction (' || d_n || ', ' || d_m || ', ' || d_q || ', ' || d_ok || ')')::text; end if;
+
+      d_avant := (select count(*) from public.audit_logs where entity_type = 'document_rh' and action = 'view' and entity_id = d_res);
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      d_n := (select count(*) from public.hr_documents where person_id = d_p);
+      d_m := (select count(*) from public.hr_medical_followups where person_id = d_p);
+      d_chemin := public.hr_document_ouvrir(d_res);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if d_n = 4 and d_m = 1 and d_chemin like '%/avis.pdf'
+         and (select count(*) from public.audit_logs where entity_type = 'document_rh' and action = 'view' and entity_id = d_res) = d_avant + 1 then
+        v_lines := v_lines || 'OK      rh    0301 : la RH voit les documents restreints et le suivi de santé, chaque consultation est journalisée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   rh    0301 : documents restreints pour la RH (' || d_n || ', ' || d_m || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      d_ok := false;
+      begin
+        insert into public.hr_medical_followups (company_id, person_id, visit_type, visit_on, accommodation)
+        values (d_co, d_p, 'periodique', current_date, repeat('x', 301));
+      exception when check_violation then d_ok := true; end;
+      d_ok2 := false;
+      begin
+        insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+        values (d_co, d_p, 'bulletin', 'normal', 'Bulletin mal rangé', d_co || '/' || d_p || '/b2.pdf');
+      exception when check_violation then d_ok2 := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if d_ok and d_ok2 then
+        v_lines := v_lines || 'OK      rh    0301 : aménagement limité à un texte court, bulletin toujours « privé »'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   rh    0301 : garde-fous des documents et du suivi'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      d_n := (select count(*) from public.hr_documents) + (select count(*) from public.hr_qualifications) + (select count(*) from public.hr_medical_followups);
+      d_ok := false;
+      begin perform public.hr_document_ouvrir(d_norm); exception when insufficient_privilege then d_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if d_n = 0 and d_ok then
+        v_lines := v_lines || 'OK      com   0301 : le commercial ne voit aucun document, habilitation ni suivi du personnel'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0301 : documents cachés au commercial'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0301 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

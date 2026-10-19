@@ -1,5 +1,6 @@
 // Module RH, socle (chantier 12, 0290) : annuaire, fiche du personnel (identité, contrats, rémunération journalisée),
-// équipes et horaires de référence. Chaque partie n'apparaît que si la base la permet (droits rh.*).
+// équipes et horaires de référence ; habilitations, santé au travail administrative et documents (0301). Chaque partie
+// n'apparaît que si la base la permet (droits rh.*).
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -21,6 +22,7 @@ import {
 } from '../lib/rhData'
 import Absences, { DemandeSheet } from './Absences'
 import Heures from './Heures'
+import { DocumentsFiche, HabilitationsFiche, SanteFiche } from './DocumentsSante'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const euros = (n) => Number(n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -323,8 +325,9 @@ function SoldesFiche({ personId, peutGerer }) {
   )
 }
 
-function FichePersonne({ peutGerer, peutSalaires }) {
+function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
   const { id } = useParams()
+  const { user } = useAuthStore()
   const navigate = useNavigate()
   const [p, setP] = useState(undefined)
   const [contrats, setContrats] = useState([])
@@ -405,6 +408,10 @@ function FichePersonne({ peutGerer, peutSalaires }) {
       </section>
 
       <SoldesFiche personId={p.id} peutGerer={peutGerer} />
+
+      <HabilitationsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
+      <SanteFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer && peutRestreints} />
+      <DocumentsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} peutRestreints={peutRestreints} estMoi={!!user?.id && p.profile_id === user.id} />
 
       {edition && <FichePersonneSheet personne={p} onClose={() => setEdition(false)} onSaved={() => { setEdition(false); charger() }} />}
       {contratEdite && <ContratSheet personId={p.id} contrat={contratEdite.id ? contratEdite : null} onClose={() => setContratEdite(null)} onSaved={() => { setContratEdite(null); charger() }} />}
@@ -518,6 +525,7 @@ export default function Personnel() {
   const peutConfigurer = can('rh.parametres.gerer') === true
   const peutValider = can('rh.absences.valider') === true
   const peutVoirTout = can('rh.dossiers.voir') === true
+  const peutRestreints = can('rh.documents.restreints') === true
   const chemin = location.pathname.replace(/^\/collaborateurs\/?/, '').split('/')[0]
   const ONGLETS = ['absences', 'heures', 'equipes', 'horaires']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
@@ -538,7 +546,7 @@ export default function Personnel() {
         <Route path="heures" element={<Heures peutValider={can('rh.heures.valider') === true} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
         <Route path="horaires" element={<Horaires peutConfigurer={peutConfigurer} />} />
-        <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} />} />
+        <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} peutRestreints={peutRestreints} />} />
       </Routes>
     </div>
   )
