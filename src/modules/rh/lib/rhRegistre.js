@@ -59,7 +59,7 @@ export function lignesRegistre(rows) {
   })
 }
 
-export async function telechargerRegistrePDF(rows) {
+export async function telechargerRegistrePDF(rows, { enregistrer = true } = {}) {
   const ORG = await loadPdfOrg(true)
   const doc = new jsPDF({ orientation: 'landscape', compress: true })
   const f = startDocument(doc, ORG, {
@@ -80,7 +80,8 @@ export async function telechargerRegistrePDF(rows) {
   f.note('Les mentions sont tenues de façon indélébile et conservées 5 ans à compter du départ du salarié. Registre établi à partir des fiches du personnel et des contrats enregistrés dans GLD Solutions.')
   f.finish()
   numberPages(doc, ORG)
-  doc.save(`registre-unique-du-personnel-${new Date().toISOString().slice(0, 10)}.pdf`)
+  if (enregistrer) doc.save(`registre-unique-du-personnel-${new Date().toISOString().slice(0, 10)}.pdf`)
+  return doc
 }
 
 // ─── Éléments variables du mois ───
