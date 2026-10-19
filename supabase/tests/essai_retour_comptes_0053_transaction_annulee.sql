@@ -58,9 +58,10 @@ create temp table etat_essai_avant as select * from etat_essai;
 -- dès qu'un prénom ou un nom est renseigné, display_name = « Prénom Nom » (nom en majuscules ramené en casse
 -- normale : « POUPARD » donne « Poupard »). Sans prénom ni nom, display_name reste tel quel (comptes d'essai,
 -- comptes créés avec une adresse seule).
--- Rattrapage : comptes actifs seulement (les comptes d'essai désactivés ne sont pas touchés).
+-- Aucune donnée modifiée ici (retour arrière sans écart) : le rattrapage des comptes actifs se fait après
+-- l'application, par une mise à jour de leurs prénom et nom (le déclencheur recalcule le nom affiché).
 -- Aucune table nouvelle. Migration additive. Idempotente.
--- Retour arrière : supabase/rollback/0053_nom_affiche_calcule_retour.sql (les noms affichés recalculés restent).
+-- Retour arrière : supabase/rollback/0053_nom_affiche_calcule_retour.sql
 
 create or replace function app.nom_affiche(p_prenom text, p_nom text)
 returns text
@@ -92,12 +93,6 @@ drop trigger if exists profiles_nom_affiche on public.profiles;
 create trigger profiles_nom_affiche
   before insert or update of first_name, last_name, display_name on public.profiles
   for each row execute function app.profiles_nom_affiche();
-
-update public.profiles p
-   set display_name = app.nom_affiche(p.first_name, p.last_name)
- where p.is_active
-   and app.nom_affiche(p.first_name, p.last_name) is not null
-   and p.display_name is distinct from app.nom_affiche(p.first_name, p.last_name);
 
 insert into public.schema_migrations (version) values ('0053_nom_affiche_calcule') on conflict (version) do nothing;
 
