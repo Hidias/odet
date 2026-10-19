@@ -913,6 +913,17 @@ tdx('0301', 'hr_medical_followups', sel=f"({_RH_RES} or {_RH_MOI})", ins=_RH_SAN
 # Chantier 12, RH jours fériés (0311) : lus avec « Voir le personnel », réglés avec « Configurer les RH ».
 tdx('0311', 'hr_public_holidays', sel=_RH_VOIR, ins=_RH_PAR, upd=_RH_PAR, dele=_RH_PAR)
 
+# Chantier 12, RH validation par le responsable d'équipe (0312) : le responsable (contrat ou équipe) lit les demandes,
+# soldes, heures et semaines de son équipe et les valide dans le circuit commun, quel que soit son profil. Ces lignes
+# remplacent celles de 0294 et 0297 pour les mêmes tables (build_suite('0312') pose les règles complètes).
+_RH_EQ = "person_id in (select app.hr_mon_equipe())"
+tdx('0312', 'hr_absence_requests', sel=f"({_RH_DOS} or {_RH_VAL} or person_id in (select app.hr_mes_personnes()) or {_RH_EQ})")
+tdx('0312', 'hr_leave_ledger', sel=f"({_RH_DOS} or {_RH_VAL} or person_id in (select app.hr_mes_personnes()) or {_RH_EQ})",
+    ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
+tdx('0312', 'hr_time_entries', sel=f"({_RH_DOS} or {_RH_HVAL} or person_id in (select app.hr_mes_personnes()) or {_RH_EQ})",
+    ins=f"({_RH_HSAI} or {_RH_GER})", upd=f"({_RH_HSAI} or {_RH_GER})", dele=f"({_RH_HSAI} or {_RH_GER})")
+tdx('0312', 'hr_timesheets', sel=f"({_RH_DOS} or {_RH_HVAL} or person_id in (select app.hr_mes_personnes()) or {_RH_EQ})")
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}
