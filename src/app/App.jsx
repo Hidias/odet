@@ -48,6 +48,7 @@ const Conformite = lazy(() => import('../modules/conformite/pages/Conformite'))
 const Personnel = lazy(() => import('../modules/rh/pages/Personnel'))
 const Stock = lazy(() => import('../modules/stock/pages/Stock'))
 const Emprunts = lazy(() => import('../modules/manager/pages/Emprunts'))
+const Vehicules = lazy(() => import('../modules/vehicules/pages/Vehicules'))
 const RetoursSuivi = lazy(() => import('../core/feedback/RetoursSuivi'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
@@ -348,6 +349,7 @@ export default function App() {
             <Route path="collaborateurs/*" element={<Personnel />} />
             <Route path="stock/*" element={<Stock />} />
             <Route path="emprunts" element={<Emprunts />} />
+            <Route path="vehicules/*" element={<Vehicules />} />
             <Route path="retours" element={<RetoursSuivi />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />

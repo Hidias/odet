@@ -3,7 +3,7 @@ import {
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
   MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
-  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint, Package, Landmark,
+  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint, Package, Landmark, Car,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -161,6 +161,17 @@ export const NAV_SECTIONS = [
     icon: Package,
     items: [
       { simple: true, to: '/stock', right: ['stock.voir', 'stock.sien.mouvementer'], icon: Package, label: 'Stock', roles: [...STAFF, 'membre'] },
+    ],
+  },
+  {
+    // Module Véhicules (0320) : parc, conducteurs, échéances, pleins, entretiens. Coupé tant que la société ne l'a pas
+    // activé ; le conducteur n'a que « Mon véhicule », la direction et les gestionnaires voient le parc.
+    id: 'vehicules',
+    module: 'vehicules',
+    label: 'Véhicules',
+    icon: Car,
+    items: [
+      { simple: true, to: '/vehicules', right: ['vehicules.parc.voir', 'vehicules.siens.utiliser', 'vehicules.couts.voir'], icon: Car, label: 'Véhicules', roles: [...ALL_ROLES, 'membre'] },
     ],
   },
   {
