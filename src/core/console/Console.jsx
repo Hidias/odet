@@ -27,7 +27,7 @@ const BUNDLED_MIGRATIONS = Object.keys(MIGRATION_FILES)
 
 const CRONS = [
   { path: '/api/sync-sent-emails', schedule: 'Toutes les 30 min, 6h à 18h, lundi à vendredi', label: 'Synchronisation des emails envoyés' },
-  { path: '/api/sync-google-calendar', schedule: 'Toutes les 2 h, 6h à 18h, lundi à samedi', label: 'Synchronisation Google Agenda' },
+  { path: '/api/sync-google-calendar', schedule: 'Coupée le 19/10/2026 (aucune clé Google configurée) : à remettre dans vercel.json avec GOOGLE_SERVICE_ACCOUNT_KEY', label: 'Synchronisation Google Agenda' },
   { path: '/api/mailing-cron', schedule: 'Selon les campagnes', label: 'Envoi des campagnes email' },
   { path: '/api/mailing-replies-cron', schedule: 'Tous les jours à 5h', label: 'Réponses aux campagnes' },
   { path: '/api/social/cron-publish', schedule: 'Toutes les 5 min', label: 'Publication des posts programmés' },
