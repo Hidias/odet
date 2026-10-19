@@ -1,5 +1,6 @@
 // Module Certification : déclaration d'activité (NDA), cycle Qualiopi, indicateurs du référentiel,
-// méthode de calcul des résultats, dossier d'audit. Module activable (org_modules, clé « certification »).
+// méthode de calcul des résultats, dossier d'audit, toutes les certifications de la société (APSAD…) et, pour la
+// direction, la face interne « erreurs à éviter ». Module activable (org_modules, clé « certification »).
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Routes, Route, NavLink, Navigate, Link } from 'react-router-dom'
@@ -14,6 +15,8 @@ import CertQualiopi from './CertQualiopi'
 import CertIndicateurs from './CertIndicateurs'
 import CertMethode from './CertMethode'
 import CertDossier from './CertDossier'
+import CertSociete from './CertSociete'
+import CertInterne from './CertInterne'
 
 const TABS = [
   { to: '', label: 'Accueil', end: true },
@@ -22,12 +25,15 @@ const TABS = [
   { to: 'indicateurs', label: 'Indicateurs' },
   { to: 'methode', label: 'Méthode de calcul' },
   { to: 'dossier', label: 'Dossier d\'audit' },
+  { to: 'certifications', label: 'Toutes les certifications' },
 ]
+// Face interne (conseil de direction) : onglet visible seulement avec le droit du cockpit ; la base refuse sinon
+const TAB_INTERNE = { to: 'interne', label: 'Erreurs à éviter' }
 
 export const WRITE_ROLES = ['superadmin', 'admin', 'direction', 'gestionnaire']
 
 export default function Certification() {
-  const { modules, userRole } = useAuthStore()
+  const { modules, userRole, can } = useAuthStore()
   const { organization, fetchOrganization, updateOrganization } = useDataStore()
   const [settings, setSettings] = useState(null)
   const [deadlines, setDeadlines] = useState([])
@@ -37,6 +43,8 @@ export default function Certification() {
   const [error, setError] = useState(null)
   const enabled = (modules || []).includes('certification')
   const canWrite = WRITE_ROLES.includes(userRole)
+  const voitInterne = can?.('manager.cockpit.voir') === true
+  const onglets = voitInterne ? [...TABS, TAB_INTERNE] : TABS
 
   const reloadSettings = useCallback(async () => {
     try {
@@ -94,7 +102,7 @@ export default function Certification() {
         <h1 className="page-title">Certification</h1>
       </div>
       <nav className="tabs" aria-label="Rubriques de la certification">
-        {TABS.map((t) => (
+        {onglets.map((t) => (
           <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tab ${isActive ? 'tab-active' : ''}`}>{t.label}</NavLink>
         ))}
       </nav>
@@ -106,6 +114,8 @@ export default function Certification() {
         <Route path="indicateurs/:num" element={<CertIndicateurs {...ctx} />} />
         <Route path="methode" element={<CertMethode {...ctx} />} />
         <Route path="dossier" element={<CertDossier {...ctx} />} />
+        <Route path="certifications" element={<CertSociete {...ctx} />} />
+        {voitInterne && <Route path="interne" element={<CertInterne />} />}
         <Route path="*" element={<Navigate to="" replace />} />
       </Routes>
     </div>

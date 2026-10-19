@@ -848,6 +848,13 @@ _DEV_MOD = f"company_id in {societes('commercial.devis.modifier')}"
 tdx('0380', 'commercial_lists', sel=_CLI_VOIR, ins=_DEV_MOD, upd=_DEV_MOD, dele=_DEV_MOD)
 tdx('0380', 'opportunities', sel=_DEV_VOIR, ins=_DEV_MOD, upd=_DEV_MOD, dele=_DEV_MOD)
 tdx('0380', 'activity_targets', sel=_CLI_VOIR, ins=_DEV_MOD, upd=_DEV_MOD, dele=_DEV_MOD)
+# Chantier F, certifications (0350) : certifications de la société tenues avec la certification ; face interne
+# « erreurs à éviter » (conseil) réservée à la direction (droit du cockpit : super administrateur, administrateur,
+# direction), jamais lue par un export, un PDF ni un portail.
+_CERT = f"company_id in {societes('qualite.certification.gerer')}"
+tdx('0350', 'cert_company_certifications', sel=_CERT, ins=_CERT, upd=_CERT, dele=_CERT)
+_COCKPIT = f"company_id in {societes('manager.cockpit.voir')}"
+tdx('0350', 'cert_pitfalls', sel=_COCKPIT, ins=_COCKPIT, upd=_COCKPIT, dele=_COCKPIT)
 
 
 def build_suite(migration):

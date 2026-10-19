@@ -3079,6 +3079,92 @@ begin
     end;
   end if;
 
+  -- Chantier F, certifications (0350) : face interne réservée à la direction, référentiel d'une société isolé,
+  -- garde des documents réservés aux certifiés
+  if to_regclass('public.cert_pitfalls') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 7;
+    declare
+      k_co uuid := app.company_default(); k_autre uuid; k_n int; k_m int; k_ok boolean; k_code text;
+    begin
+      if (select count(*) from public.cert_pitfalls where company_id = k_co and domaine = 'apsad') >= 14
+         and (select count(*) from public.cert_pitfalls where company_id = k_co and domaine = 'qualiopi') >= 15
+         and (select count(*) from public.cert_pitfalls where company_id = k_co and domaine = 'nda') >= 8
+         and not exists (select 1 from public.cert_pitfalls where company_id = k_co and statut <> 'a_confirmer')
+         and not exists (select 1 from public.cert_criteria where referential_code = 'apsad-i4nf285') then
+        v_lines := v_lines || 'OK      base  0350 : erreurs à éviter posées (à confirmer), squelette APSAD sans exigence'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0350 : liste de départ des erreurs à éviter'::text; end if;
+
+      insert into public.companies (legal_name) values ('Essai société certification') returning id into k_autre;
+      insert into public.cert_referentials (code, label, kind, text_source, company_id)
+      values ('essai-ref-autre', 'Référentiel interne d''une autre société', 'interne', 'societe', k_autre);
+      insert into public.cert_criteria (referential_code, number, title) values ('essai-ref-autre', 1, 'Chapitre d''essai');
+      if exists (select 1 from public.cert_pitfalls where company_id = k_autre and code = 'A0') then
+        v_lines := v_lines || 'OK      base  0350 : une nouvelle société reçoit sa liste d''erreurs à éviter'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0350 : liste de départ d''une nouvelle société'::text; end if;
+
+      if not app.cert_valid(k_co, 'apsad-i4nf285') then
+        insert into public.cert_company_certifications (company_id, referential_code, statut, valable_jusqu_au)
+        values (k_co, 'apsad-i4nf285', 'obtenue', current_date - 1)
+        on conflict (company_id, referential_code) do update set statut = 'obtenue', valable_jusqu_au = current_date - 1;
+        k_ok := not app.cert_valid(k_co, 'apsad-i4nf285');
+        update public.cert_company_certifications set valable_jusqu_au = current_date + 365 where company_id = k_co and referential_code = 'apsad-i4nf285';
+        if k_ok and app.cert_valid(k_co, 'apsad-i4nf285') and not app.cert_valid(k_autre, 'apsad-i4nf285') then
+          v_lines := v_lines || 'OK      base  0350 : documents réservés aux certifiés : certification obtenue et en cours de validité seulement'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0350 : garde app.cert_valid'::text; end if;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0350 : APSAD déjà valide avant l''essai'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_n := (select count(*) from public.cert_pitfalls);
+      k_m := (select count(*) from public.cert_company_certifications where referential_code = 'apsad-i4nf285');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if k_n = 0 and k_m = 1 then
+        v_lines := v_lines || 'OK      ges   0350 : le gestionnaire tient les certifications sans voir la face interne'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0350 : face interne cachée au gestionnaire'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_code := public.cert_importer_texte('apsad-i4nf285', '[{"chapitre": 1, "chapitre_titre": "Organisation", "code": "1.1", "titre": "Contrat", "texte": "Texte d''essai A"}, {"chapitre": 2, "code": "2.1", "texte": "Texte d''essai B"}]'::jsonb);
+      k_n := (select count(*) from public.cert_indicators where referential_code = k_code);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_ok := false;
+      begin perform public.cert_importer_texte('apsad-i4nf285', '[{"chapitre": 1, "texte": "x"}]'::jsonb); exception when insufficient_privilege or no_data_found then k_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if k_n = 2 and k_ok and (select company_id = k_co and text_source = 'societe' from public.cert_referentials where code = k_code)
+         and not exists (select 1 from public.cert_criteria where referential_code = 'apsad-i4nf285') then
+        v_lines := v_lines || 'OK      ges   0350 : texte APSAD importé dans une copie propre à la société (refusé au commercial)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0350 : import du texte d''un référentiel'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_n := (select count(*) from public.cert_pitfalls) + (select count(*) from public.cert_company_certifications);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if k_n = 0 then
+        v_lines := v_lines || 'OK      com   0350 : le commercial ne lit ni certifications ni face interne'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0350 : certifications cachées au commercial'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_n := (select count(*) from public.cert_pitfalls where company_id = k_co);
+      k_m := (select count(*) from public.cert_pitfalls where company_id = k_autre)
+           + (select count(*) from public.cert_referentials where code = 'essai-ref-autre')
+           + (select count(*) from public.cert_criteria where referential_code = 'essai-ref-autre');
+      k_ok := (select count(*) from public.cert_referentials where code in ('rnq-2026', 'apsad-i4nf285')) = 2;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if k_n >= 37 and k_m = 0 and k_ok then
+        v_lines := v_lines || 'OK      dir   0350 : la direction lit sa face interne et les référentiels communs, rien d''une autre société'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0350 : face interne et isolement des référentiels'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
