@@ -3554,6 +3554,49 @@ begin
     end;
   end if;
 
+  -- RH, suppression d'une fiche (0302) : deux fiches dont l'une est responsable de l'autre, avec document joint à
+  -- une habilitation et une semaine validée, se suppriment ensemble ; un contrat reste refusé dans une autre société
+  if to_regprocedure('app.hr_ds_garde()') is not null
+     and exists (select 1 from public.schema_migrations where version = '0302_rh_suppression_fiche') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare
+      s_co uuid := app.company_default(); s_a uuid; s_b uuid; s_doc uuid; s_ok boolean := false; s_autre uuid;
+    begin
+      insert into public.hr_people (company_id, first_name, last_name) values (s_co, 'Chef', 'Essai0302') returning id into s_a;
+      insert into public.hr_people (company_id, first_name, last_name) values (s_co, 'Equipier', 'Essai0302') returning id into s_b;
+      insert into public.hr_employments (company_id, person_id, start_on, manager_person_id) values (s_co, s_b, current_date - 30, s_a);
+      insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (s_co, s_a, 'titre', 'normal', 'Titre essai', s_co || '/' || s_a || '/titre.pdf') returning id into s_doc;
+      insert into public.hr_qualifications (company_id, person_id, kind, label, document_id) values (s_co, s_a, 'sst', 'SST essai', s_doc);
+      insert into public.hr_time_entries (company_id, person_id, work_date, start_time, end_time) values (s_co, s_b, (date_trunc('week', current_date) - interval '7 days')::date, '08:00', '12:00');
+      insert into public.hr_timesheets (company_id, person_id, week_start, status) values (s_co, s_b, (date_trunc('week', current_date) - interval '7 days')::date, 'validee');
+      delete from public.hr_people where id in (s_a, s_b);
+      if not exists (select 1 from public.hr_people where id in (s_a, s_b))
+         and not exists (select 1 from public.hr_time_entries where person_id = s_b) then
+        v_lines := v_lines || 'OK      base  0302 : deux fiches liées (responsable, document joint, semaine validée) se suppriment ensemble'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0302 : suppression de fiches liées'::text; end if;
+
+      select id into s_autre from public.companies where id <> s_co limit 1;
+      insert into public.hr_people (company_id, first_name, last_name) values (s_co, 'Seul', 'Essai0302') returning id into s_a;
+      if s_autre is null then
+        s_ok := true;
+      else
+        begin insert into public.hr_employments (company_id, person_id, start_on) values (s_autre, s_a, current_date);
+        exception when check_violation then s_ok := true; end;
+      end if;
+      delete from public.hr_people where id = s_a;
+      if s_ok then
+        v_lines := v_lines || 'OK      base  0302 : un contrat dans une autre société que la personne reste refusé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0302 : contrôle de société du contrat'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0302 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
