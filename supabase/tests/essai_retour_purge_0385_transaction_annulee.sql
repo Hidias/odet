@@ -81,7 +81,7 @@ as $$
 $$;
 
 -- Verrous levés (false) ou remis (true) le temps de la purge : documents émis, lignes de facture, liens d'acompte,
--- visites terminées, mouvements de stock. Seul le propriétaire des tables (fonctions de la base) peut le faire.
+-- visites terminées, commandes, personnel, véhicules, emprunts (gardes des lignes rattachées). Seul le propriétaire des tables (fonctions de la base) peut le faire.
 create or replace function app.demo_verrous(p_actifs boolean)
 returns void
 language plpgsql
@@ -95,7 +95,17 @@ begin
       ('invoices', 'invoices_verrou'), ('invoices', 'invoices_verrou_creation'), ('invoices', 'invoices_verrou_rib_demo'),
       ('invoice_items', 'invoice_items_verrou'), ('invoice_deposit_links', 'invoice_deposit_links_verrou'),
       ('itv_visits', 'itv_visits_figee'), ('itv_visits', 'itv_visite_cloture_garde'), ('itv_visit_items', 'itv_visit_items_figee'),
-      ('itv_visit_parts', 'itv_visit_parts_figee')) as v(t, g)
+      ('itv_visit_parts', 'itv_visit_parts_figee'), ('invoices', 'invoices_siret_garde'), ('clients', 'clients_siret_garde'),
+      ('invoice_payments', 'invoice_payments_particulier'), ('purchase_orders', 'purchase_orders_garde'),
+      ('purchase_order_lines', 'purchase_order_lines_garde'), ('stock_serials', 'stock_serials_garde'),
+      ('stock_item_costs', 'stock_item_costs_garde'), ('scheduled_actions', 'scheduled_actions_session_garde'),
+      ('hr_checklists', 'hr_checklists_garde'), ('hr_documents', 'hr_documents_garde'),
+      ('hr_medical_followups', 'hr_medical_followups_garde'), ('hr_qualifications', 'hr_qualifications_garde'),
+      ('hr_reviews', 'hr_reviews_garde'), ('hr_time_entries', 'hr_time_entries_garde'),
+      ('loan_events', 'loan_events_garde'), ('loan_schedule_lines', 'loan_schedule_lines_garde'),
+      ('vehicle_assignments', 'vehicle_assignments_garde'), ('vehicle_events', 'vehicle_events_garde'),
+      ('vehicle_fuel', 'vehicle_fuel_garde'), ('vehicle_maintenance_rules', 'vehicle_maintenance_rules_garde'),
+      ('vehicle_odometer', 'vehicle_odometer_garde'), ('vehicles', 'vehicles_garde')) as v(t, g)
   loop
     if exists (select 1 from pg_trigger tg where tg.tgrelid = to_regclass('public.' || r.t) and tg.tgname = r.g and not tg.tgisinternal) then
       execute format('alter table public.%I %s trigger %I', r.t, case when p_actifs then 'enable' else 'disable' end, r.g);
