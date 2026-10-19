@@ -193,6 +193,8 @@ ORDRE_PROD = (
     + ['0315']
     # Module Stock, socle, 19/10
     + ['0240']
+    # Stock, commandes, 19/10
+    + ['0245']
 )
 
 

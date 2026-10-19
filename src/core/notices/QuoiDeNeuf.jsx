@@ -55,7 +55,7 @@ export default function QuoiDeNeuf() {
   }
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4 max-w-3xl mx-auto w-full">
       <PageHeader
         title="Quoi de neuf"
         meta={<span>Les changements de l'application, expliqués simplement.</span>}
@@ -81,7 +81,7 @@ export default function QuoiDeNeuf() {
                     <h3 className="section-title">{it.title || 'Mise à jour'}</h3>
                     {it.published_at && (
                       <time dateTime={it.published_at} className="text-ui-sm text-gray-500">
-                        {format(new Date(it.published_at), 'd MMMM yyyy', { locale: fr })}
+                        {format(new Date(it.published_at), "d MMMM yyyy 'à' HH'h'mm", { locale: fr })}
                       </time>
                     )}
                   </div>
