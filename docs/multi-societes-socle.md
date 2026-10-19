@@ -51,3 +51,34 @@ Toute table créée après 0273 naît avec une colonne `company_id` (contrôlé 
 6. Rejouer `supabase/tests/droits_chantier2.sql` : attendu « 0 échec(s) ».
 7. En cas de problème : `supabase/rollback/0270-0273_societes_retour.sql` (le code de l'application reste compatible
    avec une base sans socle : la trace s'arrête d'elle-même si `support_trace` n'existe pas).
+
+## Rattachement des données existantes (chantier C2, migrations 0274 et 0275)
+
+Générées par `scripts/securite/societes_c2.py` (classes de la spec § 3, liste relue dans `odet-c1a-socle.md` § 6).
+
+- **0274** : `company_id` non nul, clé étrangère vers `companies`, index, sur 124 tables (classes A et B) et
+  `company_ids` (sociétés qui voient la fiche) sur 30 tables partageables (classe C). Lignes existantes rattachées à la
+  société qui porte l'instance. Défaut d'une création : `app.company_default()` (société courante, sinon société n° 1
+  pour les tâches et les portails). Lignes filles : société recopiée du parent par déclencheur (`app.societe_du_parent`),
+  le parent fait foi. Fiches partageables : la société d'origine figure toujours dans `company_ids`.
+  L'ajout de colonne avec valeur par défaut remplit les lignes sans passer par les déclencheurs (verrou des factures
+  émises intact).
+- **0275** : quatre règles **restrictives** par table, ajoutées aux règles du chantier 2 et de C1b (qui décident
+  toujours qui voit quoi) : lecture des sociétés lisibles (`app.societes_lisibles()` : appartenances ; super
+  administrateur : sociétés ouvertes au support ; comptes externes : toutes, leurs règles propres les limitant à leurs
+  objets), écriture dans la société courante (`app.societes_ecriture()`). Les tables du serveur seul (aucune règle pour
+  les comptes) restent fermées sans règle ajoutée.
+- Avec une seule société, aucun accès ne change. Tests : bloc C2 de `droits_chantier2.sql` (isolement entre deux
+  sociétés, création rattachée à la société courante, création forcée ailleurs refusée, ligne fille, fiche partagée,
+  super administrateur sans support, compte externe).
+- Retour arrière : `supabase/rollback/0274-0275_societes_retour.sql` (refusé s'il existe plus d'une société).
+- **0276** (généré par `scripts/securite/societes_c2_fonctions.py` à partir des définitions de production) : les
+  fonctions `security definer` qui traitent un objet (facture, devis, visite, stagiaire, client, fichier du Passeport)
+  vérifient sa société (`app.exiger_societe`) ; `app.can_read_session`, `app.can_edit_session` et
+  `app.itv_can_edit_visit_parts` (feuilles d'émargement, tests, pièces de visite, stockage) aussi ; les comptages et
+  listes (journal d'audit, handicap, PSH, tableau de bord des interventions, purge, Passeport) ne lisent que les
+  sociétés du compte ; alertes de complétude rattachées à la société de l'élément. Tâches du serveur non concernées.
+- Reste, traité avec C3 (visible seulement à partir de deux sociétés) : routes `/api` à clé de service (lecture de
+  l'objet sous la session de l'appelant avant traitement), numérotation des sessions et devis par société, identité des
+  PDF et emails par société, rangement des nouveaux fichiers par société, échéances de certification par société
+  (`cert_settings` est aujourd'hui une ligne unique).
