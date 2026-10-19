@@ -3891,6 +3891,75 @@ begin
     end;
   end if;
 
+  -- Stock, inventaires et numéros de série (0247) : le technicien compte son propre stock, ne valide pas ; la direction
+  -- valide, l'écart devient un ajustement et la quantité calculée suit le comptage ; un numéro de série suit ses
+  -- mouvements ; rien pour le commercial
+  if to_regprocedure('public.stock_inventaire_valider(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare
+      i_co uuid := app.company_default(); i_dep uuid; i_tech uuid; i_item uuid; i_ext uuid; i_inv uuid; i_n int; i_q numeric;
+      i_ok boolean := false; i_loc uuid; i_c int;
+    begin
+      insert into public.stock_locations (company_id, kind, name) values (i_co, 'depot', 'Dépôt essai 0247') returning id into i_dep;
+      insert into public.stock_locations (company_id, kind, name, profile_id) values (i_co, 'technicien', 'Stock essai 0247', u_tech)
+      on conflict (company_id, profile_id) where profile_id is not null and kind = 'technicien' do update set is_active = true returning id into i_tech;
+      insert into public.stock_items (company_id, label, reference) values (i_co, 'Joint essai 0247', 'ESSAI-0247') returning id into i_item;
+      insert into public.stock_items (company_id, label, reference, serialized, consumable) values (i_co, 'Extincteur essai 0247', 'ESSAI-0247-S', true, false) returning id into i_ext;
+      insert into public.stock_movements (company_id, kind, item_id, quantity, to_location_id) values (i_co, 'entree', i_item, 12, i_tech);
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      i_inv := public.stock_inventaire_ouvrir(i_tech, 'Essai');
+      perform public.stock_inventaire_compter(i_inv, i_item, 9);
+      begin perform public.stock_inventaire_valider(i_inv); exception when insufficient_privilege then i_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if i_ok and (select counted_qty from public.stock_count_lines where count_id = i_inv and item_id = i_item) = 9 then
+        v_lines := v_lines || 'OK      tech  0247 : le technicien compte son stock (9), ne valide pas l''inventaire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0247 : comptage du technicien (' || i_ok || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      i_n := public.stock_inventaire_valider(i_inv);
+      i_q := (select quantity from public.v_stock_levels where item_id = i_item and location_id = i_tech);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if i_n = 1 and i_q = 9 and (select expected_qty from public.stock_count_lines where count_id = i_inv and item_id = i_item) = 12
+         and (select status from public.stock_counts where id = i_inv) = 'validee' then
+        v_lines := v_lines || 'OK      dir   0247 : inventaire validé, écart de 3 passé en ajustement, quantité calculée à 9'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0247 : validation (' || coalesce(i_n, -1) || ', ' || coalesce(i_q, -1) || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.stock_mouvement('entree', i_ext, 1, null, i_dep, 'Réception', null, 'SN-0247-A');
+      perform public.stock_mouvement('transfert', i_ext, 1, i_dep, i_tech, null, null, 'SN-0247-A');
+      i_loc := (select location_id from public.stock_serials where item_id = i_ext and serial = 'SN-0247-A');
+      perform public.stock_mouvement('sortie', i_ext, 1, i_tech, null, 'Posé', null, 'SN-0247-A');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if i_loc = i_tech and (select status from public.stock_serials where item_id = i_ext and serial = 'SN-0247-A') = 'sorti' then
+        v_lines := v_lines || 'OK      base  0247 : le numéro de série suit ses mouvements (dépôt, technicien, sorti)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0247 : suivi du numéro de série'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      i_c := (select count(*) from public.stock_counts) + (select count(*) from public.stock_serials);
+      i_ok := false;
+      begin perform public.stock_inventaire_ouvrir(i_dep, null); exception when insufficient_privilege then i_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if i_c = 0 and i_ok then
+        v_lines := v_lines || 'OK      com   0247 : le commercial ne voit ni n''ouvre d''inventaire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   com   0247 : inventaires cachés au commercial (' || i_c || ', ' || i_ok || ')')::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0247 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

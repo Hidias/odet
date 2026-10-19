@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Search, Package, ArrowDownToLine, ArrowUpFromLine, Undo2, AlertTriangle, Truck, MapPin, History, ShoppingCart, Trash2, Check, X, Send, PackageCheck, Mail } from 'lucide-react'
+import { Plus, Pencil, Search, Package, ArrowDownToLine, ArrowUpFromLine, Undo2, AlertTriangle, Truck, MapPin, History, ShoppingCart, Trash2, Check, X, Send, PackageCheck, Mail, ClipboardCheck, Hash } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
@@ -21,6 +21,8 @@ import {
   STATUTS_COMMANDE, chargerCommandes, chargerLignesCommande, chargerReceptions, creerCommande, commandeDepuisAlertes,
   enregistrerLigne, supprimerLigne, modifierCommande, supprimerCommande, soumettreCommande, commandeEnvoyee, annulerCommande,
   deciderCommande, recevoirLigne,
+  chargerInventaires, chargerLignesInventaire, ouvrirInventaire, compterArticle, validerInventaire, annulerInventaire,
+  chargerSeries, enregistrerSerie,
 } from '../lib/stockData'
 
 const frDate = (d) => (d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
@@ -157,7 +159,7 @@ function ArticleSheet({ article, categories, fournisseurs, voirPrix, onClose, on
 
 function MouvementSheet({ article, emplacements, onClose, onSaved }) {
   const actifs = emplacements.filter((l) => l.is_active)
-  const [v, setV] = useState({ kind: 'entree', quantity: '', from: '', to: actifs.find((l) => l.kind === 'depot')?.id || '', note: '', unitCost: '', sens: 'plus' })
+  const [v, setV] = useState({ kind: 'entree', quantity: article.serialized ? '1' : '', from: '', to: actifs.find((l) => l.kind === 'depot')?.id || '', note: '', unitCost: '', sens: 'plus', serial: '' })
   const [busy, setBusy] = useState(false)
   const k = v.kind
   const besoinDe = ['sortie', 'perte', 'transfert', 'retour'].includes(k) || (k === 'ajustement' && v.sens === 'moins')
@@ -166,7 +168,7 @@ function MouvementSheet({ article, emplacements, onClose, onSaved }) {
     e.preventDefault()
     setBusy(true)
     try {
-      await mouvement({ kind: k, itemId: article.id, quantity: v.quantity, from: besoinDe ? v.from : null, to: besoinVers ? v.to : null, note: v.note, unitCost: k === 'entree' ? v.unitCost : null })
+      await mouvement({ kind: k, itemId: article.id, quantity: v.quantity, from: besoinDe ? v.from : null, to: besoinVers ? v.to : null, note: v.note, unitCost: k === 'entree' ? v.unitCost : null, serial: article.serialized ? v.serial : null })
       toast.success('Mouvement enregistré')
       onSaved()
     } catch (err) { toast.error(err.message) }
@@ -196,6 +198,7 @@ function MouvementSheet({ article, emplacements, onClose, onSaved }) {
           <Champ label={`Quantité (${article.unit})`}><input className="input" inputMode="decimal" required value={v.quantity} onChange={(e) => setV({ ...v, quantity: e.target.value })} /></Champ>
           {k === 'entree' && <Champ label="Prix d'achat unitaire HT" aide="Sert à la valeur du stock (coût moyen)"><input className="input" inputMode="decimal" value={v.unitCost} onChange={(e) => setV({ ...v, unitCost: e.target.value })} /></Champ>}
         </div>
+        {article.serialized && <Champ label="Numéro de série" aide="Un numéro par mouvement : l'emplacement du numéro suit ses mouvements"><input className="input" required value={v.serial} onChange={(e) => setV({ ...v, serial: e.target.value })} /></Champ>}
         <Champ label="Note"><input className="input" value={v.note} onChange={(e) => setV({ ...v, note: e.target.value })} placeholder="Bon de livraison, chantier…" /></Champ>
         <p className="text-ui-sm muted">Un mouvement ne se modifie pas : une erreur se corrige par un mouvement inverse.</p>
       </form>
@@ -243,6 +246,7 @@ function DetailArticle({ article, emplacements, niveaux, seuils, peutGerer, onCl
             })}
           </ul>
         </section>
+        {article.serialized && <SeriesArticle article={article} peutGerer={peutGerer} />}
         <section className="space-y-2">
           <h3 className="font-semibold text-ui flex items-center gap-2"><History className="w-4 h-4 text-gray-400" aria-hidden="true" />Derniers mouvements</h3>
           {hist === null ? <Spinner /> : hist.length === 0 ? <p className="text-ui-sm muted">Aucun mouvement.</p> : (
@@ -381,6 +385,169 @@ function Alertes({ peutCommander = false, onCommande = null }) {
           </ul>
         </section>
       ))}
+    </div>
+  )
+}
+
+const STATUTS_SERIE = { en_stock: 'En stock', sorti: 'Sorti', pose: 'Posé chez un client', rebut: 'Rebut' }
+
+function SeriesArticle({ article, peutGerer }) {
+  const [liste, setListe] = useState(null)
+  const [edite, setEdite] = useState(null)
+  const charger = useCallback(() => { chargerSeries(article.id).then(setListe).catch(() => setListe([])) }, [article.id])
+  useEffect(() => { charger() }, [charger])
+  const enregistrer = async (e) => {
+    e.preventDefault()
+    try { await enregistrerSerie({ id: edite.id, warranty_until: edite.warranty_until || null, purchased_on: edite.purchased_on || null, note: edite.note || '', status: edite.status }); setEdite(null); charger() } catch (err) { toast.error(err.message) }
+  }
+  return (
+    <section className="space-y-2">
+      <h3 className="font-semibold text-ui flex items-center gap-2"><Hash className="w-4 h-4 text-gray-400" aria-hidden="true" />Numéros de série</h3>
+      {liste === null ? <Spinner /> : liste.length === 0 ? <p className="text-ui-sm muted">Aucun numéro : ils s'enregistrent avec les mouvements (champ « Numéro de série »).</p> : (
+        <ul className="divide-y divide-gray-100 text-ui">
+          {liste.map((x) => {
+            const garantieFinie = x.warranty_until && new Date(x.warranty_until) < new Date()
+            return (
+              <li key={x.id} className="py-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-semibold tabular-nums">{x.serial}</span>
+                <span className="text-ui-sm text-gray-600 flex-1 min-w-[8rem]">{STATUTS_SERIE[x.status]}{x.stock_locations?.name ? ` · ${x.stock_locations.name}` : ''}</span>
+                {x.warranty_until && <span className={`text-ui-sm ${garantieFinie ? 'text-[rgb(var(--c-danger))]' : 'text-gray-600'}`}>garantie {garantieFinie ? 'finie le' : 'jusqu\'au'} {new Date(x.warranty_until).toLocaleDateString('fr-FR')}</span>}
+                {peutGerer && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Modifier ${x.serial}`} onClick={() => setEdite({ ...x })}><Pencil className="w-4 h-4" /></button>}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {edite && (
+        <form onSubmit={enregistrer} className="card grid gap-2 sm:grid-cols-2">
+          <Champ label="Acheté le"><input className="input" type="date" value={edite.purchased_on || ''} onChange={(e) => setEdite({ ...edite, purchased_on: e.target.value })} /></Champ>
+          <Champ label="Garantie jusqu'au"><input className="input" type="date" value={edite.warranty_until || ''} onChange={(e) => setEdite({ ...edite, warranty_until: e.target.value })} /></Champ>
+          <Champ label="État"><select className="select" value={edite.status} onChange={(e) => setEdite({ ...edite, status: e.target.value })}>{Object.entries(STATUTS_SERIE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Champ>
+          <Champ label="Note"><input className="input" value={edite.note || ''} onChange={(e) => setEdite({ ...edite, note: e.target.value })} /></Champ>
+          <div className="flex gap-2 sm:col-span-2"><button type="submit" className="btn btn-primary btn-sm">Enregistrer</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdite(null)}>Annuler</button></div>
+        </form>
+      )}
+    </section>
+  )
+}
+
+// ─── Inventaires ───
+function InventaireDetail({ inventaire, peutValider, voirTout, onClose, onChange }) {
+  const [lignes, setLignes] = useState(null)
+  const [articles, setArticles] = useState([])
+  const [niveaux, setNiveaux] = useState(null)
+  const [saisie, setSaisie] = useState({})
+  const [ajout, setAjout] = useState('')
+  const [busy, setBusy] = useState(false)
+  const inv = inventaire
+  const ouvert = inv.status === 'en_cours'
+  const charger = useCallback(async () => {
+    try {
+      const [l, a] = await Promise.all([chargerLignesInventaire(inv.id), chargerArticlesTerrain()])
+      setLignes(l); setArticles(a)
+      if (voirTout) setNiveaux(indexerNiveaux(await chargerNiveaux()))
+    } catch (e) { toast.error(e.message); setLignes([]) }
+  }, [inv.id, voirTout])
+  useEffect(() => { charger() }, [charger])
+  const art = Object.fromEntries(articles.map((a) => [a.id, a]))
+  const compter = async (itemId, val) => {
+    try { await compterArticle(inv.id, itemId, val); await charger() } catch (e) { toast.error(e.message) }
+  }
+  const comptes = (lignes || []).filter((l) => l.counted_qty != null).length
+  return (
+    <Sheet title={`Inventaire : ${inv.stock_locations?.name || ''}`} onClose={onClose} size="lg">
+      <div className="space-y-3">
+        <p className="text-ui-sm text-gray-600">Ouvert le {new Date(inv.started_at).toLocaleDateString('fr-FR')}{inv.note ? ` · ${inv.note}` : ''} · {comptes} article{comptes > 1 ? 's' : ''} compté{comptes > 1 ? 's' : ''} sur {lignes?.length ?? 0}</p>
+        {ouvert && <p className="text-ui-sm muted">Comptez ce qui est vraiment là et notez la quantité. Un article non compté ne bouge pas.</p>}
+        {lignes === null ? <Spinner /> : (
+          <ul className="card card-flush divide-y divide-gray-100">
+            {lignes.map((l) => {
+              const calc = niveaux ? (niveaux.parCouple[`${l.item_id}:${inv.location_id}`] || 0) : null
+              const attendu = ouvert ? calc : l.expected_qty
+              const ecart = l.counted_qty != null && attendu != null ? Number(l.counted_qty) - Number(attendu) : null
+              return (
+                <li key={l.id} className="px-4 py-3 flex flex-wrap items-center gap-3">
+                  <span className="flex-1 min-w-[10rem]"><span className="block font-semibold text-ui">{art[l.item_id]?.label || 'Article'}</span>{art[l.item_id]?.reference && <span className="block text-ui-sm text-gray-500">{art[l.item_id].reference}</span>}</span>
+                  {attendu != null && <span className="text-ui-sm text-gray-600">calculé {qte(attendu)}</span>}
+                  {ouvert ? (
+                    <span className="flex items-center gap-1">
+                      <input className="input w-24 text-right" inputMode="decimal" aria-label={`Quantité comptée de ${art[l.item_id]?.label || 'l\'article'}`}
+                        value={saisie[l.item_id] ?? (l.counted_qty == null ? '' : qte(l.counted_qty))}
+                        onChange={(e) => setSaisie({ ...saisie, [l.item_id]: e.target.value })}
+                        onBlur={(e) => { const val = e.target.value.trim(); const avant = l.counted_qty == null ? '' : qte(l.counted_qty); if (val !== avant) compter(l.item_id, val) }} />
+                      <span className="text-ui-sm text-gray-500 w-12">{art[l.item_id]?.unit}</span>
+                    </span>
+                  ) : <span className="font-semibold tabular-nums">{l.counted_qty == null ? 'non compté' : qte(l.counted_qty)}</span>}
+                  {ecart != null && ecart !== 0 && <span className={`badge ${ecart < 0 ? 'badge-danger' : 'badge-warning'}`}>{ecart > 0 ? '+' : ''}{qte(ecart)}</span>}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        {ouvert && (
+          <div className="flex flex-wrap gap-2 items-end">
+            <Champ label="Article oublié" className="flex-1 min-w-[12rem]">
+              <select className="select" value={ajout} onChange={(e) => setAjout(e.target.value)}><option value="">Choisir…</option>{articles.filter((a) => !(lignes || []).some((l) => l.item_id === a.id)).map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select>
+            </Champ>
+            <button type="button" className="btn btn-secondary" disabled={!ajout} onClick={async () => { await compter(ajout, null); setAjout('') }}><Plus className="w-4 h-4" aria-hidden="true" />Ajouter</button>
+          </div>
+        )}
+        {ouvert && (
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+            {peutValider && <button type="button" className="btn btn-primary" disabled={busy || comptes === 0} onClick={async () => {
+              if (!(await confirmer('Valider l\'inventaire : chaque écart deviendra un ajustement de stock ?'))) return
+              setBusy(true)
+              try { const n = await validerInventaire(inv.id); toast.success(n ? `Inventaire validé : ${n} ajustement${n > 1 ? 's' : ''}` : 'Inventaire validé : aucun écart'); onChange(); onClose() } catch (e) { toast.error(e.message) }
+              setBusy(false)
+            }}><ClipboardCheck className="w-4 h-4" aria-hidden="true" />Valider l'inventaire</button>}
+            {!peutValider && <p className="text-ui-sm muted flex-1">Votre responsable valide l'inventaire quand le comptage est fini.</p>}
+            <button type="button" className="btn btn-ghost ml-auto" disabled={busy} onClick={async () => {
+              if (!(await confirmer('Abandonner cet inventaire ? Rien ne sera ajusté.'))) return
+              try { await annulerInventaire(inv.id); onChange(); onClose() } catch (e) { toast.error(e.message) }
+            }}>Abandonner</button>
+          </div>
+        )}
+      </div>
+    </Sheet>
+  )
+}
+
+function Inventaires({ peutValider, voirTout }) {
+  const [liste, setListe] = useState(null)
+  const [emplacements, setEmplacements] = useState([])
+  const [lieu, setLieu] = useState('')
+  const [detail, setDetail] = useState(null)
+  const charger = useCallback(async () => {
+    try {
+      const [i, l] = await Promise.all([chargerInventaires(), chargerEmplacements()])
+      const actifs = l.filter((x) => x.is_active)
+      setListe(i); setEmplacements(actifs); setLieu((v) => v || actifs[0]?.id || '')
+      return i
+    } catch (e) { toast.error(e.message); setListe([]); return [] }
+  }, [])
+  useEffect(() => { charger() }, [charger])
+  if (!liste) return <Spinner />
+  const ouvrir = async () => {
+    try { const id = await ouvrirInventaire(lieu); const i = await charger(); setDetail(i.find((x) => x.id === id) || null) } catch (e) { toast.error(e.message) }
+  }
+  const STATUTS = { en_cours: ['En cours', 'badge-warning'], validee: ['Validé', 'badge-success'], annulee: ['Abandonné', 'badge-neutral'] }
+  return (
+    <div className="space-y-3">
+      {emplacements.length > 0 && (
+        <div className="card flex flex-wrap gap-2 items-end">
+          <Champ label="Emplacement à compter" className="flex-1 min-w-[12rem]">
+            <select className="select" value={lieu} onChange={(e) => setLieu(e.target.value)}>{emplacements.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
+          </Champ>
+          <button type="button" className="btn btn-primary" disabled={!lieu} onClick={ouvrir}><ClipboardCheck className="w-4 h-4" aria-hidden="true" />Commencer l'inventaire</button>
+        </div>
+      )}
+      <DataTable rows={liste} onRowClick={setDetail} columns={[
+        { key: 'lieu', label: 'Emplacement', mobile: 'title', render: (i) => i.stock_locations?.name || '' },
+        { key: 'date', label: 'Ouvert le', mobile: 'subtitle', render: (i) => new Date(i.started_at).toLocaleDateString('fr-FR') },
+        { key: 'statut', label: 'Statut', mobile: 'aside', render: (i) => <span className={`badge ${STATUTS[i.status][1]}`}>{STATUTS[i.status][0]}</span> },
+        { key: 'valide', label: 'Validé le', render: (i) => (i.validated_at ? new Date(i.validated_at).toLocaleDateString('fr-FR') : '') },
+      ]} empty={<EmptyState icon={ClipboardCheck} title="Aucun inventaire" compact>Choisissez un emplacement et commencez : la liste des articles à compter se prépare toute seule.</EmptyState>} />
+      {detail && <InventaireDetail key={detail.id} inventaire={detail} peutValider={peutValider} voirTout={voirTout} onClose={() => setDetail(null)} onChange={charger} />}
     </div>
   )
 }
@@ -720,6 +887,7 @@ export default function Stock() {
     ...((sien || gerer) ? [{ id: 'mon-stock', label: 'Mon stock' }] : []),
     ...(voir ? [{ id: 'articles', label: 'Articles' }, { id: 'mouvements', label: 'Mouvements' }, { id: 'alertes', label: 'Alertes' }] : []),
     ...((preparer || valider || (voirPrix && voir)) ? [{ id: 'commandes', label: 'Commandes' }] : []),
+    ...((voir || sien) ? [{ id: 'inventaires', label: 'Inventaires' }] : []),
     ...(voir ? [{ id: 'emplacements', label: 'Emplacements' }, { id: 'fournisseurs', label: 'Fournisseurs' }] : []),
   ]
   const chemin = location.pathname.replace(/^\/stock\/?/, '').split('/')[0]
@@ -734,6 +902,7 @@ export default function Stock() {
       {onglet === 'mouvements' && <Journal />}
       {onglet === 'alertes' && <Alertes peutCommander={preparer} onCommande={(id) => { setOuvrir(id); navigate('/stock/commandes') }} />}
       {onglet === 'commandes' && <Commandes voirPrix={voirPrix} peutPreparer={preparer} peutValider={valider} ouvrir={ouvrir} onOuvert={ouvert} />}
+      {onglet === 'inventaires' && <Inventaires peutValider={can('stock.inventaires.valider') === true} voirTout={voir} />}
       {onglet === 'emplacements' && <Emplacements peutGerer={gerer} />}
       {onglet === 'fournisseurs' && <Fournisseurs peutGerer={gerer} />}
     </div>
