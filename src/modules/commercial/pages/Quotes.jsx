@@ -30,6 +30,7 @@ import { publishedDocPDF } from '../../qualite/richdocs/published'
 import AcompteDevis from '../components/AcompteDevis'
 
 import { confirmer } from '../../../ui/Confirm'
+import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 const STATUS_CONFIG = {
   draft: { label: 'Brouillon', class: 'bg-gray-100 text-gray-700', icon: '' },
   sent: { label: 'Envoyé', class: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', icon: '' },
@@ -1108,6 +1109,7 @@ export default function Quotes() {
                 <div key={q.id} className="flex items-center justify-between bg-white rounded-ui-sm px-3 py-2 border border-[rgb(var(--c-warning)/0.3)]">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-ui-sm font-mono text-gray-400">{q.reference}</span>
+                    <BadgeTest tbl="quotes" id={q.id} />
                     <span className="font-medium text-gray-900 text-ui truncate">{q.clients?.name || '?'}</span>
                     <span className="text-ui font-semibold text-gray-700">{money(q.total_ht)} HT</span>
                   </div>
@@ -1142,6 +1144,7 @@ export default function Quotes() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <span className="text-ui font-mono text-gray-500">{q.reference}</span>
+                      <BadgeTest tbl="quotes" id={q.id} />
                       <span className={`px-2 py-0.5 rounded text-ui-sm font-medium ${STATUS_CONFIG[q.status]?.class || 'bg-gray-100'}`}>
                         {STATUS_CONFIG[q.status]?.icon} {STATUS_CONFIG[q.status]?.label || q.status}
                       </span>
@@ -1264,6 +1267,7 @@ export default function Quotes() {
     const q = currentQuote
     return (
       <div className="p-6 max-w-5xl mx-auto">
+        <BandeauTest tbl="quotes" id={q.id} />
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <button onClick={() => setMode('list')} className="p-2 hover:bg-gray-100 rounded-ui-sm transition-colors">
@@ -1272,6 +1276,7 @@ export default function Quotes() {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-gray-900">Devis {q.reference}</h1>
+                <BadgeTest tbl="quotes" id={q.id} />
                 <span className={`px-2.5 py-1 rounded text-ui-sm font-medium ${st.class}`}>{st.icon} {st.label}</span>
               </div>
               <p className="text-ui text-gray-500">
@@ -1512,6 +1517,7 @@ export default function Quotes() {
             <div>
               <h1 className="text-xl font-bold text-gray-900">
                 {mode === 'create' ? 'Nouveau devis' : `Devis ${currentQuote.reference}`}
+                {mode !== 'create' && <BadgeTest tbl="quotes" id={currentQuote.id} className="ml-2" />}
               </h1>
               <p className="text-ui text-gray-500">
                 {mode === 'create' ? currentQuote.reference : `Créé le ${currentQuote.created_at ? format(new Date(currentQuote.created_at), 'dd/MM/yyyy', { locale: fr }) : ''}`}
@@ -1546,6 +1552,7 @@ export default function Quotes() {
         <div className="space-y-6">
           <div className="space-y-6">
             {/* Client + Contact */}
+            <BandeauTest tbl="clients" id={currentQuote.client_id} />
             <div className="bg-white rounded-ui border border-gray-200 p-5">
               <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><Building2 size={18} /> Client</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

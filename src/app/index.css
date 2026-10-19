@@ -172,6 +172,18 @@ html[data-radius='lg'] { --radius-ui-sm: 8px; --radius-ui: 12px; --radius-ui-lg:
   .badge-neutral { --badge-c: var(--c-muted); }
   .badge-brand { --badge-c: var(--c-accent-500); }
 
+  /* Données de démonstration : pastille et bandeau très visibles (0052) */
+  .badge-test {
+    @apply inline-flex items-center gap-1 font-semibold uppercase whitespace-nowrap align-middle;
+    font-size: 10px; letter-spacing: .04em; line-height: 1; padding: 3px 6px; border-radius: 999px;
+    background: rgb(234 88 12); color: #fff;
+  }
+  .bandeau-test {
+    @apply flex items-start gap-2 text-ui-sm;
+    padding: var(--space-2) var(--space-3); border-radius: var(--radius-ui);
+    background: rgb(255 237 213); color: rgb(154 52 18); border: 1px solid rgb(253 186 116);
+  }
+
   /* Anciennes classes conservées le temps de la migration des pages */
   .badge-green { @apply badge-success; }
   .badge-yellow { @apply badge-warning; }

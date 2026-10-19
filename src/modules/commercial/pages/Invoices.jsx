@@ -24,6 +24,8 @@ import PickerMenu from '../../../ui/PickerMenu'
 import { calcDueDate } from '../lib/echeances'
 
 import { confirmer } from '../../../ui/Confirm'
+import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
+import { useMarquesDemo } from '../../../core/demo/marquesDemo'
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
   draft:    { label: 'Brouillon',  color: 'gray',   icon: FileText },
@@ -167,6 +169,7 @@ ${rib}`
 }
 
 export default function Invoices() {
+  const { estTest } = useMarquesDemo()
   const { organization, fetchOrganization } = useDataStore()
   useEffect(() => { if (!organization) fetchOrganization() }, [])
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1270,6 +1273,7 @@ export default function Invoices() {
                   <tr key={inv.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => handleView(inv)}>
                     <td className="px-4 py-3 font-medium">
                       <span className={isCr ? 'text-[rgb(var(--c-warning))]' : 'text-gray-900'}>{inv.reference}</span>
+                      <BadgeTest tbl="invoices" id={inv.id} className="ml-2" />
                       {isCr && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Avoir</span>}
                       {aValider.has(inv.id) && <span className="ml-2 badge badge-warning">À valider</span>}
                       {inv.invoice_kind === 'acompte' && <span className="ml-2 badge">Acompte</span>}
@@ -1607,6 +1611,7 @@ export default function Invoices() {
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
+      {estTest('invoices', current?.id) ? <BandeauTest tbl="invoices" id={current?.id} /> : <BandeauTest tbl="clients" id={current?.client_id} />}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => { setMode('list'); loadAll() }} className="p-2 hover:bg-gray-100 rounded-ui-sm"><ChevronLeft size={20} /></button>
         <h1 className="text-xl font-bold flex-1">{mode === 'create' ? (isCr ? 'Nouvel avoir' : 'Nouvelle facture') : mode === 'view' ? (isDraftDoc(current) ? (isCr ? 'Brouillon d\'avoir' : 'Brouillon de facture') : current?.reference) : (isCr ? 'Modifier le brouillon d\'avoir' : 'Modifier le brouillon de facture')}</h1>

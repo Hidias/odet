@@ -169,6 +169,8 @@ ORDRE_PROD = (
     + ['0290', '0294', '0297']
     # Fiche formation complète et versions des programmes (19/10)
     + ['0048', '0049']
+    # Badge « Test » sur les fiches de démonstration (19/10)
+    + ['0052']
 )
 
 
