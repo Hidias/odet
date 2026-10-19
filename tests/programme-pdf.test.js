@@ -33,3 +33,18 @@ describe('programme de formation', () => {
     expect(doc.getNumberOfPages()).toBe(1)
   })
 })
+
+import { buildCataloguePDF } from '../src/modules/formation/pdf/programmePDF'
+import { PICTOGRAMMES, pictogrammePNG } from '../src/modules/formation/pdf/pictogrammes'
+
+describe('catalogue et pictogrammes', () => {
+  it('page de garde puis un programme par formation', () => {
+    const doc = buildCataloguePDF([{ title: 'B', duration_hours: 7 }, { title: 'A', duration_hours: 2 }], { name: 'Organisme' })
+    expect(doc.getNumberOfPages()).toBe(3)
+  })
+  it('liste fermée de pictogrammes, sans rendu hors navigateur', () => {
+    expect(Object.keys(PICTOGRAMMES)).toEqual(['flamme', 'secours', 'coeur', 'electricite', 'posture', 'conduite', 'document', 'bouclier', 'alarme', 'chantier'])
+    expect(pictogrammePNG('flamme')).toBeNull()
+    expect(pictogrammePNG('inconnu')).toBeNull()
+  })
+})

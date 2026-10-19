@@ -168,7 +168,7 @@ ORDRE_PROD = (
     # Chantier 12, RH socle et absences (19/10)
     + ['0290', '0294', '0297']
     # Fiche formation complète et versions des programmes (19/10)
-    + ['0048']
+    + ['0048', '0049']
 )
 
 

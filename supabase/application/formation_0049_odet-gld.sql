@@ -1,0 +1,40 @@
+-- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py (formation_0049) : ne pas modifier à la main.
+-- APPLICATION RÉELLE sur odet-gld : 0049_site_exploitation_pictogramme.sql. Une seule transaction : si une instruction échoue,
+-- rien n'est appliqué. Retour arrière : supabase/rollback/0049_site_exploitation_pictogramme_retour.sql
+select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '300s', true);
+
+-- ===== supabase/migrations/0049_site_exploitation_pictogramme.sql =====
+-- 0049_site_exploitation_pictogramme.sql : adresse du site d'exploitation de l'organisme et pictogramme des
+-- formations (suggestions validées par H, 19/10).
+--
+-- 1. organization_settings : adresse du site d'exploitation (GLD Sécurité : siège à Quimper, site d'exploitation à
+--    Plomelin). Le siège reste l'adresse légale (mentions, pieds de page) ; le site d'exploitation s'affiche en plus
+--    dans l'en-tête des documents et sur les programmes.
+-- 2. courses.pictogram : pictogramme du programme, choisi dans une bibliothèque fermée (liste du code).
+-- Aucune table nouvelle : colonnes couvertes par les règles existantes. Migration additive. Idempotente.
+-- Retour arrière : supabase/rollback/0049_site_exploitation_pictogramme_retour.sql
+
+alter table public.organization_settings add column if not exists exploitation_address text;
+alter table public.organization_settings add column if not exists exploitation_postal_code text;
+alter table public.organization_settings add column if not exists exploitation_city text;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'organization_settings_exploitation_check') then
+    alter table public.organization_settings add constraint organization_settings_exploitation_check check (
+      coalesce(length(exploitation_address), 0) <= 200 and coalesce(length(exploitation_postal_code), 0) <= 10
+      and coalesce(length(exploitation_city), 0) <= 100);
+  end if;
+end $$;
+comment on column public.organization_settings.exploitation_address is 'Adresse du site d''exploitation, affichée avec le siège sur les documents';
+
+alter table public.courses add column if not exists pictogram text;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'courses_pictogram_check') then
+    alter table public.courses add constraint courses_pictogram_check check (
+      pictogram is null or pictogram in ('flamme', 'secours', 'coeur', 'electricite', 'posture', 'conduite', 'document',
+                                         'bouclier', 'alarme', 'chantier'));
+  end if;
+end $$;
+
+insert into public.schema_migrations (version) values ('0049_site_exploitation_pictogramme') on conflict (version) do nothing;

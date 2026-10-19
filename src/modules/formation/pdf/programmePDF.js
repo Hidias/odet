@@ -75,10 +75,11 @@ function icone(doc, kind, cx, cy, r, color, fond) {
 }
 
 /**
- * Construit le programme. `contexte` : { referentPedagogique, reference (référence de session ou de devis, facultative) }.
+ * Construit le programme. `contexte` : { referentPedagogique, pictogramme (image PNG en data URL), reference }.
+ * `cible` : document jsPDF existant (catalogue) ; le programme est dessiné sur sa page courante.
  * Retourne le document jsPDF.
  */
-export function buildProgrammePDF(course, ORG, contexte = {}) {
+export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
   const t = ORG?.theme || { primary: [28, 32, 36], accent: [200, 16, 46], highlight: [217, 166, 46], text: [22, 24, 29], muted: [107, 114, 128], line: [228, 231, 235], surface: [244, 245, 247] }
   const c = course || {}
   const blanc = [255, 255, 255]
@@ -116,7 +117,8 @@ export function buildProgrammePDF(course, ORG, contexte = {}) {
   const tarif = strip(c.price_mention) || TARIF_DEFAUT
   const refProg = referenceProgramme(c)
   const pied = [
-    `${(ORG?.nameFull || ORG?.name || '').toUpperCase()}${ORG?.address ? ` – ${ORG.address}` : ''}`,
+    `${(ORG?.nameFull || ORG?.name || '').toUpperCase()}${ORG?.address ? ` – Siège : ${ORG.address}` : ''}`,
+    ORG?.exploitationFull ? `Site d'exploitation : ${ORG.exploitationFull}` : null,
     [ORG?.phone ? `Tél : ${ORG.phone}` : null, ORG?.email ? `Mail : ${ORG.email}` : null].filter(Boolean).join(' – '),
     [ORG?.siret ? `SIRET : ${ORG.siret}` : null, ORG?.ndaFull ? `NDA : ${ORG.ndaFull}` : null].filter(Boolean).join(' – '),
   ].filter(Boolean)
@@ -139,6 +141,11 @@ export function buildProgrammePDF(course, ORG, contexte = {}) {
       const nom = doc.splitTextToSize((ORG?.name || '').toUpperCase(), SIDE_W - 2 * M + 2)
       if (dw) { doc.setTextColor(...blanc); doc.text(nom, SIDE_W / 2, ys + 4, { align: 'center' }) }
       ys += nom.length * lh(14) + 6
+    }
+    if (contexte.pictogramme) {
+      const d = 22 * Math.max(k, 0.8)
+      if (dw) { try { doc.addImage(contexte.pictogramme, 'PNG', SIDE_W / 2 - d / 2, ys, d, d) } catch { /* image illisible */ } }
+      ys += d + 6
     }
     for (const [label, valeur] of cote) {
       setF(doc, 'bold'); doc.setFontSize(fs(8.5))
@@ -282,8 +289,48 @@ export function buildProgrammePDF(course, ORG, contexte = {}) {
     k = essai
     if (!rendre(essai, null).debordement) break
   }
-  const doc = new jsPDF({ compress: true })
+  const doc = cible || new jsPDF({ compress: true })
   rendre(k, doc)
+  return doc
+}
+
+/**
+ * Catalogue : page de garde (organisme, liste des formations avec durée, référence et version) puis un programme
+ * par page. `contextePour(course)` renvoie le contexte de chaque programme (référent, pictogramme).
+ */
+export function buildCataloguePDF(courses, ORG, contextePour = () => ({})) {
+  const t = ORG?.theme || { primary: [28, 32, 36], accent: [200, 16, 46], highlight: [217, 166, 46], text: [22, 24, 29], muted: [107, 114, 128], line: [228, 231, 235] }
+  const doc = new jsPDF({ compress: true })
+  const liste = [...(courses || [])].sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'fr'))
+  doc.setFillColor(...t.primary); doc.rect(0, 0, A4.w, 70, 'F')
+  if (ORG?.logo_base64) { try { drawLogoFitted(doc, ORG.logo_base64, 15, 14, 60, 24) } catch { /* logo illisible */ } }
+  setF(doc, 'bold'); doc.setFontSize(26); doc.setTextColor(255, 255, 255)
+  doc.text('Catalogue des formations', 15, 52)
+  setF(doc, 'normal'); doc.setFontSize(11); doc.setTextColor(...t.highlight)
+  doc.text(ORG?.nameFull || ORG?.name || '', 15, 61)
+  let y = 86
+  setF(doc, 'bold'); doc.setFontSize(9); doc.setTextColor(...t.muted)
+  doc.text('FORMATION', 15, y); doc.text('DURÉE', 140, y); doc.text('RÉFÉRENCE', 165, y)
+  y += 3; doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.line(15, y, 195, y); y += 6
+  for (const c of liste) {
+    if (y > 262) { doc.addPage(); y = 20 }
+    setF(doc, 'bold'); doc.setFontSize(10.5); doc.setTextColor(...t.primary)
+    const titre = doc.splitTextToSize(c.title || '', 118)
+    doc.text(titre, 15, y)
+    setF(doc, 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
+    doc.text(heuresTexte(c) || '', 140, y)
+    doc.setTextColor(...t.muted)
+    doc.text([referenceProgramme(c), c.program_version ? `v${c.program_version}` : null].filter(Boolean).join(' · '), 165, y)
+    y += titre.length * 4.6 + 3
+  }
+  const pied = [ORG?.nameFull || ORG?.name, ORG?.address ? `Siège : ${ORG.address}` : null, ORG?.exploitationFull ? `Site d'exploitation : ${ORG.exploitationFull}` : null,
+    [ORG?.phone, ORG?.email].filter(Boolean).join(' – '), ORG?.siret ? `SIRET : ${ORG.siret}` : null, ORG?.ndaFull ? `NDA : ${ORG.ndaFull}` : null].filter(Boolean)
+  setF(doc, 'normal'); doc.setFontSize(8); doc.setTextColor(...t.muted)
+  pied.forEach((l, i) => doc.text(l, A4.w / 2, A4.h - 30 + i * 4, { align: 'center' }))
+  for (const c of liste) {
+    doc.addPage()
+    buildProgrammePDF(c, ORG, contextePour(c), doc)
+  }
   return doc
 }
 
