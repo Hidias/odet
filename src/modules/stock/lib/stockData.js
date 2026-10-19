@@ -98,3 +98,42 @@ export function indexerNiveaux(niveaux) {
   }
   return { parArticle, parCouple }
 }
+
+// ─── Commandes (0245) ───
+export const STATUTS_COMMANDE = {
+  brouillon: { label: 'Brouillon', badge: 'badge-neutral' },
+  a_valider: { label: 'À valider', badge: 'badge-warning' },
+  validee: { label: 'Validée', badge: 'badge-info' },
+  envoyee: { label: 'Envoyée', badge: 'badge-info' },
+  partielle: { label: 'En partie reçue', badge: 'badge-warning' },
+  recue: { label: 'Reçue', badge: 'badge-success' },
+  refusee: { label: 'Refusée', badge: 'badge-danger' },
+  annulee: { label: 'Annulée', badge: 'badge-neutral' },
+}
+export const chargerCommandes = async () => must(await supabase.from('purchase_orders')
+  .select('*, suppliers(name), stock_locations(name)').order('created_at', { ascending: false }).limit(300))
+export const chargerLignesCommande = async (orderId) => must(await supabase.from('purchase_order_lines')
+  .select('*, stock_items(label, reference, unit)').eq('order_id', orderId).order('position').order('created_at'))
+export const chargerReceptions = async (orderId) => must(await supabase.from('purchase_receipts')
+  .select('*').eq('order_id', orderId).order('received_at'))
+export const creerCommande = async ({ supplierId, locationId = null, notes = null }) => must(await supabase.rpc('stock_commande_creer', {
+  p_supplier: supplierId, p_location: locationId || null, p_notes: notes || null }))
+export const commandeDepuisAlertes = async (supplierId, locationId = null) => must(await supabase.rpc('stock_commande_depuis_alertes', {
+  p_supplier: supplierId, p_location: locationId || null }))
+const nombre = (v) => (v === '' || v == null ? null : Number(String(v).replace(',', '.')))
+export async function enregistrerLigne({ id, order_id, item_id, quantity, unit_price_ht }) {
+  const ligne = { item_id, quantity: nombre(quantity), unit_price_ht: nombre(unit_price_ht) }
+  if (!(ligne.quantity > 0)) throw new Error('Indiquez une quantité supérieure à zéro')
+  if (id) return must(await supabase.from('purchase_order_lines').update(ligne).eq('id', id))
+  return must(await supabase.from('purchase_order_lines').insert({ ...ligne, order_id }))
+}
+export const supprimerLigne = async (id) => must(await supabase.from('purchase_order_lines').delete().eq('id', id))
+export const modifierCommande = async (id, champs) => must(await supabase.from('purchase_orders').update(champs).eq('id', id))
+export const supprimerCommande = async (id) => must(await supabase.from('purchase_orders').delete().eq('id', id))
+export const soumettreCommande = async (id) => must(await supabase.rpc('stock_commande_soumettre', { p_order: id }))
+export const commandeEnvoyee = async (id) => must(await supabase.rpc('stock_commande_envoyee', { p_order: id }))
+export const annulerCommande = async (id) => must(await supabase.rpc('stock_commande_annuler', { p_order: id }))
+export const deciderCommande = async (approvalId, decision, motif) => must(await supabase.rpc('approval_decide', {
+  p_request: approvalId, p_decision: decision, p_comment: motif || null }))
+export const recevoirLigne = async ({ lineId, quantity, locationId = null, note = null }) => must(await supabase.rpc('stock_commande_recevoir', {
+  p_line: lineId, p_quantity: nombre(quantity), p_location: locationId || null, p_note: note || null }))

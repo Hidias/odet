@@ -5,18 +5,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Search, Package, ArrowDownToLine, ArrowUpFromLine, Undo2, AlertTriangle, Truck, MapPin, History } from 'lucide-react'
+import { Plus, Pencil, Search, Package, ArrowDownToLine, ArrowUpFromLine, Undo2, AlertTriangle, Truck, MapPin, History, ShoppingCart, Trash2, Check, X, Send, PackageCheck, Mail } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
 import { Sheet } from '../../../ui/Sheet'
 import { DataTable } from '../../../ui/DataTable'
 import { EmptyState, Spinner } from '../../../ui/EmptyState'
+import { confirmer, demander } from '../../../ui/Confirm'
 import {
   TYPES_MOUVEMENT, TYPES_EMPLACEMENT, qte, euros, chargerArticles, chargerCategories, chargerEmplacements,
   chargerFournisseurs, chargerNiveaux, chargerSeuils, chargerAlertes, chargerMouvements, chargerCouts, chargerValeur,
   chargerMonStock, chargerArticlesTerrain, chargerDepotsTerrain, enregistrerArticle, archiverArticle,
   enregistrerEmplacement, enregistrerFournisseur, archiverFournisseur, enregistrerSeuil, mouvement, indexerNiveaux,
+  STATUTS_COMMANDE, chargerCommandes, chargerLignesCommande, chargerReceptions, creerCommande, commandeDepuisAlertes,
+  enregistrerLigne, supprimerLigne, modifierCommande, supprimerCommande, soumettreCommande, commandeEnvoyee, annulerCommande,
+  deciderCommande, recevoirLigne,
 } from '../lib/stockData'
 
 const frDate = (d) => (d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
@@ -336,8 +340,9 @@ function Journal() {
 }
 
 // ─── Alertes ───
-function Alertes() {
+function Alertes({ peutCommander = false, onCommande = null }) {
   const [d, setD] = useState(null)
+  const [busy, setBusy] = useState(false)
   useEffect(() => {
     Promise.all([chargerAlertes(), chargerArticles(), chargerEmplacements()])
       .then(([al, a, l]) => setD({ al, art: Object.fromEntries(a.map((x) => [x.id, x])), loc: Object.fromEntries(l.map((x) => [x.id, x.name])) }))
@@ -347,14 +352,24 @@ function Alertes() {
   if (!d.al.length) return <EmptyState icon={AlertTriangle} title="Aucun article sous le seuil" compact>Réglez un seuil sur un article (fiche de l'article) : il apparaîtra ici quand le stock passera dessous.</EmptyState>
   const parFournisseur = {}
   for (const a of d.al) {
-    const f = d.art[a.item_id]?.suppliers?.name || 'Sans fournisseur'
-    ;(parFournisseur[f] ||= []).push(a)
+    const art = d.art[a.item_id]
+    const cle = art?.supplier_id || ''
+    ;(parFournisseur[cle] ||= { nom: art?.suppliers?.name || 'Sans fournisseur', lignes: [] }).lignes.push(a)
+  }
+  const preparer = async (fournisseur) => {
+    setBusy(true)
+    try { const id = await commandeDepuisAlertes(fournisseur); toast.success('Commande préparée'); onCommande?.(id) } catch (e) { toast.error(e.message) }
+    setBusy(false)
   }
   return (
     <div className="space-y-3">
-      {Object.entries(parFournisseur).map(([f, lignes]) => (
-        <section key={f} className="card space-y-2">
-          <h2 className="section-title flex items-center gap-2"><Truck className="w-4 h-4 text-gray-400" aria-hidden="true" />{f}</h2>
+      {Object.entries(parFournisseur).map(([fid, { nom: f, lignes }]) => (
+        <section key={fid || 'aucun'} className="card space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="section-title flex items-center gap-2 flex-1 min-w-0"><Truck className="w-4 h-4 text-gray-400" aria-hidden="true" />{f}</h2>
+            {peutCommander && fid && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => preparer(fid)}><ShoppingCart className="w-4 h-4" aria-hidden="true" />Préparer la commande</button>}
+          </div>
+          {!fid && <p className="text-ui-sm muted">Indiquez le fournisseur principal sur ces articles pour pouvoir les commander.</p>}
           <ul className="divide-y divide-gray-100">
             {lignes.map((a) => (
               <li key={`${a.item_id}-${a.location_id}`} className="py-2 flex flex-wrap items-center gap-3">
@@ -366,7 +381,244 @@ function Alertes() {
           </ul>
         </section>
       ))}
-      <p className="text-ui-sm muted">Les commandes aux fournisseurs (préparer, valider, recevoir) arrivent avec l'étape suivante du module.</p>
+    </div>
+  )
+}
+
+// ─── Commandes ───
+function NouvelleCommandeSheet({ onClose, onCree }) {
+  const [f, setF] = useState(null)
+  const [dep, setDep] = useState([])
+  const [v, setV] = useState({ supplierId: '', locationId: '', notes: '' })
+  useEffect(() => {
+    Promise.all([chargerFournisseurs(), chargerEmplacements()]).then(([fs, ls]) => {
+      setF(fs); const d = ls.filter((l) => l.is_active && l.kind === 'depot'); setDep(d); setV((x) => ({ ...x, locationId: d[0]?.id || '' }))
+    }).catch((e) => toast.error(e.message))
+  }, [])
+  const valider = async (e) => {
+    e.preventDefault()
+    try { onCree(await creerCommande(v)) } catch (err) { toast.error(err.message) }
+  }
+  return (
+    <Sheet title="Nouvelle commande" onClose={onClose}
+      footer={<><button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button><button type="submit" form="stock-cmd" className="btn btn-primary" disabled={!v.supplierId}>Créer</button></>}>
+      {!f ? <Spinner /> : f.length === 0 ? <p className="text-ui">Ajoutez d'abord un fournisseur (onglet Fournisseurs).</p> : (
+        <form id="stock-cmd" onSubmit={valider} className="space-y-3">
+          <Champ label="Fournisseur"><select className="select" required value={v.supplierId} onChange={(e) => setV({ ...v, supplierId: e.target.value })}><option value="">Choisir…</option>{f.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Champ>
+          <Champ label="Livrée au dépôt"><select className="select" value={v.locationId} onChange={(e) => setV({ ...v, locationId: e.target.value })}>{dep.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Champ>
+          <Champ label="Note (facultatif)"><input className="input" value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} /></Champ>
+        </form>
+      )}
+    </Sheet>
+  )
+}
+
+function DetailCommande({ commande, voirPrix, peutPreparer, peutValider, emplacements, onClose, onChange }) {
+  const [lignes, setLignes] = useState(null)
+  const [recs, setRecs] = useState([])
+  const [articles, setArticles] = useState([])
+  const [nouvelle, setNouvelle] = useState(null)
+  const [recep, setRecep] = useState({})
+  const [lieu, setLieu] = useState(commande.location_id || '')
+  const [fact, setFact] = useState({ supplier_invoice_ref: commande.supplier_invoice_ref || '', supplier_invoice_on: commande.supplier_invoice_on || '', supplier_invoice_ht: commande.supplier_invoice_ht ?? '' })
+  const [busy, setBusy] = useState(false)
+  const c = commande
+  const editable = peutPreparer && ['brouillon', 'refusee'].includes(c.status)
+  const recevable = peutPreparer && ['validee', 'envoyee', 'partielle'].includes(c.status)
+  const charger = useCallback(async () => {
+    try {
+      const [l, r] = await Promise.all([chargerLignesCommande(c.id), chargerReceptions(c.id)])
+      setLignes(l); setRecs(r)
+    } catch (e) { toast.error(e.message); setLignes([]) }
+  }, [c.id])
+  useEffect(() => { charger() }, [charger])
+  useEffect(() => { if (editable) chargerArticles().then((a) => setArticles(a.filter((x) => x.is_active))).catch(() => {}) }, [editable])
+  const agir = async (fn, ok) => {
+    setBusy(true)
+    try { await fn(); if (ok) toast.success(ok); await charger(); onChange() } catch (e) { toast.error(e.message) }
+    setBusy(false)
+  }
+  const ajouter = (e) => {
+    e.preventDefault()
+    const art = articles.find((a) => a.id === nouvelle.item_id)
+    agir(async () => { await enregistrerLigne({ ...nouvelle, order_id: c.id, unit_price_ht: voirPrix ? nouvelle.unit_price_ht : null }); setNouvelle(null) }, art ? `${art.label} ajouté` : null)
+  }
+  const refuser = async () => {
+    const motif = await demander('Motif du refus (il sera lu par qui a préparé la commande)', { title: 'Refuser la commande' })
+    if (motif == null) return
+    if (!motif.trim()) { toast.error('Un refus demande un motif'); return }
+    agir(() => deciderCommande(c.approval_id, 'rejected', motif.trim()), 'Commande refusée')
+  }
+  const recevoirTout = () => agir(async () => {
+    for (const l of lignes) {
+      const reste = Number(l.quantity) - Number(l.received_qty)
+      if (reste > 0) await recevoirLigne({ lineId: l.id, quantity: reste, locationId: lieu })
+    }
+  }, 'Commande reçue, stock mis à jour')
+  const ecart = fact.supplier_invoice_ht !== '' && voirPrix ? Number(String(fact.supplier_invoice_ht).replace(',', '.')) - Number(c.total_ht) : null
+  const texteEmail = () => {
+    const corps = [`Bonjour,`, '', `Merci de nous livrer la commande ${c.reference} :`, ...(lignes || []).map((l) => `- ${qte(l.quantity)} ${l.stock_items?.unit || ''} ${l.stock_items?.label || ''}${l.stock_items?.reference ? ` (réf. ${l.stock_items.reference})` : ''}`), '', `Livraison : ${c.stock_locations?.name || ''}`, '', 'Cordialement']
+    return `mailto:${encodeURIComponent(c.suppliers?.email || '')}?subject=${encodeURIComponent(`Commande ${c.reference}`)}&body=${encodeURIComponent(corps.join('\n'))}`
+  }
+  const st = STATUTS_COMMANDE[c.status]
+  return (
+    <Sheet title={`Commande ${c.reference}`} onClose={onClose} size="lg">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2 text-ui">
+          <span className={`badge ${st.badge}`}>{st.label}</span>
+          <span className="font-semibold">{c.suppliers?.name}</span>
+          <span className="text-gray-600">· livrée à {c.stock_locations?.name || 'dépôt à choisir'}</span>
+          {voirPrix && <span className="ml-auto font-semibold tabular-nums">{euros(c.total_ht)} HT</span>}
+        </div>
+        {c.status === 'refusee' && c.refusal_reason && <p className="text-ui-sm text-[rgb(var(--c-danger))]">Refusée : {c.refusal_reason}. Corrigez puis soumettez de nouveau.</p>}
+        {c.notes && <p className="text-ui-sm text-gray-600">{c.notes}</p>}
+
+        <section className="space-y-2">
+          <h3 className="font-semibold text-ui">Lignes</h3>
+          {lignes === null ? <Spinner /> : lignes.length === 0 ? <p className="text-ui-sm muted">Aucune ligne.</p> : (
+            <ul className="divide-y divide-gray-100">
+              {lignes.map((l) => {
+                const reste = Number(l.quantity) - Number(l.received_qty)
+                return (
+                  <li key={l.id} className="py-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="flex-1 min-w-[10rem] text-ui">{l.stock_items?.label}{l.stock_items?.reference && <span className="block text-ui-sm text-gray-500">{l.stock_items.reference}</span>}</span>
+                    <span className="tabular-nums text-ui">{qte(l.quantity)} {l.stock_items?.unit}</span>
+                    {voirPrix && <span className="tabular-nums text-ui-sm text-gray-600 w-24 text-right">{l.unit_price_ht == null ? 'prix à saisir' : euros(l.unit_price_ht)}</span>}
+                    {Number(l.received_qty) > 0 && <span className="text-ui-sm text-gray-600">reçu {qte(l.received_qty)}</span>}
+                    {editable && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Modifier ${l.stock_items?.label}`} onClick={() => setNouvelle({ id: l.id, item_id: l.item_id, quantity: String(l.quantity), unit_price_ht: l.unit_price_ht ?? '' })}><Pencil className="w-4 h-4" /></button>}
+                    {editable && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Retirer ${l.stock_items?.label}`} onClick={() => agir(() => supprimerLigne(l.id))}><Trash2 className="w-4 h-4" /></button>}
+                    {recevable && reste > 0 && (
+                      <span className="flex items-center gap-1">
+                        <input className="input w-20" inputMode="decimal" aria-label="Quantité reçue" placeholder={qte(reste)} value={recep[l.id] ?? ''} onChange={(e) => setRecep({ ...recep, [l.id]: e.target.value })} />
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => agir(async () => { await recevoirLigne({ lineId: l.id, quantity: recep[l.id] || reste, locationId: lieu }); setRecep({ ...recep, [l.id]: '' }) }, 'Réception enregistrée')}>Reçu</button>
+                      </span>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          {editable && !nouvelle && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setNouvelle({ item_id: '', quantity: '1', unit_price_ht: '' })}><Plus className="w-4 h-4" aria-hidden="true" />Ajouter un article</button>}
+          {editable && nouvelle && (
+            <form onSubmit={ajouter} className="grid gap-2 sm:grid-cols-[1fr_6rem_7rem_auto] items-end">
+              <Champ label="Article"><select className="select" required value={nouvelle.item_id} disabled={!!nouvelle.id} onChange={(e) => setNouvelle({ ...nouvelle, item_id: e.target.value })}><option value="">Choisir…</option>{articles.map((a) => <option key={a.id} value={a.id}>{a.label}{a.reference ? ` (${a.reference})` : ''}</option>)}</select></Champ>
+              <Champ label="Quantité"><input className="input" inputMode="decimal" required value={nouvelle.quantity} onChange={(e) => setNouvelle({ ...nouvelle, quantity: e.target.value })} /></Champ>
+              {voirPrix ? <Champ label="Prix HT"><input className="input" inputMode="decimal" value={nouvelle.unit_price_ht} onChange={(e) => setNouvelle({ ...nouvelle, unit_price_ht: e.target.value })} /></Champ> : <span />}
+              <div className="flex gap-1"><button type="submit" className="btn btn-primary btn-sm" disabled={busy}>OK</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setNouvelle(null)}>Annuler</button></div>
+            </form>
+          )}
+        </section>
+
+        {recevable && (
+          <section className="space-y-2">
+            <Champ label="Emplacement de réception">
+              <select className="select" value={lieu} onChange={(e) => setLieu(e.target.value)}>{emplacements.filter((l) => l.is_active).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
+            </Champ>
+            <button type="button" className="btn btn-primary" disabled={busy || !lignes?.length} onClick={recevoirTout}><PackageCheck className="w-4 h-4" aria-hidden="true" />Tout est arrivé</button>
+            <p className="text-ui-sm muted">Chaque réception entre en stock au prix de la ligne. Une livraison incomplète : notez la quantité reçue sur la ligne.</p>
+          </section>
+        )}
+
+        {recs.length > 0 && (
+          <section className="space-y-1">
+            <h3 className="font-semibold text-ui">Réceptions</h3>
+            <ul className="text-ui-sm text-gray-600">
+              {recs.map((r) => <li key={r.id}>{frDate(r.received_at)} : {qte(r.quantity)} {lignes?.find((l) => l.id === r.line_id)?.stock_items?.label || ''}</li>)}
+            </ul>
+          </section>
+        )}
+
+        {voirPrix && ['envoyee', 'partielle', 'recue'].includes(c.status) && (
+          <section className="space-y-2">
+            <h3 className="font-semibold text-ui">Facture du fournisseur</h3>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Champ label="Numéro"><input className="input" value={fact.supplier_invoice_ref} onChange={(e) => setFact({ ...fact, supplier_invoice_ref: e.target.value })} /></Champ>
+              <Champ label="Date"><input className="input" type="date" value={fact.supplier_invoice_on} onChange={(e) => setFact({ ...fact, supplier_invoice_on: e.target.value })} /></Champ>
+              <Champ label="Montant HT"><input className="input" inputMode="decimal" value={fact.supplier_invoice_ht} onChange={(e) => setFact({ ...fact, supplier_invoice_ht: e.target.value })} /></Champ>
+            </div>
+            {ecart != null && !Number.isNaN(ecart) && <p className={`text-ui-sm ${Math.abs(ecart) > 0.009 ? 'text-[rgb(var(--c-danger))]' : 'text-gray-600'}`}>{Math.abs(ecart) > 0.009 ? `Écart avec la commande : ${euros(ecart)}` : 'Conforme à la commande'}</p>}
+            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => agir(() => modifierCommande(c.id, {
+              supplier_invoice_ref: fact.supplier_invoice_ref.trim() || null, supplier_invoice_on: fact.supplier_invoice_on || null,
+              supplier_invoice_ht: fact.supplier_invoice_ht === '' ? null : Number(String(fact.supplier_invoice_ht).replace(',', '.')),
+            }), 'Facture rapprochée')}>Enregistrer la facture</button>
+          </section>
+        )}
+
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+          {editable && <button type="button" className="btn btn-primary" disabled={busy || !lignes?.length} onClick={() => agir(async () => {
+            const r = await soumettreCommande(c.id)
+            toast.success(r === 'validee' ? 'Commande validée (aucune validation demandée)' : 'Commande envoyée à la validation')
+          })}><Check className="w-4 h-4" aria-hidden="true" />Soumettre</button>}
+          {peutValider && c.status === 'a_valider' && c.approval_id && <>
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => agir(() => deciderCommande(c.approval_id, 'approved'), 'Commande validée')}><Check className="w-4 h-4" aria-hidden="true" />Valider</button>
+            <button type="button" className="btn btn-secondary" disabled={busy} onClick={refuser}><X className="w-4 h-4" aria-hidden="true" />Refuser</button>
+          </>}
+          {peutPreparer && c.status === 'validee' && <>
+            <a className="btn btn-secondary" href={texteEmail()}><Mail className="w-4 h-4" aria-hidden="true" />Préparer l'email</a>
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => agir(() => commandeEnvoyee(c.id), 'Commande marquée envoyée')}><Send className="w-4 h-4" aria-hidden="true" />Marquer envoyée</button>
+          </>}
+          {peutPreparer && !['recue', 'annulee'].includes(c.status) && (
+            <button type="button" className="btn btn-ghost ml-auto" disabled={busy} onClick={async () => {
+              const solder = c.status === 'partielle'
+              if (!(await confirmer(solder ? 'Solder la commande : le reste ne sera pas livré ?' : 'Annuler cette commande ?'))) return
+              agir(() => annulerCommande(c.id), solder ? 'Commande soldée' : 'Commande annulée')
+            }}>{c.status === 'partielle' ? 'Solder' : 'Annuler la commande'}</button>
+          )}
+          {peutPreparer && ['brouillon', 'refusee', 'annulee'].includes(c.status) && recs.length === 0 && (
+            <button type="button" className="btn btn-ghost" disabled={busy} onClick={async () => {
+              if (!(await confirmer('Supprimer définitivement cette commande ?'))) return
+              setBusy(true)
+              try { await supprimerCommande(c.id); toast.success('Commande supprimée'); onChange(); onClose() } catch (e) { toast.error(e.message) }
+              setBusy(false)
+            }}><Trash2 className="w-4 h-4" aria-hidden="true" />Supprimer</button>
+          )}
+        </div>
+        {c.status === 'validee' && <p className="text-ui-sm muted">« Préparer l'email » ouvre votre messagerie avec la commande : rien ne part sans vous.</p>}
+      </div>
+    </Sheet>
+  )
+}
+
+function Commandes({ voirPrix, peutPreparer, peutValider, ouvrir = null, onOuvert = null }) {
+  const [liste, setListe] = useState(null)
+  const [emplacements, setEmplacements] = useState([])
+  const [filtre, setFiltre] = useState('en_cours')
+  const [nouvelle, setNouvelle] = useState(false)
+  const [detail, setDetail] = useState(null)
+  const charger = useCallback(async () => {
+    try {
+      const [c, l] = await Promise.all([chargerCommandes(), chargerEmplacements().catch(() => [])])
+      setListe(c); setEmplacements(l)
+      return c
+    } catch (e) { toast.error(e.message); setListe([]); return [] }
+  }, [])
+  useEffect(() => {
+    charger().then((c) => { if (ouvrir) { const x = c.find((o) => o.id === ouvrir); if (x) setDetail(x); onOuvert?.() } })
+  }, [charger, ouvrir, onOuvert])
+  if (!liste) return <Spinner />
+  const enCours = (o) => !['recue', 'annulee'].includes(o.status)
+  const visibles = liste.filter((o) => (filtre === 'en_cours' ? enCours(o) : filtre === 'a_valider' ? o.status === 'a_valider' : true))
+  const nbAValider = liste.filter((o) => o.status === 'a_valider').length
+  const rafraichir = async () => { const c = await charger(); setDetail((d) => (d ? c.find((o) => o.id === d.id) || null : null)) }
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2 items-center">
+        <select className="select w-auto" value={filtre} onChange={(e) => setFiltre(e.target.value)} aria-label="Filtre">
+          <option value="en_cours">En cours</option>
+          <option value="a_valider">À valider{nbAValider ? ` (${nbAValider})` : ''}</option>
+          <option value="toutes">Toutes</option>
+        </select>
+        {peutPreparer && <button type="button" className="btn btn-primary ml-auto" onClick={() => setNouvelle(true)}><Plus className="w-4 h-4" aria-hidden="true" />Nouvelle commande</button>}
+      </div>
+      <DataTable rows={visibles} onRowClick={setDetail} columns={[
+        { key: 'ref', label: 'Commande', mobile: 'title', render: (o) => o.reference },
+        { key: 'fourn', label: 'Fournisseur', mobile: 'subtitle', render: (o) => o.suppliers?.name || '' },
+        { key: 'statut', label: 'Statut', mobile: 'aside', render: (o) => <span className={`badge ${STATUTS_COMMANDE[o.status].badge}`}>{STATUTS_COMMANDE[o.status].label}</span> },
+        ...(voirPrix || peutValider ? [{ key: 'total', label: 'Total HT', align: 'right', render: (o) => euros(o.total_ht) }] : []),
+        { key: 'date', label: 'Créée le', render: (o) => new Date(o.created_at).toLocaleDateString('fr-FR') },
+      ]} empty={<EmptyState icon={ShoppingCart} title={liste.length ? 'Aucune commande dans ce filtre' : 'Aucune commande'} compact>Préparez une commande depuis les alertes (articles sous le seuil) ou à la main.</EmptyState>} />
+      {nouvelle && <NouvelleCommandeSheet onClose={() => setNouvelle(false)} onCree={async (id) => { setNouvelle(false); const c = await charger(); setDetail(c.find((o) => o.id === id) || null) }} />}
+      {detail && <DetailCommande key={`${detail.id}-${detail.status}`} commande={detail} voirPrix={voirPrix} peutPreparer={peutPreparer} peutValider={peutValider} emplacements={emplacements} onClose={() => setDetail(null)} onChange={rafraichir} />}
     </div>
   )
 }
@@ -460,9 +712,15 @@ export default function Stock() {
   const gerer = can('stock.articles.gerer') === true
   const sien = can('stock.sien.mouvementer') === true
   const voirPrix = can('stock.valeur.voir') === true
+  const preparer = can('stock.commandes.preparer') === true && voir
+  const valider = can('stock.commandes.valider') === true
+  const [ouvrir, setOuvrir] = useState(null)
+  const ouvert = useCallback(() => setOuvrir(null), [])
   const tabs = [
     ...((sien || gerer) ? [{ id: 'mon-stock', label: 'Mon stock' }] : []),
-    ...(voir ? [{ id: 'articles', label: 'Articles' }, { id: 'mouvements', label: 'Mouvements' }, { id: 'alertes', label: 'Alertes' }, { id: 'emplacements', label: 'Emplacements' }, { id: 'fournisseurs', label: 'Fournisseurs' }] : []),
+    ...(voir ? [{ id: 'articles', label: 'Articles' }, { id: 'mouvements', label: 'Mouvements' }, { id: 'alertes', label: 'Alertes' }] : []),
+    ...((preparer || valider || (voirPrix && voir)) ? [{ id: 'commandes', label: 'Commandes' }] : []),
+    ...(voir ? [{ id: 'emplacements', label: 'Emplacements' }, { id: 'fournisseurs', label: 'Fournisseurs' }] : []),
   ]
   const chemin = location.pathname.replace(/^\/stock\/?/, '').split('/')[0]
   const onglet = tabs.some((t) => t.id === chemin) ? chemin : (tabs[0]?.id || 'mon-stock')
@@ -474,7 +732,8 @@ export default function Stock() {
       {onglet === 'mon-stock' && <MonStock />}
       {onglet === 'articles' && <Articles peutGerer={gerer} voirPrix={voirPrix} />}
       {onglet === 'mouvements' && <Journal />}
-      {onglet === 'alertes' && <Alertes />}
+      {onglet === 'alertes' && <Alertes peutCommander={preparer} onCommande={(id) => { setOuvrir(id); navigate('/stock/commandes') }} />}
+      {onglet === 'commandes' && <Commandes voirPrix={voirPrix} peutPreparer={preparer} peutValider={valider} ouvrir={ouvrir} onOuvert={ouvert} />}
       {onglet === 'emplacements' && <Emplacements peutGerer={gerer} />}
       {onglet === 'fournisseurs' && <Fournisseurs peutGerer={gerer} />}
     </div>

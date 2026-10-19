@@ -3810,6 +3810,87 @@ begin
     end;
   end if;
 
+  -- Stock, commandes (0245) : la direction prépare et soumet, l'administrateur valide dans le circuit commun, la
+  -- réception partielle puis totale entre en stock au prix de la ligne ; le statut ne s'écrit pas à la main ; le
+  -- technicien fait une demande sans prix et ne voit que la sienne ; rien pour le commercial
+  if to_regprocedure('public.stock_commande_recevoir(uuid,numeric,uuid,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare
+      c_co uuid := app.company_default(); c_dep uuid; c_item uuid; c_fourn uuid; c_cmd uuid; c_ligne uuid; c_appro uuid;
+      c_st text; c_st2 text; c_st3 text; c_n numeric; c_cout numeric; c_ok boolean := false; c_c int; c_prix numeric; c_cmd2 uuid;
+    begin
+      insert into public.stock_locations (company_id, kind, name) values (c_co, 'depot', 'Dépôt essai 0245') returning id into c_dep;
+      insert into public.suppliers (company_id, name) values (c_co, 'Fournisseur essai 0245') returning id into c_fourn;
+      insert into public.stock_items (company_id, label, reference, supplier_id) values (c_co, 'Goupille essai 0245', 'ESSAI-0245', c_fourn) returning id into c_item;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      c_cmd := public.stock_commande_creer(c_fourn, c_dep, 'Essai');
+      insert into public.purchase_order_lines (order_id, item_id, quantity, unit_price_ht) values (c_cmd, c_item, 10, 2) returning id into c_ligne;
+      c_st := public.stock_commande_soumettre(c_cmd);
+      begin update public.purchase_orders set status = 'recue' where id = c_cmd; exception when insufficient_privilege then c_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      c_appro := (select approval_id from public.purchase_orders where id = c_cmd);
+      if c_st = 'a_valider' and c_appro is not null and c_ok and (select total_ht from public.purchase_orders where id = c_cmd) = 20 then
+        v_lines := v_lines || 'OK      dir   0245 : commande de 20 € soumise au circuit de validation, statut non modifiable à la main'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0245 : soumission (' || coalesce(c_st, '?') || ', ' || c_ok || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ad, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.approval_decide(c_appro, 'approved', null);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      c_st := (select status from public.purchase_orders where id = c_cmd);
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      c_st2 := public.stock_commande_recevoir(c_ligne, 4, null, 'Livraison 1');
+      c_n := (select quantity from public.v_stock_levels where item_id = c_item and location_id = c_dep);
+      c_st3 := public.stock_commande_recevoir(c_ligne, 6, null, 'Livraison 2');
+      c_cout := (select unit_cost from public.v_stock_value where item_id = c_item);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if c_st = 'validee' and c_st2 = 'partielle' and c_n = 4 and c_st3 = 'recue'
+         and (select quantity from public.v_stock_levels where item_id = c_item and location_id = c_dep) = 10 then
+        v_lines := v_lines || 'OK      ad    0245 : validée par l''administrateur, reçue en deux fois (4 puis 6), entrée en stock'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ad    0245 : validation et réception (' || coalesce(c_st, '?') || ', ' || coalesce(c_st2, '?') || ', ' || coalesce(c_n, -1) || ', ' || coalesce(c_st3, '?') || ')')::text; end if;
+
+      if (select count(*) from public.stock_movements where source_table = 'purchase_receipts'
+            and source_id in (select id from public.purchase_receipts where order_id = c_cmd) and unit_cost = 2) = 2 then
+        v_lines := v_lines || 'OK      base  0245 : chaque réception écrit une entrée au prix de la ligne'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0245 : entrées des réceptions'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      c_cmd2 := public.stock_commande_creer(c_fourn, c_dep, 'Demande du technicien');
+      insert into public.purchase_order_lines (order_id, item_id, quantity, unit_price_ht) values (c_cmd2, c_item, 2, 9);
+      c_c := (select count(*) from public.purchase_orders);
+      c_prix := (select unit_price_ht from public.purchase_order_lines where order_id = c_cmd2 limit 1);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if c_c = 1 and c_prix is null then
+        v_lines := v_lines || 'OK      tech  0245 : le technicien fait une demande sans prix et ne voit que la sienne'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0245 : demande du technicien (' || c_c || ', ' || coalesce(c_prix, -1) || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      c_c := (select count(*) from public.purchase_orders) + (select count(*) from public.purchase_order_lines);
+      c_ok := false;
+      begin perform public.stock_commande_creer(c_fourn, c_dep, null); exception when insufficient_privilege then c_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if c_c = 0 and c_ok then
+        v_lines := v_lines || 'OK      com   0245 : le commercial ne voit ni ne prépare de commande'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   com   0245 : commandes cachées au commercial (' || c_c || ', ' || c_ok || ')')::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0245 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

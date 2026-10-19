@@ -948,6 +948,22 @@ tdx('0240', 'stock_locations', sel=f"({_ST_VOIR} or id in (select app.stock_mes_
 tdx('0240', 'stock_thresholds', sel=_ST_VOIR, ins=_ST_GER, upd=_ST_GER, dele=_ST_GER)
 tdx('0240', 'stock_movements', sel=f"({_ST_VOIR} or from_location_id in (select app.stock_mes_emplacements()) or to_location_id in (select app.stock_mes_emplacements()))")
 
+# Stock, commandes (0245) : les commandes portent des prix d'achat. Lues en entier avec « Valider les commandes » ou
+# « Voir les prix d'achat » ; qui prépare sans voir les prix (technicien) ne lit et ne modifie que ses propres demandes
+# (app.stock_mes_commandes). Écrites avec « Préparer une commande » ; la base n'accepte une modification que sur un
+# brouillon ou une commande refusée, et les statuts passent par les fonctions. Réceptions lues de même, écrites
+# seulement par stock_commande_recevoir.
+_ST_CMD_TOUT = f"(company_id in {societes('stock.commandes.valider')} or {_ST_VAL})"
+_ST_CMD = f"company_id in {societes('stock.commandes.preparer')}"
+_ST_CMD_MIENNES = "order_id in (select app.stock_mes_commandes())"
+tdx('0245', 'purchase_orders', sel=f"({_ST_CMD_TOUT} or ({_ST_CMD} and id in (select app.stock_mes_commandes())))",
+    ins=_ST_CMD, upd=f"({_ST_CMD} and ({_ST_VAL} or id in (select app.stock_mes_commandes())))",
+    dele=f"({_ST_CMD} and ({_ST_VAL} or id in (select app.stock_mes_commandes())))")
+tdx('0245', 'purchase_order_lines', sel=f"({_ST_CMD_TOUT} or ({_ST_CMD} and {_ST_CMD_MIENNES}))",
+    ins=f"({_ST_CMD} and ({_ST_VAL} or {_ST_CMD_MIENNES}))", upd=f"({_ST_CMD} and ({_ST_VAL} or {_ST_CMD_MIENNES}))",
+    dele=f"({_ST_CMD} and ({_ST_VAL} or {_ST_CMD_MIENNES}))")
+tdx('0245', 'purchase_receipts', sel=f"({_ST_CMD_TOUT} or ({_ST_CMD} and {_ST_CMD_MIENNES}))")
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}
