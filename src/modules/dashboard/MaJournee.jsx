@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sun, KanbanSquare, Inbox, Calendar, MapPin, CreditCard, Receipt, PhoneCall, CheckCircle } from 'lucide-react'
+import { Sun, KanbanSquare, Inbox, Calendar, MapPin, CreditCard, Receipt, PhoneCall, CheckCircle, FileText } from 'lucide-react'
 import { supabase } from '../../core/supabase'
 import { useAuthStore } from '../../core/store'
 
 // Accueil « Ma journée » : ce qu'il y a à faire aujourd'hui, une ligne par sujet, un bouton par ligne.
 // Chaque ligne n'apparaît que si le compte peut lire la donnée (droits en base) et qu'il y a quelque chose à faire.
 
-const jour = () => {
+const jour = (decalageJours = 0) => {
   const d = new Date()
+  d.setDate(d.getDate() + decalageJours)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
@@ -56,6 +57,11 @@ export default function MaJournee() {
       a('interventions') && {
         icon: MapPin, to: '/interventions', libelle: (n) => `${n} visite${n > 1 ? 's' : ''} prévue${n > 1 ? 's' : ''} aujourd'hui`,
         q: () => supabase.from('itv_visits').select('id').eq('planned_on', auj).not('status', 'in', '("terminee","annulee")'),
+      },
+      // Revue annuelle des programmes (Qualiopi, indicateur 1) : jamais revus ou revus il y a plus d'un an
+      a('formation') && ok('formation.catalogue.gerer') && {
+        icon: FileText, to: '/formations', libelle: (n) => `${n} programme${n > 1 ? 's' : ''} à revoir (pas de mise à jour depuis plus d'un an)`,
+        q: () => supabase.from('courses').select('id').or(`program_updated_on.is.null,program_updated_on.lt.${jour(-365)}`),
       },
       a('commercial') && ok('commercial.devis.voir') && {
         icon: Receipt, to: '/devis', libelle: (n) => `${n} devis à relancer`,

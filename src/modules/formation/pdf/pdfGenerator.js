@@ -15,7 +15,8 @@ import { loadPublishedDoc, versionLabel, cgvCancellationText } from '../../quali
 import { writeRichDoc } from '../../qualite/richdocs/richDocPDF'
 import { loadTemplateContext, buildTemplateContext, fillTemplate } from '../../../core/org/templateContext'
 import { computePresenceHours, formatHours } from '../lib/presence'
-import { buildProgrammePDF } from './programmePDF'
+import { buildProgrammePDF, buildCataloguePDF } from './programmePDF'
+import { pictogrammePNG } from './pictogrammes'
 // Codes documentaires : préfixe propre à l'organisme (ORG.doc_prefix) + code du type de document
 const DOC_CODES = {
   convention: 'CONV', convocation: 'CONVOC', attestation: 'ATTP',
@@ -1171,9 +1172,23 @@ function generateTestPositionnementRempli(session, trainee, testData) {
 
 // ── Programme de formation : une page, modèle des programmes audités (programmePDF.js) ──
 // La fiche formation porte toutes les informations ; le référent pédagogique vient des rôles qualité.
+function contexteProgramme(course) {
+  return {
+    referentPedagogique: QT?.ctx?.role?.validation_programmes?.nom || null,
+    pictogramme: course?.pictogram ? pictogrammePNG(course.pictogram, ORG.theme?.accent) : null,
+  }
+}
 function generateProgramme(session) {
   const course = session?.courses || {}
-  return buildProgrammePDF(course, ORG, { referentPedagogique: QT?.ctx?.role?.validation_programmes?.nom || null })
+  return buildProgrammePDF(course, ORG, contexteProgramme(course))
+}
+
+/** Catalogue des formations : page de garde puis un programme par page ; téléchargé (« Catalogue_formations.pdf »). */
+export async function downloadCatalogue(courses) {
+  await ensureQualityTexts()
+  const doc = buildCataloguePDF(courses, ORG, contexteProgramme)
+  doc.save('Catalogue_formations.pdf')
+  return true
 }
 
 // ── Règlement intérieur et livret d'accueil (textes des Paramètres) ──

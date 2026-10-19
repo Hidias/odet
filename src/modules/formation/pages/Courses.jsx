@@ -11,13 +11,16 @@ import { useDroits } from '../../../core/rights/useDroit'
 
 import { confirmer } from '../../../ui/Confirm'
 import { programmeModifie, versionSuivante, effectifTexte, DELAI_ACCES_DEFAUT, TARIF_DEFAUT } from '../pdf/programmePDF'
-import { downloadDocument, setOrganization } from '../pdf/pdfGenerator'
+import { downloadDocument, downloadCatalogue, setOrganization } from '../pdf/pdfGenerator'
+import { PICTOGRAMMES } from '../pdf/pictogrammes'
+import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { currentUserName } from '../../../core/org/currentOrg'
 
 // Champs du programme (fiche formation, migration 0048)
 const PROGRAMME_VIDE = {
   evaluation_methods: '', min_participants: '', max_participants: '', access_delay: '', validity_kind: 'recyclage',
   validity_text: '', deliverables: '', trainer_profile: '', price_mention: '', modalities: '', program_ref: '', motif_maj: '',
+  pictogram: '',
 }
 // Thèmes du matériel
 const EQUIPMENT_THEMES = {
@@ -382,6 +385,7 @@ export default function Courses() {
         modalities: course.modalities || '',
         program_ref: course.program_ref || '',
         motif_maj: '',
+        pictogram: course.pictogram || '',
       })
       setSelectedCourse(course)
       loadCourseEquipment(course.id)
@@ -398,6 +402,17 @@ export default function Courses() {
     setShowForm(true)
   }
   
+  // Programme généré d'une formation du catalogue
+  const telechargerProgramme = async (course) => {
+    if (organization) setOrganization(organization)
+    try { await downloadDocument('programme', { courses: course }) } catch (e) { toast.error('Programme impossible : ' + e.message) }
+  }
+  // Catalogue complet : page de garde et un programme par page
+  const telechargerCatalogue = async () => {
+    if (organization) setOrganization(organization)
+    try { await downloadCatalogue(courses || []) } catch (e) { toast.error('Catalogue impossible : ' + e.message) }
+  }
+
   // Aperçu du programme avec les valeurs du formulaire (rien n'est enregistré)
   const apercuProgramme = async () => {
     if (organization) setOrganization(organization)
@@ -410,7 +425,7 @@ export default function Courses() {
       min_participants: form.min_participants || null, max_participants: form.max_participants || null,
       access_delay: form.access_delay, validity_kind: form.validity_kind, validity_text: form.validity_text,
       deliverables: form.deliverables, trainer_profile: form.trainer_profile, price_mention: form.price_mention,
-      modalities: form.modalities, program_ref: form.program_ref,
+      modalities: form.modalities, program_ref: form.program_ref, pictogram: form.pictogram || null,
     }
     try { await downloadDocument('programme', { courses: course }) } catch (e) { toast.error('Aperçu impossible : ' + e.message) }
   }
@@ -445,6 +460,7 @@ export default function Courses() {
       price_mention: form.price_mention || null,
       modalities: form.modalities || null,
       program_ref: form.program_ref ? form.program_ref.toUpperCase() : null,
+      pictogram: form.pictogram || null,
     }
     if (data.min_participants && data.max_participants && data.min_participants > data.max_participants) {
       return toast.error('Effectif : le minimum dépasse le maximum')
@@ -591,6 +607,9 @@ export default function Courses() {
               <Upload className="w-4 h-4" />Import Sellsy
             </button>
             )}
+            <button onClick={telechargerCatalogue} className="btn btn-secondary flex items-center gap-2" title="Tous les programmes en un PDF, avec une page de garde">
+              <FileText className="w-4 h-4" />Catalogue PDF
+            </button>
             {d.gerer && (
             <button onClick={() => openForm()} className="btn btn-primary">
               <Plus className="w-4 h-4 mr-2" />
@@ -754,16 +773,24 @@ export default function Courses() {
                     </button>
                   )}
                   {/* Prix masqué - conservé en base de données */}
-                  {course.program_url && (
+                  <button
+                    type="button"
+                    onClick={() => telechargerProgramme(course)}
+                    className="flex items-center gap-1 text-primary-600 hover:text-primary-700"
+                    title="Télécharger le programme généré"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Programme{course.program_version ? ` v${course.program_version}` : ''}
+                  </button>
+                  {fichierDeLInstance(course.program_url) && (
                     <a
-                      href={course.program_url}
+                      href={fichierDeLInstance(course.program_url)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-primary-600 hover:text-primary-700"
-                      title="Télécharger le programme"
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
+                      title="Programme PDF déposé"
                     >
-                      <FileText className="w-4 h-4" />
-                      Programme
+                      PDF déposé
                     </a>
                   )}
                 </div>
@@ -1080,10 +1107,17 @@ export default function Courses() {
                 <label className="label">Validation de la formation (documents remis)</label>
                 <textarea className="input" rows={2} placeholder="À l'issue de la formation, une attestation de fin de formation est remise au stagiaire." value={form.deliverables} onChange={(e) => setForm({ ...form, deliverables: e.target.value })} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-2">
                   <label className="label">Tarif affiché sur le programme</label>
                   <input type="text" className="input" placeholder={TARIF_DEFAUT} value={form.price_mention} onChange={(e) => setForm({ ...form, price_mention: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Pictogramme</label>
+                  <select className="input" value={form.pictogram} onChange={(e) => setForm({ ...form, pictogram: e.target.value })}>
+                    <option value="">Aucun</option>
+                    {Object.entries(PICTOGRAMMES).map(([k, p]) => <option key={k} value={k}>{p.label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="label">Référence du programme</label>
@@ -1114,10 +1148,10 @@ export default function Courses() {
                   onChange={handleProgramUpload}
                   className="hidden"
                 />
-                {form.program_url ? (
+                {fichierDeLInstance(form.program_url) ? (
                   <div className="flex items-center gap-2 flex-1">
                     <a
-                      href={form.program_url}
+                      href={fichierDeLInstance(form.program_url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-primary-600 hover:underline"
@@ -1155,7 +1189,7 @@ export default function Courses() {
                   </button>
                 )}
               </div>
-              <p className="text-ui-sm text-gray-500 mt-1">Le programme sera accessible depuis la fiche formation</p>
+              <p className="text-ui-sm text-gray-500 mt-1">Facultatif : sans fichier déposé, le programme est généré par l&apos;outil à partir de la fiche.{form.program_url && !fichierDeLInstance(form.program_url) ? ' Le fichier venu de l\'ancien outil est ignoré.' : ''}</p>
             </div>
             
             <div className="flex justify-end gap-3 p-4 border-t">

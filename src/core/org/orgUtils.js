@@ -78,6 +78,9 @@ export function buildORG(o) {
   const street = s.address || ''
   const address = [street, [postal, city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
   const addressFull = [street, [postal, city].filter(Boolean).join(' '), 'France'].filter(Boolean).join(' - ')
+  // Site d'exploitation (0049) : affiché avec le siège, qui reste l'adresse légale
+  const exploitationFull = [s.exploitation_address || '', [s.exploitation_postal_code || '', s.exploitation_city || ''].filter(Boolean).join(' ')]
+    .filter(Boolean).join(', ')
   const qualiopi = !!s.qualiopi_certified
   const legalWithForm = s.forme_juridique && !legalName.toLowerCase().includes(s.forme_juridique.toLowerCase())
     ? `${s.forme_juridique} ${legalName}`
@@ -104,6 +107,7 @@ export function buildORG(o) {
     city,
     postal_code: postal,
     lieu_signature: s.lieu_signature || city,
+    exploitationFull,
     // Contact
     phone: s.phone || '',
     email: s.email || '',
