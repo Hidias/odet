@@ -19,6 +19,9 @@ import toast from 'react-hot-toast'
 import { qualiopiCycle } from '../certification/lib/certData'
 import InterventionsDashboardCard from '../interventions/components/DashboardCard'
 import CaAttenduCard from '../commercial/components/CaAttenduCard'
+import MaJournee from './MaJournee'
+import { useUiPrefs } from '../../core/branding/useUiPrefs'
+import { modeParDefaut } from '../../core/branding/presets'
 import { useDroits } from '../../core/rights/useDroit'
 
 // ═══════════════════════════════════════════════════════════
@@ -111,6 +114,10 @@ export default function Dashboard() {
   const { clients, fetchClients, courses, fetchCourses, trainees, fetchTrainees, sessions, fetchSessions, getPurgeStats, organization, fetchOrganization } = useDataStore()
   const { user, modules, userRole } = useAuthStore()
   const navigate = useNavigate()
+  // Mode simple : « Ma journée » d'abord, les chiffres repliés sous « Voir les chiffres »
+  const { prefs } = useUiPrefs()
+  const modeSimple = (prefs.mode || modeParDefaut(userRole)) === 'simple'
+  const [voirChiffres, setVoirChiffres] = useState(false)
   // Gardes des boutons d'écriture du tableau de bord (la base refuse de toute façon ce qui n'est pas permis)
   const d = useDroits({
     preferences: 'organisation.preferences.gerer',
@@ -1015,6 +1022,8 @@ export default function Dashboard() {
         </div>
       </div>
       
+      <MaJournee />
+
       {/* ═══ Aujourd'hui : faire signer les stagiaires ═══ */}
       {sessionsToday.filter(s => s.session_type !== 'subcontract').length > 0 && (
         <div className="surface overflow-hidden">
@@ -1049,6 +1058,12 @@ export default function Dashboard() {
         </div>
       )}
 
+      {modeSimple && (
+        <button type="button" className="btn btn-secondary" onClick={() => setVoirChiffres((v) => !v)} aria-expanded={voirChiffres}>
+          <BarChart3 className="w-4 h-4" />{voirChiffres ? 'Masquer les chiffres' : 'Voir les chiffres'}
+        </button>
+      )}
+      {(!modeSimple || voirChiffres) && (<>
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
@@ -1140,6 +1155,8 @@ export default function Dashboard() {
         </div>
       )}
       
+      </>)}
+
       {/* Actions rapides */}
       <div className="card">
         <h2 className="section-title mb-3">Actions rapides</h2>

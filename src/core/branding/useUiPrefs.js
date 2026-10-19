@@ -46,7 +46,7 @@ export function useUiPrefs() {
     setPrefs((prev) => {
       // Choisir un préréglage remet tous les réglages fins à ceux du préréglage
       const base = patch.preset && patch.preset !== prev.preset
-        ? { preset: patch.preset, ...UI_PRESETS[patch.preset] }
+        ? { preset: patch.preset, ...UI_PRESETS[patch.preset], mode: prev.mode }
         : prev
       const next = normalizeUiPrefs({ ...base, ...patch })
       writeLocal(next)

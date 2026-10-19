@@ -10,6 +10,7 @@ import { useSirenCheck } from '../lib/useSirenCheck'
 import { canExportVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
 import { useDroits } from '../../../core/rights/useDroit'
+import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 
 import { confirmer } from '../../../ui/Confirm'
 // Formatage nom entreprise (majuscules)
@@ -476,6 +477,9 @@ export default function Clients() {
     setShowForm(true)
   }
   
+  // « + Nouveau › Client » (barre du haut)
+  useOuvrirSiDemande(() => openForm())
+
   const openPreview = async (client) => {
     setSelectedClient(client)
     // Charger les contacts
