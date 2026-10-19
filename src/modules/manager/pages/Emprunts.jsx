@@ -297,7 +297,7 @@ export default function Emprunts() {
   const prochaineFin = enCours.map((x) => d.parId[x.id]?.end_on).filter(Boolean).sort()[0]
   return (
     <div className="space-y-4">
-      <PageHeader eyebrow="Manager" title="Emprunts et crédits"
+      <PageHeader eyebrow="Entreprise" title="Emprunts et crédits"
         meta={<span>Capital restant dû, échéancier et évolution de chaque emprunt de la société.</span>}
         actions={<button type="button" className="btn btn-primary" onClick={() => setNouveau(true)}><Plus className="w-4 h-4" aria-hidden="true" />Nouvel emprunt</button>} />
       {d.emprunts.length === 0 ? (
