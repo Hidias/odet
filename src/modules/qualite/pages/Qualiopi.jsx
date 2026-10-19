@@ -471,12 +471,6 @@ export default function Qualiopi() {
           </h1>
           <p className="text-gray-600 mt-1">Gestion qualité et conformité Qualiopi</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1 bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] rounded-full text-ui font-medium flex items-center gap-1">
-            <CheckCircle className="w-4 h-4" />
-            Habilitation INRS : H37007/2025/SST-1/O/13
-          </span>
-        </div>
       </div>
 
       {/* Navigation par onglets */}
