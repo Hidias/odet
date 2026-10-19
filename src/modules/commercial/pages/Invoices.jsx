@@ -184,6 +184,7 @@ export default function Invoices() {
   const droitOuRepli = (code) => canDroit(code) !== false
   const droitsFac = { valider: droitOuRepli('facturation.factures.valider'), avoir: droitOuRepli('facturation.avoirs.emettre'), modifier: droitOuRepli('facturation.factures.modifier') }
   const [emission, setEmission] = useState(null) // { inv, items, totaux, verifie, enCours }
+  const [avoirPrep, setAvoirPrep] = useState(null) // { inv, lignes, mode, qtes, pct, enCours }
   const [exporting, setExporting] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -708,6 +709,43 @@ export default function Invoices() {
     })
     setItems((invItems || []).map((it, i) => ({...it, id: undefined, invoice_id: undefined, position: i})))
     setPayments([]); setMode('create')
+  }
+
+  // Avoir préparé par la base (0364) : total, partiel, pourcentage ou libre, puis brouillon ouvert
+  const ouvrirBrouillon = async (id, parentRef) => {
+    const { data: row } = await supabase.from('invoices').select('*').eq('id', id).single()
+    if (!row) return
+    await loadAll()
+    setCurrent({ ...row, parent_reference: parentRef || '' })
+    await loadContacts(row.client_id); await loadItems(row.id); await loadPayments(row.id); setMode('edit')
+  }
+  const fonctionAbsente = (error) => error?.code === 'PGRST202' || /could not find the function/i.test(error?.message || '')
+  const ouvrirAvoir = async (inv) => {
+    const { data } = await supabase.from('invoice_items').select('*').eq('invoice_id', inv.id).order('position')
+    const lignes = data || []
+    setAvoirPrep({ inv, lignes, mode: 'total', qtes: Object.fromEntries(lignes.map((l) => [l.id, ''])), pct: '', enCours: false })
+  }
+  const preparerAvoir = async () => {
+    const a = avoirPrep
+    if (!a) return
+    const lignes = a.mode === 'partiel'
+      ? a.lignes.filter((l) => parseFloat(a.qtes[l.id]) > 0).map((l) => ({ item_id: l.id, quantity: parseFloat(a.qtes[l.id]) }))
+      : null
+    setAvoirPrep((x) => ({ ...x, enCours: true }))
+    const { data, error } = await supabase.rpc('billing_create_credit_note', {
+      p_invoice: a.inv.id, p_mode: a.mode, p_lines: lignes, p_percent: a.mode === 'pourcentage' ? parseFloat(a.pct) : null,
+    })
+    if (error && fonctionAbsente(error)) { setAvoirPrep(null); return handleCreateCreditNote(a.inv) }
+    if (error) { setAvoirPrep((x) => ({ ...x, enCours: false })); toast.error(error.message || 'Avoir refusé'); return }
+    setAvoirPrep(null)
+    toast.success(a.mode === 'libre' ? "Brouillon d'avoir créé : saisissez les lignes" : "Brouillon d'avoir préparé : vérifiez puis émettez")
+    await ouvrirBrouillon(data, a.inv.reference)
+  }
+  const nouvelleDepuis = async (inv) => {
+    const { data, error } = await supabase.rpc('billing_duplicate_invoice', { p_invoice: inv.id })
+    if (error) { toast.error(fonctionAbsente(error) ? 'Fonction pas encore disponible sur cette base' : (error.message || 'Refusé')); return }
+    toast.success('Nouvelle facture préremplie, sans numéro')
+    await ouvrirBrouillon(data, '')
   }
 
   // ─── Edit / View ───
@@ -1461,9 +1499,15 @@ export default function Invoices() {
               <button onClick={() => handleFacturX(current, items)} className="px-3 py-2 bg-gray-100 text-gray-800 rounded-ui-sm text-ui flex items-center gap-1" title={isCr ? "Télécharger l'avoir (Factur-X)" : 'Télécharger Factur-X'}>
                 <Download size={14} />{isCr ? 'PDF avoir' : 'Factur-X'}
               </button>
-              {current?.type === 'invoice' && CREDITABLE_STATUSES.includes(current.status) && creditableOf(current) > 0.01 && (
-                <button onClick={() => handleCreateCreditNote(current)} className="px-3 py-2 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm text-ui flex items-center gap-1">
+              {current?.type === 'invoice' && droitsFac.avoir && CREDITABLE_STATUSES.includes(current.status) && creditableOf(current) > 0.01 && (
+                <button onClick={() => ouvrirAvoir(current)} className="px-3 py-2 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm text-ui flex items-center gap-1">
                   <Copy size={14} />Avoir
+                </button>
+              )}
+              {droitsFac.modifier && !isDraftDoc(current) && (current?.type === 'invoice' || current?.parent_invoice_id) && (
+                <button onClick={() => nouvelleDepuis(current?.type === 'invoice' ? current : { id: current.parent_invoice_id })} className="px-3 py-2 bg-gray-100 text-gray-800 rounded-ui-sm text-ui flex items-center gap-1"
+                  title={current?.type === 'invoice' ? 'Nouveau brouillon repris de cette facture' : "Nouveau brouillon repris de la facture d'origine"}>
+                  <Copy size={14} />{current?.type === 'invoice' ? 'Nouvelle facture depuis celle-ci' : 'Refaire la facture'}
                 </button>
               )}
             </>
@@ -1803,6 +1847,64 @@ export default function Invoices() {
           </label>
         </Sheet>
       )}
+
+      {/* Avoir : choix du type, préparé par la base */}
+      {avoirPrep && (() => {
+        const a = avoirPrep
+        const pctOk = parseFloat(a.pct) > 0 && parseFloat(a.pct) <= 100
+        const partielOk = a.lignes.some((l) => parseFloat(a.qtes[l.id]) > 0)
+        const pret = a.mode === 'pourcentage' ? pctOk : a.mode === 'partiel' ? partielOk : true
+        const MODES_AVOIR = [
+          ['total', 'Annuler toute la facture', 'Toutes les lignes, à l\'identique.'],
+          ['partiel', 'Reprendre certaines lignes', 'Choisissez les lignes et les quantités à annuler.'],
+          ['pourcentage', 'Accorder une réduction', 'Un pourcentage du montant, réparti par taux de TVA.'],
+          ['libre', 'Saisir librement', 'Brouillon vide rattaché à la facture.'],
+        ]
+        return (
+          <Sheet title={`Avoir sur la facture ${a.inv.reference}`} size="md" onClose={() => !a.enCours && setAvoirPrep(null)}
+            footer={<>
+              <button type="button" className="btn btn-secondary" disabled={a.enCours} onClick={() => setAvoirPrep(null)}>Revenir</button>
+              <button type="button" className="btn btn-primary" disabled={!pret || a.enCours} onClick={preparerAvoir}>{a.enCours ? 'Préparation…' : 'Préparer le brouillon'}</button>
+            </>}>
+            <p className="text-gray-700">Une facture émise ne se modifie pas : l'erreur se corrige par un avoir. Le brouillon s'ouvre ensuite pour vérification, puis s'émet comme une facture.</p>
+            <p className="text-ui-sm text-gray-500">Montant encore créditable : {money(creditableOf(a.inv))} TTC</p>
+            <div className="grid gap-2" role="radiogroup" aria-label="Type d'avoir">
+              {MODES_AVOIR.map(([k, l, d]) => (
+                <label key={k} className={`flex items-start gap-3 border rounded-ui-sm p-3 cursor-pointer ${a.mode === k ? 'border-[rgb(var(--c-primary))]' : ''}`}>
+                  <input type="radio" name="mode-avoir" className="mt-1" checked={a.mode === k} disabled={a.enCours} onChange={() => setAvoirPrep((x) => ({ ...x, mode: k }))} />
+                  <span><span className="font-medium">{l}</span><span className="block text-ui-sm text-gray-500">{d}</span></span>
+                </label>
+              ))}
+            </div>
+            {a.mode === 'partiel' && (
+              <ul className="divide-y hairline">
+                {a.lignes.map((l) => (
+                  <li key={l.id} className="py-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2 items-center">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{l.description_title || 'Ligne'}</div>
+                      <div className="text-ui-sm text-gray-500">{Number(l.quantity)} × {money(l.unit_price_ht)} HT</div>
+                    </div>
+                    <label className="flex items-center gap-1">
+                      <input type="number" min="0" max={Number(l.quantity)} step="any" className="input" style={{ width: 90 }} value={a.qtes[l.id]}
+                        aria-label={`Quantité à annuler : ${l.description_title || 'ligne'}`}
+                        onChange={(e) => setAvoirPrep((x) => ({ ...x, qtes: { ...x.qtes, [l.id]: e.target.value } }))} />
+                      <span className="text-ui-sm text-gray-500">/ {Number(l.quantity)}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {a.mode === 'pourcentage' && (
+              <label className="flex items-center gap-2">
+                <span>Réduction de</span>
+                <input type="number" min="0" max="100" step="0.01" className="input" style={{ width: 100 }} value={a.pct} aria-label="Pourcentage de réduction"
+                  onChange={(e) => setAvoirPrep((x) => ({ ...x, pct: e.target.value }))} />
+                <span>% du montant HT</span>
+              </label>
+            )}
+          </Sheet>
+        )
+      })()}
 
       {/* Modal envoi depuis vue détail */}
       {showSendModal && sendModalInv && (

@@ -1259,6 +1259,88 @@ begin
     end;
   end if;
 
+  -- Avoirs et reprise d'une facture (0364)
+  if to_regprocedure('public.billing_create_credit_note(uuid, text, jsonb, numeric)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 6;
+    declare
+      a_dir uuid := gen_random_uuid(); a_com uuid := gen_random_uuid(); a_cli uuid; a_f uuid; a_av uuid; a_av2 uuid; a_dup uuid; a_it uuid; a_ok boolean;
+    begin
+      insert into auth.users (id, email, aud, role) values
+        (a_dir, 'avo.dir@test.invalid', 'authenticated', 'authenticated'), (a_com, 'avo.com@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (a_dir, 'avo.dir@test.invalid', 'direction', true), (a_com, 'avo.com@test.invalid', 'commercial', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+      insert into public.clients (name, siret, siren, address, postal_code, city, tva) values
+        ('Client avoir essai', '12345678900011', '123456789', '1 rue', '29000', 'Quimper', 'FR00123456789') returning id into a_cli;
+      perform set_config('request.jwt.claims', json_build_object('sub', a_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', a_cli, current_date, current_date + 30) returning id into a_f;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values
+        (a_f, 0, 'Formation', 2, 500, 20), (a_f, 1, 'Livret', 10, 5, 5.5);
+      -- Brouillon : pas d'avoir
+      a_ok := false;
+      begin perform public.billing_create_credit_note(a_f, 'total'); exception when sqlstate '22023' then a_ok := true; end;
+      perform public.billing_issue(a_f);
+      -- Total : lignes identiques
+      a_av := public.billing_create_credit_note(a_f, 'total');
+      execute 'reset role';
+      if a_ok and (select count(*) from public.invoice_items where invoice_id = a_av) = 2
+         and (select type = 'credit_note' and parent_invoice_id = a_f and issued_at is null from public.invoices where id = a_av) then
+        v_lines := v_lines || 'OK      dir   0364 : avoir total préparé en brouillon (refusé sur un brouillon)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0364 : avoir total préparé en brouillon (refusé sur un brouillon)'::text; end if;
+      -- Partiel : quantité plafonnée à la facture
+      select id into a_it from public.invoice_items where invoice_id = a_f and position = 0;
+      execute 'set local role authenticated';
+      a_av2 := public.billing_create_credit_note(a_f, 'partiel', jsonb_build_array(jsonb_build_object('item_id', a_it, 'quantity', 9)));
+      execute 'reset role';
+      if (select quantity from public.invoice_items where invoice_id = a_av2) = 2 then
+        v_lines := v_lines || 'OK      dir   0364 : avoir partiel plafonné aux quantités de la facture'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0364 : avoir partiel plafonné aux quantités de la facture'::text; end if;
+      -- Pourcentage : une ligne par taux, 10 % des bases
+      execute 'set local role authenticated';
+      delete from public.invoices where id in (a_av, a_av2);
+      a_av := public.billing_create_credit_note(a_f, 'pourcentage', null, 10);
+      execute 'reset role';
+      if (select count(*) from public.invoice_items where invoice_id = a_av) = 2
+         and (select sum(unit_price_ht) from public.invoice_items where invoice_id = a_av) = 105 then
+        v_lines := v_lines || 'OK      dir   0364 : réduction en pourcentage, une ligne par taux'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0364 : réduction en pourcentage, une ligne par taux'::text; end if;
+      -- Avoir émis, puis facture entièrement couverte : plus d'avoir possible
+      execute 'set local role authenticated';
+      delete from public.invoices where id = a_av;
+      a_av := public.billing_create_credit_note(a_f, 'total');
+      perform public.billing_issue(a_av);
+      a_ok := false;
+      begin perform public.billing_create_credit_note(a_f, 'libre'); exception when sqlstate '22023' then a_ok := true; end;
+      execute 'reset role';
+      if a_ok then v_lines := v_lines || 'OK      dir   0364 : facture couverte, plus d''avoir possible'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0364 : facture couverte, plus d''avoir possible'::text; end if;
+      -- Nouvelle facture reprise de la facture annulée : brouillon, mêmes lignes
+      execute 'set local role authenticated';
+      a_dup := public.billing_duplicate_invoice(a_f);
+      execute 'reset role';
+      if (select issued_at is null and reference like 'BROUILLON-%' from public.invoices where id = a_dup) and (select count(*) from public.invoice_items where invoice_id = a_dup) = 2 then
+        v_lines := v_lines || 'OK      dir   0364 : nouvelle facture préremplie, sans numéro'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0364 : nouvelle facture préremplie, sans numéro'::text; end if;
+      -- Commercial (sans le droit des avoirs) : refusé
+      perform set_config('request.jwt.claims', json_build_object('sub', a_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_ok := false;
+      begin perform public.billing_create_credit_note(a_f, 'libre'); exception when insufficient_privilege then a_ok := true; end;
+      execute 'reset role';
+      if a_ok then v_lines := v_lines || 'OK      com   0364 : préparer un avoir refusé sans le droit'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0364 : préparer un avoir refusé sans le droit'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
   raise exception E'RÉSULTAT DES TESTS DE DROITS (tout est annulé)\n%\n\n% test(s), % échec(s)',
     array_to_string(v_lines, E'\n'), v_total, v_fail;
 end
