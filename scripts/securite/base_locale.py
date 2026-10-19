@@ -215,6 +215,8 @@ ORDRE_PROD = (
     + ['0385']
     # Contrôle d'affectation, inaptitude, attestation de non contre-indication, 20/10
     + ['0386']
+    # Titres délivrés par l'employeur, signatures enregistrées, 20/10
+    + ['0387']
 )
 
 

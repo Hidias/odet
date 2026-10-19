@@ -8,6 +8,11 @@ import { useCallback, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Plus, FileText, Upload, Trash2, Pencil, ExternalLink, Archive, ShieldCheck, HeartPulse, Lock } from 'lucide-react'
 import { Sheet } from '../../../ui/Sheet'
+import { supabase } from '../../../core/supabase'
+import PadSimple from '../../../ui/signature/PadSimple'
+import MaSignature from '../../../core/signatures/MaSignature'
+import { chargerSignatures } from '../../../core/signatures/signatures'
+import { genererTitrePDF } from '../lib/rhTitres'
 import { confirmer } from '../../../ui/Confirm'
 import {
   CATEGORIES_DOC, CONFIDENTIALITES, TYPES_HABILITATION, TYPES_VISITE, CONCLUSIONS, TYPES_FICHIER, TAILLE_MAX,
@@ -229,9 +234,93 @@ function HabilitationSheet({ companyId, personId, hab = null, onClose, onSaved }
   )
 }
 
+// Édition du titre par l'employeur (0387) : signataire choisi parmi les signatures enregistrées, signature du
+// salarié sur place (ou sur papier), document PDF rangé dans le dossier de la personne
+function TitreSheet({ companyId, personId, hab, onClose, onSaved }) {
+  const elec = hab.kind === 'habilitation_electrique'
+  const [sigs, setSigs] = useState(null)
+  const [signataire, setSignataire] = useState('')
+  const [salarie, setSalarie] = useState(null)
+  const [surPapier, setSurPapier] = useState(false)
+  const [lieux, setLieux] = useState(false)
+  const [delivre, setDelivre] = useState(new Date().toISOString().slice(0, 10))
+  const [busy, setBusy] = useState(false)
+  const [ctx, setCtx] = useState(null)
+  const chargerSigs = useCallback(() => chargerSignatures(companyId).then((l) => { setSigs(l); if (l.length === 1) setSignataire(l[0].profile_id) }).catch(() => setSigs([])), [companyId])
+  useEffect(() => { chargerSigs() }, [chargerSigs])
+  useEffect(() => {
+    (async () => {
+      const [{ data: person }, { data: emp }, nciRes] = await Promise.all([
+        supabase.from('hr_people').select('first_name, last_name, birth_date').eq('id', personId).maybeSingle(),
+        supabase.from('hr_employments').select('job_title, start_on').eq('person_id', personId).order('start_on', { ascending: false }).limit(1),
+        supabase.from('hr_medical_followups').select('visit_on, next_due_on, nci_scope').eq('person_id', personId).eq('visit_type', 'non_contre_indication').order('visit_on', { ascending: false }).limit(5),
+      ])
+      const scope = elec ? 'electrique' : 'conduite'
+      const nci = (nciRes.data || []).find((n) => (n.nci_scope || []).includes(scope)) || null
+      setCtx({ person, jobTitle: emp?.[0]?.job_title || '', nci, nciLisible: !nciRes.error })
+    })()
+  }, [personId, elec])
+  const sig = (sigs || []).find((x) => x.profile_id === signataire)
+  const manque = [
+    !hab.expires_on && "la date de fin de validité du titre (modifier l'habilitation)",
+    !(hab.symbols || []).length && (elec ? 'les symboles' : 'les catégories') + " (modifier l'habilitation)",
+    !sig && "le signataire de l'employeur",
+    !surPapier && !salarie && 'la signature du salarié (ou cocher « sur papier »)',
+    !elec && !lieux && 'la confirmation de la connaissance des lieux',
+  ].filter(Boolean)
+  const editer = async () => {
+    if (manque.length) { toast.error(`Il manque : ${manque.join(', ')}`); return }
+    setBusy(true)
+    try {
+      const blob = await genererTitrePDF({ kind: hab.kind, person: ctx.person, jobTitle: ctx.jobTitle, qual: hab, nci: ctx.nci,
+        signer: { nom: sig.nom, titre: sig.signer_title, image: sig.image }, employeeSignature: surPapier ? null : salarie, deliveredOn: delivre, lieuxConnus: lieux })
+      const nomFichier = `${elec ? 'Titre-habilitation' : 'Autorisation-conduite'}-${ctx.person?.last_name || 'salarie'}-${delivre}.pdf`
+      const file = new File([blob], nomFichier, { type: 'application/pdf' })
+      const d = await deposerDocument({ companyId, personId, file, category: 'titre', confidentiality: 'normal', title: `${elec ? "Titre d'habilitation électrique" : 'Autorisation de conduite'} du ${fr(delivre)}`, docDate: delivre })
+      await supabase.from('hr_qualifications').update({ delivered_at: delivre, delivered_by: signataire, employee_signed_at: surPapier ? null : new Date().toISOString(), title_document_id: d.id, document_id: hab.document_id || d.id }).eq('id', hab.id)
+      window.open(URL.createObjectURL(blob), '_blank', 'noopener')
+      toast.success('Titre édité et rangé dans les documents de la personne')
+      onSaved()
+    } catch (e) { toast.error(e.message) }
+    setBusy(false)
+  }
+  return (
+    <Sheet title={elec ? "Éditer le titre d'habilitation" : "Éditer l'autorisation de conduite"} onClose={onClose}
+      footer={<><button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button><button type="button" className="btn btn-primary" onClick={editer} disabled={busy || !ctx}>Éditer et ranger le titre</button></>}>
+      <div className="space-y-4 text-ui">
+        <div className="text-gray-800"><span className="font-semibold">{hab.label}</span>{(hab.symbols || []).length ? ` · ${hab.symbols.join(', ')}` : ''}{hab.expires_on ? ` · jusqu'au ${fr(hab.expires_on)}` : ''}</div>
+        {ctx && (
+          <div className={`rounded-ui-sm p-2.5 text-ui-sm ${ctx.nci ? 'bg-[rgb(var(--c-success-bg))]' : 'bg-[rgb(var(--c-warning-bg))]'}`}>
+            {ctx.nci ? `Attestation de non contre-indication du ${fr(ctx.nci.visit_on)}, valable jusqu'au ${fr(ctx.nci.next_due_on)}.`
+              : ctx.nciLisible ? "Aucune attestation de non contre-indication valable pour ce titre : le titre l'indiquera « à joindre » (articles R4323-56 et R4544-10)."
+                : "Attestation de non contre-indication non lisible avec vos droits : le titre l'indiquera « à joindre »."}
+          </div>
+        )}
+        <Champ label="Délivré le"><input className="input" type="date" value={delivre} onChange={(e) => setDelivre(e.target.value)} /></Champ>
+        <Champ label="Signataire pour l'employeur" aide="Un associé dont la signature est enregistrée (Mon espace › Ma signature).">
+          {sigs === null ? <span className="muted">…</span> : sigs.length === 0
+            ? <span className="text-ui-sm text-[rgb(var(--c-warning))]">Aucune signature enregistrée.</span>
+            : <select className="select" value={signataire} onChange={(e) => setSignataire(e.target.value)}><option value="">Choisir</option>{sigs.map((x) => <option key={x.profile_id} value={x.profile_id}>{x.nom}{x.signer_title ? `, ${x.signer_title}` : ''}</option>)}</select>}
+        </Champ>
+        {sigs !== null && <details className="text-ui-sm"><summary className="cursor-pointer text-gray-600">Enregistrer ma signature ici</summary><div className="mt-2"><MaSignature companyId={companyId} compact onSaved={chargerSigs} /></div></details>}
+        {!elec && (
+          <label className="flex items-start gap-2"><input type="checkbox" className="mt-1" checked={lieux} onChange={(e) => setLieux(e.target.checked)} />
+            <span>Le salarié connaît les lieux et les instructions à respecter sur les sites où il conduit.</span></label>
+        )}
+        <div className="space-y-2">
+          <div className="label">Signature du salarié</div>
+          <label className="flex items-center gap-2 text-ui-sm"><input type="checkbox" checked={surPapier} onChange={(e) => setSurPapier(e.target.checked)} />Il signera sur papier (titre imprimé)</label>
+          {!surPapier && <PadSimple onChange={setSalarie} label="Le salarié signe dans le cadre" />}
+        </div>
+      </div>
+    </Sheet>
+  )
+}
+
 export function HabilitationsFiche({ companyId, personId, peutGerer = false }) {
   const [liste, setListe] = useState(null)
   const [edite, setEdite] = useState(null)
+  const [titre, setTitre] = useState(null)
   const charger = useCallback(() => { chargerHabilitations(personId).then(setListe).catch(() => setListe([])) }, [personId])
   useEffect(() => { charger() }, [charger])
   const archiver = async (h) => {
@@ -255,18 +344,23 @@ export function HabilitationsFiche({ companyId, personId, peutGerer = false }) {
               <div className="font-semibold text-ui flex flex-wrap items-center gap-1.5">{h.label}{h.suspended_at && <span className="badge badge-danger">Suspendue</span>}</div>
               {Array.isArray(h.symbols) && h.symbols.length > 0 && <div className="text-ui-sm text-gray-700">{h.symbols.join(' · ')}</div>}
               {h.suspended_at && <div className="text-ui-sm text-[rgb(var(--c-danger))]">{h.suspended_reason || 'Suspendue'}</div>}
+              {h.delivered_at && <div className="text-ui-sm text-gray-600">Titre délivré le {fr(h.delivered_at)}{h.employee_signed_at ? ', signé par le salarié' : ', signature du salarié sur papier'}</div>}
               <div className="text-ui-sm text-gray-600">
                 {[TYPES_HABILITATION[h.kind] !== h.label && TYPES_HABILITATION[h.kind], h.obtained_on && `obtenue le ${fr(h.obtained_on)}`,
                   h.expires_on ? `échéance le ${fr(h.expires_on)}` : 'sans échéance', h.issuer].filter(Boolean).join(' · ')}
               </div>
             </div>
             <Echeance iso={h.expires_on} />
+            {peutGerer && (h.kind === 'habilitation_electrique' || h.kind === 'autorisation_conduite') && !h.suspended_at && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTitre(h)}>{h.delivered_at ? 'Rééditer le titre' : 'Éditer le titre'}</button>
+            )}
             {peutGerer && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Modifier ${h.label}`} onClick={() => setEdite(h)}><Pencil className="w-4 h-4" /></button>}
             {peutGerer && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Archiver ${h.label}`} onClick={() => archiver(h)}><Archive className="w-4 h-4" /></button>}
           </li>
         ))}
       </ul>
       {edite && <HabilitationSheet companyId={companyId} personId={personId} hab={edite.id ? edite : null} onClose={() => setEdite(null)} onSaved={() => { setEdite(null); charger() }} />}
+      {titre && <TitreSheet companyId={companyId} personId={personId} hab={titre} onClose={() => setTitre(null)} onSaved={() => { setTitre(null); charger() }} />}
     </section>
   )
 }

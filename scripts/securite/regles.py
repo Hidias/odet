@@ -1323,3 +1323,9 @@ tdx('0386', 'hr_work_restrictions', sel=f"({_RH_DOS} or {_RH_MOI} or company_id 
 tdx('0386', 'assignment_requirements', sel=f"(company_id in {societes('interventions.visites.gerer')} or {_RH_DOS})",
     ins=_RH_PAR, upd=_RH_PAR, dele=_RH_PAR)
 tdx('0386', 'assignment_overrides', sel=f"(company_id in {societes('interventions.visites.gerer')} or {_RH_DOS})")
+
+# Signatures enregistrées (0387) : chacun écrit la sienne ; lues par la RH (titres) et par qui gère les sessions
+# (certificats, attestations) pour être posées sur les documents.
+_SIG_MOI = "profile_id = (select auth.uid())"
+tdx('0387', 'user_signatures', sel=f"({_SIG_MOI} or {_RH_GER} or company_id in {societes('formation.sessions.creer')})",
+    ins=_SIG_MOI, upd=_SIG_MOI, dele=_SIG_MOI)
