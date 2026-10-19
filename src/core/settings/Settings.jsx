@@ -17,6 +17,7 @@ import TransmissionComptable from './facturation/TransmissionComptable'
 import DroitsPersonnes from './droits/DroitsPersonnes'
 import ProfilsDroits from './droits/ProfilsDroits'
 import Societes from './societes/Societes'
+import Etablissements from './Etablissements'
 import { peut } from '../rights/useDroit'
 import { THEMES, FORMES, ROLES, Field, Toggle, uploadBrandingFile, ModulesSection, ColorPicker } from './shared'
 
@@ -39,11 +40,21 @@ const SECTIONS = [
   { id: 'societes', label: 'Sociétés', icon: Network, right: ['plateforme.administrer', 'parametres.organisme.modifier'] },
 ]
 
+// Établissements de la société qui porte l'instance (0054) : la base recopie l'adresse principale dans les réglages
+function EtablissementsInstance() {
+  const [id, setId] = useState(null)
+  const fetchOrganization = useDataStore((s) => s.fetchOrganization)
+  useEffect(() => {
+    supabase.from('companies').select('id').eq('is_instance_owner', true).limit(1).maybeSingle().then(({ data }) => setId(data?.id || null))
+  }, [])
+  if (!id) return null
+  return <Etablissements companyId={id} onChange={() => fetchOrganization?.()} />
+}
+
 const ORG_FIELDS = [
   'name', 'legal_name', 'forme_juridique', 'capital_social', 'siret', 'siren', 'naf', 'tva_intra', 'tva_applicable', 'rcs', 'tribunal_competent',
   'nda', 'nda_region', 'qualiopi_certified', 'qualiopi_since', 'qualiopi_organisme', 'activity_kind', 'caces_activity', 'date_creation',
   'address', 'postal_code', 'city', 'phone', 'email', 'website', 'lieu_signature', 'region', 'zone_departements',
-  'exploitation_address', 'exploitation_postal_code', 'exploitation_city',
   'dirigeant_name', 'dirigeant_title', 'dirigeant_signature_url', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
   'app_name', 'app_short_name', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'logo_base64', 'stamp_base64', 'icon_192_url', 'icon_512_url', 'favicon_url',
   'doc_prefix',
@@ -238,13 +249,9 @@ export default function Settings() {
                 <Field label="Départements d'intervention" hint="Numéros séparés par des virgules"><input className="input" value={form.zone_departements_text || ''} onChange={(e) => set('zone_departements_text', e.target.value)} placeholder="29, 56, 22, 35" /></Field>
                 <Field label="Lien avis Google" hint="Proposé au stagiaire en fin de formation"><input className="input" value={form.google_review_url || ''} onChange={(e) => set('google_review_url', e.target.value)} /></Field>
               </div>
-              <h2 className="section-title">Site d'exploitation</h2>
-              <p className="text-ui-sm text-gray-500 -mt-2 mb-3">Si l'activité se fait ailleurs qu'au siège : affiché avec le siège dans l'en-tête des documents et sur les programmes. Le siège reste l'adresse légale.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Adresse" className="md:col-span-2"><input className="input" value={form.exploitation_address || ''} onChange={(e) => set('exploitation_address', e.target.value)} /></Field>
-                <Field label="Code postal"><input className="input" value={form.exploitation_postal_code || ''} onChange={(e) => set('exploitation_postal_code', e.target.value)} /></Field>
-                <Field label="Ville"><input className="input" value={form.exploitation_city || ''} onChange={(e) => set('exploitation_city', e.target.value)} /></Field>
-              </div>
+              <h2 className="section-title">Établissements</h2>
+              <p className="text-ui-sm text-gray-500 -mt-2 mb-3">L'adresse principale est celle mise en avant sur les documents et les signatures des emails. Le siège reste l'adresse légale : il figure dans les mentions et les blocs juridiques (factures, conventions).</p>
+              <EtablissementsInstance />
               <h2 className="section-title">Signataire</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Nom du dirigeant ou signataire"><input className="input" value={form.dirigeant_name || ''} onChange={(e) => set('dirigeant_name', e.target.value)} /></Field>

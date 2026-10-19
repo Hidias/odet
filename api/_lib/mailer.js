@@ -79,6 +79,9 @@ export async function getOrgForCompany(supabase, companyId) {
   const { data: c } = await client.from('companies').select('*').eq('id', companyId).maybeSingle()
   if (!c || c.is_instance_owner) return org
   const { data: siege } = await client.from('company_establishments').select('siret').eq('company_id', c.id).eq('is_head_office', true).maybeSingle()
+  // Adresse mise en avant : l'établissement principal de la société (0054), sinon son siège
+  const { data: site } = await client.from('company_establishments').select('address, postal_code, city')
+    .eq('company_id', c.id).eq('is_main_site', true).eq('status', 'active').maybeSingle()
   const city = c.city || ''
   return {
     ...org,
@@ -88,8 +91,9 @@ export async function getOrgForCompany(supabase, companyId) {
     website: c.website || '', websiteLabel: (c.website || '').replace(/^https?:\/\//, '').replace(/\/$/, ''),
     bank_name: c.bank_name, iban: c.iban, bic: c.bic, logo_url: c.logo_url || org.logo_url, doc_prefix: c.doc_prefix,
     addressLine: [c.address, [c.postal_code, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
-    // Une autre société n'a pas (encore) de site d'exploitation propre : son adresse sert d'adresse principale
-    siteLine: [c.address, [c.postal_code, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+    siteLine: site?.address
+      ? [site.address, [site.postal_code, site.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+      : [c.address, [c.postal_code, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
   }
 }
 

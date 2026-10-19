@@ -173,6 +173,8 @@ ORDRE_PROD = (
     + ['0052']
     # Nom affiché calculé (prénom et nom), 19/10
     + ['0053']
+    # Établissement principal, source unique de l'adresse mise en avant (19/10)
+    + ['0054']
 )
 
 

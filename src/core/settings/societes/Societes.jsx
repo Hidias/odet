@@ -6,6 +6,7 @@ import { callApi } from '../../api'
 import { useAuthStore } from '../../store'
 import { Sheet } from '../../../ui/Sheet'
 import { Field, Toggle } from '../shared'
+import Etablissements from '../Etablissements'
 
 // Paramètres › Sociétés (chantier C3) : sociétés de l'instance, fiche (identité, banque, numérotation), modules et
 // accès des personnes par société ; assistant « Ajouter une société » (plateforme) en quatre étapes, préremplissage
@@ -200,6 +201,12 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
         <Toggle checked={!!f.is_training_org} onChange={(v) => set('is_training_org', v)} label="Organisme de formation" disabled={instance} />
       </div>
       {!instance && <div><button type="button" className="btn btn-primary" disabled={enCours} onClick={enregistrer}><Save className="w-4 h-4" />Enregistrer la société</button></div>}
+
+      <div className="grid gap-2">
+        <h3 className="font-semibold">Établissements</h3>
+        <p className="muted">L'adresse principale est mise en avant sur les documents et les signatures de cette société ; le siège reste l'adresse légale.{instance ? ' Pour la société qui porte l\'instance, ils se gèrent aussi dans Paramètres › Coordonnées.' : ''}</p>
+        <Etablissements companyId={societe.id} />
+      </div>
 
       {!instance && (
         <>
