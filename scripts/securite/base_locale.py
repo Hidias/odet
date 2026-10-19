@@ -187,6 +187,8 @@ ORDRE_PROD = (
     + ['0312']
     # RH : registre unique du personnel, 19/10
     + ['0313']
+    # RH : entretiens, listes d'arrivée et de départ, 19/10
+    + ['0314']
 )
 
 

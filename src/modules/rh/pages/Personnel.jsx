@@ -28,6 +28,7 @@ import { DocumentsFiche, HabilitationsFiche, SanteFiche } from './DocumentsSante
 import MonEspace from './MonEspace'
 import TableauRH from './TableauRH'
 import RegistrePaie from './RegistrePaie'
+import { EntretiensFiche, ListesFiche } from './EntretiensListes'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const euros = (n) => Number(n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -451,6 +452,8 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
 
       <SoldesFiche personId={p.id} peutGerer={peutGerer} />
 
+      <EntretiensFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} embauche={contrats.map((c) => c.start_on).sort()[0] || null} />
+      <ListesFiche personId={p.id} peutGerer={peutGerer} />
       <HabilitationsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
       <SanteFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer && peutRestreints} />
       <DocumentsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} peutRestreints={peutRestreints} estMoi={!!user?.id && p.profile_id === user.id} />
