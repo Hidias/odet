@@ -14,7 +14,8 @@ import { useAuthStore } from '../../../core/store'
 import { authorFromEmail } from '../../prospection/components/suivi/suiviUtils'
 import { canExportVCard, buildVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 import { publicBaseUrl } from '../../../core/org/orgUtils'
-import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
+import { tvaFromSiren, pappersUrl, annuaireUrl } from '../../../core/org/tva'
+import AnnuaireClient from '../components/AnnuaireClient'
 import { useDroits } from '../../../core/rights/useDroit'
 
 // ═══════════════════════════════════════════════════════════
@@ -992,6 +993,7 @@ export default function ClientDetail() {
                   <h1 className="page-title truncate">{client.name}</h1>
                 )}
                 {client.siret && <p className="text-ui-sm sm:text-sm text-gray-500 font-mono mt-0.5">SIRET {client.siret}</p>}
+                {!editing && client.client_type !== 'particulier' && <AnnuaireClient client={client} peutModifier={d.modifier} onChange={loadClient} />}
                 {client.vat_exempt ? <p className="text-ui-sm text-gray-400 mt-0.5">Non assujetti à la TVA</p> : client.tva && <p className="text-ui-sm text-gray-400 font-mono mt-0.5">TVA {client.tva}</p>}
               </div>
             </div>
@@ -1174,7 +1176,10 @@ export default function ClientDetail() {
                 </div>
               </div>
               <div><label className="text-ui-sm font-medium text-gray-500 mb-1 flex items-center justify-between">N° TVA intracommunautaire
-                  {pappersUrl(editForm.siret) && <a href={pappersUrl(editForm.siret)} target="_blank" rel="noopener noreferrer" className="text-ui-sm font-semibold text-primary-600 hover:underline">Voir sur Pappers</a>}
+                  <span className="flex gap-3">
+                    {annuaireUrl(editForm.siret) && <a href={annuaireUrl(editForm.siret)} target="_blank" rel="noopener noreferrer" className="text-ui-sm font-semibold text-primary-600 hover:underline">Annuaire officiel</a>}
+                    {pappersUrl(editForm.siret) && <a href={pappersUrl(editForm.siret)} target="_blank" rel="noopener noreferrer" className="text-ui-sm font-semibold text-primary-600 hover:underline">Voir sur Pappers</a>}
+                  </span>
                 </label>
                 <div className="flex gap-2">
                   <input value={editForm.vat_exempt ? '' : (editForm.tva || '')} disabled={!!editForm.vat_exempt} onChange={e => setEditForm({ ...editForm, tva: e.target.value.toUpperCase() })} className="flex-1 min-w-0 px-3 py-2 border rounded-ui-sm text-ui font-mono disabled:bg-gray-50" placeholder={editForm.vat_exempt ? 'Non assujetti' : 'FR00000000000'} />

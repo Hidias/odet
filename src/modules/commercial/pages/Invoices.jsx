@@ -1,6 +1,6 @@
 import { toneStyle } from '../../../ui/StatusBadge'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
-import { apiFetch } from '../../../core/api'
+import { apiFetch, callApi } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -960,7 +960,29 @@ export default function Invoices() {
     // Mentions obligatoires (0363) : points bloquants et alertes calculés par la base
     const { data: chk } = await supabase.rpc('billing_missing_mentions', { p_invoice: inv.id })
     const points = Array.isArray(chk?.points) ? chk.points : []
-    setEmission({ inv, items: lignes, totaux, prochain, points, verifie: false, enCours: false })
+    setEmission({ inv, items: lignes, totaux, prochain, points, verifie: false, enCours: false, annuaire: null, motif: '' })
+    // SIRET du client à revérifier (0365) : l'annuaire officiel est consulté tout de suite
+    if (points.some((p) => p.code === 'siret_controle')) verifierAnnuaire(inv.id)
+  }
+  const relirePoints = async (iid) => {
+    const { data: chk } = await supabase.rpc('billing_missing_mentions', { p_invoice: iid })
+    setEmission((e) => e && ({ ...e, points: Array.isArray(chk?.points) ? chk.points : e.points }))
+  }
+  const verifierAnnuaire = async (iid) => {
+    setEmission((e) => e && ({ ...e, annuaire: { enCours: true } }))
+    try {
+      const r = await callApi('/api/verifier-siret', { invoice_id: iid })
+      setEmission((e) => e && ({ ...e, annuaire: r.indisponible ? { indisponible: true, message: r.message } : { resultat: r.resultat } }))
+    } catch (err) {
+      setEmission((e) => e && ({ ...e, annuaire: { indisponible: true, message: err.message } }))
+    }
+    await relirePoints(iid)
+  }
+  const enregistrerMotifAnnuaire = async () => {
+    const { error } = await supabase.rpc('billing_siret_motif', { p_invoice: emission.inv.id, p_motif: emission.motif })
+    if (error) { toast.error(error.message); return }
+    toast.success('Motif enregistré')
+    await relirePoints(emission.inv.id)
   }
   const emettre = async () => {
     if (!emission?.verifie) return
@@ -1835,9 +1857,22 @@ export default function Invoices() {
                     {p.ou === 'client' && emission.inv.client_id && <a className="underline text-gray-600 flex-none" href={`#/clients/${emission.inv.client_id}`}>fiche client</a>}
                     {p.ou === 'parametres' && <a className="underline text-gray-600 flex-none" href="#/parametres?section=identite">Paramètres</a>}
                     {p.ou === 'facture' && <span className="text-gray-500 flex-none">dans la facture</span>}
+                    {p.ou === 'annuaire' && <button type="button" className="underline text-gray-600 flex-none" disabled={emission.annuaire?.enCours} onClick={() => verifierAnnuaire(emission.inv.id)}>vérifier</button>}
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+          {emission.annuaire?.enCours && <p className="text-ui-sm text-gray-500">Vérification du SIRET dans l'annuaire officiel…</p>}
+          {emission.annuaire?.indisponible && (emission.points || []).some((p) => p.code === 'siret_controle') && (
+            <div className="grid gap-2 border rounded-ui-sm p-3">
+              <p className="text-ui-sm"><span className="font-medium">Annuaire indisponible</span> ({emission.annuaire.message}). Vous pouvez réessayer, ou émettre avec les informations de la fiche client en indiquant pourquoi.</p>
+              <textarea className="input" rows={2} value={emission.motif} placeholder="Motif (par exemple : annuaire injoignable, SIRET vérifié sur le Kbis du client)"
+                aria-label="Motif d'émission sans contrôle de l'annuaire" onChange={(e) => setEmission((x) => ({ ...x, motif: e.target.value }))} />
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => verifierAnnuaire(emission.inv.id)}>Réessayer</button>
+                <button type="button" className="btn btn-primary btn-sm" disabled={(emission.motif || '').trim().length < 5} onClick={enregistrerMotifAnnuaire}>Enregistrer le motif</button>
+              </div>
             </div>
           )}
           <button type="button" className="btn btn-secondary justify-self-start" onClick={() => apercuBrouillon(emission.inv, emission.items)}><Eye size={14} />Voir l'aperçu du PDF</button>
