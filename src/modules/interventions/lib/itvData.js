@@ -327,7 +327,8 @@ export function invoiceLinesForVisit(visit, parts, settings) {
   } else {
     lines.push({ description_title: 'Visite de vérification du matériel de sécurité', description_detail: `${visit.reference || ''} du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}`, quantity: 1, unit: 'forfait', unit_price_ht: Number(settings?.visit_fee_ht || 0), tva_rate: tva })
   }
-  for (const p of parts || []) lines.push({ description_title: p.label, description_detail: '', quantity: Number(p.quantity || 1), unit: 'unité', unit_price_ht: Number(p.unit_price_ht || 0), tva_rate: tva })
+  // Pièces fournies : livraisons de biens (nature de l'opération, 0363) ; forfaits : prestations de services
+  for (const p of parts || []) lines.push({ description_title: p.label, description_detail: '', quantity: Number(p.quantity || 1), unit: 'unité', unit_price_ht: Number(p.unit_price_ht || 0), tva_rate: tva, nature: 'bien' })
   return lines
 }
 

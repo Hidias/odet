@@ -74,7 +74,9 @@ const daysLate = (dueDate) => {
 }
 
 const TVA_RATES = [0,2.1,5.5,8.5,10,20]
-const emptyItem = () => ({code:'',description_title:'',description_detail:'',quantity:1,unit:'unité',unit_price_ht:0,tva_rate:20,course_id:null})
+const emptyItem = () => ({code:'',description_title:'',description_detail:'',quantity:1,unit:'unité',unit_price_ht:0,tva_rate:20,course_id:null,nature:'service',vat_regime:'normal'})
+// Régimes de TVA d'une ligne (0363) ; la franchise est un régime du vendeur (Paramètres), pas d'une ligne
+const REGIMES = [['normal', 'TVA normale'], ['exonere', 'Exonérée'], ['autoliquidation', 'Autoliquidation']]
 
 // ─── Templates email selon rang de relance ───
 function getEmailTemplate(inv, relanceNumber, org = {}) {
@@ -758,6 +760,8 @@ export default function Invoices() {
       total_tva: totals.totalTva, total_ttc: totals.totalTtc, amount_paid: ap, amount_due: amountDue,
       status: 'draft', notes: current.notes || '', created_by: current.created_by, is_formation_pro: current.is_formation_pro !== false,
       is_subrogation: current.is_subrogation || false, billing_client_id: current.is_subrogation ? current.billing_client_id || null : null,
+      chorus_service_code: (current.chorus_service_code ?? clients.find(c => c.id === current.client_id)?.chorus_service_code) || null,
+      chorus_engagement: current.chorus_engagement || null,
       updated_at: new Date().toISOString(),
     }
     try {
@@ -775,6 +779,7 @@ export default function Invoices() {
         description_detail: it.description_detail || '', quantity: parseFloat(it.quantity) || 1, unit: it.unit || 'unité',
         unit_price_ht: parseFloat(it.unit_price_ht) || 0, tva_rate: parseRate(it.tva_rate),
         total_ht: calcItemTotal(it), course_id: it.course_id || null,
+        nature: it.nature === 'bien' ? 'bien' : 'service', vat_regime: it.vat_regime || 'normal',
       }))
       if (toIns.length > 0) { const { error: ie } = await supabase.from('invoice_items').insert(toIns); if (ie) throw ie }
       // Devis → « facturé » uniquement quand la facture est créée depuis le devis
@@ -894,8 +899,13 @@ export default function Invoices() {
     const billingClient = inv.is_subrogation && inv.billing_client_id ? clients.find(c => c.id === inv.billing_client_id) : null
     let contact = null
     if (inv.contact_id) { const { data } = await supabase.from('client_contacts').select('*').eq('id', inv.contact_id).single(); contact = data }
+    let invPdf = inv
+    if (isDraftDoc(inv) && inv.id) {
+      const { data } = await supabase.rpc('billing_missing_mentions', { p_invoice: inv.id })
+      if (data && Array.isArray(data.mentions)) invPdf = { ...inv, legal_mentions: data.mentions }
+    }
     try {
-      await generateInvoicePDF(inv, itemsList || items, client, contact, { billingClient, orgSettings: organization })
+      await generateInvoicePDF(invPdf, itemsList || items, client, contact, { billingClient, orgSettings: organization })
     } catch (e) { toast.error('Aperçu impossible : ' + e.message) }
   }
 
@@ -909,7 +919,10 @@ export default function Invoices() {
     let prochain = null
     const { data: n } = await supabase.rpc('billing_next_number', { p_type: inv.type || 'invoice' })
     if (typeof n === 'string') prochain = n
-    setEmission({ inv, items: lignes, totaux, prochain, verifie: false, enCours: false })
+    // Mentions obligatoires (0363) : points bloquants et alertes calculés par la base
+    const { data: chk } = await supabase.rpc('billing_missing_mentions', { p_invoice: inv.id })
+    const points = Array.isArray(chk?.points) ? chk.points : []
+    setEmission({ inv, items: lignes, totaux, prochain, points, verifie: false, enCours: false })
   }
   const emettre = async () => {
     if (!emission?.verifie) return
@@ -1555,6 +1568,12 @@ export default function Invoices() {
             <div><label className="text-ui-sm text-gray-500 block mb-1">Début prestation</label><input type="date" value={current?.service_start_date || ''} onChange={e => setCurrent({...current, service_start_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
             <div><label className="text-ui-sm text-gray-500 block mb-1">Fin prestation</label><input type="date" value={current?.service_end_date || ''} onChange={e => setCurrent({...current, service_end_date: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} /></div>
           </div>
+          {client?.client_type === 'public' && (
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div><label className="text-ui-sm text-gray-500 block mb-1">Code service Chorus Pro</label><input type="text" value={current?.chorus_service_code ?? client?.chorus_service_code ?? ''} onChange={e => setCurrent({...current, chorus_service_code: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui font-mono" readOnly={ro} /></div>
+              <div><label className="text-ui-sm text-gray-500 block mb-1">N° d'engagement</label><input type="text" value={current?.chorus_engagement || ''} onChange={e => setCurrent({...current, chorus_engagement: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui font-mono" readOnly={ro} /></div>
+            </div>
+          )}
           <div className="mt-4"><label className="text-ui-sm text-gray-500 block mb-1">Objet</label><input type="text" value={current?.object || ''} onChange={e => setCurrent({...current, object: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} placeholder="Formation SST du..." /></div>
         </div>
 
@@ -1568,6 +1587,14 @@ export default function Invoices() {
                 <div className="col-span-4">
                   <input type="text" value={item.description_title} onChange={e => updateItem(idx, 'description_title', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui" placeholder="Description" readOnly={ro} />
                   <input type="text" value={item.description_detail || ''} onChange={e => updateItem(idx, 'description_detail', e.target.value)} className="w-full border rounded px-2 py-1 text-ui-sm mt-1 text-gray-500" placeholder="Détail" readOnly={ro} />
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    <select value={item.nature || 'service'} onChange={e => updateItem(idx, 'nature', e.target.value)} className="border rounded px-1 py-0.5 text-ui-sm text-gray-600" disabled={ro} aria-label="Nature de la ligne">
+                      <option value="service">Service</option><option value="bien">Bien</option>
+                    </select>
+                    <select value={item.vat_regime || 'normal'} onChange={e => { const v = e.target.value; const n = [...items]; n[idx] = { ...n[idx], vat_regime: v, tva_rate: v === 'normal' ? (n[idx].tva_rate || 20) : 0 }; setItems(n) }} className="border rounded px-1 py-0.5 text-ui-sm text-gray-600" disabled={ro} aria-label="Régime de TVA de la ligne">
+                      {REGIMES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div className="col-span-1"><input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui text-center" readOnly={ro} step="0.01" /></div>
                 <div className="col-span-2"><input type="number" value={item.unit_price_ht} onChange={e => updateItem(idx, 'unit_price_ht', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui text-right" readOnly={ro} step="0.01" /></div>
@@ -1738,7 +1765,7 @@ export default function Invoices() {
         <Sheet title={emission.inv.type === 'credit_note' ? "Émettre l'avoir" : 'Émettre la facture'} size="md" onClose={() => !emission.enCours && setEmission(null)}
           footer={<>
             <button type="button" className="btn btn-secondary" disabled={emission.enCours} onClick={() => setEmission(null)}>Revenir</button>
-            <button type="button" className="btn btn-primary" disabled={!emission.verifie || emission.enCours} onClick={emettre}>
+            <button type="button" className="btn btn-primary" disabled={!emission.verifie || emission.enCours || (emission.points || []).some((p) => p.bloquant)} onClick={emettre}>
               {emission.enCours ? 'Émission…' : 'Émettre définitivement'}
             </button>
           </>}>
@@ -1753,6 +1780,22 @@ export default function Invoices() {
             {emission.inv.due_date && <><dt className="text-gray-500">Échéance</dt><dd>{fmtDateShort(emission.inv.due_date)} (décalée si la date de facture change)</dd></>}
             {emission.prochain && <><dt className="text-gray-500">Numéro prévu</dt><dd>{emission.prochain}</dd></>}
           </dl>
+          {(emission.points || []).length > 0 && (
+            <div className="grid gap-1">
+              <p className="font-medium">{emission.points.some((p) => p.bloquant) ? 'À compléter avant d\'émettre' : 'À vérifier'}</p>
+              <ul className="grid gap-1 text-ui-sm">
+                {emission.points.map((p) => (
+                  <li key={p.code} className="flex items-start gap-2">
+                    <span className={`badge ${p.bloquant ? 'badge-danger' : 'badge-warning'} flex-none`}>{p.bloquant ? 'Bloquant' : 'Alerte'}</span>
+                    <span className="flex-1">{p.libelle}</span>
+                    {p.ou === 'client' && emission.inv.client_id && <a className="underline text-gray-600 flex-none" href={`#/clients/${emission.inv.client_id}`}>fiche client</a>}
+                    {p.ou === 'parametres' && <a className="underline text-gray-600 flex-none" href="#/parametres?section=identite">Paramètres</a>}
+                    {p.ou === 'facture' && <span className="text-gray-500 flex-none">dans la facture</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <button type="button" className="btn btn-secondary justify-self-start" onClick={() => apercuBrouillon(emission.inv, emission.items)}><Eye size={14} />Voir l'aperçu du PDF</button>
           <label className="flex items-start gap-2">
             <input type="checkbox" className="mt-1" checked={emission.verifie} onChange={(e) => setEmission((x) => ({ ...x, verifie: e.target.checked }))} />

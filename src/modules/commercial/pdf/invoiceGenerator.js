@@ -161,9 +161,13 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
     payment.push(['Délai', invoice.payment_terms || 'à 30 jours'])
     if (invoice.due_date) payment.push(['Échéance', fd(invoice.due_date)])
     bankRows(L).forEach(function (r) { payment.push(r) })
-    legal.push("En cas de retard de paiement, des pénalités sont exigibles au taux légal majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce). Pas d'escompte pour paiement anticipé.")
+    if (!Array.isArray(invoice.legal_mentions)) legal.push("En cas de retard de paiement, des pénalités sont exigibles au taux légal majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce). Pas d'escompte pour paiement anticipé.")
   }
-  legal.push(tvaOn ? "TVA exigible d'après les encaissements (article 269, 2-c du CGI)." : "TVA non applicable, article 261-4-4° du CGI.")
+  // Mentions légales : celles figées à l'émission (ou calculées par la base pour l'aperçu d'un brouillon, 0363).
+  // Documents d'avant 0363 sans mentions figées : texte d'origine, inchangé.
+  if (Array.isArray(invoice.legal_mentions)) invoice.legal_mentions.forEach(function (m) { if (m) legal.push(String(m)) })
+  else legal.push(tvaOn ? "TVA exigible d'après les encaissements (article 269, 2-c du CGI)." : "TVA non applicable, article 261-4-4° du CGI.")
+  if (invoice.nature_operation) legal.push('Nature de l\'opération : ' + ({ services: 'prestations de services', biens: 'livraisons de biens', mixte: 'livraisons de biens et prestations de services' }[invoice.nature_operation] || invoice.nature_operation) + '.')
   legal.push(companyLegalLine(L))
 
   var subtitle = null

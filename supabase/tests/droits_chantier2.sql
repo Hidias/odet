@@ -884,7 +884,13 @@ begin
       insert into public.profiles (id, email, role, is_active) values (b_dir, 'fac.dir@test.invalid', 'direction', true), (b_lec, 'fac.lec@test.invalid', 'lecture', true)
       on conflict (id) do update set role = excluded.role, is_active = true;
       alter table public.profiles enable trigger profiles_protect_role;
-      insert into public.clients (name, siret) values ('Client facturation essai', '12345678900011') returning id into b_cli;
+      insert into public.clients (name, siret, siren, address, postal_code, city, tva) values
+        ('Client facturation essai', '12345678900011', '123456789', '1 rue de l''Essai', '29000', 'Quimper', 'FR00123456789') returning id into b_cli;
+      -- Organisme complet pour l'essai (base locale) ; la production garde ses valeurs (coalesce)
+      update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
       perform set_config('request.jwt.claims', json_build_object('sub', b_dir, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
       insert into public.invoices (reference, type, client_id, invoice_date, due_date, status)
@@ -915,7 +921,7 @@ begin
       perform set_config('request.jwt.claims', json_build_object('sub', b_dir, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
       b_r1 := public.billing_issue(b_f1);
-      insert into public.invoices (reference, type, client_id, invoice_date) values ('x', 'invoice', b_cli, current_date) returning id into b_f2;
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', b_cli, current_date, current_date + 30) returning id into b_f2;
       insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (b_f2, 0, 'Ligne', 1, 50, 20);
       b_r2 := public.billing_issue(b_f2);
       execute 'reset role';
@@ -966,7 +972,7 @@ begin
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : avoir émis en série AVR (' || coalesce(b_r1 ->> 'reference', '') || ')'); end if;
       -- Brouillon : reste supprimable par qui en a le droit
       execute 'set local role authenticated';
-      insert into public.invoices (reference, type, client_id, invoice_date) values ('x', 'invoice', b_cli, current_date) returning id into b_f2;
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', b_cli, current_date, current_date + 30) returning id into b_f2;
       delete from public.invoices where id = b_f2;
       execute 'reset role';
       if not exists (select 1 from public.invoices where id = b_f2) then v_lines := v_lines || 'OK      dir   0362 : brouillon supprimable'::text;
@@ -1180,6 +1186,75 @@ begin
         v_lines := v_lines || 'OK      sa    0369 : en démonstration, compteur remis à zéro'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0369 : en démonstration, compteur remis à zéro'::text; end if;
       update public.organization_settings set demo_mode = k_demo;
+      perform set_config('request.jwt.claims', '', true);
+    end;
+  end if;
+
+  -- Mentions obligatoires, nature et régime par ligne (0363)
+  if to_regprocedure('public.billing_missing_mentions(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 6;
+    declare
+      m_dir uuid := gen_random_uuid(); m_cli uuid; m_part uuid; m_f uuid; m_p uuid; m_ok boolean; m_chk jsonb;
+    begin
+      insert into auth.users (id, email, aud, role) values (m_dir, 'men.dir@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (m_dir, 'men.dir@test.invalid', 'direction', true)
+      on conflict (id) do update set role = excluded.role, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+      insert into public.clients (name, address, postal_code, city) values ('Pro sans SIREN essai', '3 rue', '29000', 'Quimper') returning id into m_cli;
+      insert into public.clients (name, address, postal_code, city, client_type, vat_exempt) values ('Particulier essai', '4 rue', '29000', 'Quimper', 'particulier', true) returning id into m_part;
+      perform set_config('request.jwt.claims', json_build_object('sub', m_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', m_cli, current_date, current_date + 30) returning id into m_f;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (m_f, 0, 'Ligne', 1, 500, 20);
+      m_chk := public.billing_missing_mentions(m_f);
+      m_ok := false;
+      begin perform public.billing_issue(m_f); exception when sqlstate '22023' then m_ok := true; end;
+      execute 'reset role';
+      if m_ok and m_chk -> 'points' @> '[{"code": "client_siren", "bloquant": true}]' and m_chk -> 'points' @> '[{"code": "client_tva", "bloquant": true}]' then
+        v_lines := v_lines || 'OK      dir   0363 : client pro sans SIREN ni TVA : émission refusée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0363 : client pro sans SIREN ni TVA : émission refusée (' || coalesce(m_chk::text, '') || ')'); end if;
+      -- Ligne exonérée sans exonération activée : refusée
+      execute 'set local role authenticated';
+      update public.clients set siren = '123456789', tva = 'FR00123456789' where id = m_cli;
+      update public.invoice_items set vat_regime = 'exonere', tva_rate = 0 where invoice_id = m_f;
+      m_chk := public.billing_missing_mentions(m_f);
+      execute 'reset role';
+      if m_chk -> 'points' @> '[{"code": "exoneration", "bloquant": true}]' then
+        v_lines := v_lines || 'OK      dir   0363 : ligne exonérée refusée sans exonération activée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0363 : ligne exonérée refusée sans exonération activée (' || m_chk::text || ')'); end if;
+      -- Client pro complet : émise, mentions pro figées (escompte, pénalités, indemnité), nature services
+      execute 'set local role authenticated';
+      update public.invoice_items set vat_regime = 'normal', tva_rate = 20 where invoice_id = m_f;
+      perform public.billing_issue(m_f);
+      execute 'reset role';
+      if (select jsonb_array_length(legal_mentions) >= 3 and legal_mentions::text like '%40 €%' and nature_operation = 'services' from public.invoices where id = m_f) then
+        v_lines := v_lines || 'OK      dir   0363 : mentions pro et nature figées à l''émission'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0363 : mentions pro et nature figées (' || (select coalesce(legal_mentions::text, 'vide') || ' ' || coalesce(nature_operation, '') from public.invoices where id = m_f) || ')'); end if;
+      -- Particulier : pas d'indemnité de 40 €, pas de SIREN demandé ; ligne de bien : nature biens
+      execute 'set local role authenticated';
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date, service_start_date) values ('x', 'invoice', m_part, current_date, current_date + 30, current_date) returning id into m_p;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate, nature) values (m_p, 0, 'Extincteur', 1, 80, 20, 'bien');
+      m_chk := public.billing_missing_mentions(m_p);
+      perform public.billing_issue(m_p);
+      execute 'reset role';
+      if jsonb_array_length(m_chk -> 'points') = 0 and (select legal_mentions::text not like '%40 €%' and nature_operation = 'biens' from public.invoices where id = m_p) then
+        v_lines := v_lines || 'OK      dir   0363 : particulier sans indemnité de 40 €, nature biens'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0363 : particulier sans indemnité de 40 € (' || m_chk::text || ')'); end if;
+      -- Lignes : régime inconnu refusé par la base
+      m_ok := false;
+      begin insert into public.invoice_items (invoice_id, position, description_title, vat_regime) values (m_f, 5, 'x', 'franchise'); exception when check_violation then m_ok := true; when insufficient_privilege then m_ok := true; end;
+      if m_ok then v_lines := v_lines || 'OK      base  0363 : régime de TVA de ligne contrôlé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0363 : régime de TVA de ligne contrôlé'::text; end if;
+      if not has_function_privilege('authenticated', 'app.billing_check(uuid)', 'EXECUTE') and not has_function_privilege('anon', 'public.billing_missing_mentions(uuid)', 'EXECUTE') then
+        v_lines := v_lines || 'OK      base  0363 : contrôle interne fermé, écran par droit'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0363 : contrôle interne fermé, écran par droit'::text; end if;
       perform set_config('request.jwt.claims', '', true);
     end;
   end if;

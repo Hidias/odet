@@ -463,6 +463,9 @@ export default function ClientDetail() {
       satisfaction_mode: editForm.satisfaction_mode || 'after_session',
       tva: editForm.vat_exempt ? null : (editForm.tva || null),
       vat_exempt: !!editForm.vat_exempt,
+      // Client public (Chorus Pro, 0363) : code service par défaut, engagement exigé
+      chorus_service_code: editForm.client_type === 'public' ? (editForm.chorus_service_code || null) : null,
+      chorus_engagement_required: editForm.client_type === 'public' ? !!editForm.chorus_engagement_required : false,
     }).eq('id', id)
     if (error) return toast.error('Erreur sauvegarde')
     toast.success(wasAutoPromoted ? 'Fiche complétée → statut passé en Prospect ' : 'Client mis à jour', wasAutoPromoted ? { icon: '' } : {})
@@ -1272,6 +1275,17 @@ export default function ClientDetail() {
                     <input type="email" value={editForm.billing_email || ''} onChange={e => setEditForm({ ...editForm, billing_email: e.target.value })}
                       className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="compta@client.fr" />
                   </div>
+                  {editForm.client_type === 'public' && (
+                    <div>
+                      <label className="text-ui-sm text-gray-500 mb-1 block">Code service Chorus Pro <span className="text-gray-400">(si l'entité l'exige)</span></label>
+                      <input value={editForm.chorus_service_code || ''} onChange={e => setEditForm({ ...editForm, chorus_service_code: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-ui-sm text-ui font-mono" placeholder="Annuaire Chorus Pro" />
+                      <label className="flex items-center gap-2 mt-2 text-ui-sm text-gray-600">
+                        <input type="checkbox" checked={!!editForm.chorus_engagement_required} onChange={e => setEditForm({ ...editForm, chorus_engagement_required: e.target.checked })} />
+                        Numéro d'engagement ou bon de commande exigé
+                      </label>
+                    </div>
+                  )}
                   {editForm.client_type === 'organisme_formation' && (
                     <div>
                       <label className="text-ui-sm text-gray-500 mb-1 block">Envoi satisfaction donneur d'ordre</label>
