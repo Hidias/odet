@@ -187,6 +187,8 @@ ORDRE_PROD = (
     + ['0312']
     # RH : registre unique du personnel, 19/10
     + ['0313']
+    # Purge de démonstration étendue au RH, 19/10
+    + ['0315']
 )
 
 
