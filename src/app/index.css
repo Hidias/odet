@@ -72,6 +72,21 @@ html[data-density='compact'] {
   --page-px: 1.25rem;
 }
 
+/* Affichage adapté (réglage par personne) : texte agrandi, contraste renforcé */
+html[data-adapte-grand='1'] {
+  --text-ui: 17px;
+  --text-ui-sm: 15px;
+  --control-h: 48px;
+  font-size: 112.5%;
+}
+html[data-adapte-contraste='1'] .text-gray-400,
+html[data-adapte-contraste='1'] .text-gray-500,
+html[data-adapte-contraste='1'] .text-gray-600,
+html[data-adapte-contraste='1'] .muted { color: #1f2937 !important; }
+html[data-adapte-contraste='1'] .border-gray-200,
+html[data-adapte-contraste='1'] .border-gray-300 { border-color: #6b7280 !important; }
+html[data-adapte-contraste='1'] .btn-ghost { text-decoration: underline; }
+
 html[data-density='large'] {
   --text-ui: 15px;
   --text-ui-sm: 13.5px;

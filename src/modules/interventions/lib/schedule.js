@@ -1,13 +1,16 @@
 // Règles de calcul du module Interventions (sans accès à la base : testables seules).
 // Échéances d'un appareil, opération proposée lors d'une visite, libellés des résultats.
 
+// facile : libellé en français facile (affichage adapté) ; picto : pictogramme constant, jamais la couleur seule
 export const RESULTS = [
-  { code: 'conforme', label: 'Conforme', tone: 'success' },
-  { code: 'a_remplacer', label: 'À remplacer', tone: 'warning' },
-  { code: 'remplace', label: 'Remplacé', tone: 'info' },
-  { code: 'absent', label: 'Absent', tone: 'danger' },
-  { code: 'inaccessible', label: 'Inaccessible', tone: 'danger' },
+  { code: 'conforme', label: 'Conforme', facile: 'Bon', picto: '✓', tone: 'success' },
+  { code: 'a_remplacer', label: 'À remplacer', facile: 'À changer', picto: '⇄', tone: 'warning' },
+  { code: 'remplace', label: 'Remplacé', facile: 'Changé', picto: '↻', tone: 'info' },
+  { code: 'absent', label: 'Absent', facile: 'Pas là', picto: '✕', tone: 'danger' },
+  { code: 'inaccessible', label: 'Inaccessible', facile: 'Pas accessible', picto: '🔒', tone: 'danger' },
 ]
+export const RESULT_PICTO = Object.fromEntries(RESULTS.map((r) => [r.code, r.picto]))
+export const RESULT_FACILE = Object.fromEntries(RESULTS.map((r) => [r.code, r.facile]))
 export const RESULT_LABEL = Object.fromEntries(RESULTS.map((r) => [r.code, r.label]))
 export const RESULT_BADGE = { conforme: 'badge-success', a_remplacer: 'badge-warning', remplace: 'badge-info', absent: 'badge-danger', inaccessible: 'badge-danger' }
 

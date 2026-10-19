@@ -217,6 +217,8 @@ ORDRE_PROD = (
     + ['0386']
     # Titres délivrés par l'employeur, signatures enregistrées, 20/10
     + ['0387']
+    # Affichage adapté réglé par la RH ou la direction, 20/10
+    + ['0388']
 )
 
 
