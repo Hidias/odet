@@ -24,3 +24,15 @@ describe('RH socle', () => {
     expect(nomComplet({ first_name: 'Marie', last_name: 'Le Gall', usage_name: 'Kerhervé' })).toBe('Marie Kerhervé')
   })
 })
+
+describe('RH absences', async () => {
+  const { joursOuvres } = await import('../src/modules/rh/lib/rhData')
+  it('jours ouvrés avec demi-journées (même calcul que la base)', () => {
+    expect(joursOuvres('2026-11-02', false, '2026-11-06', false)).toBe(5)
+    expect(joursOuvres('2026-11-02', true, '2026-11-06', true)).toBe(4)
+    expect(joursOuvres('2026-11-06', false, '2026-11-09', false)).toBe(2)
+    expect(joursOuvres('2026-11-07', false, '2026-11-08', false)).toBe(0)
+    expect(joursOuvres('2026-11-04', true, '2026-11-04', false)).toBe(0.5)
+    expect(joursOuvres('2026-11-06', false, '2026-11-02', false)).toBe(0)
+  })
+})

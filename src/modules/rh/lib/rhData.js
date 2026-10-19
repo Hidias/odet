@@ -108,3 +108,67 @@ export async function enregistrerHoraire(h) {
   if (id) return must(await supabase.from('hr_schedules').update(reste).eq('id', id))
   return must(await supabase.from('hr_schedules').insert(reste))
 }
+
+// ─── Absences (0294) ───
+export const STATUTS_ABSENCE = {
+  demandee: { label: 'En attente', badge: 'badge-warning' },
+  validee: { label: 'Validée', badge: 'badge-success' },
+  refusee: { label: 'Refusée', badge: 'badge-danger' },
+  annulee: { label: 'Annulée', badge: 'badge-neutral' },
+}
+export const CATEGORIES_ABSENCE = {
+  conges_payes: 'Congés payés', rtt: 'RTT', recuperation: 'Récupération', autorisee: 'Absence autorisée',
+  maladie: 'Maladie', accident_travail: 'Accident du travail', evenement_familial: 'Événement familial',
+  sans_solde: 'Sans solde', autre: 'Autre',
+}
+
+/** Jours ouvrés (lundi au vendredi) d'une période, demi-journées comprises : même calcul que la base */
+export function joursOuvres(debut, debutApresMidi, fin, finMatin) {
+  if (!debut || !fin || fin < debut) return 0
+  let n = 0
+  const d = new Date(`${debut}T12:00:00`)
+  const f = new Date(`${fin}T12:00:00`)
+  for (let x = new Date(d); x <= f; x.setDate(x.getDate() + 1)) {
+    const j = x.getDay()
+    if (j !== 0 && j !== 6) n += 1
+  }
+  const ouvre = (dt) => { const j = dt.getDay(); return j !== 0 && j !== 6 }
+  if (debutApresMidi && ouvre(d)) n -= 0.5
+  if (finMatin && ouvre(f)) n -= 0.5
+  return Math.max(0, n)
+}
+
+export const chargerTypesAbsence = async () => must(await supabase.from('hr_absence_types').select('*').order('position'))
+export const chargerMaFiche = async () => {
+  const { data: u } = await supabase.auth.getUser()
+  if (!u?.user?.id) return null
+  const { data } = await supabase.from('hr_people').select('id, first_name, last_name, usage_name').eq('profile_id', u.user.id).maybeSingle()
+  return data || null
+}
+export const chargerDemandes = async ({ personId = null, statut = null } = {}) => {
+  return must(await fetchAll(() => {
+    let q = supabase.from('hr_absence_requests').select('*, hr_absence_types(label, code, category), hr_people(first_name, last_name, usage_name)')
+    if (personId) q = q.eq('person_id', personId)
+    if (statut) q = q.eq('status', statut)
+    return q.order('start_on', { ascending: false })
+  }))
+}
+export const chargerSoldes = async (personId) => must(await supabase.from('v_hr_soldes').select('*').eq('person_id', personId))
+export const chargerMouvements = async (personId) => must(await supabase.from('hr_leave_ledger').select('*, hr_absence_types(label)').eq('person_id', personId).order('created_at', { ascending: false }))
+
+export async function demanderAbsence({ typeId, debut, debutApresMidi, fin, finMatin, commentaire, personId = null }) {
+  return must(await supabase.rpc('hr_absence_demander', {
+    p_type: typeId, p_debut: debut, p_debut_demi: debutApresMidi ? 'apres_midi' : null, p_fin: fin,
+    p_fin_demi: finMatin ? 'matin' : null, p_commentaire: commentaire || null, p_personne: personId,
+  }))
+}
+export const annulerAbsence = async (id) => must(await supabase.rpc('hr_absence_annuler', { p_req: id }))
+export const deciderAbsence = async (approvalId, decision, motif) => must(await supabase.rpc('approval_decide', { p_request: approvalId, p_decision: decision, p_comment: motif || null }))
+export async function ajusterSolde({ personId, typeId, kind, days, note, periodLabel }) {
+  must(await supabase.from('hr_leave_ledger').insert({ person_id: personId, type_id: typeId, kind, days: Number(days), note: note || null, period_label: periodLabel || null }))
+}
+export async function enregistrerTypeAbsence(t) {
+  const { id, ...reste } = t
+  if (id) return must(await supabase.from('hr_absence_types').update(reste).eq('id', id))
+  return must(await supabase.from('hr_absence_types').insert(reste))
+}

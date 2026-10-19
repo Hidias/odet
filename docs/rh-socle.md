@@ -31,3 +31,17 @@ Aucun numéro de sécurité sociale, aucune donnée de santé ni de handicap (sp
 
 `rh/absences` (0294-0296), `rh/heures` (0297-0300), `rh/documents-sante` (0301-0303), `rh/mon-espace`.
 Une personne présente dans deux sociétés a pour l'instant une fiche par société (la fiche partagée viendra avec C2/C3).
+
+# Absences (migration 0294)
+
+- Types d'absence par société (liste de départ « à confirmer » : congés payés, RTT, récupération, absence autorisée,
+  événement familial, sans solde, arrêt maladie et accident du travail saisis par la RH) ; réglages : Personnel ›
+  Absences › Types.
+- Demande (`hr_absence_demander`) : pour soi (profil « Salarié », fiche reliée au compte) ou par la RH pour une
+  personne ; jours ouvrés du lundi au vendredi, demi-journées ; pas de chevauchement ; solde affiché avant l'envoi.
+- Circuit commun (`approval_requests`, périmètre « absence », droit « Valider les absences ») ; personne ne valide sa
+  propre demande ; refus avec motif ; la décision met la demande à jour et écrit la prise au solde.
+- Annulation : la personne, tant que l'absence n'a pas commencé ; la RH, toujours ; une prise annulée revient au solde.
+- Soldes calculés (`v_hr_soldes`) depuis les mouvements (acquisition, prise, report, ajustement, annulation) ;
+  ajustements par la RH dans la fiche.
+- Aucun motif médical : seule la catégorie du type. Jours fériés : à venir (calendrier par société).
