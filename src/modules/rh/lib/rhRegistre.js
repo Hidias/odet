@@ -34,7 +34,7 @@ export function mentionsContrat(c) {
 /** Lignes du registre : contrats de la société dans l'ordre des embauches (stagiaires à part, L1221-13) */
 export async function chargerRegistre() {
   const rows = must(await fetchAll(() => supabase.from('hr_employments')
-    .select('*, hr_people(first_name, last_name, usage_name, birth_date, nationality, gender, work_permit_type, work_permit_ref)')
+    .select('*, hr_people!hr_employments_person_id_fkey(first_name, last_name, usage_name, birth_date, nationality, gender, work_permit_type, work_permit_ref)')
     .order('start_on').order('created_at')))
   return rows.filter((r) => r.hr_people)
 }
