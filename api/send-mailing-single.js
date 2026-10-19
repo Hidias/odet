@@ -41,7 +41,7 @@ async function pickMailer(userId, org, preferEmail, trusted) {
   }
   const { data: configs } = await supabase.from('user_email_configs').select('email').eq('is_active', true).limit(1)
   if (configs?.[0]) return getMailerByEmail(supabase, configs[0].email)
-  return { error: 'Aucune configuration email active' }
+  return { error: "Votre boîte d'envoi n'est pas configurée : menu de votre compte (vos initiales, en haut à droite) › Ma boîte d'envoi." }
 }
 
 /**

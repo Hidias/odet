@@ -26,6 +26,8 @@ import { parseRate } from '../../../core/billing/totals'
 import { quoteDay, nextQuoteReference } from '../lib/references'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useRelanceIA } from '../lib/useRelanceIA'
+import { useCapacites } from '../../../core/capacites'
+import { modeleEnvoiDevis } from '../../../core/emails/modeles'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
 import AcompteDevis from '../components/AcompteDevis'
 
@@ -186,6 +188,7 @@ export default function Quotes() {
 
   // === Relance IA ===
   const { relanceQuote, generating: relanceGenerating, previewData, confirmSend, cancelPreview } = useRelanceIA()
+  const capacites = useCapacites()
   const [relanceEdit, setRelanceEdit] = useState({ subject: '', body: '' })
   const [relanceConfirmed, setRelanceConfirmed] = useState(false)
 
@@ -764,8 +767,20 @@ export default function Quotes() {
     setSessionCreating(false)
   }
 
+  // Texte prêt (modèle) : toujours disponible, sans aucun service extérieur (décision de H du 19/10)
+  function texteModeleDevis() {
+    if (!sendWizard) return
+    const { quote, items, contact } = sendWizard
+    const programmes = sendAttachments.filter(a => a.type === 'program' && a.enabled).map(p => p.courseTitle)
+    const formation = !!quote.session_id || (items || []).some(i => i.course_id)
+    const contactName = contact ? [contact.civilite, contact.last_name || contact.name].filter(Boolean).join(' ') : ''
+    const m = modeleEnvoiDevis({ quote, contactName, org: orgName(), programmes, formation })
+    setSendEmail(prev => ({ ...prev, subject: m.subject, body: m.body }))
+  }
+
   async function generateEmailText() {
     if (!sendWizard) return
+    if (!capacites.ia) { texteModeleDevis(); return }
     setSendLoading(true)
     try {
       const { quote, client, contact, items } = sendWizard
@@ -787,18 +802,8 @@ export default function Quotes() {
       toast.success('Texte généré !')
     } catch (err) {
       console.error('Erreur génération email:', err)
-      toast.error('Erreur: ' + err.message)
-      // Fallback text
-      const { quote, client } = sendWizard
-      const hasProgs = sendAttachments.some(a => a.type === 'program' && a.enabled)
-      const pjText = hasProgs 
-        ? 'notre devis ainsi que les programmes de formation correspondants'
-        : 'notre devis'
-      setSendEmail(prev => ({
-        ...prev,
-        subject: `Devis ${quote.reference} - ${orgName()}`,
-        body: `Bonjour,\n\nSuite à notre échange, veuillez trouver ci-joint ${pjText} (réf. ${quote.reference}).\n\nNous restons à votre disposition pour tout complément d'information.`
-      }))
+      toast.error("L'assistant n'a pas répondu : le texte modèle est proposé à la place.")
+      texteModeleDevis()
     }
     setSendLoading(false)
   }
@@ -981,7 +986,7 @@ export default function Quotes() {
                   {previewData.relanceNum === 1 ? '1ère' : previewData.relanceNum === 2 ? '2ème' : '3ème'} relance - {previewData.quote?.clients?.name || previewData.quote?.reference}
                 </h2>
                 <p className="text-ui text-gray-500 mt-0.5">
-                  {previewData.isFallback ? ' Généré sans IA (fallback)' : ` Généré par IA · ton ${previewData.tone || 'courtois'}`}
+                  {previewData.isFallback ? ' Texte modèle, modifiable librement' : ` Proposé par l'assistant · ton ${previewData.tone || 'courtois'}`}
                 </p>
               </div>
               <button onClick={cancelPreview} className="text-gray-400 hover:text-gray-600">
@@ -2036,8 +2041,14 @@ export default function Quotes() {
                   />
                 </div>
 
-                {/* Régénérer avec instructions */}
-                <div className="bg-[rgb(var(--c-info-bg))] rounded-ui-sm p-3">
+                {/* Régénérer avec instructions : seulement quand l'assistant de rédaction est activé */}
+                {!capacites.ia && (
+                  <div className="flex flex-wrap items-center gap-2 text-ui-sm text-gray-500">
+                    <span>Texte modèle, modifiable librement.</span>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={texteModeleDevis}><RefreshCw size={14} />Revenir au modèle</button>
+                  </div>
+                )}
+                {capacites.ia && <div className="bg-[rgb(var(--c-info-bg))] rounded-ui-sm p-3">
                   <label className="block text-ui-sm font-medium text-[rgb(var(--c-info))] mb-1">
                     Instructions pour régénérer (optionnel)
                   </label>
@@ -2058,7 +2069,7 @@ export default function Quotes() {
                       {sendEmail.body ? 'Régénérer' : 'Générer'}
                     </button>
                   </div>
-                </div>
+                </div>}
 
                 <p className="text-ui-sm text-gray-400">
                   La signature sera ajoutée automatiquement selon votre compte email.

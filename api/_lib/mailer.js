@@ -217,7 +217,7 @@ export async function getMailer(supabase, userId, options = {}) {
   const { data: configs, error: configError } = await supabase
     .from('user_email_configs').select('*').eq('user_id', userId).eq('is_active', true)
   if (configError || !configs || configs.length === 0) {
-    return { transporter: null, emailConfig: null, fromEmail: null, error: 'Aucune configuration email active pour cet utilisateur' }
+    return { transporter: null, emailConfig: null, fromEmail: null, error: "Votre boîte d'envoi n'est pas configurée : menu de votre compte (vos initiales, en haut à droite) › Ma boîte d'envoi." }
   }
   let emailConfig = configs[0]
   if (options.preferEmail) {

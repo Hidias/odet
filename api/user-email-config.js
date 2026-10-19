@@ -3,6 +3,7 @@
 // Le serveur SMTP est fourni par l'utilisateur (hôte, port, sécurité) ; le mot de passe est chiffré en base.
 
 import nodemailer from 'nodemailer'
+import { promises as dns } from 'node:dns'
 import { getSupabaseAdmin, encrypt } from './_lib/mailer.js'
 import { requireRight, OFFICE_WRITE } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
@@ -17,6 +18,26 @@ export const SMTP_PRESETS = {
   gmail: { smtp_host: 'smtp.gmail.com', smtp_port: 587, smtp_secure: false, imap_host: 'imap.gmail.com' },
   outlook: { smtp_host: 'smtp.office365.com', smtp_port: 587, smtp_secure: false, imap_host: 'outlook.office365.com' },
   orange: { smtp_host: 'smtp.orange.fr', smtp_port: 465, smtp_secure: true, imap_host: 'imap.orange.fr' },
+}
+
+// Fournisseur d'une adresse d'après ses serveurs de messagerie (MX) : Gmail et Google Workspace, Microsoft 365, IONOS,
+// OVH, Orange. Sert à préremplir le formulaire : la personne n'a qu'à saisir son adresse et son mot de passe.
+async function detecterFournisseur(email) {
+  const domaine = String(email || '').split('@')[1]?.trim().toLowerCase()
+  if (!domaine) return null
+  if (/^(gmail|googlemail)\.com$/.test(domaine)) return 'gmail'
+  if (/^(outlook|hotmail|live)\.(com|fr)$/.test(domaine)) return 'outlook'
+  if (/^(orange|wanadoo)\.fr$/.test(domaine)) return 'orange'
+  try {
+    const mx = await Promise.race([dns.resolveMx(domaine), new Promise((_, rej) => setTimeout(() => rej(new Error('délai')), 4000))])
+    const hotes = (mx || []).map((m) => String(m.exchange || '').toLowerCase()).join(' ')
+    if (/google(mail)?\.com|googlemail/.test(hotes)) return 'gmail'
+    if (/outlook\.com|protection\.outlook/.test(hotes)) return 'outlook'
+    if (/ionos|1and1|kundenserver/.test(hotes)) return /exchange/.test(hotes) ? 'ionos-exchange' : 'ionos-basic'
+    if (/ovh\.net/.test(hotes)) return 'ovh'
+    if (/orange\.fr/.test(hotes)) return 'orange'
+  } catch { /* domaine inconnu ou réseau : pas de proposition */ }
+  return null
 }
 
 function smtpSettings(body, existing) {
@@ -37,6 +58,10 @@ async function handler(req, res) {
   const { method } = req
 
   try {
+    if (method === 'GET' && req.query?.detect) {
+      return res.status(200).json({ preset: await detecterFournisseur(req.query.detect) })
+    }
+
     if (method === 'GET') {
       const { data, error } = await supabase
         .from('user_email_configs')
@@ -48,7 +73,7 @@ async function handler(req, res) {
     }
 
     if (method === 'POST') {
-      const { email, password: motDePasse, signatureImage, testConnection } = req.body || {}
+      const { email, password: motDePasse, signatureImage, testConnection, sendTest } = req.body || {}
       if (!email) return res.status(400).json({ error: 'Adresse email requise' })
       const cleanEmail = String(email).trim().toLowerCase()
 
@@ -70,6 +95,15 @@ async function handler(req, res) {
         })
         try {
           await transporter.verify()
+          // « Tester l'envoi » : un vrai email de la boîte vers elle-même (jamais vers quelqu'un d'autre)
+          if (sendTest) {
+            await transporter.sendMail({
+              from: cleanEmail, to: cleanEmail,
+              subject: "Test d'envoi : votre boîte est prête",
+              text: "Ce message confirme que l'outil peut envoyer des emails depuis votre boîte. Vous pouvez enregistrer le compte, puis supprimer ce message.",
+            })
+            return res.status(200).json({ success: true, message: `Email de test envoyé à ${cleanEmail}` })
+          }
           return res.status(200).json({ success: true, message: 'Connexion SMTP réussie' })
         } catch (error) {
           const gmail = /gmail\.com$/i.test(smtp.smtp_host) && /535|BadCredentials|Username and Password not accepted/i.test(error.message || '')

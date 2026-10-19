@@ -18,7 +18,7 @@ export async function internalRecipients(supabase) {
 
 export async function internalMailer(supabase, preferredEmails = []) {
   const { data: configs } = await supabase.from('user_email_configs').select('*').eq('is_active', true)
-  if (!configs || configs.length === 0) return { error: 'Aucune configuration email active' }
+  if (!configs || configs.length === 0) return { error: "Votre boîte d'envoi n'est pas configurée : menu de votre compte (vos initiales, en haut à droite) › Ma boîte d'envoi." }
   const org = await getOrg(supabase)
   const wanted = [org.email_default_sender, ...preferredEmails].map((e) => String(e || '').toLowerCase()).filter(Boolean)
   const cfg = wanted.map((w) => configs.find((c) => String(c.email).toLowerCase() === w)).find(Boolean) || configs[0]
