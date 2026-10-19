@@ -37,6 +37,7 @@ const ConsoleErreurs = lazy(() => import('../core/console/ConsoleErreurs'))
 const QuoiDeNeuf = lazy(() => import('../core/notices/QuoiDeNeuf'))
 const Obligations = lazy(() => import('../modules/formation/pages/Obligations'))
 const AValider = lazy(() => import('../modules/commercial/pages/AValider'))
+const SousTraitants = lazy(() => import('../modules/formation/pages/SousTraitants'))
 const RetoursSuivi = lazy(() => import('../core/feedback/RetoursSuivi'))
 const NonConformites = lazy(() => import('../modules/qualite/pages/NonConformites'))
 const RegistrePSH = lazy(() => import('../modules/qualite/pages/RegistrePSH'))
@@ -287,6 +288,7 @@ export default function App() {
             <Route path="nouveautes" element={<QuoiDeNeuf />} />
             <Route path="obligations" element={<Obligations />} />
             <Route path="a-valider" element={<AValider />} />
+            <Route path="sous-traitants" element={<SousTraitants />} />
             <Route path="retours" element={<RetoursSuivi />} />
             <Route path="mot-de-passe" element={<SetPassword mode="change" onDone={() => window.history.back()} />} />
             <Route path="settings/email" element={<EmailSettings />} />

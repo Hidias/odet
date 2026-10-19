@@ -2230,6 +2230,67 @@ begin
     end;
   end if;
 
+  -- Lot 2, sous-traitance (0045) : justificatifs des prestataires (D8222-5, R8222-1), bons de commande, relances
+  if to_regclass('public.subcontractors') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 6;
+    declare
+      s_st uuid; s_doc public.subcontractor_documents; s_cmd public.subcontract_orders; s_n int; s_ok boolean; s_id uuid;
+    begin
+      insert into public.subcontractors (name, kind, email) values ('Essai prestataire', 'organisme', 'essai.st@test.invalid') returning id into s_st;
+      insert into public.subcontractor_documents (subcontractor_id, doc_type_id, issued_on)
+      select s_st, t.id, current_date - 200 from public.subcontractor_doc_types t
+      where t.code = 'vigilance_urssaf' and t.company_id = (select company_id from public.subcontractors where id = s_st)
+      returning * into s_doc;
+      if s_doc.valid_until = (current_date - 200 + interval '6 months')::date then
+        v_lines := v_lines || 'OK      base  0045 : attestation de vigilance valable six mois (D8222-5)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0045 : validité de l''attestation de vigilance (' || coalesce(s_doc.valid_until::text, 'vide') || ')'); end if;
+
+      insert into public.subcontract_orders (subcontractor_id, start_date, end_date, days, daily_rate)
+      values (s_st, current_date + 10, current_date + 11, 2, 3000) returning * into s_cmd;
+      if s_cmd.amount_ht = 6000 and s_cmd.reference like 'BC-%'
+         and (select status from public.v_subcontractor_compliance where subcontractor_id = s_st and code = 'vigilance_urssaf') = 'perime'
+         and (select status from public.v_subcontractor_compliance where subcontractor_id = s_st and code = 'immatriculation') = 'manquant' then
+        v_lines := v_lines || 'OK      base  0045 : bon de commande chiffré, justificatifs périmé et manquant au-delà de 5 000 € HT'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0045 : bon de commande et état des justificatifs'::text; end if;
+
+      perform public.scheduled_actions_generate();
+      perform public.scheduled_actions_generate();
+      select count(*) into s_n from public.scheduled_actions where kind = 'justificatif_prestataire' and target_id = s_st
+        and payload ->> 'destinataire' = 'essai.st@test.invalid' and payload ->> 'texte' like '%vigilance%';
+      if s_n = 1 then v_lines := v_lines || 'OK      base  0045 : relance des justificatifs préparée une seule fois'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0045 : relance des justificatifs (' || s_n || ')'); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.subcontractors (name) values ('Essai prestataire direction') returning id into s_id;
+      s_ok := exists (select 1 from public.subcontract_orders where id = s_cmd.id);
+      execute 'reset role';
+      if s_id is not null and s_ok then v_lines := v_lines || 'OK      dir   0045 : crée un prestataire, voit les bons de commande'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0045 : crée un prestataire, voit les bons de commande'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_for, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      s_ok := not exists (select 1 from public.subcontract_orders where id = s_cmd.id);
+      begin
+        insert into public.subcontractors (name) values ('Intrus');
+        s_ok := false;
+      exception when insufficient_privilege then null;
+      end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if s_ok then v_lines := v_lines || 'OK      form  0045 : le formateur ne voit pas les montants, ne crée pas de prestataire'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   form  0045 : le formateur ne voit pas les montants, ne crée pas de prestataire'::text; end if;
+
+      if exists (select 1 from storage.buckets where id = 'prestataires' and not public)
+         and (select count(*) from pg_policies where schemaname = 'storage' and policyname like 'prestataires\_%') = 3 then
+        v_lines := v_lines || 'OK      base  0045 : justificatifs dans un bucket privé, règles par droits'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0045 : justificatifs dans un bucket privé, règles par droits'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

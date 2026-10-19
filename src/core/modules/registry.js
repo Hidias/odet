@@ -34,6 +34,8 @@ export const NAV_SECTIONS = [
       { to: '/stagiaires', right: ['formation.stagiaires.voir', 'formation.stagiaires.voir_siens'], icon: Users, label: 'Stagiaires', roles: STAFF },
       { to: '/passeport', right: 'passeport.declarations.gerer', icon: BookUser, label: 'Passeport de prévention', roles: MANAGERS, module: 'passeport' },
       { to: '/formateurs', right: 'formation.formateurs.gerer', icon: UserCheck, label: 'Formateurs', roles: MANAGERS },
+      // Sous-traitance, donneur d'ordres (lot 2, 0045) : prestataires, justificatifs, bons de commande
+      { to: '/sous-traitants', right: 'formation.formateurs.voir', icon: Briefcase, label: 'Sous-traitants', roles: MANAGERS },
       { to: '/documents', right: 'formation.documents.voir', icon: FileText, label: 'Documents', roles: STAFF },
       { to: '/documents-vierges', right: 'formation.documents.voir', icon: FileQuestion, label: 'Documents vierges', roles: STAFF },
       { to: '/tests-positionnement', right: 'formation.catalogue.voir', icon: ClipboardCheck, label: 'Tests et quiz', roles: STAFF },

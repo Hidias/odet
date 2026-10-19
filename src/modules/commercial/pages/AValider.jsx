@@ -11,7 +11,7 @@ import { EmptyState, Spinner } from '../../../ui/EmptyState'
 import { confirmer } from '../../../ui/Confirm'
 
 // Relances à valider (lot 2, 0043) : actions préparées chaque nuit par la base (recyclages à prévoir, puis
-// justificatifs, rappels…). Rien ne part tout seul : on valide, on corrige ou on ignore ; une action validée se
+// justificatifs des prestataires, rappels…). Rien ne part tout seul : on valide, on corrige ou on ignore ; une action validée se
 // transmet par sa messagerie (texte prêt à copier) puis se marque « envoyée ». Téléphone d'abord.
 
 const KINDS = { relance_recyclage: 'Recyclage', justificatif_prestataire: 'Justificatif', convocation: 'Convocation', rappel: 'Rappel', evaluation_froid: 'Évaluation à froid', relance_impaye: 'Impayé', autre: 'Autre' }
@@ -27,7 +27,7 @@ export default function AValider() {
 
   const load = async () => {
     const { data, error } = await supabase.from('scheduled_actions')
-      .select('id, kind, client_id, due_on, title, payload, status, validated_at, sent_at, clients(name)')
+      .select('id, kind, client_id, target_table, target_id, due_on, title, payload, status, validated_at, sent_at, clients(name)')
       .order('due_on', { ascending: true }).limit(500)
     if (error) { setIndispo(true); setItems([]); return }
     setItems(data || [])
@@ -75,7 +75,7 @@ export default function AValider() {
       </div>
       {items === null ? <Spinner /> : liste.length === 0 ? (
         <EmptyState icon={Inbox} title={onglet === 'a_valider' ? 'Rien à valider' : 'Aucune relance ici'} compact>
-          {onglet === 'a_valider' ? 'Les recyclages à prévoir de vos clients apparaîtront ici, prêts à envoyer.' : null}
+          {onglet === 'a_valider' ? 'Les recyclages à prévoir de vos clients et les justificatifs à demander aux prestataires apparaîtront ici, prêts à envoyer.' : null}
         </EmptyState>
       ) : (
         <ul className="space-y-2">
@@ -109,12 +109,13 @@ export default function AValider() {
           </>}>
           <div className="text-ui-sm text-gray-600">
             {ouvert.clients?.name && <Link to={`/clients/${ouvert.client_id}`} className="text-accent-700 hover:underline" onClick={() => setOuvert(null)}>{ouvert.clients.name}</Link>}
+            {ouvert.target_table === 'subcontractors' && <Link to="/sous-traitants" className="text-accent-700 hover:underline" onClick={() => setOuvert(null)}>Voir les sous-traitants</Link>}
           </div>
           <div>
             <label className="label" htmlFor="rel-dest">Destinataire</label>
             <input id="rel-dest" className="input" value={ouvert.payload.destinataire || ''} disabled={ouvert.status !== 'a_valider'}
-              onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, destinataire: e.target.value } })} placeholder="Adresse email du client" />
-            {!ouvert.payload.destinataire && <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">Aucune adresse sur la fiche client : complétez-la ici ou sur la fiche.</p>}
+              onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, destinataire: e.target.value } })} placeholder="Adresse email du destinataire" />
+            {!ouvert.payload.destinataire && <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">Aucune adresse sur la fiche : complétez-la ici ou sur la fiche.</p>}
           </div>
           <div>
             <label className="label" htmlFor="rel-objet">Objet</label>

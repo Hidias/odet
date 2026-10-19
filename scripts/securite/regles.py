@@ -800,6 +800,15 @@ tdx('0043', 'scheduled_actions', sel=f"company_id in {societes('formation.convoc
 # lues et traitées par qui inscrit les stagiaires.
 tdx('0044', 'inter_requests', sel=f"company_id in {societes('formation.inscriptions.gerer')}",
     upd=f"company_id in {societes('formation.inscriptions.gerer')}", dele=f"company_id in {societes('formation.inscriptions.gerer')}")
+# Lot 2, sous-traitance (0045) : prestataires et leurs justificatifs, bons de commande ; gérés avec les formateurs
+# (dossier des formateurs), montants des commandes avec les coûts des sessions.
+_ST_VOIR = f"company_id in {societes('formation.formateurs.voir')}"
+_ST_GERER = f"company_id in {societes('formation.formateurs.dossier')}"
+for _n in ['subcontractors', 'subcontractor_doc_types', 'subcontractor_documents']:
+    tdx('0045', _n, sel=_ST_VOIR, ins=_ST_GERER, upd=_ST_GERER, dele=_ST_GERER)
+tdx('0045', 'subcontract_orders', sel=f"company_id in {societes('formation.couts.gerer')}",
+    ins=f"company_id in {societes('formation.couts.gerer')}", upd=f"company_id in {societes('formation.couts.gerer')}",
+    dele=f"company_id in {societes('formation.couts.gerer')}")
 
 
 def build_suite(migration):
