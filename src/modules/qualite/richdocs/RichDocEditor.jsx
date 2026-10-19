@@ -17,6 +17,7 @@ import {
   emptyBlock, BLOCK_LABEL, insertableFields, todayIso, plusOneYear, frDate,
 } from './model'
 import { buildRichDocPDF } from './richDocPDF'
+import { champCasse, valeursEnDurPartout, remplacerEnDurPartout } from '../../../core/org/champsProteges'
 
 import { confirmer } from '../../../ui/Confirm'
 export const VALIDATE_ROLES = ['superadmin', 'admin', 'direction']
@@ -166,7 +167,30 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
   useEffect(() => { loadHistory() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const setSec = (patch) => setContent((c) => ({ ...c, sections: c.sections.map((s) => (s.id === sec.id ? { ...s, ...patch } : s)) }))
-  const setBlock = (i, nb) => setSec({ blocks: sec.blocks.map((b, bi) => (bi === i ? nb : b)) })
+  // Un champ {{...}} (adresse, téléphone, référent...) ne se modifie pas lettre par lettre : il s'insère ou se retire
+  // en entier (sélectionné puis effacé). La frappe qui l'abîmerait est refusée.
+  const setBlock = (i, nb) => {
+    if (champCasse(JSON.stringify(sec.blocks[i]), JSON.stringify(nb))) {
+      toast.error('Ce champ est rempli depuis Paramètres : sélectionnez-le en entier pour le retirer, il ne se modifie pas.', { id: 'champ-protege' })
+      return
+    }
+    setSec({ blocks: sec.blocks.map((b, bi) => (bi === i ? nb : b)) })
+  }
+
+  // Avant d'enregistrer : coordonnées tapées à la main remplacées par leur champ (avec accord), traces d'un autre
+  // organisme signalées. Renvoie le contenu à enregistrer, ou null si l'utilisateur annule.
+  const verifierChamps = async (c) => {
+    const enDur = valeursEnDurPartout(c.sections, ctx)
+    const aRemplacer = enDur.filter((x) => x.champ)
+    const aCorriger = enDur.filter((x) => !x.champ)
+    let out = c
+    if (aRemplacer.length) {
+      const ok = await confirmer(`Coordonnées tapées à la main : ${aRemplacer.map((x) => `« ${x.texte} »`).join(', ')}.\n\nLes remplacer par les champs remplis depuis Paramètres ? Ainsi, une coordonnée qui change se met à jour dans tous les documents.`)
+      if (ok) out = { ...c, sections: remplacerEnDurPartout(c.sections, ctx) }
+    }
+    if (aCorriger.length) toast(`À corriger à la main : ${aCorriger.map((x) => `« ${x.texte} »`).join(', ')} (identité d'un autre organisme).`, { duration: 8000, icon: '⚠️' })
+    return out
+  }
   const moveBlock = (i, d) => {
     const arr = [...sec.blocks]; const j = i + d
     if (j < 0 || j >= arr.length) return
@@ -198,7 +222,7 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
 
   const saveDraft = async () => {
     setBusy('save')
-    try { await persist({ ...content, status: 'brouillon' }); toast.success('Brouillon enregistré') } catch (e) { toast.error(e.message) }
+    try { const c = await verifierChamps(content); await persist({ ...c, status: 'brouillon' }); toast.success('Brouillon enregistré') } catch (e) { toast.error(e.message) }
     setBusy(null)
   }
 
@@ -206,14 +230,15 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
     if (!motif.trim()) { toast.error('Indiquez le motif de cette version'); return }
     setBusy('validate')
     try {
+      const verifie = await verifierChamps(content)
       const today = todayIso()
       const nextReview = plusOneYear(today)
       const { error } = await supabase.from('quality_doc_versions').insert({
-        doc_id: tpl.id, version: nextVersion, content: { sections: content.sections, options: content.options || {} },
+        doc_id: tpl.id, version: nextVersion, content: { sections: verifie.sections, options: verifie.options || {} },
         motif: motif.trim(), validated_by: profile?.id || null, validated_by_name: currentUserName() || null, next_review: nextReview,
       })
       if (error) throw error
-      await persist({ ...content, status: 'valide', version: nextVersion, validated_at: today, next_review: nextReview, motif: null })
+      await persist({ ...verifie, status: 'valide', version: nextVersion, validated_at: today, next_review: nextReview, motif: null })
       await loadHistory()
       setValidating(false); setMotif('')
       toast.success(`Version ${nextVersion} validée`)

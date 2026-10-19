@@ -1,6 +1,7 @@
 // Champs remplis au moment de l'affichage dans les textes enregistrés en base
 // (documents Qualiopi, désignations, organigramme, arguments d'appel...).
 //
+//   {{org.adresse_site}} (adresse mise en avant : site principal), {{org.siege}} (siège social, adresse légale),
 //   {{org.nom}}, {{org.nom_majuscules}}, {{org.raison_sociale}}, {{org.adresse}}, {{org.code_postal}},
 //   {{org.ville}}, {{org.telephone}}, {{org.email}}, {{org.site}}, {{org.siret}}, {{org.nda}},
 //   {{org.region}}, {{org.region_nda}}, {{org.dirigeant}}, {{org.dirigeant_qualite}},
@@ -15,9 +16,11 @@ import { supabase } from '../supabase'
 export const TEMPLATE_FIELDS = [
   ['{{org.nom}}', "Nom affiché de l'organisme"],
   ['{{org.raison_sociale}}', 'Raison sociale'],
-  ['{{org.adresse}}', 'Adresse'],
-  ['{{org.code_postal}}', 'Code postal'],
-  ['{{org.ville}}', 'Ville'],
+  ['{{org.adresse_site}}', 'Adresse du site (mise en avant)'],
+  ['{{org.siege}}', 'Siège social (adresse légale)'],
+  ['{{org.adresse}}', 'Siège : rue'],
+  ['{{org.code_postal}}', 'Siège : code postal'],
+  ['{{org.ville}}', 'Siège : ville'],
   ['{{org.telephone}}', 'Téléphone'],
   ['{{org.email}}', 'Email'],
   ['{{org.siret}}', 'SIRET'],
@@ -61,6 +64,9 @@ function formatNda(nda) {
 /** Construit le contexte à partir des lignes lues en base (fonction pure, testable) */
 export function buildTemplateContext({ org = {}, roles = [], courses = [], deputies = [], demoNames = false } = {}) {
   const nom = org.name || org.legal_name || ''
+  const ligne = (rue, cp, ville) => [rue, [cp, ville].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+  const siege = ligne(org.address, org.postal_code, org.city)
+  const site = ligne(org.exploitation_address, org.exploitation_postal_code, org.exploitation_city)
   const role = {}
   const byId = new Map((deputies || []).map((d) => [d.id, d]))
   for (const r of roles) {
@@ -80,6 +86,9 @@ export function buildTemplateContext({ org = {}, roles = [], courses = [], deput
       nom,
       nom_majuscules: nom.toUpperCase(),
       raison_sociale: [org.legal_name || nom, org.forme_juridique && !(org.legal_name || nom).toLowerCase().includes(String(org.forme_juridique).toLowerCase()) ? org.forme_juridique : ''].filter(Boolean).join(' '),
+      adresse_site: site || siege,
+      adresse_site_rue: org.exploitation_address || org.address || '',
+      siege,
       adresse: org.address || '',
       code_postal: org.postal_code || '',
       ville: org.city || '',
