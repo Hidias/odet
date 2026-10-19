@@ -4238,6 +4238,42 @@ begin
     end;
   end if;
 
+  -- Purge complète (0385) : type inconnu refusé ; client fictif effacé, client réel gardé, marque retirée ; le rapport
+  -- « réel / test » se calcule à blanc sans rien effacer
+  if to_regprocedure('public.demo_rapport()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare
+      z_fic uuid; z_reel uuid; z_ok boolean := false; z_r jsonb; z_n int;
+    begin
+      insert into public.clients (name) values ('Client fictif essai 0385') returning id into z_fic;
+      insert into public.clients (name) values ('Client réel essai 0385') returning id into z_reel;
+      insert into public.demo_records (tbl, id) values ('clients', z_fic);
+      insert into public.demo_records (tbl, id) values ('type_inconnu_0385', gen_random_uuid());
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      begin perform public.purge_demo_data(); exception when invalid_parameter_value then z_ok := true; end;
+      if z_ok and exists (select 1 from public.clients where id = z_fic) then v_lines := v_lines || 'OK      sa    0385 : type de marque inconnu refusé, rien effacé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0385 : refus d''un type inconnu'::text; end if;
+      delete from public.demo_records where tbl = 'type_inconnu_0385';
+      z_r := public.demo_rapport();
+      if (z_r ->> 'ok')::boolean and exists (select 1 from public.clients where id = z_fic) then v_lines := v_lines || 'OK      sa    0385 : rapport réel / test calculé à blanc, rien effacé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   sa    0385 : rapport réel / test ' || coalesce(z_r ->> 'erreur', ''))::text; end if;
+      z_r := public.purge_demo_data();
+      perform set_config('request.jwt.claims', '', true);
+      if not exists (select 1 from public.clients where id = z_fic) and exists (select 1 from public.clients where id = z_reel) then
+        v_lines := v_lines || 'OK      sa    0385 : client fictif effacé, client réel gardé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0385 : tri fictif / réel de la purge'::text; end if;
+      select count(*) into z_n from public.demo_records where tbl = 'clients' and id = z_fic;
+      if z_n = 0 then v_lines := v_lines || 'OK      sa    0385 : marque retirée seulement après effacement'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0385 : marque du client effacé'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0385 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

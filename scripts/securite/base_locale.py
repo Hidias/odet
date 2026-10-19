@@ -211,6 +211,8 @@ ORDRE_PROD = (
     + ['0383']
     # Bascule : émission refusée avec le RIB de démonstration, 19/10
     + ['0384']
+    # Purge complète des données de démonstration, rapport réel / test, 19/10
+    + ['0385']
 )
 
 

@@ -343,7 +343,20 @@ function DemoDataSection({ onPurged }) {
   useEffect(() => { loadSummary() }, [])
 
   const reelles = liens && !liens.indisponible ? (liens.total || 0) : 0
-  const purgeBloquee = reelles > 0 && !liensVus
+  // Rapport « réel / test » (0385) : à préparer et valider avant la purge (décision de H du 19/10 au soir)
+  const [rapport, setRapport] = useState(null)
+  const [rapportCharge, setRapportCharge] = useState(false)
+  const [rapportVu, setRapportVu] = useState(false)
+  const [resultat, setResultat] = useState(null)
+  async function preparerRapport() {
+    setRapportCharge(true); setRapportVu(false)
+    const { data, error } = await supabase.rpc('demo_rapport')
+    setRapportCharge(false)
+    if (error) { setRapport({ indisponible: /demo_rapport|PGRST202/.test(error.message || error.code || ''), erreur: error.message }); return }
+    setRapport(data)
+  }
+  const rapportRequis = rapport !== null && !rapport?.indisponible
+  const purgeBloquee = (reelles > 0 && !liensVus) || (rapportRequis && !rapportVu) || rapport === null
 
   async function purge() {
     if (confirmText.trim().toUpperCase() !== CONFIRM_WORD || purgeBloquee) return
@@ -351,8 +364,10 @@ function DemoDataSection({ onPurged }) {
     try {
       const { data, error } = await supabase.rpc('purge_demo_data')
       if (error) throw error
-      if (!data?.ok) throw new Error('Effacement non confirmé par la base')
-      toast.success('Données de démonstration effacées')
+      setResultat(data)
+      if (data?.restants && Object.keys(data.restants).length > 0) toast('Purge faite, mais certaines données de démonstration restent : voir le détail.', { icon: '⚠️', duration: 8000 })
+      else toast.success('Données de démonstration effacées')
+      setRapport(null); setRapportVu(false)
       setConfirmText('')
       await loadSummary()
       onPurged?.()
@@ -412,6 +427,7 @@ function DemoDataSection({ onPurged }) {
               </label>
             </div>
           )}
+          <RapportReelTest rapport={rapport} charge={rapportCharge} onPreparer={preparerRapport} vu={rapportVu} onVu={setRapportVu} />
           <div className="rounded-ui border border-gray-200 p-3 space-y-2">
             <label className="label" htmlFor="demo-confirm">Pour effacer, tapez {CONFIRM_WORD}</label>
             <div className="flex flex-wrap gap-2">
@@ -420,11 +436,85 @@ function DemoDataSection({ onPurged }) {
                 {purging ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Effacer les données de démonstration
               </button>
             </div>
-            <p className="text-ui-sm text-gray-400">Définitif. Une sauvegarde est faite chaque nuit ; pour être prudent, lancez-en une juste avant.</p>
+            <p className="text-ui-sm text-gray-400">Définitif. Une sauvegarde est faite chaque nuit ; pour être prudent, lancez-en une juste avant.{rapport === null ? ' Préparez d\'abord le rapport « réel / test ».' : ''}</p>
           </div>
+          {resultat && <ResultatPurge r={resultat} />}
         </>
       )}
     </Section>
+  )
+}
+
+// Libellés des tables du rapport « réel / test »
+const TABLES_RAPPORT = {
+  clients: 'Clients', client_contacts: 'Contacts', sites: 'Sites et établissements', quotes: 'Devis', invoices: 'Factures',
+  sessions: 'Sessions', trainees: 'Stagiaires', trainers: 'Formateurs', courses: 'Formations du catalogue',
+  itv_contracts: 'Contrats de maintenance', itv_equipment: 'Appareils du parc', itv_visits: 'Visites', hr_people: 'Personnel',
+  stock_items: 'Articles du stock', stock_locations: 'Emplacements du stock', suppliers: 'Fournisseurs',
+  purchase_orders: 'Commandes aux fournisseurs', vehicles: 'Véhicules', loans: 'Emprunts', prospect_calls: 'Appels de prospection',
+  prospect_rdv: 'Rendez-vous', opportunities: 'Affaires', social_posts: 'Publications', social_media_library: 'Images des publications',
+  mailing_campaigns: 'Campagnes email', prospection_massive: 'Prospects', veille_qualiopi: 'Veille',
+}
+
+function RapportReelTest({ rapport, charge, onPreparer, vu, onVu }) {
+  if (rapport === null) {
+    return (
+      <div className="rounded-ui border border-gray-200 p-3 space-y-2">
+        <div className="label">1. Rapport « réel / test »</div>
+        <p className="text-ui-sm text-gray-600">Calcule, sans rien effacer, ce que la purge enlèverait et ce qui resterait, table par table, avec le nom de ce qui reste. À valider avant d'effacer.</p>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onPreparer} disabled={charge}>{charge ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Préparer le rapport</button>
+      </div>
+    )
+  }
+  if (rapport?.indisponible) return <p className="text-ui-sm text-gray-500">Le rapport « réel / test » sera disponible après la mise à jour de la base 0385.</p>
+  if (rapport?.erreur || rapport?.ok === false) return <p className="text-ui-sm text-[rgb(var(--c-danger))] break-words">Rapport impossible : {rapport.erreur}</p>
+  const lignes = (rapport.tables || []).filter((l) => l.avant > 0)
+  return (
+    <div className="rounded-ui border border-gray-200 p-3 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="label mb-0">1. Rapport « réel / test »</div>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onPreparer} disabled={charge}>Recalculer</button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-ui-sm min-w-[520px]">
+          <thead><tr className="text-left text-gray-500"><th className="py-1 pr-2 font-medium">Table</th><th className="py-1 px-2 font-medium text-right">Test (effacé)</th><th className="py-1 px-2 font-medium text-right">Gardé</th><th className="py-1 pl-2 font-medium">Ce qui reste</th></tr></thead>
+          <tbody className="divide-y divide-gray-100">
+            {lignes.map((l) => (
+              <tr key={l.table} className="align-top">
+                <td className="py-1.5 pr-2 text-gray-900">{TABLES_RAPPORT[l.table] || l.table}</td>
+                <td className="py-1.5 px-2 text-right tabular-nums">{l.test}</td>
+                <td className={`py-1.5 px-2 text-right tabular-nums ${l.reel > 0 ? 'font-semibold text-gray-900' : 'text-gray-400'}`}>{l.reel}</td>
+                <td className="py-1.5 pl-2 text-gray-600 break-words">{Array.isArray(l.noms) && l.noms.length ? l.noms.slice(0, 12).join(', ') + (l.noms.length > 12 ? `… (+${l.noms.length - 12})` : '') : (l.reel > 0 ? '' : '-')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {(rapport.purge?.comptes_demo || []).length > 0 && (
+        <p className="text-ui-sm text-gray-700">Comptes de démonstration (non supprimés par la purge, à retirer dans Paramètres › Utilisateurs) : {rapport.purge.comptes_demo.map((c) => c.nom).join(', ')}.</p>
+      )}
+      {rapport.purge?.restants && Object.keys(rapport.purge.restants).length > 0 && (
+        <p className="text-ui-sm text-[rgb(var(--c-warning))]">Marques qui resteraient après la purge : {Object.entries(rapport.purge.restants).map(([k, n]) => `${n} ${TABLES_RAPPORT[k] || k}`).join(', ')}.</p>
+      )}
+      <label className="flex items-start gap-2 text-ui-sm text-gray-800">
+        <input type="checkbox" className="mt-0.5" checked={vu} onChange={(e) => onVu(e.target.checked)} />
+        J'ai vérifié ce rapport : ce qui est « gardé » est réel, ce qui est « test » peut être effacé.
+      </label>
+    </div>
+  )
+}
+
+function ResultatPurge({ r }) {
+  const restants = Object.entries(r?.restants || {})
+  return (
+    <div className="rounded-ui border border-gray-200 p-3 space-y-1 text-ui-sm">
+      <div className="font-medium text-gray-900">Résultat de la purge</div>
+      <div className="text-gray-700">Effacé : {Object.entries(r?.detail || {}).map(([k, n]) => `${n} ${TABLES_RAPPORT[k] || k}`).join(', ') || 'rien'}.</div>
+      {restants.length > 0
+        ? <div className="text-[rgb(var(--c-warning))]">Restent marqués (non effacés) : {restants.map(([k, n]) => `${n} ${TABLES_RAPPORT[k] || k}`).join(', ')}.</div>
+        : <div className="text-[rgb(var(--c-success))]">Aucune donnée de démonstration ne reste.</div>}
+      {(r?.comptes_demo || []).length > 0 && <div className="text-gray-700">Comptes de démonstration à retirer : {r.comptes_demo.map((c) => c.nom).join(', ')}.</div>}
+    </div>
   )
 }
 
