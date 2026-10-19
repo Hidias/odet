@@ -73,7 +73,7 @@ export default function Interventions() {
       {!fieldScreen && (
         <>
           <div>
-            <div className="muted text-ui-sm">Entreprise</div>
+            <div className="muted text-ui-sm">Maintenance</div>
             <h1 className="page-title">Interventions</h1>
           </div>
           <nav className="tabs" aria-label="Rubriques des interventions">

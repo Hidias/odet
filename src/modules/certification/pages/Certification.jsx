@@ -22,7 +22,7 @@ import CertPreparer from './CertPreparer'
 const TABS = [
   { to: '', label: 'Accueil', end: true },
   { to: 'nda', label: 'Déclaration' },
-  { to: 'qualiopi', label: 'Qualiopi' },
+  { to: 'qualiopi', label: 'Certificateur et audits' },
   { to: 'indicateurs', label: 'Indicateurs' },
   { to: 'methode', label: 'Méthode de calcul' },
   { to: 'dossier', label: 'Dossier d\'audit' },

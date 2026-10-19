@@ -642,7 +642,7 @@ export default function Completude() {
     <div className="p-6 max-w-7xl mx-auto">
       {/* HEADER */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <h1 className="page-title">Complétude</h1>
             <p className="text-ui text-gray-600">Suivi des éléments manquants</p>

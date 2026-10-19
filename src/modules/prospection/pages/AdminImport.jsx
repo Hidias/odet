@@ -509,7 +509,7 @@ export default function AdminImport() {
 
         {/* Onglets */}
         <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex gap-6">
+          <nav className="-mb-px flex overflow-x-auto whitespace-nowrap gap-6">
             {[
               { id: 'import-api',     label: 'Import INSEE' },
               { id: 'enrichissement', label: 'Enrichissement' },
