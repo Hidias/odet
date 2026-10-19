@@ -28,7 +28,7 @@ export const chargerArticles = async () => must(await fetchAll(() => supabase.fr
 export const chargerCategories = async () => must(await supabase.from('stock_categories').select('*').order('position').order('name'))
 export const chargerEmplacements = async () => must(await supabase.from('stock_locations').select('*').order('kind').order('name'))
 export const chargerFournisseurs = async () => must(await supabase.from('suppliers').select('*').is('archived_at', null).order('name'))
-export const chargerNiveaux = async () => must(await fetchAll(() => supabase.from('v_stock_levels').select('*')))
+export const chargerNiveaux = async () => must(await fetchAll(() => supabase.from('v_stock_levels').select('*'), { orderBy: ['item_id', 'location_id'] }))
 export const chargerSeuils = async () => must(await supabase.from('stock_thresholds').select('*'))
 export const chargerAlertes = async () => must(await supabase.from('v_stock_alerts').select('*').order('to_order', { ascending: false }))
 export const chargerMouvements = async ({ itemId = null, limite = 200 } = {}) => {
