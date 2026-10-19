@@ -12,6 +12,7 @@ import PostIt from '../core/feedback/PostIt'
 import WelcomeSheet from '../core/feedback/WelcomeSheet'
 import BandeauInfo from '../core/notices/BandeauInfo'
 import { useNotices } from '../core/notices/notices'
+import { useEtatBoite } from '../core/settings/etatBoite'
 import { supabase } from '../core/supabase'
 import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
@@ -85,6 +86,8 @@ export default function Layout() {
   const creations = useMemo(() => (fieldOnly ? [] : creationsVisibles(modules, userRole, can)), [fieldOnly, modules, userRole, rights, can])
   // Bandeau d'information et « Quoi de neuf » (chantier A) : état lu par la base, relu toutes les 15 minutes
   const notices = useNotices()
+  // Boîte d'envoi non configurée : bandeau clair (comptes qui envoient des emails seulement)
+  const boiteEnvoi = useEtatBoite(!!user?.id && !fieldOnly && can?.('organisation.preferences.gerer') !== false && !['lecture', 'entreprise', 'stagiaire', 'formateur_externe'].includes(userRole))
   const chargerNotices = notices.charger
   useEffect(() => {
     if (!user?.id) return undefined
@@ -578,7 +581,7 @@ export default function Layout() {
                       <SlidersHorizontal className="w-4 h-4" />Affichage
                     </button>
                     <NavLink to="/settings/email" onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
-                      <Mail className="w-4 h-4" />Mes comptes email
+                      <Mail className="w-4 h-4" />Ma boîte d'envoi
                     </NavLink>
                     <NavLink to="/mot-de-passe" onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                       <KeyRound className="w-4 h-4" />Changer mon mot de passe
@@ -604,6 +607,13 @@ export default function Layout() {
           )}
           {notices.disponible && (
             <BandeauInfo nouveautes={!fieldOnly && (modules || []).includes('nouveautes')} retours={retoursActif !== false} />
+          )}
+          {boiteEnvoi === false && location.pathname !== '/settings/email' && (
+            <div className="mb-3 rounded-ui border border-[rgb(var(--c-warning)/0.4)] bg-[rgb(var(--c-warning-bg))] px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 text-ui text-gray-800" role="status">
+              <Mail className="w-4 h-4 flex-none text-[rgb(var(--c-warning))]" aria-hidden="true" />
+              <span className="flex-1 min-w-[12rem]">Votre boîte d'envoi n'est pas configurée : vos devis, factures et convocations ne peuvent pas partir par email.</span>
+              <NavLink to="/settings/email" className="btn btn-secondary btn-sm">Configurer ma boîte</NavLink>
+            </div>
           )}
           <BandeauVueGroupe />
           {onglets.length > 1 && (
