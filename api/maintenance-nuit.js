@@ -1,7 +1,7 @@
 // api/maintenance-nuit.js
 // Écritures automatiques de la nuit (migration 0376) : sessions passées « terminées », rappels du jour,
 // alertes qualité (notes basses), statuts « due » et « en retard » des factures envoyées ; puis les relances à
-// valider (0043, scheduled_actions_generate : préparées, jamais envoyées).
+// valider (0043, scheduled_actions_generate : préparées, jamais envoyées), et les étapes des sessions (0160, pilote_generate).
 // Toute la logique est dans la base (public.daily_maintenance, idempotente) ; cette route ne fait que la lancer.
 //
 // Déclenchée chaque nuit par la tâche planifiée Vercel (vercel.json, en-tête Authorization: Bearer CRON_SECRET),
@@ -31,7 +31,12 @@ async function handler(req, res) {
   const { data: rel, error: relErr } = await admin.rpc('scheduled_actions_generate')
   if (!relErr) relances = rel
   else if (relErr.code !== 'PGRST202') console.error('[maintenance-nuit] relances', relErr.code || 'erreur')
-  return res.status(200).json({ ok: true, resultat: data, relances })
+  // Étapes des sessions préparées pour validation (fonction 13, 0160) : rien n'est envoyé ; module inactif = rien
+  let pilote = null
+  const { data: pil, error: pilErr } = await admin.rpc('pilote_generate')
+  if (!pilErr) pilote = pil
+  else if (pilErr.code !== 'PGRST202') console.error('[maintenance-nuit] pilote', pilErr.code || 'erreur')
+  return res.status(200).json({ ok: true, resultat: data, relances, pilote })
 }
 
 export default withErrorLog(handler, 'maintenance-nuit')
