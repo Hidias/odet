@@ -3960,6 +3960,78 @@ begin
     end;
   end if;
 
+  -- Manager, emprunts (0220) : la direction saisit un prêt, l'échéancier calculé est juste (capital remboursé, fin à
+  -- zéro), un remboursement anticipé réduit les échéances suivantes ; le tableau de la banque importé fait foi et ne
+  -- se recalcule pas ; une échéance ne se modifie pas à la main ; rien pour le gestionnaire ni le commercial
+  if to_regprocedure('public.loan_calculer(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare
+      e_loan uuid; e_n int; e_cap numeric; e_fin numeric; e_p1 numeric; e_p9 numeric; e_ok boolean := false; e_ok2 boolean := false; e_c int;
+    begin
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.loans (lender_name, label, principal, rate_nominal, duration_months, first_due_on)
+      values ('Banque essai', 'Prêt essai 0220', 12000, 3.6, 12, date '2026-01-05') returning id into e_loan;
+      e_n := public.loan_calculer(e_loan);
+      e_cap := (select sum(principal_part) from public.loan_schedule_lines where loan_id = e_loan);
+      e_fin := (select remaining from public.loan_schedule_lines where loan_id = e_loan and number = 12);
+      e_p1 := (select payment from public.loan_schedule_lines where loan_id = e_loan and number = 1);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if e_n = 12 and e_cap = 12000 and e_fin = 0 and e_p1 between 1018 and 1020 then
+        v_lines := v_lines || 'OK      dir   0220 : prêt de 12 000 € sur 12 mois à 3,6 % : 12 échéances d''environ 1 019 €, capital remboursé, fin à zéro'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0220 : calcul (' || coalesce(e_n, -1) || ', ' || coalesce(e_cap, -1) || ', ' || coalesce(e_fin, -1) || ', ' || coalesce(e_p1, -1) || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.loan_events (loan_id, kind, happened_on, amount) values (e_loan, 'remboursement_anticipe', date '2026-06-20', 3000);
+      perform public.loan_calculer(e_loan);
+      e_p9 := (select payment from public.loan_schedule_lines where loan_id = e_loan and number = 9);
+      e_fin := (select remaining from public.loan_schedule_lines where loan_id = e_loan order by number desc limit 1);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if e_p9 < e_p1 - 400 and e_fin = 0 then
+        v_lines := v_lines || 'OK      dir   0220 : remboursement anticipé de 3 000 € : échéances suivantes réduites, fin à zéro'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0220 : remboursement anticipé (' || coalesce(e_p9, -1) || ', ' || coalesce(e_fin, -1) || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin update public.loan_schedule_lines set payment = 1 where loan_id = e_loan and number = 1; exception when check_violation then e_ok := true; end;
+      perform public.loan_importer(e_loan, '[{"number":1,"due_on":"2026-01-05","payment":1020.5,"interest":36,"principal":984.5,"insurance":0,"remaining":11015.5},{"number":2,"due_on":"2026-02-05","payment":1020.5,"interest":33.05,"principal":987.45,"insurance":0,"remaining":10028.05}]'::jsonb);
+      begin perform public.loan_calculer(e_loan); exception when invalid_parameter_value then e_ok2 := true; end;
+      e_n := (select count(*) from public.loan_schedule_lines where loan_id = e_loan and origin = 'banque');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if e_ok then
+        v_lines := v_lines || 'OK      dir   0220 : une échéance ne se modifie pas à la main'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0220 : échéance figée'::text; end if;
+      if e_ok2 and e_n = 2 and (select schedule_source from public.loans where id = e_loan) = 'banque' then
+        v_lines := v_lines || 'OK      dir   0220 : le tableau de la banque importé remplace le calcul et ne se recalcule pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0220 : tableau de la banque (' || e_ok2 || ', ' || coalesce(e_n, -1) || ')')::text; end if;
+
+      e_c := 0; e_ok := false;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_c := e_c + (select count(*) from public.loans) + (select count(*) from public.loan_schedule_lines);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_c := e_c + (select count(*) from public.loans);
+      begin perform public.loan_calculer(e_loan); exception when insufficient_privilege then e_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if e_c = 0 and e_ok then
+        v_lines := v_lines || 'OK      ges   0220 : ni le gestionnaire ni le commercial ne voient les emprunts'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ges   0220 : emprunts cachés (' || e_c || ', ' || e_ok || ')')::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0220 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

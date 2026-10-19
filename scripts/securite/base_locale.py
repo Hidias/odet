@@ -197,6 +197,8 @@ ORDRE_PROD = (
     + ['0245']
     # Stock, inventaires et numéros de série, 19/10
     + ['0247']
+    # Manager, emprunts, 19/10
+    + ['0220']
 )
 
 

@@ -972,6 +972,13 @@ tdx('0247', 'stock_counts', sel=f"({_ST_VOIR} or location_id in (select app.stoc
 tdx('0247', 'stock_count_lines', sel=f"({_ST_VOIR} or count_id in (select c.id from public.stock_counts c where c.location_id in (select app.stock_mes_emplacements())))")
 tdx('0247', 'stock_serials', sel=f"({_ST_VOIR} or location_id in (select app.stock_mes_emplacements()))", ins=_ST_GER, upd=_ST_GER, dele=_ST_GER)
 
+# Manager, emprunts (0220) : emprunts, échéanciers et événements lus et tenus avec « Gérer les emprunts » (direction,
+# administrateur ; le comptable selon son profil) ; l'échéancier calculé ou importé s'écrit par les fonctions.
+_MG_EMP = f"company_id in {societes('manager.emprunts.gerer')}"
+tdx('0220', 'loans', sel=_MG_EMP, ins=_MG_EMP, upd=_MG_EMP, dele=_MG_EMP)
+tdx('0220', 'loan_schedule_lines', sel=_MG_EMP, upd=_MG_EMP)
+tdx('0220', 'loan_events', sel=_MG_EMP, ins=_MG_EMP, upd=_MG_EMP, dele=_MG_EMP)
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}
