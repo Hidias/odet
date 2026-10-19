@@ -191,6 +191,8 @@ ORDRE_PROD = (
     + ['0314']
     # Purge de démonstration étendue au RH, 19/10
     + ['0315']
+    # Module Stock, socle, 19/10
+    + ['0240']
 )
 
 

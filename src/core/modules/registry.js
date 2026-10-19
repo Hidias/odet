@@ -3,7 +3,7 @@ import {
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
   MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
-  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint,
+  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint, Package,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -150,6 +150,17 @@ export const NAV_SECTIONS = [
     icon: Briefcase,
     items: [
       { simple: true, to: '/collaborateurs', right: 'rh.personnel.voir', icon: Briefcase, label: 'Personnel', roles: [...MANAGERS, 'membre'] },
+    ],
+  },
+  {
+    // Module Stock, socle (0240) : articles, emplacements, mouvements, alertes. Coupé tant que la société ne l'a pas
+    // activé ; le technicien n'a que « Mon stock » (sans prix), les gestionnaires voient tout.
+    id: 'stock',
+    module: 'stock',
+    label: 'Stock',
+    icon: Package,
+    items: [
+      { simple: true, to: '/stock', right: ['stock.voir', 'stock.sien.mouvementer'], icon: Package, label: 'Stock', roles: [...STAFF, 'membre'] },
     ],
   },
 ]
