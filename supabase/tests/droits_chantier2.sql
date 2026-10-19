@@ -3207,6 +3207,88 @@ begin
     end;
   end if;
 
+  -- Chantier 12, RH socle (0290) : dossiers pour la direction, annuaire seul pour le gestionnaire, rien pour le
+  -- commercial, sa propre fiche pour la personne ; rémunération lue seulement par la fonction journalisée
+  if to_regclass('public.hr_people') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 6;
+    declare
+      h_p1 uuid; h_p2 uuid; h_e1 uuid; h_e2 uuid; h_n int; h_m int; h_ok boolean; h_ok2 boolean; h_log int;
+    begin
+      insert into public.hr_people (first_name, last_name, personal_phone, work_phone) values ('Essai', 'RH UN', '0600000001', '0200000001') returning id into h_p1;
+      insert into public.hr_people (first_name, last_name, personal_phone, profile_id) values ('Essai', 'RH DEUX', '0600000002', u_lec) returning id into h_p2;
+      insert into public.hr_employments (person_id, start_on, job_title) values (h_p1, current_date - 100, 'Technicien') returning id into h_e1;
+      insert into public.hr_employments (person_id, start_on, job_title) values (h_p2, current_date - 50, 'Assistant') returning id into h_e2;
+      insert into public.hr_compensation (employment_id, amount, effective_on) values (h_e1, 2500, current_date - 100), (h_e2, 2100, current_date - 50);
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      h_n := (select count(*) from public.hr_people where id in (h_p1, h_p2) and personal_phone is not null);
+      h_m := (select count(*) from public.hr_compensation where employment_id in (h_e1, h_e2));
+      h_ok := (select count(*) from public.hr_remuneration(h_e1) where amount = 2500) = 1;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      h_log := (select count(*) from public.audit_logs where entity_type = 'remuneration' and entity_id = h_e1 and user_id = u_dir);
+      if h_n = 2 then
+        v_lines := v_lines || 'OK      dir   0290 : la direction lit les dossiers du personnel'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0290 : dossiers du personnel'::text; end if;
+      if h_m = 0 and h_ok and h_log = 1 then
+        v_lines := v_lines || 'OK      dir   0290 : rémunération lue seulement par la fonction, consultation journalisée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0290 : rémunération journalisée'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      h_n := (select count(*) from public.hr_people where id in (h_p1, h_p2));
+      h_m := (select count(*) from public.v_hr_annuaire where id in (h_p1, h_p2) and work_phone is not distinct from (case when id = h_p1 then '0200000001' end));
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if h_n = 0 and h_m = 2 then
+        v_lines := v_lines || 'OK      ges   0290 : le gestionnaire voit l''annuaire (champs professionnels) sans les dossiers'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0290 : annuaire sans dossiers'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      h_n := (select count(*) from public.hr_people) + (select count(*) from public.v_hr_annuaire) + (select count(*) from public.hr_employments);
+      h_ok := false;
+      begin perform public.hr_remuneration(h_e1); exception when insufficient_privilege then h_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if h_n = 0 and h_ok then
+        v_lines := v_lines || 'OK      com   0290 : le commercial ne voit ni personnel ni rémunération'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0290 : personnel caché au commercial'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      h_n := (select count(*) from public.hr_people);
+      h_m := (select count(*) from public.hr_compensation);
+      h_ok := (select count(*) from public.hr_remuneration(h_e2)) = 1;
+      h_ok2 := false;
+      begin perform public.hr_remuneration(h_e1); exception when insufficient_privilege then h_ok2 := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if h_n = 1 and h_m = 1 and h_ok and h_ok2 then
+        v_lines := v_lines || 'OK      lec   0290 : la personne lit sa fiche et sa rémunération, pas celles des autres'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0290 : sa propre fiche seulement'::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ges, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      h_ok := false;
+      begin
+        insert into public.hr_people (first_name, last_name) values ('Essai', 'Refus');
+      exception when insufficient_privilege then h_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if h_ok then
+        v_lines := v_lines || 'OK      ges   0290 : le gestionnaire ne crée pas de fiche du personnel'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ges   0290 : création réservée'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 6; v_lines := v_lines || ('ÉCHEC   base  0290 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
