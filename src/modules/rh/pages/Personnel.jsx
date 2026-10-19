@@ -646,7 +646,9 @@ export default function Personnel() {
   const ONGLETS = ['tableau', 'mon-espace', 'absences', 'heures', 'equipes', 'horaires', 'registre']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
   const enFiche = chemin && !ONGLETS.includes(chemin)
-  const tabs = [
+  // Technicien de terrain : seulement « Mon espace » (les autres onglets lui sont fermés)
+  const terrain = useAuthStore((st) => st.fieldOnly)
+  const tabs = terrain ? [{ id: 'mon-espace', label: 'Mon espace' }] : [
     ...(peutTableau ? [{ id: 'tableau', label: 'Tableau de bord' }] : []),
     { id: 'mon-espace', label: 'Mon espace' },
     { id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'heures', label: 'Heures' },
