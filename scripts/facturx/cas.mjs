@@ -43,6 +43,17 @@ const cas = {
     [ligne({ vat_regime: 'exonere', tva_rate: 0 }), ligne({ description_title: 'Livret stagiaire', quantity: 8, unit_price_ht: 6, nature: 'bien' })], pro],
   'autoliquidation': [{ ...base, reference: 'FACT-20261019-00006', legal_mentions: [...mentionsPro, 'Autoliquidation.'] },
     [ligne({ description_title: 'Pose de détecteurs (sous-traitance BTP)', vat_regime: 'autoliquidation', tva_rate: 0, unit_price_ht: 1200 })], pro],
+  'facture-acompte': [{ ...base, reference: 'FACT-20261019-00008', invoice_kind: 'acompte', service_start_date: null, service_end_date: null },
+    [ligne({ description_title: 'Acompte de 30 % sur le devis DEV-20261001-00001', description_detail: 'Part au taux de 20 %', unit: 'forfait', unit_price_ht: 270 }),
+      ligne({ description_title: 'Acompte de 30 % sur le devis DEV-20261001-00001', description_detail: 'Part au taux de 5,5 %', unit: 'forfait', unit_price_ht: 13.5, tva_rate: 5.5 })], pro],
+  'facture-solde': [{ ...base, reference: 'FACT-20261019-00009', invoice_kind: 'solde',
+    deposit_refs: [{ reference: 'FACT-20261019-00008', invoice_date: '2026-10-01' }, { reference: 'FACT-20261019-00010', invoice_date: '2026-10-05' }] },
+    [ligne({ quantity: 2, unit_price_ht: 500 }), ligne({ description_title: 'Livret', quantity: 10, unit_price_ht: 5, tva_rate: 5.5 }),
+      ligne({ description_title: 'Remise fidélité (10 %)', unit: 'forfait', unit_price_ht: -100 }),
+      ligne({ description_title: 'Remise fidélité (10 %)', unit: 'forfait', unit_price_ht: -5, tva_rate: 5.5 }),
+      ligne({ description_title: "Reprise de l'acompte FACT-20261019-00008 du 01/10/2026", unit: 'forfait', unit_price_ht: -270 }),
+      ligne({ description_title: "Reprise de l'acompte FACT-20261019-00008 du 01/10/2026", unit: 'forfait', unit_price_ht: -13.5, tva_rate: 5.5 }),
+      ligne({ description_title: "Reprise de l'acompte FACT-20261019-00010 du 05/10/2026", unit: 'forfait', unit_price_ht: -100 })], pro],
 }
 
 const franchise = buildSeller({ ...org, tva_applicable: false }, { needsIban: true })

@@ -1698,6 +1698,14 @@ function ComptableTab({ transactions, receipts, loadAll }) {
   })
   const [invLoading, setInvLoading] = useState(false)
   const [invSending, setInvSending] = useState(false)
+  // Mode de transmission au comptable réglé par la société (0366) : undefined = base sans réglage (ancien envoi Factur-X)
+  const [transMode, setTransMode] = useState(undefined)
+  useEffect(() => {
+    supabase.rpc('billing_transmission_mode').then(({ data, error }) => {
+      if (error && (error.code === 'PGRST202' || /could not find the function/i.test(error.message || ''))) setTransMode(undefined)
+      else setTransMode(error ? null : (data || null))
+    })
+  }, [])
   const [invProgress, setInvProgress] = useState(null)
   const [invNotes, setInvNotes] = useState('')
   const [invoicesData, setInvoicesData] = useState([])
@@ -1753,6 +1761,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
       .gte('invoice_date', startDate)
       .lt('invoice_date', endDate)
       .not('status', 'in', '("draft","cancelled")')
+      .not('issued_at', 'is', null)
       .order('invoice_date', { ascending: true })
 
     if (!invoices || invoices.length === 0) {
@@ -1941,20 +1950,26 @@ function ComptableTab({ transactions, receipts, loadAll }) {
       const attachments = []
       let done = 0
 
+      // PDF simple si la société l'a choisi (0366), Factur-X sinon
+      const pdfSimple = transMode === 'email_pdf'
+      const versBase64 = (buf) => { const u = new Uint8Array(buf); let b = ''; for (let k = 0; k < u.length; k++) b += String.fromCharCode(u[k]); return btoa(b) }
+      const generer = ({ invoice, items, client, contact, billingClient }) => pdfSimple
+        ? generateInvoicePDF(invoice, items, client, contact, { skipSave: true, billingClient, orgSettings: organization }).then((doc) => versBase64(doc.output('arraybuffer')))
+        : generateFacturXPDF(invoice, items, client, contact, { returnBase64: true, billingClient, orgSettings: organization }, billingClient)
       for (let i = 0; i < enriched.length; i += BATCH) {
         const batch = enriched.slice(i, i + BATCH)
-        const results = await Promise.allSettled(batch.map(({ invoice, items, client, contact, billingClient }) =>
-          generateFacturXPDF(invoice, items, client, contact, { returnBase64: true, billingClient, orgSettings: organization }, billingClient)
-            .then(base64 => ({ ok: true, invoice, base64 }))
-            .catch(err => ({ ok: false, invoice, err }))
+        const results = await Promise.allSettled(batch.map((e) =>
+          generer(e)
+            .then(base64 => ({ ok: true, invoice: e.invoice, base64 }))
+            .catch(err => ({ ok: false, invoice: e.invoice, err }))
         ))
 
         for (const r of results) {
           done++
-          setInvProgress({ current: done, total, step: `Factur-X ${done}/${total}...` })
+          setInvProgress({ current: done, total, step: `${pdfSimple ? 'PDF' : 'Factur-X'} ${done}/${total}...` })
           if (r.status === 'fulfilled' && r.value.ok) {
             attachments.push({
-              filename: `${r.value.invoice.reference}_facturx.pdf`,
+              filename: `${r.value.invoice.reference}_${pdfSimple ? 'facture' : 'facturx'}.pdf`,
               base64: r.value.base64,
               contentType: 'application/pdf'
             })
@@ -2209,7 +2224,10 @@ function ComptableTab({ transactions, receipts, loadAll }) {
               <textarea value={invNotes} onChange={e => setInvNotes(e.target.value)}
                 placeholder="Notes pour le comptable (optionnel)..."
                 className="w-full border rounded-ui-sm px-3 py-2 text-ui h-16 resize-y" />
-              <button onClick={handleSendInvoices} disabled={invSending || invSelected.size === 0}
+              {transMode === null && (
+                <p className="text-ui-sm text-[rgb(var(--c-warning))]">Mode de transmission au comptable non réglé : Paramètres › Banque et facturation › Transmission au comptable.</p>
+              )}
+              <button onClick={handleSendInvoices} disabled={invSending || invSelected.size === 0 || transMode === null}
                 className="w-full bg-[rgb(var(--c-info))] text-white py-3 rounded-ui-sm font-medium hover:bg-[rgb(var(--c-info))] disabled:opacity-50">
                 {invSending
                   ? ` ${invProgress?.step || 'Envoi...'} (${invProgress?.current || 0}/${invProgress?.total || 0})`

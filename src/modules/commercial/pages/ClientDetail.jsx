@@ -467,6 +467,8 @@ export default function ClientDetail() {
       // Client public (Chorus Pro, 0363) : code service par défaut, engagement exigé
       chorus_service_code: editForm.client_type === 'public' ? (editForm.chorus_service_code || null) : null,
       chorus_engagement_required: editForm.client_type === 'public' ? !!editForm.chorus_engagement_required : false,
+      // OPCO (0368) : date d'accord à partir de laquelle la subrogation n'est plus acceptée
+      ...(editForm.client_type === 'opco' ? { opco_subrogation_end: editForm.opco_subrogation_end || null } : {}),
     }).eq('id', id)
     if (error) return toast.error('Erreur sauvegarde')
     toast.success(wasAutoPromoted ? 'Fiche complétée → statut passé en Prospect ' : 'Client mis à jour', wasAutoPromoted ? { icon: '' } : {})
@@ -1289,6 +1291,14 @@ export default function ClientDetail() {
                         <input type="checkbox" checked={!!editForm.chorus_engagement_required} onChange={e => setEditForm({ ...editForm, chorus_engagement_required: e.target.checked })} />
                         Numéro d'engagement ou bon de commande exigé
                       </label>
+                    </div>
+                  )}
+                  {editForm.client_type === 'opco' && (
+                    <div>
+                      <label className="text-ui-sm text-gray-500 mb-1 block">Subrogation refusée pour les accords datés à partir du <span className="text-gray-400">(vide = acceptée)</span></label>
+                      <input type="date" value={editForm.opco_subrogation_end || ''} onChange={e => setEditForm({ ...editForm, opco_subrogation_end: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-ui-sm text-ui" />
+                      <p className="text-ui-sm text-gray-400 mt-1">La plupart des OPCO ont supprimé la subrogation pour les dossiers engagés depuis le 01/10/2026 (exceptions propres à chacun).</p>
                     </div>
                   )}
                   {editForm.client_type === 'organisme_formation' && (

@@ -215,6 +215,9 @@ export default function SessionDetail() {
     percentage: '',
     dossier_number: '',
     notes: '',
+    agreement_date: '',
+    subrogation: false,
+    required_documents: '',
     use_percentage: false
   })
 
@@ -1112,6 +1115,7 @@ export default function SessionDetail() {
       funder_type: 'entreprise', funder_name: '', funder_client_id: '',
       funder_contact_name: '', funder_contact_email: '', funder_address: '',
       funder_siret: '', amount_ht: '', percentage: '', dossier_number: '', notes: '',
+      agreement_date: '', subrogation: false, required_documents: '',
       use_percentage: false
     })
     setEditingFunding(null)
@@ -1150,6 +1154,10 @@ export default function SessionDetail() {
       percentage: pct || null,
       dossier_number: fundingForm.dossier_number || null,
       notes: fundingForm.notes || null,
+      // Accord de financement (0368) : subrogation seulement si l'accord la prévoit
+      agreement_date: fundingForm.agreement_date || null,
+      subrogation: fundingForm.funder_type === 'opco' ? !!fundingForm.subrogation : false,
+      required_documents: fundingForm.required_documents || null,
       status: 'pending'
     }
 
@@ -1202,6 +1210,9 @@ export default function SessionDetail() {
       percentage: funding.percentage || '',
       dossier_number: funding.dossier_number || '',
       notes: funding.notes || '',
+      agreement_date: funding.agreement_date || '',
+      subrogation: !!funding.subrogation,
+      required_documents: funding.required_documents || '',
       use_percentage: false
     })
     setShowAddFunding(true)
@@ -1219,18 +1230,9 @@ export default function SessionDetail() {
 
   const handleGenerateFundingInvoice = (funding) => {
     // Rediriger vers la page factures avec pré-remplissage
-    const params = new URLSearchParams({
-      from_session: session.id,
-      funder_name: funding.funder_name || '',
-      funder_type: funding.funder_type || '',
-      funder_client_id: funding.funder_client_id || '',
-      funder_amount: funding.amount_ht || '',
-      funder_siret: funding.funder_siret || '',
-      funder_email: funding.funder_contact_email || '',
-      funder_dossier: funding.dossier_number || '',
-      funding_id: funding.id
-    })
-    navigate(`/invoices?${params.toString()}`)
+    // La page Factures prépare la facture selon l'accord (0368) : subrogation, part financée, reste à charge
+    const params = new URLSearchParams({ from_session: session.id, funding_id: funding.id })
+    navigate(`/factures?${params.toString()}`)
   }
 
   const handlePrefillClientFunding = (clientId) => {
@@ -4463,7 +4465,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         </td>
                         <td className="py-2 px-3 text-center">
                           {funding.invoice_id ? (
-                            <Link to={`/invoices?id=${funding.invoice_id}`} className="text-ui-sm text-[rgb(var(--c-info))] hover:underline flex items-center justify-center gap-1">
+                            <Link to={`/factures?open=${funding.invoice_id}`} className="text-ui-sm text-[rgb(var(--c-info))] hover:underline flex items-center justify-center gap-1">
                               <Receipt className="w-3 h-3" /> Voir
                             </Link>
                           ) : (
@@ -4662,6 +4664,33 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                         />
                       </div>
                     )}
+
+                    {/* Accord de financement OPCO (0368) */}
+                    {fundingForm.funder_type === 'opco' && (() => {
+                      const opco = clients.find(c => c.id === fundingForm.funder_client_id)
+                      const fin = opco?.opco_subrogation_end
+                      const alerte = fundingForm.subrogation && fin && (fundingForm.agreement_date || '') >= fin
+                      return (
+                        <div className="grid gap-3">
+                          <div>
+                            <label className="label">Date de l'accord</label>
+                            <input type="date" className="input" value={fundingForm.agreement_date || ''} onChange={(e) => setFundingForm({ ...fundingForm, agreement_date: e.target.value })} />
+                          </div>
+                          <label className="flex items-start gap-2">
+                            <input type="checkbox" className="mt-1" checked={!!fundingForm.subrogation} onChange={(e) => setFundingForm({ ...fundingForm, subrogation: e.target.checked })} />
+                            <span>
+                              <span className="font-medium">Subrogation de paiement</span>
+                              <span className="block text-ui-sm text-gray-500">À cocher seulement si l'accord la prévoit : la plupart des OPCO l'ont supprimée pour les dossiers engagés depuis le 01/10/2026. Sans subrogation, l'entreprise est facturée TTC et l'OPCO la rembourse.</span>
+                            </span>
+                          </label>
+                          {alerte && <p className="text-ui-sm text-[rgb(var(--c-warning))]">{opco.name} n'accepte plus la subrogation pour les accords datés du {new Date(fin).toLocaleDateString('fr-FR')} ou après : vérifiez l'accord.</p>}
+                          <div>
+                            <label className="label">Pièces exigées par l'OPCO</label>
+                            <input type="text" className="input" placeholder="Certificat de réalisation, émargements..." value={fundingForm.required_documents || ''} onChange={(e) => setFundingForm({ ...fundingForm, required_documents: e.target.value })} />
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* Infos contact facturation */}
                     <details className="border rounded-ui-sm">

@@ -772,6 +772,9 @@ tdx('0360', 'billing_settings', sel=f"company_id in {societes('organisation.regl
     ins=f"company_id in {societes('parametres.organisme.modifier')}",
     upd=f"company_id in {societes('parametres.organisme.modifier')}", dele=PLAT_D)
 tdx('0360', 'billing_sequences', sel=f"company_id in {societes('facturation.factures.voir')}")
+# Acomptes (0368) : liens entre facture de solde et factures d'acompte, lus avec les factures, écrits seulement par
+# billing_create_final (aucune règle d'écriture).
+tdx('0368', 'invoice_deposit_links', sel=f"company_id in {societes('facturation.factures.voir')}")
 
 
 def build_suite(migration):
