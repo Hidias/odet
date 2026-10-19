@@ -924,6 +924,14 @@ tdx('0312', 'hr_time_entries', sel=f"({_RH_DOS} or {_RH_HVAL} or person_id in (s
     ins=f"({_RH_HSAI} or {_RH_GER})", upd=f"({_RH_HSAI} or {_RH_GER})", dele=f"({_RH_HSAI} or {_RH_GER})")
 tdx('0312', 'hr_timesheets', sel=f"({_RH_DOS} or {_RH_HVAL} or person_id in (select app.hr_mes_personnes()) or {_RH_EQ})")
 
+# Chantier 12, RH entretiens et arrivées et départs (0314) : entretiens lus par la personne, avec « Voir les dossiers »
+# ou par son responsable d'équipe, tenus avec « Tenir les dossiers » ; listes d'arrivée et de départ lues avec « Voir
+# les dossiers » ou par la personne, tenues avec « Tenir les dossiers » ; modèles lus avec « Voir le personnel »,
+# réglés avec « Configurer les RH ».
+tdx('0314', 'hr_reviews', sel=f"({_RH_DOS} or {_RH_MOI} or {_RH_EQ})", ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
+tdx('0314', 'hr_checklists', sel=f"({_RH_DOS} or {_RH_MOI})", ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
+tdx('0314', 'hr_checklist_templates', sel=_RH_VOIR, ins=_RH_PAR, upd=_RH_PAR, dele=_RH_PAR)
+
 
 def build_suite(migration):
     specs = {n: spec for n, (m, spec) in MD_SUITE.items() if m == migration}

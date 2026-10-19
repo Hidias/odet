@@ -3823,6 +3823,55 @@ begin
     end;
   end if;
 
+  -- RH, entretiens et listes (0314) : la direction ouvre la liste d'arrivée depuis le modèle ; l'entretien est lu par
+  -- la personne, pas par le commercial ; l'entretien prévu rejoint les échéances
+  if to_regprocedure('public.hr_liste_ouvrir(uuid,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare
+      e_co uuid := app.company_default(); e_p uuid; e_l uuid; e_n int; e_m int; e_ok boolean := false;
+    begin
+      insert into public.hr_people (company_id, first_name, last_name, profile_id) values (e_co, 'Essai', 'Entretien0314', u_lec)
+      on conflict do nothing;
+      select id into e_p from public.hr_people where profile_id = u_lec and company_id = e_co limit 1;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_l := public.hr_liste_ouvrir(e_p, 'arrivee');
+      e_n := (select jsonb_array_length(items) from public.hr_checklists where id = e_l);
+      insert into public.hr_reviews (company_id, person_id, kind, planned_on) values (e_co, e_p, 'parcours', current_date + 40);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if e_n >= 7 then
+        v_lines := v_lines || 'OK      dir   0314 : liste d''arrivée ouverte depuis le modèle de la société'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0314 : liste d''arrivée (' || coalesce(e_n, -1) || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_lec, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_n := (select count(*) from public.hr_reviews where person_id = e_p);
+      e_m := (select count(*) from public.v_hr_echeances where person_id = e_p and kind = 'entretien');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if e_n = 1 and e_m = 1 then
+        v_lines := v_lines || 'OK      lec   0314 : la personne voit son entretien prévu et son échéance'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   lec   0314 : entretien de la personne (' || e_n || ', ' || e_m || ')')::text; end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      e_n := (select count(*) from public.hr_reviews) + (select count(*) from public.hr_checklists);
+      begin perform public.hr_liste_ouvrir(e_p, 'depart'); exception when insufficient_privilege then e_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if e_n = 0 and e_ok then
+        v_lines := v_lines || 'OK      com   0314 : le commercial ne voit ni entretiens ni listes, n''en ouvre pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0314 : entretiens cachés au commercial'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0314 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
