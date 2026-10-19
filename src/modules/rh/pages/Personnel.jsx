@@ -23,6 +23,8 @@ import {
 import Absences, { DemandeSheet } from './Absences'
 import Heures from './Heures'
 import { DocumentsFiche, HabilitationsFiche, SanteFiche } from './DocumentsSante'
+import MonEspace from './MonEspace'
+import TableauRH from './TableauRH'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const euros = (n) => Number(n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -527,23 +529,33 @@ export default function Personnel() {
   const peutVoirTout = can('rh.dossiers.voir') === true
   const peutRestreints = can('rh.documents.restreints') === true
   const chemin = location.pathname.replace(/^\/collaborateurs\/?/, '').split('/')[0]
-  const ONGLETS = ['absences', 'heures', 'equipes', 'horaires']
+  const peutValiderHeures = can('rh.heures.valider') === true
+  const peutTableau = peutVoirTout || peutValider || peutValiderHeures
+  const ONGLETS = ['tableau', 'mon-espace', 'absences', 'heures', 'equipes', 'horaires']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
   const enFiche = chemin && !ONGLETS.includes(chemin)
+  const tabs = [
+    ...(peutTableau ? [{ id: 'tableau', label: 'Tableau de bord' }] : []),
+    { id: 'mon-espace', label: 'Mon espace' },
+    { id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'heures', label: 'Heures' },
+    { id: 'equipes', label: 'Équipes' }, { id: 'horaires', label: 'Horaires' },
+  ]
 
   return (
     <div className="space-y-4">
       {!enFiche && (
         <>
           <PageHeader eyebrow="Ressources humaines" title="Personnel" />
-          <Tabs tabs={[{ id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'heures', label: 'Heures' }, { id: 'equipes', label: 'Équipes' }, { id: 'horaires', label: 'Horaires' }]}
+          <Tabs tabs={tabs}
             value={onglet} onChange={(id) => navigate(id === 'annuaire' ? '/collaborateurs' : `/collaborateurs/${id}`)} />
         </>
       )}
       <Routes>
         <Route index element={<Annuaire peutGerer={peutGerer} />} />
+        {peutTableau && <Route path="tableau" element={<TableauRH peutValiderAbsences={peutValider} peutValiderHeures={peutValiderHeures} peutRestreints={peutRestreints} />} />}
+        <Route path="mon-espace" element={<MonEspace />} />
         <Route path="absences" element={<Absences peutValider={peutValider} peutVoirTout={peutVoirTout} peutConfigurer={peutConfigurer} />} />
-        <Route path="heures" element={<Heures peutValider={can('rh.heures.valider') === true} />} />
+        <Route path="heures" element={<Heures peutValider={peutValiderHeures} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
         <Route path="horaires" element={<Horaires peutConfigurer={peutConfigurer} />} />
         <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} peutRestreints={peutRestreints} />} />
