@@ -23,6 +23,7 @@ import { applyMailingVars } from '../src/modules/mailing/lib/mailingVars.js'
 import sendMailingSingle from './send-mailing-single.js'
 import { requireCronSecret } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
+import { withJobLog } from './_lib/taches.js'
 
 export const config = { maxDuration: 60 }
 
@@ -208,4 +209,4 @@ async function handler(req, res) {
   }
 }
 
-export default withErrorLog(handler, 'mailing-cron')
+export default withErrorLog(withJobLog(handler, 'mailing-cron'), 'mailing-cron')

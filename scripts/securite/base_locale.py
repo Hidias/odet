@@ -205,6 +205,8 @@ ORDRE_PROD = (
     + ['0321']
     # Correctifs de l'audit (visite terminée figée), 19/10
     + ['0381']
+    # Journal des tâches planifiées et interrupteurs des envois automatiques, 19/10
+    + ['0382']
 )
 
 

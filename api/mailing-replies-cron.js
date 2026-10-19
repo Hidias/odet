@@ -19,6 +19,7 @@ import { decrypt } from './_lib/mailer.js'
 import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { getImapHost } from './_lib/save-to-sent.js'
 import { withErrorLog } from './_lib/errors.js'
+import { withJobLog } from './_lib/taches.js'
 
 export const config = { maxDuration: 60 }
 
@@ -188,4 +189,4 @@ async function handler(req, res) {
   }
 }
 
-export default withErrorLog(handler, 'mailing-replies-cron')
+export default withErrorLog(withJobLog(handler, 'mailing-replies-cron'), 'mailing-replies-cron')

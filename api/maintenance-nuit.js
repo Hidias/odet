@@ -11,6 +11,7 @@
 
 import { getAdminClient, requireCronOrRole, SA } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
+import { withJobLog, purgerJournalTaches } from './_lib/taches.js'
 
 export const config = { maxDuration: 60 }
 
@@ -19,30 +20,33 @@ async function handler(req, res) {
   const ctx = await requireCronOrRole(req, res, SA)
   if (!ctx) return
   const admin = getAdminClient()
+  // Chaque étape est indépendante (audit du 19/10 au soir) : une erreur dans l'une n'empêche plus les suivantes,
+  // en particulier la préparation des relances. Les erreurs sont rendues dans la réponse et notées au journal des tâches.
+  const erreurs = {}
   const { data, error } = await admin.rpc('daily_maintenance')
-  if (error) {
-    // Fonction absente : migration 0376 pas encore appliquée, rien à faire (les pages d'avant s'en chargeaient)
-    if (error.code === 'PGRST202' || /daily_maintenance/.test(error.message || '')) {
-      return res.status(200).json({ ok: false, raison: 'migration 0376 non appliquée' })
-    }
-    throw new Error(`daily_maintenance : ${error.message}`)
+  if (error && !(error.code === 'PGRST202' || /daily_maintenance/.test(error.message || ''))) {
+    erreurs.maintenance = error.code || 'erreur'
+    console.error('[maintenance-nuit] maintenance', error.code || 'erreur')
   }
   // Relances préparées pour validation (lot 2, 0043) : rien n'est envoyé ; fonction absente = migration non appliquée
   let relances = null
   const { data: rel, error: relErr } = await admin.rpc('scheduled_actions_generate')
   if (!relErr) relances = rel
-  else if (relErr.code !== 'PGRST202') console.error('[maintenance-nuit] relances', relErr.code || 'erreur')
+  else if (relErr.code !== 'PGRST202') { erreurs.relances = relErr.code || 'erreur'; console.error('[maintenance-nuit] relances', relErr.code || 'erreur') }
   // Étapes des sessions préparées pour validation (fonction 13, 0160) : rien n'est envoyé ; module inactif = rien
   let pilote = null
   const { data: pil, error: pilErr } = await admin.rpc('pilote_generate')
   if (!pilErr) pilote = pil
-  else if (pilErr.code !== 'PGRST202') console.error('[maintenance-nuit] pilote', pilErr.code || 'erreur')
+  else if (pilErr.code !== 'PGRST202') { erreurs.pilote = pilErr.code || 'erreur'; console.error('[maintenance-nuit] pilote', pilErr.code || 'erreur') }
   // Purges RGPD proposées pour validation (chantier F, 0344) : rien n'est supprimé sans une personne
   let purges = null
   const { data: pur, error: purErr } = await admin.rpc('rgpd_purges_generer')
   if (!purErr) purges = pur
-  else if (purErr.code !== 'PGRST202') console.error('[maintenance-nuit] purges', purErr.code || 'erreur')
-  return res.status(200).json({ ok: true, resultat: data, relances, pilote, purges })
+  else if (purErr.code !== 'PGRST202') { erreurs.purges = purErr.code || 'erreur'; console.error('[maintenance-nuit] purges', purErr.code || 'erreur') }
+  await purgerJournalTaches()
+  const nbErreurs = Object.keys(erreurs).length
+  // 500 si une étape a échoué : le journal des tâches la note « erreur » et le suivi des erreurs la reçoit
+  return res.status(nbErreurs ? 500 : 200).json({ ok: !nbErreurs, resultat: data, relances, pilote, purges, ...(nbErreurs ? { error: `Étapes en erreur : ${Object.entries(erreurs).map(([k, v]) => `${k} (${v})`).join(', ')}` } : {}) })
 }
 
-export default withErrorLog(handler, 'maintenance-nuit')
+export default withErrorLog(withJobLog(handler, 'maintenance-nuit'), 'maintenance-nuit')

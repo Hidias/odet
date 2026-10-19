@@ -16,6 +16,7 @@ import RetoursConsole from '../feedback/RetoursConsole'
 import { BandeauConsole, NouveautesConsole } from '../notices/AvisConsole'
 
 import { confirmer } from '../../ui/Confirm'
+import { TachesPlanifiees, EnvoisAutomatiquesSociete } from './TachesEtEnvois'
 // Console technique de l'instance, réservée au super administrateur :
 // état, migrations à appliquer, modules, mode démo, accès, exports, notes de version.
 
@@ -25,14 +26,6 @@ const BUNDLED_MIGRATIONS = Object.keys(MIGRATION_FILES)
   .map((p) => ({ path: p, version: p.split('/').pop().replace(/\.sql$/, '') }))
   .sort((a, b) => a.version.localeCompare(b.version))
 
-const CRONS = [
-  { path: '/api/sync-sent-emails', schedule: 'Toutes les 30 min, 6h à 18h, lundi à vendredi', label: 'Synchronisation des emails envoyés' },
-  { path: '/api/sync-google-calendar', schedule: 'Coupée le 19/10/2026 (aucune clé Google configurée) : à remettre dans vercel.json avec GOOGLE_SERVICE_ACCOUNT_KEY', label: 'Synchronisation Google Agenda' },
-  { path: '/api/mailing-cron', schedule: 'Selon les campagnes', label: 'Envoi des campagnes email' },
-  { path: '/api/mailing-replies-cron', schedule: 'Tous les jours à 5h', label: 'Réponses aux campagnes' },
-  { path: '/api/social/cron-publish', schedule: 'Toutes les 5 min', label: 'Publication des posts programmés' },
-  { path: '/api/signature-alert', schedule: 'Sur demande', label: 'Alertes de signature' },
-]
 
 const EXPORT_TABLES = ['clients', 'client_contacts', 'courses', 'trainers', 'trainees', 'sessions', 'session_trainees', 'attendance_halfdays', 'trainee_evaluations', 'evaluations_cold', 'quiz_attempts', 'quotes', 'quote_items', 'invoices', 'invoice_items', 'invoice_payments']
 
@@ -200,6 +193,15 @@ export default function Console() {
 
       <NouveautesConsole />
 
+      <Section icon={Clock} title="Tâches planifiées">
+        <TachesPlanifiees />
+        <p className="text-ui-sm text-gray-400">Les tâches sont déclenchées par Vercel avec le secret CRON_SECRET. Un appel sans ce secret est refusé, et noté ici.</p>
+      </Section>
+
+      <Section icon={Mail} title="Envois automatiques">
+        <EnvoisAutomatiquesSociete />
+      </Section>
+
       <Section icon={Activity} title="État de l'instance">
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-ui">
           <Row k="Base de données" v={supabaseHost || 'non configurée'} />
@@ -259,19 +261,6 @@ export default function Console() {
       <Section icon={Mail} title="Mode démonstration et emails">
         <Toggle checked={!!organization?.demo_mode} onChange={toggleDemo} label="Mode démonstration"
           hint={`Tous les emails sortants sont redirigés vers l'adresse MAIL_SINK du serveur${health ? (health.env.find((e) => e.key === 'MAIL_SINK')?.present ? ' (définie)' : ' (non définie : les envois seront refusés)') : ''}. Les destinataires réels ne reçoivent rien.`} />
-        <div>
-          <div className="label">Tâches planifiées</div>
-          <div className="divide-y divide-gray-100">
-            {CRONS.map((c) => (
-              <div key={c.path} className="flex items-center gap-3 py-2 text-ui">
-                <Clock className="w-4 h-4 text-gray-400 flex-none" />
-                <div className="flex-1 min-w-0"><div className="font-medium text-gray-900">{c.label}</div><div className="text-ui-sm text-gray-500">{c.schedule}</div></div>
-                <code className="text-ui-sm text-gray-400 hidden sm:block">{c.path}</code>
-              </div>
-            ))}
-          </div>
-          <p className="text-ui-sm text-gray-400 mt-2">Les tâches sont déclenchées par Vercel avec le secret CRON_SECRET. Un appel sans ce secret est refusé.</p>
-        </div>
       </Section>
 
       <Section icon={Users} title="Accès" actions={<Link to="/parametres?section=utilisateurs" className="btn btn-secondary btn-sm">Gérer les utilisateurs</Link>}>

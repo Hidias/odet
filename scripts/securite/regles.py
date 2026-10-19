@@ -1306,3 +1306,10 @@ if __name__ == '__main__':
         f.write_text(fn(), encoding='utf-8')
         print(f"{rel} : écrit")
     print(f"droits utilisés par les règles : {len(USAGE)} ; catalogue : {len(catalogue.CATALOGUE)}")
+
+# Journal des tâches planifiées et interrupteurs des envois automatiques (0382, audit du 19/10 au soir) : journal lu par
+# le super administrateur seulement, écrit par les routes serveur ; interrupteurs et leur journal lus par qui règle
+# l'organisme, écrits seulement par les fonctions envoi_auto_regler, envoi_auto_suspendre et envoi_auto_reprendre.
+tdx('0382', 'job_runs', sel=PLAT_D)
+tdx('0382', 'auto_send_switches', sel=f"(company_id in {societes('parametres.organisme.modifier')} or {PLAT_D})")
+tdx('0382', 'auto_send_switch_log', sel=f"(company_id in {societes('parametres.organisme.modifier')} or {PLAT_D})")

@@ -4,6 +4,7 @@ import { Trash2, Plus } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useAuthStore } from '../store'
 import { useDroits } from './useDroit'
+import { EnvoisAutomatiques } from '../console/TachesEtEnvois'
 import { Card, CardHeader, CardBody, Banner, Spinner, SearchSelect, useConfirm } from '../../ui'
 
 // Règles de gestion (direction, administrateur, super administrateur ; jamais dans les Paramètres) :
@@ -161,9 +162,16 @@ export default function ReglesGestion() {
   const rights = useAuthStore((s) => s.rights)
   const d = useDroits({ circuits: 'validations.circuits.configurer', comptable: 'facturation.comptable_externe.regler' })
   const companyId = rights?.companyId || null
+  const role = useAuthStore((s) => s.profile?.role)
   if (!rights) return <Banner tone="info" title="Réglages indisponibles">Les droits par société ne sont pas encore actifs sur cette base.</Banner>
   return (
     <div className="grid gap-4">
+      {companyId && ['superadmin', 'admin'].includes(role) && (
+        <Card>
+          <CardHeader title="Envois automatiques" subtitle="Ce qui part tout seul aux clients et aux stagiaires. En cas de problème, un administrateur peut suspendre un envoi pendant 24 heures." />
+          <CardBody><EnvoisAutomatiques companyId={companyId} /></CardBody>
+        </Card>
+      )}
       {d.circuits && companyId && (
         <Card>
           <CardHeader title="Circuits de validation" subtitle="Qui valide quoi avant envoi ou paiement. Sans règle, le réglage par défaut du produit s'applique." />
