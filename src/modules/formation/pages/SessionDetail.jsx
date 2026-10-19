@@ -39,6 +39,7 @@ import { useDroits } from '../../../core/rights/useDroit'
 
 import { confirmer, demander } from '../../../ui/Confirm'
 import ChoixSiteSession from '../components/ChoixSiteSession'
+import SessionGroupes from '../components/SessionGroupes'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -3210,6 +3211,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {/* Tabs */}
       <Tabs value={activeTab} onChange={setActiveTab} visible={5} tabs={[
         { id: 'overview', label: 'Stagiaires', count: sessionTrainees.length },
+        ...(session.session_type === 'inter' ? [{ id: 'groupes', label: 'Groupes' }] : []),
         { id: 'presence', label: 'Présence' },
         { id: 'suivi', label: 'Évaluations' },
         { id: 'documents', label: 'Documents' },
@@ -4347,6 +4349,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       )}
       
       {/* TAB: Financement multi-financeurs */}
+      {activeTab === 'groupes' && session.session_type === 'inter' && (
+        <SessionGroupes session={session} peutModifier={d.modifier} />
+      )}
+
       {activeTab === 'funding' && (
         <div className="card">
           <div className="flex items-center justify-between mb-4">

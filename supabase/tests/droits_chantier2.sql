@@ -2186,6 +2186,50 @@ begin
     end;
   end if;
 
+  -- Lot 2, sessions inter et groupes (0044) : rétractation et paiements d'un particulier (L6353-5, L6353-6)
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'session_groups'
+             and column_name = 'retractation_end') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    perform set_config('request.headers', '', true);
+    v_total := v_total + 4;
+    declare
+      g_part uuid; g_ses uuid; g_grp public.session_groups; g_inv uuid; g_ok boolean; g_err text;
+    begin
+      insert into public.clients (name, client_type) values ('Particulier inter', 'particulier') returning id into g_part;
+      insert into public.sessions (reference, session_type, start_date, end_date, attendance_token)
+      values ('SES-ESSAI-INTER', 'inter', current_date + 30, current_date + 31, 'essai-inter') returning id into g_ses;
+      insert into public.session_groups (session_id, client_id, kind, payer_kind, doc_status, doc_signed_at)
+      values (g_ses, g_part, 'particulier', 'particulier', 'signe', timestamptz '2026-10-01 10:00+02') returning * into g_grp;
+      if g_grp.retractation_end = date '2026-10-11' and g_grp.is_individual then
+        v_lines := v_lines || 'OK      base  0044 : particulier, fin de rétractation = signature + 10 jours'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0044 : fin de rétractation (' || coalesce(g_grp.retractation_end::text, 'vide') || ')'); end if;
+
+      insert into public.invoices (reference, type, client_id, session_group_id, invoice_date, due_date, total_ttc)
+      values ('x', 'invoice', g_part, g_grp.id, current_date, current_date + 30, 1000) returning id into g_inv;
+      if (select invoice_id from public.session_groups where id = g_grp.id) = g_inv then
+        v_lines := v_lines || 'OK      base  0044 : facture du groupe reliée au groupe'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0044 : facture du groupe reliée au groupe'::text; end if;
+
+      g_ok := false;
+      begin
+        insert into public.invoice_payments (invoice_id, amount, payment_date) values (g_inv, 100, date '2026-10-05');
+      exception when sqlstate '22023' then g_ok := true;
+      end;
+      if g_ok then v_lines := v_lines || 'OK      base  0044 : aucun paiement d''un particulier avant la fin de la rétractation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0044 : aucun paiement avant la fin de la rétractation'::text; end if;
+
+      insert into public.invoice_payments (invoice_id, amount, payment_date) values (g_inv, 300, date '2026-10-12');
+      g_ok := false;
+      begin
+        insert into public.invoice_payments (invoice_id, amount, payment_date) values (g_inv, 1, date '2026-10-13');
+      exception when sqlstate '22023' then g_ok := true;
+      end;
+      if g_ok then v_lines := v_lines || 'OK      base  0044 : 30 % au plus avant le début de la formation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0044 : 30 % au plus avant le début de la formation'::text; end if;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

@@ -796,6 +796,10 @@ tdx('0042', 'client_safety_checks', sel=f"company_id in {societes('clients.fiche
 # aucune création ni suppression par un compte (seulement la tâche de nuit), modification = valider, ignorer, corriger.
 tdx('0043', 'scheduled_actions', sel=f"company_id in {societes('formation.convocations.envoyer')}",
     upd=f"company_id in {societes('formation.convocations.envoyer')}")
+# Lot 2, sessions inter (0044) : demandes d'inscription de la page publique (écrites par une fonction publique à venir),
+# lues et traitées par qui inscrit les stagiaires.
+tdx('0044', 'inter_requests', sel=f"company_id in {societes('formation.inscriptions.gerer')}",
+    upd=f"company_id in {societes('formation.inscriptions.gerer')}", dele=f"company_id in {societes('formation.inscriptions.gerer')}")
 
 
 def build_suite(migration):
