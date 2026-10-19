@@ -183,6 +183,22 @@ end
 $$;
 revoke all on function app.societes_partage() from public, anon, authenticated;
 """]
+    # Verrous pris d'un coup au début : la migration touche 154 tables ; les prendre une à une au fil de l'eau, pendant
+    # que l'application lit et écrit, provoque des interblocages (essai du 19/10). Pris ensemble au départ, la fenêtre
+    # d'attente est courte et la suite n'attend plus aucun verrou.
+    toutes = a + list(b) + c + ['audit_logs']
+    arr = ", ".join(f"'{t}'" for t in dict.fromkeys(toutes))
+    out.append(f"""
+-- Verrous de toutes les tables touchées, pris en une instruction avant tout changement
+do $$
+declare v_liste text;
+begin
+  select string_agg(format('public.%I', t), ', ') into v_liste
+  from unnest(array[{arr}]) t where to_regclass('public.' || t) is not null;
+  execute 'lock table ' || v_liste || ' in access exclusive mode';
+end
+$$;
+""")
     col = """    if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = '{t}' and column_name = 'company_id') then
       alter table public.{t} add column company_id uuid not null default app.company_default();
     else

@@ -61,6 +61,17 @@ $$;
 revoke all on function app.societes_partage() from public, anon, authenticated;
 
 
+-- Verrous de toutes les tables touchées, pris en une instruction avant tout changement
+do $$
+declare v_liste text;
+begin
+  select string_agg(format('public.%I', t), ', ') into v_liste
+  from unnest(array['sessions', 'trainees', 'invoices', 'quotes', 'invoice_emails_sent', 'itv_visits', 'itv_contracts', 'itv_equipment', 'budget_actions', 'budget_categories', 'budget_emails_sent', 'budget_meal_guests', 'budget_pipeline', 'budget_rules', 'budget_settings', 'budget_transactions', 'bank_statements', 'accounting_periods', 'bpf_declarations', 'cert_audit_findings', 'cert_documents', 'cert_indicator_status', 'cert_proofs', 'cert_settings', 'duerp_projects', 'pp_envois', 'pp_accuses', 'pp_fichiers', 'prospection_massive', 'prospect_calls', 'prospect_rdv', 'prospect_email_logs', 'prospect_needs_analysis', 'phoning_sessions', 'rdv_emails_sent', 'rdv_kit_documents', 'mailing_campaigns', 'mailing_segments', 'mailing_email_status', 'mailing_blocklist', 'social_posts', 'social_media_library', 'social_tokens', 'non_conformites', 'non_conformities', 'reclamations', 'quality_alerts', 'completude_alerts', 'completude_tracking', 'notifications', 'audit_logs', 'error_logs', 'rgpd_traitements', 'veille_qualiopi', 'veille_sources', 'processes', 'process_categories', 'process_responsibles', 'qualiopi_indicators', 'audits_internes', 'documents', 'uploaded_documents', 'uploaded_files', 'import_logs', 'signature_alerts_sent', 'trainees_archive', 'psh_requests', 'client_interactions', 'client_portal_access', 'client_providers', 'user_feedback', 'quote_items', 'invoice_items', 'invoice_sessions', 'invoice_payments', 'invoice_relances', 'session_trainees', 'session_trainers', 'session_checklists', 'session_costs', 'session_document_access', 'session_documents', 'session_emails_sent', 'session_equipment', 'session_fundings', 'session_groups', 'session_needs_analysis', 'session_qualiopi', 'session_sequences', 'attendance_halfdays', 'attendance_proxy_signatures', 'attendances', 'document_signatures', 'trainee_evaluations', 'evaluations_cold', 'trainer_evaluations', 'trainee_info_sheets', 'trainee_objectives', 'trainee_positioning_tests', 'positioning_results', 'quiz_attempts', 'sst_certifications', 'formative_evaluations', 'formative_sheets', 'course_document_downloads', 'pp_lignes', 'trainee_documents', 'trainee_disability', 'trainee_ssn', 'pp_nir', 'itv_visit_items', 'itv_visit_parts', 'duerp_actions', 'duerp_risks', 'duerp_units', 'duerp_equipements', 'duerp_habilitations', 'duerp_verifications', 'budget_receipts', 'budget_transaction_invoices', 'mailing_sends', 'process_steps', 'process_versions', 'process_connections', 'clients', 'client_contacts', 'sites', 'trainers', 'trainer_certificates', 'trainer_interviews', 'trainer_qualifications', 'trainer_trainings', 'courses', 'course_documents', 'course_equipment', 'course_questions', 'course_sequences', 'training_themes', 'theme_questions', 'positioning_questions_ref', 'positioning_themes', 'programme_versions', 'equipment_catalog', 'itv_equipment_types', 'itv_parts', 'itv_technicians', 'mailing_templates', 'call_arguments', 'call_objections', 'quality_documents', 'quality_doc_versions', 'qualiopi_documents', 'pp_course_settings', 'pp_presets']) t where to_regclass('public.' || t) is not null;
+  execute 'lock table ' || v_liste || ' in access exclusive mode';
+end
+$$;
+
+
 -- ===== Classe A : propres à une société =====
 
 -- sessions

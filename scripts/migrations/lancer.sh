@@ -48,12 +48,21 @@ ecrire "### Lot \`$LOT\`, mode $MODE"
 ecrire ""
 
 # Lance un fichier en une seule transaction ; sortie (sans le secret) dans $TMP/<nom>.txt
+# Un interblocage avec l'application (verrous pris pendant que des pages lisent et écrivent) annule toute la transaction
+# sans rien laisser : on rejoue alors le même fichier, jusqu'à 3 fois, 30 s plus tard.
 jouer() { # jouer nom fichier
-  PGCONNECT_TIMEOUT=20 psql "$SUPABASE_DB_URL" -X -q -v ON_ERROR_STOP=1 --single-transaction -f "$RACINE/$2" \
-    > "$TMP/$1.txt" 2>&1
-  local rc=$?
-  sed -i -E 's#postgres(ql)?://[^ ]+#[adresse masquée]#g' "$TMP/$1.txt"
-  return $rc
+  local essai=1 rc
+  while :; do
+    PGCONNECT_TIMEOUT=20 psql "$SUPABASE_DB_URL" -X -q -v ON_ERROR_STOP=1 --single-transaction -f "$RACINE/$2" \
+      > "$TMP/$1.txt" 2>&1
+    rc=$?
+    sed -i -E 's#postgres(ql)?://[^ ]+#[adresse masquée]#g' "$TMP/$1.txt"
+    if [ "$essai" -lt 3 ] && grep -qE 'deadlock detected|canceling statement due to lock timeout' "$TMP/$1.txt"; then
+      echo "::warning::$1 : interblocage avec l'application, nouvel essai dans 30 s ($essai/3)"
+      essai=$((essai + 1)); sleep 30; continue
+    fi
+    return $rc
+  done
 }
 extrait() { # extrait nom : fin utile du résultat pour le journal et la PR
   grep -v '^psql:.*NOTICE' "$TMP/$1.txt" | tail -c 20000
