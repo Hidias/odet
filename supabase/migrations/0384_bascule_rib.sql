@@ -37,8 +37,9 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Écritures du système (tâches, migrations, essais) : non concernées ; toute émission par une personne l'est
   if old.issued_at is null and new.issued_at is not null and coalesce(new.type, 'invoice') <> 'credit_note'
-     and app.rib_demo(new.company_id) then
+     and (select auth.uid()) is not null and app.rib_demo(new.company_id) then
     raise exception 'Émission impossible : les coordonnées bancaires sont celles de la démonstration. Saisissez le RIB réel de la société (Paramètres › Banque et facturation).'
       using errcode = 'check_violation';
   end if;
@@ -46,8 +47,8 @@ begin
 end
 $$;
 revoke all on function app.billing_refus_rib_demo() from public, anon, authenticated;
-drop trigger if exists invoices_refus_rib_demo on public.invoices;
-create trigger invoices_refus_rib_demo before update of issued_at on public.invoices
+drop trigger if exists invoices_verrou_rib_demo on public.invoices;
+create trigger invoices_verrou_rib_demo before update of issued_at on public.invoices
   for each row execute function app.billing_refus_rib_demo();
 
 -- Contrôle avant émission : point bloquant affiché à l'écran

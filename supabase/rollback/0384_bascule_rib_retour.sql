@@ -1,7 +1,7 @@
 -- Retour arrière de 0384_bascule_rib.sql : retire le refus d'émission avec le RIB de démonstration et remet le
 -- contrôle avant émission de 0363. Idempotent.
 
-drop trigger if exists invoices_refus_rib_demo on public.invoices;
+drop trigger if exists invoices_verrou_rib_demo on public.invoices;
 drop function if exists app.billing_refus_rib_demo();
 
 create or replace function public.billing_missing_mentions(p_invoice uuid)
