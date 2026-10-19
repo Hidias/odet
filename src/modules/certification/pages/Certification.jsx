@@ -17,6 +17,7 @@ import CertMethode from './CertMethode'
 import CertDossier from './CertDossier'
 import CertSociete from './CertSociete'
 import CertInterne from './CertInterne'
+import CertPreparer from './CertPreparer'
 
 const TABS = [
   { to: '', label: 'Accueil', end: true },
@@ -26,6 +27,7 @@ const TABS = [
   { to: 'methode', label: 'Méthode de calcul' },
   { to: 'dossier', label: 'Dossier d\'audit' },
   { to: 'certifications', label: 'Toutes les certifications' },
+  { to: 'preparer', label: 'Préparer l\'audit' },
 ]
 // Face interne (conseil de direction) : onglet visible seulement avec le droit du cockpit ; la base refuse sinon
 const TAB_INTERNE = { to: 'interne', label: 'Erreurs à éviter' }
@@ -115,6 +117,7 @@ export default function Certification() {
         <Route path="methode" element={<CertMethode {...ctx} />} />
         <Route path="dossier" element={<CertDossier {...ctx} />} />
         <Route path="certifications" element={<CertSociete {...ctx} />} />
+        <Route path="preparer" element={<CertPreparer />} />
         {voitInterne && <Route path="interne" element={<CertInterne />} />}
         <Route path="*" element={<Navigate to="" replace />} />
       </Routes>
