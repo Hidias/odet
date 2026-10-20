@@ -24,7 +24,7 @@ import {
 } from '../lib/rhData'
 import Absences, { DemandeSheet } from './Absences'
 import Heures from './Heures'
-import { DocumentsFiche, HabilitationsFiche, SanteFiche, ConsignesFiche } from './DocumentsSante'
+import { DocumentsFiche, HabilitationsFiche, SanteFiche, ConsignesFiche, AffichageAdapteFiche } from './DocumentsSante'
 import MonEspace from './MonEspace'
 import TableauRH from './TableauRH'
 import RegistrePaie from './RegistrePaie'
@@ -457,6 +457,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
       <HabilitationsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
       <SanteFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer && peutRestreints} />
       <ConsignesFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
+      {peutGerer && p.profile_id && <AffichageAdapteFiche profileId={p.profile_id} />}
       <DocumentsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} peutRestreints={peutRestreints} estMoi={!!user?.id && p.profile_id === user.id} />
 
       {edition && <FichePersonneSheet personne={p} onClose={() => setEdition(false)} onSaved={() => { setEdition(false); charger() }} />}

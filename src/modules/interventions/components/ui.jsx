@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ScanLine, X, Camera } from 'lucide-react'
-import { RESULT_BADGE, RESULT_LABEL, VISIT_STATUS, DUE_BADGE, dueState, frMonthYear } from '../lib/schedule'
+import { RESULT_BADGE, RESULT_LABEL, RESULT_PICTO, RESULT_FACILE, VISIT_STATUS, DUE_BADGE, dueState, frMonthYear } from '../lib/schedule'
+import { useAdapte } from '../../../core/branding/adapte'
 
+// Résultat d'un appareil : pictogramme constant et libellé (français facile si la personne l'a choisi)
 export function ResultBadge({ result }) {
-  if (!result) return <span className="badge badge-neutral">À contrôler</span>
-  return <span className={`badge ${RESULT_BADGE[result]}`}>{RESULT_LABEL[result]}</span>
+  const { facile } = useAdapte()
+  if (!result) return <span className="badge badge-neutral">{facile ? 'À voir' : 'À contrôler'}</span>
+  return <span className={`badge ${RESULT_BADGE[result]}`}><span aria-hidden="true" className="mr-1">{RESULT_PICTO[result]}</span>{facile ? RESULT_FACILE[result] : RESULT_LABEL[result]}</span>
 }
 
 export function VisitBadge({ status }) {

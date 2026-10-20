@@ -61,7 +61,21 @@ export function normalizeUiPrefs(raw) {
     radius: RADII.includes(raw?.radius) ? raw.radius : base.radius,
     lists: LISTS.includes(raw?.lists) ? raw.lists : base.lists,
     mode: MODES.includes(raw?.mode) ? raw.mode : null,
+    // Affichage adapté (décision de H du 19/10, 23h15) : réglage par personne, jamais de motif enregistré
+    adapte: normaliserAdapte(raw?.adapte),
   }
+}
+
+export const OPTIONS_ADAPTE = [
+  { key: 'facile', label: 'Français facile', aide: 'Phrases courtes et mots simples sur les écrans de terrain' },
+  { key: 'voix', label: 'Lecture à voix haute', aide: 'Un bouton lit les consignes à voix haute' },
+  { key: 'grand', label: 'Texte agrandi', aide: 'Textes et boutons plus grands' },
+  { key: 'contraste', label: 'Contraste renforcé', aide: 'Textes plus foncés, plus faciles à lire' },
+]
+export function normaliserAdapte(a) {
+  const o = {}
+  for (const { key } of OPTIONS_ADAPTE) if (a && a[key] === true) o[key] = true
+  return o
 }
 
 // Applique les préférences sur <html> (lues par le CSS via les attributs data-*)
@@ -72,5 +86,10 @@ export function applyUiPrefs(prefs) {
   el.dataset.nav = p.nav
   el.dataset.radius = p.radius
   el.dataset.lists = p.lists
+  for (const { key } of OPTIONS_ADAPTE) {
+    const attr = `adapte${key.charAt(0).toUpperCase()}${key.slice(1)}`
+    if (p.adapte[key]) el.dataset[attr] = '1'
+    else delete el.dataset[attr]
+  }
   return p
 }

@@ -4350,6 +4350,34 @@ begin
     end;
   end if;
 
+  -- Affichage adapté (0388) : la direction le règle pour un technicien, un commercial ne le peut pas
+  if to_regprocedure('public.affichage_adapte_regler(uuid,jsonb)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare z_ok boolean := false; z_v jsonb;
+    begin
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      z_v := public.affichage_adapte_regler(u_tech, '{"facile": true, "voix": true, "motif": "rien"}'::jsonb);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.affichage_adapte_regler(u_tech, '{"grand": true}'::jsonb); exception when insufficient_privilege then z_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if (select ui_prefs -> 'adapte' from public.profiles where id = u_tech) = '{"facile": true, "voix": true}'::jsonb then
+        v_lines := v_lines || 'OK      dir   0388 : affichage adapté réglé pour un technicien, rien d''autre enregistré'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0388 : réglage de l''affichage adapté'::text; end if;
+      if z_ok then v_lines := v_lines || 'OK      com   0388 : un commercial ne règle pas l''affichage d''un autre'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0388 : réglage par un commercial accepté'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0388 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

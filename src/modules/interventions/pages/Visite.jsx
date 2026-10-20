@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { ChevronLeft, Loader2, Camera, Plus, Minus, Check, FileDown, Share2, Receipt, FileText, Trash2, PenLine, Play, ListChecks } from 'lucide-react'
+import { ChevronLeft, Loader2, Camera, Plus, Minus, Check, FileDown, Share2, Receipt, FileText, Trash2, PenLine, Play, ListChecks, Volume2 } from 'lucide-react'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
 import { profileName } from '../../../core/org/currentOrg'
 import { supabase } from '../../../core/supabase'
@@ -18,12 +18,14 @@ import { ResultBadge, VisitBadge, ScanButton, Sheet, Kpi } from '../components/u
 import { buildRapportPDF } from '../pdf/rapportPDF'
 import PontVisite from '../components/PontVisite'
 import { useAuthStore } from '../../../core/store'
+import { useAdapte, parler, voixDisponible } from '../../../core/branding/adapte'
 
 const MAIN = RESULTS.slice(0, 3)
 const OTHER = RESULTS.slice(3)
 
 export default function Visite({ settings, types, parts: catalog, technicians, isManager, canWrite }) {
   const { id } = useParams()
+  const adapte = useAdapte()
   const navigate = useNavigate()
   const [visit, setVisit] = useState(null)
   const [equipment, setEquipment] = useState([])
@@ -326,6 +328,8 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
 
       {rows.map((r) => {
         const t = typesById[r.e.type_id] || r.e.itv_equipment_types || {}
+        const consigne = [t.name, r.e.location && `Emplacement : ${r.e.location}`, r.operation !== 'verification' && (settings.operation_labels[r.operation] || r.operation),
+          adapte.facile ? 'Regardez l’appareil, puis appuyez sur Bon, À changer ou Changé.' : 'Contrôlez l’appareil, puis indiquez le résultat.'].filter(Boolean).join('. ')
         const needsDetail = r.result && r.result !== 'conforme'
         return (
           <div key={r.id} id={`itv-eq-${r.e.id}`} className={`card space-y-2 ${needsDetail ? 'ring-1 ring-[rgb(var(--c-warning)/0.3)]' : ''} ${highlight === r.e.id ? 'ring-2 ring-accent-500' : ''}`}>
@@ -336,7 +340,12 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
                 {r.operation !== 'verification' && <div className="text-ui-sm font-semibold text-[rgb(var(--c-warning))]">{settings.operation_labels[r.operation] || r.operation}</div>}
                 {r.e.manufactured_year && <div className="text-ui-sm text-gray-500">Fabriqué en {r.e.manufactured_year}{r.e.brand ? `, ${r.e.brand}` : ''}</div>}
               </div>
-              <ResultBadge result={r.result} />
+              <div className="flex items-start gap-1 flex-none">
+                {adapte.voix && voixDisponible() && (
+                  <button type="button" className="btn btn-ghost btn-icon" aria-label="Lire à voix haute" onClick={() => parler(consigne)}><Volume2 className="w-5 h-5" /></button>
+                )}
+                <ResultBadge result={r.result} />
+              </div>
             </div>
             {!readOnly && (
               <>
@@ -344,13 +353,13 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
                   {MAIN.map((res) => (
                     <button key={res.code} type="button" onClick={() => patchItem(r, { result: res.code })}
                       className={`rounded-ui-sm border text-ui-sm font-semibold ${r.result === res.code ? (res.code === 'conforme' ? 'bg-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)] text-white' : res.code === 'a_remplacer' ? 'bg-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)] text-white' : 'bg-[rgb(var(--c-info))] border-[rgb(var(--c-info)/0.3)] text-white') : 'bg-white border-gray-300 text-gray-900'}`}
-                      style={{ height: 44 }} aria-pressed={r.result === res.code}>{res.label}</button>
+                      style={{ height: 44 }} aria-pressed={r.result === res.code}><span aria-hidden="true" className="mr-1">{res.picto}</span>{adapte.facile ? res.facile : res.label}</button>
                   ))}
                 </div>
                 <div className="flex gap-2">
                   {OTHER.map((res) => (
                     <button key={res.code} type="button" onClick={() => patchItem(r, { result: r.result === res.code ? null : res.code })}
-                      className={`btn btn-sm flex-1 ${r.result === res.code ? 'bg-[rgb(var(--c-danger))] text-white border-[rgb(var(--c-danger)/0.3)]' : 'btn-ghost'}`} aria-pressed={r.result === res.code}>{res.label}</button>
+                      className={`btn btn-sm flex-1 ${r.result === res.code ? 'bg-[rgb(var(--c-danger))] text-white border-[rgb(var(--c-danger)/0.3)]' : 'btn-ghost'}`} aria-pressed={r.result === res.code}><span aria-hidden="true" className="mr-1">{res.picto}</span>{adapte.facile ? res.facile : res.label}</button>
                   ))}
                 </div>
               </>
@@ -390,7 +399,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
           <div className="space-y-2">
             {s.todo > 0 && (confirmRest
               ? <div className="flex gap-2"><button type="button" className="btn btn-success flex-1" onClick={restConforme}><Check className="w-4 h-4" />Confirmer : {s.todo} conformes</button><button type="button" className="btn btn-ghost" onClick={() => setConfirmRest(false)}>Annuler</button></div>
-              : <button type="button" className="btn btn-secondary w-full" onClick={restConforme}><ListChecks className="w-4 h-4" />Tout le reste conforme ({s.todo})</button>)}
+              : <button type="button" className="btn btn-secondary w-full" onClick={restConforme}><ListChecks className="w-4 h-4" />{adapte.facile ? `Tous les autres sont bons (${s.todo})` : `Tout le reste conforme (${s.todo})`}</button>)}
             <button type="button" className="btn btn-primary w-full" style={{ height: 50 }} onClick={() => { setStep('cloture'); window.scrollTo(0, 0) }}>Continuer vers la clôture</button>
           </div>
         </div>

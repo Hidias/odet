@@ -13,6 +13,7 @@ import PadSimple from '../../../ui/signature/PadSimple'
 import MaSignature from '../../../core/signatures/MaSignature'
 import { chargerSignatures } from '../../../core/signatures/signatures'
 import { genererTitrePDF } from '../lib/rhTitres'
+import { OPTIONS_ADAPTE } from '../../../core/branding/presets'
 import { confirmer } from '../../../ui/Confirm'
 import {
   CATEGORIES_DOC, CONFIDENTIALITES, TYPES_HABILITATION, TYPES_VISITE, CONCLUSIONS, TYPES_FICHIER, TAILLE_MAX,
@@ -550,6 +551,38 @@ export function ConsignesFiche({ companyId, personId, peutGerer = false }) {
           </form>
         </Sheet>
       )}
+    </section>
+  )
+}
+
+// ─── Affichage adapté de la personne (0388) : réglé par elle-même, la RH ou la direction, jamais de motif ───
+export function AffichageAdapteFiche({ profileId }) {
+  const [v, setV] = useState(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (!profileId) return
+    supabase.rpc('affichage_adapte_lire', { p_profile: profileId }).then(({ data, error }) => setV(error ? false : (data || {})))
+  }, [profileId])
+  if (!profileId || v === null || v === false) return null
+  const changer = async (k, on) => {
+    setBusy(true)
+    const { data, error } = await supabase.rpc('affichage_adapte_regler', { p_profile: profileId, p_adapte: { ...v, [k]: on } })
+    setBusy(false)
+    if (error) { toast.error(error.message); return }
+    setV(data || {})
+  }
+  return (
+    <section className="card space-y-2">
+      <h2 className="section-title">Affichage adapté</h2>
+      <p className="text-ui-sm muted">Pour une personne qui lit mal le français, voit mal ou préfère des écrans plus simples. Aucun motif n'est demandé ni enregistré ; la personne peut aussi le régler elle-même (menu Affichage).</p>
+      <div className="grid gap-1 sm:grid-cols-2">
+        {OPTIONS_ADAPTE.map((o) => (
+          <label key={o.key} className="flex items-start gap-2 py-1 text-ui cursor-pointer">
+            <input type="checkbox" className="mt-1" disabled={busy} checked={!!v[o.key]} onChange={(e) => changer(o.key, e.target.checked)} />
+            <span><span className="font-medium text-gray-900">{o.label}</span><span className="block text-ui-sm text-gray-500 leading-tight">{o.aide}</span></span>
+          </label>
+        ))}
+      </div>
     </section>
   )
 }

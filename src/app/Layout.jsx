@@ -16,7 +16,7 @@ import { useEtatBoite } from '../core/settings/etatBoite'
 import { supabase } from '../core/supabase'
 import { useBranding, brandLogo, appIcon } from '../core/branding/BrandingProvider'
 import { useUiPrefs } from '../core/branding/useUiPrefs'
-import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS, modeParDefaut } from '../core/branding/presets'
+import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS, modeParDefaut, OPTIONS_ADAPTE } from '../core/branding/presets'
 import { visibleSections, visibleSettingsItems, accesPage, pageTitleFor, sectionIdFor, entreesMenu, ongletsPour, entreePourChemin, creationsVisibles } from '../core/modules/registry'
 import PageRefusee from '../core/rights/PageRefusee'
 import { ScanModal } from '../modules/interventions/components/ui'
@@ -405,7 +405,7 @@ export default function Layout() {
     </div>
   )
   const displayMenu = () => (
-    <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] bg-white rounded-ui border border-gray-200 shadow-md z-50 p-3 animate-fadeIn">
+    <div className="absolute right-0 top-11 w-[320px] max-w-[calc(100vw-1rem)] max-h-[calc(100vh-4.5rem)] overflow-y-auto bg-white rounded-ui border border-gray-200 shadow-md z-50 p-3 animate-fadeIn">
       <div className="font-display font-semibold mb-2">Affichage</div>
       <div className="grid grid-cols-2 gap-2 mb-3" role="radiogroup" aria-label="Mode">
         {[['simple', 'Simple', 'Les pages du quotidien, le reste en onglets'], ['complet', 'Complet', 'Toutes les pages dans le menu']].map(([k, label, desc]) => (
@@ -434,6 +434,15 @@ export default function Layout() {
           render: (o) => ({ sm: 'Nets', md: 'Moyens', lg: 'Ronds' })[o] })}
         {choice({ label: 'Listes', options: LISTS, value: prefs.lists, onChange: (v) => update({ lists: v }),
           render: (o) => ({ table: 'Tableaux', cards: 'Cartes' })[o] })}
+      </div>
+      <div className="border-t border-gray-100 pt-2 mt-2">
+        <div className="text-ui-sm font-semibold text-gray-700 mb-1">Affichage adapté</div>
+        {OPTIONS_ADAPTE.map((o) => (
+          <label key={o.key} className="flex items-start gap-2 py-1 text-ui cursor-pointer">
+            <input type="checkbox" className="mt-1" checked={!!prefs.adapte?.[o.key]} onChange={(e) => update({ adapte: { ...(prefs.adapte || {}), [o.key]: e.target.checked } })} />
+            <span><span className="font-medium text-gray-900">{o.label}</span><span className="block text-ui-sm text-gray-500 leading-tight">{o.aide}</span></span>
+          </label>
+        ))}
       </div>
       <div className="text-ui-sm text-gray-400 mt-2">Réglages personnels, mémorisés sur votre compte.</div>
     </div>
