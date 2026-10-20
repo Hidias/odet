@@ -213,6 +213,8 @@ ORDRE_PROD = (
     + ['0384']
     # Purge complète des données de démonstration, rapport réel / test, 19/10
     + ['0385']
+    # Contrôle d'affectation, inaptitude, attestation de non contre-indication, 20/10
+    + ['0386']
 )
 
 
