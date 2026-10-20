@@ -24,6 +24,7 @@ import {
   chargerInventaires, chargerLignesInventaire, ouvrirInventaire, compterArticle, validerInventaire, annulerInventaire,
   chargerSeries, enregistrerSerie,
 } from '../lib/stockData'
+import { useAdapte } from '../../../core/branding/adapte'
 
 const frDate = (d) => (d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 
@@ -77,6 +78,7 @@ function GesteSheet({ geste, monEmplacement, onClose, onSaved }) {
 }
 
 function MonStock() {
+  const { facile } = useAdapte()
   const [lignes, setLignes] = useState(null)
   const [geste, setGeste] = useState(null)
   const charger = useCallback(() => { chargerMonStock().then(setLignes).catch((e) => { toast.error(e.message); setLignes([]) }) }, [])
@@ -86,12 +88,12 @@ function MonStock() {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2">
-        <button type="button" className="btn btn-primary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'prendre' })}><ArrowDownToLine className="w-5 h-5" aria-hidden="true" />Prendre</button>
-        <button type="button" className="btn btn-secondary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'rendre' })} disabled={!lignes.length}><Undo2 className="w-5 h-5" aria-hidden="true" />Rendre</button>
-        <button type="button" className="btn btn-secondary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'utiliser' })} disabled={!lignes.length}><ArrowUpFromLine className="w-5 h-5" aria-hidden="true" />Utilisé</button>
+        <button type="button" className="btn btn-primary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'prendre' })}><ArrowDownToLine className="w-5 h-5" aria-hidden="true" />{facile ? 'Je prends' : 'Prendre'}</button>
+        <button type="button" className="btn btn-secondary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'rendre' })} disabled={!lignes.length}><Undo2 className="w-5 h-5" aria-hidden="true" />{facile ? 'Je rends' : 'Rendre'}</button>
+        <button type="button" className="btn btn-secondary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'utiliser' })} disabled={!lignes.length}><ArrowUpFromLine className="w-5 h-5" aria-hidden="true" />{facile ? 'J\'ai utilisé' : 'Utilisé'}</button>
       </div>
       {lignes.length === 0 ? (
-        <EmptyState icon={Package} title="Votre stock est vide" compact>Prenez des articles au dépôt : ils apparaissent ici. Les pièces notées dans vos visites sortent toutes seules à la clôture.</EmptyState>
+        <EmptyState icon={Package} title={facile ? '📦 Vous n\'avez rien' : 'Votre stock est vide'} compact>{facile ? 'Prenez des pièces au site d\'exploitation. Les pièces des visites sortent seules.' : 'Prenez des articles au dépôt : ils apparaissent ici. Les pièces notées dans vos visites sortent toutes seules à la clôture.'}</EmptyState>
       ) : (
         <ul className="card card-flush divide-y divide-gray-100">
           {lignes.map((l) => (
@@ -102,7 +104,7 @@ function MonStock() {
           ))}
         </ul>
       )}
-      {lignes.some((l) => Number(l.quantity) < 0) && <p className="text-ui-sm text-[rgb(var(--c-danger))]">Une quantité négative signale une sortie sans prise au dépôt : prévenez le responsable du stock pour corriger.</p>}
+      {lignes.some((l) => Number(l.quantity) < 0) && <p className="text-ui-sm text-[rgb(var(--c-danger))]">{facile ? '⚠️ Un chiffre en rouge : prévenez le responsable du stock.' : 'Une quantité négative signale une sortie sans prise au dépôt : prévenez le responsable du stock pour corriger.'}</p>}
       {geste && <GesteSheet geste={geste} monEmplacement={emplacement} onClose={() => setGeste(null)} onSaved={() => { setGeste(null); charger() }} />}
     </div>
   )

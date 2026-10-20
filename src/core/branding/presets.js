@@ -67,10 +67,10 @@ export function normalizeUiPrefs(raw) {
 }
 
 export const OPTIONS_ADAPTE = [
-  { key: 'facile', label: 'Français facile', aide: 'Phrases courtes et mots simples sur les écrans de terrain' },
-  { key: 'voix', label: 'Lecture à voix haute', aide: 'Un bouton lit les consignes à voix haute' },
+  { key: 'facile', label: 'Français facile', aide: 'Phrases courtes, mots simples et pictogrammes sur les écrans du terrain (tournée, visite, stock, véhicule, mon espace)' },
+  { key: 'voix', label: 'Voix : écouter et dicter', aide: 'Deux boutons en bas de l\'écran : « Écouter » lit la page ou le texte sélectionné, « Dicter » écrit ce que vous dites dans la case choisie' },
   { key: 'grand', label: 'Texte agrandi', aide: 'Textes et boutons plus grands' },
-  { key: 'contraste', label: 'Contraste renforcé', aide: 'Textes plus foncés, plus faciles à lire' },
+  { key: 'contraste', label: 'Contraste renforcé', aide: 'Fond blanc, texte noir, bordures marquées, liens soulignés' },
 ]
 export function normaliserAdapte(a) {
   const o = {}
