@@ -4323,6 +4323,33 @@ begin
     end;
   end if;
 
+  -- Signatures enregistrées (0387) : chacun écrit la sienne, jamais celle d'un autre
+  if to_regclass('public.user_signatures') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare
+      z_co uuid := app.company_default(); z_ok boolean := false; z_n int;
+    begin
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.user_signatures (company_id, profile_id, image) values (z_co, u_dir, 'data:image/png;base64,AAAA');
+      begin insert into public.user_signatures (company_id, profile_id, image) values (z_co, u_tech, 'data:image/png;base64,AAAA');
+      exception when insufficient_privilege then z_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      select count(*) into z_n from public.user_signatures where profile_id = u_dir;
+      if z_n = 1 then v_lines := v_lines || 'OK      dir   0387 : sa propre signature enregistrée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0387 : enregistrement de sa signature'::text; end if;
+      if z_ok then v_lines := v_lines || 'OK      dir   0387 : signature d''un autre refusée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0387 : signature d''un autre acceptée'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0387 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

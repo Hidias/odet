@@ -16,6 +16,7 @@ import {
 import { etatEcheance, chargerEcheances } from '../lib/rhDocuments'
 import { DemandeSheet } from './Absences'
 import { DocumentsFiche, HabilitationsFiche, SanteFiche } from './DocumentsSante'
+import MaSignature from '../../../core/signatures/MaSignature'
 import { EntretiensFiche } from './EntretiensListes'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '')
@@ -143,6 +144,7 @@ export default function MonEspace() {
 
       <EntretiensFiche companyId={fiche.company_id} personId={fiche.id} />
       <HabilitationsFiche companyId={fiche.company_id} personId={fiche.id} />
+      <MaSignature companyId={fiche.company_id} />
       <SanteFiche companyId={fiche.company_id} personId={fiche.id} />
       <DocumentsFiche companyId={fiche.company_id} personId={fiche.id} estMoi titre="Mes documents" />
 
