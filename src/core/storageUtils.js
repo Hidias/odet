@@ -70,7 +70,8 @@ export default sanitizeStorageKey
 // Une adresse qui n'est pas celle d'un bucket privé connu est renvoyée telle quelle.
 
 
-export const PRIVATE_BUCKETS = ['trainer-signatures']
+// « documents » privé depuis l'audit du 19/10 (attestations, cartes, documents de session, programmes) : lien signé
+export const PRIVATE_BUCKETS = ['trainer-signatures', 'documents']
 
 /** Chemin du fichier dans le bucket, depuis une adresse enregistrée ou un chemin */
 export function storagePathFrom(bucket, urlOrPath) {
@@ -87,13 +88,26 @@ export function storagePathFrom(bucket, urlOrPath) {
 export async function readableUrl(urlOrPath, seconds = 300) {
   if (!urlOrPath || /^data:/.test(String(urlOrPath))) return urlOrPath || null
   for (const bucket of PRIVATE_BUCKETS) {
-    if (!String(urlOrPath).includes(`/${bucket}/`)) continue
+    // Adresse du stockage de l'instance pour ce bucket (publique, signée ou authentifiée) ; un chemin seul n'est
+    // jamais deviné ici
+    if (!new RegExp(`/storage/v1/object/(public|sign|authenticated)/${bucket}/`).test(String(urlOrPath))) continue
     const path = storagePathFrom(bucket, urlOrPath)
     if (!path) return null
     const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, seconds)
     return error ? null : data?.signedUrl || null
   }
   return urlOrPath
+}
+
+/** Ouvre un fichier enregistré dans un nouvel onglet (lien signé pour un bucket privé). La fenêtre est ouverte tout de
+ * suite, avant la demande du lien, pour ne pas être bloquée par le navigateur. */
+export async function ouvrirFichier(urlOrPath, seconds = 300) {
+  const w = typeof window !== 'undefined' ? window.open('', '_blank') : null
+  const url = await readableUrl(urlOrPath, seconds)
+  if (!url) { if (w) w.close(); throw new Error('Fichier introuvable ou accès refusé') }
+  if (w) w.location.href = url
+  else window.location.href = url
+  return url
 }
 
 /** Contenu d'un fichier (adresse enregistrée ou lien), sous forme de data URL ; null si illisible */

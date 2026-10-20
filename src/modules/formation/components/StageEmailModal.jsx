@@ -6,6 +6,7 @@ import { supabase } from '../../../core/supabase'
 import { X, Send, Loader, CheckCircle, AlertCircle, Mail, FileText, Upload, Trash2, Eye, ChevronLeft, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { generatePDF } from '../pdf/pdfGenerator'
+import { readableUrl } from '../../../core/storageUtils'
 import { useCapacites } from '../../../core/capacites'
 
 // ── Constantes ──────────────────────────────────────────────────────────────
@@ -282,7 +283,7 @@ export default function StageEmailModal({ session, onClose }) {
 
     if (docStagiaire) {
       try {
-        const response = await fetch(docStagiaire.file_url)
+        const response = await fetch(await readableUrl(docStagiaire.file_url))
         if (response.ok) {
           const blob = await response.blob()
           const path = `${basePath}/${slugify(docStagiaire.file_name)}`

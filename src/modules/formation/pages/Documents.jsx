@@ -14,6 +14,7 @@ import { useDroits } from '../../../core/rights/useDroit'
 import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
 import { confirmer } from '../../../ui/Confirm'
+import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 const categories = [
   { id: 'all', name: 'Tous' },
   { id: 'programme', name: 'Programmes' },
@@ -417,7 +418,7 @@ export default function Documents() {
                             {file.created_at && format(new Date(file.created_at), 'd MMM yyyy', { locale: fr })}
                           </span>
                           <a
-                            href={file.file_url}
+                            href={file.file_url} onClick={(e) => { e.preventDefault(); ouvrirFichier(file.file_url).catch((err) => toast.error(err.message)) }}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2 hover:bg-gray-100 rounded-ui-sm"
@@ -426,7 +427,7 @@ export default function Documents() {
                             <Eye className="w-4 h-4 text-gray-400" />
                           </a>
                           <a
-                            href={file.file_url}
+                            href={file.file_url} onClick={(e) => { e.preventDefault(); ouvrirFichier(file.file_url).catch((err) => toast.error(err.message)) }}
                         download={file.filename}
                         className="p-2 hover:bg-gray-100 rounded-ui-sm"
                         title="Télécharger"

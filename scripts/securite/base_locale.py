@@ -219,6 +219,8 @@ ORDRE_PROD = (
     + ['0387']
     # Affichage adapté réglé par la RH ou la direction, 20/10
     + ['0388']
+    # Stockage « documents » privé, 20/10
+    + ['0389']
 )
 
 
