@@ -1,6 +1,6 @@
 import toast from 'react-hot-toast'
 import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react'
 import {
   Menu, X, Bell, Check, LogOut, ChevronDown, Plus, Settings, ScanLine, Package, Car, UserRound, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
 } from 'lucide-react'
@@ -54,6 +54,24 @@ function initials(profile, user) {
   const name = profile?.display_name || user?.email || ''
   const parts = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean)
   return (parts[0]?.[0] || '') + (parts[1]?.[0] || '')
+}
+
+// Défilement du menu gardé d'une page à l'autre (et après un rechargement) : le menu ne remonte plus en haut.
+function gardeDefilement(cle) {
+  return {
+    ref: (el) => {
+      if (!el || el.dataset.defilementRestaure) return
+      el.dataset.defilementRestaure = '1'
+      try { const v = Number(sessionStorage.getItem(cle)); if (v > 0) el.scrollTop = v } catch { /* stockage indisponible */ }
+    },
+    onScroll: (e) => { try { sessionStorage.setItem(cle, String(e.currentTarget.scrollTop)) } catch { /* stockage indisponible */ } },
+  }
+}
+
+function ChargementPage() {
+  return (
+    <div className="flex items-center justify-center py-16 text-gray-500 text-ui" role="status">Chargement…</div>
+  )
 }
 
 export default function Layout() {
@@ -266,7 +284,7 @@ export default function Layout() {
   )
 
   const sectionedNav = () => (
-    <nav className="flex-1 overflow-y-auto min-h-0 px-2 py-2">
+    <nav className="flex-1 overflow-y-auto min-h-0 px-2 py-2" {...gardeDefilement('odet-menu-defilement')}>
       {sections.map((section) => {
         const isOpen = openSections[section.id] === true
         const isActiveSection = activeSectionId === section.id
@@ -376,7 +394,7 @@ export default function Layout() {
           <div className="font-display font-semibold text-gray-900">{railSectionObj?.label}</div>
           <div className="text-ui-sm text-gray-500 truncate">{branding.app_name || branding.org_name}</div>
         </div>
-        <nav className="flex-1 overflow-y-auto px-2 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto px-2 space-y-0.5" {...gardeDefilement('odet-rail-defilement')}>
           {entreesMenu(railSectionObj?.items).map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'}
               className={({ isActive }) => `flex items-center gap-2.5 px-2.5 py-1.5 rounded-ui-sm text-ui ${isActive || (item.routes || []).some((r) => surRoute(location.pathname, r)) ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
@@ -669,7 +687,7 @@ export default function Layout() {
             </nav>
           )}
           {!fieldAllowed ? <Navigate to="/interventions" replace />
-            : pageAutorisee ? <RouteErrorBoundary><Outlet /></RouteErrorBoundary>
+            : pageAutorisee ? <RouteErrorBoundary><Suspense fallback={<ChargementPage />}><Outlet /></Suspense></RouteErrorBoundary>
             : <PageRefusee accueil={location.pathname !== '/'} />}
         </main>
       </div>

@@ -3,7 +3,7 @@
 // n'apparaît que si la base la permet (droits rh.*).
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Phone, Mail, Search, Users, Pencil, Eye, Archive, ArchiveRestore, Trash2, Clock } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
@@ -381,7 +381,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
   useEffect(() => { charger() }, [charger])
 
   if (p === undefined) return <Spinner />
-  if (!p) return <EmptyState icon={Users} title="Fiche introuvable ou non accessible" action={<Link to="/collaborateurs" className="btn btn-secondary">Retour à l'annuaire</Link>}>Votre profil ne permet peut-être pas de voir les dossiers du personnel.</EmptyState>
+  if (!p) return <EmptyState icon={Users} title="Fiche introuvable ou non accessible" action={<Link to="/collaborateurs/annuaire" className="btn btn-secondary">Retour à l'annuaire</Link>}>Votre profil ne permet peut-être pas de voir les dossiers du personnel.</EmptyState>
   const ligne = (label, valeur) => valeur ? <div className="flex gap-2 text-ui"><span className="text-gray-500 w-44 flex-none">{label}</span><span className="min-w-0">{valeur}</span></div> : null
 
   const archiver = async () => {
@@ -462,7 +462,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
 
       {edition && <FichePersonneSheet personne={p} onClose={() => setEdition(false)} onSaved={() => { setEdition(false); charger() }} />}
       {contratEdite && <ContratSheet personId={p.id} contrat={contratEdite.id ? contratEdite : null} onClose={() => setContratEdite(null)} onSaved={() => { setContratEdite(null); charger() }} />}
-      <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/collaborateurs')}>Retour à l'annuaire</button>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/collaborateurs/annuaire')}>Retour à l'annuaire</button>
     </div>
   )
 }
@@ -640,12 +640,13 @@ export default function Personnel() {
   const peutRestreints = can('rh.documents.restreints') === true
   const chemin = location.pathname.replace(/^\/collaborateurs\/?/, '').split('/')[0]
   const [responsable, setResponsable] = useState(false)
-  useEffect(() => { suisResponsable().then(setResponsable) }, [])
+  const [responsableConnu, setResponsableConnu] = useState(false)
+  useEffect(() => { suisResponsable().then(setResponsable).finally(() => setResponsableConnu(true)) }, [])
   // Responsable d'équipe (0312) : valide les absences et les semaines de son équipe, quel que soit son profil
   const peutValiderAbs = peutValider || responsable
   const peutValiderHeures = can('rh.heures.valider') === true || responsable
   const peutTableau = peutVoirTout || peutValiderAbs || peutValiderHeures
-  const ONGLETS = ['tableau', 'mon-espace', 'absences', 'heures', 'equipes', 'horaires', 'registre']
+  const ONGLETS = ['tableau', 'mon-espace', 'annuaire', 'absences', 'heures', 'equipes', 'horaires', 'registre']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
   const enFiche = chemin && !ONGLETS.includes(chemin)
   // Technicien de terrain : seulement « Mon espace » (les autres onglets lui sont fermés)
@@ -664,11 +665,15 @@ export default function Personnel() {
         <>
           <PageHeader eyebrow="Ressources humaines" title="Personnel" />
           <Tabs tabs={tabs}
-            value={onglet} onChange={(id) => navigate(id === 'annuaire' ? '/collaborateurs' : `/collaborateurs/${id}`)} />
+            value={onglet} onChange={(id) => navigate(`/collaborateurs/${id}`)} />
         </>
       )}
       <Routes>
-        <Route index element={<Annuaire peutGerer={peutGerer} />} />
+        {/* Entrée dans la rubrique : le tableau de bord d'abord pour qui le voit (demande de H, 20/10), sinon l'annuaire */}
+        <Route index element={terrain ? <Navigate to="mon-espace" replace />
+          : peutTableau ? <Navigate to="tableau" replace />
+          : responsableConnu ? <Navigate to="annuaire" replace /> : null} />
+        <Route path="annuaire" element={<Annuaire peutGerer={peutGerer} />} />
         {peutTableau && <Route path="tableau" element={<TableauRH peutValiderAbsences={peutValiderAbs} peutValiderHeures={peutValiderHeures} peutRestreints={peutRestreints} />} />}
         <Route path="mon-espace" element={<MonEspace />} />
         {peutVoirTout && <Route path="registre" element={<RegistrePaie />} />}
