@@ -5,6 +5,7 @@ import { apiFetch } from '../api'
 import { Field } from './shared'
 import { confirmer } from '../../ui/Confirm'
 import { oublierEtatBoite } from './etatBoite'
+import { useBranding } from '../branding/BrandingProvider'
 
 // Boîte d'envoi de l'utilisateur connecté (SMTP). Le mot de passe est chiffré côté serveur et n'est jamais relu par
 // l'application. Refonte du 19/10 au soir (décision de H) : chacun configure sa propre boîte simplement. On saisit son
@@ -36,6 +37,8 @@ async function call(method, body, query = '') {
 
 function GuideGmail() {
   const [ouvert, setOuvert] = useState(true)
+  const branding = useBranding()
+  const nomOutil = branding?.app_name && branding.app_name !== 'Chargement' ? branding.app_name : "l'outil de gestion"
   return (
     <div className="rounded-ui border border-[rgb(var(--c-info)/0.3)] bg-[rgb(var(--c-info-bg))] p-3 text-ui">
       <button type="button" className="w-full flex items-center justify-between gap-2 font-medium text-gray-900 text-left" onClick={() => setOuvert((o) => !o)} aria-expanded={ouvert}>
@@ -53,7 +56,7 @@ function GuideGmail() {
             {' '}<a className="text-accent-600 underline inline-flex items-center gap-1 break-all" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">myaccount.google.com/apppasswords<ExternalLink className="w-3.5 h-3.5 flex-none" /></a>.
             Google peut redemander votre mot de passe habituel.
           </li>
-          <li><span className="font-medium text-gray-900">Donnez un nom</span>, par exemple « GLD Solutions », puis appuyez sur « Créer ».</li>
+          <li><span className="font-medium text-gray-900">Donnez un nom</span>, par exemple « {nomOutil} », puis appuyez sur « Créer ».</li>
           <li><span className="font-medium text-gray-900">Copiez le code de 16 lettres</span> qui s'affiche (quatre groupes de quatre lettres). Les espaces n'ont pas d'importance.</li>
           <li><span className="font-medium text-gray-900">Collez-le ci-dessous</span> dans « Mot de passe d'application », puis appuyez sur « Tester l'envoi ». Vous recevez un email de test dans votre boîte : c'est prêt.</li>
         </ol>
