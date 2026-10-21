@@ -34,31 +34,50 @@ export const NAV_SECTIONS = [
     flat: true,
     items: [
       { simple: true, to: '/', icon: LayoutDashboard, label: 'Tableau de bord', roles: STAFF },
-      // Actions de l'équipe et point de la semaine (0407)
-      { simple: true, to: '/actions', right: 'organisation.reglages.voir', icon: ListTodo, label: 'Actions', roles: STAFF },
-      { simple: true, to: '/point-semaine', right: 'manager.cockpit.voir', icon: CalendarCheck, label: 'Point de la semaine', roles: MANAGERS },
-      // Réunions et rendez-vous : guide, notes à la volée, compte rendu (0408)
-      { simple: true, to: '/reunions', right: 'organisation.reglages.voir', icon: BookOpenText, label: 'Réunions', roles: STAFF },
+      // Pilotage (rangement du menu, 21/10) : point de la semaine (0407), actions de l'équipe (0407), réunions et
+      // rendez-vous (0408), sous une seule entrée ; les pages s'ouvrent en onglets
+      { simple: true, to: '/point-semaine', right: 'manager.cockpit.voir', icon: CalendarCheck, label: 'Point de la semaine', roles: MANAGERS, groupe: 'pilotage' },
+      { simple: true, to: '/actions', right: 'organisation.reglages.voir', icon: ListTodo, label: 'Actions', roles: STAFF, groupe: 'pilotage' },
+      { simple: true, to: '/reunions', right: 'organisation.reglages.voir', icon: BookOpenText, label: 'Réunions', roles: STAFF, groupe: 'pilotage' },
+    ],
+  },
+  {
+    // Maintenance : interventions, stock (0240) et véhicules (0320) dans une seule section ; chaque entrée suit son
+    // module (une entrée dont le module est coupé disparaît, la section avec sa dernière entrée).
+    id: 'entreprise',
+    module: null,
+    label: 'Maintenance',
+    icon: Wrench,
+    items: [
+      { simple: true, to: '/interventions', right: ['interventions.visites.voir', 'interventions.missions.voir'], icon: MapPin, label: 'Interventions', roles: STAFF, module: 'interventions' },
+      // Stock : le technicien n'a que « Mon stock » (sans prix), les gestionnaires voient tout
+      { simple: true, to: '/stock', right: ['stock.voir', 'stock.sien.mouvementer'], icon: Package, label: 'Stock', roles: [...STAFF, 'membre'], module: 'stock' },
+      // Véhicules : le conducteur n'a que « Mon véhicule », la direction et les gestionnaires voient le parc
+      { simple: true, to: '/vehicules', right: ['vehicules.parc.voir', 'vehicules.siens.utiliser', 'vehicules.couts.voir'], icon: Car, label: 'Véhicules', roles: [...ALL_ROLES, 'membre'], module: 'vehicules' },
     ],
   },
   {
     id: 'formation',
-    module: 'formation',
+    // Section sans module : chaque entrée suit le sien (formation, passeport, DUERP), pour que le DUERP reste
+    // visible sans le module formation
+    module: null,
     label: 'Formation',
     icon: GraduationCap,
     items: [
-      { simple: true, to: '/sessions', right: ['formation.sessions.voir', 'formation.sessions.voir_siennes'], icon: Calendar, label: 'Sessions', roles: STAFF },
-      { simple: true, to: '/formations', right: 'formation.catalogue.voir', icon: GraduationCap, label: 'Catalogue', roles: STAFF, groupe: 'catalogue' },
-      { to: '/tests-positionnement', right: 'formation.catalogue.voir', icon: ClipboardCheck, label: 'Tests et quiz', roles: STAFF, groupe: 'catalogue' },
+      { simple: true, to: '/sessions', right: ['formation.sessions.voir', 'formation.sessions.voir_siennes'], icon: Calendar, label: 'Sessions', roles: STAFF, module: 'formation' },
+      { simple: true, to: '/formations', right: 'formation.catalogue.voir', icon: GraduationCap, label: 'Catalogue', roles: STAFF, groupe: 'catalogue', module: 'formation' },
+      { to: '/tests-positionnement', right: 'formation.catalogue.voir', icon: ClipboardCheck, label: 'Tests et quiz', roles: STAFF, groupe: 'catalogue', module: 'formation' },
       // Référentiel des obligations (lot 2, 0042) : périodicités des formations, du matériel et des exercices
-      { to: '/obligations', right: 'formation.catalogue.voir', icon: CalendarClock, label: 'Obligations', roles: MANAGERS, groupe: 'catalogue' },
-      { simple: true, to: '/stagiaires', right: ['formation.stagiaires.voir', 'formation.stagiaires.voir_siens'], icon: Users, label: 'Stagiaires', roles: STAFF },
+      { to: '/obligations', right: 'formation.catalogue.voir', icon: CalendarClock, label: 'Obligations', roles: MANAGERS, groupe: 'catalogue', module: 'formation' },
+      { simple: true, to: '/stagiaires', right: ['formation.stagiaires.voir', 'formation.stagiaires.voir_siens'], icon: Users, label: 'Stagiaires', roles: STAFF, module: 'formation' },
       { simple: true, to: '/passeport', right: 'passeport.declarations.gerer', icon: BookUser, label: 'Passeport de prévention', roles: MANAGERS, module: 'passeport' },
-      { to: '/formateurs', right: 'formation.formateurs.gerer', icon: UserCheck, label: 'Formateurs', roles: MANAGERS, groupe: 'formateurs' },
+      { to: '/formateurs', right: 'formation.formateurs.gerer', icon: UserCheck, label: 'Formateurs', roles: MANAGERS, groupe: 'formateurs', module: 'formation' },
       // Sous-traitance, donneur d'ordres (lot 2, 0045) : prestataires, justificatifs, bons de commande
-      { to: '/sous-traitants', right: 'formation.formateurs.voir', icon: Briefcase, label: 'Sous-traitants', roles: MANAGERS, groupe: 'formateurs' },
-      { to: '/documents', right: 'formation.documents.voir', icon: FileText, label: 'Documents', roles: STAFF, groupe: 'documents' },
-      { to: '/documents-vierges', right: 'formation.documents.voir', icon: FileQuestion, label: 'Documents vierges', roles: STAFF, groupe: 'documents' },
+      { to: '/sous-traitants', right: 'formation.formateurs.voir', icon: Briefcase, label: 'Sous-traitants', roles: MANAGERS, groupe: 'formateurs', module: 'formation' },
+      { to: '/documents', right: 'formation.documents.voir', icon: FileText, label: 'Documents', roles: STAFF, groupe: 'documents', module: 'formation' },
+      { to: '/documents-vierges', right: 'formation.documents.voir', icon: FileQuestion, label: 'Documents vierges', roles: STAFF, groupe: 'documents', module: 'formation' },
+      // DUERP : prestation de prévention, rangée avec la formation (rangement du menu, 21/10) ; suit son module
+      { simple: true, to: '/duerp', right: 'prestations.duerp.gerer', icon: Shield, label: 'DUERP', roles: MANAGERS, module: 'duerp' },
     ],
   },
   {
@@ -87,15 +106,6 @@ export const NAV_SECTIONS = [
       { to: '/prospection-massive', right: 'commercial.prospection.voir', icon: Globe, label: 'Base prospects', roles: SALES, module: 'prospection' },
       { to: '/multi-etablissements', right: 'commercial.prospection.voir', icon: Layers, label: 'Multi-établissements', roles: SALES, module: 'prospection' },
       { to: '/admin/import', right: 'commercial.prospection.gerer', icon: FolderInput, label: 'Import', roles: ADMINS, module: 'prospection' },
-    ],
-  },
-  {
-    id: 'prestations',
-    module: 'duerp',
-    label: 'Prestations',
-    icon: ClipboardList,
-    items: [
-      { simple: true, to: '/duerp', right: 'prestations.duerp.gerer', icon: Shield, label: 'DUERP', roles: MANAGERS },
     ],
   },
   {
@@ -135,23 +145,8 @@ export const NAV_SECTIONS = [
       { to: '/profil-stagiaires', right: 'qualite.registres.gerer', icon: Target, label: 'Profil des stagiaires', roles: MANAGERS, groupe: 'registres' },
       // Conformité RGPD (chantier F, 0340) : registre par société, demandes, violations, sous-traitants, preuves
       { to: '/conformite', right: ['conformite.rgpd.gerer', 'conformite.demandes.gerer', 'conformite.violations.gerer'], icon: Fingerprint, label: 'RGPD',
-        roles: ['superadmin', 'admin', 'direction', 'membre'], module: 'rgpd' },
-      { to: '/audit-logs', right: 'conformite.journal.voir', icon: ScrollText, label: 'Journal d\'audit', roles: ADMINS },
-    ],
-  },
-  {
-    // Maintenance : interventions, stock (0240) et véhicules (0320) dans une seule section ; chaque entrée suit son
-    // module (une entrée dont le module est coupé disparaît, la section avec sa dernière entrée).
-    id: 'entreprise',
-    module: null,
-    label: 'Maintenance',
-    icon: Wrench,
-    items: [
-      { simple: true, to: '/interventions', right: ['interventions.visites.voir', 'interventions.missions.voir'], icon: MapPin, label: 'Interventions', roles: STAFF, module: 'interventions' },
-      // Stock : le technicien n'a que « Mon stock » (sans prix), les gestionnaires voient tout
-      { simple: true, to: '/stock', right: ['stock.voir', 'stock.sien.mouvementer'], icon: Package, label: 'Stock', roles: [...STAFF, 'membre'], module: 'stock' },
-      // Véhicules : le conducteur n'a que « Mon véhicule », la direction et les gestionnaires voient le parc
-      { simple: true, to: '/vehicules', right: ['vehicules.parc.voir', 'vehicules.siens.utiliser', 'vehicules.couts.voir'], icon: Car, label: 'Véhicules', roles: [...ALL_ROLES, 'membre'], module: 'vehicules' },
+        roles: ['superadmin', 'admin', 'direction', 'membre'], module: 'rgpd', groupe: 'conformite' },
+      { to: '/audit-logs', right: 'conformite.journal.voir', icon: ScrollText, label: 'Journal d\'audit', roles: ADMINS, groupe: 'conformite' },
     ],
   },
   {
@@ -176,6 +171,9 @@ export const GROUPES = {
   documents: { label: 'Documents', icon: FileText },
   qualiopi: { label: 'Qualiopi', icon: Award },
   registres: { label: 'Registres', icon: FolderCheck },
+  pilotage: { label: 'Pilotage', icon: CalendarCheck },
+  conformite: { label: 'Conformité', icon: Fingerprint },
+  reglages: { label: 'Paramètres', icon: Settings },
 }
 
 // Entrées du menu d'une section : une entrée par page, ou une seule par groupe (à la place de sa première page visible)
@@ -204,14 +202,14 @@ export function ongletsPour(pathname, sections) {
 }
 
 export const SETTINGS_ITEMS = [
-  // Quoi de neuf (module « nouveautes », chantier A) : tout compte interne qui voit les réglages de l'organisme
-  { to: '/nouveautes', icon: Sparkles, label: 'Quoi de neuf', short: 'Nouveautés', module: 'nouveautes', right: 'organisation.reglages.voir' },
   // Paramètres : super administrateur ; administrateur seulement avec la licence totale (droit parametres.ouvrir,
   // filtré par la base) ; direction jamais (décision du 17/10). Droits inconnus : super administrateur seulement.
-  { to: '/parametres', icon: Settings, label: 'Paramètres', short: 'Paramètres', roles: ADMINS, right: 'parametres.ouvrir', fallbackRoles: ['superadmin'] },
+  { to: '/parametres', icon: Settings, label: 'Paramètres', short: 'Paramètres', roles: ADMINS, right: 'parametres.ouvrir', fallbackRoles: ['superadmin'], groupe: 'reglages' },
   // Règles de gestion : circuits de validation et comptable externe, hors Paramètres (la direction y accède)
   { to: '/regles-gestion', icon: Workflow, label: 'Règles de gestion', short: 'Règles', roles: ['superadmin', 'admin', 'direction', 'membre'],
-    right: ['validations.circuits.configurer', 'facturation.comptable_externe.regler'], fallbackRoles: [] },
+    right: ['validations.circuits.configurer', 'facturation.comptable_externe.regler'], fallbackRoles: [], groupe: 'reglages' },
+  // Quoi de neuf (module « nouveautes », chantier A) : tout compte interne qui voit les réglages de l'organisme
+  { to: '/nouveautes', icon: Sparkles, label: 'Quoi de neuf', short: 'Nouveautés', module: 'nouveautes', right: 'organisation.reglages.voir' },
   // Suivi des retours (module « retours », chantier A) : super administrateur et administrateur ; droits inconnus :
   // super administrateur seulement
   { to: '/retours', icon: StickyNote, label: 'Retours des utilisateurs', short: 'Retours', module: 'retours', roles: ['superadmin', 'admin', 'membre'],

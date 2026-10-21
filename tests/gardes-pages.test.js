@@ -48,7 +48,7 @@ describe('gardes des pages (ecrans/gardes)', () => {
     expect(items).toContain('/devis')
     expect(items).not.toContain('/factures')
     expect(visibleSettingsItems('admin', avec()).map((i) => i.to)).toEqual([])
-    expect(visibleSettingsItems('superadmin', inconnus).map((i) => i.to)).toEqual(['/nouveautes', '/parametres', '/retours', '/console'])
+    expect(visibleSettingsItems('superadmin', inconnus).map((i) => i.to)).toEqual(['/parametres', '/nouveautes', '/retours', '/console'])
   })
 
   it('mise en service : Quoi de neuf pour tous, suivi des retours avec son droit, modules respectés', () => {
