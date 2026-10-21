@@ -231,6 +231,8 @@ ORDRE_PROD = (
     + ['0393']
     # EPI remis au personnel, reliés au stock, 21/10
     + ['0394']
+    # Permis vérifié à l'attribution d'un véhicule, 21/10
+    + ['0395']
 )
 
 

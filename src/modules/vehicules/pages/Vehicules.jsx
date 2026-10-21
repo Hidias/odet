@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Car, Fuel, Plus, Pencil, AlertTriangle, Camera, Wrench, Gauge, CalendarClock, Check, UserPlus, LogOut, Trash2, Eye } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
+import { supabase } from '../../../core/supabase'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
 import { Sheet } from '../../../ui/Sheet'
@@ -85,6 +86,22 @@ function IncidentSheet({ vehicule, onClose, onSaved }) {
       </form>
     </Sheet>
   )
+}
+
+// Permis du conducteur choisi (0395) : vérifié dans le dossier du personnel avant d'attribuer le véhicule
+function PermisVerif({ vehicleId, profileId }) {
+  const [etat, setEtat] = useState(undefined)
+  useEffect(() => {
+    let vivant = true
+    setEtat(undefined)
+    supabase.rpc('vehicule_permis_verifier', { p_vehicle: vehicleId, p_profile: profileId })
+      .then(({ data, error }) => { if (vivant) setEtat(error ? 'erreur' : data) })
+    return () => { vivant = false }
+  }, [vehicleId, profileId])
+  if (etat === undefined || etat === 'erreur') return null
+  if (etat === null) return <p className="sm:col-span-2 text-ui-sm text-[rgb(var(--c-success))]">Permis de conduire en cours dans le dossier du personnel.</p>
+  if (etat === 'sans_fiche') return <p className="sm:col-span-2 text-ui-sm text-[rgb(var(--c-warning))]">Ce conducteur n'a pas de fiche du personnel : le permis n'a pas pu être vérifié. Vérifiez-le vous-même.</p>
+  return <p className="sm:col-span-2 text-ui-sm text-[rgb(var(--c-danger))] font-medium">{etat} : l'attribution sera refusée. Ajoutez le permis dans Personnel, fiche de la personne, Habilitations et titres.</p>
 }
 
 function MonVehicule() {
@@ -224,6 +241,7 @@ function FicheVehicule({ vehicule, kmActuel, comptes, attribution, peutGerer, on
                 } catch (err) { toast.error(err.message) }
               }}>
                 {attr.mode === 'debut' && <Champ label="Conducteur" className="sm:col-span-2"><select className="select" required value={attr.profileId} onChange={(e) => setAttr({ ...attr, profileId: e.target.value })}><option value="">Choisir…</option>{comptes.filter((c) => c.is_active !== false).map((c) => <option key={c.id} value={c.id}>{nomCompte(c)}</option>)}</select></Champ>}
+                {attr.mode === 'debut' && attr.profileId && <PermisVerif vehicleId={v.id} profileId={attr.profileId} />}
                 <Champ label="Compteur (km)"><input className="input" inputMode="numeric" value={attr.mode === 'debut' ? attr.startKm : attr.endKm} onChange={(e) => setAttr({ ...attr, [attr.mode === 'debut' ? 'startKm' : 'endKm']: e.target.value })} /></Champ>
                 <Champ label="Carburant"><select className="select" value={attr.mode === 'debut' ? attr.startFuel : attr.endFuel} onChange={(e) => setAttr({ ...attr, [attr.mode === 'debut' ? 'startFuel' : 'endFuel']: e.target.value })}><option value="">—</option>{['Réserve', '1/4', '1/2', '3/4', 'Plein'].map((x) => <option key={x}>{x}</option>)}</select></Champ>
                 <Champ label="État des lieux (observations)" className="sm:col-span-2"><input className="input" value={attr.mode === 'debut' ? attr.startNotes : attr.endNotes} onChange={(e) => setAttr({ ...attr, [attr.mode === 'debut' ? 'startNotes' : 'endNotes']: e.target.value })} placeholder="Rayures, propreté, équipements" /></Champ>

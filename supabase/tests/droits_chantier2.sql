@@ -4494,6 +4494,38 @@ begin
     end;
   end if;
 
+  -- Permis à l'attribution d'un véhicule (0395) : refusée sans permis en cours, acceptée avec
+  if to_regprocedure('app.permis_motif(uuid,uuid,uuid,date)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare
+      z_co uuid := app.company_default(); z_p uuid; z_v uuid; z_ok boolean := false; z_mod boolean;
+    begin
+      select coalesce(enabled, false) into z_mod from public.company_modules where company_id = z_co and key = 'rh';
+      insert into public.company_modules (company_id, key, enabled) values (z_co, 'rh', true)
+        on conflict (company_id, key) do update set enabled = true;
+      select id into z_p from public.hr_people where profile_id = u_tech limit 1;
+      if z_p is null then
+        insert into public.hr_people (company_id, first_name, last_name, profile_id) values (z_co, 'Essai', 'Permis 0395', u_tech) returning id into z_p;
+      end if;
+      update public.hr_qualifications set archived_at = now() where person_id = z_p and kind = 'permis' and archived_at is null;
+      insert into public.vehicles (company_id, plate) values (z_co, 'ES-395-AI') returning id into z_v;
+      begin insert into public.vehicle_assignments (company_id, vehicle_id, profile_id) values (z_co, z_v, u_tech);
+      exception when check_violation then z_ok := true; end;
+      if z_ok then v_lines := v_lines || 'OK      base  0395 : véhicule refusé sans permis en cours'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0395 : véhicule confié sans permis'::text; end if;
+      insert into public.hr_qualifications (company_id, person_id, kind, label, obtained_on) values (z_co, z_p, 'permis', 'Permis B', date '2015-06-02');
+      insert into public.vehicle_assignments (company_id, vehicle_id, profile_id) values (z_co, z_v, u_tech);
+      v_lines := v_lines || 'OK      base  0395 : véhicule confié avec un permis en cours'::text;
+      update public.company_modules set enabled = coalesce(z_mod, false) where company_id = z_co and key = 'rh';
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0395 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
