@@ -4,6 +4,7 @@ import { format, eachDayOfInterval, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import QRCode from 'qrcode'
 import { lienEspaceClient, dessinerEncadreEnLigne, hauteurEncadreEnLigne } from '../../../core/portail/lienEspace'
+import { chargerRegimeTva, regimeTva } from '../../../core/billing/regimeTva'
 import { buildORG, publicBaseUrl, prepareOrgForPDF, formatSiret, ligneNda, phraseNda } from '../../../core/org/orgUtils'
 import {
   PAGE_MARGIN, drawHeaderBand, drawRunningHeader, drawFooter, numberPages, drawDocTitle, drawSectionTitle,
@@ -303,7 +304,10 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     costDetails.forEach(c => kv.push([c.label, c.per_trainee ? `${formatMoney(c.amount)} × ${trainees.length} = ${formatMoney(c.total)} HT` : `${formatMoney(c.total)} HT`]))
     kv.push(['Coût total', `${formatMoney(coutTotalHT)} HT`])
   }
-  const tvaNote = ORG.tva_applicable === false ? 'Organisme non assujetti à la TVA.' : 'TVA en sus au taux en vigueur.'
+  // Régime de TVA de l'organisme (réglages, 0363) : franchise, exonération de la formation, sinon TVA en sus
+  const R = regimeTva()
+  const tvaNote = ORG.tva_applicable === false ? (R.mentions.franchise || 'Organisme non assujetti à la TVA.')
+    : R.exoFormation ? (R.mentions.exoneration || 'Formation exonérée de TVA.') : 'TVA en sus au taux en vigueur.'
   const bankNote = ORG.iban ? ` (IBAN ${ORG.iban}${ORG.bic ? `, BIC ${ORG.bic}` : ''})` : ''
   const art3 = P ? [
     { kv },
@@ -1358,6 +1362,7 @@ async function enLigneDe(session, options = {}) {
 // ============================================================
 export async function downloadDocument(docType, session, options = {}) {
   if (['convention', 'contratParticulier', 'reglement', 'livret', 'programme'].includes(docType)) await ensureQualityTexts()
+  if (['convention', 'contratParticulier'].includes(docType)) await chargerRegimeTva()
   const { trainees = [], trainee = null, trainer = null, isBlank = false, questions = [], costs = [], attendanceData = null } = options
   const ref = session?.reference || 'VIERGE'
   let doc, filename
@@ -1484,6 +1489,7 @@ export async function downloadAllDocuments(docType, session, trainees, options =
 // Même chose que downloadDocument mais retourne { base64, filename } au lieu de télécharger
 export async function generatePDF(docType, session, options = {}) {
   if (['convention', 'contratParticulier', 'reglement', 'livret', 'programme'].includes(docType)) await ensureQualityTexts()
+  if (['convention', 'contratParticulier'].includes(docType)) await chargerRegimeTva()
   const { trainees = [], trainee = null, trainer = null, isBlank = false, questions = [], costs = [], attendanceData = null } = options
   const ref = session?.reference || 'VIERGE'
   let doc, filename

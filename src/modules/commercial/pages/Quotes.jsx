@@ -22,6 +22,7 @@ import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 import { calcItemTotal, calcTotals } from '../lib/quoteTotals'
+import { chargerRegimeTva, tvaLigne, appliquerRegime, ajusterAuTtc } from '../../../core/billing/regimeTva'
 import { parseRate } from '../../../core/billing/totals'
 import { quoteDay, nextQuoteReference } from '../lib/references'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -36,7 +37,7 @@ import SignatureObjetEnLigne from '../../../core/signature/SignatureObjetEnLigne
 import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
-import { confirmer } from '../../../ui/Confirm'
+import { confirmer, demander } from '../../../ui/Confirm'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
@@ -235,6 +236,9 @@ export default function Quotes() {
   const predefinedMaterials = FRAIS_CATALOGUE
 
   useEffect(() => { loadAll() }, [])
+  // Régime de TVA de l'organisme (franchise, exonération de la formation) : taux des nouvelles lignes et mentions
+  const [regime, setRegime] = useState(null)
+  useEffect(() => { chargerRegimeTva().then(setRegime) }, [])
   // Tarifs du client du devis (0418) : repris à l'ajout d'une ligne, badge « tarif client » sur la ligne
   const [tarifs, setTarifs] = useState([])
   useEffect(() => {
@@ -422,7 +426,7 @@ export default function Quotes() {
         quoteId = currentQuote.id
         await supabase.from('quote_items').delete().eq('quote_id', quoteId)
       }
-      const itemsToInsert = items.filter(it => it.description_title).map((it, i) => ({
+      const itemsToInsert = appliquerRegime(items.filter(it => it.description_title), regime || undefined).map((it, i) => ({
         quote_id: quoteId, position: i, code: it.code || '',
         description_title: it.description_title, description_detail: it.description_detail || '',
         quantity: parseFloat(it.quantity) || 1, unit: it.unit || 'unité',
@@ -936,7 +940,7 @@ export default function Quotes() {
     setItems([...items, {
       ...emptyItem, code: course.code || '', description_title: course.title,
       description_detail: course.description || '', unit_price_ht: prixFormation(tarifs, course).prix,
-      course_id: course.id, position: items.length
+      course_id: course.id, position: items.length, ...tvaLigne(true, regime || undefined)
     }])
   }
   function addFromMaterial(mat) {
@@ -1751,6 +1755,9 @@ export default function Quotes() {
                     {currentQuote.tva_applicable && <span className="text-ui-sm text-gray-400">%</span>}
                     {!currentQuote.tva_applicable && <span className="text-ui-sm text-gray-400">Non applicable</span>}
                   </div>
+                  {!currentQuote.tva_applicable && regime && !regime.franchise && !regime.exoFormation && (
+                    <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1 max-w-xs">L'organisme est assujetti à la TVA : on ne la retire pas parce que le client ne la récupère pas. Gardez la TVA et fixez le prix en TTC (« Ajuster au TTC voulu »).</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-ui-sm text-gray-500 mb-1">Remise</label>
@@ -1880,11 +1887,21 @@ export default function Quotes() {
                       <span>{money(totals.totalTva)}</span>
                     </div>
                   ) : (
-                    <div className="text-ui-sm text-gray-400 italic">TVA non applicable (art. 261 CGI)</div>
+                    <div className="text-ui-sm text-gray-400 italic">TVA non applicable</div>
                   )}
                   <div className="flex justify-between text-base font-bold border-t pt-2 text-primary-700">
                     <span>Total TTC</span><span>{money(totals.totalTtc)}</span>
                   </div>
+                  {/* Client qui ne récupère pas la TVA (établissement public, association…) : le prix convenu est le TTC */}
+                  <button type="button" className="btn btn-ghost btn-sm self-end" onClick={async () => {
+                    const v = await demander('Total TTC voulu (en euros) : les prix HT des lignes sont ajustés pour l\'obtenir, TVA comprise.', { title: 'Ajuster au TTC voulu', placeholder: 'par exemple 500' })
+                    if (!v) return
+                    const lignes = items.filter((it) => it.description_title)
+                    const r = ajusterAuTtc(lignes, v, currentQuote.tva_rate, (l) => calcTotals(l, currentQuote.discount_percent, currentQuote.tva_rate, currentQuote.tva_applicable))
+                    if (!r) return toast.error('Montant non reconnu')
+                    setItems([...r.lignes, ...items.filter((it) => !it.description_title)])
+                    toast.success(`Total TTC : ${money(r.ttc)}${Math.abs(r.ttc - Number(String(v).replace(',', '.'))) >= 0.01 ? ' (arrondi au centime : mettez une ligne en quantité 1 pour tomber juste)' : ''}`, { duration: 7000 })
+                  }}>Ajuster au TTC voulu</button>
                 </div>
               </div>
             </div>
