@@ -17,7 +17,7 @@ export function modeleEnvoiDevis({ quote, contactName, org, programmes = [], for
     subject: `Devis ${quote.reference}${objet} - ${org}`,
     body: `${bonjour(contactName)}\n\nSuite à notre échange, veuillez trouver ci-joint ${pj}.${validite}\n\n${formation
       ? 'Nous pouvons organiser la formation dans vos locaux ou dans les nôtres, aux dates qui vous conviennent.'
-      : 'Nous restons à votre disposition pour planifier l\'intervention dès votre accord.'}\n\nPour l'accepter, il suffit de nous le retourner signé, ou de nous répondre par email.\n\nNous restons à votre disposition pour tout complément d'information.\n\nBien cordialement,`,
+      : 'Nous restons à votre disposition pour planifier l\'intervention dès votre accord.'}\n\nPour l'accepter, vous pouvez le signer en ligne depuis votre espace client (voir l'encadré « Signer en ligne » en bas du devis), nous le retourner signé, ou simplement nous répondre par email.\n\nNous restons à votre disposition pour tout complément d'information.\n\nBien cordialement,`,
   }
 }
 

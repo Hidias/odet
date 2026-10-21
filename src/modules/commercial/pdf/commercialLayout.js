@@ -4,6 +4,7 @@
 // Aucune valeur d'organisme en dur : tout vient de l'objet L (buildORG + logo préchargé).
 
 import { startDocument, setF, numberPages, PAGE_MARGIN, drawImageFitted, drawKeyValues } from '../../../core/pdf/layout'
+import { dessinerEncadreEnLigne, hauteurEncadreEnLigne } from '../../../core/portail/lienEspace'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 
 export function fmtMoney(v) {
@@ -189,6 +190,14 @@ export function renderCommercialDoc(doc, Lsource, p) {
     f.y = Math.max(by + sh, ys + (noteLines.length ? noteLines.length * 4 + 10 : 0)) + 6
   } else if (p.notes) {
     f.callout('Note', p.notes, { tone: 'muted' })
+  }
+
+  // Signer en ligne : adresse de l'espace client, QR code et code d'accès (le mail, lui, reste sans lien)
+  if (p.enLigne) {
+    const h = hauteurEncadreEnLigne(doc, f.W)
+    f.ensure(h + 2)
+    dessinerEncadreEnLigne(doc, t, M, f.y, f.W, p.enLigne)
+    f.y += h + 5
   }
 
   // Mentions

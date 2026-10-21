@@ -2,7 +2,7 @@
 // Envoie un email de compte-rendu via SMTP IONOS avec retry
 // Les PJ sont récupérées depuis Supabase Storage (pas en JSON body → évite la limite 4.5MB Vercel)
 
-import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML, finirParCordialement } from './_lib/mailer.js'
 import { requireRight, SALES, isSafeStoragePath } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
@@ -77,7 +77,7 @@ async function handler(req, res) {
     // 5. Préparer le corps avec signature pro
     let htmlBody = body.replace(/\n/g, '<br>')
 
-        htmlBody += `<br><br><p style="margin: 0;">Bien cordialement,</p>${buildSignatureHTML(sender, org)}`
+        htmlBody += `${finirParCordialement(body) ? '' : '<br><br><p style="margin: 0;">Bien cordialement,</p>'}${buildSignatureHTML(sender, org)}`
 
     const mailOptions = {
       from: `"${sender.name}" <${emailConfig.email}>`,

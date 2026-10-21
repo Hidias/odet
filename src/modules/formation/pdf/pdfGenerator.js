@@ -3,6 +3,7 @@ import 'jspdf-autotable'
 import { format, eachDayOfInterval, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import QRCode from 'qrcode'
+import { lienEspaceClient, dessinerEncadreEnLigne, hauteurEncadreEnLigne } from '../../../core/portail/lienEspace'
 import { buildORG, publicBaseUrl, prepareOrgForPDF, formatSiret, ligneNda, phraseNda } from '../../../core/org/orgUtils'
 import {
   PAGE_MARGIN, drawHeaderBand, drawRunningHeader, drawFooter, numberPages, drawDocTitle, drawSectionTitle,
@@ -200,7 +201,7 @@ function getLocation(session) {
 // particulier (lot 2, 0044) : { group, client } pour le contrat de formation d'un particulier qui paie lui-même
 // (session inter) : mentions des articles L6353-4 à L6353-7 du Code du travail [OFFICIEL, consultés le 14/10/2026],
 // rétractation de 10 jours, aucune somme avant la fin du délai puis 30 % au plus, solde échelonné.
-function generateConvention(session, trainees = [], trainer = null, costs = [], particulier = null) {
+function generateConvention(session, trainees = [], trainer = null, costs = [], particulier = null, enLigne = null) {
   const doc = new jsPDF({ compress: true })
   const pw = doc.internal.pageSize.getWidth()
   const M = PAGE_MARGIN
@@ -470,6 +471,15 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     drawImageFitted(doc, sigC.signature_data, x2 + 4, y + 12, colW - 8, boxH - 19)
   }
   y += boxH
+
+  // Signer en ligne (pas sur une convention déjà signée) : adresse de l'espace client, QR code et code d'accès
+  if (enLigne && !sigC) {
+    const hE = hauteurEncadreEnLigne(doc, W)
+    y += 6
+    ensure(hE)
+    dessinerEncadreEnLigne(doc, t, M, y, W, enLigne)
+    y += hE
+  }
 
   drawFooter(doc, ORG, CODE)
   if (sigC) ajouterPagePreuve(doc, ORG, sigC, { titre: 'Convention de formation', reference: ref, code: CODE })
@@ -1336,6 +1346,13 @@ function generateFicheRenseignements(session, trainee = null, isBlank = false, i
   return doc
 }
 
+// Encadré « Signer en ligne » d'une convention ou d'un contrat : accès à l'espace du client (entreprise de la session
+// ou particulier du groupe), sauf document déjà signé ou options.enLigne === false
+async function enLigneDe(session, options = {}) {
+  if (options.enLigne === false || session?.signature_client || options.isBlank) return null
+  return lienEspaceClient(options.particulier?.client?.id || session?.client_id || session?.clients?.id)
+}
+
 // ============================================================
 // EXPORT
 // ============================================================
@@ -1346,8 +1363,8 @@ export async function downloadDocument(docType, session, options = {}) {
   let doc, filename
   
   switch (docType) {
-    case 'convention': doc = generateConvention(session, trainees, trainer, costs); filename = `Convention_${ref}.pdf`; break
-    case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
+    case 'convention': doc = generateConvention(session, trainees, trainer, costs, null, await enLigneDe(session, options)); filename = `Convention_${ref}.pdf`; break
+    case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null, await enLigneDe(session, options)); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
     case 'certificat': doc = generateCertificat(session, trainee, trainer); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
     case 'emargement': doc = generateEmargement(session, trainees, trainer, isBlank, attendanceData); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
     case 'convocation': {
@@ -1472,8 +1489,8 @@ export async function generatePDF(docType, session, options = {}) {
   let doc, filename
   
   switch (docType) {
-    case 'convention': doc = generateConvention(session, trainees, trainer, costs); filename = `Convention_${ref}.pdf`; break
-    case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
+    case 'convention': doc = generateConvention(session, trainees, trainer, costs, null, await enLigneDe(session, options)); filename = `Convention_${ref}.pdf`; break
+    case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null, await enLigneDe(session, options)); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
     case 'certificat': doc = generateCertificat(session, trainee, trainer); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
     case 'emargement': doc = generateEmargement(session, trainees, trainer, isBlank, attendanceData); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
     case 'convocation': {

@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf'
+import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import { mentionFinancement } from '../lib/financementDevis'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
@@ -71,7 +72,13 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     companyLegalLine(L),
   ].filter(Boolean)
 
+  // Devis à signer : encadré « Signer en ligne » si le client a un accès à son espace (pas sur un bon de commande
+  // partiel ni sur un devis déjà signé ou accepté)
+  const enLigne = !partial && options.enLigne !== false && !quote.signature_base64 && !['accepted', 'partial', 'refused', 'expired'].includes(quote.status)
+    ? await lienEspaceClient(client?.id || quote.client_id) : null
+
   renderCommercialDoc(doc, L, {
+    enLigne,
     formation,
     ref: partial ? quote.reference + '-P' : quote.reference,
     docLabel: partial ? 'Bon de commande' : 'Devis',
