@@ -1389,3 +1389,8 @@ tdx('0408', 'meetings', sel=any_of(_PT_DIR, f"(client_id is not null and company
 _AP_VOIR = f"company_id in {societes('clients.fiches.voir')}"
 _AP_MOD = f"company_id in {societes('clients.fiches.modifier')}"
 tdx('0409', 'business_contributors', sel=_AP_VOIR, ins=_AP_MOD, upd=_AP_MOD, dele=_AP_MOD)
+
+# Alertes sur le téléphone (0411) : chacun voit, ajoute et retire ses propres appareils. Les clés de l'instance
+# (push_keys) n'ont aucune règle : seul le serveur les lit.
+_PU_MIEN = "profile_id = (select auth.uid())"
+tdx('0411', 'push_subscriptions', sel=_PU_MIEN, ins=_PU_MIEN, upd=_PU_MIEN, dele=_PU_MIEN)

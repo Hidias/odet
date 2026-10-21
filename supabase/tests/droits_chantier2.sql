@@ -5040,6 +5040,51 @@ begin
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0412 : colonne de publication propre à une personne'::text; end if;
   end if;
 
+  -- Alertes sur le téléphone (0411) : heures calmes, erreurs écartées, clés illisibles depuis l'application
+  if to_regclass('public.push_subscriptions') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare z_n uuid; z_r jsonb;
+    begin
+      insert into public.notifications (type, title, message) values ('error', 'Erreur essai 0411', 'essai') returning id into z_n;
+      z_r := public.push_tick();
+      if (select pushed_at is not null from public.notifications where id = z_n) and (z_r->>'appel')::boolean is not true then
+        v_lines := v_lines || 'OK      base  0411 : erreur technique écartée des alertes, aucun appel sans appareil'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0411 : ' || z_r::text)::text; end if;
+      delete from public.notifications where id = z_n;
+      -- Appareil d'un membre qui voit les notifications : l'alerte de sa société lui est destinée, puis marquée
+      declare z_m record; z_s uuid; z_n2 uuid; z_out jsonb;
+      begin
+        select m.profile_id, m.company_id into z_m from public.company_members m
+        where m.is_active and 'organisation.notifications.gerer' = any (app.rights_for(m.profile_id, m.company_id)) limit 1;
+        if z_m.profile_id is not null then
+          insert into public.push_subscriptions (profile_id, company_id, endpoint, p256dh, auth)
+          values (z_m.profile_id, z_m.company_id, 'https://push.exemple.test/essai-0411', 'cle', 'secret') returning id into z_s;
+          insert into public.notifications (type, title, message, company_id) values ('devis_signe', 'Essai 0411', 'essai', z_m.company_id) returning id into z_n2;
+          z_out := public.push_a_envoyer();
+          if exists (select 1 from jsonb_array_elements(z_out->'appareils') d, jsonb_array_elements(d->'notifications') n
+                     where d->>'id' = z_s::text and n->>'id' = z_n2::text)
+             and (select pushed_at is not null from public.notifications where id = z_n2) then
+            v_lines := v_lines || 'OK      base  0411 : alerte de la société destinée à l''appareil du membre, puis marquée'::text;
+          else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0411 : alerte non destinée'::text; end if;
+          delete from public.notifications where id = z_n2;
+          delete from public.push_subscriptions where id = z_s;
+        else
+          v_lines := v_lines || 'OK      base  0411 : destination des alertes (aucun membre, non vérifiée)'::text;
+        end if;
+      end;
+      if not has_table_privilege('authenticated', 'public.push_keys', 'select')
+         or not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'push_keys') then
+        v_lines := v_lines || 'OK      base  0411 : clés des alertes sans règle de lecture'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0411 : clés lisibles'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0411 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

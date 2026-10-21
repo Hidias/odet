@@ -265,6 +265,8 @@ ORDRE_PROD = (
     + ['0410']
     # Marque blanche : plus aucun nom écrit dans la base, traces d'un ancien organisme saisies dans les paramètres, 21/10
     + ['0412']
+    # Alertes sur le téléphone (notifications web), 21/10
+    + ['0411']
 )
 
 
