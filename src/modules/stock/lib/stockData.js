@@ -49,6 +49,7 @@ export const chargerDepotsTerrain = async () => must(await supabase.rpc('stock_d
 export async function enregistrerArticle(a, prixAchat = undefined) {
   const { id, stock_categories: _c, suppliers: _s, ...reste } = nettoyer(a)
   reste.sale_price_ht = reste.sale_price_ht === '' || reste.sale_price_ht == null ? null : Number(String(reste.sale_price_ht).replace(',', '.'))
+  if ('ppe_renew_months' in reste) reste.ppe_renew_months = reste.ppe && reste.ppe_renew_months !== '' && reste.ppe_renew_months != null ? Number(reste.ppe_renew_months) : null
   const ligne = id ? must(await supabase.from('stock_items').update(reste).eq('id', id).select('id').single())
     : must(await supabase.from('stock_items').insert(reste).select('id').single())
   if (prixAchat !== undefined && prixAchat !== '' && prixAchat != null) {

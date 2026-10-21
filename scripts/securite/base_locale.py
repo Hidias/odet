@@ -229,6 +229,8 @@ ORDRE_PROD = (
     + ['0392']
     # Contraintes sans prénoms en dur, 21/10
     + ['0393']
+    # EPI remis au personnel, reliés au stock, 21/10
+    + ['0394']
 )
 
 
