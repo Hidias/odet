@@ -58,7 +58,6 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     ['Validité', quote.validity_date ? "jusqu'au " + fmtDate(quote.validity_date) : null],
     ['Mode', quote.payment_method || 'virement bancaire'],
     ['Délai', quote.payment_terms || 'à 30 jours'],
-    ['Échéance', quote.payment_deadline ? fmtDate(quote.payment_deadline) : null],
     ...bankRows(L),
   ].filter(r => r[1])
 
@@ -67,9 +66,12 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   // et de l'option sur les débits ; la facture la porte, calculée par la base) ; l'exonération de TVA de la formation
   // (261-4-4° du CGI) seulement pour un devis de formation
   const particulier = client && client.client_type === 'particulier'
+  // Acheteur public (décision de H, 21/10) : intérêts moratoires du code de la commande publique (réglages de facturation)
+  const publicClient = client && client.client_type === 'public'
+  const penalitesPublic = [regime.mentions.penalitesPublic, regime.mentions.indemnitePublic].filter(Boolean).join(' ')
   const formation = (items || []).some(it => !!it.course_id) || !!quote.session_id
   const legal = [
-    particulier ? null : "En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
+    particulier ? null : publicClient && penalitesPublic ? penalitesPublic : "En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
     // Mentions de TVA des réglages de l'organisme (franchise, exonération de la formation, autoliquidation)
     ...mentionsTvaDevis(items, quote, regime, formation),
     mentionFinancement(quote),
@@ -100,7 +102,7 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
       ['Réf. client', quote.client_reference || null],
     ],
     object: quote.object || null,
-    rows: items.map(itemRow),
+    rows: items.map((it) => itemRow(it, { tvaOn: quote.tva_applicable !== false && !regime.franchise, taux: (quote.tva_rate === null || quote.tva_rate === undefined || quote.tva_rate === '') ? 20 : (parseFloat(quote.tva_rate) || 0) })),
     totals: totalsFor(quote, items, regime),
     notes: quote.notes || null,
     signature: {

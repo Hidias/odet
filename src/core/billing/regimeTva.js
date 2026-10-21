@@ -15,14 +15,17 @@ export async function chargerRegimeTva() {
   try {
     const [{ data: o }, { data: b }] = await Promise.all([
       supabase.from('organization_settings').select('tva_applicable').limit(1).maybeSingle(),
-      supabase.from('billing_settings').select('exoneration_formation_active, exoneration_attestation_ref, mention_exoneration, mention_franchise, mention_autoliquidation').limit(1).maybeSingle(),
+      supabase.from('billing_settings').select('exoneration_formation_active, exoneration_attestation_ref, mention_exoneration, mention_franchise, mention_autoliquidation, mention_penalites_public, mention_indemnite_public').limit(1).maybeSingle(),
     ])
     regime = {
       charge: true,
       franchise: o?.tva_applicable === false,
       exoFormation: !!b?.exoneration_formation_active,
       attestation: b?.exoneration_attestation_ref || null,
-      mentions: { exoneration: b?.mention_exoneration || '', franchise: b?.mention_franchise || '', autoliquidation: b?.mention_autoliquidation || '' },
+      mentions: {
+        exoneration: b?.mention_exoneration || '', franchise: b?.mention_franchise || '', autoliquidation: b?.mention_autoliquidation || '',
+        penalitesPublic: b?.mention_penalites_public || '', indemnitePublic: b?.mention_indemnite_public || '',
+      },
     }
   } catch { /* réglages illisibles (portail) : régime par défaut */ }
   return regime
@@ -35,6 +38,38 @@ export function tvaLigne(formation, r = regime) {
   if (r.franchise) return { tva_rate: 0, vat_regime: 'normal' }
   if (r.exoFormation && formation) return { tva_rate: 0, vat_regime: 'exonere' }
   return { tva_rate: 20, vat_regime: 'normal' }
+}
+
+// Organisme assujetti (décision de H, 21/10, 23 h 08) : pas de TVA à 0 % hors cas prévus. Exonération de la formation :
+// seulement avec l'attestation de la DREETS dans les réglages, sur une ligne de formation. Autoliquidation : client
+// professionnel avec son numéro de TVA. La base refuse aussi l'émission d'une facture hors de ces cas (0427).
+export const assujetti = (r = regime) => !!r.charge && !r.franchise
+export const exonerationPossible = (r = regime) => !!r.exoFormation && !!r.attestation
+
+export function regimesPermis(ligne, client, r = regime) {
+  const opts = [['normal', 'TVA normale']]
+  if (r.franchise) return opts
+  if (exonerationPossible(r) && ligne?.course_id) opts.push(['exonere', 'Exonérée (formation)'])
+  if (client && client.client_type !== 'particulier' && String(client.tva || '').trim()) opts.push(['autoliquidation', 'Autoliquidation'])
+  // Régime déjà enregistré mais plus permis : affiché pour être corrigé
+  if (ligne?.vat_regime && !opts.some(([k]) => k === ligne.vat_regime)) opts.push([ligne.vat_regime, `${ligne.vat_regime === 'exonere' ? 'Exonérée' : 'Autoliquidation'} (non permis)`])
+  return opts
+}
+
+// Erreurs de TVA d'un document (devis ou facture) : liste vide si tout est conforme
+export function erreursTva({ tvaApplicable, taux, lignes, client, tauxParLigne = false }, r = regime) {
+  if (!r.charge || r.franchise) return []
+  const e = []
+  if (tvaApplicable === false) e.push('L\'organisme est assujetti à la TVA : « TVA non applicable » n\'est pas permis. Gardez la TVA et fixez le prix en TTC si besoin (« Ajuster au TTC voulu »).')
+  const t = Number(String(taux ?? 20).replace(',', '.'))
+  if (!tauxParLigne && tvaApplicable !== false && !(t > 0)) e.push('Taux de TVA à 0 % : pas permis pour un organisme assujetti.')
+  ;(lignes || []).forEach((it) => {
+    const nom = it.description_title || 'sans titre'
+    if (tauxParLigne && (it.vat_regime || 'normal') === 'normal' && !(Number(String(it.tva_rate ?? 20).replace(',', '.')) > 0)) e.push(`Ligne « ${nom} » à 0 % de TVA : pas permis pour un organisme assujetti (exonération de la formation ou autoliquidation seulement).`)
+    if (it.vat_regime === 'exonere' && !(exonerationPossible(r) && it.course_id)) e.push(`Ligne « ${nom} » exonérée : seulement une ligne de formation, avec l'attestation d'exonération dans Paramètres.`)
+    if (it.vat_regime === 'autoliquidation' && !(client && client.client_type !== 'particulier' && String(client.tva || '').trim())) e.push(`Ligne « ${nom} » en autoliquidation : seulement pour un client professionnel avec son numéro de TVA.`)
+  })
+  return e
 }
 
 // Filet de sécurité à l'enregistrement : franchise = aucune TVA ; exonération = lignes de formation exonérées

@@ -30,14 +30,19 @@ function wrapCardLines(doc, lines, w) {
 }
 
 // Ligne de tableau des prestations
-export function itemRow(it) {
+// opts.taux : taux unique du document (devis) pour les lignes au régime normal ; opts.tvaOn === false (TVA non applicable sur le document) : colonne TVA à « - », comme les totaux. L'unité s'écrit sous
+// la quantité, et seulement si elle dit quelque chose (« jour », « forfait »…), pas « unité ».
+export function itemRow(it, opts) {
+  var o = opts && typeof opts === 'object' ? opts : {}
   var q = parseFloat(it.quantity) || 0
   var pu = parseFloat(it.unit_price_ht) || 0
-  var tv = (it.tva_rate === null || it.tva_rate === undefined || it.tva_rate === '') ? 20 : (parseFloat(it.tva_rate) || 0)
+  var tv = o.taux != null ? o.taux : (it.tva_rate === null || it.tva_rate === undefined || it.tva_rate === '') ? 20 : (parseFloat(it.tva_rate) || 0)
   var lt = Math.round((q * pu + Number.EPSILON) * 100) / 100
   var desc = it.description_title || ''
   if (it.description_detail) desc += '\n' + it.description_detail
-  return [it.code || '', desc, fmtQty(q), fmtMoney(pu) + '\n' + (it.unit || 'unité'), fmtRate(tv), fmtMoney(lt)]
+  var unite = it.unit && it.unit !== 'unité' ? '\n' + it.unit : ''
+  var tva = o.tvaOn === false ? '-' : (it.vat_regime && it.vat_regime !== 'normal' ? '0 %' : fmtRate(tv))
+  return [it.code || '', desc, fmtQty(q) + unite, fmtMoney(pu), tva, fmtMoney(lt)]
 }
 
 /**

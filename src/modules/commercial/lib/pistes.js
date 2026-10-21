@@ -74,7 +74,7 @@ export async function preparerDevisPiste(lead) {
   const d = new Date(); d.setDate(d.getDate() + 30)
   const q = must(await supabase.from('quotes').insert({
     reference: await nextRef(), client_id: lead.client_id, contact_id: contact?.id || null,
-    quote_date: todayIso(), validity_date: d.toISOString().slice(0, 10), payment_deadline: d.toISOString().slice(0, 10),
+    quote_date: todayIso(), validity_date: d.toISOString().slice(0, 10), payment_deadline: null,
     object, status: 'draft', tva_rate: 20, tva_applicable: true, total_ht: t.taxBasis, total_tva: t.taxTotal, total_ttc: t.grandTotal,
   }).select().single())
   must(await supabase.from('quote_items').insert(lines.map((l, i) => ({ ...l, quote_id: q.id, position: i, total_ht: lineTotal(l) }))))

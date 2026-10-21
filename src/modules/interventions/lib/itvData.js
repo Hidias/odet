@@ -423,7 +423,7 @@ export async function createReplacementQuote(visit, items, equipmentById, settin
   const d = new Date(); d.setDate(d.getDate() + 30)
   const q = must(await supabase.from('quotes').insert({
     reference: await nextRef('quotes', 'DEV'), client_id: visit.client_id, contact_id: contact?.id || null,
-    quote_date: todayIso(), validity_date: d.toISOString().slice(0, 10), payment_deadline: d.toISOString().slice(0, 10),
+    quote_date: todayIso(), validity_date: d.toISOString().slice(0, 10), payment_deadline: null,
     object: `Remplacement de matériel de sécurité, suite à la visite ${visit.reference || ''}`.trim(), status: 'draft',
     tva_rate: tva, tva_applicable: true, total_ht: 0, total_tva: 0, total_ttc: 0, created_by: await currentUserName(),
   }).select().single())
