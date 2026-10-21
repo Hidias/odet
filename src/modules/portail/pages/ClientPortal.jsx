@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Lock, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle } from 'lucide-react'
+import { Lock, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, ShieldCheck, Clock, Phone, Mail, Globe, Accessibility, ArrowRight, Sparkles, GraduationCap } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../../../core/supabase'
-import PublicLayout from '../../../app/PublicLayout'
-import { useBranding } from '../../../core/branding/BrandingProvider'
+import { useBranding, brandLogo } from '../../../core/branding/BrandingProvider'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
 
-// Espace entreprise, version minimale : lien + code à 6 chiffres, consultation des sessions
-// de l'entreprise et téléchargement de ses documents. Lecture seule.
+// Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
+// sessions de l'entreprise et téléchargement de ses documents, en lecture seule. Aux couleurs de l'instance,
+// animations discrètes (coupées si l'appareil demande moins de mouvement).
 
 const STORAGE_KEY = (token) => `odet_client_portal_${token}`
 
@@ -43,6 +43,65 @@ async function portalSignature(token, code, sessionId) {
 
 const fmtDate = (d) => d ? format(parseISO(d), 'd MMMM yyyy', { locale: fr }) : ''
 
+// Compteur animé (0 → valeur), immédiat si l'appareil demande moins de mouvement
+function useCompteur(valeur, duree = 900) {
+  const [v, setV] = useState(0)
+  useEffect(() => {
+    const reduit = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduit || !valeur) { setV(valeur); return undefined }
+    let raf; const t0 = performance.now()
+    const pas = (t) => { const k = Math.min(1, (t - t0) / duree); setV(Math.round(valeur * (1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(pas) }
+    raf = requestAnimationFrame(pas)
+    return () => cancelAnimationFrame(raf)
+  }, [valeur, duree])
+  return v
+}
+
+function Chiffre({ valeur, suffixe = '', libelle, icone: Icone, delai }) {
+  const v = useCompteur(valeur)
+  return (
+    <div className="vitrine-monte rounded-ui-lg bg-white/10 backdrop-blur border border-white/15 px-4 py-3" style={{ '--delai': `${delai}ms` }}>
+      <div className="flex items-center gap-2 text-white/70 text-xs uppercase tracking-wide"><Icone className="w-4 h-4" aria-hidden="true" />{libelle}</div>
+      <div className="mt-1 font-display text-3xl font-semibold text-white tabular-nums">{v}{suffixe}</div>
+    </div>
+  )
+}
+
+function Halos() {
+  return (
+    <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
+      <div className="vitrine-halo w-72 h-72 -top-16 -left-10 bg-accent-500" />
+      <div className="vitrine-halo w-80 h-80 top-1/3 -right-24 bg-highlight-500" style={{ animationDelay: '-5s' }} />
+      <div className="vitrine-halo w-64 h-64 -bottom-20 left-1/3 bg-primary-400" style={{ animationDelay: '-9s' }} />
+      <div className="absolute inset-0 vitrine-grain" />
+    </div>
+  )
+}
+
+function Marque({ branding, sombre = false }) {
+  const logo = brandLogo(branding, sombre)
+  return (
+    <div className="flex items-center gap-3 min-w-0">
+      {logo ? (
+        <span className={`inline-flex items-center justify-center rounded-ui ${sombre ? 'bg-white/95 p-1.5' : ''}`}>
+          <img src={logo} alt={branding.org_name || ''} className="h-9 w-auto max-w-[140px] object-contain" />
+        </span>
+      ) : (
+        <div className="w-10 h-10 rounded-ui bg-accent-500 text-accent-fg flex items-center justify-center font-display font-bold">{(branding.org_name || 'O').slice(0, 1)}</div>
+      )}
+      <div className="min-w-0 leading-tight">
+        <div className={`font-display font-semibold truncate ${sombre ? 'text-white' : 'text-gray-900'}`}>{branding.org_name}</div>
+        <div className={`text-xs truncate ${sombre ? 'text-white/60' : 'text-gray-500'}`}>Espace entreprise</div>
+      </div>
+    </div>
+  )
+}
+
+const joursAvant = (d) => {
+  const x = parseISO(d); const t = startOfToday()
+  return Math.round((x - t) / 86400000)
+}
+
 export default function ClientPortal() {
   const { token } = useParams()
   const { branding } = useBranding()
@@ -51,6 +110,8 @@ export default function ClientPortal() {
   const [error, setError] = useState('')
   const [data, setData] = useState(null)
   const [orgReady, setOrgReady] = useState(false)
+  const [org, setOrg] = useState(null)
+  const [secoue, setSecoue] = useState(0)
   const [busy, setBusy] = useState(null) // clé du document en cours de génération
 
   // Reprise de session dans le même onglet
@@ -77,12 +138,14 @@ export default function ClientPortal() {
       const prepared = await prepareOrgForPDF(org)
       setOrganization(prepared)
       setOrgReady(true)
+      setOrg(org)
       setData(d)
       try { sessionStorage.setItem(STORAGE_KEY(token), c) } catch { /* ignore */ }
     } catch (err) {
       const msg = err?.message || ''
       setError(msg.includes('Code incorrect') ? 'Code incorrect' : msg.includes('tentatives') ? 'Trop de tentatives, réessayez dans quelques minutes' : msg.includes('invalide') ? 'Ce lien est invalide ou a été désactivé' : 'Connexion impossible pour le moment')
       setData(null)
+      setSecoue((n) => n + 1)
       try { sessionStorage.removeItem(STORAGE_KEY(token)) } catch { /* ignore */ }
     } finally {
       setChecking(false)
@@ -161,112 +224,231 @@ export default function ClientPortal() {
 
   // ── Écran de connexion ──
   if (!data) {
+    const chiffres = Array.from({ length: 6 }, (_, k) => code[k] || '')
     return (
-      <PublicLayout title="Espace entreprise">
-        <div className="max-w-md mx-auto bg-white rounded-ui-lg border border-gray-200 p-6 mt-6">
-          <div className="w-12 h-12 rounded-full bg-primary-50 text-primary-700 flex items-center justify-center mb-4">
-            <Lock className="w-6 h-6" />
+      <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr]" style={{ background: 'rgb(var(--ground))' }}>
+        <section className="relative overflow-hidden bg-primary-900 text-white px-6 py-10 sm:px-10 lg:px-14 flex flex-col" style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))' }}>
+          <Halos />
+          <div className="relative"><Marque branding={branding} sombre /></div>
+          <div className="relative mt-6 sm:mt-10 lg:mt-auto max-w-lg">
+            <p className="vitrine-monte inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs tracking-wide" style={{ '--delai': '80ms' }}>
+              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> Votre espace formation
+            </p>
+            <h1 className="vitrine-monte mt-4 font-display text-2xl sm:text-4xl font-semibold leading-tight" style={{ '--delai': '160ms' }}>
+              Toutes les formations de vos équipes, au même endroit.
+            </h1>
+            <p className="vitrine-monte mt-3 text-white/75 hidden sm:block" style={{ '--delai': '240ms' }}>
+              Dates, lieux, participants et documents officiels avec {branding.org_name || 'votre organisme de formation'}, disponibles à tout moment.
+            </p>
+            <ul className="mt-6 space-y-3 text-sm hidden sm:block">
+              {[
+                { i: FileText, t: 'Conventions, convocations, émargements, attestations et certificats à télécharger' },
+                { i: Clock, t: 'Disponible jour et nuit, sans demande à faire' },
+                { i: ShieldCheck, t: branding.qualiopi_certified ? 'Organisme certifié Qualiopi, documents conformes' : 'Accès protégé par votre code personnel' },
+              ].map((x, k) => (
+                <li key={k} className="vitrine-monte flex items-start gap-3" style={{ '--delai': `${320 + k * 90}ms` }}>
+                  <span className="shrink-0 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"><x.i className="w-4 h-4" aria-hidden="true" /></span>
+                  <span className="pt-1.5 text-white/85">{x.t}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <h1 className="font-display text-xl font-semibold text-gray-900">Accès à vos documents de formation</h1>
-          <p className="text-sm text-gray-500 mt-1">Saisissez le code d'accès transmis par {branding.org_name || 'votre organisme de formation'}.</p>
-          <form onSubmit={(e) => { e.preventDefault(); login() }} className="mt-5 space-y-3">
-            <input
-              inputMode="numeric" autoComplete="one-time-code" placeholder="Code à 6 chiffres"
-              className="input w-full text-center text-2xl tracking-[0.4em] font-mono"
-              value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-              autoFocus
-            />
-            {error && <p className="text-sm text-[rgb(var(--c-danger))] flex items-center gap-1.5"><AlertCircle className="w-4 h-4" />{error}</p>}
-            <button type="submit" className="btn btn-primary w-full justify-center" disabled={checking || code.length < 4}>
-              {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Accéder'}
-            </button>
-          </form>
-        </div>
-      </PublicLayout>
+          <p className="relative mt-10 lg:mt-auto pt-8 text-xs text-white/50 hidden sm:block">{branding.org_name}{branding.qualiopi_certified ? ', organisme certifié Qualiopi' : ''}</p>
+        </section>
+
+        <section className="flex items-center justify-center px-6 py-10 sm:px-10" style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}>
+          <div className="w-full max-w-sm vitrine-monte" style={{ '--delai': '200ms' }}>
+            <div className="w-12 h-12 rounded-full bg-accent-500/10 text-accent-600 flex items-center justify-center mb-5"><Lock className="w-6 h-6" aria-hidden="true" /></div>
+            <h2 className="font-display text-2xl font-semibold text-gray-900">Accédez à vos documents</h2>
+            <p className="text-sm text-gray-500 mt-1.5">Saisissez le code à 6 chiffres transmis par {branding.org_name || 'votre organisme de formation'}.</p>
+            <form onSubmit={(e) => { e.preventDefault(); login() }} className="mt-6">
+              <label htmlFor="code-portail" className="sr-only">Code d'accès à 6 chiffres</label>
+              <div key={secoue} className={`relative ${secoue ? 'vitrine-secoue' : ''}`}>
+                <div className="grid grid-cols-6 gap-2" aria-hidden="true">
+                  {chiffres.map((c, k) => {
+                    const actif = k === Math.min(code.length, 5)
+                    return (
+                      <div key={k} className={`h-14 rounded-ui border-2 flex items-center justify-center font-mono text-2xl font-semibold transition-colors ${error ? 'border-[rgb(var(--c-danger))]/60' : c ? 'border-primary-500 text-gray-900 bg-white' : actif ? 'border-accent-500 bg-white' : 'border-gray-200 bg-white'}`}>
+                        {c || (actif ? <span className="vitrine-curseur w-0.5 h-6 bg-accent-500" /> : '')}
+                      </div>
+                    )
+                  })}
+                </div>
+                <input id="code-portail" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-text"
+                  value={code} autoFocus
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 6)
+                    setCode(v); setError('')
+                    if (v.length === 6) login(v)
+                  }} />
+              </div>
+              {error && <p role="alert" className="mt-3 text-sm text-[rgb(var(--c-danger))] flex items-center gap-1.5"><AlertCircle className="w-4 h-4" aria-hidden="true" />{error}</p>}
+              <button type="submit" className="btn btn-primary w-full justify-center mt-5 h-11 gap-2" disabled={checking || code.length < 4}>
+                {checking ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <>Accéder à mon espace <ArrowRight className="w-4 h-4" aria-hidden="true" /></>}
+              </button>
+            </form>
+            <p className="mt-6 text-xs text-gray-400 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />Code personnel à votre entreprise. Après 5 essais, l'accès se bloque quelques minutes.</p>
+          </div>
+        </section>
+      </div>
     )
   }
 
-  // ── Liste des sessions et documents ──
+  // ── Tableau de bord de l'entreprise ──
+  const sessionsToutes = [...upcoming, ...past]
+  const formes = new Set(past.flatMap((s) => (s.session_trainees || []).filter((st) => !st.absent).map((st) => st.trainee_id)))
+  const resultats = past.flatMap((s) => (s.session_trainees || []).filter((st) => st.result))
+  const reussite = resultats.length ? Math.round(100 * resultats.filter((st) => ['acquired', 'acquis'].includes(st.result)).length / resultats.length) : null
+  const prochaine = upcoming[0] || null
+
   const DocButton = ({ s, kind, icon: Icon, label, disabled }) => {
     const key = `${s.id}:${kind}`
     return (
       <button onClick={() => download(s, kind)} disabled={disabled || !!busy || !orgReady}
-        className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 hover:text-primary-700 disabled:opacity-40 disabled:cursor-not-allowed">
-        {busy === key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}
-        {label}
-        {!busy && !disabled && <Download className="w-3.5 h-3.5 ml-auto text-gray-400" />}
+        className="vitrine-doc flex items-center gap-2.5 px-3 py-2.5 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 disabled:opacity-40 disabled:cursor-not-allowed text-left">
+        <span className="shrink-0 w-8 h-8 rounded-ui-sm bg-gray-50 flex items-center justify-center">
+          {busy === key ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Icon className="w-4 h-4" aria-hidden="true" />}
+        </span>
+        <span className="min-w-0 flex-1">{label}</span>
+        {!busy && !disabled && <Download className="w-4 h-4 text-gray-400" aria-hidden="true" />}
       </button>
     )
   }
 
-  const SessionCard = ({ s, finished }) => {
+  const SessionCard = ({ s, finished, index }) => {
     const nb = (s.session_trainees || []).length
     const nbResults = (s.session_trainees || []).filter(st => st.result).length
     const lieu = [s.location_name, s.location_address, [s.location_postal_code, s.location_city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
     const dates = s.start_date === s.end_date ? fmtDate(s.start_date) : `${fmtDate(s.start_date)} au ${fmtDate(s.end_date)}`
+    const enCours = !finished && s.start_date && joursAvant(s.start_date) <= 0
+    const d = s.start_date ? parseISO(s.start_date) : null
     return (
-      <div className="bg-white rounded-ui-lg border border-gray-200 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="font-display font-semibold text-gray-900">{s.courses?.title || 'Formation'}</h3>
-            <div className="mt-1.5 flex flex-col gap-1 text-sm text-gray-600">
-              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-gray-400" />{dates}{s.start_time ? `, ${String(s.start_time).slice(0, 5).replace(':', 'h')} à ${String(s.end_time || '').slice(0, 5).replace(':', 'h')}` : ''}</span>
-              {lieu && <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-gray-400" />{lieu}</span>}
-              <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-gray-400" />{nb} participant{nb > 1 ? 's' : ''}{s.trainers ? `, formateur ${s.trainers.first_name} ${s.trainers.last_name}` : ''}</span>
-            </div>
+      <article className="vitrine-monte vitrine-carte bg-white rounded-ui-lg border border-gray-200 overflow-hidden" style={{ '--delai': `${Math.min(index, 8) * 70}ms` }}>
+        <div className="flex flex-col sm:flex-row">
+          <div className={`shrink-0 sm:w-24 flex sm:flex-col items-baseline sm:items-center justify-start sm:justify-center gap-2 sm:gap-0 px-4 py-2 sm:py-4 ${finished ? 'bg-gray-50 text-gray-600' : 'bg-primary-900 text-white'}`}>
+            {d && <>
+              <span className="font-display text-xl sm:text-3xl font-semibold leading-none sm:my-1 sm:order-2">{format(d, 'd')}</span>
+              <span className="text-xs uppercase tracking-wide opacity-70 sm:order-1">{format(d, 'MMMM', { locale: fr })}</span>
+              <span className="text-xs opacity-70 sm:order-3">{format(d, 'yyyy')}</span>
+            </>}
           </div>
-          <span className="shrink-0 text-xs font-mono text-gray-400">{s.reference}</span>
+          <div className="min-w-0 flex-1 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <h3 className="font-display font-semibold text-gray-900 text-lg leading-snug">{s.courses?.title || 'Formation'}</h3>
+              <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${finished ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : enCours ? 'bg-accent-500/10 text-accent-700' : 'bg-primary-50 text-primary-700'}`}>
+                {finished ? 'Réalisée' : enCours ? 'En cours' : `Dans ${joursAvant(s.start_date)} jour${joursAvant(s.start_date) > 1 ? 's' : ''}`}
+              </span>
+            </div>
+            <div className="mt-2 grid gap-1 text-sm text-gray-600">
+              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />{dates}{s.start_time ? `, ${String(s.start_time).slice(0, 5).replace(':', 'h')} à ${String(s.end_time || '').slice(0, 5).replace(':', 'h')}` : ''}</span>
+              {lieu && <span className="flex items-start gap-1.5"><MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" aria-hidden="true" />{lieu}</span>}
+              <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />{nb} participant{nb > 1 ? 's' : ''}{s.trainers ? `, formateur ${s.trainers.first_name} ${s.trainers.last_name}` : ''}</span>
+            </div>
+            {nb > 0 && (
+              <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Participants">
+                {(s.session_trainees || []).map(st => (
+                  <li key={st.trainee_id} className={`text-xs px-2 py-1 rounded-full ${st.absent ? 'bg-gray-100 text-gray-400 line-through' : ['acquis', 'acquired'].includes(st.result) ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-100 text-gray-700'}`}>
+                    {(st.trainees?.last_name || '').toUpperCase()} {st.trainees?.first_name}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <DocButton s={s} kind="convention" icon={FileSignature} label="Convention de formation" />
+              <DocButton s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0} />
+              <DocButton s={s} kind="emargement" icon={ClipboardList} label="Feuille d'émargement" disabled={nb === 0} />
+              <DocButton s={s} kind="attestations" icon={BadgeCheck} label="Attestations de présence" disabled={!finished || nb === 0} />
+              <DocButton s={s} kind="certificats" icon={Award} label="Certificats de réalisation" disabled={!finished || nbResults === 0} />
+            </div>
+            {!finished && <p className="mt-2 text-xs text-gray-400">Attestations et certificats disponibles à l'issue de la formation.</p>}
+          </div>
         </div>
-
-        {nb > 0 && (
-          <ul className="mt-3 flex flex-wrap gap-1.5">
-            {(s.session_trainees || []).map(st => (
-              <li key={st.trainee_id} className={`text-xs px-2 py-1 rounded-full ${st.absent ? 'bg-gray-100 text-gray-400 line-through' : ['acquis', 'acquired'].includes(st.result) ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-gray-100 text-gray-700'}`}>
-                {(st.trainees?.last_name || '').toUpperCase()} {st.trainees?.first_name}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <DocButton s={s} kind="convention" icon={FileSignature} label="Convention de formation" />
-          <DocButton s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0} />
-          <DocButton s={s} kind="emargement" icon={ClipboardList} label="Feuille d'émargement" disabled={nb === 0} />
-          <DocButton s={s} kind="attestations" icon={BadgeCheck} label="Attestations de présence" disabled={!finished || nb === 0} />
-          <DocButton s={s} kind="certificats" icon={Award} label="Certificats de réalisation" disabled={!finished || nbResults === 0} />
-        </div>
-        {!finished && <p className="mt-2 text-xs text-gray-400">Attestations et certificats disponibles à l'issue de la formation.</p>}
-      </div>
+      </article>
     )
   }
 
+  const site = org?.website ? String(org.website).replace(/^https?:\/\//, '') : null
   return (
-    <PublicLayout title="Espace entreprise">
-      <div className="flex items-start justify-between gap-3 mb-5">
-        <div>
-          <h1 className="font-display text-xl font-semibold text-gray-900">{data.client?.name}</h1>
-          <p className="text-sm text-gray-500">Vos formations avec {branding.org_name}</p>
+    <div className="min-h-screen flex flex-col" style={{ background: 'rgb(var(--ground))' }}>
+      <header className="sticky top-0 z-10 bg-white/85 backdrop-blur border-b border-gray-200" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          <Marque branding={branding} />
+          <button onClick={logout} className="btn btn-secondary btn-sm flex items-center gap-1.5"><LogOut className="w-4 h-4" aria-hidden="true" />Quitter</button>
         </div>
-        <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5"><LogOut className="w-4 h-4" />Quitter</button>
-      </div>
+      </header>
 
-      {error && <p className="mb-4 text-sm text-[rgb(var(--c-danger))] flex items-center gap-1.5"><AlertCircle className="w-4 h-4" />{error}</p>}
+      <section className="relative overflow-hidden bg-primary-900 text-white">
+        <Halos />
+        <div className="relative max-w-5xl mx-auto px-4 py-8 sm:py-10">
+          <p className="vitrine-monte text-white/70 text-sm">Bonjour,</p>
+          <h1 className="vitrine-monte font-display text-2xl sm:text-3xl font-semibold mt-1" style={{ '--delai': '80ms' }}>{data.client?.name}</h1>
+          <p className="vitrine-monte text-white/70 mt-1" style={{ '--delai': '140ms' }}>Vos formations avec {branding.org_name}</p>
+          <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Chiffre valeur={past.length} libelle="Réalisées" icone={GraduationCap} delai={200} />
+            <Chiffre valeur={upcoming.length} libelle="À venir" icone={Calendar} delai={260} />
+            <Chiffre valeur={formes.size} libelle="Salariés formés" icone={Users} delai={320} />
+            {reussite != null
+              ? <Chiffre valeur={reussite} suffixe=" %" libelle="Réussite" icone={Award} delai={380} />
+              : <Chiffre valeur={sessionsToutes.length} libelle="Formations" icone={FileText} delai={380} />}
+          </div>
+          {prochaine && (
+            <div className="vitrine-monte mt-5 rounded-ui-lg bg-white text-gray-900 p-4 flex items-center gap-4 flex-wrap" style={{ '--delai': '440ms' }}>
+              <span className="w-10 h-10 rounded-full bg-accent-500/10 text-accent-600 flex items-center justify-center shrink-0"><Clock className="w-5 h-5" aria-hidden="true" /></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Prochaine formation</p>
+                <p className="font-medium">{prochaine.courses?.title || 'Formation'}, le {fmtDate(prochaine.start_date)}</p>
+              </div>
+              <span className="text-sm font-semibold text-accent-700">{joursAvant(prochaine.start_date) <= 0 ? 'En cours' : `J-${joursAvant(prochaine.start_date)}`}</span>
+            </div>
+          )}
+        </div>
+      </section>
 
-      {upcoming.length > 0 && (
-        <section className="mb-6">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">À venir ou en cours</h2>
-          <div className="space-y-3">{upcoming.map(s => <SessionCard key={s.id} s={s} finished={false} />)}</div>
-        </section>
-      )}
-      {past.length > 0 && (
-        <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Formations réalisées</h2>
-          <div className="space-y-3">{past.map(s => <SessionCard key={s.id} s={s} finished />)}</div>
-        </section>
-      )}
-      {upcoming.length === 0 && past.length === 0 && (
-        <p className="text-sm text-gray-500 text-center py-10">Aucune formation enregistrée pour le moment.</p>
-      )}
-    </PublicLayout>
+      <main className="max-w-5xl mx-auto px-4 py-8 w-full flex-1">
+        {error && <p role="alert" className="mb-4 text-sm text-[rgb(var(--c-danger))] flex items-center gap-1.5"><AlertCircle className="w-4 h-4" aria-hidden="true" />{error}</p>}
+
+        {upcoming.length > 0 && (
+          <section className="mb-8">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">À venir ou en cours</h2>
+            <div className="space-y-4">{upcoming.map((s, k) => <SessionCard key={s.id} s={s} finished={false} index={k} />)}</div>
+          </section>
+        )}
+        {past.length > 0 && (
+          <section className="mb-8">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Formations réalisées</h2>
+            <div className="space-y-4">{past.map((s, k) => <SessionCard key={s.id} s={s} finished index={k + upcoming.length} />)}</div>
+          </section>
+        )}
+        {upcoming.length === 0 && past.length === 0 && (
+          <p className="text-sm text-gray-500 text-center py-10">Aucune formation enregistrée pour le moment.</p>
+        )}
+
+        {org && (org.phone || org.email || site) && (
+          <section className="vitrine-monte rounded-ui-lg border border-gray-200 bg-white p-5 sm:p-6 grid gap-5 sm:grid-cols-[1fr_auto] items-center">
+            <div>
+              <h2 className="font-display text-lg font-semibold text-gray-900">Une question, un nouveau besoin ?</h2>
+              <p className="text-sm text-gray-500 mt-1">L'équipe {branding.org_name} vous répond pour organiser vos prochaines formations.</p>
+              {org.referent_handicap_nom && (
+                <p className="text-sm text-gray-600 mt-3 flex items-start gap-1.5"><Accessibility className="w-4 h-4 mt-0.5 shrink-0 text-gray-400" aria-hidden="true" />
+                  Référent handicap : {org.referent_handicap_nom}{org.referent_handicap_email ? `, ${org.referent_handicap_email}` : ''}{org.referent_handicap_phone ? `, ${org.referent_handicap_phone}` : ''}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 min-w-0">
+              {org.phone && <a href={`tel:${String(org.phone).replace(/\s/g, '')}`} className="btn btn-primary justify-center gap-2"><Phone className="w-4 h-4" aria-hidden="true" />{org.phone}</a>}
+              {org.email && <a href={`mailto:${org.email}`} className="btn btn-secondary justify-center gap-2 truncate"><Mail className="w-4 h-4" aria-hidden="true" />{org.email}</a>}
+              {site && <a href={`https://${site}`} target="_blank" rel="noreferrer" className="text-sm text-gray-500 hover:text-gray-800 flex items-center justify-center gap-1.5"><Globe className="w-4 h-4" aria-hidden="true" />{site}</a>}
+            </div>
+          </section>
+        )}
+      </main>
+
+      <footer className="border-t border-gray-200 bg-white" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="max-w-5xl mx-auto px-4 py-4 text-center text-xs text-gray-500">
+          {branding.org_name}{branding.qualiopi_certified ? ', organisme certifié Qualiopi' : ''}{org?.nda ? `, déclaration d'activité ${org.nda}` : ''}
+        </div>
+      </footer>
+    </div>
   )
 }
