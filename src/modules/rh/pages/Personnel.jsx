@@ -118,7 +118,15 @@ const VIDE = {
   first_name: '', last_name: '', usage_name: '', birth_date: '', work_phone: '', work_email: '', personal_phone: '',
   personal_email: '', personal_address: '', personal_postal_code: '', personal_city: '', emergency_name: '',
   emergency_relation: '', emergency_phone: '', notes: '', profile_id: '', nationality: '', gender: '',
-  work_permit_type: '', work_permit_ref: '',
+  work_permit_type: '', work_permit_ref: '', minor_derogation_until: '',
+}
+
+// Moins de 18 ans à la date donnée (AAAA-MM-JJ)
+export function estMineur(naissance, jour = new Date().toISOString().slice(0, 10)) {
+  if (!naissance) return false
+  const [a, m, j] = String(naissance).slice(0, 10).split('-').map(Number)
+  const majorite = `${a + 18}-${String(m).padStart(2, '0')}-${String(j).padStart(2, '0')}`
+  return jour < majorite
 }
 function FichePersonneSheet({ personne = null, onClose, onSaved }) {
   const [v, setV] = useState(() => ({ ...VIDE, ...Object.fromEntries(Object.entries(personne || {}).filter(([k]) => k in VIDE).map(([k, x]) => [k, x ?? ''])) }))
@@ -134,7 +142,7 @@ function FichePersonneSheet({ personne = null, onClose, onSaved }) {
     e.preventDefault()
     setBusy(true)
     try {
-      const r = await enregistrerPersonne({ ...(personne?.id ? { id: personne.id } : {}), ...v, birth_date: v.birth_date || null })
+      const r = await enregistrerPersonne({ ...(personne?.id ? { id: personne.id } : {}), ...v, birth_date: v.birth_date || null, minor_derogation_until: v.minor_derogation_until || null })
       toast.success(personne ? 'Fiche enregistrée' : 'Personne ajoutée')
       onSaved(r.id)
     } catch (err) { toast.error(err.message) }
@@ -172,6 +180,18 @@ function FichePersonneSheet({ personne = null, onClose, onSaved }) {
                 <select className="select" value={v.gender} onChange={m('gender')}><option value="">Non renseigné</option><option value="F">Femme</option><option value="M">Homme</option></select>
               </Champ>
             </div>
+            {(estMineur(v.birth_date) || v.minor_derogation_until) && (
+              <div className="rounded-ui-sm border border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] p-3 space-y-2">
+                <p className="text-ui-sm text-gray-900">
+                  Jeune de moins de 18 ans : travaux électriques et conduite d'engins interdits sans dérogation en cours.
+                  La dérogation se déclare à l'inspection du travail, pour 3 ans, par lieu de formation (articles R4153-38 et suivants du code du travail).
+                  Le planning refuse l'affectation sans elle.
+                </p>
+                <Champ label="Dérogation déclarée, valable jusqu'au">
+                  <input className="input" type="date" value={v.minor_derogation_until} onChange={m('minor_derogation_until')} />
+                </Champ>
+              </div>
+            )}
             <details className="text-ui-sm">
               <summary className="cursor-pointer text-gray-600">Travailleur étranger soumis à autorisation de travail</summary>
               <div className="grid gap-3 sm:grid-cols-2 mt-2">
@@ -408,6 +428,9 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
         <h2 className="section-title mb-1">Identité et coordonnées</h2>
         {ligne('Nom d\'usage', p.usage_name)}
         {ligne('Né(e) le', fr(p.birth_date))}
+        {estMineur(p.birth_date) && ligne('Jeune de moins de 18 ans', p.minor_derogation_until && p.minor_derogation_until >= new Date().toISOString().slice(0, 10)
+          ? `Dérogation jusqu'au ${fr(p.minor_derogation_until)}`
+          : <span className="text-[rgb(var(--c-danger))] font-medium">Sans dérogation en cours : pas de travaux électriques ni de conduite</span>)}
         {ligne('Téléphone professionnel', p.work_phone && <a href={`tel:${p.work_phone}`}>{p.work_phone}</a>)}
         {ligne('Email professionnel', p.work_email && <a href={`mailto:${p.work_email}`}>{p.work_email}</a>)}
         {ligne('Téléphone personnel', p.personal_phone)}
