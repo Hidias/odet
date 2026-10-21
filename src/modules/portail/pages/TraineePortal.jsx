@@ -219,10 +219,9 @@ export default function TraineePortal() {
   const [error, setError] = useState(null)
 
   const [session, setSession] = useState(null)
-  const [trainees, setTrainees] = useState([])
   const [selectedTrainee, setSelectedTrainee] = useState(null)
 
-  // 'select' | 'verify_code' | 'absent' | 'info_sheet' | 'hub' | 'attendance' | 'attendance_complete'
+  // 'select' (code personnel) | 'absent' | 'info_sheet' | 'hub' | 'attendance' | 'attendance_complete'
   // | 'evaluation' | 'thank_you' | 'google_review' | 'thank_you_website'
   const [currentStep, setCurrentStep] = useState('select')
   const [showDocuments, setShowDocuments] = useState(false)
@@ -239,7 +238,6 @@ export default function TraineePortal() {
   // Numéro de sécurité sociale déjà connu : jamais renvoyé, seulement ses 3 derniers chiffres
   const [ssnOnFile, setSsnOnFile] = useState({ known: false, last3: '' })
   const [codeError, setCodeError] = useState('')
-  const [attemptsRemaining, setAttemptsRemaining] = useState(5)
 
   const [infoSheet, setInfoSheet] = useState(null)
   const [attendanceData, setAttendanceData] = useState({})
@@ -306,7 +304,6 @@ export default function TraineePortal() {
       }
       sessionData.periods = sessionPeriods
       setSession(sessionData)
-      setTrainees(sessionData.trainees || [])
       setLoading(false)
     } catch (err) {
       console.error('Erreur :', err)
@@ -320,45 +317,39 @@ export default function TraineePortal() {
     if (data) setQuizSummary(data)
   }, [token])
 
-  const handleSelectTrainee = (trainee) => {
-    setSelectedTrainee(trainee)
-    setPortalTicket(null)
-    setAccessCode('')
-    setCodeError('')
-    setAttemptsRemaining(5 - (trainee.access_code_attempts || 0))
-    if (trainee.absent) { setCurrentStep('absent'); return }
-    if (!trainee.has_access_code) {
-      setSubmitting(true)
-      loadTraineeData(trainee)
-    } else {
-      setCurrentStep('verify_code')
-    }
-  }
-
-  const handleVerifyCode = async (e) => {
+  // Entrée par code (0423) : le code personnel identifie le stagiaire ; aucune liste de noms n'est chargée
+  const handleEntrer = async (e) => {
     e.preventDefault()
     setSubmitting(true)
     setCodeError('')
     try {
-      const { data, error } = await supabase.rpc('verify_trainee_access_code', {
-        p_session_trainee_id: selectedTrainee.session_trainee_id,
-        p_access_code: accessCode,
-      })
+      const { data, error } = await supabase.rpc('portal_entrer', { p_token: token, p_code: accessCode })
       if (error) throw error
       if (!data?.success) {
         setCodeError(data?.error || 'Code incorrect')
-        if (data?.attempts_remaining !== undefined) setAttemptsRemaining(data.attempts_remaining)
-        if (data?.locked_until) setCodeError(`Accès verrouillé jusqu'à ${new Date(data.locked_until).toLocaleTimeString('fr-FR')}`)
         setSubmitting(false)
         return
       }
+      const trainee = data.trainee
       setPortalTicket(data.ticket || null)
-      await loadTraineeData(selectedTrainee, data.ticket || null)
+      setSelectedTrainee(trainee)
+      if (trainee.absent) { setSubmitting(false); setCurrentStep('absent'); return }
+      await loadTraineeData(trainee, data.ticket || null)
     } catch (err) {
       console.error('Erreur :', err)
       setCodeError('Erreur lors de la vérification')
       setSubmitting(false)
     }
+  }
+
+  // Retour à l'accueil du portail : la personne suivante tape son propre code
+  const quitter = () => {
+    setSelectedTrainee(null)
+    setPortalTicket(null)
+    setAccessCode('')
+    setCodeError('')
+    setQuizSummary(null)
+    setCurrentStep('select')
   }
 
   const isWithinSessionDates = (sess) => {
@@ -908,23 +899,36 @@ export default function TraineePortal() {
         <div className="bg-white rounded-b-ui-lg shadow-md shadow-primary-900/5 p-5 sm:p-6">
           <div key={currentStep} className="portal-step-enter">
 
-            {/* Sélection du stagiaire */}
+            {/* Entrée par code personnel (0423) */}
             {currentStep === 'select' && (
-              <div className="space-y-3">
-                <h2 className="font-display text-lg font-bold flex items-center gap-2 text-gray-900">
-                  <User className="w-5 h-5 text-accent-500" /> Sélectionnez votre nom
-                </h2>
-                {trainees.length === 0 && <p className="text-ui text-gray-500">Aucun stagiaire inscrit sur cette session.</p>}
-                {trainees.map((trainee, idx) => (
-                  <button key={trainee.id} onClick={() => handleSelectTrainee(trainee)}
-                    className="w-full p-4 text-left rounded-ui-lg border-2 border-gray-100 hover:border-accent-300 hover:bg-accent-50/40 transition-all group portal-card-enter"
-                    style={{ animationDelay: `${idx * 50}ms` }}>
-                    <div className="flex items-center justify-between">
-                      <div className="font-semibold text-gray-900 group-hover:text-accent-700">{trainee.first_name} {trainee.last_name}</div>
-                      <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-accent-500 transition-all group-hover:translate-x-0.5" />
+              <div>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 rounded-ui-lg bg-primary-900 flex items-center justify-center mx-auto mb-4 shadow-md">
+                    <Shield className="w-8 h-8 text-white" />
+                  </div>
+                  <h2 className="font-display text-xl font-bold mb-1">Votre code personnel</h2>
+                  <p className="text-gray-500">Il figure sur votre convocation. Sinon, demandez-le à votre formateur.</p>
+                </div>
+                <form onSubmit={handleEntrer} className="space-y-4">
+                  <div>
+                    <label className={labelClass} htmlFor="portail-code">Code à 6 chiffres</label>
+                    <input id="portail-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={accessCode}
+                      onChange={(e) => setAccessCode(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-ui-lg text-center text-2xl tracking-[0.4em] font-display focus:ring-2 focus:ring-accent-200 focus:border-accent-400"
+                      placeholder="000000" required autoFocus />
+                  </div>
+                  {codeError && (
+                    <div className="flex items-start gap-2 p-3 bg-[rgb(var(--c-danger-bg))] rounded-ui" role="alert">
+                      <AlertCircle className="w-5 h-5 text-[rgb(var(--c-danger))] flex-shrink-0 mt-0.5" />
+                      <div className="text-ui text-[rgb(var(--c-danger))]">{codeError}</div>
                     </div>
+                  )}
+                  <button type="submit" disabled={submitting || accessCode.length !== 6}
+                    className="w-full py-3.5 bg-accent-500 text-accent-fg font-bold rounded-ui-lg disabled:bg-gray-200 disabled:text-gray-400 flex items-center justify-center gap-2">
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />} Entrer
                   </button>
-                ))}
+                  <p className="text-ui-sm text-center text-gray-400">Votre code est personnel : ne le communiquez pas.</p>
+                </form>
                 <div className="mt-6 pt-5 border-t border-gray-100">
                   <button onClick={() => setShowDocuments(true)}
                     className="w-full p-4 bg-primary-900 text-white rounded-ui-lg hover:bg-primary-800 transition-all flex items-center justify-center gap-3 font-semibold">
@@ -932,46 +936,6 @@ export default function TraineePortal() {
                   </button>
                   <p className="text-ui-sm text-center text-gray-400 mt-2">Programme, supports pédagogiques et livrets</p>
                 </div>
-              </div>
-            )}
-
-            {/* Code d'accès */}
-            {currentStep === 'verify_code' && (
-              <div>
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 rounded-ui-lg bg-primary-900 flex items-center justify-center mx-auto mb-4 shadow-md">
-                    <Shield className="w-8 h-8 text-white" />
-                  </div>
-                  <h2 className="font-display text-xl font-bold mb-1">Vérification d'accès</h2>
-                  <p className="text-gray-500">Bonjour <strong className="text-gray-900">{selectedTrainee.first_name} {selectedTrainee.last_name}</strong></p>
-                </div>
-                <form onSubmit={handleVerifyCode} className="space-y-4">
-                  <div>
-                    <label className={labelClass}>Code d'accès à 6 chiffres</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={accessCode}
-                      onChange={(e) => setAccessCode(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-ui-lg text-center text-2xl tracking-[0.4em] font-display focus:ring-2 focus:ring-accent-200 focus:border-accent-400"
-                      placeholder="000000" required autoFocus />
-                    <p className="text-ui-sm text-gray-400 mt-2">Vous avez reçu ce code par email ou de la part du formateur</p>
-                  </div>
-                  {codeError && (
-                    <div className="flex items-start gap-2 p-3 bg-[rgb(var(--c-danger-bg))] rounded-ui">
-                      <AlertCircle className="w-5 h-5 text-[rgb(var(--c-danger))] flex-shrink-0 mt-0.5" />
-                      <div className="text-ui text-[rgb(var(--c-danger))]">
-                        {codeError}
-                        {attemptsRemaining > 0 && <div className="mt-1 font-medium">Tentatives restantes : {attemptsRemaining}</div>}
-                      </div>
-                    </div>
-                  )}
-                  <button type="submit" disabled={submitting || accessCode.length !== 6}
-                    className="w-full py-3.5 bg-accent-500 text-accent-fg font-bold rounded-ui-lg disabled:bg-gray-200 disabled:text-gray-400 flex items-center justify-center gap-2">
-                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />} Vérifier
-                  </button>
-                  <button type="button" onClick={() => { setCurrentStep('select'); setSelectedTrainee(null); setAccessCode(''); setCodeError('') }}
-                    className="w-full text-gray-400 hover:text-gray-600 text-ui font-medium flex items-center justify-center gap-1">
-                    <ChevronLeft className="w-4 h-4" /> Changer de stagiaire
-                  </button>
-                </form>
               </div>
             )}
 
@@ -1135,7 +1099,7 @@ export default function TraineePortal() {
                 </div>
                 <h2 className="font-display text-xl font-bold text-gray-900 mb-2">Accès indisponible</h2>
                 <p className="text-gray-500">Vous êtes noté absent sur cette formation.<br />Adressez-vous à votre formateur.</p>
-                <button onClick={() => { setSelectedTrainee(null); setCurrentStep('select') }} className="mt-6 px-5 py-2.5 rounded-ui bg-gray-100 text-gray-700 font-medium">Retour</button>
+                <button onClick={quitter} className="mt-6 px-5 py-2.5 rounded-ui bg-gray-100 text-gray-700 font-medium">Retour</button>
               </div>
             )}
 
@@ -1202,9 +1166,9 @@ export default function TraineePortal() {
                 {/* Compte stagiaire personnel (lot 2, 0047) */}
                 <CompteStagiairePortail token={token} trainee={selectedTrainee} ticket={portalTicket} emailConnu={selectedTrainee.email} />
 
-                <button type="button" onClick={() => { setSelectedTrainee(null); setQuizSummary(null); setCurrentStep('select') }}
+                <button type="button" onClick={quitter}
                   className="w-full text-gray-400 hover:text-gray-600 text-ui font-medium flex items-center justify-center gap-1 pt-2">
-                  <ChevronLeft className="w-4 h-4" /> Changer de stagiaire
+                  <ChevronLeft className="w-4 h-4" /> Ce n'est pas moi : quitter
                 </button>
               </div>
             )}
