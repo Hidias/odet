@@ -315,12 +315,16 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
   ]
 
   const objectifs = (course.objectives || '').split('\n').map(s => s.trim()).filter(Boolean)
+  // Session inter : réserve de maintien de l'organisme (0419, saisie une fois dans les paramètres)
+  const maintien = session?.session_type === 'inter' && ORG.mention_maintien
+    ? [{ title: 'Maintien de la session', blocks: [{ p: ORG.mention_maintien }] }] : []
   const articles = P ? [
     { title: 'Objet, nature, durée et effectif', blocks: [
       { p: `Le Stagiaire s'inscrit à l'action de formation « ${course.title || ''} » (action de formation au sens de l'article L6313-1 du Code du travail), d'une durée de ${dureeTxt}, ${datesTxt.charAt(0).toLowerCase() + datesTxt.slice(1)}, organisée en session inter-entreprises.` },
       ...(objectifs.length ? [{ p: "À l'issue de la formation, le Stagiaire sera capable de :" }, { list: objectifs }] : []),
       { p: `Prérequis : ${course.prerequisites || 'aucun'}. Le programme détaillé est remis avec le présent contrat.` },
     ] },
+    ...maintien,
     { title: 'Délai de rétractation', blocks: [{ p: "À compter de la signature du présent contrat, le Stagiaire dispose d'un délai de dix jours pour se rétracter, par lettre recommandée avec avis de réception adressée à l'Organisme de formation. Dans ce cas, aucune somme ne peut être exigée du Stagiaire (article L6353-5 du Code du travail)." }] },
     { title: 'Engagements des parties', blocks: [{ p: "Le Stagiaire s'engage à suivre la formation avec assiduité et à signer les feuilles d'émargement. L'Organisme de formation s'engage à mettre en oeuvre les moyens pédagogiques, techniques et d'encadrement nécessaires pour atteindre les objectifs visés et à délivrer les documents de fin de formation." }] },
     { title: 'Dispositions financières', blocks: art3 },
@@ -352,6 +356,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
       { p: "Un certificat de réalisation mentionnant le niveau d'atteinte des objectifs est remis à l'issue de la formation." },
     ] },
     { title: 'Documents délivrés', blocks: [{ p: "À l'issue de la formation, l'Organisme de formation délivre une attestation de présence, un certificat de réalisation (acquis / non acquis) et, le cas échéant, l'attestation ou le certificat propre au module suivi." }] },
+    ...maintien,
     { title: 'Annulation et report', blocks: [{ p: (QT?.cgv && cgvCancellationText(QT.cgv.content) ? `Conformément aux articles 8 et 9 des conditions générales de vente. ${fillTemplate(cgvCancellationText(QT.cgv.content), QT.ctx)}` : "En cas d'annulation ou de report, les conditions générales de vente de l'Organisme de formation s'appliquent.") }] },
     { title: 'Accessibilité', blocks: [{ p: `${ORG.name} s'engage à favoriser l'accès à ses formations aux personnes en situation de handicap. Toute demande d'adaptation est à signaler en amont${ORG.referent_handicap_email ? ` au référent handicap (${ORG.referent_handicap_email})` : ` à ${ORG.email}`} afin de mettre en place les mesures nécessaires.` }] },
     { title: 'Protection des données', blocks: [{ p: "Les données personnelles collectées sont utilisées exclusivement pour la gestion administrative et pédagogique des formations. Elles sont conservées 5 ans et accessibles sur demande, conformément au RGPD." }] },

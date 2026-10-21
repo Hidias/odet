@@ -126,6 +126,8 @@ export function buildORG(o) {
     tva_applicable: s.tva_applicable !== false,
     rcs: s.rcs || '',
     tribunal_competent: s.tribunal_competent || '',
+    // Réserve de maintien des sessions inter (0419) : calendrier public, inscription, convention et contrat
+    mention_maintien: s.mention_maintien || '',
     nda: ndaFormatted || (s.name ? 'en cours d\'enregistrement' : ''),
     // NDA pas encore attribué : mention explicite plutôt qu'un champ vide (un organisme peut former avant l'enregistrement)
     ndaFull: ndaFormatted ? `${ndaFormatted}${s.nda_region ? ` auprès du préfet de la région ${s.nda_region}` : ''}` : (s.name ? 'en cours d\'enregistrement' : ''),

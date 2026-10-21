@@ -1415,3 +1415,8 @@ tdx('0418', 'client_prices', sel=f"company_id in {societes('commercial.devis.voi
 # qui gère les inscriptions ; confirmées ou refusées par les fonctions de la base.
 tdx('0420', 'online_registrations', sel=f"company_id in {societes('formation.inscriptions.gerer')}",
     dele=f"company_id in {societes('formation.inscriptions.gerer')}")
+
+# Créneaux récurrents (0422) : lus avec les sessions, écrits par qui crée les sessions, effacés par qui les supprime.
+tdx('0422', 'session_recurrences', sel=f"company_id in {societes('formation.sessions.voir')}",
+    ins=f"company_id in {societes('formation.sessions.creer')}", upd=f"company_id in {societes('formation.sessions.creer')}",
+    dele=f"company_id in {societes('formation.sessions.supprimer')}")
