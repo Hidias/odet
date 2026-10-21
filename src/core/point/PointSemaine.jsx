@@ -241,7 +241,7 @@ export default function PointSemaine() {
             <div>
               <label className="label" htmlFor="aj-texte">Texte</label>
               <textarea id="aj-texte" className="input min-h-[80px]" maxLength={300} value={ajout.texte} onChange={(e) => setAjout({ ...ajout, texte: e.target.value })}
-                placeholder="Ex. : bravo à Anthony pour le contrat signé chez…, ou : préparer le salon de novembre" />
+                placeholder="Ex. : bravo pour le contrat signé chez…, ou : préparer le salon de novembre" />
             </div>
             <div>
               <label className="label" htmlFor="aj-qui">Qui</label>
