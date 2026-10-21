@@ -958,7 +958,7 @@ export default function DuerpProjects() {
             <div className="flex items-center justify-between p-5 border-b">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Rattachement des risques types</h2>
-                <p className="text-ui text-gray-500 mt-0.5">{rattachementData.orphanRisks.length} risques pré-chargés depuis les templates - à affecter aux unités ou à supprimer</p>
+                <p className="text-ui text-gray-500 mt-0.5">{rattachementData.orphanRisks.length} risques préchargés depuis les modèles - à affecter aux unités ou à supprimer</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-2 py-1 rounded-full font-medium">Étape obligatoire</span>

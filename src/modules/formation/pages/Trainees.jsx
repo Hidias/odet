@@ -488,7 +488,7 @@ export default function Trainees() {
     const { error } = await uploadTraineeDocument(selectedTrainee.id, file, 'document')
     if (error) toast.error('Erreur upload')
     else {
-      toast.success('Document uploadé')
+      toast.success('Document déposé')
       const { data } = await fetchTraineeDocuments(selectedTrainee.id)
       setTraineeDocuments(data || [])
     }

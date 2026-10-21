@@ -1115,7 +1115,7 @@ export default function EnrichissementRapide() {
                       {/* Infos complémentaires */}
                       <div className="text-right text-ui-sm text-gray-500 ml-4 shrink-0">
                         {lusha.effectif_actuel && lusha.effectif_actuel !== 'NN' && (
-                          <p>Effectif API : <strong>{lusha.effectif_actuel}</strong></p>
+                          <p>Effectif (INSEE) : <strong>{lusha.effectif_actuel}</strong></p>
                         )}
                         {lusha.etat_administratif === 'A' && (
                           <p className="text-[rgb(var(--c-success))]"> Active</p>

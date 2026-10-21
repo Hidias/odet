@@ -296,7 +296,7 @@ export default function Courses() {
     
     setForm({ ...form, program_url: publicUrl })
     setUploadingProgram(false)
-    toast.success('Programme uploadé')
+    toast.success('Programme déposé')
     
     if (programInputRef.current) {
       programInputRef.current.value = ''

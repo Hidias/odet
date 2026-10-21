@@ -1160,7 +1160,7 @@ function MediaPicker({ media, selected, onSelect }) {
 
         if (mediaError) throw mediaError
         onSelect(mediaData)
-        toast.success(`${file.name} uploadé !`)
+        toast.success(`${file.name} déposé`)
       } catch (err) {
         console.error('Erreur upload:', err)
         toast.error(`Erreur upload ${file.name}`)
@@ -1590,7 +1590,7 @@ function LibraryTab({ media, onUpdate }) {
         console.error('Erreur upload:', err)
       }
     }
-    toast.success(`${count} fichier(s) uploadé(s)`)
+    toast.success(`${count} fichier(s) déposé(s)`)
     setUploading(false)
     onUpdate?.()
   }

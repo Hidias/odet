@@ -504,7 +504,7 @@ export default function AdminImport() {
 
         <div className="mb-6">
           <h1 className="page-title mb-2"> Import &amp; Enrichissement</h1>
-          <p className="text-gray-600">Import API INSEE, enrichissement sites web, et import depuis fichier</p>
+          <p className="text-gray-600">Import depuis la base INSEE, enrichissement par les sites web, import depuis un fichier</p>
         </div>
 
         {/* Onglets */}
@@ -637,7 +637,7 @@ export default function AdminImport() {
             <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4 mt-6">
               <h3 className="font-semibold text-[rgb(var(--c-info))] mb-2"> Infos</h3>
               <p className="text-ui text-[rgb(var(--c-info))] mb-1"><strong>Import :</strong> 14 tranches d'effectif par département - SCI et auto-entrepreneurs exclus</p>
-              <p className="text-ui text-[rgb(var(--c-info))] mb-1"><strong>Enrichissement :</strong> Cron automatique à 3h du matin (20 prospects/nuit)</p>
+              <p className="text-ui text-[rgb(var(--c-info))] mb-1"><strong>Enrichissement :</strong> Tâche automatique à 3h du matin (20 prospects par nuit)</p>
               <p className="text-ui text-[rgb(var(--c-info))]"><strong>Rapport phoning :</strong> Email hebdo chaque lundi à 8h</p>
             </div>
           </>
@@ -650,7 +650,7 @@ export default function AdminImport() {
               <h2 className="text-lg font-semibold mb-4"> Enrichissement - Scraping Sites Web</h2>
               <p className="text-ui text-gray-600 mb-2">• Scrape les sites web des prospects pour extraire emails &amp; téléphones</p>
               <p className="text-ui text-gray-600 mb-2">• Traite {enrichBatchSize} prospects par batch (~2-3 minutes)</p>
-              <p className="text-ui text-gray-600 mb-4">•  Cron automatique chaque nuit à 3h du matin</p>
+              <p className="text-ui text-gray-600 mb-4">•  Tâche automatique chaque nuit à 3h du matin</p>
               <div className="flex items-center gap-3 mb-4">
                 <label className="text-ui text-gray-700">Batch size :</label>
                 <select value={enrichBatchSize} onChange={(e) => setEnrichBatchSize(Number(e.target.value))} className="border rounded px-3 py-1 text-ui" disabled={enriching}>

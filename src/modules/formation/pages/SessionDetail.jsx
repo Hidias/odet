@@ -1399,7 +1399,7 @@ export default function SessionDetail() {
     }
     
     setSession({ ...session, ...updateData })
-    toast.success('Convention signée uploadée avec succès')
+    toast.success('Convention signée déposée')
   }
   
   // Modifier la date de réception de la convention signée
@@ -1885,7 +1885,7 @@ export default function SessionDetail() {
     const { error } = await uploadSessionDocument(session.id, file, uploadCategory)
     if (error) toast.error('Erreur upload')
     else {
-      toast.success('Document uploadé')
+      toast.success('Document déposé')
       const { data } = await fetchSessionDocuments(session.id)
       setSessionDocs(data || [])
     }
@@ -2083,7 +2083,7 @@ export default function SessionDetail() {
       const { data } = await getSession(id)
       if (data) setSession(data)
       
-      toast.success('Carte FORPREV uploadée !', { id: 'forprev-upload' })
+      toast.success('Carte FORPREV déposée', { id: 'forprev-upload' })
     } catch (error) {
       console.error('Erreur upload FORPREV:', error)
       toast.error('Erreur lors de l\'upload', { id: 'forprev-upload' })
@@ -5102,7 +5102,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
             </label>
           </div>}
-          {sessionDocs.length === 0 ? <p className="text-gray-500 text-center py-8">Aucun document uploadé</p> : (
+          {sessionDocs.length === 0 ? <p className="text-gray-500 text-center py-8">Aucun document déposé</p> : (
             <div className="divide-y">
               {sessionDocs.map(doc => (
                 <div key={doc.id} className="py-3 flex items-center justify-between">
