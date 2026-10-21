@@ -897,7 +897,7 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
           if (dbErr) { console.error('DB insert error:', dbErr); continue }
           uploaded++
         }
-        if (uploaded > 0) toast.success(`${uploaded} PJ uploadée(s)`)
+        if (uploaded > 0) toast.success(`${uploaded} pièce(s) jointe(s) déposée(s)`)
       }
 
       toast.success(`Sauvegardé : ${form.description}`)
@@ -1013,7 +1013,7 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
         if (dbErr) { console.error('DB insert error:', dbErr); errors++; continue }
         uploaded++
       }
-      if (uploaded > 0) toast.success(`${uploaded} fichier(s) uploadé(s)`)
+      if (uploaded > 0) toast.success(`${uploaded} fichier(s) déposé(s)`)
       if (errors > 0) toast.error(`${errors} fichier(s) en erreur d'upload`)
     }
 

@@ -205,7 +205,7 @@ export default function Documents() {
       console.error(error)
       toast.error('Erreur lors de l\'upload')
     } else {
-      toast.success('Fichier uploadé avec succès')
+      toast.success('Fichier déposé')
       resetUploadForm()
     }
   }
@@ -244,7 +244,7 @@ export default function Documents() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="page-title">Documents</h1>
-          <p className="text-gray-500 mt-1">Fichiers uploadés et documents vierges</p>
+          <p className="text-gray-500 mt-1">Fichiers déposés et documents vierges</p>
         </div>
         {activeTab === 'uploaded' && d.modifier && (
           <button 
