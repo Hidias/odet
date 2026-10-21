@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import OrigineSelect, { useOrigines } from '../../../core/apports/OrigineSelect'
+import { valeurOrigine, lireOrigine } from '../../../core/apports/apports'
 import toast from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
@@ -37,7 +39,11 @@ export function AffaireSheet({ affaire = null, clientId = null, listes, onClose,
     next_action: affaire?.next_action || '',
     source: affaire?.source || '',
     lost_reason: affaire?.lost_reason || '',
+    // Qui a apporté quoi (0409) : origine propre à l'affaire (sinon celle du client) et idée
+    origine: valeurOrigine(affaire?.introduced_by_profile, affaire?.introduced_by_contributor),
+    idea_by: affaire?.idea_by ? `p:${affaire.idea_by}` : '',
   }))
+  const origines = useOrigines()
   const [clients, setClients] = useState(null)
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e?.target ? e.target.value : e }))
@@ -62,6 +68,8 @@ export function AffaireSheet({ affaire = null, clientId = null, listes, onClose,
       expected_on: f.expected_on || null, next_action_on: f.next_action_on || null, next_action: f.next_action.trim() || null,
       source: f.source || null, lost_reason: f.stage === 'perdue' ? f.lost_reason : null,
     }
+    // Colonnes d'origine seulement si la base les connaît (0409) : sinon l'enregistrement reste comme avant
+    if (origines.disponible) Object.assign(ligne, lireOrigine(f.origine), { idea_by: lireOrigine(f.idea_by).introduced_by_profile })
     if (!neuve && ligne.stage === affaire.stage) delete ligne.stage
     setBusy(true)
     const req = neuve ? supabase.from('opportunities').insert(ligne).select('id').single()
@@ -146,6 +154,16 @@ export function AffaireSheet({ affaire = null, clientId = null, listes, onClose,
               {(listes?.source || []).filter((s) => s.is_active !== false).map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
             </select>
           </div>
+          {origines.disponible && <>
+            <div>
+              <label className="label" htmlFor="af-apport">Apportée par</label>
+              <OrigineSelect id="af-apport" value={f.origine} onChange={set('origine')} origines={origines} vide="Comme le client" />
+            </div>
+            <div>
+              <label className="label" htmlFor="af-idee">Idée de</label>
+              <OrigineSelect id="af-idee" value={f.idea_by} onChange={set('idea_by')} origines={origines} vide="—" membresSeulement />
+            </div>
+          </>}
         </div>
       </details>
     </Sheet>

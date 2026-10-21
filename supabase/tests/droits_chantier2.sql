@@ -4950,6 +4950,36 @@ begin
     end;
   end if;
 
+  -- Qui a apporté quoi (0409) : chaîne d'apport, avoir en moins, facture d'une autre société absente
+  if to_regclass('public.business_contributors') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare z_co uuid; z_c uuid; z_b uuid; z_i uuid; z_p uuid; z_r jsonb;
+    begin
+      z_co := (select id from public.companies order by created_at limit 1);
+      z_p := (select m.profile_id from public.company_members m where m.company_id = z_co limit 1);
+      insert into public.business_contributors (company_id, name, introduced_by_profile) values (z_co, 'Prescripteur essai 0409', z_p) returning id into z_b;
+      begin
+        update public.business_contributors set introduced_by_contributor = z_b where id = z_b;
+        v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0409 : un apporteur s''amène lui-même'::text;
+      exception when check_violation then
+        v_lines := v_lines || 'OK      base  0409 : un apporteur ne s''amène pas lui-même'::text;
+      end;
+      insert into public.clients (name, company_id, introduced_by_contributor) values ('Client essai 0409', z_co, z_b) returning id into z_c;
+      if exists (select 1 from public.clients where id = z_c and introduced_by_contributor = z_b)
+         and exists (select 1 from public.business_contributors where id = z_b and introduced_by_profile is not distinct from z_p) then
+        v_lines := v_lines || 'OK      base  0409 : chaîne d''apport notée (membre, apporteur, client)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0409 : chaîne d''apport absente'::text; end if;
+      delete from public.clients where id = z_c;
+      delete from public.business_contributors where id = z_b;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0409 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
