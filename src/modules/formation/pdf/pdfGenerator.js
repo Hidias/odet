@@ -1722,11 +1722,14 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
 
   // ── Portail stagiaire (QR code) ──
   const qrSize = 28
-  const portalTxt = "Avant la formation, scannez le QR code pour accéder au portail stagiaire et compléter votre fiche de renseignements et votre test de positionnement. Le jour de la formation, votre présence est enregistrée par demi-journée depuis ce même portail (ou sur feuille papier en cas d'indisponibilité du réseau)."
+  const portalTxt = "Avant la formation, scannez le QR code (ou ouvrez le lien ci-dessous) pour accéder au portail stagiaire : complétez votre fiche de renseignements, indiquez vos attentes et faites votre test de positionnement. Le jour de la formation, votre présence est enregistrée par demi-journée depuis ce même portail (ou sur feuille papier en cas d'indisponibilité du réseau)."
   const textW = qrCodeDataURL ? W - qrSize - 14 : W - 8
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
   const pLines = doc.splitTextToSize(portalTxt, textW)
-  const boxH = Math.max(qrCodeDataURL ? qrSize + 11 : 0, 12 + pLines.length * 4.2 + 3)
+  // Lien en clair, cliquable, pour qui lit la convocation sur son téléphone ou son ordinateur
+  const portalLien = session?.attendance_token ? `${publicBaseUrl()}/#/portail/${session.attendance_token}` : ''
+  const lienLignes = portalLien ? doc.splitTextToSize(portalLien, textW) : []
+  const boxH = Math.max(qrCodeDataURL ? qrSize + 11 : 0, 12 + (pLines.length + lienLignes.length) * 4.2 + 3)
   f.ensure(boxH + 2)
   const by = f.y
   doc.setFillColor(...t.surface); doc.rect(M, by, W, boxH, 'F')
@@ -1735,6 +1738,11 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
   doc.text('PORTAIL STAGIAIRE ET ÉMARGEMENT', M + 4, by + 5.5, { charSpace: 0.4 })
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
   pLines.forEach((l, i) => doc.text(l, M + 4, by + 11.5 + i * 4.2))
+  if (lienLignes.length) {
+    doc.setFontSize(8); doc.setTextColor(...t.accent)
+    lienLignes.forEach((l, i) => doc.textWithLink(l, M + 4, by + 11.5 + (pLines.length + i) * 4.2, { url: portalLien }))
+    doc.setFontSize(9); doc.setTextColor(...t.text)
+  }
   if (qrCodeDataURL) {
     const qx = M + W - qrSize - 5
     const qy = by + 4

@@ -4980,6 +4980,44 @@ begin
     end;
   end if;
 
+  -- Portail stagiaire (0410) : une seule notification par session et par jour, tenue à jour, « prêts » quand tout est fait
+  if to_regprocedure('app.portail_avancement(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare z_s uuid; z_t1 uuid; z_t2 uuid; z_n int; z_titre text;
+    begin
+      insert into public.sessions (start_date, end_date) values (current_date + 30, current_date + 30) returning id into z_s;
+      insert into public.trainees (first_name, last_name) values ('Essai', 'Portail un') returning id into z_t1;
+      insert into public.trainees (first_name, last_name) values ('Essai', 'Portail deux') returning id into z_t2;
+      insert into public.session_trainees (session_id, trainee_id) values (z_s, z_t1), (z_s, z_t2);
+      insert into public.trainee_info_sheets (session_id, trainee_id, filled_online, training_expectations) values (z_s, z_t1, true, 'Savoir réagir')
+        on conflict (session_id, trainee_id) do update set filled_online = true, training_expectations = 'Savoir réagir';
+      update public.session_trainees set positioning_test_completed = true where session_id = z_s and trainee_id = z_t1;
+      select count(*) into z_n from public.notifications where type = 'portail_stagiaire' and metadata->>'session_id' = z_s::text;
+      if z_n = 1 and exists (select 1 from public.notifications where type = 'portail_stagiaire' and metadata->>'session_id' = z_s::text
+                             and message like '1 fiche de renseignements sur 2, 1 test de positionnement, 1 stagiaire a indiqué%') then
+        v_lines := v_lines || 'OK      base  0410 : une seule notification par session, tenue à jour'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0410 : notifications ' || z_n)::text; end if;
+      insert into public.trainee_info_sheets (session_id, trainee_id, filled_online) values (z_s, z_t2, true)
+        on conflict (session_id, trainee_id) do update set filled_online = true;
+      update public.session_trainees set positioning_test_completed = true where session_id = z_s and trainee_id = z_t2;
+      select title into z_titre from public.notifications where type = 'portail_stagiaire' and metadata->>'session_id' = z_s::text;
+      if z_titre like 'Tous les stagiaires sont prêts%' then
+        v_lines := v_lines || 'OK      base  0410 : « tous prêts » quand fiches et tests sont faits'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0410 : titre ' || coalesce(z_titre, 'absent'))::text; end if;
+      delete from public.notifications where type = 'portail_stagiaire' and metadata->>'session_id' = z_s::text;
+      delete from public.trainee_info_sheets where session_id = z_s;
+      delete from public.session_trainees where session_id = z_s;
+      delete from public.sessions where id = z_s;
+      delete from public.trainees where id in (z_t1, z_t2);
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0410 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

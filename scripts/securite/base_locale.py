@@ -261,6 +261,8 @@ ORDRE_PROD = (
     + ['0408']
     # Qui a apporté quoi, 21/10
     + ['0409']
+    # Avancement des stagiaires sur le portail, une notification par session et par jour, 21/10
+    + ['0410']
 )
 
 
