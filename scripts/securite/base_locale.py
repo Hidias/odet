@@ -275,6 +275,8 @@ ORDRE_PROD = (
     + ['0415']
     # Rappel du matin, 21/10
     + ['0416']
+    # Émargement sans réseau (envoi différé), 21/10
+    + ['0417']
 )
 
 

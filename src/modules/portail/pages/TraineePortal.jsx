@@ -12,6 +12,7 @@ import { fr } from 'date-fns/locale'
 import TraineeDocuments from '../../formation/components/TraineeDocuments'
 import CompteStagiairePortail from '../components/CompteStagiairePortail'
 import RessentiJour from '../components/RessentiJour'
+import { estPanneReseau, garder, enAttente, envoyerEnAttente } from '../lib/fileSignatures'
 import { Banner } from '../../../ui/Banner'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
 import QuizEngine from '../../formation/quiz/QuizEngine'
@@ -649,12 +650,40 @@ export default function TraineePortal() {
     return { ouvert: true }
   }
 
+  // Émargement sans réseau (0417) : signatures gardées sur ce téléphone, envoyées au retour du réseau
+  const [signaturesEnAttente, setSignaturesEnAttente] = useState(() => enAttente(token).length)
+  useEffect(() => {
+    if (!token) return undefined
+    let actif = true
+    const essayer = async () => {
+      if (enAttente(token).length === 0) { if (actif) setSignaturesEnAttente(0); return }
+      const r = await envoyerEnAttente(supabase, token)
+      if (!actif) return
+      setSignaturesEnAttente(enAttente(token).length)
+      if (r.refus.length) setPortalError(`Une signature faite sans réseau n'a pas été acceptée : ${r.refus[0].error}. Prévenez votre formateur.`)
+    }
+    essayer()
+    const t = setInterval(essayer, 20000)
+    window.addEventListener('online', essayer)
+    return () => { actif = false; clearInterval(t); window.removeEventListener('online', essayer) }
+  }, [token])
+
   const handleSignPeriod = async (period, image) => {
     const key = `${today}_${period}`
     setSigningPeriod(null)
     setSigningBusy(true)
     try {
-      const { data, error } = await supabase.rpc('portal_sign_halfday', { p_token: token, p_trainee_id: selectedTrainee.id, p_period: period, p_signature: image })
+      let reponse
+      try {
+        reponse = await supabase.rpc('portal_sign_halfday', { p_token: token, p_trainee_id: selectedTrainee.id, p_period: period, p_signature: image })
+      } catch (e) { reponse = { error: e } }
+      // Coupure de réseau : la signature est gardée sur ce téléphone avec son heure, envoyée au retour du réseau
+      if (reponse.error && estPanneReseau(reponse.error)) {
+        if (!garder({ token, traineeId: selectedTrainee.id, period, image, date: today })) throw reponse.error
+        setSignaturesEnAttente(enAttente(token).length)
+        reponse = { data: { ok: true } }
+      }
+      const { data, error } = reponse
       if (error) throw error
       if (!data?.ok) {
         setPortalError(data?.error || "La signature n'a pas pu être enregistrée")
@@ -813,6 +842,13 @@ export default function TraineePortal() {
     <div className="min-h-screen py-4 px-3 sm:py-6 sm:px-4" style={{ background: 'rgb(var(--ground))' }}>
       <style>{portalStyles}</style>
       <div className="max-w-lg mx-auto">
+        {signaturesEnAttente > 0 && (
+          <div className="mb-3">
+            <Banner tone="warning" title={`${signaturesEnAttente} signature${signaturesEnAttente > 1 ? 's' : ''} gardée${signaturesEnAttente > 1 ? 's' : ''} sur ce téléphone`}>
+              Pas de réseau pour l'instant : l'envoi se fera tout seul dès son retour, avec l'heure de votre signature. Si possible, gardez cette page ouverte.
+            </Banner>
+          </div>
+        )}
         {portalError && (
           <div className="fixed inset-x-0 bottom-0 z-50 p-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
             <div className="max-w-lg mx-auto bg-white" style={{ borderRadius: 'var(--radius-ui)', boxShadow: 'var(--shadow-pop)' }}>
