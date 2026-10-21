@@ -664,7 +664,7 @@ begin
   r := r || ' connecte_lit_nir=' || has_table_privilege('authenticated', 'public.pp_nir', 'select');
   r := r || ' refus=' || (select count(*) from public.trainees where refused_ssn);
   -- superadmin
-  perform set_config('request.jwt.claim.sub', '38038f89-81e6-41aa-91db-de56b62f0a43', true);
+  perform set_config('request.jwt.claim.sub', coalesce((select p.id::text from public.profiles p where p.role = 'superadmin' order by p.created_at limit 1), ''), true);
   perform set_config('request.jwt.claim.role', 'authenticated', true);
   execute 'set local role authenticated';
   d := public.pp_donnees();
