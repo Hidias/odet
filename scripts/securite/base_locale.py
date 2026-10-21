@@ -255,6 +255,8 @@ ORDRE_PROD = (
     + ['0405']
     # Signature en ligne des devis et contrats, 21/10
     + ['0406']
+    # Actions de l'équipe, point de la semaine et bilan, 21/10
+    + ['0407']
 )
 
 

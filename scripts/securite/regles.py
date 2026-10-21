@@ -1360,3 +1360,16 @@ tdx('0401', 'portal_events', sel=f"company_id in {societes('clients.fiches.voir'
 tdx('0404', 'client_shared_documents', sel=any_of(f"company_id in {societes('clients.fiches.voir')}",
     f"(company_id in {societes('interventions.missions.voir')} and client_id in (select app.tech_client_ids()))"),
     upd=f"company_id in {societes('clients.fiches.modifier')}")
+
+# Point de la semaine (0407) : les actions de l'équipe sont lues et modifiées par la direction (droit du cockpit),
+# et par leur responsable ou leur auteur ; tout membre d'une société en ajoute ; effacées par la direction ou leur
+# auteur. Point, bilan et destinataires : direction (cockpit) ; chacun voit s'il est destinataire ; les destinataires
+# se choisissent aussi avec la gestion des utilisateurs.
+_PT_DIR = f"company_id in {societes('manager.cockpit.voir')}"
+_PT_MIEN = "(company_id in (select app.visible_companies()) and (owner_id = (select auth.uid()) or created_by = (select auth.uid())))"
+tdx('0407', 'team_actions', sel=any_of(_PT_DIR, _PT_MIEN), ins=VISIBLE, upd=any_of(_PT_DIR, _PT_MIEN),
+    dele=any_of(_PT_DIR, "(company_id in (select app.visible_companies()) and created_by = (select auth.uid()))"))
+tdx('0407', 'weekly_briefs', sel=_PT_DIR, ins=_PT_DIR, upd=_PT_DIR, dele=_PT_DIR)
+_PT_DEST = any_of(_PT_DIR, f"company_id in {societes('parametres.utilisateurs.gerer')}")
+tdx('0407', 'weekly_brief_recipients', sel=any_of(_PT_DEST, "profile_id = (select auth.uid())"), ins=_PT_DEST, upd=_PT_DEST,
+    dele=_PT_DEST)

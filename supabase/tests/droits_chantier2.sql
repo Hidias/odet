@@ -4851,6 +4851,65 @@ begin
     end;
   end if;
 
+  -- Point de la semaine (0407) : reports comptés, action faite datée, point préparé, choix gardés, bilan, nuit
+  if to_regclass('public.weekly_briefs') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare z_co uuid; z_a uuid; z_w date; z_b public.weekly_briefs; z_l jsonb; z_p uuid; z_r jsonb;
+    begin
+      z_co := (select id from public.companies order by created_at limit 1);
+      z_w := date_trunc('week', (now() at time zone 'Europe/Paris')::date)::date + 70;
+      insert into public.team_actions (company_id, title, due_on) values (z_co, 'Action essai 0407', z_w + 1) returning id into z_a;
+      update public.team_actions set due_on = z_w + 2 where id = z_a;
+      update public.team_actions set status = 'fait' where id = z_a;
+      if (select postponed_count = 1 and done_at is not null from public.team_actions where id = z_a) then
+        v_lines := v_lines || 'OK      base  0407 : report compté, action faite datée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0407 : report ou date de fin absents'::text; end if;
+      update public.team_actions set status = 'a_faire' where id = z_a;
+      z_b := app.point_preparer(z_co, z_w, 'point', null);
+      if exists (select 1 from jsonb_array_elements(z_b.lines) l where l->>'id' = 'act:' || z_a and l->>'section' = 'semaine') then
+        v_lines := v_lines || 'OK      base  0407 : action de la semaine dans le point'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0407 : action absente du point'::text; end if;
+      -- Ligne retirée et ligne ajoutée à la main : gardées quand on actualise
+      select jsonb_agg(case when l->>'id' = 'act:' || z_a then l || '{"retire": true}'::jsonb else l end) into z_l from jsonb_array_elements(z_b.lines) l;
+      update public.weekly_briefs set lines = z_l || '[{"id": "m:essai", "section": "divers", "texte": "Ligne à la main", "manuel": true}]'::jsonb where id = z_b.id;
+      z_b := app.point_preparer(z_co, z_w, 'point', null);
+      if exists (select 1 from jsonb_array_elements(z_b.lines) l where l->>'id' = 'act:' || z_a and (l->>'retire')::boolean)
+         and exists (select 1 from jsonb_array_elements(z_b.lines) l where l->>'id' = 'm:essai') then
+        v_lines := v_lines || 'OK      base  0407 : choix et lignes à la main gardés à l''actualisation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0407 : choix perdus à l''actualisation'::text; end if;
+      -- Bilan : reprend les lignes gardées du point (pas la retirée), et l'action de la semaine
+      z_b := app.point_preparer(z_co, z_w, 'bilan', null);
+      if exists (select 1 from jsonb_array_elements(z_b.lines) l where l->>'id' = 'm:essai')
+         and exists (select 1 from jsonb_array_elements(z_b.lines) l where l->>'id' = 'act:' || z_a) then
+        v_lines := v_lines || 'OK      base  0407 : bilan préparé à partir du point'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0407 : bilan incomplet'::text; end if;
+      -- Nuit : point préparé un lundi là où un destinataire est choisi, une seule fois
+      z_p := (select m.profile_id from public.company_members m where m.company_id = z_co limit 1);
+      delete from public.weekly_briefs where company_id = z_co and week_start = z_w;
+      if z_p is not null then
+        insert into public.weekly_brief_recipients (company_id, profile_id, point) values (z_co, z_p, true)
+          on conflict (company_id, profile_id) do update set point = true;
+        z_r := public.point_semaine_generer(z_w);
+        if (z_r->>'prepares')::int >= 1 and (public.point_semaine_generer(z_w)->>'prepares')::int = 0
+           and exists (select 1 from public.weekly_briefs where company_id = z_co and week_start = z_w and kind = 'point') then
+          v_lines := v_lines || 'OK      base  0407 : point préparé la nuit du lundi, une seule fois'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0407 : préparation de nuit'::text; end if;
+        delete from public.notifications where type = 'point_semaine' and link like '/point-semaine?semaine=' || z_w || '%';
+        delete from public.weekly_brief_recipients where company_id = z_co and profile_id = z_p;
+      else
+        v_lines := v_lines || 'OK      base  0407 : préparation de nuit (aucun membre, non vérifiée)'::text;
+      end if;
+      delete from public.weekly_briefs where company_id = z_co and week_start = z_w;
+      delete from public.team_actions where id = z_a;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0407 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
