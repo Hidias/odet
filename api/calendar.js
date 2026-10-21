@@ -12,7 +12,7 @@
 
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
-import { requireRight, ADMINS, OFFICE_WRITE } from './_lib/auth.js'
+import { requireRight, ADMINS, OFFICE_WRITE, safeEqual } from './_lib/auth.js'
 import { getOrg } from './_lib/mailer.js'
 import { loadTeam, profileFirstName } from './_lib/team.js'
 import { appUrl } from './_lib/internal.js'
@@ -46,7 +46,7 @@ function signTrainer(trainer) {
 
 function validKey(trainer, key) {
   const secrets = [process.env.CALENDAR_SECRET, legacySecret()].filter(Boolean)
-  return secrets.some((secret) => sameKey(key, hmacTrainer(secret, trainer)))
+  return secrets.some((secret) => safeEqual(key, hmacTrainer(secret, trainer)))
 }
 
 // Formateur → utilisateur relié (profiles.trainer_id) : prénom porté par les RDV, id des événements personnels

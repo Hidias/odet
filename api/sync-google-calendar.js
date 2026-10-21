@@ -54,6 +54,7 @@ async function loadCalendarMap() {
       calendarId: p.gcal_id || p.sender_email || p.email,
       trainerId: p.trainer_id || null,
       conductedBy: profileFirstName(p),
+      trainerName: [p.first_name, p.last_name].filter(Boolean).join(' ') || p.display_name || profileFirstName(p),
       userId: p.id,
       // Rappels sans auteur de l'équipe (opérateur externe, ancien utilisateur) : à la direction
       takesOrphanCallbacks: heads.has(p.id),
@@ -331,7 +332,7 @@ async function buildExpectedEvents(trainerConfig, pastDate, futureDate) {
           `Formation : ${courseName}`,
           clientName ? `Client : ${clientName}` : null,
           session.reference ? `Réf : ${session.reference}` : null,
-          `Formateur : ${trainerData.first_name} ${trainerData.last_name}`,
+          trainerConfig.trainerName ? `Formateur : ${trainerConfig.trainerName}` : null,
           session.notes ? `\nNotes : ${session.notes}` : null,
         ].filter(Boolean).join('\n'),
         location: locationParts.join(', '),

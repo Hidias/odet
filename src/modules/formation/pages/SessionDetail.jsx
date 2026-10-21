@@ -13,7 +13,7 @@ import {
   Download, CheckCircle, AlertCircle, Copy, ExternalLink, X, Edit, Trash2, Save,
   FileSignature, Send, Upload, Eye, Star, ThumbsUp, ClipboardCheck, UserCheck, HelpCircle, Home, Target,
   Sun, Moon, Plus, ChevronDown, Search, LogOut, MessageSquare, CheckCircle2, FileCheck, Mail, Archive, Receipt,
-  Briefcase, Check, User, PenLine, UserX, Smartphone
+  Briefcase, Check, User, PenLine, UserX, Smartphone, Loader2
 } from 'lucide-react'
 import { format, eachDayOfInterval, parseISO, differenceInDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -3750,7 +3750,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 className="btn btn-secondary flex items-center gap-2 text-[rgb(var(--c-warning))] border-[rgb(var(--c-warning)/0.3)] hover:bg-[rgb(var(--c-warning-bg))]"
               >
                 {sendingHotEvalReminder ? (
-                  <><Loader className="w-4 h-4 animate-spin" />Envoi...</>
+                  <><Loader2 className="w-4 h-4 animate-spin" />Envoi...</>
                 ) : (
                   <><Send className="w-4 h-4" />Relancer les non-répondants</>
                 )}

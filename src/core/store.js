@@ -1361,7 +1361,7 @@ export const useDataStore = create((set, get) => ({
         session_id: sessionId,
         document_type: category,
         file_path: filePath,
-        file_name: displayFileName,
+        file_name: file.name,
         file_url: urlData?.publicUrl || null,
         notes
       }])
