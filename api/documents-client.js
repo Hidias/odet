@@ -22,6 +22,8 @@ const TABLES = {
   quote: ['quotes', 'client_id'],
   itv_visit: ['itv_visits', 'client_id'],
   itv_contract: ['itv_contracts', 'client_id'],
+  // Groupe inter (0420) : convention ou contrat du groupe, signé en ligne par son client
+  session_group: ['session_groups', 'client_id'],
 }
 const KINDS = ['rapport', 'facture', 'devis', 'contrat', 'convention', 'attestation', 'autre']
 

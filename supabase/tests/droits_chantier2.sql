@@ -5451,6 +5451,99 @@ begin
     end;
   end if;
 
+  -- Inscription en ligne (0420) : dépôt public contrôlé, confirmation sans doublon par qui gère les inscriptions
+  if to_regclass('public.online_registrations') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare i_s uuid; i_j jsonb; i_id uuid; i_id2 uuid; i_ok boolean; i_avant boolean; i_c uuid; i_n int;
+      i_ins jsonb := '{"kind":"entreprise","contact_first_name":"Claire","contact_last_name":"Essai","contact_email":"claire.essai@test.invalid","company_name":"Essai inscription SARL","siret":"12345678200010","postal_code":"29200","city":"Brest","consent":true,"participants":[{"first_name":"Paul","last_name":"Inscrit","email":"paul.inscrit@test.invalid"},{"first_name":"Luc","last_name":"Inscrit"}]}';
+    begin
+      select calendrier_public into i_avant from public.organization_settings limit 1;
+      update public.organization_settings set calendrier_public = false;
+      insert into public.sessions (session_type, is_public, start_date, end_date, max_participants, public_price_per_person)
+        values ('inter', true, current_date + 25, current_date + 25, 3, 210) returning id into i_s;
+      execute 'set local role anon';
+      i_ok := false;
+      begin perform public.public_inscrire(i_s, i_ins); exception when others then i_ok := sqlerrm like 'Inscriptions en ligne fermées%'; end;
+      execute 'reset role';
+      update public.organization_settings set calendrier_public = true;
+      execute 'set local role anon';
+      i_j := public.public_inscrire(i_s, i_ins);
+      i_id := (i_j->>'id')::uuid;
+      begin
+        perform public.public_inscrire(i_s, jsonb_set(i_ins, '{participants}', '[{"first_name":"A","last_name":"B"},{"first_name":"C","last_name":"D"},{"first_name":"E","last_name":"F"},{"first_name":"G","last_name":"H"}]'));
+        i_ok := false;
+      exception when others then i_ok := i_ok and sqlerrm like 'Plus assez de places%';
+      end;
+      begin
+        perform public.public_inscrire(i_s, i_ins - 'consent');
+        i_ok := false;
+      exception when others then null;
+      end;
+      execute 'reset role';
+      if i_ok and i_id is not null and exists (select 1 from public.notifications where type = 'inscription_en_ligne' and metadata->>'registration_id' = i_id::text) then
+        v_lines := v_lines || 'OK      anon  0420 : inscription en ligne seulement calendrier publié, places et accord contrôlés, équipe prévenue'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0420 : contrôles du dépôt public'::text; end if;
+      execute 'set local role anon';
+      i_ok := false;
+      begin perform 1 from public.online_registrations limit 1; i_ok := not found; exception when others then i_ok := true; end;
+      execute 'reset role';
+      if i_ok then v_lines := v_lines || 'OK      anon  0420 : inscriptions illisibles sans compte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0420 : inscriptions lisibles sans compte'::text; end if;
+      -- Confirmation par la direction
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      i_j := public.inscription_confirmer(i_id);
+      execute 'reset role';
+      i_c := (i_j->>'client_id')::uuid;
+      select count(*) into i_n from public.session_trainees where session_id = i_s and group_id = (i_j->>'group_id')::uuid;
+      if i_n = 2 and (select price_per_person from public.session_groups where id = (i_j->>'group_id')::uuid) = 210
+         and (select siret from public.clients where id = i_c) = '12345678200010'
+         and (select status from public.online_registrations where id = i_id) = 'confirmee' then
+        v_lines := v_lines || 'OK      dir   0420 : confirmation : client, groupe au prix public, deux stagiaires inscrits'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0420 : confirmation ' || coalesce(i_j::text, ''))::text; end if;
+      -- Deuxième inscription de la même entreprise : même client, même groupe, aucun stagiaire en double
+      perform set_config('request.jwt.claims', '', true);
+      execute 'set local role anon';
+      i_j := public.public_inscrire(i_s, jsonb_set(i_ins, '{participants}', '[{"first_name":"Paul","last_name":"Inscrit","email":"paul.inscrit@test.invalid"}]'));
+      i_id2 := (i_j->>'id')::uuid;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      i_j := public.inscription_confirmer(i_id2);
+      execute 'reset role';
+      if (i_j->>'client_id')::uuid = i_c and (select count(*) from public.trainees where client_id = i_c) = 2
+         and (select count(*) from public.session_groups where session_id = i_s) = 1 then
+        v_lines := v_lines || 'OK      dir   0420 : nouvelle inscription de la même entreprise sans doublon (client, groupe, stagiaires)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0420 : doublon ' || coalesce(i_j::text, ''))::text; end if;
+      -- Sans le droit : refusé
+      perform set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      i_ok := false;
+      begin perform public.inscription_refuser(i_id2, 'essai'); exception when others then i_ok := true; end;
+      execute 'reset role';
+      if i_ok then v_lines := v_lines || 'OK      sans  0420 : confirmer ou refuser demande le droit de gérer les inscriptions'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sans  0420 : inscription traitée sans droit'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+      update public.organization_settings set calendrier_public = coalesce(i_avant, false);
+      delete from public.notifications where type = 'inscription_en_ligne' and metadata->>'session_id' = i_s::text;
+      delete from public.online_registrations where session_id = i_s;
+      delete from public.trainee_info_sheets where session_id = i_s;
+      delete from public.session_trainees where session_id = i_s;
+      delete from public.session_groups where session_id = i_s;
+      delete from public.sessions where id = i_s;
+      delete from public.trainees where client_id = i_c;
+      delete from public.client_contacts where client_id = i_c;
+      delete from public.sites where client_id = i_c;
+      delete from public.clients where id = i_c;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0420 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
