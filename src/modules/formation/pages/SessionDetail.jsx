@@ -576,6 +576,9 @@ export default function SessionDetail() {
         status: found.status,
         notes: found.notes || '',
         total_price: found.total_price || '',
+        is_public: !!found.is_public,
+        public_price_per_person: found.public_price_per_person ?? '',
+        max_participants: found.max_participants ?? '',
         is_intra: found.is_intra || false,
         trainer_id: currentTrainer,
         requires_forprev: found.requires_forprev || false,
@@ -5529,6 +5532,26 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   <label className="label">Prix total HT (€) - surcharge le prix formation</label>
                   <input type="number" className="input" value={editForm.total_price} onChange={(e) => setEditForm({...editForm, total_price: e.target.value})} placeholder="Vide = tarif du client, sinon prix formation" />
                 </div>
+
+                {/* Calendrier public des sessions inter (0419) */}
+                {session?.session_type === 'inter' && (
+                  <div className="p-3 border border-gray-200 rounded-ui-sm space-y-2">
+                    <label className="flex items-center gap-2 text-ui text-gray-800">
+                      <input type="checkbox" checked={!!editForm.is_public} onChange={(e) => setEditForm({ ...editForm, is_public: e.target.checked })} />
+                      Publier au calendrier public
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="label" htmlFor="sess-prix-public">Prix public HT par personne (€)</label>
+                        <input id="sess-prix-public" type="number" min="0" step="0.01" className="input" value={editForm.public_price_per_person} onChange={(e) => setEditForm({ ...editForm, public_price_per_person: e.target.value })} placeholder="Vide = « sur demande »" />
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="sess-places">Places (maximum)</label>
+                        <input id="sess-places" type="number" min="1" className="input" value={editForm.max_participants} onChange={(e) => setEditForm({ ...editForm, max_participants: e.target.value })} />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Contact pour convocations */}
                 <div className="p-3 bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm space-y-3">

@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks, Network, Pencil, X, Power,
+  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks, Network, Pencil, X, Power, CalendarDays,
 } from 'lucide-react'
 import { useDataStore, useAuthStore } from '../store'
 import { supabase } from '../supabase'
@@ -30,6 +30,7 @@ const SECTIONS = [
   { id: 'documents', label: 'Documents et textes', icon: FileText },
   { id: 'qualite', label: 'Qualité et référents', icon: ShieldCheck },
   { id: 'banque', label: 'Banque et facturation', icon: Landmark },
+  { id: 'calendrier', label: 'Calendrier public', icon: CalendarDays },
   { id: 'modules', label: 'Modules', icon: Layers },
   { id: 'emails', label: 'Comptes email', icon: Mail },
   { id: 'utilisateurs', label: 'Utilisateurs', icon: Users },
@@ -93,6 +94,8 @@ export default function Settings() {
       f.zone_departements_text = (organization.zone_departements || []).join(', ')
       // Traces d'un ancien organisme (0412) : seulement si la base connaît la colonne
       if (Array.isArray(organization.traces_a_signaler)) f.traces_texte = organization.traces_a_signaler.join('\n')
+      // Calendrier public des sessions inter (0419) : seulement si la base connaît les colonnes
+      if ('calendrier_public' in organization) { f.calendrier_public = !!organization.calendrier_public; f.mention_maintien = organization.mention_maintien || '' }
       setForm(f)
     }
   }, [organization])
@@ -355,6 +358,30 @@ export default function Settings() {
             </>
           )}
 
+          {section === 'calendrier' && (
+            <>
+              <h2 className="section-title">Calendrier public des sessions inter</h2>
+              {typeof form.calendrier_public !== 'boolean' ? (
+                <p className="text-ui text-gray-600">Disponible après la mise à jour de la base (0419).</p>
+              ) : (
+                <>
+                  <p className="text-ui text-gray-700">Les sessions inter cochées « Publier au calendrier public » (fiche de la session) apparaissent avec leurs dates, la ville, les places restantes et le prix public par personne. Aucune donnée de stagiaire ni de client n'y figure.</p>
+                  <Toggle label="Publier le calendrier" checked={!!form.calendrier_public} onChange={(v) => set('calendrier_public', v)} />
+                  <Field label="Réserve de maintien" hint="Affichée sous le calendrier, et reprise à l'inscription en ligne.">
+                    <textarea className="input min-h-[80px]" value={form.mention_maintien || ''} onChange={(e) => set('mention_maintien', e.target.value)} />
+                  </Field>
+                  <div className="space-y-2 text-ui">
+                    <div>Page publique : <a className="text-primary-600 underline" href={`${window.location.origin}/#/calendrier`} target="_blank" rel="noreferrer">{window.location.origin}/#/calendrier</a></div>
+                    <div>
+                      <div className="text-gray-700 mb-1">Bloc à coller dans le site de l'organisme :</div>
+                      <textarea readOnly className="input font-mono text-ui-sm min-h-[70px]" onFocus={(e) => e.target.select()}
+                        value={`<iframe src="${window.location.origin}/integration/calendrier" title="Calendrier des formations" style="width:100%;min-height:900px;border:0" loading="lazy"></iframe>`} />
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
           {section === 'banque' && (
             <>
               <h2 className="section-title">Coordonnées bancaires (factures et devis)</h2>
