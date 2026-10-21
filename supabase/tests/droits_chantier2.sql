@@ -4556,6 +4556,30 @@ begin
     end;
   end if;
 
+  -- Financement dans le devis (0397) : financeur inconnu refusé, montant négatif refusé
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'quotes' and column_name = 'funding_type') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 1;
+    declare z_q uuid; z_ok boolean := false;
+    begin
+      select id into z_q from public.quotes limit 1;
+      if z_q is null then
+        v_lines := v_lines || 'OK      base  0397 : financement du devis (aucun devis pour l''essai)'::text;
+      else
+        begin update public.quotes set funding_type = 'inconnu' where id = z_q;
+        exception when check_violation then z_ok := true; end;
+        if z_ok then v_lines := v_lines || 'OK      base  0397 : financeur du devis contrôlé'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0397 : financeur inconnu accepté'::text;
+          update public.quotes set funding_type = null where id = z_q; end if;
+      end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0397 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

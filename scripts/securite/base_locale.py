@@ -235,6 +235,8 @@ ORDRE_PROD = (
     + ['0395']
     # Avis après formation (habilitation, conduite), 21/10
     + ['0396']
+    # Financement prévu dans le devis, 21/10
+    + ['0397']
 )
 
 
