@@ -63,8 +63,9 @@ export default function CertPreparer({ referentiel = null }) {
     <div className="space-y-3">
       <div className="flex items-center gap-3 flex-wrap">
         <p className="text-ui-sm text-gray-600 flex-1 min-w-[16rem]">
-          L'auditeur veut voir la pratique réelle : des opérations vraiment faites, des sessions complètes. Il choisit
-          lui-même son échantillon : tout ce qui est « à reprendre » peut tomber.
+          {referentiel
+            ? 'L\'auditeur veut voir la pratique réelle : des opérations vraiment faites, par des personnes qualifiées. Il choisit lui-même les sites et les appareils : tout ce qui est « à reprendre » peut tomber.'
+            : 'L\'auditeur veut voir la pratique réelle : des opérations vraiment faites, des sessions complètes. Il choisit lui-même son échantillon : tout ce qui est « à reprendre » peut tomber.'}
         </p>
         <label className="flex items-center gap-2 text-ui-sm">
           <span>Période</span>
