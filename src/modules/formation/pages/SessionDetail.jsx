@@ -51,6 +51,7 @@ import RessentiSession from '../components/RessentiSession'
 import AvisEntrepriseSession from '../components/AvisEntrepriseSession'
 import SeuilMaintien from '../components/SeuilMaintien'
 import CodesPortail from '../components/CodesPortail'
+import QuizFlashSession from '../components/QuizFlashSession'
 import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 const statusLabels = {
@@ -3790,6 +3791,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {/* TAB: Suivi & Évaluations */}
       {activeTab === 'suivi' && (
         <div className="space-y-6">
+          {/* Quiz flash en cours de formation (0425) */}
+          {session?.id && <QuizFlashSession session={session} peutModifier={d.modifier} />}
           {/* Bilan des attentes en fin de formation (0413) */}
           {session?.id && <BilanAttentes sessionId={session.id} />}
           {/* Ressenti au fil de la formation (0414) */}
