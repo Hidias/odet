@@ -49,6 +49,7 @@ import PiloteSession from '../../pilote/PiloteSession'
 import BilanAttentes from '../components/BilanAttentes'
 import RessentiSession from '../components/RessentiSession'
 import AvisEntrepriseSession from '../components/AvisEntrepriseSession'
+import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
@@ -2410,18 +2411,23 @@ export default function SessionDetail() {
         }
       }
 
+      // Sommaire du dossier en tête (pièces, manques, appréciations, facturation) : dossier prêt pour l'OPCO ou l'audit
+      try {
+        zip.file('00_Sommaire.pdf', await sommaireDossier(session, Object.keys(zip.files)))
+      } catch (e) { console.warn('Sommaire du dossier non généré :', e?.message) }
+
       // Télécharger le ZIP
       const content = await zip.generateAsync({ type: 'blob' })
       const url = window.URL.createObjectURL(content)
       const link = document.createElement('a')
       link.href = url
-      link.download = `Documents_Remplis_${ref}.zip`
+      link.download = `Dossier_${ref}.zip`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       setTimeout(() => window.URL.revokeObjectURL(url), 100)
 
-      toast.success('ZIP rempli téléchargé avec succès !', { id: toastId })
+      toast.success('Dossier de la session téléchargé', { id: toastId })
     } catch (err) {
       console.error('Erreur génération ZIP rempli:', err)
       toast.error('Erreur lors de la génération du ZIP', { id: toastId })
@@ -4865,8 +4871,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       onClick={handleDownloadZipFilled}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
-                      <p className="text-ui font-medium text-gray-900"> Documents remplis</p>
-                      <p className="text-ui-sm text-gray-500 mt-0.5">Tous les docs avec les données existantes</p>
+                      <p className="text-ui font-medium text-gray-900"> Dossier complet (OPCO, audit)</p>
+                      <p className="text-ui-sm text-gray-500 mt-0.5">Tous les documents remplis, avec un sommaire : pièces, manques, appréciations, facturation</p>
                     </button>
                   </div>
                 </>
