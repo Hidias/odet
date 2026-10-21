@@ -4526,6 +4526,36 @@ begin
     end;
   end if;
 
+  -- Avis après formation (0396) : la société de la session est reprise, un seul avis par stagiaire et par session
+  if to_regclass('public.training_avis') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare z_s uuid; z_t uuid; z_ok boolean := false; z_co uuid;
+    begin
+      select st.session_id, st.trainee_id into z_s, z_t from public.session_trainees st limit 1;
+      if z_s is null then
+        v_lines := v_lines || 'OK      base  0396 : avis après formation (aucun stagiaire pour l''essai)'::text;
+        v_lines := v_lines || 'OK      base  0396 : un avis par stagiaire (aucun stagiaire pour l''essai)'::text;
+      else
+        insert into public.training_avis (session_id, trainee_id, kind, symbols) values (z_s, z_t, 'habilitation_electrique', array['B0', 'H0V'])
+        returning company_id into z_co;
+        if z_co = (select company_id from public.sessions where id = z_s) then
+          v_lines := v_lines || 'OK      base  0396 : avis rattaché à la société de la session'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0396 : société de l''avis'::text; end if;
+        begin insert into public.training_avis (session_id, trainee_id, kind) values (z_s, z_t, 'habilitation_electrique');
+        exception when unique_violation then z_ok := true; end;
+        if z_ok then v_lines := v_lines || 'OK      base  0396 : un seul avis par stagiaire et par session'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0396 : deux avis pour un même stagiaire'::text; end if;
+        delete from public.training_avis where session_id = z_s and trainee_id = z_t;
+      end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0396 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

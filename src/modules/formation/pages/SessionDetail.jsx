@@ -23,6 +23,7 @@ import { supabase } from '../../../core/supabase'
 import { buildStorageFileName, ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import SessionDocumentAccess from '../components/SessionDocumentAccess'
 import SSTCertificationTab from '../../prevention/components/SSTCertificationTab'
+import AvisFormationTab from '../components/AvisFormationTab'
 import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
 import FormativeSummary, { useFormativeSummary } from '../../suivi/components/FormativeSummary'
 import DateTimePickerModal from '../../../ui/DateTimePickerModal'
@@ -3252,6 +3253,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         { id: 'materiel', label: 'Matériel' },
         { id: 'costs', label: 'Coûts supplémentaires' },
         ...(isSST ? [{ id: 'sst_certification', label: 'Certification SST' }] : []),
+        ...(session?.courses?.avis_kind ? [{ id: 'avis', label: 'Avis après formation' }] : []),
         { id: 'positionnement', label: 'Test de positionnement' },
         { id: 'scans', label: 'Scans téléversés' },
         { id: 'attendance', label: 'QR émargement' },
@@ -6263,6 +6265,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       )}
 
       {/* TAB: Certification SST */}
+      {activeTab === 'avis' && session?.courses?.avis_kind && (
+        <AvisFormationTab session={session} sessionTrainees={sessionTrainees} trainer={trainer} />
+      )}
+
       {activeTab === 'sst_certification' && isSST && (
         <SSTCertificationTab
           session={session}

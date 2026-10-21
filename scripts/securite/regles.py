@@ -1333,3 +1333,11 @@ tdx('0387', 'user_signatures', sel=f"({_SIG_MOI} or {_RH_GER} or company_id in {
 # EPI remis au personnel (0394, liste unique A5) : lus par la RH et par la personne elle-même, remis et modifiés par
 # qui gère les dossiers du personnel ; la sortie du stock se fait par la base à la remise.
 tdx('0394', 'hr_ppe_handovers', sel=f"({_RH_DOS} or {_RH_MOI})", ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
+
+# Avis après formation (0396, audit des angles morts) : comme la certification SST, lus par le suivi et le formateur
+# de la session, écrits par qui gère le suivi ou le formateur de ses sessions.
+_AVIS_VOIR = ("(company_id in " + societes('formation.suivi.voir') + " or ((select app.a_le_droit('formation.sessions.voir_siennes'))"
+              " and session_id in (select app.trainer_session_ids())))")
+_AVIS_GER = ("(company_id in " + societes('formation.suivi.gerer') + " or ((select app.a_le_droit('formation.sessions.modifier_siennes'))"
+             " and session_id in (select app.trainer_session_ids())))")
+tdx('0396', 'training_avis', sel=_AVIS_VOIR, ins=_AVIS_GER, upd=_AVIS_GER, dele=_AVIS_GER)

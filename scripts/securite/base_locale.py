@@ -233,6 +233,8 @@ ORDRE_PROD = (
     + ['0394']
     # Permis vérifié à l'attribution d'un véhicule, 21/10
     + ['0395']
+    # Avis après formation (habilitation, conduite), 21/10
+    + ['0396']
 )
 
 
