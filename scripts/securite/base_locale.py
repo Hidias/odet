@@ -279,6 +279,8 @@ ORDRE_PROD = (
     + ['0417']
     # Tarifs par client, 21/10
     + ['0418']
+    # Calendrier public des sessions inter, 21/10
+    + ['0419']
 )
 
 

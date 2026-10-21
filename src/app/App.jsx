@@ -98,6 +98,7 @@ const SuiviTelephone = lazy(importSur(() => import('../modules/suivi/pages/Suivi
 // Pages publiques
 const TraineePortal = lazy(importSur(() => import('../modules/portail/pages/TraineePortal')))
 const PublicReclamation = lazy(importSur(() => import('../modules/portail/pages/Reclamation')))
+const CalendrierPublic = lazy(importSur(() => import('../modules/portail/pages/CalendrierPublic')))
 const ClientPortal = lazy(importSur(() => import('../modules/portail/pages/ClientPortal')))
 
 function PageLoader() {
@@ -218,6 +219,16 @@ export default function App() {
     )
   }
 
+  // Bloc du calendrier public à intégrer dans le site de l'organisme (0419) : seule page servie à cette adresse,
+  // sans en-tête ni compte (en-têtes de vercel.json : intégration autorisée pour /integration/ seulement)
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/integration/calendrier')) {
+    return (
+      <BrandingProvider>
+        <Suspense fallback={<PageLoader />}><CalendrierPublic integre /></Suspense>
+      </BrandingProvider>
+    )
+  }
+
   return (
     <BrandingProvider>
     {/* Confirmations communes (useConfirm) : une seule fenêtre pour toute l'application */}
@@ -250,6 +261,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
 
           <Route path="/reclamation" element={<PublicReclamation />} />
+          {/* Calendrier public des sessions inter (0419) */}
+          <Route path="/calendrier" element={<CalendrierPublic />} />
 
           <Route path="/portail/:token" element={<TraineePortal />} />
           <Route path="/entreprise/:token" element={<ClientPortal />} />

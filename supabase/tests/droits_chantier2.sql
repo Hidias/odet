@@ -5365,7 +5365,7 @@ begin
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
     v_total := v_total + 4;
-    declare k_a uuid; k_b uuid; k_c uuid; k_co uuid; k_s1 uuid; k_s2 uuid; k_si uuid; k_g uuid; k_p uuid; k_r public.client_prices;
+    declare k_a uuid; k_b uuid; k_c uuid; k_co uuid; k_s1 uuid; k_s2 uuid; k_si uuid; k_g uuid; k_p uuid; k_id uuid; k_pct numeric;
     begin
       insert into public.clients (name, client_type, group_name) values ('Essai tarif A', 'entreprise', 'Groupe essai') returning id into k_a;
       insert into public.clients (name, client_type, group_name) values ('Essai tarif B', 'entreprise', 'groupe essai ') returning id into k_b;
@@ -5382,16 +5382,16 @@ begin
       if (select price_per_person from public.session_groups where id = k_g) = 150 then
         v_lines := v_lines || 'OK      base  0418 : tarif du groupe repris pour une autre société du groupe (inter par personne)'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0418 : tarif du groupe non repris'::text; end if;
-      k_r := app.prix_client(k_c, 'formation', k_co);
+      k_id := (app.prix_client(k_c, 'formation', k_co)).id;
       update public.client_prices set valid_until = current_date - 1 where client_id = k_a;
-      if k_r.id is null and (app.prix_client(k_a, 'formation', k_co)).id is null then
+      if k_id is null and (app.prix_client(k_a, 'formation', k_co)).id is null then
         v_lines := v_lines || 'OK      base  0418 : aucun tarif hors du groupe, tarif échu ignoré'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0418 : tarif appliqué hors du groupe ou échu'::text; end if;
       insert into public.client_prices (client_id, kind, remise_pct) values (k_c, 'remise_pieces', 10);
-      k_r := app.prix_client(k_c, 'remise_pieces');
+      k_pct := (app.prix_client(k_c, 'remise_pieces')).remise_pct;
       perform set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
-      if k_r.remise_pct = 10 and not exists (select 1 from public.client_prices) then
+      if k_pct = 10 and not exists (select 1 from public.client_prices) then
         v_lines := v_lines || 'OK      sans  0418 : remise sur les pièces lue par la base, tarifs fermés sans droit'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sans  0418 : tarifs lisibles sans droit'::text; end if;
       execute 'reset role';
@@ -5406,6 +5406,48 @@ begin
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
       v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0418 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
+  -- Calendrier public (0419) : fermé tant qu'il n'est pas publié ; sessions inter publiées seulement ; rien de personnel
+  if to_regprocedure('public.public_calendrier()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare c_s1 uuid; c_s2 uuid; c_t uuid; c_j jsonb; c_avant boolean;
+    begin
+      select calendrier_public into c_avant from public.organization_settings limit 1;
+      update public.organization_settings set calendrier_public = false;
+      execute 'set local role anon';
+      c_j := public.public_calendrier();
+      execute 'reset role';
+      if (c_j->>'publie')::boolean is false and not c_j ? 'sessions' then
+        v_lines := v_lines || 'OK      anon  0419 : calendrier fermé tant qu''il n''est pas publié'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0419 : calendrier lisible sans être publié'::text; end if;
+      update public.organization_settings set calendrier_public = true;
+      insert into public.sessions (session_type, is_public, start_date, end_date, location_city, max_participants, public_price_per_person)
+        values ('inter', true, current_date + 30, current_date + 30, 'Brest', 8, 190) returning id into c_s1;
+      insert into public.sessions (session_type, is_public, start_date, end_date) values ('inter', false, current_date + 31, current_date + 31) returning id into c_s2;
+      insert into public.trainees (first_name, last_name) values ('Essai', 'Calendrierprive') returning id into c_t;
+      insert into public.session_trainees (session_id, trainee_id) values (c_s1, c_t);
+      execute 'set local role anon';
+      c_j := public.public_calendrier();
+      execute 'reset role';
+      if exists (select 1 from jsonb_array_elements(c_j->'sessions') x where x->>'id' = c_s1::text and (x->>'places')::int = 7 and (x->>'price_per_person')::numeric = 190)
+         and not exists (select 1 from jsonb_array_elements(c_j->'sessions') x where x->>'id' = c_s2::text) then
+        v_lines := v_lines || 'OK      anon  0419 : sessions inter publiées seulement, places restantes et prix'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0419 : sessions du calendrier'::text; end if;
+      if c_j::text not like '%Calendrierprive%' then
+        v_lines := v_lines || 'OK      anon  0419 : aucun nom de stagiaire dans le calendrier public'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0419 : nom de stagiaire dans le calendrier public'::text; end if;
+      update public.organization_settings set calendrier_public = coalesce(c_avant, false);
+      delete from public.trainee_info_sheets where session_id = c_s1;
+      delete from public.session_trainees where session_id in (c_s1, c_s2);
+      delete from public.sessions where id in (c_s1, c_s2);
+      delete from public.trainees where id = c_t;
+    exception when others then
+      execute 'reset role';
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   anon  0419 : erreur ' || sqlerrm)::text;
     end;
   end if;
 

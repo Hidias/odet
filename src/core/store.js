@@ -865,6 +865,10 @@ export const useDataStore = create((set, get) => ({
     if (rest.status !== undefined) sessionUpdates.status = rest.status
     if (rest.status_locked !== undefined) sessionUpdates.status_locked = rest.status_locked
     if (rest.notes !== undefined) sessionUpdates.notes = rest.notes
+    // Calendrier public des sessions inter (0419) : publication et prix public par personne
+    if (rest.is_public !== undefined) sessionUpdates.is_public = !!rest.is_public
+    if (rest.public_price_per_person !== undefined) sessionUpdates.public_price_per_person = rest.public_price_per_person === '' || rest.public_price_per_person == null ? null : Number(rest.public_price_per_person)
+    if (rest.max_participants !== undefined) sessionUpdates.max_participants = rest.max_participants === '' || rest.max_participants == null ? null : parseInt(rest.max_participants, 10)
     // FORPREV
     if (rest.requires_forprev !== undefined) sessionUpdates.requires_forprev = rest.requires_forprev
     if (rest.forprev_done !== undefined) sessionUpdates.forprev_done = rest.forprev_done
