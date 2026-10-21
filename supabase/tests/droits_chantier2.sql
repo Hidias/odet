@@ -5939,6 +5939,47 @@ begin
     end;
   end if;
 
+  -- Débours (0428) : ligne hors base de TVA, justificatif exigé, mention ajoutée
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'billing_settings' and column_name = 'mention_debours') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare d_cli uuid; d_inv uuid; d_res jsonb; d_franchise boolean;
+    begin
+      d_franchise := (select tva_applicable is false from public.organization_settings limit 1);
+      update public.organization_settings set tva_applicable = true;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.clients (name, siret, address, postal_code, city, tva) values
+        ('Client débours 0428', '12345678900011', '1 rue', '29200', 'Brest', 'FR00123456789') returning id into d_cli;
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date)
+        values ('x0428', 'invoice', d_cli, current_date, current_date + 30) returning id into d_inv;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate, vat_regime) values
+        (d_inv, 0, 'Formation', 1, 500, 20, 'normal'), (d_inv, 1, 'Frais d''examen', 1, 60, 0, 'debours');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      d_res := app.billing_check(d_inv);
+      if exists (select 1 from jsonb_array_elements(d_res -> 'points') p where p ->> 'code' = 'debours_justificatif')
+         and not exists (select 1 from jsonb_array_elements(d_res -> 'points') p where p ->> 'code' = 'tva_zero') then
+        v_lines := v_lines || 'OK      srv   0428 : débours accepté à 0 %, justificatif exigé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   srv   0428 : débours accepté à 0 %, justificatif exigé (' || (d_res -> 'points')::text || ')'); end if;
+      update public.invoice_items set description_detail = 'Facture de l''organisme certificateur n° 123' where invoice_id = d_inv and position = 1;
+      d_res := app.billing_check(d_inv);
+      if not exists (select 1 from jsonb_array_elements(d_res -> 'points') p where p ->> 'code' like 'debours%')
+         and exists (select 1 from jsonb_array_elements_text(d_res -> 'mentions') m where m like 'Débours%') then
+        v_lines := v_lines || 'OK      srv   0428 : débours justifié, mention sur la facture'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   srv   0428 : débours justifié, mention sur la facture'::text; end if;
+      delete from public.invoice_items where invoice_id = d_inv;
+      delete from public.invoices where id = d_inv;
+      delete from public.clients where id = d_cli;
+      if d_franchise then update public.organization_settings set tva_applicable = false; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0428 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

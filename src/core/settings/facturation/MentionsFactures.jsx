@@ -12,8 +12,11 @@ const TEXTES = [
   ['mention_escompte', 'Escompte pour paiement anticipé', 'Clients professionnels'],
   ['mention_penalites', 'Pénalités de retard', 'Clients professionnels'],
   ['mention_indemnite', 'Indemnité forfaitaire de recouvrement', 'Clients professionnels seulement (jamais pour un particulier)'],
+  ['mention_penalites_public', 'Intérêts moratoires (client public)', 'Clients publics (fiche client « public ») : code de la commande publique'],
+  ['mention_indemnite_public', 'Indemnité de recouvrement (client public)', 'Clients publics'],
   ['mention_franchise', 'Franchise en base de TVA', 'Si l\'organisme n\'applique pas la TVA (Identité)'],
   ['mention_autoliquidation', 'Autoliquidation', 'Lignes au régime « Autoliquidation »'],
+  ['mention_debours', 'Débours', 'Lignes au régime « Débours » (frais payés pour le compte du client, sur justificatif)'],
   ['mention_exoneration', 'Exonération de la formation', 'Lignes au régime « Exonérée », avec l\'attestation ci-dessous'],
   ['mention_debits', 'Option pour la TVA sur les débits', 'Si l\'option est cochée'],
 ]

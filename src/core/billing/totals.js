@@ -38,7 +38,7 @@ export function lineTotal(item) {
  * @param {Array} items lignes { quantity, unit_price_ht, tva_rate }
  * @param {Object} opts { discountPercent, vatApplicable, defaultRate }
  * Catégorie de TVA (Factur-X) : S = taux positif, E = exonéré ou taux nul, ou TVA non applicable,
- * AE = autoliquidation (régime de la ligne, 0363). Les montants ne dépendent que des taux : le régime ne change que la
+ * AE = autoliquidation (régime de la ligne, 0363) ; débours (0428) : E, hors base de TVA. Les montants ne dépendent que des taux : le régime ne change que la
  * catégorie (l'écran met le taux à 0 % quand on choisit un régime autre que normal).
  */
 export function computeDocumentTotals(items, opts = {}) {
@@ -54,8 +54,9 @@ export function computeDocumentTotals(items, opts = {}) {
   const groups = new Map()
   for (const l of lines) {
     const key = `${l.cat}|${l.rate}`
-    if (!groups.has(key)) groups.set(key, { cat: l.cat, rate: l.rate, lines: 0, exonere: false })
+    if (!groups.has(key)) groups.set(key, { cat: l.cat, rate: l.rate, lines: 0, exonere: false, debours: false })
     if (l.regime === 'exonere') groups.get(key).exonere = true
+    if (l.regime === 'debours') groups.get(key).debours = true
     groups.get(key).lines = round2(groups.get(key).lines + l.net)
   }
   let allowanceTotal = 0
