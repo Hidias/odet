@@ -6059,6 +6059,65 @@ begin
     end;
   end if;
 
+  -- Dépôts du client signés à la main (0431) : décision de l'organisme, devis accepté et session préparée, convention signée
+  if to_regclass('public.client_deposits') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare q_c uuid; q_co uuid; q_q uuid; q_dep uuid; q_dep2 uuid; q_s uuid; q_ok boolean; q_ok2 boolean;
+    begin
+      insert into public.clients (name, address, postal_code, city) values ('Client essai 0431', '1 rue', '29000', 'Quimper') returning id into q_c;
+      insert into public.courses (title, duration_hours) values ('Formation essai 0431', 7) returning id into q_co;
+      insert into public.quotes (client_id, status, quote_date, reference, object) values (q_c, 'sent', current_date, 'DEV-ESSAI-0431', 'Formation du 3 décembre 2099') returning id into q_q;
+      insert into public.quote_items (quote_id, position, description_title, quantity, unit_price_ht, tva_rate, total_ht, course_id) values (q_q, 0, 'Formation', 1, 500, 20, 500, q_co);
+      insert into public.client_deposits (company_id, client_id, object_type, object_id, kind, label, bucket, file_path, sha256, size_bytes, channel)
+      values ((select company_id from public.clients where id = q_c), q_c, 'quote', q_q, 'devis', 'Devis signé (scan)', 'client-documents', q_c || '/depots/q.pdf', repeat('c', 64), 1000, 'lien')
+      returning id into q_dep;
+      -- Lecture : l'équipe qui voit les fiches clients ; écriture directe refusée
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      q_ok := exists (select 1 from public.client_deposits where id = q_dep);
+      q_ok2 := false;
+      begin update public.client_deposits set status = 'valide' where id = q_dep; q_ok2 := not found;
+      exception when insufficient_privilege then q_ok2 := true; end;
+      -- Refus sans motif refusé, puis validation
+      begin perform public.depot_client_decider(q_dep, 'refuse', ''); q_ok := false; exception when sqlstate '22023' then null; end;
+      perform public.depot_client_decider(q_dep, 'valide', null);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if q_ok and q_ok2 then v_lines := v_lines || 'OK      dir   0431 : dépôt lu par l''équipe, décision seulement par la fonction, motif exigé pour un refus'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0431 : dépôt lu par l''équipe, décision seulement par la fonction'::text; end if;
+      select id into q_s from public.sessions where quote_id = q_q;
+      if (select status from public.quotes where id = q_q) = 'accepted' and q_s is not null
+         and (select validation_requise and start_date = date '2099-12-03' from public.sessions where id = q_s)
+         and (select status from public.client_deposits where id = q_dep) = 'valide' then
+        v_lines := v_lines || 'OK      dir   0431 : devis signé déposé et validé : accepté, session préparée à valider'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0431 : devis déposé validé'::text; end if;
+      -- Convention déposée et validée
+      insert into public.client_deposits (company_id, client_id, object_type, object_id, kind, label, bucket, file_path, sha256, size_bytes, channel)
+      values ((select company_id from public.clients where id = q_c), q_c, 'session', q_s, 'convention', 'Convention signée (scan)', 'signed-conventions', q_s || '/depot-client.pdf', repeat('d', 64), 1000, 'lien')
+      returning id into q_dep2;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.depot_client_decider(q_dep2, 'valide', null);
+      q_ok := false;
+      begin perform public.depot_client_decider(q_dep2, 'refuse', 'Trop tard'); exception when sqlstate '22023' then q_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if q_ok and (select convention_signed and convention_signed_file_url = q_s || '/depot-client.pdf' from public.sessions where id = q_s) then
+        v_lines := v_lines || 'OK      dir   0431 : convention déposée et validée : session en convention signée, décision unique'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0431 : convention déposée validée'::text; end if;
+      q_ok := false;
+      begin delete from public.client_deposits where id = q_dep; exception when insufficient_privilege then q_ok := true; end;
+      if q_ok then v_lines := v_lines || 'OK      base  0431 : un dépôt du client ne s''efface pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0431 : dépôt effacé'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0431 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

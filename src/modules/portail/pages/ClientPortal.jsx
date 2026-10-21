@@ -15,7 +15,8 @@ import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import ParticipantsSession from '../components/ParticipantsSession'
-import { lireDocumentPortail, versBase64 } from '../../../core/portail/documentsClient'
+import DeposerSigne from '../components/DeposerSigne'
+import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
 // sessions de l'entreprise et téléchargement de ses documents, en lecture seule. Aux couleurs de l'instance,
@@ -120,6 +121,16 @@ export default function ClientPortal() {
     await chargerParticipants()
     setInfo(`${r?.nombre ?? liste.length} participant(s) enregistré(s). Votre organisme est prévenu.`)
   }
+  // Documents signés à la main et déposés (0431) : état des dépôts, fenêtre ouverte
+  const [depots, setDepots] = useState([])
+  const [aDeposer, setADeposer] = useState(null) // { doc } ou { session }
+  const chargerDepots = async (c = code) => {
+    try {
+      const { data: dp } = await supabase.rpc('client_portal_depots', { p_token: token, p_code: c })
+      if (Array.isArray(dp)) setDepots(dp)
+    } catch { /* fonction absente */ }
+  }
+  const depotDe = (type, id) => depots.find((x) => x.object_type === type && x.object_id === id) || null
   const [perso, setPerso] = useState(() => lirePerso(token))
   const [persoOuvert, setPersoOuvert] = useState(false)
   const enregistrerPerso = async ({ prenom, photo }) => {
@@ -157,6 +168,7 @@ export default function ClientPortal() {
       setData(d)
       chargerSignatures(c)
       chargerParticipants(c)
+      chargerDepots(c)
       try { sessionStorage.setItem(STORAGE_KEY(token), c) } catch { /* ignore */ }
       // Journal de preuve (0401) : connexion notée une fois par jour et par onglet
       if (premiereConnexionDuJour(`lien.${token}`)) noterLien(token, c, { event: 'connexion' })
@@ -406,11 +418,19 @@ export default function ClientPortal() {
               // Session issue d'un devis : la convention se signe une fois la session confirmée et les participants saisis
               const et = participants[s.id]
               const attente = et?.devis ? (et.validation_requise ? 'Votre organisme confirme les dates de la session.' : (et.participants || []).length === 0 ? 'Saisissez d\'abord vos participants.' : null) : null
+              const dep = depotDe('session', s.id)
+              if (dep?.status === 'recu') return (
+                <p className="mt-4 rounded-ui border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">Convention signée et déposée le {fmtDate(dep.deposited_at)} : votre organisme la valide.</p>
+              )
               return (
                 <div className="mt-4 rounded-ui border border-accent-500/30 bg-accent-500/5 p-3 flex items-center gap-3 flex-wrap">
                   <FileSignature className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
-                  <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">{attente ? `Convention de formation : ${attente}` : 'La convention de formation attend votre signature.'}</p>
-                  <button type="button" onClick={() => setASigner(s)} disabled={!!attente} className="btn btn-primary btn-sm">Signer en ligne</button>
+                  <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">{attente ? `Convention de formation : ${attente}` : 'La convention de formation attend votre signature.'}
+                    {dep?.status === 'refuse' && <span className="block text-[rgb(var(--c-danger))]">Dépôt précédent refusé{dep.motif ? ` : ${dep.motif}` : ''}.</span>}</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <button type="button" onClick={() => setASigner(s)} disabled={!!attente} className="btn btn-primary btn-sm">Signer en ligne</button>
+                    <button type="button" onClick={() => setADeposer({ session: s })} disabled={!!attente} className="btn btn-secondary btn-sm">Imprimer, signer, déposer</button>
+                  </div>
                 </div>
               )
             })()}
@@ -499,6 +519,8 @@ export default function ClientPortal() {
 
         {/* Documents mis à disposition, toutes prestations (0404) */}
         <MesDocuments rafraichir={tourDocs}
+          onDeposer={(d) => setADeposer({ doc: d })}
+          depotDe={(d) => (d.object_type === 'quote' ? depotDe('quote', d.object_id) : null)}
           signatureDe={(d) => signatures.find((x) => x.document_id === d.id) || null}
           onSigner={setDocASigner}
           avecPreuve={(d, buf, sig) => signeAvecPreuve(d, buf, sig, orgPdf)}
@@ -525,6 +547,23 @@ export default function ClientPortal() {
           </section>
         )}
       </main>
+
+      {aDeposer && (
+        <DeposerSigne nomDocument={aDeposer.doc ? 'le devis' : 'la convention'}
+          titre={aDeposer.doc ? 'Imprimer, signer et déposer le devis' : 'Imprimer, signer et déposer la convention'}
+          telecharger={async () => {
+            if (aDeposer.doc) {
+              const buf = await lireDocumentPortail({ token, code }, aDeposer.doc.id)
+              saveBase64(versBase64(buf), `${(aDeposer.doc.label || 'devis').replace(/[^\p{L}\p{N} _-]+/gu, '').trim().replace(/\s+/g, '_')}.pdf`)
+            } else await download(aDeposer.session, 'convention')
+          }}
+          envoyer={async ({ base64, avant }) => {
+            await deposerSigne({ token, code }, aDeposer.doc ? { document_id: aDeposer.doc.id } : { session_id: aDeposer.session.id }, { base64, avant })
+            await chargerDepots()
+            setInfo('Document signé déposé. Votre organisme est prévenu et le valide.')
+          }}
+          onFermer={() => setADeposer(null)} />
+      )}
 
       {docASigner && (
         <SignerConvention titre={NOMS_SIGNABLES[docASigner.kind]?.titre} nomDocument={NOMS_SIGNABLES[docASigner.kind]?.nom}

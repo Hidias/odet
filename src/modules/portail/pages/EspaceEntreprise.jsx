@@ -27,7 +27,8 @@ import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import AvisEntreprise from '../components/AvisEntreprise'
 import ParticipantsSession from '../components/ParticipantsSession'
-import { lireDocumentPortail, versBase64 } from '../../../core/portail/documentsClient'
+import DeposerSigne from '../components/DeposerSigne'
+import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
 // salariés et validités, demandes (inscription inter, formation intra, remplacement, message), catalogue, factures
@@ -204,6 +205,11 @@ function Formations() {
   const today = startOfToday()
 
   // Participants saisis par le client (0430) : état par session, sans effet si la base ne le propose pas encore
+  // Convention signée à la main et déposée (0431)
+  const [depots, setDepots] = useState([])
+  const [aDeposer, setADeposer] = useState(null)
+  const chargerDepots = () => supabase.rpc('ent_depots').then(({ data: dp }) => { if (Array.isArray(dp)) setDepots(dp) }).catch(() => {})
+  useEffect(() => { chargerDepots() }, [])
   const [participants, setParticipants] = useState({})
   const chargerParticipants = async () => {
     try {
@@ -332,11 +338,19 @@ function Formations() {
           // Session issue d'un devis : la convention se signe une fois la session confirmée et les participants saisis
           const et = participants[s.id]
           const attente = et?.devis ? (et.validation_requise ? 'Votre organisme confirme les dates de la session.' : (et.participants || []).length === 0 ? 'Saisissez d\'abord vos participants.' : null) : null
+          const dep = depots.find((x) => x.object_type === 'session' && x.object_id === s.id) || null
+          if (dep?.status === 'recu') return (
+            <p className="mt-3 rounded-ui border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">Convention signée et déposée le {fmtDate(dep.deposited_at)} : votre organisme la valide.</p>
+          )
           return (
             <div className="mt-3 rounded-ui border border-accent-500/30 bg-accent-500/5 p-3 flex items-center gap-3 flex-wrap">
               <FileSignature className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
-              <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">{attente ? `Convention de formation : ${attente}` : 'La convention de formation attend votre signature.'}</p>
-              <button type="button" onClick={() => setASigner(s)} disabled={!!attente} className="btn btn-primary btn-sm">Signer en ligne</button>
+              <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">{attente ? `Convention de formation : ${attente}` : 'La convention de formation attend votre signature.'}
+                {dep?.status === 'refuse' && <span className="block text-[rgb(var(--c-danger))]">Dépôt précédent refusé{dep.motif ? ` : ${dep.motif}` : ''}.</span>}</p>
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={() => setASigner(s)} disabled={!!attente} className="btn btn-primary btn-sm">Signer en ligne</button>
+                <button type="button" onClick={() => setADeposer(s)} disabled={!!attente} className="btn btn-secondary btn-sm">Imprimer, signer, déposer</button>
+              </div>
             </div>
           )
         })()}
@@ -369,6 +383,19 @@ function Formations() {
         <SignerConvention session={aSigner} signataire={{ name: aSigner.signatory_name, role: aSigner.signatory_role }}
           genererPdf={() => generatePDF('convention', { ...aSigner, clients: data.client, courses: aSigner.courses || {}, trainers: aSigner.trainers || null }, { trainees: traineesOf(aSigner), trainer: aSigner.trainers || null, costs: [] })}
           onSigner={(p) => signer(aSigner, p)} onFermer={() => setASigner(null)} />
+      )}
+      {aDeposer && (
+        <DeposerSigne nomDocument="la convention" titre="Imprimer, signer et déposer la convention"
+          telecharger={async () => {
+            const out = await generatePDF('convention', { ...aDeposer, clients: data.client, courses: aDeposer.courses || {}, trainers: aDeposer.trainers || null }, { trainees: traineesOf(aDeposer), trainer: aDeposer.trainers || null, costs: [] })
+            if (out) saveBase64(out.base64, out.filename)
+          }}
+          envoyer={async ({ base64, avant }) => {
+            await deposerSigne({}, { session_id: aDeposer.id }, { base64, avant })
+            await chargerDepots()
+            toast.success('Convention signée déposée. Votre organisme est prévenu.')
+          }}
+          onFermer={() => setADeposer(null)} />
       )}
       {aNoter && <AvisEntreprise session={aNoter} onFermer={() => setANoter(null)} onEnvoye={(id, n) => setAvis((a) => ({ ...a, [id]: n }))} />}
       {past.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Formations réalisées</h2><div className="space-y-3">{past.map((s) => <Session key={`${s.id}${s.group_id || ''}`} s={s} finie />)}</div></section>}
@@ -559,6 +586,11 @@ function Plus_({ compte, org, salaries }) {
   const chargerSignatures = () => supabase.rpc('ent_signatures').then(({ data: sg }) => setSignatures(Array.isArray(sg) ? sg : []))
   const chargerOrg = async () => { const { data } = await supabase.rpc('ent_org'); const pr = await prepareOrgForPDF(data || {}); setOrgDoc(pr); return pr }
   useEffect(() => { chargerSignatures() }, [])
+  // Devis signé à la main et déposé (0431)
+  const [depots, setDepots] = useState([])
+  const [docADeposer, setDocADeposer] = useState(null)
+  const chargerDepots = () => supabase.rpc('ent_depots').then(({ data: dp }) => { if (Array.isArray(dp)) setDepots(dp) }).catch(() => {})
+  useEffect(() => { chargerDepots() }, [])
   const [catalogue, setCatalogue] = useState(null)
   const [factures, setFactures] = useState(null)
   const [actus, setActus] = useState(null)
@@ -579,6 +611,8 @@ function Plus_({ compte, org, salaries }) {
       {vue === 'documents' && (
         <>
           <MesDocuments titre="Documents mis à disposition" rafraichir={tourDocs}
+            onDeposer={setDocADeposer}
+            depotDe={(d) => (d.object_type === 'quote' ? depots.find((x) => x.object_type === 'quote' && x.object_id === d.object_id) || null : null)}
             signatureDe={(d) => signatures.find((x) => x.document_id === d.id) || null}
             onSigner={setDocASigner}
             avecPreuve={async (d, buf, sig) => signeAvecPreuve(d, buf, sig, orgDoc || await chargerOrg())}
@@ -586,6 +620,16 @@ function Plus_({ compte, org, salaries }) {
             lire={(d) => lireDocumentPortail({}, d.id)}
             noter={(d, buf) => noterCompte({ event: 'document', objectType: d.object_type, objectId: d.object_id, kind: d.kind, label: d.label, base64: versBase64(buf) })} />
           <p className="text-xs text-gray-400">Rapports d'intervention, devis, factures et contrats mis à disposition par {org?.name || 'votre prestataire'} apparaissent ici.</p>
+          {docADeposer && (
+            <DeposerSigne nomDocument="le devis" titre="Imprimer, signer et déposer le devis"
+              telecharger={async () => saveBase64(versBase64(await lireDocumentPortail({}, docADeposer.id)), `${(docADeposer.label || 'devis').replace(/[^\p{L}\p{N} _-]+/gu, '').trim().replace(/\s+/g, '_')}.pdf`)}
+              envoyer={async ({ base64, avant }) => {
+                await deposerSigne({}, { document_id: docADeposer.id }, { base64, avant })
+                await chargerDepots(); setTourDocs((n) => n + 1)
+                toast.success('Devis signé déposé. Votre organisme est prévenu.')
+              }}
+              onFermer={() => setDocADeposer(null)} />
+          )}
           {docASigner && (
             <SignerConvention titre={NOMS_SIGNABLES[docASigner.kind]?.titre} nomDocument={NOMS_SIGNABLES[docASigner.kind]?.nom}
               accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : ACCORD_DEVIS} libelle={docASigner.label} signataire={{ name: compte?.contact?.name || '' }}

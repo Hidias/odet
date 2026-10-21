@@ -34,6 +34,7 @@ import AcompteDevis from '../components/AcompteDevis'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import SignatureObjetEnLigne from '../../../core/signature/SignatureObjetEnLigne'
+import DepotsClient from '../../../core/signature/DepotsClient'
 import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
@@ -1596,6 +1597,10 @@ export default function Quotes() {
               </div>
             )}
 
+            {/* Signature en ligne et dépôt signé à la main par le client (0406, 0431) */}
+            <SignatureObjetEnLigne objectId={q.id} titre={`Devis ${q.reference || ''}`} />
+            <DepotsClient objectType="quote" objectId={q.id} onChange={loadAll} />
+
             {/* Totaux */}
             <div className="bg-white rounded-ui border p-4">
               <div className="flex justify-end">
@@ -1994,6 +1999,7 @@ export default function Quotes() {
                   onClear={() => setCurrentQuote(prev => ({ ...prev, signature_base64: null }))}
                 />
                 {currentQuote.id && <SignatureObjetEnLigne objectId={currentQuote.id} titre={`Devis ${currentQuote.reference || ''}`} />}
+                {currentQuote.id && <DepotsClient objectType="quote" objectId={currentQuote.id} onChange={loadAll} />}
               </div>
             </div>
           </div>

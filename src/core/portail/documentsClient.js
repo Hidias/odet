@@ -34,6 +34,17 @@ export async function ouvrirDocumentInterne(documentId) {
   window.open(url, '_blank', 'noopener')
 }
 
+/** Document signé à la main déposé par le client (0431) : cible { document_id } (devis) ou { session_id } (convention) */
+export async function deposerSigne(auth, cible, { base64, avant, name }) {
+  return callApi('/api/documents-client', { ...auth, ...cible, action: 'deposer_signe', pdf_base64: base64, original_bytes: avant, name })
+}
+
+/** Dépôt du client lu par l'équipe (lien de 5 minutes) */
+export async function ouvrirDepot(depotId) {
+  const { url } = await callApi('/api/documents-client', { action: 'lire_depot', depot_id: depotId })
+  window.open(url, '_blank', 'noopener')
+}
+
 export function versBase64(buf) {
   const o = new Uint8Array(buf)
   let s = ''

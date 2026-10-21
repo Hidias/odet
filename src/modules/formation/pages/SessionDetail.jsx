@@ -35,6 +35,7 @@ import SessionChecklist from '../components/SessionChecklist'
 import SessionNeedsAnalysis from '../components/SessionNeedsAnalysis'
 import SessionEmailModal from '../components/SessionEmailModal'
 import CircuitSession from '../components/CircuitSession'
+import DepotsClient from '../../../core/signature/DepotsClient'
 import StageEmailModal from '../components/StageEmailModal'
 import { SignatureAuditBadge } from '../../../ui/signature/SignaturePad'
 import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
@@ -3262,6 +3263,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   </div>
                 </div>
                 <SignatureEnLigne session={session} />
+                <DepotsClient objectType="session" objectId={session.id} onChange={() => fetchSessions()} />
                 {session.convention_signed_file_url ? (
                   <button
                     onClick={handleDownloadConvention}

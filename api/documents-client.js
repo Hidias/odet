@@ -10,6 +10,10 @@ import { withErrorLog } from './_lib/errors.js'
 //    si l'ancienne a été signée par le client : la version signée reste figée.
 //  - lire (espace client, par lien et code ou par compte) : lien de 5 minutes vers un document visible par ce client.
 //  - lire_interne (équipe connectée) : lien de 5 minutes vers un document que l'appelant voit.
+//  - deposer_signe (espace client, par lien et code ou par compte) : devis ou convention imprimé, signé à la main et
+//    déposé (PDF déjà compressé par le navigateur). Rangé tel quel avec son empreinte, à valider par l'organisme
+//    (0431), qui est prévenu tout de suite.
+//  - lire_depot (équipe connectée) : lien de 5 minutes vers un dépôt du client que l'appelant voit.
 // Aucun e-mail n'est envoyé.
 
 export const config = { api: { bodyParser: { sizeLimit: '4mb' } } }
@@ -117,6 +121,91 @@ async function lireInterne(req, res) {
   return url ? res.status(200).json({ url }) : res.status(404).json({ error: 'Fichier introuvable' })
 }
 
+// Accès du client : lien et code (vérifiés par la base) ou compte entreprise connecté
+async function accesClient(req) {
+  const { token, code } = req.body || {}
+  const admin = getAdminClient()
+  if (token && code) {
+    if (!/^[0-9]{6}$/.test(String(code))) return null
+    const [{ data: d }, { data: docs }, { data: acc }] = await Promise.all([
+      admin.rpc('client_portal_data', { p_token: String(token), p_code: String(code) }),
+      admin.rpc('client_portal_mes_documents', { p_token: String(token), p_code: String(code) }),
+      admin.from('client_portal_access').select('id, client_id').eq('token', String(token)).maybeSingle(),
+    ])
+    if (!d || d.error || !acc?.client_id) return null
+    return { admin, clientId: acc.client_id, canal: 'lien', accessId: acc.id, profileId: null, sessions: d.sessions || [], docs: Array.isArray(docs) ? docs : [] }
+  }
+  const ctx = await requireUser(req)
+  if (!ctx || ctx.profile.role !== 'entreprise') return null
+  const appelant = clientDeLAppelant(req)
+  const [{ data: d }, { data: docs }, { data: compte }] = await Promise.all([
+    appelant.rpc('ent_sessions'), appelant.rpc('ent_mes_documents'),
+    ctx.admin.from('client_accounts').select('client_id').eq('profile_id', ctx.user.id).eq('is_active', true).maybeSingle(),
+  ])
+  if (!d || !compte?.client_id) return null
+  return { admin: ctx.admin, clientId: compte.client_id, canal: 'compte', accessId: null, profileId: ctx.user.id, sessions: d.sessions || [], docs: Array.isArray(docs) ? docs : [] }
+}
+
+async function deposerSigne(req, res) {
+  const a = await accesClient(req)
+  if (!a) return res.status(403).json({ error: 'Accès refusé' })
+  const { document_id: docId, session_id: sessionId, pdf_base64: b64, original_bytes: orig, name } = req.body || {}
+  let cible = null
+  if (docId) {
+    if (!UUID.test(String(docId))) return res.status(400).json({ error: 'Document invalide' })
+    const doc = a.docs.find((x) => x.id === docId)
+    if (!doc || doc.kind !== 'devis') return res.status(403).json({ error: 'Document non signable' })
+    const { data: row } = await a.admin.from('client_shared_documents').select('object_type, object_id, label').eq('id', docId).maybeSingle()
+    if (!row || row.object_type !== 'quote') return res.status(403).json({ error: 'Document non signable' })
+    const { data: q } = await a.admin.from('quotes').select('id, status, reference').eq('id', row.object_id).maybeSingle()
+    if (!q || ['accepted', 'refused', 'expired', 'invoiced'].includes(q.status)) return res.status(400).json({ error: 'Ce devis ne se signe plus' })
+    cible = { type: 'quote', id: q.id, kind: 'devis', label: `${row.label} (signé, déposé par le client)`, bucket: BUCKET, lien: `/devis?open=${q.id}`, ref: q.reference }
+  } else if (sessionId) {
+    if (!UUID.test(String(sessionId))) return res.status(400).json({ error: 'Session invalide' })
+    const s = a.sessions.find((x) => x.id === sessionId)
+    if (!s || s.convention_signed) return res.status(403).json({ error: 'Convention non signable' })
+    cible = { type: 'session', id: s.id, kind: 'convention', label: `Convention ${s.reference || ''} (signée, déposée par le client)`.replace(/\s+/g, ' '), bucket: 'signed-conventions', lien: `/sessions/${s.id}`, ref: s.reference }
+  } else return res.status(400).json({ error: 'Document manquant' })
+
+  const buf = Buffer.from(String(b64 || ''), 'base64')
+  if (!buf.length || buf.length > MAX || buf.subarray(0, 4).toString() !== '%PDF') return res.status(400).json({ error: 'Fichier invalide (PDF de 3,5 Mo au plus)' })
+  const sha = crypto.createHash('sha256').update(buf).digest('hex')
+  const path = cible.type === 'session' ? `${cible.id}/depot-client-${sha.slice(0, 16)}.pdf` : `${a.clientId}/depots/quote/${cible.id}/signe-${sha.slice(0, 16)}.pdf`
+  const { error: up } = await a.admin.storage.from(cible.bucket).upload(path, buf, { contentType: 'application/pdf', upsert: false })
+  if (up && !/exists|duplicate/i.test(up.message || '')) return res.status(500).json({ error: 'Dépôt impossible' })
+  const { data: cl } = await a.admin.from('clients').select('company_id, name').eq('id', a.clientId).maybeSingle()
+  const ip = String(req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim().slice(0, 64) || null
+  const nom = String(name || '').trim().slice(0, 120) || null
+  const { data: row, error } = await a.admin.from('client_deposits').insert({
+    company_id: cl?.company_id, client_id: a.clientId, object_type: cible.type, object_id: cible.id, kind: cible.kind, label: cible.label.slice(0, 200),
+    bucket: cible.bucket, file_path: path, sha256: sha, size_bytes: buf.length, original_bytes: Number(orig) > 0 ? Math.round(Number(orig)) : null,
+    channel: a.canal, access_id: a.accessId, profile_id: a.profileId, depositor_name: nom, ip, user_agent: String(req.headers['user-agent'] || '').slice(0, 400) || null,
+  }).select('id').single()
+  if (error) return res.status(500).json({ error: 'Enregistrement impossible' })
+  await a.admin.from('notifications').insert({
+    company_id: cl?.company_id, type: 'depot_client', title: cible.kind === 'devis' ? 'Devis signé déposé par le client' : 'Convention signée déposée par le client',
+    message: `${cl?.name || 'Le client'} a déposé ${cible.kind === 'devis' ? 'le devis' : 'la convention'} ${cible.ref || ''} signé${cible.kind === 'devis' ? '' : 'e'} à la main : à vérifier et valider.`.replace(/\s+/g, ' '),
+    link: cible.lien, metadata: { depot_id: row.id, object_type: cible.type, object_id: cible.id },
+  })
+  await a.admin.from('portal_events').insert({
+    company_id: cl?.company_id, client_id: a.clientId, channel: a.canal, access_id: a.accessId, profile_id: a.profileId, event: 'depot',
+    object_type: cible.type, object_id: cible.id, document_kind: cible.kind, document_label: cible.label.slice(0, 200), document_sha256: sha, ip,
+    user_agent: String(req.headers['user-agent'] || '').slice(0, 400) || null,
+  })
+  return res.status(200).json({ id: row.id })
+}
+
+async function lireDepot(req, res) {
+  const ctx = await requireUser(req)
+  if (!ctx || ctx.profile.role === 'entreprise') return res.status(403).json({ error: 'Accès refusé' })
+  const id = String(req.body?.depot_id || '')
+  if (!UUID.test(id)) return res.status(400).json({ error: 'Dépôt invalide' })
+  const { data: d } = await clientDeLAppelant(req).from('client_deposits').select('bucket, file_path').eq('id', id).maybeSingle()
+  if (!d || String(d.file_path).includes('..')) return res.status(403).json({ error: 'Accès refusé' })
+  const { data, error } = await ctx.admin.storage.from(d.bucket).createSignedUrl(d.file_path, 300)
+  return !error && data?.signedUrl ? res.status(200).json({ url: data.signedUrl }) : res.status(404).json({ error: 'Fichier introuvable' })
+}
+
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
   try {
@@ -124,6 +213,8 @@ async function handler(req, res) {
     if (action === 'publier') return await publier(req, res)
     if (action === 'lire') return await lire(req, res)
     if (action === 'lire_interne') return await lireInterne(req, res)
+    if (action === 'deposer_signe') return await deposerSigne(req, res)
+    if (action === 'lire_depot') return await lireDepot(req, res)
     return res.status(400).json({ error: 'Action inconnue' })
   } catch (e) {
     console.error('documents-client : erreur', e?.code || e?.name || 'inconnue')
