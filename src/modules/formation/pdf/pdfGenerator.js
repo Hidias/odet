@@ -903,13 +903,14 @@ function generateCertificatContent(doc, session, trainee, trainer, { defaultAcqu
   ])
   f.space(3)
 
+  // Une seule page : nature de l'action sur deux colonnes
   f.label("Nature de l'action concourant au développement des compétences")
   f.checks([
     { label: 'Action de formation', checked: true },
     { label: 'Bilan de compétences', muted: true },
     { label: "Action de validation des acquis de l'expérience", muted: true },
     { label: 'Action de formation par apprentissage', muted: true },
-  ])
+  ], { columns: 2 })
 
   f.label("Résultat de l'action de formation")
   f.checks([
@@ -918,25 +919,27 @@ function generateCertificatContent(doc, session, trainee, trainer, { defaultAcqu
   ])
 
   if (isNotAcquired) {
-    const failed = trainee?.failed_objectives || []
-    if (failed.length) { f.label('Objectifs non validés'); f.bullets(failed) }
+    // Un objectif commenté n'apparaît qu'une fois, avec son action corrective (une seule page)
     const withComments = (trainee?.failed_objectives_with_comments || []).filter(o => o.comment && String(o.comment).trim())
+    const commentes = new Set(withComments.map(o => o.text))
+    const failed = (trainee?.failed_objectives || []).filter(o => !commentes.has(o))
+    if (failed.length) { f.label('Objectifs non validés'); f.bullets(failed) }
     if (withComments.length) {
-      f.label('Actions correctives préconisées')
+      f.label('Objectifs non validés et actions correctives préconisées')
       withComments.forEach(o => { f.para(o.text, { style: 'bold', after: 0.5 }); f.para(o.comment, { x: f.M + 4, w: f.W - 4, color: f.t.muted, after: 2 }) })
     }
     if (trainee?.remediation_proposal) f.callout('Proposition pour valider la formation', trainee.remediation_proposal)
   }
 
-  f.note("Sans préjudice des délais imposés par les règles fiscales, comptables ou commerciales, je m'engage à conserver l'ensemble des pièces justificatives ayant permis d'établir le présent certificat pendant une durée de 3 ans à compter de la fin de l'année du dernier paiement. En cas de cofinancement des fonds européens, la durée de conservation est étendue conformément aux obligations conventionnelles spécifiques.", { after: 5 })
+  f.note("Sans préjudice des délais imposés par les règles fiscales, comptables ou commerciales, je m'engage à conserver l'ensemble des pièces justificatives ayant permis d'établir le présent certificat pendant une durée de 3 ans à compter de la fin de l'année du dernier paiement. En cas de cofinancement des fonds européens, la durée de conservation est étendue conformément aux obligations conventionnelles spécifiques.", { after: 3 })
 
   // Document émis (0399) : une version corrigée est datée du jour et annule la précédente
-  if (trainee?.document_emis?.remplace) f.note(mentionRemplace('certificat', trainee.document_emis), { after: 3 })
-  f.ensure(39)
+  if (trainee?.document_emis?.remplace) f.note(mentionRemplace('certificat', trainee.document_emis), { after: 2 })
+  // « Fait à » à gauche du cadre de signature (demi-largeur à droite) : une ligne de gagnée
+  f.ensure(26 + 4)
   f.body(9)
-  doc.text(`Fait à ${ORG.lieu_signature || ORG.city || ''}, le ${formatDate(trainee?.document_emis?.issued_on || session?.end_date || new Date())}.`, f.M, f.y)
-  f.y += 4
-  f.signatures([{ label: 'Le dispensateur de formation', name: `${ORG.dirigeant || ''}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}`, hint: 'Cachet et signature', stamp: ORG.stamp_base64, image: ORG.dirigeant_signature_base64 }], { height: 32 })
+  doc.text(`Fait à ${ORG.lieu_signature || ORG.city || ''}, le ${formatDate(trainee?.document_emis?.issued_on || session?.end_date || new Date())}.`, f.M, f.y + 5)
+  f.signatures([{ label: 'Le dispensateur de formation', name: `${ORG.dirigeant || ''}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}`, hint: 'Cachet et signature', stamp: ORG.stamp_base64, image: ORG.dirigeant_signature_base64 }], { height: 26 })
   f.finish()
 }
 
@@ -1698,7 +1701,8 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
     f.bullets(objectifs)
   }
 
-  // ── À prévoir ──
+  // ── À prévoir ── (espace après le tableau : sans objectifs, le titre chevauchait la ligne « Formateur »)
+  if (!objectifs.length) f.y += 5
   f.section('À prévoir')
   f.bullets([
     "Votre pièce d'identité",
