@@ -4573,6 +4573,94 @@ begin
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0393 : une contrainte cite encore un prénom'::text; end if;
   end if;
 
+  -- EPI remis au personnel (0394) : la direction remet, l'article sort du stock, renouvellement proposé ;
+  -- le technicien voit son EPI et ne peut pas s'en remettre un ; une remise annulée revient en stock
+  if to_regclass('public.hr_ppe_handovers') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare
+      z_co uuid := app.company_default(); z_p uuid; z_i uuid; z_l uuid; z_h uuid; z_ok boolean := false; z_n int; z_mod boolean;
+      z_r date;
+    begin
+      select coalesce(enabled, false) into z_mod from public.company_modules where company_id = z_co and key = 'rh';
+      insert into public.company_modules (company_id, key, enabled) values (z_co, 'rh', true)
+        on conflict (company_id, key) do update set enabled = true;
+      select id into z_p from public.hr_people where profile_id = u_tech limit 1;
+      if z_p is null then
+        insert into public.hr_people (company_id, first_name, last_name, profile_id) values (z_co, 'Essai', 'EPI 0394', u_tech) returning id into z_p;
+      end if;
+      insert into public.stock_items (company_id, label, unit, ppe, ppe_renew_months) values (z_co, 'Gants essai 0394', 'paire', true, 12) returning id into z_i;
+      insert into public.stock_locations (company_id, kind, name) values (z_co, 'depot', 'Dépôt essai 0394') returning id into z_l;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.hr_ppe_handovers (person_id, item_id, quantity, size, from_location_id, handed_on, employee_signature)
+      values (z_p, z_i, 2, '9', z_l, date '2026-10-21', 'data:image/png;base64,AAAA') returning id, renew_on into z_h, z_r;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if z_r = date '2027-10-21' and exists (select 1 from public.stock_movements where source_table = 'hr_ppe_handovers' and source_id = z_h and kind = 'sortie' and quantity = 2 and from_location_id = z_l)
+         and (select signed_at from public.hr_ppe_handovers where id = z_h) is not null then
+        v_lines := v_lines || 'OK      dir   0394 : EPI remis, sorti du stock, renouvellement à 12 mois, signature datée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0394 : remise d''EPI'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into z_n from public.hr_ppe_handovers where id = z_h;
+      begin insert into public.hr_ppe_handovers (person_id, item_id, quantity) values (z_p, z_i, 1);
+      exception when insufficient_privilege then z_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if z_n = 1 then v_lines := v_lines || 'OK      tech  0394 : le technicien voit l''EPI qui lui a été remis'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0394 : EPI remis invisible pour la personne'::text; end if;
+      if z_ok then v_lines := v_lines || 'OK      tech  0394 : remise d''EPI refusée au technicien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0394 : un technicien peut enregistrer une remise'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      delete from public.hr_ppe_handovers where id = z_h;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if exists (select 1 from public.stock_movements where source_table = 'hr_ppe_handovers_annulee' and source_id = z_h and kind = 'ajustement' and to_location_id = z_l and quantity = 2) then
+        v_lines := v_lines || 'OK      dir   0394 : remise annulée, EPI revenu en stock'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0394 : retour en stock après annulation'::text; end if;
+      update public.company_modules set enabled = coalesce(z_mod, false) where company_id = z_co and key = 'rh';
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0394 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
+  -- Permis à l'attribution d'un véhicule (0395) : refusée sans permis en cours, acceptée avec
+  if to_regprocedure('app.permis_motif(uuid,uuid,uuid,date)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare
+      z_co uuid := app.company_default(); z_p uuid; z_v uuid; z_ok boolean := false; z_mod boolean;
+    begin
+      select coalesce(enabled, false) into z_mod from public.company_modules where company_id = z_co and key = 'rh';
+      insert into public.company_modules (company_id, key, enabled) values (z_co, 'rh', true)
+        on conflict (company_id, key) do update set enabled = true;
+      select id into z_p from public.hr_people where profile_id = u_tech limit 1;
+      if z_p is null then
+        insert into public.hr_people (company_id, first_name, last_name, profile_id) values (z_co, 'Essai', 'Permis 0395', u_tech) returning id into z_p;
+      end if;
+      update public.hr_qualifications set archived_at = now() where person_id = z_p and kind = 'permis' and archived_at is null;
+      insert into public.vehicles (company_id, plate) values (z_co, 'ES-395-AI') returning id into z_v;
+      begin insert into public.vehicle_assignments (company_id, vehicle_id, profile_id) values (z_co, z_v, u_tech);
+      exception when check_violation then z_ok := true; end;
+      if z_ok then v_lines := v_lines || 'OK      base  0395 : véhicule refusé sans permis en cours'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0395 : véhicule confié sans permis'::text; end if;
+      insert into public.hr_qualifications (company_id, person_id, kind, label, obtained_on) values (z_co, z_p, 'permis', 'Permis B', date '2015-06-02');
+      insert into public.vehicle_assignments (company_id, vehicle_id, profile_id) values (z_co, z_v, u_tech);
+      v_lines := v_lines || 'OK      base  0395 : véhicule confié avec un permis en cours'::text;
+      update public.company_modules set enabled = coalesce(z_mod, false) where company_id = z_co and key = 'rh';
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0395 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Avis après formation (0396) : la société de la session est reprise, un seul avis par stagiaire et par session
   if to_regclass('public.training_avis') is not null then
     execute 'reset role';
