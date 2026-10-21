@@ -20,6 +20,7 @@ import RepertoireClient from '../components/RepertoireClient'
 import SitesClient from '../components/SitesClient'
 import EcheancesClient from '../components/EcheancesClient'
 import JournalEspaceClient from '../components/JournalEspaceClient'
+import DocumentsEspaceClient from '../components/DocumentsEspaceClient'
 import ComptesEntreprise from '../components/ComptesEntreprise'
 import PistesClient from '../components/PistesClient'
 import RegistreClient from '../../registre/components/RegistreClient'
@@ -1628,6 +1629,9 @@ export default function ClientDetail() {
           {d.espace && client && <ComptesEntreprise client={client} contacts={contacts} />}
 
           {/* Journal de l'espace client : preuve de mise à disposition (0401) */}
+          {/* Documents de l'espace client, toutes prestations (0404) */}
+          {client && <DocumentsEspaceClient client={client} peutModifier={d.modifier} />}
+
           {client && <JournalEspaceClient client={client} />}
 
           {/* Suivi des affaires et informations commerciales (chantier 10, 0380) */}

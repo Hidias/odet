@@ -3,7 +3,7 @@ import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
 import {
   Home, GraduationCap, Users, MessageSquare, MoreHorizontal, Calendar, MapPin, FileText, FileSignature, ClipboardList,
-  Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, BookOpen, Receipt, Megaphone, ExternalLink, Send, Plus, Trash2, ShieldCheck,
+  Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, BookOpen, Receipt, Megaphone, ExternalLink, Send, Plus, Trash2, ShieldCheck, FolderOpen,
 } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr as frLocale } from 'date-fns/locale'
@@ -20,6 +20,8 @@ import { appliquerEmis } from '../../formation/lib/documentsEmis'
 import { noterCompte, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
 import SignerConvention from '../components/SignerConvention'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
+import MesDocuments from '../components/MesDocuments'
+import { lireDocumentPortail, versBase64 } from '../../../core/portail/documentsClient'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
 // salariés et validités, demandes (inscription inter, formation intra, remplacement, message), catalogue, factures
@@ -495,7 +497,7 @@ function Demandes({ compte, onChange }) {
 }
 
 function Plus_({ compte, org, salaries }) {
-  const [vue, setVue] = useState('catalogue')
+  const [vue, setVue] = useState('documents')
   const [catalogue, setCatalogue] = useState(null)
   const [factures, setFactures] = useState(null)
   const [actus, setActus] = useState(null)
@@ -504,7 +506,7 @@ function Plus_({ compte, org, salaries }) {
     if (vue === 'factures' && !factures) supabase.rpc('ent_factures').then(({ data }) => setFactures(data || []))
     if (vue === 'actus' && !actus) supabase.rpc('ent_actus').then(({ data }) => setActus(data || []))
   }, [vue])
-  const VUES = [['catalogue', 'Catalogue', BookOpen], ...(salaries ? [['salaries', 'Salariés', Users]] : []), ...(compte?.can_see_invoices ? [['factures', 'Factures', Receipt]] : []), ['actus', 'Actualités', Megaphone]]
+  const VUES = [['documents', 'Documents', FolderOpen], ['catalogue', 'Catalogue', BookOpen], ...(salaries ? [['salaries', 'Salariés', Users]] : []), ...(compte?.can_see_invoices ? [['factures', 'Factures', Receipt]] : []), ['actus', 'Actualités', Megaphone]]
   const chargement = <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
   return (
     <div className="space-y-4">
@@ -513,6 +515,15 @@ function Plus_({ compte, org, salaries }) {
           <button key={k} type="button" onClick={() => setVue(k)} className={`btn btn-sm ${vue === k ? 'btn-primary' : 'btn-secondary'}`}><Icon className="w-4 h-4" /> {l}</button>
         ))}
       </div>
+      {vue === 'documents' && (
+        <>
+          <MesDocuments titre="Documents mis à disposition"
+            charger={async () => (await supabase.rpc('ent_mes_documents')).data}
+            lire={(d) => lireDocumentPortail({}, d.id)}
+            noter={(d, buf) => noterCompte({ event: 'document', objectType: d.object_type, objectId: d.object_id, kind: d.kind, label: d.label, base64: versBase64(buf) })} />
+          <p className="text-xs text-gray-400">Rapports d'intervention, devis, factures et contrats mis à disposition par {org?.name || 'votre prestataire'} apparaissent ici.</p>
+        </>
+      )}
       {vue === 'catalogue' && (!catalogue ? chargement : (
         <div className="space-y-4">
           {catalogue.sessions_inter.length > 0 && (

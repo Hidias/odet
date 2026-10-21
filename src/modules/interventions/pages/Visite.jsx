@@ -16,6 +16,7 @@ import {
 import { RESULTS, suggestedOperation, summarize, frShort, REPLACE_REASONS, PERIODIC_OPERATIONS, replaceMissing, replaceBlockers } from '../lib/schedule'
 import { ResultBadge, VisitBadge, ScanButton, Sheet, Kpi } from '../components/ui'
 import { buildRapportPDF } from '../pdf/rapportPDF'
+import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import PontVisite from '../components/PontVisite'
 import { useAuthStore } from '../../../core/store'
 import { useAdapte, parler, voixDisponible } from '../../../core/branding/adapte'
@@ -487,7 +488,12 @@ function VisitDone({ visit, items, parts, equipmentById, settings, technician, i
 
   const makePdf = async () => {
     const { data: tech } = visit.technician_id ? await supabase.from('profiles').select('first_name, last_name, display_name, email').eq('id', visit.technician_id).maybeSingle() : { data: null }
-    return buildRapportPDF({ visit, items, parts, equipmentById, settings, technicianName: tech ? profileName(tech) : (technician?.name || '') })
+    const out = await buildRapportPDF({ visit, items, parts, equipmentById, settings, technicianName: tech ? profileName(tech) : (technician?.name || '') })
+    // Le rapport remis est mis à disposition dans l'espace client, tel quel (0404) ; un seul par visite
+    mettreADisposition({ objectType: 'itv_visit', objectId: visit.id, kind: 'rapport',
+      label: `Rapport d'intervention ${visit.reference || ''} du ${frShort((visit.started_at || visit.planned_on || '').slice(0, 10))}`.replace(/\s+/g, ' ').trim(),
+      base64: versBase64(out.doc.output('arraybuffer')) })
+    return out
   }
   const download = async () => {
     setBusy('pdf')

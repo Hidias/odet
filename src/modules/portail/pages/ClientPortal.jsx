@@ -11,6 +11,8 @@ import { appliquerEmis } from '../../formation/lib/documentsEmis'
 import { noterLien, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
 import SignerConvention from '../components/SignerConvention'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
+import MesDocuments from '../components/MesDocuments'
+import { lireDocumentPortail, versBase64 } from '../../../core/portail/documentsClient'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
 // sessions de l'entreprise et téléchargement de ses documents, en lecture seule. Aux couleurs de l'instance,
@@ -472,6 +474,12 @@ export default function ClientPortal() {
         {upcoming.length === 0 && past.length === 0 && (
           <p className="text-sm text-gray-500 text-center py-10">Aucune formation enregistrée pour le moment.</p>
         )}
+
+        {/* Documents mis à disposition, toutes prestations (0404) */}
+        <MesDocuments
+          charger={async () => (await supabase.rpc('client_portal_mes_documents', { p_token: token, p_code: code })).data}
+          lire={(d) => lireDocumentPortail({ token, code }, d.id)}
+          noter={(d, buf) => noterLien(token, code, { event: 'document', objectType: d.object_type, objectId: d.object_id, kind: d.kind, label: d.label, base64: versBase64(buf) })} />
 
         {org && (org.phone || org.email || site) && (
           <section className="vitrine-monte rounded-ui-lg border border-gray-200 bg-white p-5 sm:p-6 grid gap-5 sm:grid-cols-[1fr_auto] items-center">

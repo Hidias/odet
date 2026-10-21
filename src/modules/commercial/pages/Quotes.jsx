@@ -30,6 +30,7 @@ import { useCapacites } from '../../../core/capacites'
 import { modeleEnvoiDevis } from '../../../core/emails/modeles'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
 import AcompteDevis from '../components/AcompteDevis'
+import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
@@ -461,6 +462,12 @@ export default function Quotes() {
     loadAll()
   }
 
+  // Devis remis (envoyé ou accepté) : mis à disposition dans l'espace client, tel quel (0404), une fois par devis
+  function publierDevis(quote, doc) {
+    if (!quote?.id || !doc || !['sent', 'accepted', 'partial'].includes(quote.status)) return
+    mettreADisposition({ objectType: 'quote', objectId: quote.id, kind: 'devis', label: `Devis ${quote.reference || ''}`.trim(), base64: versBase64(doc.output('arraybuffer')) })
+  }
+
   // === PDF from list ===
   async function downloadPDF(quote) {
     setGeneratingPdf(true)
@@ -472,7 +479,8 @@ export default function Quotes() {
         const { data } = await supabase.from('client_contacts').select('*').eq('id', quote.contact_id).single()
         contactData = data
       }
-      await generateQuotePDF(quote, loadedItems, clientData, contactData, { orgSettings: organization })
+      const doc = await generateQuotePDF(quote, loadedItems, clientData, contactData, { orgSettings: organization })
+      publierDevis(quote, doc)
       toast.success('PDF généré !')
     } catch (err) { console.error(err); toast.error('Erreur PDF: ' + err.message) }
     setGeneratingPdf(false)
@@ -485,7 +493,8 @@ export default function Quotes() {
       const clientData = clients.find(c => c.id === currentQuote.client_id) || {}
       const contactData = currentQuote.contact_id ? contacts.find(c => c.id === currentQuote.contact_id) || null : null
       const itemsForPdf = items.filter(it => it.description_title).map(it => ({ ...it, total_ht: calcItemTotal(it) }))
-      await generateQuotePDF(currentQuote, itemsForPdf, clientData, contactData, { orgSettings: organization })
+      const doc = await generateQuotePDF(currentQuote, itemsForPdf, clientData, contactData, { orgSettings: organization })
+      publierDevis(currentQuote, doc)
       toast.success('PDF généré !')
     } catch (err) { console.error(err); toast.error('Erreur PDF: ' + err.message) }
     setGeneratingPdf(false)

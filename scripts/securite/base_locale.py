@@ -249,6 +249,8 @@ ORDRE_PROD = (
     + ['0402']
     # Journal de l'espace client : la purge des données de test passe, 21/10
     + ['0403']
+    # Documents mis à disposition dans l'espace client, toutes prestations, 21/10
+    + ['0404']
 )
 
 
