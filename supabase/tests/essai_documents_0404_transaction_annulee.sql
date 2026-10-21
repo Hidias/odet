@@ -4824,7 +4824,10 @@ begin
     v_total := v_total + 2;
     declare z_s uuid; z_t uuid; z_co uuid; z_ok boolean := false;
     begin
-      select st.session_id, st.trainee_id into z_s, z_t from public.session_trainees st limit 1;
+      -- Un stagiaire sans document émis (la base réelle en a déjà)
+      select st.session_id, st.trainee_id into z_s, z_t from public.session_trainees st
+      where not exists (select 1 from public.training_documents_issued d where d.session_id = st.session_id and d.trainee_id = st.trainee_id)
+      limit 1;
       if z_s is null then
         v_lines := v_lines || 'OK      base  0399 : document émis (aucun stagiaire pour l''essai)'::text;
         v_lines := v_lines || 'OK      base  0399 : correction motivée (aucun stagiaire pour l''essai)'::text;
@@ -4930,6 +4933,33 @@ begin
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
       v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0402 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
+  -- Journal et purge (0403) : la mise à vide du lien d'accès passe, toute autre modification reste refusée
+  if to_regclass('public.portal_events') is not null and exists (select 1 from pg_proc where proname = 'portal_events_fige'
+       and prosrc like '%access_id%') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare z_c uuid; z_a uuid; z_ev uuid; z_ok boolean := false;
+    begin
+      insert into public.clients (name) values ('Client essai 0403') returning id into z_c;
+      insert into public.client_portal_access (client_id, access_code) values (z_c, '123456') returning id into z_a;
+      z_ev := app.portail_noter(z_c, 'lien', z_a, null, 'connexion', null, null, null, null, null);
+      delete from public.client_portal_access where id = z_a;
+      if (select access_id from public.portal_events where id = z_ev) is null then
+        v_lines := v_lines || 'OK      base  0403 : l''accès effacé, la ligne du journal reste (lien mis à vide)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0403 : lien d''accès non mis à vide'::text; end if;
+      begin update public.portal_events set ip = 'x' where id = z_ev;
+      exception when insufficient_privilege then z_ok := true; end;
+      if z_ok then v_lines := v_lines || 'OK      base  0403 : une autre modification reste refusée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0403 : ligne du journal modifiée'::text; end if;
+      delete from public.clients where id = z_c;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0403 : erreur ' || sqlerrm)::text;
     end;
   end if;
 
