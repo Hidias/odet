@@ -6118,6 +6118,31 @@ begin
     end;
   end if;
 
+  -- Fuites corrigées (0432) : le technicien ne lit que les rapports de ses clients
+  if exists (select 1 from pg_policies where tablename = 'client_shared_documents' and policyname = 'client_shared_documents_lire' and qual like '%rapport%') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 1;
+    declare f_r uuid; f_f uuid; f_vu text;
+    begin
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      values ((select company_id from public.clients where id = v_client_tech), v_client_tech, 'client', v_client_tech, 'rapport', 'Rapport essai 0432', 'x/r.pdf', repeat('1', 64)) returning id into f_r;
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      values ((select company_id from public.clients where id = v_client_tech), v_client_tech, 'client', v_client_tech, 'facture', 'Facture essai 0432', 'x/f.pdf', repeat('2', 64)) returning id into f_f;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      f_vu := (select string_agg(kind, ',' order by kind) from public.client_shared_documents where id in (f_r, f_f));
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if f_vu = 'rapport' then v_lines := v_lines || 'OK      tech  0432 : le technicien lit le rapport de son client, pas sa facture'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0432 : documents lus par le technicien (' || coalesce(f_vu, 'aucun') || ')'); end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0432 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
