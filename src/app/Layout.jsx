@@ -130,6 +130,8 @@ export default function Layout() {
   const retoursActif = notices.disponible ? (modules || []).includes('retours') : null
   const settingsItems = useMemo(() => (fieldOnly ? [] : visibleSettingsItems(userRole, can, modules)
     .map((i) => (i.to === '/nouveautes' ? { ...i, dot: notices.unseen } : i))), [userRole, fieldOnly, rights, can, modules, notices.unseen])
+  // Pied du menu : Paramètres et Règles de gestion sous une seule entrée (onglets), rangement du 21/10
+  const piedMenu = useMemo(() => entreesMenu(settingsItems), [settingsItems])
   // Garde de l'adresse directe : même table que le menu (rôle et droits)
   const pageAutorisee = useMemo(() => accesPage(location.pathname, userRole, can), [location.pathname, userRole, rights, can])
   const fieldAllowed = !fieldOnly || location.pathname === '/mot-de-passe'
@@ -138,7 +140,7 @@ export default function Layout() {
   const basculerMode = () => update({ mode: simple ? 'complet' : 'simple' })
   const pageTitle = useMemo(() => pageTitleFor(location.pathname), [location.pathname])
   // Pages d'un même groupe (ex. Catalogue, Tests et quiz, Obligations) : onglets en haut de la page
-  const onglets = useMemo(() => ongletsPour(location.pathname, sectionsCompletes), [location.pathname, sectionsCompletes])
+  const onglets = useMemo(() => ongletsPour(location.pathname, [...sectionsCompletes, { items: settingsItems }]), [location.pathname, sectionsCompletes, settingsItems])
   const ongletActif = useMemo(() => entreePourChemin(location.pathname)?.to, [location.pathname])
 
   // Barre de navigation en bas sur téléphone : les 4 destinations principales disponibles pour ce rôle et ces modules, puis « Plus » (menu complet)
@@ -322,9 +324,9 @@ export default function Layout() {
           {simple ? 'Afficher tout le menu' : 'Menu simple'}
         </button>
       )}
-      {settingsItems.length > 0 && (
+      {piedMenu.length > 0 && (
         <div className={`mt-2 pt-2 border-t ${navIsDark ? 'border-nav-fg/10' : 'border-gray-200'} space-y-0.5`}>
-          {settingsItems.map((item) => navItem(item))}
+          {piedMenu.map((item) => navItem(item))}
         </div>
       )}
     </nav>
@@ -381,9 +383,9 @@ export default function Layout() {
           </button>
         )}
         <div className="flex-1 min-h-2" />
-        {settingsItems.map((item) => (
+        {piedMenu.map((item) => (
           <NavLink key={item.to} to={item.to} title={item.label}
-            className={({ isActive }) => `relative ${railBtn(false)} ${isActive ? '!bg-nav-fg/15 !text-nav-fg' : ''}`}>
+            className={({ isActive }) => `relative ${railBtn(false)} ${isActive || (item.routes || []).some((r) => surRoute(location.pathname, r)) ? '!bg-nav-fg/15 !text-nav-fg' : ''}`}>
             <item.icon className="w-5 h-5 flex-none" aria-hidden="true" />
             <span className={railLabel}>{item.short || item.label}</span>
             {item.dot && <span className="absolute top-1.5 right-3 w-2.5 h-2.5 rounded-full bg-accent-500" aria-label="nouveau" />}
@@ -633,7 +635,7 @@ export default function Layout() {
                     <div className="mt-1"><span className="badge badge-neutral">{fieldOnly ? 'Technicien' : (ROLE_LABELS[userRole] || userRole)}</span></div>
                   </div>
                   <div className="py-1">
-                    {settingsItems.map((item) => (
+                    {piedMenu.map((item) => (
                       <NavLink key={item.to} to={item.to} onClick={closeMenus} className="flex items-center gap-3 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
                         <item.icon className="w-4 h-4" />{item.label}
                         {item.dot && <span className="ml-auto badge badge-warning" style={{ height: 18, fontSize: 10.5 }}>nouveau</span>}
