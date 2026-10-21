@@ -715,8 +715,16 @@ export default function Quotes() {
           end_date: sel.endDate,
           start_time: sel.startTime || '09:00',
           end_time: sel.endTime || '17:00',
-          location: sel.location || client.city || '',
-          location_city: sel.location || client.city || null,
+          // Lieu : l'adresse du client reste découpée (adresse, code postal, ville) tant que le lieu proposé n'a pas
+          // été changé ; un lieu saisi à la main devient le nom du lieu (avant : tout le texte finissait dans la ville)
+          ...((() => {
+            const parDefaut = [client.address, client.postal_code, client.city].filter(Boolean).join(', ') || client.city || ''
+            const saisi = (sel.location || '').trim()
+            if (!saisi || saisi === parDefaut) {
+              return { location_name: client.name || null, location_address: client.address || null, location_postal_code: client.postal_code || null, location_city: client.city || null }
+            }
+            return { location_name: saisi, location_address: null, location_postal_code: null, location_city: null }
+          })()),
           is_intra: sel.isIntra !== false,
           status: 'planned',
           day_type: (() => {
