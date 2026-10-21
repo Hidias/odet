@@ -247,6 +247,8 @@ ORDRE_PROD = (
     + ['0401']
     # Signature de la convention depuis l'espace client, 21/10
     + ['0402']
+    # Journal de l'espace client : la purge des données de test passe, 21/10
+    + ['0403']
 )
 
 
