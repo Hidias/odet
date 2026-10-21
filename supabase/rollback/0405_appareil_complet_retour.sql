@@ -23,4 +23,30 @@ end
 $patch$;
 drop function if exists app.entete_complet(text);
 
+create or replace function app.signature_client_figee()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'DELETE' then
+    if old.signer_type = 'client' and old.session_id is not null
+       and exists (select 1 from public.sessions s where s.id = old.session_id) then
+      raise exception 'Signature du client : elle ne s''efface pas' using errcode = '42501';
+    end if;
+    return old;
+  end if;
+  if old.signer_type = 'client' and (
+       new.signature_data is distinct from old.signature_data or new.document_hash is distinct from old.document_hash
+    or new.signed_at is distinct from old.signed_at or new.ip_address is distinct from old.ip_address
+    or new.user_agent is distinct from old.user_agent or new.signer_name is distinct from old.signer_name
+    or new.signer_role is distinct from old.signer_role or new.document_type is distinct from old.document_type
+    or new.session_id is distinct from old.session_id or new.metadata is distinct from old.metadata) then
+    raise exception 'Signature du client : elle ne se modifie pas' using errcode = '42501';
+  end if;
+  return new;
+end
+$$;
+revoke all on function app.signature_client_figee() from public, anon, authenticated;
+
 delete from public.schema_migrations where version = '0405_appareil_complet';

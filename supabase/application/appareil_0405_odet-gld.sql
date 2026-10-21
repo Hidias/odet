@@ -9,7 +9,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- « client, relais ») mais fausse pour l'appareil : « Mozilla/5.0 (Macintosh; …) AppleWebKit/537.36 (KHTML » au lieu de
 -- l'identifiant complet, d'où « navigateur, Mac » sur le dossier de preuve. L'appareil est désormais lu en entier pour
 -- les signatures (stagiaires, formateurs, clients) et pour le journal des signatures de l'espace client. Les signatures
--- déjà faites gardent ce qui a été relevé (rien n'est réécrit). Idempotent.
+-- déjà faites gardent ce qui a été relevé (rien n'est réécrit). La purge des données de test efface aussi les signatures
+-- de ses sessions de test. Idempotent.
 
 create or replace function app.entete_complet(p_nom text)
 returns text
@@ -47,5 +48,34 @@ begin
   execute replace(v_def, v_anc, v_nouv);
 end
 $patch$;
+
+-- La purge des données de test efface aussi les signatures de ses sessions de test : une signature du client ne
+-- s'efface toujours pas, sauf si sa session est une donnée de test (ou n'existe plus)
+create or replace function app.signature_client_figee()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'DELETE' then
+    if old.signer_type = 'client' and old.session_id is not null
+       and exists (select 1 from public.sessions s where s.id = old.session_id)
+       and not exists (select 1 from public.demo_records r where r.tbl = 'sessions' and r.id = old.session_id) then
+      raise exception 'Signature du client : elle ne s''efface pas' using errcode = '42501';
+    end if;
+    return old;
+  end if;
+  if old.signer_type = 'client' and (
+       new.signature_data is distinct from old.signature_data or new.document_hash is distinct from old.document_hash
+    or new.signed_at is distinct from old.signed_at or new.ip_address is distinct from old.ip_address
+    or new.user_agent is distinct from old.user_agent or new.signer_name is distinct from old.signer_name
+    or new.signer_role is distinct from old.signer_role or new.document_type is distinct from old.document_type
+    or new.session_id is distinct from old.session_id or new.metadata is distinct from old.metadata) then
+    raise exception 'Signature du client : elle ne se modifie pas' using errcode = '42501';
+  end if;
+  return new;
+end
+$$;
+revoke all on function app.signature_client_figee() from public, anon, authenticated;
 
 insert into public.schema_migrations (version) values ('0405_appareil_complet') on conflict (version) do nothing;

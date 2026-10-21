@@ -9,7 +9,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- « client, relais ») mais fausse pour l'appareil : « Mozilla/5.0 (Macintosh; …) AppleWebKit/537.36 (KHTML » au lieu de
 -- l'identifiant complet, d'où « navigateur, Mac » sur le dossier de preuve. L'appareil est désormais lu en entier pour
 -- les signatures (stagiaires, formateurs, clients) et pour le journal des signatures de l'espace client. Les signatures
--- déjà faites gardent ce qui a été relevé (rien n'est réécrit). Idempotent.
+-- déjà faites gardent ce qui a été relevé (rien n'est réécrit). La purge des données de test efface aussi les signatures
+-- de ses sessions de test. Idempotent.
 
 create or replace function app.entete_complet(p_nom text)
 returns text
@@ -47,6 +48,35 @@ begin
   execute replace(v_def, v_anc, v_nouv);
 end
 $patch$;
+
+-- La purge des données de test efface aussi les signatures de ses sessions de test : une signature du client ne
+-- s'efface toujours pas, sauf si sa session est une donnée de test (ou n'existe plus)
+create or replace function app.signature_client_figee()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'DELETE' then
+    if old.signer_type = 'client' and old.session_id is not null
+       and exists (select 1 from public.sessions s where s.id = old.session_id)
+       and not exists (select 1 from public.demo_records r where r.tbl = 'sessions' and r.id = old.session_id) then
+      raise exception 'Signature du client : elle ne s''efface pas' using errcode = '42501';
+    end if;
+    return old;
+  end if;
+  if old.signer_type = 'client' and (
+       new.signature_data is distinct from old.signature_data or new.document_hash is distinct from old.document_hash
+    or new.signed_at is distinct from old.signed_at or new.ip_address is distinct from old.ip_address
+    or new.user_agent is distinct from old.user_agent or new.signer_name is distinct from old.signer_name
+    or new.signer_role is distinct from old.signer_role or new.document_type is distinct from old.document_type
+    or new.session_id is distinct from old.session_id or new.metadata is distinct from old.metadata) then
+    raise exception 'Signature du client : elle ne se modifie pas' using errcode = '42501';
+  end if;
+  return new;
+end
+$$;
+revoke all on function app.signature_client_figee() from public, anon, authenticated;
 
 insert into public.schema_migrations (version) values ('0405_appareil_complet') on conflict (version) do nothing;
 
@@ -4817,6 +4847,24 @@ begin
       v_lines := v_lines || 'OK      base  0405 : appareil gardé en entier'::text;
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0405 : appareil coupé'::text; end if;
     perform set_config('request.headers', '', true);
+    v_total := v_total + 1;
+    declare z_c uuid; z_s uuid; z_r jsonb;
+    begin
+      select s.client_id into z_c from public.sessions s where s.client_id is not null limit 1;
+      if z_c is null then
+        v_lines := v_lines || 'OK      base  0405 : purge d''une signature de test (aucun client pour l''essai)'::text;
+      else
+        insert into public.sessions (client_id, start_date, end_date, attendance_token) values (z_c, current_date + 30, current_date + 30, 'essai-0405') returning id into z_s;
+        insert into public.demo_records (tbl, id) values ('sessions', z_s);
+        z_r := app.portail_signer(z_c, 'lien', null, null, z_s, 'convention', repeat('e', 64), 'Essai Signataire', null,
+          'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu la convention et je l''accepte.', 'Convention essai 0405');
+        delete from public.document_signatures where session_id = z_s;
+        v_lines := v_lines || 'OK      base  0405 : la purge efface la signature d''une session de test'::text;
+        delete from public.sessions where id = z_s;
+      end if;
+    exception when others then
+      v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0405 : purge d''une signature de test ' || sqlerrm)::text;
+    end;
   end if;
 
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles

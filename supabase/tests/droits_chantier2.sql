@@ -4796,6 +4796,24 @@ begin
       v_lines := v_lines || 'OK      base  0405 : appareil gardé en entier'::text;
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0405 : appareil coupé'::text; end if;
     perform set_config('request.headers', '', true);
+    v_total := v_total + 1;
+    declare z_c uuid; z_s uuid; z_r jsonb;
+    begin
+      select s.client_id into z_c from public.sessions s where s.client_id is not null limit 1;
+      if z_c is null then
+        v_lines := v_lines || 'OK      base  0405 : purge d''une signature de test (aucun client pour l''essai)'::text;
+      else
+        insert into public.sessions (client_id, start_date, end_date, attendance_token) values (z_c, current_date + 30, current_date + 30, 'essai-0405') returning id into z_s;
+        insert into public.demo_records (tbl, id) values ('sessions', z_s);
+        z_r := app.portail_signer(z_c, 'lien', null, null, z_s, 'convention', repeat('e', 64), 'Essai Signataire', null,
+          'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu la convention et je l''accepte.', 'Convention essai 0405');
+        delete from public.document_signatures where session_id = z_s;
+        v_lines := v_lines || 'OK      base  0405 : la purge efface la signature d''une session de test'::text;
+        delete from public.sessions where id = z_s;
+      end if;
+    exception when others then
+      v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0405 : purge d''une signature de test ' || sqlerrm)::text;
+    end;
   end if;
 
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
