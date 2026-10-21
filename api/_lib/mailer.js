@@ -188,7 +188,19 @@ export async function applyMailSink(mailOptions, supabase) {
   }
 }
 
-export function createTransporter(emailConfig, smtpPassword, supabase) {
+/**
+ * Envoi réel demandé par le super administrateur (décision de H, 21/10, 21 h 32) : même en mode démonstration, le
+ * message part à ses vrais destinataires, avec le super administrateur en copie cachée. En préversion, la
+ * redirection de test reste prioritaire.
+ */
+export function ajouterCopieCachee(mailOptions, adresse) {
+  if (!adresse) return mailOptions
+  const list = (v) => (Array.isArray(v) ? v : v ? String(v).split(',') : []).map((x) => (typeof x === 'string' ? x.trim() : x?.address || '')).filter(Boolean)
+  const bcc = [...new Set([...list(mailOptions.bcc), adresse].map((x) => x.toLowerCase()))]
+  return { ...mailOptions, bcc }
+}
+
+export function createTransporter(emailConfig, smtpPassword, supabase, mode = {}) {
   const transporter = nodemailer.createTransport({
     host: emailConfig.smtp_host,
     port: emailConfig.smtp_port,
@@ -204,8 +216,15 @@ export function createTransporter(emailConfig, smtpPassword, supabase) {
   })
   // Redirection à chaque envoi, quel que soit l'appelant : environnement de test d'abord, sinon mode démo
   const rawSend = transporter.sendMail.bind(transporter)
-  transporter.sendMail = async (options) => rawSend(isTestEnvironment() ? applyTestRedirect(options) : await applyMailSink(options, supabase))
+  transporter.sendMail = async (options) => rawSend(isTestEnvironment() ? applyTestRedirect(options)
+    : mode.reel ? ajouterCopieCachee(options, mode.copieCachee) : await applyMailSink(options, supabase))
   return transporter
+}
+
+// Super administrateur (rôle du profil, lu en base avec la clé de service) : seul autorisé à l'envoi réel
+async function estSuperAdmin(supabase, userId) {
+  const { data } = await supabase.from('profiles').select('role, is_active').eq('id', userId).maybeSingle()
+  return !!data && data.role === 'superadmin' && data.is_active !== false
 }
 
 /**
@@ -224,8 +243,12 @@ export async function getMailer(supabase, userId, options = {}) {
     const preferred = configs.find((c) => c.email === options.preferEmail)
     if (preferred) emailConfig = preferred
   }
-  const transporter = createTransporter(emailConfig, decrypt(emailConfig.smtp_password_encrypted), supabase)
-  return { transporter, emailConfig, fromEmail: emailConfig.email, error: null }
+  // options.envoiReel : envoi manuel depuis l'outil (devis, convention, facture, session, stagiaire, rendez-vous) ;
+  // réel seulement pour le super administrateur, en copie cachée à sa propre adresse. Jamais pour un envoi automatique.
+  const reel = !!options.envoiReel && await estSuperAdmin(supabase, userId)
+  const transporter = createTransporter(emailConfig, decrypt(emailConfig.smtp_password_encrypted), supabase,
+    reel ? { reel: true, copieCachee: emailConfig.email } : {})
+  return { transporter, emailConfig, fromEmail: emailConfig.email, error: null, envoiReel: reel }
 }
 
 /**

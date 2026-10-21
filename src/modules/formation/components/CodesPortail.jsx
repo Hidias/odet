@@ -69,7 +69,7 @@ export default function CodesPortail({ session, stagiaires, codes, peutModifier 
 
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">
-      <button type="button" className="btn btn-secondary btn-sm" onClick={imprimer}><Printer className="w-4 h-4" />Coupons des codes à remettre</button>
+      <button type="button" className="btn btn-secondary btn-sm" onClick={imprimer}><Printer className="w-4 h-4" />Imprimer les codes d'accès (un par stagiaire)</button>
       <span className="text-ui-sm text-gray-500">Chaque stagiaire entre avec son code (aussi sur sa convocation) : aucun nom n'est affiché sur le portail.</span>
       {bloque && (
         <span className="flex items-center gap-2 text-ui-sm text-[rgb(var(--c-danger))]">
