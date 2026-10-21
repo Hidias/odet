@@ -1341,3 +1341,7 @@ _AVIS_VOIR = ("(company_id in " + societes('formation.suivi.voir') + " or ((sele
 _AVIS_GER = ("(company_id in " + societes('formation.suivi.gerer') + " or ((select app.a_le_droit('formation.sessions.modifier_siennes'))"
              " and session_id in (select app.trainer_session_ids())))")
 tdx('0396', 'training_avis', sel=_AVIS_VOIR, ins=_AVIS_GER, upd=_AVIS_GER, dele=_AVIS_GER)
+
+# Régularisation des demi-journées sans émargement (0398) : mêmes lecteurs et auteurs que l'émargement suivi ; une
+# décision ne se modifie ni ne s'efface (trace pour l'OPCO) : une correction ajoute une nouvelle décision datée.
+tdx('0398', 'attendance_regularisations', sel=_AVIS_VOIR, ins=_AVIS_GER, upd=None, dele=None)

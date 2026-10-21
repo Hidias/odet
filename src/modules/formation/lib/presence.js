@@ -94,3 +94,94 @@ export function formatHours(h) {
   const n = Number(h) || 0
   return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} heure${n > 1 ? 's' : ''}`
 }
+
+// ── Heures réellement suivies (0398) ──
+// Le certificat de réalisation porte la durée réellement suivie, rapprochée par l'OPCO des feuilles d'émargement.
+// Une demi-journée attendue sans signature (ni signature par procuration) se décide : « présent, a oublié de signer »
+// ou « absent ». Tant qu'elle n'est pas décidée, elle reste comptée (comme avant) et l'outil la signale.
+// Une session sans aucune signature électronique (feuille papier) n'est pas contrôlée.
+
+/** Demi-journées attendues : { date, period: 'morning'|'afternoon' }, comme la feuille de présence de la session */
+export function listeDemiJournees(session, course) {
+  const days = sessionDayList(session)
+  if (!days.length) return []
+  const half = session?.day_type === 'half'
+  const afternoonHalf = half && toMinutes(session?.start_time) != null && toMinutes(session.start_time) >= 12 * 60
+  let reste = half ? days.length : Math.ceil(plannedHours(course) / 3.5)
+  const out = []
+  for (const date of days) {
+    if (reste <= 0) break
+    if (half) { out.push({ date, period: afternoonHalf ? 'afternoon' : 'morning' }); reste--; continue }
+    out.push({ date, period: 'morning' }); reste--
+    if (reste > 0) { out.push({ date, period: 'afternoon' }); reste-- }
+  }
+  return out
+}
+
+const jour = (d) => String(d || '').slice(0, 10)
+
+/** Décision la plus récente par demi-journée d'un stagiaire : { 'date_period': decision } */
+export function decisionsEnVigueur(regularisations, traineeId) {
+  const out = {}
+  ;[...(regularisations || [])]
+    .filter((r) => r.trainee_id === traineeId)
+    .sort((a, b) => String(a.decided_at).localeCompare(String(b.decided_at)))
+    .forEach((r) => { out[`${jour(r.date)}_${r.period}`] = r })
+  return out
+}
+
+/**
+ * Contrôle de l'émargement d'un stagiaire.
+ * @returns {{ controle: boolean, aRegulariser: object[], absents: object[], presentsSansSignature: object[] }}
+ */
+export function controleEmargement({ session, course, traineeId, halfdays = [], proxies = [], regularisations = [] }) {
+  const sessionSignee = (halfdays || []).some((h) => h.signature_morning || h.signature_afternoon) || (proxies || []).length > 0
+  const vide = { controle: false, aRegulariser: [], absents: [], presentsSansSignature: [] }
+  if (!sessionSignee) return vide
+  const signe = new Set()
+  ;(halfdays || []).filter((h) => h.trainee_id === traineeId).forEach((h) => {
+    if (h.signature_morning) signe.add(`${jour(h.date)}_morning`)
+    if (h.signature_afternoon) signe.add(`${jour(h.date)}_afternoon`)
+  })
+  ;(proxies || []).filter((p) => p.trainee_id === traineeId).forEach((p) => signe.add(`${jour(p.date)}_${p.period}`))
+  const notePresent = new Set()
+  ;(halfdays || []).filter((h) => h.trainee_id === traineeId).forEach((h) => {
+    if (h.morning === true) notePresent.add(`${jour(h.date)}_morning`)
+    if (h.afternoon === true) notePresent.add(`${jour(h.date)}_afternoon`)
+  })
+  const decisions = decisionsEnVigueur(regularisations, traineeId)
+  const res = { controle: true, aRegulariser: [], absents: [], presentsSansSignature: [] }
+  for (const hd of listeDemiJournees(session, course)) {
+    const cle = `${hd.date}_${hd.period}`
+    if (signe.has(cle)) continue
+    const d = decisions[cle]
+    const ligne = { ...hd, notePresent: notePresent.has(cle), decision: d || null }
+    if (!d) res.aRegulariser.push(ligne)
+    else if (d.decision === 'absent') res.absents.push(ligne)
+    else res.presentsSansSignature.push(ligne)
+  }
+  return res
+}
+
+/**
+ * Heures réellement suivies : heures de présence (arrivée, départ) moins les demi-journées décidées « absent ».
+ * Les demi-journées d'un jour d'arrivée tardive ou de départ anticipé (et après le départ) ne sont pas retirées
+ * une seconde fois : elles sont déjà décomptées.
+ */
+export function heuresRealisees({ session, course, st = {}, controle }) {
+  const calc = computePresenceHours(session, course, st)
+  const base = st.presence_hours != null && (st.early_departure || st.arrival_time) ? Number(st.presence_hours) : calc.hours
+  const attendues = listeDemiJournees(session, course).length || 1
+  const parDemi = plannedHours(course) / attendues
+  const dejaDecompte = (d) => (st.arrival_time && st.arrival_date && d === jour(st.arrival_date))
+    || (st.early_departure && st.departure_date && d >= jour(st.departure_date))
+  const retirees = (controle?.absents || []).filter((a) => !dejaDecompte(a.date))
+  const hours = Math.max(0, Math.round((base - retirees.length * parDemi) * 4) / 4)
+  return { hours, base, retirees: retirees.length, partiel: hours < plannedHours(course) }
+}
+
+const LIBELLE_PERIODE = { morning: 'matin', afternoon: 'après-midi' }
+export function libelleDemiJournee(hd) {
+  const [a, m, j] = String(hd.date).split('-')
+  return `${j}/${m}/${a} ${LIBELLE_PERIODE[hd.period] || hd.period}`
+}

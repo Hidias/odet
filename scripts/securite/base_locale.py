@@ -237,6 +237,8 @@ ORDRE_PROD = (
     + ['0396']
     # Financement prévu dans le devis, 21/10
     + ['0397']
+    # Heures réellement suivies, régularisation tracée des émargements, 21/10
+    + ['0398']
 )
 
 
