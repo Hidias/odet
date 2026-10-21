@@ -6064,6 +6064,62 @@ begin
     end;
   end if;
 
+  -- Espaces entreprise sans les autres participants (0424) : en inter, même client principal, ses salariés seulement
+  if exists (select 1 from public.schema_migrations where version = '0424_espaces_sans_autres_participants') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare q_c1 uuid; q_c2 uuid; q_t1 uuid; q_t2 uuid; q_s uuid; q_g2 uuid; q_j jsonb; q_u uuid := gen_random_uuid(); q_n int; q_n2 int;
+    begin
+      insert into public.clients (name, client_type) values ('Essai principal 0424', 'entreprise') returning id into q_c1;
+      insert into public.clients (name, client_type) values ('Essai autre 0424', 'entreprise') returning id into q_c2;
+      insert into public.trainees (first_name, last_name, client_id) values ('Ana', 'Principal', q_c1) returning id into q_t1;
+      insert into public.trainees (first_name, last_name, client_id) values ('Max', 'Etranger', q_c2) returning id into q_t2;
+      insert into public.sessions (session_type, client_id, start_date, end_date) values ('inter', q_c1, current_date + 9, current_date + 9) returning id into q_s;
+      insert into public.session_groups (session_id, client_id, kind) values (q_s, q_c2, 'entreprise') returning id into q_g2;
+      insert into public.session_trainees (session_id, trainee_id) values (q_s, q_t1);
+      insert into public.session_trainees (session_id, trainee_id, group_id) values (q_s, q_t2, q_g2);
+      insert into public.client_portal_access (client_id, token, access_code, is_active) values (q_c1, 'essai-0424-lien', '424424', true);
+      execute 'set local role anon';
+      q_j := public.client_portal_data('essai-0424-lien', '424424');
+      execute 'reset role';
+      select jsonb_array_length(x -> 'session_trainees') into q_n from jsonb_array_elements(q_j -> 'sessions') x where x ->> 'id' = q_s::text;
+      if q_n = 1 and q_j::text not like '%Etranger%' then
+        v_lines := v_lines || 'OK      anon  0424 : espace par code : en inter, ses salariés seulement (client principal compris)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0424 : autres participants visibles ' || coalesce(q_n, -1))::text; end if;
+      insert into auth.users (id, email, aud, role) values (q_u, 'ent.0424@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (q_u, 'ent.0424@test.invalid', 'entreprise', true)
+      on conflict (id) do update set role = 'entreprise', is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.client_accounts (profile_id, client_id, email) values (q_u, q_c1, 'ent.0424@test.invalid');
+      perform set_config('request.jwt.claims', json_build_object('sub', q_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      q_j := public.ent_sessions();
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      select jsonb_array_length(x -> 'session_trainees') into q_n2 from jsonb_array_elements(q_j -> 'sessions') x where x ->> 'id' = q_s::text;
+      if q_n2 = 1 and q_j::text not like '%Etranger%' then
+        v_lines := v_lines || 'OK      ent   0424 : espace avec compte : en inter, ses salariés seulement (client principal compris)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ent   0424 : autres participants visibles ' || coalesce(q_n2, -1))::text; end if;
+      delete from public.client_accounts where profile_id = q_u;
+      delete from public.profiles where id = q_u;
+      delete from auth.users where id = q_u;
+      delete from public.client_portal_access where client_id = q_c1;
+      delete from public.trainee_info_sheets where session_id = q_s;
+      delete from public.session_trainees where session_id = q_s;
+      delete from public.session_groups where session_id = q_s;
+      delete from public.sessions where id = q_s;
+      delete from public.trainees where id in (q_t1, q_t2);
+      delete from public.sites where client_id in (q_c1, q_c2);
+      delete from public.clients where id in (q_c1, q_c2);
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0424 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

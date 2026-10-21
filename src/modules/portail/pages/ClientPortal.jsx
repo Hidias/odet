@@ -4,7 +4,8 @@ import { Lock, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, 
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../../../core/supabase'
-import { useBranding, brandLogo } from '../../../core/branding/BrandingProvider'
+import { useBranding } from '../../../core/branding/BrandingProvider'
+import { Halos, Marque } from '../components/Vitrine'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
@@ -69,36 +70,6 @@ function Chiffre({ valeur, suffixe = '', libelle, icone: Icone, delai }) {
     <div className="vitrine-monte rounded-ui-lg bg-white/10 backdrop-blur border border-white/15 px-4 py-3" style={{ '--delai': `${delai}ms` }}>
       <div className="flex items-center gap-2 text-white/70 text-xs uppercase tracking-wide"><Icone className="w-4 h-4" aria-hidden="true" />{libelle}</div>
       <div className="mt-1 font-display text-3xl font-semibold text-white tabular-nums">{v}{suffixe}</div>
-    </div>
-  )
-}
-
-function Halos() {
-  return (
-    <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
-      <div className="vitrine-halo w-72 h-72 -top-16 -left-10 bg-accent-500" />
-      <div className="vitrine-halo w-80 h-80 top-1/3 -right-24 bg-highlight-500" style={{ animationDelay: '-5s' }} />
-      <div className="vitrine-halo w-64 h-64 -bottom-20 left-1/3 bg-primary-400" style={{ animationDelay: '-9s' }} />
-      <div className="absolute inset-0 vitrine-grain" />
-    </div>
-  )
-}
-
-function Marque({ branding, sombre = false }) {
-  const logo = brandLogo(branding, sombre)
-  return (
-    <div className="flex items-center gap-3 min-w-0">
-      {logo ? (
-        <span className={`inline-flex items-center justify-center rounded-ui ${sombre ? 'bg-white/95 p-1.5' : ''}`}>
-          <img src={logo} alt={branding.org_name || ''} className="h-9 w-auto max-w-[140px] object-contain" />
-        </span>
-      ) : (
-        <div className="w-10 h-10 rounded-ui bg-accent-500 text-accent-fg flex items-center justify-center font-display font-bold">{(branding.org_name || 'O').slice(0, 1)}</div>
-      )}
-      <div className="min-w-0 leading-tight">
-        <div className={`font-display font-semibold truncate ${sombre ? 'text-white' : 'text-gray-900'}`}>{branding.org_name}</div>
-        <div className={`text-xs truncate ${sombre ? 'text-white/60' : 'text-gray-500'}`}>Espace entreprise</div>
-      </div>
     </div>
   )
 }
