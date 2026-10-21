@@ -156,7 +156,7 @@ export default function Courses() {
   const [form, setForm] = useState({
     code: '', title: '', description: '', duration: '', objectives: '', content: '',
     prerequisites: '', target_audience: '', methods: '', price_per_day: '', price_ht: '', 
-    material: '', trainer_equipment: '', theme_id: '', program_url: '', ...PROGRAMME_VIDE
+    material: '', trainer_equipment: '', theme_id: '', program_url: '', avis_kind: '', ...PROGRAMME_VIDE
   })
   const [uploadingProgram, setUploadingProgram] = useState(false)
   
@@ -382,6 +382,7 @@ export default function Courses() {
         material: course.material || '',
         trainer_equipment: course.trainer_equipment || '',
         theme_id: course.theme_id || '',
+        avis_kind: course.avis_kind || '',
         program_url: course.program_url || '',
         evaluation_methods: course.evaluation_methods || '',
         min_participants: course.min_participants ?? '',
@@ -457,6 +458,7 @@ export default function Courses() {
       material: form.material || null,
       trainer_equipment: form.trainer_equipment || null,
       theme_id: form.theme_id || null,
+      avis_kind: form.avis_kind || null,
       program_url: form.program_url || null,
       methods: form.methods || null,
       evaluation_methods: form.evaluation_methods || null,
@@ -876,6 +878,17 @@ export default function Courses() {
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Avis après formation (0396) : habilitation électrique ou conduite, remis à l'employeur */}
+              <div>
+                <label className="label">Avis après formation</label>
+                <select className="input" value={form.avis_kind || ''} onChange={(e) => setForm({ ...form, avis_kind: e.target.value })}>
+                  <option value="">Aucun</option>
+                  <option value="habilitation_electrique">Habilitation électrique (symboles proposés, NF C18-510)</option>
+                  <option value="autorisation_conduite">Conduite d'engins (catégories proposées, R4323-56)</option>
+                </select>
+                <p className="text-ui-sm text-gray-500 mt-1">Ajoute l'onglet « Avis après formation » aux sessions : un avis par stagiaire, en PDF pour l'employeur.</p>
               </div>
               
               {/* Code + Titre */}
