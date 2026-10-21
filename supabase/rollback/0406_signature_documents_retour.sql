@@ -47,4 +47,29 @@ end
 $$;
 revoke all on function app.signature_client_figee() from public, anon, authenticated;
 
+create or replace function app.client_shared_documents_fige()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'DELETE' then
+    if exists (select 1 from public.clients c where c.id = old.client_id) then
+      raise exception 'Document mis à disposition : il se retire, il ne s''efface pas' using errcode = '42501';
+    end if;
+    return old;
+  end if;
+  if old.withdrawn_at is not null
+     or (to_jsonb(new) - 'withdrawn_at' - 'withdrawn_by' - 'withdrawn_reason') <> (to_jsonb(old) - 'withdrawn_at' - 'withdrawn_by' - 'withdrawn_reason') then
+    raise exception 'Document mis à disposition : seul le retrait est possible' using errcode = '42501';
+  end if;
+  if new.withdrawn_at is not null then
+    new.withdrawn_at := now();
+    new.withdrawn_by := auth.uid();
+  end if;
+  return new;
+end
+$$;
+revoke all on function app.client_shared_documents_fige() from public, anon, authenticated;
+
 delete from public.schema_migrations where version = '0406_signature_documents';
