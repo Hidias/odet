@@ -160,13 +160,19 @@ export function renderCommercialDoc(doc, Lsource, p) {
   })
   f.y = Math.max(yLeft, doc.lastAutoTable.finalY) + 6
 
+  // Encadré « Signer en ligne » : à côté de la signature quand il y a la place, sinon en bas
+  let enLigneBas = p.enLigne || null
   // Note (et, pour un devis, « bon pour accord » à droite)
   if (p.signature) {
     const sh = 28
     setF(doc, 'normal'); doc.setFontSize(8.5)
     const noteLines = p.notes ? doc.splitTextToSize(String(p.notes), leftW - 8) : []
-    f.ensure(Math.max(sh + 10, noteLines.length * 4 + 12))
+    // Sans note : l'encadré « Signer en ligne » se place à gauche du cadre de signature (aucune hauteur en plus)
+    const enLigneACote = !!p.enLigne && !noteLines.length
+    const hCote = enLigneACote ? hauteurEncadreEnLigne(doc, leftW, p.enLigne, true) : 0
+    f.ensure(Math.max(sh + 10, noteLines.length * 4 + 12, hCote))
     const ys = f.y
+    if (enLigneACote) dessinerEncadreEnLigne(doc, t, M, ys, leftW, p.enLigne, true)
     if (noteLines.length) {
       const nh = noteLines.length * 4 + 10
       doc.setFillColor(...t.surface); doc.rect(M, ys, leftW, nh, 'F')
@@ -187,16 +193,17 @@ export function renderCommercialDoc(doc, Lsource, p) {
     doc.rect(sx, by, totW, sh)
     if (p.signature.image) drawImageFitted(doc, p.signature.image, sx + 2, by + 1, totW - 4, sh - 2)
     doc.setTextColor(...t.text)
-    f.y = Math.max(by + sh, ys + (noteLines.length ? noteLines.length * 4 + 10 : 0)) + 6
+    f.y = Math.max(by + sh, ys + (noteLines.length ? noteLines.length * 4 + 10 : 0), ys + hCote) + 6
+    if (enLigneACote) enLigneBas = null
   } else if (p.notes) {
     f.callout('Note', p.notes, { tone: 'muted' })
   }
 
   // Signer en ligne : adresse de l'espace client, QR code et code d'accès (le mail, lui, reste sans lien)
-  if (p.enLigne) {
-    const h = hauteurEncadreEnLigne(doc, f.W)
+  if (enLigneBas) {
+    const h = hauteurEncadreEnLigne(doc, f.W, enLigneBas)
     f.ensure(h + 2)
-    dessinerEncadreEnLigne(doc, t, M, f.y, f.W, p.enLigne)
+    dessinerEncadreEnLigne(doc, t, M, f.y, f.W, enLigneBas)
     f.y += h + 5
   }
 
