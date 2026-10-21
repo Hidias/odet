@@ -12,9 +12,20 @@ const enBase64 = (buf) => {
   return btoa(s)
 }
 
-/** auth : { token, code } pour l'espace par lien, {} pour l'espace par compte */
+/**
+ * auth : { token, code } pour l'espace par lien, {} pour l'espace par compte. Trois essais espacés (réseau du client) ;
+ * renvoie vrai si le fichier est déposé. La signature, elle, est déjà enregistrée.
+ */
 export async function deposerConvention(auth, signatureId, base64) {
-  try { await callApi('/api/convention-en-ligne', { ...auth, action: 'deposer', signature_id: signatureId, pdf_base64: base64 }) } catch { /* la signature est déjà enregistrée */ }
+  for (let essai = 0; essai < 3; essai++) {
+    try {
+      await callApi('/api/convention-en-ligne', { ...auth, action: 'deposer', signature_id: signatureId, pdf_base64: base64 })
+      return true
+    } catch {
+      await new Promise((r) => setTimeout(r, 1500 * (essai + 1)))
+    }
+  }
+  return false
 }
 
 /**

@@ -2162,8 +2162,7 @@ export default function SessionDetail() {
       const convocations = await generateAllPDF('convocation', session, traineesWithResult, { trainer })
       if (convocations) {
         zip.file(`Convocations_${ref}.pdf`, convocations.base64, { base64: true })
-        await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
-          .eq('session_id', session.id).is('convocation_sent_at', null)
+        // Archive : les convocations n'y sont pas « envoyées » (noté à l'envoi réel ou sur confirmation de remise, 21/10)
       }
 
       // 4. Fiches de renseignements - titre rempli, juste nom/prénom, reste vierge
@@ -2297,8 +2296,7 @@ export default function SessionDetail() {
       const convocations = await generateAllPDF('convocation', session, traineesWithResult, { trainer })
       if (convocations) {
         zip.file(`Convocations_${ref}.pdf`, convocations.base64, { base64: true })
-        await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
-          .eq('session_id', session.id).is('convocation_sent_at', null)
+        // Archive : les convocations n'y sont pas « envoyées » (noté à l'envoi réel ou sur confirmation de remise, 21/10)
       }
 
       // 4. Fiches de renseignements - remplies avec infoSheet
@@ -2575,8 +2573,8 @@ export default function SessionDetail() {
     downloadDocument(docType, session, options)
     toast.success('Document généré')
 
-    // Marquer convocation_sent_at si c'est une convocation
-    if (docType === 'convocation' && trainee) {
+    // Convocation téléchargée : notée remise seulement si on le confirme (sinon à l'envoi par e-mail, 21/10)
+    if (docType === 'convocation' && trainee && await confirmer({ title: 'Convocation remise ?', message: `Notez-la comme remise à ${trainee.first_name || ''} ${trainee.last_name || ''} seulement si vous la lui donnez ou l'envoyez vous-même.`, confirmLabel: 'Noter remise' })) {
       await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
         .eq('session_id', session.id).eq('trainee_id', trainee.id).is('convocation_sent_at', null)
     }
@@ -2606,8 +2604,8 @@ export default function SessionDetail() {
     await downloadAllDocuments(docType, session, liste, { trainer, questions })
     toast.success('Documents générés')
 
-    // Marquer convocation_sent_at pour tous les stagiaires
-    if (docType === 'convocation') {
+    // Convocations téléchargées : notées remises seulement si on le confirme (sinon à l'envoi par e-mail, 21/10)
+    if (docType === 'convocation' && await confirmer({ title: 'Convocations remises ?', message: 'Notez-les comme remises seulement si vous les donnez ou les envoyez vous-même aux stagiaires.', confirmLabel: 'Noter remises' })) {
       await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
         .eq('session_id', session.id).is('convocation_sent_at', null)
     }

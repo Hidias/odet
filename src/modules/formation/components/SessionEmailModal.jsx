@@ -1024,6 +1024,12 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         ? ['convention_envoyee', 'convocations_envoyees']
         : ['certificats_envoyes']
       await updateChecklistItems(checklistCodes)
+      // Convocations jointes et vraiment envoyées : « envoyée » noté ici seulement (plus au simple téléchargement, 21/10)
+      if (emailType === 'before' && session?.id && generatedFiles.some((f) => String(f.id).startsWith('convocation_'))) {
+        const ids = generatedFiles.filter((f) => String(f.id).startsWith('convocation_')).map((f) => String(f.id).slice('convocation_'.length))
+        await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
+          .eq('session_id', session.id).in('trainee_id', ids).is('convocation_sent_at', null)
+      }
 
       setStep('sent')
       toast.success('Email envoyé avec succès !')
