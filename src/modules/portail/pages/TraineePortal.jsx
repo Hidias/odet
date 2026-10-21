@@ -257,6 +257,7 @@ export default function TraineePortal() {
   const [evalForm, setEvalForm] = useState(() => ({
     ...Object.fromEntries(EVAL_KEYS.map((k) => [k, 5])),
     would_recommend: true, comment_general: '', comment_projet: '',
+    attentes_satisfaites: '', attentes_commentaire: '',
   }))
 
   const getTodayFormation = () => format(new Date(), 'yyyy-MM-dd')
@@ -436,6 +437,8 @@ export default function TraineePortal() {
           would_recommend: evalData.would_recommend ?? true,
           comment_general: evalData.comment_general || '',
           comment_projet: evalData.comment_projet || '',
+          attentes_satisfaites: evalData.attentes_satisfaites || '',
+          attentes_commentaire: evalData.attentes_commentaire || '',
         })
       }
 
@@ -692,6 +695,15 @@ export default function TraineePortal() {
       }
       const { error: evalError } = await supabase.rpc('save_evaluation', { p_token: token, p_trainee_id: selectedTrainee.id, p_eval_data: evalData })
       if (evalError) throw evalError
+      // Bilan des attentes (0413) : réponse du stagiaire sur les attentes de sa fiche de renseignements
+      if (evalForm.attentes_satisfaites) {
+        const { error: attErr } = await supabase.rpc('portal_save_attentes', {
+          p_token: token, p_trainee_id: selectedTrainee.id, p_verdict: evalForm.attentes_satisfaites,
+          p_commentaire: evalForm.attentes_commentaire || null, p_ticket: portalTicket,
+        })
+        if (attErr) console.warn('Bilan des attentes non enregistré :', attErr.message)
+        else Object.assign(evalData, { attentes_satisfaites: evalForm.attentes_satisfaites, attentes_commentaire: evalForm.attentes_commentaire || null })
+      }
       setEvaluationData({ ...evalData })
 
       const scores = EVAL_KEYS.map((k) => evalForm[k]).filter((v) => v > 0)
@@ -1260,6 +1272,26 @@ export default function TraineePortal() {
                     </div>
                   </div>
                 ))}
+
+                {/* Bilan des attentes (0413) : les attentes écrites dans la fiche de renseignements, reprises en fin de formation */}
+                {infoSheet?.training_expectations?.trim() && (
+                  <div className="rounded-ui-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+                    <div className="text-ui-sm text-gray-500">Au début de la formation, vous attendiez :</div>
+                    <blockquote className="text-ui text-gray-800 italic border-l-2 border-accent-300 pl-2 whitespace-pre-line">{infoSheet.training_expectations.trim()}</blockquote>
+                    <div className="text-ui-sm text-gray-700 font-medium">Ces attentes ont-elles été satisfaites ?</div>
+                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Attentes satisfaites">
+                      {[['oui', 'Oui'], ['en_partie', 'En partie'], ['non', 'Non']].map(([v, l]) => (
+                        <button key={v} type="button" role="radio" aria-checked={evalForm.attentes_satisfaites === v}
+                          onClick={() => setEvalForm({ ...evalForm, attentes_satisfaites: v })}
+                          className={`px-4 py-1.5 rounded-ui text-ui font-medium border ${evalForm.attentes_satisfaites === v ? 'bg-accent-500 text-accent-fg border-accent-500' : 'bg-white text-gray-700 border-gray-200'}`}>{l}</button>
+                      ))}
+                    </div>
+                    {evalForm.attentes_satisfaites && evalForm.attentes_satisfaites !== 'oui' && (
+                      <textarea placeholder="Qu'est-ce qui a manqué ?" value={evalForm.attentes_commentaire}
+                        onChange={(e) => setEvalForm({ ...evalForm, attentes_commentaire: e.target.value })} className={inputClass} rows={2} />
+                    )}
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-ui-sm text-gray-700">Recommanderiez-vous cette formation ?</span>

@@ -5085,6 +5085,74 @@ begin
     end;
   end if;
 
+  -- Bilan des attentes (0413) : avis du stagiaire par le portail, jamais sans avis envoyé, une alerte si « non »
+  if to_regprocedure('public.portal_save_attentes(text,uuid,text,text,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare z_s uuid; z_t uuid; z_tok text; z_n int; z_ok boolean;
+    begin
+      insert into public.sessions (start_date, end_date) values (current_date, current_date) returning id, attendance_token into z_s, z_tok;
+      insert into public.trainees (first_name, last_name) values ('Essai', 'Attentes') returning id into z_t;
+      insert into public.session_trainees (session_id, trainee_id) values (z_s, z_t);
+      update public.session_trainees set access_code = null where session_id = z_s and trainee_id = z_t;
+      execute 'set local role anon';
+      z_ok := false;
+      begin
+        perform public.portal_save_attentes(z_tok, z_t, 'oui', null, null);
+      exception when others then z_ok := sqlerrm like 'Envoyez d''abord%';
+      end;
+      execute 'reset role';
+      if z_ok and not exists (select 1 from public.trainee_evaluations where session_id = z_s) then
+        v_lines := v_lines || 'OK      anon  0413 : aucun avis des attentes sans avis sur la formation (pas de fausse note)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0413 : avis des attentes accepté sans avis sur la formation'::text; end if;
+      insert into public.trainee_evaluations (session_id, trainee_id, questionnaire_submitted) values (z_s, z_t, true);
+      execute 'set local role anon';
+      perform public.portal_save_attentes(z_tok, z_t, 'non', 'Pas assez de pratique', null);
+      perform public.portal_save_attentes(z_tok, z_t, 'non', 'Pas assez de pratique', null);
+      execute 'reset role';
+      select count(*) into z_n from public.notifications where type = 'attentes_non_satisfaites' and metadata->>'session_id' = z_s::text;
+      if z_n = 1 and (select attentes_satisfaites = 'non' and attentes_commentaire = 'Pas assez de pratique'
+                      from public.trainee_evaluations where session_id = z_s and trainee_id = z_t) then
+        v_lines := v_lines || 'OK      anon  0413 : attentes non satisfaites notées, une seule alerte à l''équipe'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0413 : alertes ' || z_n)::text; end if;
+      execute 'set local role anon';
+      z_ok := false;
+      begin
+        perform public.portal_save_attentes('jeton-inconnu', z_t, 'oui', null, null);
+      exception when others then z_ok := true;
+      end;
+      begin
+        perform public.portal_save_attentes(z_tok, z_t, 'peut-etre', null, null);
+        z_ok := false;
+      exception when others then null;
+      end;
+      execute 'reset role';
+      if z_ok then v_lines := v_lines || 'OK      anon  0413 : jeton inconnu et réponse invalide refusés'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0413 : jeton inconnu ou réponse invalide acceptés'::text; end if;
+      update public.session_trainees set access_code = '123456' where session_id = z_s and trainee_id = z_t;
+      execute 'set local role anon';
+      z_ok := false;
+      begin
+        perform public.portal_save_attentes(z_tok, z_t, 'oui', null, null);
+      exception when others then z_ok := true;
+      end;
+      execute 'reset role';
+      if z_ok then v_lines := v_lines || 'OK      anon  0413 : code d''accès exigé quand le stagiaire en a un'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0413 : avis accepté sans code d''accès'::text; end if;
+      delete from public.notifications where type = 'attentes_non_satisfaites' and metadata->>'session_id' = z_s::text;
+      delete from public.trainee_evaluations where session_id = z_s;
+      delete from public.trainee_info_sheets where session_id = z_s;
+      delete from public.session_trainees where session_id = z_s;
+      delete from public.sessions where id = z_s;
+      delete from public.trainees where id = z_t;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0413 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
