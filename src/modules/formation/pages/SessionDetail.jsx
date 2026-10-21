@@ -50,6 +50,7 @@ import BilanAttentes from '../components/BilanAttentes'
 import RessentiSession from '../components/RessentiSession'
 import AvisEntrepriseSession from '../components/AvisEntrepriseSession'
 import SeuilMaintien from '../components/SeuilMaintien'
+import CodesPortail from '../components/CodesPortail'
 import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 const statusLabels = {
@@ -5328,6 +5329,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
     <CheckCircle className="w-5 h-5 text-[rgb(var(--c-success))]" />
     Suivi des présences (via QR code)
   </h3>
+  {sessionTrainees.length > 0 && <CodesPortail session={session} stagiaires={sessionTrainees} codes={accessCodes} peutModifier={d.modifier} />}
   
   {sessionTrainees.length === 0 ? (
     <p className="text-gray-500 text-center py-4">Aucun stagiaire inscrit</p>

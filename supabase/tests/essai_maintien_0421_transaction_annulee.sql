@@ -6006,6 +6006,64 @@ begin
     end;
   end if;
 
+  -- Portail stagiaire par code (0423) : aucune liste de noms, le code identifie, essais faux limités par session
+  if to_regprocedure('public.portal_entrer(text, text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare p_s uuid; p_tok text; p_t uuid; p_code text; p_j json; p_ok boolean; p_i int; p_cl uuid;
+    begin
+      insert into public.clients (name) values ('Portailcode Client Secret') returning id into p_cl;
+      insert into public.sessions (session_type, client_id, start_date, end_date) values ('inter', p_cl, current_date, current_date)
+        returning id, attendance_token into p_s, p_tok;
+      insert into public.trainees (first_name, last_name) values ('Portailcode', 'Confidentiel') returning id into p_t;
+      insert into public.session_trainees (session_id, trainee_id) values (p_s, p_t);
+      select access_code into p_code from public.session_trainees where session_id = p_s and trainee_id = p_t;
+      execute 'set local role anon';
+      p_j := public.get_portal_session(p_tok);
+      execute 'reset role';
+      if p_j::text not like '%Confidentiel%' and p_j::text not like '%Portailcode Client%' and p_j->'trainees' is null and p_code ~ '^[0-9]{6}$' then
+        v_lines := v_lines || 'OK      anon  0423 : lien du portail sans aucun nom d''inscrit ni de client inter'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0423 : noms visibles par le lien du portail'::text; end if;
+      execute 'set local role anon';
+      p_j := public.portal_entrer(p_tok, p_code);
+      execute 'reset role';
+      if (p_j->>'success')::boolean and (p_j->'trainee'->>'id')::uuid = p_t and length(p_j->>'ticket') > 30
+         and app.portal_session_for(p_tok, p_t, p_j->>'ticket') = p_s then
+        v_lines := v_lines || 'OK      anon  0423 : le code identifie le stagiaire et ouvre sa fiche'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0423 : entrée par code ' || coalesce(p_j::text, ''))::text; end if;
+      execute 'set local role anon';
+      for p_i in 1..15 loop perform public.portal_entrer(p_tok, lpad(((p_code::int + p_i) % 1000000)::text, 6, '0')); end loop;
+      p_j := public.portal_entrer(p_tok, p_code);
+      execute 'reset role';
+      if not (p_j->>'success')::boolean and (select portail_bloque_jusqua from public.sessions where id = p_s) > now() then
+        v_lines := v_lines || 'OK      anon  0423 : 15 codes faux en une heure : portail de la session bloqué'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0423 : pas de blocage ' || coalesce(p_j::text, ''))::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.portail_debloquer(p_s);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      execute 'set local role anon';
+      p_j := public.portal_entrer(p_tok, p_code);
+      p_ok := false;
+      begin perform public.portail_debloquer(p_s); exception when others then p_ok := true; end;
+      execute 'reset role';
+      if (p_j->>'success')::boolean and p_ok then
+        v_lines := v_lines || 'OK      dir   0423 : déblocage par l''équipe seulement'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0423 : déblocage'::text; end if;
+      delete from public.trainee_info_sheets where session_id = p_s;
+      delete from public.session_trainees where session_id = p_s;
+      delete from public.sessions where id = p_s;
+      delete from public.trainees where id = p_t;
+      delete from public.clients where id = p_cl;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0423 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
