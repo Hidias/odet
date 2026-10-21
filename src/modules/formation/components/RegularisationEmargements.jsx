@@ -20,7 +20,10 @@ export default function RegularisationEmargements({ session, sessionTrainees, pe
 
   if (!donnees) return null
   const course = session?.courses || {}
-  const lignes = (sessionTrainees || []).map((t) => ({ t, c: controleEmargement({ session, course, traineeId: t.id, ...donnees }) }))
+  // Un stagiaire noté absent sur toute la session n'a ni attestation ni certificat : rien à régulariser
+  const absentsSession = new Set((session?.session_trainees || []).filter((st) => st.absent).map((st) => st.trainee_id))
+  const lignes = (sessionTrainees || []).filter((t) => !absentsSession.has(t.id))
+    .map((t) => ({ t, c: controleEmargement({ session, course, traineeId: t.id, ...donnees }) }))
   if (!lignes.some((l) => l.c.controle)) return null
   const aFaire = lignes.filter((l) => l.c.aRegulariser.length)
   const decides = lignes.filter((l) => l.c.absents.length || l.c.presentsSansSignature.length)

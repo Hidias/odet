@@ -22,6 +22,7 @@ export async function avecHeuresRealisees(session, liste) {
   const noms = []
   const out = (liste || []).map((t) => {
     const st = (session?.session_trainees || []).find((x) => x.trainee_id === t.id) || {}
+    if (st.absent) return t
     const controle = controleEmargement({ session, course, traineeId: t.id, ...donnees })
     if (!controle.controle) return t
     if (controle.aRegulariser.length) { aRegulariser += controle.aRegulariser.length; noms.push(`${t.first_name || ''} ${t.last_name || ''}`.trim()) }
