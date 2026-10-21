@@ -178,7 +178,7 @@ async function handler(req, res) {
     const delta = round2(expected - closing)
     const arithmeticOk = Math.abs(delta) < 0.01
 
-    // 4. Cohérence du nom de fichier (RLV_007_00890689_40_20260731.pdf)
+    // 4. Cohérence du nom de fichier (RLV_007_01234567_89_20260731.pdf)
     let fileNameWarning = null
     if (fileName) {
       const m = String(fileName).match(/RLV_(\d+)_.*_(\d{4})(\d{2})(\d{2})/i)

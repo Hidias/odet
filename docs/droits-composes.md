@@ -24,12 +24,12 @@ Une règle d'accès demande un **droit nommé** à une seule fonction de la base
 2. La table dans la matrice de `regles.py` avec `D('domaine.objet.action', rôles)` pour chaque action.
 3. `python3 scripts/securite/regles.py` puis relire la différence ; un cas dans `supabase/tests/droits_chantier2.sql`.
 
-## Mise en production (H, éditeur SQL d'odet-gld)
+## Mise en production (éditeur SQL du projet Supabase de l'instance)
 
 1. `supabase/tests/essai_c1b_transaction_annulee.sql` → « 284 test(s), 0 échec(s) ».
 2. `supabase/tests/essai_retour_c1b_transaction_annulee.sql` → « 0 écart(s) ».
 3. Recette de la préversion : rien ne doit changer à l'écran.
-4. `supabase/application/c1b_0370-0375_odet-gld.sql` → « Success ».
+4. `supabase/application/c1b_0370-0375.sql` → « Success ».
 5. `supabase/tests/droits_chantier2.sql` → « 284 test(s), 0 échec(s) ».
 6. Fusion de la PR, déploiement, recette de production.
 

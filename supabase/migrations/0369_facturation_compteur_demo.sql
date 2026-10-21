@@ -1,6 +1,6 @@
 -- 0369_facturation_compteur_demo.sql : compteur des numéros pendant la démonstration (Facturation fiable).
 --
--- Décision de H (19/10) : le dernier numéro réel de GLD n'est pas encore connu et changera d'ici la mise en service.
+-- Décision de H (19/10) : le dernier numéro réel de la société n'est pas encore connu et changera d'ici la mise en service.
 -- Tant que l'organisme est en mode démonstration, le super administrateur peut remettre le compteur à zéro
 -- (billing_counter_reset), même après des émissions de test ; le réglage « dernier numéro avant l'outil » redevient
 -- alors modifiable. Hors mode démonstration, refusé : le compteur réel ne recule jamais.

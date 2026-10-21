@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { interpreterAnnuaire, consulterAnnuaire, AnnuaireIndisponible } from '../api/_lib/annuaire.js'
 
 const etab = (o) => ({
-  siret: '12345678900011', adresse: '1 RUE DE LA PAIX 29000 QUIMPER', code_postal: '29000', libelle_commune: 'QUIMPER',
+  siret: '12345678900011', adresse: '1 RUE DE LA PAIX 29000 BREST', code_postal: '29000', libelle_commune: 'BREST',
   etat_administratif: 'A', est_siege: true, ...o,
 })
 const reponse = (o = {}) => ({
@@ -14,14 +14,14 @@ const reponse = (o = {}) => ({
 
 describe('annuaire officiel', () => {
   it('établissement actif, adresse identique : aucun écart', () => {
-    const r = interpreterAnnuaire(reponse(), '123 456 789 00011', { address: '1 rue de la Paix', postal_code: '29000', city: 'Quimper' })
+    const r = interpreterAnnuaire(reponse(), '123 456 789 00011', { address: '1 rue de la Paix', postal_code: '29000', city: 'Brest' })
     expect(r.etat).toBe('actif')
     expect(r.adresse).toBe('1 RUE DE LA PAIX')
     expect(r.tva).toBe('FR32123456789')
     expect(r.ecarts).toEqual([])
   })
   it('adresse différente : écart signalé', () => {
-    const r = interpreterAnnuaire(reponse(), '12345678900011', { address: '9 avenue Foch', postal_code: '29000', city: 'Quimper' })
+    const r = interpreterAnnuaire(reponse(), '12345678900011', { address: '9 avenue Foch', postal_code: '29000', city: 'Brest' })
     expect(r.ecarts).toEqual(['adresse'])
   })
   it('établissement fermé', () => {
@@ -31,11 +31,11 @@ describe('annuaire officiel', () => {
   })
   it('ancien siège fermé : nouveau siège proposé', () => {
     const ancien = etab({ siret: '12345678900029', est_siege: false, ancien_siege: true, etat_administratif: 'F' })
-    const nouveau = etab({ siret: '12345678900037', adresse: '5 RUE NEUVE 29900 CONCARNEAU', code_postal: '29900', libelle_commune: 'CONCARNEAU' })
+    const nouveau = etab({ siret: '12345678900037', adresse: '5 RUE NEUVE 29200 BREST', code_postal: '29200', libelle_commune: 'BREST' })
     const r = interpreterAnnuaire(reponse({ siege: nouveau, matching_etablissements: [ancien] }), '12345678900029')
     expect(r.etat).toBe('siege_deplace')
     expect(r.siret).toBe('12345678900037')
-    expect(r.ville).toBe('CONCARNEAU')
+    expect(r.ville).toBe('BREST')
   })
   it('SIRET inconnu ou autre entreprise', () => {
     expect(interpreterAnnuaire({ results: [] }, '12345678900011').etat).toBe('inconnu')

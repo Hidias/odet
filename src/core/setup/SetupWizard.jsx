@@ -256,7 +256,7 @@ export default function SetupWizard() {
                     <option value="">Choisir</option>{FORMES.map((f) => <option key={f}>{f}</option>)}
                   </select>
                 </Field>
-                <Field label="SIRET" hint="14 chiffres"><input className="input" value={form.siret} onChange={(e) => set('siret', e.target.value)} placeholder="830 695 649 00020" /></Field>
+                <Field label="SIRET" hint="14 chiffres"><input className="input" value={form.siret} onChange={(e) => set('siret', e.target.value)} placeholder="123 456 789 00012" /></Field>
                 <Field label="Code NAF"><input className="input" value={form.naf} onChange={(e) => set('naf', e.target.value)} placeholder="8559A" /></Field>
                 <Field label="TVA intracommunautaire"><input className="input" value={form.tva_intra} onChange={(e) => set('tva_intra', e.target.value)} placeholder="FR12345678901" /></Field>
                 <div className="pt-6"><Toggle checked={form.tva_applicable !== false} onChange={(v) => set('tva_applicable', v)} label="TVA applicable" hint="Décoché : mention d'exonération sur les factures" /></div>
@@ -274,7 +274,7 @@ export default function SetupWizard() {
                 <p className="muted mt-1">L'adresse complète apparaît sur chaque document ; le signataire signe conventions et attestations.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                <Field label="Adresse" className="md:col-span-6"><input className="input" value={form.address} onChange={(e) => set('address', e.target.value)} placeholder="33 ZA de Penhoad Braz" /></Field>
+                <Field label="Adresse" className="md:col-span-6"><input className="input" value={form.address} onChange={(e) => set('address', e.target.value)} placeholder="12 rue des Artisans" /></Field>
                 <Field label="Code postal" className="md:col-span-2"><input className="input" value={form.postal_code} onChange={(e) => set('postal_code', e.target.value)} placeholder="29700" /></Field>
                 <Field label="Ville" className="md:col-span-4"><input className="input" value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="Ville" /></Field>
                 <Field label="Téléphone" className="md:col-span-2"><input className="input" value={form.phone} onChange={(e) => set('phone', e.target.value)} /></Field>

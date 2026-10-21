@@ -29,8 +29,8 @@ simple à utiliser, complète là où il faut.
 
 ## Reste (attend H ou une donnée)
 
-- Import du portefeuille papier et de l'historique Henrri : attend un vrai export Henrri.
-- Décision « devis dans Henrri ou dans Solutions » : l'affaire porte déjà `quote_id` (Solutions) et `external_ref`
-  (numéro Henrri).
-- Plan d'actions, scénarios, récaps envoyés par email : plus tard (aucun email sans accord ; domaine GLD à venir).
+- Import du portefeuille papier et de l'historique de l'ancien logiciel de facturation : attend un vrai export.
+- Décision « devis dans l'ancien logiciel ou dans l'outil » : l'affaire porte déjà `quote_id` (l'outil) et `external_ref`
+  (numéro de l'ancien logiciel).
+- Plan d'actions, scénarios, récaps envoyés par email : plus tard (aucun email sans accord ; domaine d'envoi de la société à venir).
 - Réactivation de la prospection (Base prospects, Campagnes) : après la purge de la démo et le domaine.

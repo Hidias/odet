@@ -18,17 +18,17 @@ Supabase est laissé tel quel, comme historique.
 - **0190 (Passeport de prévention)** : objets présents en production (8 tables `pp_*`, 10 fonctions, module
   « passeport ») mais absente du registre. 0261 l'inscrit, sans rien rejouer, seulement si ses objets existent.
 - **0110 (Budget générique) : NON appliquée.** La contrainte du payeur n'accepte encore que `entreprise`,
-  `hicham_perso`, `maxime_perso` ; le repas a une personne invitante par défaut nominative ; le libellé de compte
+  codes de payeur nominatifs ; le repas a une personne invitante par défaut nominative ; le libellé de compte
   bancaire par défaut est celui d'un autre organisme ; `get_budget_kpis` renvoie encore deux colonnes nominatives.
   Sans effet tant que le module Budget est coupé. À appliquer avant de réactiver le Budget (elle ne modifie aucune
   ligne) ; à décider par H.
 
 ## 1. Rôles des associés (constat, aucun compte modifié)
 
-- **Administrateur** (Anthony, Hubert) : 117 droits, tout sauf la plateforme. Les Paramètres (identité, modules,
-  comptes, référents) restent fermés tant que la licence totale n'est pas cochée pour GLD Sécurité (décision du
+- **Administrateur** : 117 droits, tout sauf la plateforme. Les Paramètres (identité, modules,
+  comptes, référents) restent fermés tant que la licence totale n'est pas cochée pour la société (décision du
   17/10, confirmée le 18/10) : correct.
-- **Direction** (Léandra) : 106 droits, toutes les données de gestion, ni Paramètres ni Console ni journal d'audit.
+- **Direction** : 106 droits, toutes les données de gestion, ni Paramètres ni Console ni journal d'audit.
   **Plus large que « lecture et validation »** : elle peut modifier des factures, émettre des avoirs, supprimer des
   clients. Si ce n'est pas voulu : lui attribuer le profil « Ressources humaines » ou retirer ces droits par un
   ajustement (Paramètres › Droits des personnes). Rien n'a été changé.

@@ -213,7 +213,7 @@ function FicheSite({ site, siren, peutModifier, busy, onChange, onClose, onSave,
           )}
         </div>
       )}
-      {champ('name', 'Nom du site', { placeholder: 'Ex. : Dépôt de Concarneau' })}
+      {champ('name', 'Nom du site', { placeholder: 'Ex. : Dépôt principal' })}
       {champ('address', 'Adresse')}
       <div className="grid grid-cols-[120px_1fr] gap-2">
         {champ('postal_code', 'Code postal', { inputMode: 'numeric' })}

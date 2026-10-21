@@ -1255,7 +1255,7 @@ def build_doc():
     abr = {'superadmin': 'SA', 'admin': 'AD', 'direction': 'DIR', 'gestionnaire': 'GES', 'formateur': 'FOR',
            'commercial': 'COM', 'technicien': 'TEC', 'comptable': 'CPI', 'comptable_externe': 'CPE', 'rh': 'RH',
            'salarie': 'SAL', 'lecture': 'LEC', 'ecran': 'ECR', 'membre': 'MBR'}
-    out = ["# Catalogue des droits et profils types (GLD Solutions, chantier C1b)", "",
+    out = ["# Catalogue des droits et profils types (chantier C1b)", "",
            "FICHIER GÉNÉRÉ par `scripts/securite/regles.py` à partir de `scripts/securite/droits.py` et de la matrice "
            "des règles d'accès. Ne pas modifier à la main.", "",
            "Drapeaux : **P** périmètre de la personne (ses sessions, ses visites…) ; **€** montre des prix ; "

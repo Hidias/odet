@@ -14,7 +14,7 @@
 --   * get_trainee_with_ssn ne renvoie ces données qu'à la direction et au référent ;
 --   * disability_count donne le nombre de stagiaires concernés (sans identité) au personnel, pour les
 --     statistiques et les preuves Qualiopi (indicateur 26).
--- Aucun stagiaire réel au 17/10/2026 (0 ligne avec handicap sur odet-gld).
+-- Aucun stagiaire réel au 17/10/2026 (0 ligne avec handicap en production).
 -- Migration idempotente. Retour arrière : supabase/rollback/0080-0087_securite_retour.sql
 
 create table if not exists public.trainee_disability (

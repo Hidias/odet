@@ -824,7 +824,7 @@ function Emplacements({ peutGerer }) {
       {edite && (
         <form onSubmit={enregistrer} className="card grid gap-3 sm:grid-cols-[10rem_1fr_auto] items-end">
           <Champ label="Type"><select className="select" value={edite.kind} onChange={(e) => setEdite({ ...edite, kind: e.target.value })}>{Object.entries(TYPES_EMPLACEMENT).filter(([k]) => k !== 'technicien').map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Champ>
-          <Champ label="Nom"><input className="input" required value={edite.name} onChange={(e) => setEdite({ ...edite, name: e.target.value })} placeholder="Dépôt de Plomelin, Camionnette AB-123-CD…" /></Champ>
+          <Champ label="Nom"><input className="input" required value={edite.name} onChange={(e) => setEdite({ ...edite, name: e.target.value })} placeholder="Dépôt principal, Camionnette AB-123-CD…" /></Champ>
           <div className="flex gap-2"><button type="submit" className="btn btn-primary">Enregistrer</button><button type="button" className="btn btn-ghost" onClick={() => setEdite(null)}>Annuler</button></div>
         </form>
       )}

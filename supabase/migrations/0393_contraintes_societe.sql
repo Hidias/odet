@@ -1,11 +1,10 @@
 -- 0393 : plus de prénoms d'un autre organisme dans les contraintes de la base (point D16 de la liste unique).
--- Trois contraintes n'acceptaient que les dirigeants d'Access Formation :
---   - budget_transactions.payer : 'entreprise', 'hicham_perso', 'maxime_perso' ; l'écran écrit pourtant
---     'perso_<identifiant du profil>' depuis la reprise générique du budget : une dépense personnelle d'un associé
---     de GLD était refusée ;
---   - budget_meal_guests.meal_for : 'hicham', 'maxime' ; l'écran écrit le prénom de l'associé (« hubert »…) ;
---   - prospect_rdv.conducted_by : 'Hicham', 'Maxime' ; l'écran propose les prénoms de l'équipe : un rendez-vous
---     mené par Hubert ou Anthony était refusé.
+-- Trois contraintes n'acceptaient que les prénoms des dirigeants de l'organisme d'origine :
+--   - budget_transactions.payer ; l'écran écrit pourtant 'perso_<identifiant du profil>' depuis la reprise
+--     générique du budget : une dépense personnelle d'un associé était refusée ;
+--   - budget_meal_guests.meal_for ; l'écran écrit le prénom de l'associé ;
+--   - prospect_rdv.conducted_by ; l'écran propose les prénoms de l'équipe : un rendez-vous mené par une autre
+--     personne était refusé.
 -- Nouvelles règles, sans nom en dur : forme de la valeur seulement. Les anciennes valeurs restent valides. Idempotent.
 
 alter table public.budget_transactions drop constraint if exists budget_transactions_payer_check;

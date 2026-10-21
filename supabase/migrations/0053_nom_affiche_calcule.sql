@@ -1,9 +1,9 @@
 -- 0053_nom_affiche_calcule.sql : le nom affiché d'un compte se calcule à partir du prénom et du nom (fin de la
--- double saisie signalée par H le 19/10 à 16h53 : nom de famille ajouté, mais l'écran montrait toujours « Anthony »).
+-- double saisie signalée par H le 19/10 à 16h53 : nom de famille ajouté, mais l'écran montrait toujours le prénom seul).
 --
 -- profiles.display_name était un champ à part, saisi à l'invitation, que la plupart des écrans affichent. Désormais,
 -- dès qu'un prénom ou un nom est renseigné, display_name = « Prénom Nom » (nom en majuscules ramené en casse
--- normale : « POUPARD » donne « Poupard »). Sans prénom ni nom, display_name reste tel quel (comptes d'essai,
+-- normale : « DURAND » donne « Durand »). Sans prénom ni nom, display_name reste tel quel (comptes d'essai,
 -- comptes créés avec une adresse seule).
 -- Aucune donnée modifiée ici (retour arrière sans écart) : le rattrapage des comptes actifs se fait après
 -- l'application, par une mise à jour de leurs prénom et nom (le déclencheur recalcule le nom affiché).

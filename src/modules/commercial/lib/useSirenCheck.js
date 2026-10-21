@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // useSirenCheck.js - Vérification SIREN avant création client
-// Utilisé par : Clients.jsx, MarinePhoning.jsx, WeeklyPlanner.jsx, BudgetModule.jsx
+// Utilisé par : Clients.jsx, le phoning, WeeklyPlanner.jsx, BudgetModule.jsx
 //
 // Usage :
 //   const { checkSiren, sirenMatches, clearSirenCheck } = useSirenCheck()

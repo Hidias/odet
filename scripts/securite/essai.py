@@ -144,7 +144,7 @@ print(f"{out2.relative_to(root)} : {len(text2)} caractères")
 p3 = ["""-- FICHIER GÉNÉRÉ par scripts/securite/essai.py : ne pas modifier à la main.
 -- APPLICATION RÉELLE du chantier 2 : migrations 0080 à 0087 en un seul envoi (éditeur SQL de Supabase).
 -- Une seule transaction implicite : si une instruction échoue, rien n'est appliqué.
--- À n'exécuter qu'avec l'accord écrit de Hicham, selon la procédure de odet-chantier2-securite.md § 7.
+-- À n'exécuter qu'avec l'accord écrit de la direction, selon la procédure de odet-chantier2-securite.md § 7.
 -- Retour arrière : supabase/rollback/0080-0087_securite_retour.sql
 select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '180s', true);
 """]

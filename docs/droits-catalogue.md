@@ -1,4 +1,4 @@
-# Catalogue des droits et profils types (GLD Solutions, chantier C1b)
+# Catalogue des droits et profils types (chantier C1b)
 
 FICHIER GÉNÉRÉ par `scripts/securite/regles.py` à partir de `scripts/securite/droits.py` et de la matrice des règles d'accès. Ne pas modifier à la main.
 

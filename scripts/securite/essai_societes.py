@@ -3,10 +3,10 @@
 
 Lancer `python3 scripts/securite/essai_societes.py` réécrit :
   supabase/tests/essai_c1a_transaction_annulee.sql
-      0270 à 0273, réglage de l'instance odet-gld, puis tous les tests de droits (chantier 2 et C1a) ;
+      0270 à 0273, réglage facultatif d'accès de support, puis tous les tests de droits (chantier 2 et C1a) ;
   supabase/tests/essai_retour_c1a_transaction_annulee.sql
       photographie de l'état, 0270 à 0273, réglage de l'instance, retour arrière, comparaison ;
-  supabase/application/c1a_0270-0273_odet-gld.sql
+  supabase/application/c1a_0270-0273.sql
       application réelle (un seul envoi, une seule transaction implicite).
 Les deux essais se terminent TOUJOURS par une erreur volontaire : tout est annulé.
 Base de départ : la production avec le chantier 2 (0080 à 0087) et la 0070 appliqués.
@@ -18,7 +18,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[2]
 mig = sorted((root / 'supabase' / 'migrations').glob('027[0-3]_*.sql'))
 assert [m.name[:4] for m in mig] == ['0270', '0271', '0272', '0273'], mig
-instance = root / 'supabase' / 'instances' / 'odet-gld' / 'c1a_acces_support_permanent.sql'
+instance = root / 'supabase' / 'options' / 'acces_support_permanent.sql'
 tests = root / 'supabase' / 'tests' / 'droits_chantier2.sql'
 retour = root / 'supabase' / 'rollback' / '0270-0273_societes_retour.sql'
 
@@ -39,7 +39,7 @@ def ecrire(path, text):
 
 # 1. Essai : migrations puis tests de droits
 p1 = ["""-- FICHIER GÉNÉRÉ par scripts/securite/essai_societes.py : ne pas modifier à la main.
--- Essai du socle multi-sociétés (C1a) en transaction annulée : 0270 à 0273, réglage de l'instance odet-gld,
+-- Essai du socle multi-sociétés (C1a) en transaction annulée : 0270 à 0273, réglage facultatif d'accès de support,
 -- puis tous les tests de droits. Se termine TOUJOURS par l'erreur volontaire « RÉSULTAT DES TESTS DE DROITS » :
 -- tout est annulé, rien n'est enregistré. Aucune validation de transaction.
 """, ENTETE]
@@ -131,12 +131,12 @@ p2 = ["""-- FICHIER GÉNÉRÉ par scripts/securite/essai_societes.py : ne pas mo
 p2 += [bloc(f) for f in mig] + [bloc(instance), PENDANT, bloc(retour), VERIF]
 ecrire(root / 'supabase' / 'tests' / 'essai_retour_c1a_transaction_annulee.sql', "".join(p2))
 
-# 3. Application réelle sur odet-gld
+# 3. Application réelle sur l'instance
 p3 = ["""-- FICHIER GÉNÉRÉ par scripts/securite/essai_societes.py : ne pas modifier à la main.
--- APPLICATION RÉELLE du socle multi-sociétés (C1a) sur l'instance odet-gld : 0270 à 0273 puis le réglage
+-- APPLICATION RÉELLE du socle multi-sociétés (C1a) sur l'instance : 0270 à 0273 puis le réglage
 -- de l'instance (accès de support permanent). Un seul envoi, une seule transaction implicite : si une
 -- instruction échoue, rien n'est appliqué. Chaque migration s'enregistre dans public.schema_migrations.
 -- Retour arrière : supabase/rollback/0270-0273_societes_retour.sql
 """, ENTETE]
 p3 += [bloc(f) for f in mig] + [bloc(instance)]
-ecrire(root / 'supabase' / 'application' / 'c1a_0270-0273_odet-gld.sql', "".join(p3))
+ecrire(root / 'supabase' / 'application' / 'c1a_0270-0273.sql', "".join(p3))

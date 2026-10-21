@@ -36,7 +36,7 @@ begin
 
   -- Isolement par société (C2, 0275) : le super administrateur ne lit les données d'une société que par l'accès de
   -- support. Les tests du super administrateur se jouent avec l'accès permanent sur la société de l'instance (réglage
-  -- de GLD), quel que soit le réglage de la base d'essai ; annulé avec le reste.
+  -- facultatif de l'instance), quel que soit le réglage de la base d'essai ; annulé avec le reste.
   if to_regprocedure('app.societes_lisibles()') is not null then
     alter table public.companies disable trigger companies_guard;
     update public.companies set support_access_mode = 'permanent' where is_instance_owner;
@@ -162,7 +162,7 @@ begin
       ('for', 'ne lit pas la base prospects', 'select count(*) from public.prospection_massive', 'vide'),
       ('cpt', 'ne lit pas la base prospects', 'select count(*) from public.prospection_massive', 'vide'),
       ('lec', 'ne lit pas la base prospects', 'select count(*) from public.prospection_massive', 'vide'),
-      -- Budget (module désactivé sur odet-gld : seul le super administrateur lit)
+      -- Budget (module désactivé en production : seul le super administrateur lit)
       ('cpt', 'budget coupé avec le module', 'select count(*) from public.budget_categories', 'vide'),
       ('sa', 'super administrateur lit le budget même coupé', 'select count(*) from public.budget_categories', '=' || n_budget),
       -- Données techniques et secrets
@@ -939,15 +939,15 @@ begin
       on conflict (id) do update set role = excluded.role, is_active = true;
       alter table public.profiles enable trigger profiles_protect_role;
       insert into public.clients (name, siret, siren, address, postal_code, city, tva) values
-        ('Client facturation essai', '12345678900011', '123456789', '1 rue de l''Essai', '29000', 'Quimper', 'FR00123456789') returning id into b_cli;
+        ('Client facturation essai', '12345678900011', '123456789', '1 rue de l''Essai', '29200', 'Brest', 'FR00123456789') returning id into b_cli;
       -- Organisme complet pour l'essai (base locale) ; la production garde ses valeurs (coalesce)
       update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
-        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29200'), city = coalesce(city, 'Brest'),
         forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
-        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Brest 987 654 321');
       -- RIB de démonstration (0384) : remplacé le temps de l'essai, pour que l'émission soit possible (tout est annulé)
       if to_regprocedure('app.rib_demo(uuid)') is not null and app.rib_demo(app.company_default()) then
-        update public.organization_settings set bic = 'CMBRFR2BXXX', iban = 'FR7615589297060008906894048';
+        update public.organization_settings set bic = 'BANKFRPPXXX', iban = 'FR7612345678901234567890104';
         update public.companies set bic = null, iban = null;
       end if;
       perform set_config('request.jwt.claims', json_build_object('sub', b_dir, 'role', 'authenticated')::text, true);
@@ -1263,11 +1263,11 @@ begin
       on conflict (id) do update set role = excluded.role, is_active = true;
       alter table public.profiles enable trigger profiles_protect_role;
       update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
-        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29200'), city = coalesce(city, 'Brest'),
         forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
-        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
-      insert into public.clients (name, address, postal_code, city) values ('Pro sans SIREN essai', '3 rue', '29000', 'Quimper') returning id into m_cli;
-      insert into public.clients (name, address, postal_code, city, client_type, vat_exempt) values ('Particulier essai', '4 rue', '29000', 'Quimper', 'particulier', true) returning id into m_part;
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Brest 987 654 321');
+      insert into public.clients (name, address, postal_code, city) values ('Pro sans SIREN essai', '3 rue', '29200', 'Brest') returning id into m_cli;
+      insert into public.clients (name, address, postal_code, city, client_type, vat_exempt) values ('Particulier essai', '4 rue', '29200', 'Brest', 'particulier', true) returning id into m_part;
       perform set_config('request.jwt.claims', json_build_object('sub', m_dir, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
       insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', m_cli, current_date, current_date + 30) returning id into m_f;
@@ -1333,11 +1333,11 @@ begin
       on conflict (id) do update set role = excluded.role, is_active = true;
       alter table public.profiles enable trigger profiles_protect_role;
       update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
-        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29200'), city = coalesce(city, 'Brest'),
         forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
-        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Brest 987 654 321');
       insert into public.clients (name, siret, siren, address, postal_code, city, tva) values
-        ('Client avoir essai', '12345678900011', '123456789', '1 rue', '29000', 'Quimper', 'FR00123456789') returning id into a_cli;
+        ('Client avoir essai', '12345678900011', '123456789', '1 rue', '29200', 'Brest', 'FR00123456789') returning id into a_cli;
       perform set_config('request.jwt.claims', json_build_object('sub', a_dir, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
       insert into public.invoices (reference, type, client_id, invoice_date, due_date) values ('x', 'invoice', a_cli, current_date, current_date + 30) returning id into a_f;
@@ -1417,13 +1417,13 @@ begin
       on conflict (id) do update set role = excluded.role, is_active = true;
       alter table public.profiles enable trigger profiles_protect_role;
       update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
-        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29200'), city = coalesce(city, 'Brest'),
         forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
-        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Brest 987 654 321');
       insert into public.clients (name, siret, siren, address, postal_code, city, tva) values
-        ('Client annuaire essai', '12345678900011', '123456789', '1 rue', '29000', 'Quimper', 'FR00123456789') returning id into s_cli;
+        ('Client annuaire essai', '12345678900011', '123456789', '1 rue', '29200', 'Brest', 'FR00123456789') returning id into s_cli;
       insert into public.clients (name, address, postal_code, city, client_type) values
-        ('Particulier essai', '3 rue', '29000', 'Quimper', 'particulier') returning id into s_par;
+        ('Particulier essai', '3 rue', '29200', 'Brest', 'particulier') returning id into s_par;
       perform set_config('request.jwt.claims', json_build_object('sub', s_dir, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
       insert into public.invoices (reference, type, client_id, invoice_date, due_date, siret_checked_at, siret_check_result)
@@ -1543,12 +1543,12 @@ begin
       on conflict (id) do update set role = excluded.role, is_active = true;
       alter table public.profiles enable trigger profiles_protect_role;
       update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
-        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29200'), city = coalesce(city, 'Brest'),
         forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
-        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Brest 987 654 321');
       delete from public.approval_rules where company_id = app.billing_company() and scope = 'invoice';
-      insert into public.clients (name, address, postal_code, city, client_type) values ('Circuit essai', '1 rue', '29000', 'Quimper', 'particulier') returning id into k_cli;
-      insert into public.clients (name, address, postal_code, city, client_type) values ('Circuit libre essai', '2 rue', '29000', 'Quimper', 'particulier') returning id into k_cli2;
+      insert into public.clients (name, address, postal_code, city, client_type) values ('Circuit essai', '1 rue', '29200', 'Brest', 'particulier') returning id into k_cli;
+      insert into public.clients (name, address, postal_code, city, client_type) values ('Circuit libre essai', '2 rue', '29200', 'Brest', 'particulier') returning id into k_cli2;
       insert into public.approval_rules (company_id, scope, client_id, mode, validator_right) values (app.billing_company(), 'invoice', k_cli2, 'none', 'facturation.factures.valider');
       perform set_config('request.jwt.claims', json_build_object('sub', k_com, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
@@ -1621,11 +1621,11 @@ begin
       on conflict (id) do update set role = excluded.role, is_active = true;
       alter table public.profiles enable trigger profiles_protect_role;
       update public.organization_settings set legal_name = coalesce(legal_name, 'Organisme essai'), siren = coalesce(siren, '987654321'),
-        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29000'), city = coalesce(city, 'Quimper'),
+        address = coalesce(address, '2 rue de l''Essai'), postal_code = coalesce(postal_code, '29200'), city = coalesce(city, 'Brest'),
         forme_juridique = coalesce(forme_juridique, 'SARL'), capital_social = coalesce(capital_social, '1000'),
-        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Quimper 987 654 321');
+        tva_intra = coalesce(tva_intra, 'FR00987654321'), rcs = coalesce(rcs, 'RCS Brest 987 654 321');
       delete from public.approval_rules where company_id = app.billing_company() and scope = 'invoice';
-      insert into public.clients (name, address, postal_code, city, client_type) values ('Acompte essai', '1 rue', '29000', 'Quimper', 'particulier') returning id into x_cli;
+      insert into public.clients (name, address, postal_code, city, client_type) values ('Acompte essai', '1 rue', '29200', 'Brest', 'particulier') returning id into x_cli;
       insert into public.quotes (reference, client_id, status, discount_percent, discount_label, tva_applicable)
         values ('DEV-ESSAI-ACOMPTE', x_cli, 'accepted', 10, 'Remise fidélité', true) returning id into x_q;
       insert into public.quote_items (quote_id, position, description_title, quantity, unit_price_ht, tva_rate, total_ht) values
@@ -1905,13 +1905,13 @@ begin
       execute 'reset role';
       perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
-      z_x := public.company_create(jsonb_build_object('legal_name', 'Essai C3 Restauration', 'siret', '52258871400017', 'naf', '56.10A',
-        'address', '1 route', 'postal_code', '29900', 'city', 'Concarneau', 'legal_form', 'SARL', 'capital', '5000',
-        'vat_number', 'FR65522588714', 'rcs', 'RCS Quimper', 'modules', jsonb_build_array('formation'),
+      z_x := public.company_create(jsonb_build_object('legal_name', 'Essai C3 Restauration', 'siret', '98765432400019', 'naf', '56.10A',
+        'address', '1 route', 'postal_code', '29600', 'city', 'Morlaix', 'legal_form', 'SARL', 'capital', '5000',
+        'vat_number', 'FR14987654324', 'rcs', 'RCS Brest', 'modules', jsonb_build_array('formation'),
         'members', jsonb_build_array(jsonb_build_object('profile_id', z_h, 'role', 'direction', 'can_consolidate', true))));
       execute 'reset role';
-      if z_ok and (select siren = '522588714' from public.companies where id = z_x)
-         and exists (select 1 from public.company_establishments where company_id = z_x and is_head_office and siret = '52258871400017')
+      if z_ok and (select siren = '987654324' from public.companies where id = z_x)
+         and exists (select 1 from public.company_establishments where company_id = z_x and is_head_office and siret = '98765432400019')
          and exists (select 1 from public.billing_settings where company_id = z_x)
          and (select count(*) from public.company_modules where company_id = z_x and enabled) = 1
          and exists (select 1 from public.company_members where company_id = z_x and profile_id = z_h and can_consolidate) then
@@ -1976,7 +1976,7 @@ begin
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   C3 : modules de la société choisie (' || coalesce(z_ctx::text, '') || ')'); end if;
 
       -- Identité de la société d'un document
-      if (app.identite_societe(z_x)).legal_name = 'Essai C3 Restauration' and (app.identite_societe(z_x)).siret = '52258871400017'
+      if (app.identite_societe(z_x)).legal_name = 'Essai C3 Restauration' and (app.identite_societe(z_x)).siret = '98765432400019'
          and (app.identite_societe(z_own)).legal_name is not distinct from (select legal_name from public.organization_settings limit 1) then
         v_lines := v_lines || 'OK      base  C3 : identité de la société d''un document (instance : réglages ; autre : sa fiche)'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  C3 : identité de la société d''un document'::text; end if;
@@ -1985,7 +1985,7 @@ begin
       v_total := v_total + 1;
       declare z_part uuid; z_f uuid; z_r jsonb;
       begin
-        insert into public.clients (name, address, postal_code, city, client_type, company_id) values ('Particulier C3', '1 rue', '29900', 'Concarneau', 'particulier', z_x) returning id into z_part;
+        insert into public.clients (name, address, postal_code, city, client_type, company_id) values ('Particulier C3', '1 rue', '29600', 'Morlaix', 'particulier', z_x) returning id into z_part;
         insert into public.invoices (reference, type, client_id, invoice_date, due_date, company_id) values ('x', 'invoice', z_part, current_date, current_date + 30, z_x) returning id into z_f;
         insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (z_f, 0, 'Repas', 1, 100, 10);
         perform set_config('request.jwt.claims', json_build_object('sub', z_h, 'role', 'authenticated')::text, true);
@@ -2033,16 +2033,16 @@ begin
     declare
       l_cli uuid; l_part uuid; l_site public.sites; l_ok boolean; l_com uuid := gen_random_uuid(); l_cli2 uuid;
     begin
-      insert into public.clients (name, address, postal_code, city, client_type) values ('Essai lot 2', '1 rue A', '29900', 'Concarneau', 'entreprise') returning id into l_cli;
+      insert into public.clients (name, address, postal_code, city, client_type) values ('Essai lot 2', '1 rue A', '29600', 'Morlaix', 'entreprise') returning id into l_cli;
       select * into l_site from public.sites where client_id = l_cli and is_default;
       if l_site.id is not null and l_site.address = '1 rue A' and l_site.company_ids = (select company_ids from public.clients where id = l_cli) then
         v_lines := v_lines || 'OK      base  0041 : client professionnel créé = site « adresse de la fiche »'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : client professionnel créé = site « adresse de la fiche »'::text; end if;
 
-      update public.clients set address = '2 rue B', city = 'Quimper' where id = l_cli;
-      update public.sites set postal_code = '29000' where id = l_site.id;
-      if (select address || '|' || city from public.sites where id = l_site.id) = '2 rue B|Quimper'
-         and (select postal_code from public.clients where id = l_cli) = '29000' then
+      update public.clients set address = '2 rue B', city = 'Brest' where id = l_cli;
+      update public.sites set postal_code = '29200' where id = l_site.id;
+      if (select address || '|' || city from public.sites where id = l_site.id) = '2 rue B|Brest'
+         and (select postal_code from public.clients where id = l_cli) = '29200' then
         v_lines := v_lines || 'OK      base  0041 : adresse de la fiche et site par défaut synchronisés dans les deux sens'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : adresse de la fiche et site par défaut synchronisés'::text; end if;
 
@@ -2059,7 +2059,7 @@ begin
       if l_ok then v_lines := v_lines || 'OK      base  0041 : un seul site « adresse de la fiche » par client'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : un seul site « adresse de la fiche » par client'::text; end if;
 
-      if public.tva_from_siren('830695649') = 'FR13830695649' then
+      if public.tva_from_siren('123456782') = 'FR11123456782' then
         v_lines := v_lines || 'OK      base  0041 : TVA calculée depuis le SIREN (même calcul que l''application)'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0041 : TVA calculée depuis le SIREN'::text; end if;
 
@@ -2314,7 +2314,7 @@ begin
       insert into public.profiles (id, email, role, is_active) values (e_u, 'ent.compte@test.invalid', 'entreprise', true)
       on conflict (id) do update set role = 'entreprise', is_active = true;
       alter table public.profiles enable trigger profiles_protect_role;
-      insert into public.clients (name, client_type, address, postal_code, city, siret, siren, tva) values ('Essai espace 1', 'entreprise', '1 rue Essai', '29000', 'Quimper', '12345678900011', '123456789', 'FR00123456789') returning id into e_c1;
+      insert into public.clients (name, client_type, address, postal_code, city, siret, siren, tva) values ('Essai espace 1', 'entreprise', '1 rue Essai', '29200', 'Brest', '12345678900011', '123456789', 'FR00123456789') returning id into e_c1;
       insert into public.clients (name, client_type) values ('Essai espace 2', 'entreprise') returning id into e_c2;
       select id into e_site_a from public.sites where client_id = e_c1 and is_default limit 1;
       insert into public.sites (client_id, name, kind) values (e_c1, 'Site B', 'client') returning id into e_site_b;
@@ -2969,7 +2969,7 @@ begin
       j_t uuid; j_n int; j_r record; j_id uuid;
     begin
       insert into public.trainees (first_name, last_name) values ('Journal', 'Essai') returning id into j_t;
-      update public.trainees set city = 'Quimper' where id = j_t;
+      update public.trainees set city = 'Morlaix' where id = j_t;
       if not exists (select 1 from public.audit_logs where entity_id = j_t and source = 'base') then
         v_lines := v_lines || 'OK      base  0345 : écriture sans compte (tâche, service) non tracée'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0345 : écriture sans compte tracée'::text; end if;
@@ -4228,7 +4228,7 @@ begin
       perform set_config('request.jwt.claims', '', true);
       if z_ok then v_lines := v_lines || 'OK      base  0384 : émission refusée avec le RIB de démonstration'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0384 : émission avec le RIB de démonstration'::text; end if;
-      update public.organization_settings set bic = 'CMBRFR2BXXX', iban = 'FR7615589297060008906894048';
+      update public.organization_settings set bic = 'BANKFRPPXXX', iban = 'FR7612345678901234567890104';
       if not app.rib_demo(z_co) then v_lines := v_lines || 'OK      base  0384 : RIB réel reconnu'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0384 : RIB réel pris pour celui de la démonstration'::text; end if;
     exception when others then
@@ -4432,7 +4432,7 @@ begin
      or exists (select 1 from pg_constraint where conname = 'prospect_rdv_conducted_by_check' and pg_get_constraintdef(oid) like '%btrim%') then
     v_total := v_total + 1;
     if not exists (select 1 from pg_constraint where conname in ('budget_transactions_payer_check', 'budget_meal_guests_meal_for_check', 'prospect_rdv_conducted_by_check')
-                   and pg_get_constraintdef(oid) ~* '(hicham|maxime)')
+                   and pg_get_constraintdef(oid) ~* 'array\[')
        and 'perso_00000000-0000-0000-0000-000000000000' ~ '^perso_[0-9a-f-]{36}$' then
       v_lines := v_lines || 'OK      base  0393 : aucune contrainte ne cite un prénom'::text;
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0393 : une contrainte cite encore un prénom'::text; end if;
@@ -5016,6 +5016,28 @@ begin
       perform set_config('request.jwt.claims', '', true);
       v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0410 : erreur ' || sqlerrm)::text;
     end;
+  end if;
+
+  -- Marque blanche (0412) : aucun nom de personne ni d'organisme écrit dans la base
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'organization_settings'
+             and column_name = 'traces_a_signaler') then
+    v_total := v_total + 3;
+    if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'budget_meal_guests'
+                   and column_name = 'meal_for' and column_default is not null)
+       and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'bank_statements'
+                   and column_name = 'account_label' and column_default is not null) then
+      v_lines := v_lines || 'OK      base  0412 : aucune personne ni aucun compte bancaire par défaut'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0412 : personne invitante par défaut'::text; end if;
+    if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'
+               and p.proname = 'get_budget_kpis' and pg_get_function_result(p.oid) like '%cca jsonb%' and not p.prosecdef)
+       and pg_get_viewdef('public.budget_compte_courant'::regclass) not like '%perso_h%'
+       and (select 'security_invoker=true' = any(reloptions) from pg_class where oid = 'public.budget_compte_courant'::regclass) then
+      v_lines := v_lines || 'OK      base  0412 : comptes des associés lus dans les fiches, sans nom écrit, cloisonnement gardé'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0412 : nom écrit dans les comptes des associés'::text; end if;
+    if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'social_posts'
+                   and column_name ~ '^content_linkedin_[a-z]+$') then
+      v_lines := v_lines || 'OK      base  0412 : aucune colonne de publication propre à une personne'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0412 : colonne de publication propre à une personne'::text; end if;
   end if;
 
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles

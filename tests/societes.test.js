@@ -10,8 +10,8 @@ describe('sociétés (C3)', () => {
     expect(VUE_GROUPE).toBe('groupe')
   })
   it('nom court, sinon raison sociale', () => {
-    expect(nomSociete({ legal_name: 'GLD RESTAURATION SARL', short_name: 'Chez Mam' })).toBe('Chez Mam')
-    expect(nomSociete({ legal_name: 'GLD RESTAURATION SARL' })).toBe('GLD RESTAURATION SARL')
+    expect(nomSociete({ legal_name: 'ESSAI RESTAURATION SARL', short_name: 'Le Comptoir' })).toBe('Le Comptoir')
+    expect(nomSociete({ legal_name: 'ESSAI RESTAURATION SARL' })).toBe('ESSAI RESTAURATION SARL')
   })
 })
 

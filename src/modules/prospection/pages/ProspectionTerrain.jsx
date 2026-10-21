@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // ProspectionTerrain.jsx - Prospection terrain géolocalisée
 // Saisie d'une ville + rayon → liste de prospects à fort potentiel
-// Actions : appel loggué, rappel, RDV, email - comme MarinePhoning
+// Actions : appel loggué, rappel, RDV, email, comme le phoning
 // ═══════════════════════════════════════════════════════════════
 
 import { teamFirstNames, teamFirstNameByEmail } from '../../../core/org/currentOrg'

@@ -19,7 +19,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUPABASE_URL: https://thcngystpaiamejoaejn.supabase.co
   SUPABASE_CLI_VERSION: 2.120.0
 
 jobs:
@@ -46,6 +45,15 @@ jobs:
             echo "::error::Secrets à créer dans Settings > Secrets and variables > Actions :$manque"
             exit 1
           fi
+
+      # Adresse du projet lue dans le secret de la base : aucune référence d'instance écrite dans le dépôt
+      - name: Adresse du projet
+        env:
+          A: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          REF=$(printf '%s' "$A" | sed -nE 's#.*postgres\.([a-z0-9]{20})[:@].*#\1#p; t; s#.*@db\.([a-z0-9]{20})\.supabase\.co.*#\1#p')
+          [ -n "$REF" ] || { echo "::error::Référence du projet introuvable dans SUPABASE_DB_URL"; exit 1; }
+          echo "SUPABASE_URL=https://$REF.supabase.co" >> "$GITHUB_ENV"
 
       - uses: supabase/setup-cli@v1
         with:

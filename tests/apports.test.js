@@ -7,7 +7,7 @@ const apporteurs = [
 ]
 const lignes = [
   { invoice_id: 'f1', client_id: 'c1', client: 'A', ht: 50000, encaisse_ht: 30000, apport_c: 'pierre', vente_p: 'hs', realise_p: 'hs', metier: 'formation' },
-  { invoice_id: 'f2', client_id: 'c2', client: 'B', ht: 20000, encaisse_ht: 20000, apport_c: 'paul', idee_p: 'anthony', vente_p: 'anthony', metier: 'maintenance' },
+  { invoice_id: 'f2', client_id: 'c2', client: 'B', ht: 20000, encaisse_ht: 20000, apport_c: 'paul', idee_p: 'luc', vente_p: 'luc', metier: 'maintenance' },
   { invoice_id: 'f3', client_id: 'c3', client: 'C', ht: 1000, encaisse_ht: 0, vente_p: 'hs', metier: 'autre' },
   { invoice_id: 'f4', client_id: 'c1', client: 'A', ht: -500, encaisse_ht: 0, apport_c: 'pierre', metier: 'formation' },
 ]
@@ -20,7 +20,7 @@ describe('qui a apporté quoi', () => {
     expect(p['c:pierre'].indirect_ht).toBe(20000)
     expect(p['p:jp'].indirect_ht).toBe(69500)
     expect(p['p:jp'].nom).toBe('Jean-Paul')
-    expect(p['p:anthony'].idee_ht).toBe(20000)
+    expect(p['p:luc'].idee_ht).toBe(20000)
     expect(p['p:hs'].vente_ht).toBe(51000)
     expect(r.total).toBe(70500)
     expect(r.sansOrigine).toBe(1000)

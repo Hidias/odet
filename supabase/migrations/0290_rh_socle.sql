@@ -1,7 +1,7 @@
 -- 0290_rh_socle.sql : chantier 12, module RH, socle (spec odet-spec-rh.md § 2 à 4, branche rh/socle).
 --
 -- Personnes, contrats, équipes, horaires de référence, rémunérations. Le module « rh » reste coupé (org_modules) :
--- il s'active société par société, après la relecture de Léandra.
+-- il s'active société par société, après la relecture de la direction.
 -- Choix (C1b, 18/10) : aucun rôle « rh » ni « salarie » ajouté à profiles.role ; les droits viennent des profils
 -- « Ressources humaines » et « Salarié » (rôle de base « membre ») et des droits rh.* déjà au catalogue.
 --

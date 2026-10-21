@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Génère le jeu de données de démonstration de GLD Formation (données fictives, effaçables).
+"""Génère le jeu de données de démonstration de l'organisme de démonstration (données fictives, effaçables).
 
 Sortie : supabase/seed/donnees_demo/*.sql, à appliquer dans l'ordre (00_..., 01_..., ...).
 Chaque enregistrement racine est inscrit dans demo_records ; purge_demo_data() efface tout d'un coup.
@@ -8,7 +8,7 @@ Règles :
 - Noms d'entreprises et de personnes inventés. SIREN commençant par 000 (aucun SIREN réel ne commence ainsi).
 - Téléphones dans les plages réservées à la fiction par l'ARCEP (01 99 00 xx xx, 06 39 98 xx xx).
 - Emails sur des domaines inventés ; en mode démonstration, aucun email ne part de toute façon.
-- Aucun chiffre réel d'Access Formation n'est repris.
+- Aucun chiffre réel n'est repris.
 Rejouable : génération déterministe (graine fixe). Avant de rejouer, appeler purge_demo_data().
 """
 import json, math, os, random, uuid
@@ -57,8 +57,8 @@ def tel_mobile():
     n = phone_n[0]
     return '06 39 98 %02d %02d' % (n // 100 % 100, n % 100)
 
-ORG = {'address': '33 ZA de Penhoad Braz', 'postal_code': '29700', 'city': 'Plomelin'}
-HICHAM = 'ddf1ec18-c1c1-4fc5-8095-af85ffbf4ee1'
+ORG = {'address': '8 parc des Essais', 'postal_code': '29600', 'city': 'Morlaix'}
+FORMATEUR_PRINCIPAL = 'ddf1ec18-c1c1-4fc5-8095-af85ffbf4ee1'
 
 COURSES = {
     'IGPS': ('ecff7f51-f201-4fc2-a4bb-b12e387ea5d0', 350, 7, 1),
@@ -81,10 +81,10 @@ COURSE_TITLES = {
     'DUERP': 'Construire une démarche de prévention via le DUERP', 'SST-FI': 'Formation initiale de Sauveteur Secouriste du Travail',
 }
 
-# Formateurs fictifs (Hicham existe déjà)
+# Formateurs fictifs (le formateur principal existe déjà)
 TRAINERS = {
-    'hicham': {'id': HICHAM},
-    'yannick': {'id': uid(), 'first_name': 'Yannick', 'last_name': 'Le Dréau', 'email': 'yannick.ledreau@gld-demo.fr',
+    'principal': {'id': FORMATEUR_PRINCIPAL},
+    'yannick': {'id': uid(), 'first_name': 'Yannick', 'last_name': 'Le Dréau', 'email': 'formateur1@exemple.fr',
                 'phone': tel_mobile(), 'specialties': 'Sécurité incendie, évacuation, manipulation d\'extincteurs',
                 'is_internal': True, 'qualifications': 'Technicien de maintenance incendie, formateur EPI'},
     'sophie': {'id': uid(), 'first_name': 'Sophie', 'last_name': 'Kerhervé', 'email': 'sophie.kerherve@formelec-demo.fr',
@@ -113,7 +113,7 @@ CLIENTS = [
      ['SST-MAC', 'B0H0V', 'INC-EXT'], ['Mécanicien automobile', 'Carrossier', 'Réceptionnaire après-vente', 'Apprenti mécanicien']),
     ('Fromagerie Ker Laëz', 'Zone de Penn ar Roz', '29150', 'Châteaulin', '10.51C', 'Fabrication de fromage', '20-49', 'SAS',
      ['SST-FI', 'SST-MAC', 'ERG-GP', 'INC-EPI'], ['Opérateur de production', 'Fromager', 'Agent de conditionnement', 'Responsable qualité']),
-    ('Clinique vétérinaire Ar Gwez', '5 rue de Lorient', '29300', 'Quimperlé', '75.00Z', 'Activités vétérinaires', '10-19', 'SELARL',
+    ('Clinique vétérinaire Ar Gwez', '5 rue de Lorient', '29300', 'Brestlé', '75.00Z', 'Activités vétérinaires', '10-19', 'SELARL',
      ['IGPS', 'SST-FI', 'INC-EXT'], ['Vétérinaire', 'Auxiliaire vétérinaire', 'Secrétaire', 'ASV']),
     ('Maçonnerie Le Corre et Fils', '9 hent ar Vilin', '29710', 'Plogastel-Saint-Germain', '43.99C', 'Travaux de maçonnerie générale', '20-49', 'SARL',
      ['SST-MAC', 'SST-FI', 'ERG-GP', 'R485'], ['Maçon', 'Chef de chantier', 'Manoeuvre', 'Coffreur', 'Conducteur d\'engins']),
@@ -121,19 +121,19 @@ CLIENTS = [
      ['BSBEM', 'B0H0V', 'SST-MAC'], ['Électricien', 'Électricienne', 'Apprenti électricien', 'Chef d\'équipe']),
     ('Hôtel Kastell Mor', '3 corniche de la Mer', '29950', 'Bénodet', '55.10Z', 'Hôtels et hébergement similaire', '20-49', 'SAS',
      ['INC-EPI', 'SST-MAC', 'IGPS'], ['Réceptionniste', 'Femme de chambre', 'Cuisinier', 'Serveur', 'Veilleur de nuit']),
-    ('Kervéguen Logistique', 'ZI de Kerdroniou', '29000', 'Quimper', '52.10B', 'Entreposage et stockage non frigorifique', '50-99', 'SAS',
+    ('Kervéguen Logistique', 'ZI de Kerdroniou', '29000', 'Brest', '52.10B', 'Entreposage et stockage non frigorifique', '50-99', 'SAS',
      ['R489', 'R485', 'SST-MAC', 'INC-EPI', 'ERG-GP'], ['Cariste', 'Préparateur de commandes', 'Chef de quai', 'Gestionnaire de stock']),
     ('Agri-Équipements du Pays Bigouden', 'Route de Pont-l\'Abbé', '29720', 'Plonéour-Lanvern', '46.61Z', 'Commerce de gros de matériel agricole', '10-19', 'SARL',
      ['SST-MAC', 'R489', 'B0H0V'], ['Technicien SAV', 'Magasinier', 'Commercial itinérant', 'Mécanicien agricole']),
     ('Mareyage Ty Ar Mor', 'Port de pêche', '29760', 'Penmarch', '46.38A', 'Commerce de gros de produits de la mer', '20-49', 'SAS',
      ['SST-FI', 'ERG-GP', 'R485', 'INC-EXT'], ['Fileteur', 'Agent de marée', 'Préparateur', 'Chauffeur livreur']),
-    ('Imprimerie Kemper Graphik', '11 rue de Brest', '29000', 'Quimper', '18.12Z', 'Autre imprimerie', '20-49', 'SARL',
+    ('Imprimerie Kemper Graphik', '11 rue de Brest', '29000', 'Brest', '18.12Z', 'Autre imprimerie', '20-49', 'SARL',
      ['SST-MAC', 'INC-EPI', 'B0H0V'], ['Conducteur offset', 'Infographiste', 'Façonnier', 'Responsable de fabrication']),
-    ('Micro-crèche Bugale Mad', '4 rue des Écoles', '29700', 'Plomelin', '88.91A', 'Accueil de jeunes enfants', '6-9', 'SAS',
+    ('Micro-crèche Bugale Mad', '4 rue des Écoles', '29600', 'Morlaix', '88.91A', 'Accueil de jeunes enfants', '6-9', 'SAS',
      ['IGPS', 'SST-FI', 'INC-EXT'], ['Auxiliaire de puériculture', 'Éducatrice de jeunes enfants', 'Agent petite enfance']),
-    ('Scierie du Steïr', 'Moulin du Steïr', '29000', 'Quimper', '16.10A', 'Sciage et rabotage du bois', '20-49', 'SARL',
+    ('Scierie du Steïr', 'Moulin du Steïr', '29000', 'Brest', '16.10A', 'Sciage et rabotage du bois', '20-49', 'SARL',
      ['SST-MAC', 'R489', 'INC-EPI', 'ERG-GP'], ['Scieur', 'Cariste', 'Affûteur', 'Opérateur de ligne']),
-    ('Plasturgie de l\'Isole', 'ZA de Kervidanou', '29300', 'Quimperlé', '22.29A', 'Fabrication d\'autres articles en matières plastiques', '50-99', 'SAS',
+    ('Plasturgie de l\'Isole', 'ZA de Kervidanou', '29300', 'Brestlé', '22.29A', 'Fabrication d\'autres articles en matières plastiques', '50-99', 'SAS',
      ['SST-FI', 'SST-MAC', 'B0H0V', 'INC-EPI', 'ERG-GP'], ['Régleur', 'Opérateur de production', 'Technicien qualité', 'Cariste']),
 ]
 FORMES = {'SARL': 'Société à responsabilité limitée', 'SAS': 'Société par actions simplifiée', 'SCA': 'Société coopérative agricole',
@@ -172,7 +172,7 @@ def emit(name, line):
 
 # ---------------------------------------------------------------- formateurs
 for key, t in TRAINERS.items():
-    if key == 'hicham':
+    if key == 'principal':
         continue
     emit('01_referentiel', ins('trainers', {k: v for k, v in t.items()}))
     emit('01_referentiel', track('trainers', t['id']))
@@ -267,7 +267,7 @@ for when, d in plan:
         while nd.weekday() >= 5:
             nd += timedelta(days=1)
         days.append(nd)
-    trainer_key = TRAINER_FOR.get(code, 'hicham')
+    trainer_key = TRAINER_FOR.get(code, 'principal')
     if any((x, trainer_key) in busy for x in days):
         continue
     for x in days:
@@ -284,7 +284,7 @@ for when, d in plan:
     s = {'id': sid, 'course_id': cid_course, 'client_id': cl['c']['id'], 'trainer_id': TRAINERS[trainer_key]['id'],
          'start_date': days[0], 'end_date': days[-1], 'start_time': start_t, 'end_time': end_t, 'day_type': day_type,
          'is_intra': True, 'session_type': 'intra', 'min_participants': 4, 'max_participants': maxp,
-         'location_name': 'Dans les locaux du client' if intra_site else 'Salle de formation GLD',
+         'location_name': 'Dans les locaux du client' if intra_site else 'Salle de formation',
          'location_address': cl['c']['address'] if intra_site else ORG['address'],
          'location_postal_code': cl['c']['postal_code'] if intra_site else ORG['postal_code'],
          'location_city': cl['c']['city'] if intra_site else ORG['city'],
@@ -393,7 +393,7 @@ for n, se in enumerate(sessions):
         if se['code'] in ('SST-FI', 'SST-MAC') and st['result'] == 'acquired':
             cert = {'session_id': s['id'], 'trainee_id': t['id'], 'formation_type': 'FI' if se['code'] == 'SST-FI' else 'MAC',
                     'date_certification': se['days'][-1], 'formateur_id': TRAINERS[se['trainer']]['id'],
-                    'formateur_nom': 'Saidi', 'formateur_prenom': 'Hicham', 'candidat_certifie': True}
+                    'formateur_nom': 'Lemoine', 'formateur_prenom': 'Claire', 'candidat_certifie': True}
             for c_ in ['c1_ind1', 'c2_ind1', 'c2_ind2', 'c2_ind3', 'c2_ind4', 'c2_ind5', 'c3_ind1', 'c3_ind2', 'c4_ind1', 'c4_ind2',
                        'c5_ind1', 'c5_ind2', 'c5_ind3', 'c6_ind1', 'c7_ind1', 'c8_ind1', 'c8_ind2']:
                 cert[c_] = True
@@ -424,7 +424,7 @@ for se in sessions:
     qt = {'id': qid, 'reference': ref('DEV', qd, quote_seq), 'client_id': cl['c']['id'], 'contact_id': s['contact_id'], 'session_id': s['id'],
           'quote_date': qd, 'validity_date': qd + timedelta(days=30), 'object': title, 'status': 'accepted',
           'tva_rate': 20, 'tva_applicable': True, 'total_ht': total_ht, 'total_tva': round(total_ht * 0.2, 2), 'total_ttc': round(total_ht * 1.2, 2),
-          'created_by': 'Hicham Saidi', 'created_at': datetime.combine(qd, datetime.min.time()) + timedelta(hours=11)}
+          'created_by': 'Claire Lemoine', 'created_at': datetime.combine(qd, datetime.min.time()) + timedelta(hours=11)}
     emit('04_devis_factures', ins('quotes', qt))
     emit('04_devis_factures', track('quotes', qid))
     emit('04_devis_factures', ins('quote_items', {'quote_id': qid, 'position': 0, 'code': se['code'], 'description_title': title,
@@ -452,7 +452,7 @@ for se in sessions:
            'quote_id': qid, 'session_id': s['id'], 'invoice_date': idate, 'service_start_date': se['days'][0], 'service_end_date': se['days'][-1],
            'due_date': due, 'object': title, 'payment_method': 'virement bancaire', 'payment_terms': terms, 'tva_applicable': True,
            'total_ht': total_ht, 'total_discount': 0, 'total_net_ht': total_ht, 'total_tva': round(total_ht * 0.2, 2), 'total_ttc': ttc,
-           'amount_paid': paid, 'amount_due': round(ttc - paid, 2), 'status': status, 'created_by': 'Hicham Saidi', 'is_formation_pro': True,
+           'amount_paid': paid, 'amount_due': round(ttc - paid, 2), 'status': status, 'created_by': 'Claire Lemoine', 'is_formation_pro': True,
            'created_at': datetime.combine(idate, datetime.min.time()) + timedelta(hours=15)}
     emit('04_devis_factures', ins('invoices', inv))
     emit('04_devis_factures', track('invoices', iid))
@@ -462,7 +462,7 @@ for se in sessions:
     if status == 'paid':
         pdate = min(TODAY - timedelta(days=1), due - timedelta(days=random.randint(-6, 12)))
         emit('04_devis_factures', ins('invoice_payments', {'invoice_id': iid, 'amount': ttc, 'payment_date': pdate,
-             'payment_method': 'virement bancaire', 'payment_reference': f'VIR {cl["name"].upper()[:20]}', 'created_by': 'Hicham Saidi'}))
+             'payment_method': 'virement bancaire', 'payment_reference': f'VIR {cl["name"].upper()[:20]}', 'created_by': 'Claire Lemoine'}))
 
 # Devis en cours, refusés, brouillon (sans session)
 OPEN = [('sent', 'SST-MAC', 12), ('sent', 'INC-EPI', 6), ('sent', 'B0H0V', 3), ('sent', 'R489', 9), ('refused', 'ERG-GP', 40),
@@ -474,7 +474,7 @@ for status, code, ago in OPEN:
     qid = uid()
     qt = {'id': qid, 'reference': ref('DEV', qd, quote_seq), 'client_id': cl['c']['id'], 'contact_id': cl['contacts'][0]['id'], 'quote_date': qd,
           'validity_date': qd + timedelta(days=30), 'object': COURSE_TITLES[code], 'status': status, 'tva_rate': 20, 'tva_applicable': True,
-          'total_ht': price, 'total_tva': round(price * 0.2, 2), 'total_ttc': round(price * 1.2, 2), 'created_by': 'Hicham Saidi',
+          'total_ht': price, 'total_tva': round(price * 0.2, 2), 'total_ttc': round(price * 1.2, 2), 'created_by': 'Claire Lemoine',
           'relance_count': 1 if status == 'sent' and ago > 10 else 0, 'last_relance_date': (qd + timedelta(days=8)) if status == 'sent' and ago > 10 else None,
           'lost_reason': 'Budget reporté à l\'an prochain' if status == 'refused' else None,
           'created_at': datetime.combine(qd, datetime.min.time()) + timedelta(hours=10)}
@@ -495,7 +495,7 @@ for delta, status, kind, loc, note in RDV:
     emit('05_relation', ins('prospect_rdv', {'id': rid, 'client_id': cl['c']['id'], 'rdv_date': TODAY + timedelta(days=delta),
          'rdv_time': random.choice(['09:30', '10:00', '14:00', '15:30']), 'rdv_type': kind, 'rdv_location': loc,
          'rdv_address': f"{cl['c']['address']}, {cl['c']['postal_code']} {cl['c']['city']}" if loc == 'leurs_locaux' else None,
-         'contact_id': k['id'], 'contact_name': k['name'], 'contact_email': k['email'], 'contact_phone': k['phone'], 'conducted_by': 'Hicham',
+         'contact_id': k['id'], 'contact_name': k['name'], 'contact_email': k['email'], 'contact_phone': k['phone'], 'conducted_by': 'Claire',
          'status': status, 'notes': note, 'temperature': random.choice(['chaud', 'tiede']), 'source': 'client_existant'}))
     emit('05_relation', track('prospect_rdv', rid))
 for cl in clients:
@@ -506,7 +506,7 @@ for cl in clients:
         emit('05_relation', ins('client_interactions', {'client_id': cl['c']['id'], 'type': kind, 'title': title,
              'content': random.choice(['Échange cordial, besoin confirmé pour le prochain trimestre.', 'Demande de dates pour une nouvelle session.',
                                        'Retour positif sur la dernière formation.', 'À rappeler après validation du budget.']),
-             'author': 'Hicham Saidi', 'interaction_date': d}))
+             'author': 'Claire Lemoine', 'interaction_date': d}))
 
 # ---------------------------------------------------------------- veille (rédigée par l'OF, sans contenu réglementaire inventé)
 VEILLE = [('pedagogique', date(2026, 5, 4), 'INRS', 'Relecture des supports SST', 'Relecture annuelle des supports de formation SST au regard du document de référence en vigueur.', 'Supports vérifiés, aucune modification nécessaire.', 'traite'),
@@ -518,7 +518,7 @@ VEILLE = [('pedagogique', date(2026, 5, 4), 'INRS', 'Relecture des supports SST'
 for typ, d, src, sujet, desc, action, statut in VEILLE:
     vid = uid()
     emit('05_relation', ins('veille_qualiopi', {'id': vid, 'type': typ, 'date': d, 'source': src, 'sujet': sujet, 'description': desc,
-         'action_menee': action, 'statut': statut, 'responsable': 'Hicham Saidi', 'date_traitement': d + timedelta(days=7) if action else None}))
+         'action_menee': action, 'statut': statut, 'responsable': 'Claire Lemoine', 'date_traitement': d + timedelta(days=7) if action else None}))
     emit('05_relation', track('veille_qualiopi', vid))
 
 # ---------------------------------------------------------------- ajustements : deux factures échues restées impayées

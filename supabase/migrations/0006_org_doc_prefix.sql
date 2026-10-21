@@ -11,5 +11,6 @@ create policy "media_auth_update" on storage.objects for update to authenticated
 drop policy if exists "media_public_read" on storage.objects;
 create policy "media_public_read" on storage.objects for select to anon, authenticated using (bucket_id = 'media');
 
-update public.organization_settings set doc_prefix = 'GLD' where doc_prefix is null and app_short_name = 'GLD';
+update public.organization_settings set doc_prefix = upper(left(regexp_replace(app_short_name, '[^A-Za-z0-9]', '', 'g'), 6))
+ where doc_prefix is null and nullif(btrim(app_short_name), '') is not null;
 insert into public.schema_migrations (version) values ('0006_org_doc_prefix') on conflict (version) do nothing;
