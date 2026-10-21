@@ -17,3 +17,19 @@ describe('documents émis', () => {
     expect(memeContenu(contenuDocument(session, 'attestation', { id: 't1', result: 'acquired' }), { hours: 7, result: null, absences: [] })).toBe(true)
   })
 })
+
+import { appliquerEmis } from '../src/modules/formation/lib/documentsEmis'
+
+describe('portails : version émise', () => {
+  it('reprend la dernière version et la précédente', () => {
+    const lignes = [
+      { session_id: 's', trainee_id: 't1', kind: 'certificat', version: 2, issued_on: '2026-10-21', hours: '2', result: 'acquired', absences: [] },
+      { session_id: 's', trainee_id: 't1', kind: 'certificat', version: 1, issued_on: '2026-08-24', hours: '4', result: 'acquired', absences: [] },
+    ]
+    const [t] = appliquerEmis(lignes, 's', 'certificat', [{ id: 't1', result: null }])
+    expect(t.heures_realisees).toBe(2)
+    expect(t.result).toBe('acquired')
+    expect(t.document_emis).toEqual({ version: 2, issued_on: '2026-10-21', remplace: { version: 1, issued_on: '2026-08-24' } })
+    expect(appliquerEmis(lignes, 's', 'attestation', [{ id: 't1' }])[0].document_emis).toBeUndefined()
+  })
+})

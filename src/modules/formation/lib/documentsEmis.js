@@ -99,3 +99,27 @@ export async function preparerDocuments(session, kind, liste) {
   return figerDocuments(session, kind, r.liste)
 }
 
+
+/**
+ * Portails (lecture seule) : chaque stagiaire reçoit la dernière version émise, telle qu'elle a été remise
+ * (lignes servies par client_portal_documents_emis ou ent_documents_emis). Sans version émise, rien ne change.
+ */
+export function appliquerEmis(lignes, sessionId, kind, liste) {
+  const versions = {}
+  ;(lignes || []).filter((r) => r.session_id === sessionId && r.kind === kind)
+    .sort((a, b) => a.version - b.version)
+    .forEach((r) => { (versions[r.trainee_id] ||= []).push(r) })
+  return (liste || []).map((t) => {
+    const v = versions[t.id]
+    if (!v?.length) return t
+    const d = v[v.length - 1]
+    const avant = v.find((x) => x.version === d.version - 1)
+    return {
+      ...t,
+      heures_realisees: d.hours != null ? Number(d.hours) : t.heures_realisees,
+      ...(kind === 'certificat' && d.result ? { result: d.result } : {}),
+      absences_notees: d.absences || [],
+      document_emis: { version: d.version, issued_on: d.issued_on, remplace: avant ? { version: avant.version, issued_on: avant.issued_on } : null },
+    }
+  })
+}

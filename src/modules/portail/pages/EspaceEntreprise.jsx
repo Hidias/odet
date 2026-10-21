@@ -16,6 +16,7 @@ import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pd
 import { pdfOrgFrom } from '../../../core/pdf/pdfOrg'
 import RegistreVue from '../../registre/components/RegistreVue'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
+import { appliquerEmis } from '../../formation/lib/documentsEmis'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
 // salariés et validités, demandes (inscription inter, formation intra, remplacement, message), catalogue, factures
@@ -210,8 +211,13 @@ function Formations() {
         out = await generatePDF('emargement', session, { trainees, trainer, isBlank: false,
           attendanceData: has ? { signatures: [], halfdays: s.halfdays || [], proxies: [], absents, trainerSignatureBase64 } : null })
       } else if (kind === 'attestations') {
-        out = await generateAllPDF('attestation', session, trainees.filter((t) => !((s.session_trainees || []).find((st) => st.trainee_id === t.id)?.absent)), { trainer })
-      } else if (kind === 'certificats') out = await generateAllPDF('certificat', session, trainees.filter((t) => t.result), { trainer })
+        // Version émise (0399, 0400) : l'entreprise reçoit le document tel qu'il a été remis
+        const { data: emis } = await supabase.rpc('ent_documents_emis')
+        out = await generateAllPDF('attestation', session, appliquerEmis(emis, s.id, 'attestation', trainees.filter((t) => !((s.session_trainees || []).find((st) => st.trainee_id === t.id)?.absent))), { trainer })
+      } else if (kind === 'certificats') {
+        const { data: emis } = await supabase.rpc('ent_documents_emis')
+        out = await generateAllPDF('certificat', session, appliquerEmis(emis, s.id, 'certificat', trainees).filter((t) => t.result), { trainer })
+      }
       if (!out) { toast.error('Aucun document pour cette session'); return }
       saveBase64(out.base64, out.filename)
     } catch (err) {

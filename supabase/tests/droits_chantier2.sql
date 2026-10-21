@@ -4640,6 +4640,20 @@ begin
     end;
   end if;
 
+  -- Portails et documents émis (0400) : un lien de portail invalide ne lit aucun document émis
+  if to_regprocedure('public.client_portal_documents_emis(text,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 1;
+    begin
+      if public.client_portal_documents_emis('lien-inexistant', '000000') = '[]'::jsonb then
+        v_lines := v_lines || 'OK      base  0400 : portail sans lien valide, aucun document émis'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0400 : documents émis lus sans lien valide'::text; end if;
+    exception when others then
+      v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0400 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

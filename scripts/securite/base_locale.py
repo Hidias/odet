@@ -241,6 +241,8 @@ ORDRE_PROD = (
     + ['0398']
     # Certificats et attestations figés une fois émis, 21/10
     + ['0399']
+    # Portails : version émise des certificats et attestations, 21/10
+    + ['0400']
 )
 
 
