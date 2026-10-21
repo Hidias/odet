@@ -539,11 +539,13 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   // Cadres de signature côte à côte : [{ label, name, hint, image, stamp }]
   f.signatures = (blocks, { height = 32, gap = 6 } = {}) => {
     const n = blocks.length
-    const colW = (W - gap * (n - 1)) / n
+    // Un seul signataire : cadre d'une demi-largeur, à droite (pleine largeur, il paraissait démesuré)
+    const colW = n === 1 ? Math.min(W, (W - gap) / 2) : (W - gap * (n - 1)) / n
+    const x0 = n === 1 ? M + W - colW : M
     f.ensure(height + 4)
     const by = f.y
     blocks.forEach((b, i) => {
-      const x = M + i * (colW + gap)
+      const x = x0 + i * (colW + gap)
       doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.rect(x, by, colW, height)
       doc.setFillColor(...t.surface); doc.rect(x, by, colW, b.name ? 11 : 7, 'F')
       setF(doc, 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)

@@ -1655,18 +1655,27 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
   const colW = (W - gap) / 2
   const contact = getSessionContact(session)
   const stagLines = [fullName, trainee?.job_title || '', client.name || ''].filter(Boolean)
-  const contactLines = [
-    ORG.name,
-    [ORG.phone, ORG.email].filter(Boolean).join('   '),
-    contact.name ? `Entreprise : ${contact.name}${contact.role ? ', ' + contact.role : ''}` : '',
-  ].filter(Boolean)
+  // Contact dans l'entreprise mis en avant (nom, fonction, téléphone, e-mail), l'organisme sur une ligne dessous ;
+  // sans contact d'entreprise, la carte de droite donne l'organisme comme avant
+  const orgLines = [ORG.name, ORG.phone ? `Tél. ${ORG.phone}` : '', ORG.email || ''].filter(Boolean)
+  const contactLines = contact.name
+    ? [contact.name, contact.role || '', contact.phone ? `Tél. ${contact.phone}` : '', contact.email || ''].filter(Boolean)
+    : orgLines
   while (stagLines.length < contactLines.length) stagLines.push('')
   while (contactLines.length < stagLines.length) contactLines.push('')
   const y1 = drawPartyCard(doc, ORG, M, f.y, colW, 'Stagiaire convoqué', stagLines)
-  const y2 = drawPartyCard(doc, ORG, M + colW + gap, f.y, colW, 'Vos contacts', contactLines)
-  f.y = Math.max(y1, y2) + 7
+  const y2 = drawPartyCard(doc, ORG, M + colW + gap, f.y, colW, contact.name ? 'Votre contact dans l\'entreprise' : 'Votre contact', contactLines)
+  f.y = Math.max(y1, y2) + 3
+  if (contact.name) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...f.t.muted)
+    const ligneOrg = `Organisme de formation : ${[ORG.name, ORG.phone, ORG.email].filter(Boolean).join(' · ')}`
+    doc.text(doc.splitTextToSize(ligneOrg, W)[0] || '', M, f.y + 2)
+    doc.setTextColor(...f.t.text)
+    f.y += 6
+  }
+  f.y += 4
 
-  f.para('Merci de vous présenter à la session de formation selon les informations suivantes. Pour toute question, vos contacts sont indiqués ci-dessus.', { after: 2 })
+  f.para('Merci de vous présenter à la session de formation selon les informations suivantes. Pour toute question, votre contact est indiqué ci-dessus.', { after: 2 })
 
   // ── La formation ──
   f.section('La formation')

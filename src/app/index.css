@@ -400,3 +400,26 @@ html[data-lists='cards'] .dt-cards { display: block; }
 /* Onglets : défilement sans barre visible */
 .tabs-scroll { scrollbar-width: none; }
 .tabs-scroll::-webkit-scrollbar { display: none; }
+
+/* ── Vitrine des portails publics (espace entreprise) : apparitions, halos, secousse du code ── */
+@keyframes vitrine-monte { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes vitrine-flotte { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(18px, -22px) scale(1.08); } }
+@keyframes vitrine-secoue { 0%, 100% { transform: none; } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+@keyframes vitrine-curseur { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes vitrine-reflet { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+.vitrine-monte { opacity: 0; animation: vitrine-monte .6s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: var(--delai, 0ms); }
+.vitrine-halo { position: absolute; border-radius: 9999px; filter: blur(48px); opacity: .55; animation: vitrine-flotte 14s ease-in-out infinite; pointer-events: none; }
+.vitrine-secoue { animation: vitrine-secoue .45s ease-in-out; }
+.vitrine-curseur { animation: vitrine-curseur 1s steps(1) infinite; }
+.vitrine-carte { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+.vitrine-carte:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rgb(0 0 0 / .25); }
+.vitrine-doc { position: relative; overflow: hidden; transition: background-color .2s ease, border-color .2s ease, color .2s ease, transform .2s ease; }
+.vitrine-doc:not(:disabled):hover { transform: translateY(-1px); }
+.vitrine-doc:not(:disabled):hover::after { content: ''; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgb(255 255 255 / .55), transparent); animation: vitrine-reflet .8s ease; }
+.vitrine-grain { background-image: radial-gradient(rgb(255 255 255 / .07) 1px, transparent 1px); background-size: 18px 18px; }
+@media (prefers-reduced-motion: reduce) {
+  .vitrine-monte { animation: none; opacity: 1; }
+  .vitrine-halo, .vitrine-secoue, .vitrine-curseur { animation: none; }
+  .vitrine-carte:hover, .vitrine-doc:not(:disabled):hover { transform: none; }
+  .vitrine-doc:not(:disabled):hover::after { animation: none; display: none; }
+}
