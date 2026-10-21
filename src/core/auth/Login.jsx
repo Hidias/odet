@@ -14,6 +14,10 @@ export default function Login() {
   const { user, login, error } = useAuthStore()
   const { branding } = useBranding()
   const location = useLocation()
+  // Déconnexion automatique après une heure sans activité : message une fois, à l'arrivée sur la page
+  const [parInactivite] = useState(() => {
+    try { const v = sessionStorage.getItem('odet_deconnexion_inactivite') === '1'; sessionStorage.removeItem('odet_deconnexion_inactivite'); return v } catch { return false }
+  })
 
   // Page demandée avant la connexion (par exemple la signature sur le téléphone du formateur)
   const from = typeof location.state?.from === 'string' ? location.state.from : '/'
@@ -86,6 +90,11 @@ export default function Login() {
             </div>
           )}
 
+          {parInactivite && (
+            <div className="mb-4 rounded-ui border border-gray-200 bg-gray-50 p-3 text-ui text-gray-700" role="status">
+              Vous avez été déconnecté après une heure sans activité. Votre saisie en cours a été gardée sur cet appareil : elle vous sera proposée après la connexion.
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="label">Adresse email</label>

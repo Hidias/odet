@@ -168,9 +168,11 @@ export const useAuthStore = create((set, get) => ({
     return { data }
   },
 
-  logout: async () => {
+  // scope « local » (déconnexion pour inactivité) : seule la session de cet appareil est fermée côté serveur ;
+  // sans option, comme avant (toutes les sessions du compte)
+  logout: async (options = {}) => {
     configureCompanyContext({})
-    await supabase.auth.signOut()
+    try { await supabase.auth.signOut(options.scope ? { scope: options.scope } : undefined) } catch { /* jeton déjà expiré : session locale effacée quand même */ }
     set({ user: null, profile: null, userRole: null, modules: [], fieldOnly: false, rights: null, societes: null })
     // Les données chargées restent en mémoire : un rechargement complet évite que le compte suivant
     // les voie dans le même onglet avant que la base ne les filtre.
