@@ -700,6 +700,9 @@ export default function Quotes() {
   // ============================================================
   async function openSessionWizard(quote) {
     try {
+      // Devis signé en ligne : la session est déjà préparée (0430) ; en créer une autre ferait un doublon
+      const { data: existantes } = await supabase.from('sessions').select('id, reference').eq('quote_id', quote.id)
+      if (existantes?.length && !await confirmer({ title: 'Session déjà créée', message: `Ce devis a déjà ${existantes.length > 1 ? `${existantes.length} sessions` : 'sa session'} (${existantes.map((x) => x.reference).filter(Boolean).join(', ')}). En créer une autre quand même ?`, confirmLabel: 'Créer quand même' })) return
       // Ensure trainers are loaded
       if (!storeTrainers?.length) await fetchTrainers()
       const currentTrainers = useDataStore.getState().trainers

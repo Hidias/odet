@@ -6005,6 +6005,60 @@ begin
     end;
   end if;
 
+  -- Circuit devis signé → session à valider → participants → convention (0430)
+  if to_regprocedure('app.participants_enregistrer(uuid,text,uuid,uuid,uuid,jsonb)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare p_c uuid; p_co uuid; p_q uuid; p_d uuid; p_s uuid; p_ok boolean; p_et jsonb;
+    begin
+      insert into public.clients (name, address, postal_code, city) values ('Client essai 0430', '1 rue', '29000', 'Quimper') returning id into p_c;
+      insert into public.courses (title, duration_hours) values ('Formation essai 0430', 7) returning id into p_co;
+      insert into public.quotes (client_id, status, quote_date, reference, object) values (p_c, 'sent', current_date, 'DEV-ESSAI-0430', 'Formation essai du 25 novembre 2099') returning id into p_q;
+      insert into public.quote_items (quote_id, position, description_title, quantity, unit_price_ht, tva_rate, total_ht, course_id) values (p_q, 0, 'Formation', 1, 500, 20, 500, p_co);
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      values ((select company_id from public.clients where id = p_c), p_c, 'quote', p_q, 'devis', 'Devis essai 0430', p_c || '/q.pdf', repeat('b', 64)) returning id into p_d;
+      perform app.portail_signer_document(p_c, 'lien', null, null, p_d, 'Essai Signataire', null, 'data:image/png;base64,iVBORw0KGgo=',
+        'J''ai lu le devis et je l''accepte. Mention : « Bon pour accord ».');
+      select id into p_s from public.sessions where quote_id = p_q;
+      if p_s is not null and (select validation_requise and start_date = date '2099-11-25' and course_id = p_co from public.sessions where id = p_s)
+         and exists (select 1 from public.notifications where type = 'session_a_valider' and metadata ->> 'session_id' = p_s::text) then
+        v_lines := v_lines || 'OK      base  0430 : devis signé, session préparée à valider (date lue dans l''objet), organisme prévenu'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0430 : session préparée depuis le devis signé'::text; end if;
+      p_ok := false;
+      begin perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"first_name":"Anne","last_name":"Essai"}]'::jsonb);
+      exception when sqlstate '22023' then p_ok := true; end;
+      if p_ok then v_lines := v_lines || 'OK      base  0430 : participants refusés tant que la session n''est pas validée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0430 : participants refusés avant validation'::text; end if;
+      update public.sessions set validation_requise = false, max_participants = 2 where id = p_s;
+      p_ok := false;
+      begin perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"first_name":"A","last_name":"Un"},{"first_name":"B","last_name":"Deux"},{"first_name":"C","last_name":"Trois"}]'::jsonb);
+      exception when sqlstate '22023' then p_ok := true; end;
+      perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"first_name":"Anne","last_name":"Essai","email":"anne@test.invalid"},{"first_name":"Paul","last_name":"Essai"}]'::jsonb);
+      perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"first_name":"anne","last_name":"ESSAI"}]'::jsonb);
+      p_et := (select e from jsonb_array_elements(app.participants_etat(p_c)) e where e ->> 'session_id' = p_s::text);
+      if p_ok and (select count(*) from public.session_trainees where session_id = p_s) = 1
+         and (p_et ->> 'ouvert')::boolean and jsonb_array_length(p_et -> 'participants') = 1
+         and (select email from public.trainees t join public.session_trainees st on st.trainee_id = t.id where st.session_id = p_s) = 'anne@test.invalid' then
+        v_lines := v_lines || 'OK      base  0430 : participants saisis dans la limite des places, liste remplacée, salarié retrouvé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0430 : saisie des participants (' || coalesce(p_et::text, '') || ')'); end if;
+      update public.sessions set convention_signed = true where id = p_s;
+      p_ok := false;
+      begin perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[]'::jsonb);
+      exception when sqlstate '22023' then p_ok := true; end;
+      if p_ok and exists (select 1 from public.notifications where type = 'convocations_a_valider' and metadata ->> 'session_id' = p_s::text) then
+        v_lines := v_lines || 'OK      base  0430 : convention signée, liste figée, convocations à valider signalées'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0430 : convention signée, liste figée'::text; end if;
+      if app.date_fr_du_texte('Formation du 1er mars 2027') = date '2027-03-01' and app.date_fr_du_texte('sans date') is null then
+        v_lines := v_lines || 'OK      base  0430 : date lue en toutes lettres dans un texte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0430 : date lue en toutes lettres'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0430 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

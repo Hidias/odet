@@ -14,6 +14,7 @@ import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT } from '../components/Si
 import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
+import ParticipantsSession from '../components/ParticipantsSession'
 import { lireDocumentPortail, versBase64 } from '../../../core/portail/documentsClient'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
@@ -102,6 +103,23 @@ export default function ClientPortal() {
   const [info, setInfo] = useState('')
   const [orgPdf, setOrgPdf] = useState(null)
   const [busy, setBusy] = useState(null) // clé du document en cours de génération
+  // Participants saisis par le client (0430) : état par session, sans effet si la base ne le propose pas encore
+  const [participants, setParticipants] = useState({})
+  const chargerParticipants = async (c = code) => {
+    try {
+      const { data: p } = await supabase.rpc('client_portal_participants', { p_token: token, p_code: c })
+      if (Array.isArray(p)) setParticipants(Object.fromEntries(p.map((x) => [x.session_id, x])))
+    } catch { /* fonction absente : rien à afficher */ }
+  }
+  const enregistrerParticipants = async (sessionId, liste) => {
+    const { data: r, error: e } = await supabase.rpc('client_portal_participants_enregistrer', { p_token: token, p_code: code, p_session: sessionId, p_liste: liste })
+    if (e) throw new Error(e.message)
+    if (r?.error) throw new Error(r.error)
+    const { data: d } = await supabase.rpc('client_portal_data', { p_token: token, p_code: code })
+    if (d && !d.error) setData(d)
+    await chargerParticipants()
+    setInfo(`${r?.nombre ?? liste.length} participant(s) enregistré(s). Votre organisme est prévenu.`)
+  }
   const [perso, setPerso] = useState(() => lirePerso(token))
   const [persoOuvert, setPersoOuvert] = useState(false)
   const enregistrerPerso = async ({ prenom, photo }) => {
@@ -138,6 +156,7 @@ export default function ClientPortal() {
       setOrg(org)
       setData(d)
       chargerSignatures(c)
+      chargerParticipants(c)
       try { sessionStorage.setItem(STORAGE_KEY(token), c) } catch { /* ignore */ }
       // Journal de preuve (0401) : connexion notée une fois par jour et par onglet
       if (premiereConnexionDuJour(`lien.${token}`)) noterLien(token, c, { event: 'connexion' })
@@ -382,18 +401,25 @@ export default function ClientPortal() {
                 ))}
               </ul>
             )}
-            {!s.convention_signed && !finished && (
-              <div className="mt-4 rounded-ui border border-accent-500/30 bg-accent-500/5 p-3 flex items-center gap-3 flex-wrap">
-                <FileSignature className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
-                <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">La convention de formation attend votre signature.</p>
-                <button type="button" onClick={() => setASigner(s)} className="btn btn-primary btn-sm">Signer en ligne</button>
-              </div>
-            )}
+            <ParticipantsSession etat={participants[s.id]} onEnregistrer={(liste) => enregistrerParticipants(s.id, liste)} />
+            {!s.convention_signed && !finished && (() => {
+              // Session issue d'un devis : la convention se signe une fois la session confirmée et les participants saisis
+              const et = participants[s.id]
+              const attente = et?.devis ? (et.validation_requise ? 'Votre organisme confirme les dates de la session.' : (et.participants || []).length === 0 ? 'Saisissez d\'abord vos participants.' : null) : null
+              return (
+                <div className="mt-4 rounded-ui border border-accent-500/30 bg-accent-500/5 p-3 flex items-center gap-3 flex-wrap">
+                  <FileSignature className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
+                  <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">{attente ? `Convention de formation : ${attente}` : 'La convention de formation attend votre signature.'}</p>
+                  <button type="button" onClick={() => setASigner(s)} disabled={!!attente} className="btn btn-primary btn-sm">Signer en ligne</button>
+                </div>
+              )
+            })()}
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {s.convention_signed
                 ? <DocButton s={s} kind="convention_signee" icon={FileSignature} label={signatureDe(s.id) ? 'Convention signée, avec sa preuve' : 'Convention signée'} />
                 : <DocButton s={s} kind="convention" icon={FileSignature} label="Convention de formation" />}
-              <DocButton s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0} />
+              {/* Session issue d'un devis : convocations après la convention signée (l'organisme les valide et les envoie) */}
+              <DocButton s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0 || (participants[s.id]?.devis && !s.convention_signed)} />
               <DocButton s={s} kind="emargement" icon={ClipboardList} label="Feuille d'émargement" disabled={nb === 0} />
               <DocButton s={s} kind="attestations" icon={BadgeCheck} label="Attestations de présence" disabled={!finished || nb === 0} />
               <DocButton s={s} kind="certificats" icon={Award} label="Certificats de réalisation" disabled={!finished || nbResults === 0} />

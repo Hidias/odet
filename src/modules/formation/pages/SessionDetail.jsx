@@ -34,6 +34,7 @@ import DateTimePickerModal from '../../../ui/DateTimePickerModal'
 import SessionChecklist from '../components/SessionChecklist'
 import SessionNeedsAnalysis from '../components/SessionNeedsAnalysis'
 import SessionEmailModal from '../components/SessionEmailModal'
+import CircuitSession from '../components/CircuitSession'
 import StageEmailModal from '../components/StageEmailModal'
 import { SignatureAuditBadge } from '../../../ui/signature/SignaturePad'
 import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
@@ -3286,6 +3287,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         />
       </div>
       
+      {/* Circuit devis signé → participants → convocations (0430) */}
+      <CircuitSession session={session} peutModifier={d.modifier} onChange={() => fetchSessions()} onEnvoyer={handleSendEmailBefore} />
+
       {/* Seuil de maintien (inter, J-10) */}
       <SeuilMaintien session={session} peutModifier={d.modifier} />
 
