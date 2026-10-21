@@ -7,6 +7,9 @@ import { fr as frLocale } from 'date-fns/locale'
 import { supabase } from '../../../core/supabase'
 import { useAuthStore } from '../../../core/store'
 import PublicLayout from '../../../app/PublicLayout'
+import { useBranding } from '../../../core/branding/BrandingProvider'
+import { BandeauAccueil, PersonnaliserEspace } from '../components/Vitrine'
+import { useMonProfil } from '../lib/monProfil'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
@@ -36,15 +39,17 @@ function saveBase64(base64, filename) {
 
 const Carte = ({ children, className = '' }) => <div className={`bg-white rounded-ui-lg border border-gray-200 p-4 ${className}`}>{children}</div>
 
-function Entete({ titre, sousTitre, logout }) {
+// En-tête des espaces : « Bonjour » + prénom du compte (photo ou logo choisis par la personne, 0426)
+function Entete({ libelle, prenom, sousTitre, logout }) {
+  const { branding } = useBranding()
+  const moi = useMonProfil(prenom)
+  const [perso, setPerso] = useState(false)
   return (
-    <div className="flex items-start justify-between gap-3 mb-5">
-      <div className="min-w-0">
-        <h1 className="font-display text-xl font-semibold text-gray-900 truncate">{titre}</h1>
-        {sousTitre && <p className="text-sm text-gray-500 truncate">{sousTitre}</p>}
-      </div>
-      <button type="button" onClick={logout} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5 shrink-0"><LogOut className="w-4 h-4" />Quitter</button>
-    </div>
+    <>
+      <BandeauAccueil branding={branding} libelle={libelle} prenom={moi.prenom} photo={moi.photo} sousTitre={sousTitre}
+        onPersonnaliser={moi.connecte ? () => setPerso(true) : null} onQuitter={logout} />
+      {perso && <PersonnaliserEspace prenom={moi.prenom} photo={moi.photo} onEnregistrer={moi.enregistrer} onFermer={() => setPerso(false)} />}
+    </>
   )
 }
 
@@ -155,8 +160,7 @@ function EspaceStagiaire({ logout }) {
   )
 
   return (
-    <PublicLayout title={titre}>
-      <Entete titre={`${moi.first_name || ''} ${(moi.last_name || '').toUpperCase()}`.trim()} sousTitre={moi.client?.name} logout={logout} />
+    <PublicLayout title={titre} bandeau={<Entete libelle={titre} prenom={moi.first_name} sousTitre="Vos formations" logout={logout} />}>
       <div className="space-y-5">
         {up.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">À venir ou en cours</h2><div className="space-y-3">{up.map((s) => <Session key={s.id} s={s} finie={false} />)}</div></section>}
         {pa.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Mes formations réalisées</h2><div className="space-y-3">{pa.map((s) => <Session key={s.id} s={s} finie />)}</div></section>}
@@ -238,8 +242,7 @@ function EspaceFormateur({ logout }) {
   const Etat = ({ status }) => { const e = ETATS[status] || ETATS.a_jour; return <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${e[0]}`}>{e[1]}</span> }
 
   return (
-    <PublicLayout title={titre}>
-      <Entete titre={`${data.trainer?.first_name || ''} ${(data.trainer?.last_name || '').toUpperCase()}`.trim()} sousTitre="Vos interventions" logout={logout} />
+    <PublicLayout title={titre} bandeau={<Entete libelle={titre} prenom={data.trainer?.first_name} sousTitre="Vos interventions" logout={logout} />}>
       <div className="flex gap-2 mb-4">
         <button type="button" onClick={() => setOnglet('sessions')} className={`btn btn-sm ${onglet === 'sessions' ? 'btn-primary' : 'btn-secondary'}`}><Calendar className="w-4 h-4" /> Mes sessions</button>
         <button type="button" onClick={() => setOnglet('justificatifs')} className={`btn btn-sm ${onglet === 'justificatifs' ? 'btn-primary' : 'btn-secondary'}`}><ShieldCheck className="w-4 h-4" /> Mes justificatifs</button>

@@ -78,5 +78,32 @@ export function ajusterAuTtc(lignes, cibleTtc, taux, calc) {
       res = res.map((it, i) => (i === k ? { ...it, unit_price_ht: round2(Number(it.unit_price_ht) + ecart / (1 + (it.vat_regime && it.vat_regime !== 'normal' ? 0 : r) / 100)) } : it))
     }
   }
-  return { lignes: res, ttc: calc(res).totalTtc }
+  const ttc = calc(res).totalTtc
+  return { lignes: res, ttc, exact: round2(ttc - cible) === 0 }
+}
+
+/**
+ * Ligne en quantité > 1 passée au forfait (quantité 1, même total HT, quantité reportée dans le détail) : un TTC rond
+ * n'est pas toujours atteignable avec plusieurs unités à un prix au centime (2 × 208,33 = 416,66 HT, soit 499,99 TTC).
+ * Renvoie l'indice de la ligne transformée (la plus grosse en montant), ou -1 s'il n'y en a pas.
+ */
+export function ligneAForfaitiser(lignes) {
+  let k = -1, max = -1
+  ;(lignes || []).forEach((it, i) => {
+    const q = Number(it.quantity) || 0
+    const m = q * (Number(it.unit_price_ht) || 0)
+    if (q > 1 && m > max) { max = m; k = i }
+  })
+  return k
+}
+
+export function forfaitiser(lignes, k) {
+  return lignes.map((it, i) => {
+    if (i !== k) return it
+    const q = Number(it.quantity) || 1
+    const unite = it.unit && it.unit !== 'unité' && it.unit !== 'forfait' ? ` ${it.unit}${q > 1 && !/s$/.test(it.unit) ? 's' : ''}` : ''
+    const mention = `${String(q).replace('.', ',')}${unite || (q > 1 ? ' unités' : ' unité')}`
+    const detail = (it.description_detail || '').trim()
+    return { ...it, quantity: 1, unit: 'forfait', unit_price_ht: round2(q * (Number(it.unit_price_ht) || 0)), description_detail: detail ? `${detail}\n(${mention})` : `(${mention})` }
+  })
 }

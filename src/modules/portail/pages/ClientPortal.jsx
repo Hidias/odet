@@ -5,7 +5,7 @@ import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../../../core/supabase'
 import { useBranding } from '../../../core/branding/BrandingProvider'
-import { Halos, Marque } from '../components/Vitrine'
+import { Halos, Marque, Avatar, PersonnaliserEspace, salutation } from '../components/Vitrine'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
@@ -21,6 +21,12 @@ import { lireDocumentPortail, versBase64 } from '../../../core/portail/documents
 // animations discrètes (coupées si l'appareil demande moins de mouvement).
 
 const STORAGE_KEY = (token) => `odet_client_portal_${token}`
+// Accueil personnalisé (« Bonjour » + prénom, photo ou logo) : l'accès par code n'a pas de compte, le choix reste
+// dans ce navigateur (jamais le nom de l'entreprise à l'accueil)
+const PERSO_KEY = (token) => `odet_client_perso_${token}`
+function lirePerso(token) {
+  try { const v = JSON.parse(window.localStorage.getItem(PERSO_KEY(token)) || 'null'); return v && typeof v === 'object' ? v : {} } catch { return {} }
+}
 
 function saveBase64(base64, filename) {
   const bytes = atob(base64)
@@ -96,6 +102,13 @@ export default function ClientPortal() {
   const [info, setInfo] = useState('')
   const [orgPdf, setOrgPdf] = useState(null)
   const [busy, setBusy] = useState(null) // clé du document en cours de génération
+  const [perso, setPerso] = useState(() => lirePerso(token))
+  const [persoOuvert, setPersoOuvert] = useState(false)
+  const enregistrerPerso = async ({ prenom, photo }) => {
+    const v = { prenom: prenom || '', photo: photo || null }
+    try { window.localStorage.setItem(PERSO_KEY(token), JSON.stringify(v)) } catch { throw new Error('Ce navigateur ne permet pas de garder ce choix.') }
+    setPerso(v)
+  }
 
   // Reprise de session dans le même onglet
   useEffect(() => {
@@ -405,9 +418,16 @@ export default function ClientPortal() {
       <section className="relative overflow-hidden bg-primary-900 text-white">
         <Halos />
         <div className="relative max-w-5xl mx-auto px-4 py-8 sm:py-10">
-          <p className="vitrine-monte text-white/70 text-sm">Bonjour,</p>
-          <h1 className="vitrine-monte font-display text-2xl sm:text-3xl font-semibold mt-1" style={{ '--delai': '80ms' }}>{data.client?.name}</h1>
-          <p className="vitrine-monte text-white/70 mt-1" style={{ '--delai': '140ms' }}>Vos formations avec {branding.org_name}</p>
+          <div className="flex items-center gap-4">
+            <Avatar photo={perso.photo} prenom={perso.prenom} taille="w-14 h-14 sm:w-16 sm:h-16" className="vitrine-monte" />
+            <div className="min-w-0">
+              <h1 className="vitrine-monte font-display text-2xl sm:text-3xl font-semibold truncate" style={{ '--delai': '80ms' }}>{salutation(perso.prenom)}</h1>
+              <p className="vitrine-monte text-white/70 mt-0.5 truncate" style={{ '--delai': '140ms' }}>{branding.org_name ? `Vos formations avec ${branding.org_name}` : 'Vos formations'}</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => setPersoOuvert(true)} className="vitrine-monte mt-4 inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white underline-offset-4 hover:underline" style={{ '--delai': '200ms' }}>
+            <Sparkles className="w-4 h-4" aria-hidden="true" />Personnaliser mon espace
+          </button>
           <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Chiffre valeur={past.length} libelle="Réalisées" icone={GraduationCap} delai={200} />
             <Chiffre valeur={upcoming.length} libelle="À venir" icone={Calendar} delai={260} />
@@ -429,6 +449,8 @@ export default function ClientPortal() {
         </div>
       </section>
 
+      {persoOuvert && <PersonnaliserEspace prenom={perso.prenom} photo={perso.photo} onEnregistrer={enregistrerPerso} onFermer={() => setPersoOuvert(false)}
+        note="Votre choix reste sur cet appareil : il ne change rien pour vos collègues." />}
       <main className="max-w-5xl mx-auto px-4 py-8 w-full flex-1">
         {error && <p role="alert" className="mb-4 text-sm text-[rgb(var(--c-danger))] flex items-center gap-1.5"><AlertCircle className="w-4 h-4" aria-hidden="true" />{error}</p>}
         {info && <p role="status" className="vitrine-monte mb-4 rounded-ui bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] text-sm px-3 py-2 flex items-center gap-2"><BadgeCheck className="w-4 h-4" aria-hidden="true" />{info}</p>}

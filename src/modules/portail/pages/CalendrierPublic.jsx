@@ -52,7 +52,6 @@ function Contenu({ integre }) {
   const o = data.organisme || {}
   return (
     <div className="space-y-4">
-      {!integre && <h1 className="font-display text-xl font-semibold text-gray-900">Formations inter-entreprises</h1>}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="search" aria-label="Filtrer les sessions">
         <select className="select" aria-label="Formation" value={f.formation} onChange={(e) => setF({ ...f, formation: e.target.value })}>
           <option value="">Toutes les formations</option>
@@ -109,5 +108,5 @@ function Contenu({ integre }) {
 
 export default function CalendrierPublic({ integre = false }) {
   if (integre) return <div className="p-3" style={{ background: 'rgb(var(--ground))' }}><Contenu integre /></div>
-  return <PublicLayout title="Calendrier des formations"><Contenu /></PublicLayout>
+  return <PublicLayout title="Formations inter-entreprises" accroche="Les sessions ouvertes à tous : choisissez la vôtre et inscrivez-vous en ligne."><Contenu /></PublicLayout>
 }
