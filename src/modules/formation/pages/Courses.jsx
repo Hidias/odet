@@ -17,6 +17,7 @@ import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { currentUserName } from '../../../core/org/currentOrg'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerCompletude, piecesManquantes, libellesManquants, PIECES } from '../lib/completude'
+import CompletudeFiche, { champsManquants } from '../components/CompletudeFiche'
 
 // Champs du programme (fiche formation, migration 0048)
 const PROGRAMME_VIDE = {
@@ -474,6 +475,12 @@ export default function Courses() {
       program_ref: form.program_ref ? form.program_ref.toUpperCase() : null,
       pictogram: form.pictogram || null,
     }
+    // Propositions restantes : seulement pour les champs encore vides ; l'alerte est vue, elle disparaît (0434)
+    if (selectedCourse?.propositions) {
+      const restantes = Object.fromEntries(Object.entries(selectedCourse.propositions)
+        .filter(([k]) => k !== 'alerte' && champsManquants(form).includes(k)))
+      data.propositions = Object.keys(restantes).length ? restantes : null
+    }
     if (data.min_participants && data.max_participants && data.min_participants > data.max_participants) {
       return toast.error('Effectif : le minimum dépasse le maximum')
     }
@@ -797,6 +804,12 @@ export default function Courses() {
                     title={manques.map((m) => PIECES.find((p) => p.cle === m)?.aide).filter(Boolean).join('\n')}>
                     <AlertTriangle className="w-4 h-4 flex-none mt-0.5" aria-hidden="true" />
                     <span>Il manque : {libellesManquants(manques).join(', ')}</span>
+                  </p>
+                )}
+                {champsManquants(course).length > 0 && (
+                  <p className="text-ui-sm text-[rgb(var(--c-warning))] mb-3 flex items-start gap-1.5">
+                    <AlertTriangle className="w-4 h-4 flex-none mt-0.5" aria-hidden="true" />
+                    <span>Fiche à compléter pour la convention{course.propositions ? ' (propositions prêtes)' : ''}</span>
                   </p>
                 )}
                 
@@ -1140,10 +1153,17 @@ export default function Courses() {
                   <input type="text" className="input" placeholder={DELAI_ACCES_DEFAUT} value={form.access_delay} onChange={(e) => setForm({ ...form, access_delay: e.target.value })} />
                 </div>
               </div>
+              {/* Complétude pour la convention et la déclaration d'activité, propositions à utiliser (0434) */}
+              <CompletudeFiche form={form} setForm={setForm} propositions={selectedCourse?.propositions} modele={getTheme(form.theme_id)?.modele_fiche} />
               <div>
                 <label className="label">Moyens pédagogiques</label>
                 <textarea className="input" rows={3} placeholder={'Formation en présentiel, apports théoriques et mises en situation pratiques\nMatériel fourni : extincteurs, présentation projetée\nRemise d\'un aide-mémoire'} value={form.methods} onChange={(e) => setForm({ ...form, methods: e.target.value })} />
                 <p className="text-ui-sm text-gray-500 mt-1">Une ligne par élément (méthodes, matériel fourni, documents remis pendant la formation). Le « Matériel requis (stagiaires) » s&apos;affiche à part, sous « À prévoir par le stagiaire ».</p>
+              </div>
+              <div>
+                <label className="label">Moyens techniques de l&apos;organisme</label>
+                <textarea className="input" rows={2} placeholder="Salle équipée d'un vidéoprojecteur, matériel d'exercice, supports de cours…" value={form.trainer_equipment} onChange={(e) => setForm({ ...form, trainer_equipment: e.target.value })} />
+                <p className="text-ui-sm text-gray-500 mt-1">Repris sur la convention et le programme, et demandé par la DREETS pour la déclaration d&apos;activité.</p>
               </div>
               <div>
                 <label className="label">Formateur (profil)</label>

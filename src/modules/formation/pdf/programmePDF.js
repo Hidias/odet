@@ -103,6 +103,7 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
     ['Prérequis', strip(c.prerequisites) || 'Aucun prérequis'],
     ['Modalités', strip(c.modalities) || 'En présentiel'],
     ['Moyens pédagogiques', strip(c.methods || c.pedagogical_methods || c.teaching_methods) || 'Apports théoriques et mises en situation pratiques'],
+    ['Moyens techniques', strip(c.trainer_equipment) || null],
     ['À prévoir par le stagiaire', strip(c.material) || null],
     ['Formateur', strip(c.trainer_profile) || null],
     ['Délai d\'accès', strip(c.access_delay) || DELAI_ACCES_DEFAUT],
@@ -362,7 +363,7 @@ export function buildCataloguePDF(courses, ORG, contextePour = () => ({})) {
 
 // Champs qui changent le programme : une modification de l'un d'eux crée une nouvelle version datée
 export const CHAMPS_PROGRAMME = [
-  'title', 'objectives', 'program', 'prerequisites', 'target_audience', 'duration_hours', 'methods', 'material',
+  'title', 'objectives', 'program', 'prerequisites', 'target_audience', 'duration_hours', 'methods', 'material', 'trainer_equipment',
   'evaluation_methods', 'min_participants', 'max_participants', 'access_delay', 'validity_kind', 'validity_text',
   'deliverables', 'trainer_profile', 'price_mention', 'modalities',
 ]
