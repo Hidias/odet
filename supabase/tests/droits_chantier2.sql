@@ -4710,7 +4710,7 @@ begin
       else
         update public.sessions set convention_signed = false where id = z_s;
         z_r := app.portail_signer(z_c, 'lien', null, null, z_s, 'convention', repeat('c', 64), 'Essai Signataire', 'Gérant',
-          'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu la convention et je l''accepte.', 'Convention essai');
+          'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu la convention et je l''accepte. Mention : « Bon pour accord ».', 'Convention essai');
         if (select convention_signed from public.sessions where id = z_s) then
           v_lines := v_lines || 'OK      base  0402 : la session passe en convention signée'::text;
         else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0402 : session non marquée signée'::text; end if;
@@ -4807,7 +4807,7 @@ begin
         insert into public.sessions (client_id, start_date, end_date, attendance_token) values (z_c, current_date + 30, current_date + 30, 'essai-0405') returning id into z_s;
         insert into public.demo_records (tbl, id) values ('sessions', z_s);
         z_r := app.portail_signer(z_c, 'lien', null, null, z_s, 'convention', repeat('e', 64), 'Essai Signataire', null,
-          'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu la convention et je l''accepte.', 'Convention essai 0405');
+          'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu la convention et je l''accepte. Mention : « Bon pour accord ».', 'Convention essai 0405');
         delete from public.document_signatures where session_id = z_s;
         v_lines := v_lines || 'OK      base  0405 : la purge efface la signature d''une session de test'::text;
         delete from public.sessions where id = z_s;
@@ -4831,7 +4831,7 @@ begin
       values ((select company_id from public.clients where id = z_c), z_c, 'quote', z_q, 'devis', 'Devis essai', z_c || '/q.pdf', repeat('f', 64))
       returning id into z_d;
       z_r := app.portail_signer_document(z_c, 'lien', null, null, z_d, 'Essai Signataire', 'Gérant',
-        'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu le devis et je l''accepte au nom de mon entreprise.');
+        'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu le devis et je l''accepte au nom de mon entreprise. Mention : « Lu et approuvé, bon pour accord ».');
       if (select status from public.quotes where id = z_q) = 'accepted' and (select signature_base64 from public.quotes where id = z_q) is not null then
         v_lines := v_lines || 'OK      base  0406 : devis signé en ligne, passé en accepté'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0406 : devis non accepté'::text; end if;
@@ -4839,7 +4839,7 @@ begin
         v_lines := v_lines || 'OK      base  0406 : l''organisme est prévenu de la signature du devis'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0406 : aucune notification'::text; end if;
       begin perform app.portail_signer_document(z_c2, 'lien', null, null, z_d, 'Intrus', null,
-        'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu le devis et je l''accepte au nom de mon entreprise.');
+        'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu le devis et je l''accepte au nom de mon entreprise. Mention : « Lu et approuvé, bon pour accord ».');
       exception when insufficient_privilege then z_ok := true; end;
       if z_ok then v_lines := v_lines || 'OK      base  0406 : un autre client ne signe pas ce devis'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0406 : devis signé par un autre client'::text; end if;
@@ -5977,6 +5977,31 @@ begin
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
       v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0428 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
+  -- Mention « Bon pour accord » écrite par le signataire et statut partiel (0429)
+  if exists (select 1 from pg_constraint where conname = 'quotes_status_check' and pg_get_constraintdef(oid) like '%partial%') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 1;
+    declare m_ok boolean := false; m_c uuid; m_q uuid; m_d uuid;
+    begin
+      insert into public.clients (name) values ('Client essai 0429') returning id into m_c;
+      insert into public.quotes (client_id, status, quote_date, reference) values (m_c, 'partial', current_date, 'DEV-ESSAI-0429') returning id into m_q;
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      values ((select company_id from public.clients where id = m_c), m_c, 'quote', m_q, 'devis', 'Devis essai 0429', m_c || '/q.pdf', repeat('a', 64))
+      returning id into m_d;
+      begin
+        perform app.portail_signer_document(m_c, 'lien', null, null, m_d, 'Essai Signataire', null,
+          'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu le devis et je l''accepte au nom de mon entreprise.');
+      exception when sqlstate '22023' then m_ok := sqlerrm like '%Bon pour accord%';
+      end;
+      -- Données d'essai laissées : toute la série est annulée à la fin
+      if m_ok then v_lines := v_lines || 'OK      base  0429 : devis partiel accepté par la base ; signature refusée sans la mention « Bon pour accord »'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0429 : signature refusée sans la mention « Bon pour accord »'::text; end if;
+    exception when others then
+      v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0429 : erreur ' || sqlerrm)::text;
     end;
   end if;
 

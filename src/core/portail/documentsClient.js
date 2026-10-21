@@ -21,6 +21,14 @@ export async function lireDocumentPortail(auth, documentId) {
   return r.arrayBuffer()
 }
 
+/** Contenu d'un document mis à disposition, lu par l'équipe (ArrayBuffer) */
+export async function lireDocumentInterne(documentId) {
+  const { url } = await callApi('/api/documents-client', { action: 'lire_interne', document_id: documentId })
+  const r = await fetch(url)
+  if (!r.ok) throw new Error('Document indisponible')
+  return r.arrayBuffer()
+}
+
 export async function ouvrirDocumentInterne(documentId) {
   const { url } = await callApi('/api/documents-client', { action: 'lire_interne', document_id: documentId })
   window.open(url, '_blank', 'noopener')

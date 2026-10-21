@@ -6,6 +6,8 @@ import { withErrorLog } from './_lib/errors.js'
 //  - publier (équipe connectée) : range un PDF remis au client (rapport d'intervention, facture émise, devis, contrat,
 //    document déposé à la main). L'appelant doit voir la prestation avec ses propres droits (lecture faite avec son
 //    jeton) ; le fichier est rangé tel quel avec son empreinte. Un seul document actif par prestation et par type.
+//    Devis modifié après sa mise à disposition (21/10) : la nouvelle version remplace l'ancienne (retirée, gardée), sauf
+//    si l'ancienne a été signée par le client : la version signée reste figée.
 //  - lire (espace client, par lien et code ou par compte) : lien de 5 minutes vers un document visible par ce client.
 //  - lire_interne (équipe connectée) : lien de 5 minutes vers un document que l'appelant voit.
 // Aucun e-mail n'est envoyé.
@@ -19,7 +21,7 @@ const TABLES = {
   client: ['clients', 'id'],
   session: ['sessions', 'client_id'],
   invoice: ['invoices', 'client_id, billing_client_id, is_subrogation, status'],
-  quote: ['quotes', 'client_id'],
+  quote: ['quotes', 'client_id, updated_at'],
   itv_visit: ['itv_visits', 'client_id'],
   itv_contract: ['itv_contracts', 'client_id'],
   // Groupe inter (0420) : convention ou contrat du groupe, signé en ligne par son client
@@ -46,8 +48,16 @@ async function publier(req, res) {
 
   const { admin } = ctx
   if (type !== 'client') {
-    const { data: deja } = await admin.from('client_shared_documents').select('id').eq('object_type', type).eq('object_id', id).eq('kind', kind).is('withdrawn_at', null).maybeSingle()
-    if (deja) return res.status(200).json({ id: deja.id, deja: true })
+    const { data: deja } = await admin.from('client_shared_documents').select('id, published_at').eq('object_type', type).eq('object_id', id).eq('kind', kind).is('withdrawn_at', null).maybeSingle()
+    if (deja) {
+      // Devis modifié depuis sa mise à disposition et pas encore signé : nouvelle version (l'ancienne est retirée)
+      const modifie = type === 'quote' && obj.updated_at && new Date(obj.updated_at) > new Date(deja.published_at)
+      if (!modifie) return res.status(200).json({ id: deja.id, deja: true })
+      const { data: sig } = await admin.from('document_signatures').select('id').eq('status', 'valid').eq('metadata->>document_id', deja.id).limit(1)
+      if (sig?.length) return res.status(200).json({ id: deja.id, deja: true, signe: true })
+      const { error: eRetrait } = await admin.from('client_shared_documents').update({ withdrawn_at: new Date().toISOString(), withdrawn_reason: 'Nouvelle version du document' }).eq('id', deja.id)
+      if (eRetrait) return res.status(500).json({ error: 'Remplacement impossible' })
+    }
   }
 
   const buf = Buffer.from(String(b64), 'base64')

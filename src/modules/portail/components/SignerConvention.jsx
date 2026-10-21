@@ -11,6 +11,16 @@ export const ACCORD_SIGNATURE = "J'ai lu la convention de formation ci-dessus et
 export const ACCORD_DEVIS = "J'ai lu le devis ci-dessus et je l'accepte au nom de mon entreprise (bon pour accord). Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
 export const ACCORD_CONTRAT = "J'ai lu le contrat ci-dessus et je l'accepte au nom de mon entreprise. Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
 
+// Mention écrite au clavier par le signataire (décision de H, 21/10, 23 h 36) : celle du document (« Lu et approuvé,
+// bon pour accord ») ou, au plus court, « Bon pour accord ». Elle part avec l'accord et figure sur la page de preuve ;
+// la base refuse une signature sans elle (0429).
+export const MENTION_DOCUMENT = 'Lu et approuvé, bon pour accord'
+const normaliser = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]+/g, ' ').trim()
+export const mentionValable = (t, mention = MENTION_DOCUMENT) => {
+  const n = normaliser(t)
+  return n === normaliser(mention) || n === 'bon pour accord'
+}
+
 function enBlob(base64) {
   const bin = atob(base64)
   const o = new Uint8Array(bin.length)
@@ -19,13 +29,14 @@ function enBlob(base64) {
 }
 
 // Sert aussi aux devis et contrats mis à disposition (0406) : titre, nom du document et texte d'accord en paramètres
-export default function SignerConvention({ session, genererPdf, signataire, onSigner, onFermer, titre = 'Signer la convention', nomDocument = 'la convention', accord = ACCORD_SIGNATURE, libelle = null }) {
+export default function SignerConvention({ session, genererPdf, signataire, onSigner, onFermer, titre = 'Signer la convention', nomDocument = 'la convention', accord = ACCORD_SIGNATURE, libelle = null, mention = MENTION_DOCUMENT }) {
   const [pdf, setPdf] = useState(null) // { base64, url, filename }
   const [nom, setNom] = useState(signataire?.name || '')
   const [fonction, setFonction] = useState(signataire?.role || '')
   const [accepte, setAccepte] = useState(false)
   const [lu, setLu] = useState(false)
   const [trace, setTrace] = useState(null)
+  const [mentionSaisie, setMentionSaisie] = useState('')
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState('')
 
@@ -41,14 +52,15 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const pret = pdf && lu && accepte && trace && nom.trim().length >= 2 && !envoi
+  const mentionOk = mentionValable(mentionSaisie, mention)
+  const pret = pdf && lu && accepte && trace && mentionOk && nom.trim().length >= 2 && !envoi
 
   const signer = async () => {
     setEnvoi(true); setErreur('')
     try {
       const sha = await empreinte(pdf.base64)
       if (!sha) throw new Error('Empreinte du document impossible sur ce navigateur')
-      await onSigner({ base64: pdf.base64, sha256: sha, name: nom.trim(), role: fonction.trim(), signature: trace, consent: accord, label: libelle || `Convention de formation ${session?.reference || ''}`.trim() })
+      await onSigner({ base64: pdf.base64, sha256: sha, name: nom.trim(), role: fonction.trim(), signature: trace, consent: `${accord} Mention écrite par le signataire : « ${mentionSaisie.trim()} ».`, label: libelle || `Convention de formation ${session?.reference || ''}`.trim() })
     } catch (e) {
       setErreur(e.message || 'Signature impossible, réessayez.')
       setEnvoi(false)
@@ -82,7 +94,15 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
               <input className="input w-full mt-1" value={fonction} onChange={(e) => setFonction(e.target.value)} autoComplete="organization-title" /></label>
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-800 mb-2">2. Signez dans le cadre</p>
+            <label htmlFor="mention-signataire" className="text-sm font-medium text-gray-800">2. Écrivez « {mention} »</label>
+            <input id="mention-signataire" className="input w-full mt-1" value={mentionSaisie} onChange={(e) => setMentionSaisie(e.target.value)}
+              placeholder={mention} autoComplete="off" autoCapitalize="sentences" aria-describedby="mention-aide" />
+            <p id="mention-aide" className={`mt-1 text-xs ${mentionSaisie && !mentionOk ? 'text-[rgb(var(--c-warning))]' : 'text-gray-500'}`}>
+              {mentionOk ? 'Mention enregistrée avec votre signature.' : `À écrire vous-même : « ${mention} » ou « Bon pour accord ».`}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-800 mb-2">3. Signez dans le cadre</p>
             <PadSimple onChange={setTrace} hauteur={150} label="Signez avec le doigt ou la souris" />
           </div>
           <label className="flex items-start gap-2 text-sm text-gray-700">

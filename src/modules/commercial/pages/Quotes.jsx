@@ -445,6 +445,7 @@ export default function Quotes() {
         if (itemsError) throw itemsError
       }
       toast.success(mode === 'create' ? 'Devis créé' : 'Devis mis à jour')
+      if (['sent', 'accepted', 'partial'].includes(currentQuote.status)) regenererEtPublier(quoteId)
       setMode('list')
       loadAll()
     } catch (err) { toast.error('Erreur: ' + err.message) }
@@ -472,14 +473,34 @@ export default function Quotes() {
     if (!await confirmer(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)) return
     await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id)
     toast.success(`Statut → ${STATUS_CONFIG[newStatus].label}`)
+    if (newStatus === 'sent') regenererEtPublier(id)
     if (currentQuote && currentQuote.id === id) setCurrentQuote(prev => ({ ...prev, status: newStatus }))
     loadAll()
   }
 
-  // Devis remis (envoyé ou accepté) : mis à disposition dans l'espace client, tel quel (0404), une fois par devis
+  // Devis remis (envoyé ou accepté) : mis à disposition dans l'espace client, tel quel (0404). Un devis modifié depuis
+  // remplace l'ancienne version, sauf si celle-ci est déjà signée (le serveur la garde figée)
   function publierDevis(quote, doc) {
     if (!quote?.id || !doc || !['sent', 'accepted', 'partial'].includes(quote.status)) return
     mettreADisposition({ objectType: 'quote', objectId: quote.id, kind: 'devis', label: `Devis ${quote.reference || ''}`.trim(), base64: versBase64(doc.output('arraybuffer')) })
+  }
+
+  // Devis passé en « envoyé » ou modifié après envoi : son PDF est refait et mis à disposition, pour que le client le
+  // trouve dans son espace et signe la bonne version (sans téléchargement ni message)
+  async function regenererEtPublier(quoteId) {
+    try {
+      const { data: q } = await supabase.from('quotes').select('*').eq('id', quoteId).maybeSingle()
+      if (!q || !['sent', 'accepted', 'partial'].includes(q.status) || q.signature_base64) return
+      const loadedItems = await loadQuoteItems(q.id)
+      const clientData = clients.find(c => c.id === q.client_id) || {}
+      let contactData = null
+      if (q.contact_id) {
+        const { data } = await supabase.from('client_contacts').select('*').eq('id', q.contact_id).maybeSingle()
+        contactData = data
+      }
+      const doc = await generateQuotePDF(q, loadedItems, clientData, contactData, { orgSettings: organization, skipSave: true })
+      await mettreADisposition({ objectType: 'quote', objectId: q.id, kind: 'devis', label: `Devis ${q.reference || ''}`.trim(), base64: versBase64(doc.output('arraybuffer')) })
+    } catch (e) { console.warn('Mise à disposition du devis :', e.message) }
   }
 
   // === PDF from list ===
@@ -921,6 +942,8 @@ export default function Quotes() {
       })
       const data = await resp.json()
       if (!resp.ok) throw new Error(data.error || 'Erreur envoi')
+      // Le PDF envoyé est celui que le client trouve et signe dans son espace
+      await mettreADisposition({ objectType: 'quote', objectId: quote.id, kind: 'devis', label: `Devis ${quote.reference || ''}`.trim(), base64: pdfBase64 })
       toast.success('Devis envoyé par email !')
       closeSendWizard()
       loadAll() // Refresh pour voir le nouveau statut
