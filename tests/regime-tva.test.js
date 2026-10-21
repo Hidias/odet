@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { tvaLigne, appliquerRegime, mentionsTvaDevis, ajusterAuTtc, ligneAForfaitiser, forfaitiser } from '../src/core/billing/regimeTva'
+import { tvaLigne, appliquerRegime, mentionsTvaDevis, ajusterAuTtc, ligneAForfaitiser, forfaitiser, erreursTva, regimesPermis } from '../src/core/billing/regimeTva'
 import { calcTotals } from '../src/modules/commercial/lib/quoteTotals'
 
 const assujetti = { charge: true, franchise: false, exoFormation: false, mentions: { exoneration: 'Exo.', franchise: 'Franchise.', autoliquidation: 'Auto.' } }
@@ -52,5 +52,34 @@ describe('TTC rond avec plusieurs unités', () => {
   it('quantité 1 : juste sans forfait', () => {
     const r = ajusterAuTtc([{ description_title: 'SST', quantity: 1, unit_price_ht: 500, vat_regime: 'normal' }], '500', 20, calc)
     expect(r.exact).toBe(true)
+  })
+})
+
+describe('TVA à 0 % verrouillée pour un organisme assujetti', () => {
+  const avecAttestation = { ...exo, attestation: 'ATT-1' }
+  const pro = { client_type: 'entreprise', tva: 'FR00123456789' }
+  it('TVA non applicable refusée', () => {
+    expect(erreursTva({ tvaApplicable: false, taux: 20, lignes: [] }, assujetti).length).toBe(1)
+  })
+  it('franchise : rien à redire', () => {
+    expect(erreursTva({ tvaApplicable: false, taux: 0, lignes: [] }, franchise)).toEqual([])
+  })
+  it('exonération sans attestation refusée, avec attestation sur une formation permise', () => {
+    const l = [{ description_title: 'SST', vat_regime: 'exonere', course_id: 'c' }]
+    expect(erreursTva({ tvaApplicable: true, taux: 20, lignes: l }, exo).length).toBe(1)
+    expect(erreursTva({ tvaApplicable: true, taux: 20, lignes: l }, avecAttestation)).toEqual([])
+    expect(erreursTva({ tvaApplicable: true, taux: 20, lignes: [{ ...l[0], course_id: null }] }, avecAttestation).length).toBe(1)
+  })
+  it('autoliquidation seulement pour un professionnel avec numéro de TVA', () => {
+    const l = [{ description_title: 'Pose', vat_regime: 'autoliquidation' }]
+    expect(erreursTva({ tvaApplicable: true, taux: 20, lignes: l, client: pro }, assujetti)).toEqual([])
+    expect(erreursTva({ tvaApplicable: true, taux: 20, lignes: l, client: { client_type: 'public' } }, assujetti).length).toBe(1)
+  })
+  it('facture : ligne normale à 0 % refusée', () => {
+    expect(erreursTva({ tvaApplicable: true, lignes: [{ description_title: 'x', tva_rate: 0 }], tauxParLigne: true }, assujetti).length).toBe(1)
+  })
+  it('options de régime proposées', () => {
+    expect(regimesPermis({ course_id: 'c' }, pro, avecAttestation).map(([k]) => k)).toEqual(['normal', 'exonere', 'autoliquidation'])
+    expect(regimesPermis({ course_id: 'c' }, { client_type: 'public' }, assujetti).map(([k]) => k)).toEqual(['normal'])
   })
 })

@@ -11,7 +11,7 @@ import { generateFacturXPDF, generateInvoicePDF, calcInvoiceTotals, isDraftDoc }
 import { Sheet } from '../../../ui/Sheet'
 import { useConfirm } from '../../../ui/Confirm'
 import { parseRate } from '../../../core/billing/totals'
-import { chargerRegimeTva, tvaLigne } from '../../../core/billing/regimeTva'
+import { chargerRegimeTva, tvaLigne, erreursTva, regimesPermis } from '../../../core/billing/regimeTva'
 import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -84,7 +84,6 @@ const daysLate = (dueDate) => {
 const TVA_RATES = [0,2.1,5.5,8.5,10,20]
 const emptyItem = () => ({code:'',description_title:'',description_detail:'',quantity:1,unit:'unité',unit_price_ht:0,tva_rate:20,course_id:null,nature:'service',vat_regime:'normal'})
 // Régimes de TVA d'une ligne (0363) ; la franchise est un régime du vendeur (Paramètres), pas d'une ligne
-const REGIMES = [['normal', 'TVA normale'], ['exonere', 'Exonérée'], ['autoliquidation', 'Autoliquidation']]
 
 // ─── Templates email selon rang de relance ───
 function getEmailTemplate(inv, relanceNumber, org = {}) {
@@ -248,7 +247,7 @@ export default function Invoices() {
     const [invR, cliR, courseR, quoteR, relR] = await Promise.all([
       // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
       fetchAll(() => supabase.from('invoices').select('*, clients!client_id(name,siret,address,postal_code,city), client_contacts!contact_id(name,email,civilite,first_name,last_name)').order('invoice_date', {ascending: false})),
-      fetchAll(() => supabase.from('clients').select('id,name,siret,address,postal_code,city,contact_name,contact_email,status,billing_mode,default_payment_terms,client_type').order('name')),
+      fetchAll(() => supabase.from('clients').select('id,name,siret,address,postal_code,city,contact_name,contact_email,status,billing_mode,default_payment_terms,client_type,tva').order('name')),
       fetchAll(() => supabase.from('courses').select('id,title,code,price_ht,duration_hours,description').order('title')),
       fetchAll(() => supabase.from('quotes').select('id,reference,client_id,contact_id,object,client_reference,discount_percent,discount_label,tva_applicable,tva_rate,payment_method,payment_terms,session_id,status,total_ht,total_ttc').order('quote_date', {ascending: false})),
       fetchAll(() => supabase.from('invoice_relances').select('invoice_id,relance_number,sent_at,to_email,sent_by').order('sent_at', {ascending: false})),
@@ -911,6 +910,13 @@ export default function Invoices() {
           return
         }
       }
+    }
+    // TVA (décision de H, 21/10, 23 h 08) : organisme assujetti, pas de 0 % hors exonération de la formation et autoliquidation
+    // (la base refuse aussi l'émission, 0427)
+    if (!isCreditNote) {
+      const erreurs = erreursTva({ tvaApplicable: current.tva_applicable, lignes: items.filter((it) => it.description_title),
+        client: clients.find((c) => c.id === (current.billing_client_id || current.client_id)), tauxParLigne: true })
+      if (erreurs.length) { toast.error(erreurs[0], { duration: 8000 }); return }
     }
     setSaving(true)
     const totals = calcInvoiceTotals(items, current.discount_percent, current.tva_applicable)
@@ -1827,7 +1833,7 @@ export default function Invoices() {
                       <option value="service">Service</option><option value="bien">Bien</option>
                     </select>
                     <select value={item.vat_regime || 'normal'} onChange={e => { const v = e.target.value; const n = [...items]; n[idx] = { ...n[idx], vat_regime: v, tva_rate: v === 'normal' ? (n[idx].tva_rate || 20) : 0 }; setItems(n) }} className="border rounded px-1 py-0.5 text-ui-sm text-gray-600" disabled={ro} aria-label="Régime de TVA de la ligne">
-                      {REGIMES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                      {regimesPermis(item, clients.find((c) => c.id === (current.billing_client_id || current.client_id))).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                     </select>
                   </div>
                 </div>

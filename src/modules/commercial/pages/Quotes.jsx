@@ -22,7 +22,7 @@ import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 import { calcItemTotal, calcTotals } from '../lib/quoteTotals'
-import { chargerRegimeTva, tvaLigne, appliquerRegime, ajusterAuTtc, ligneAForfaitiser, forfaitiser } from '../../../core/billing/regimeTva'
+import { chargerRegimeTva, tvaLigne, appliquerRegime, ajusterAuTtc, ligneAForfaitiser, forfaitiser, erreursTva, regimesPermis, assujetti } from '../../../core/billing/regimeTva'
 import { parseRate } from '../../../core/billing/totals'
 import { quoteDay, nextQuoteReference } from '../lib/references'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -278,7 +278,7 @@ export default function Quotes() {
           const ref = await generateReference()
           const qDate = format(new Date(), 'yyyy-MM-dd')
           const vDate = calcValidityDate(qDate)
-          setCurrentQuote({ ...emptyQuote, reference: ref, quote_date: qDate, validity_date: vDate, payment_deadline: vDate, client_id: client.id })
+          setCurrentQuote({ ...emptyQuote, reference: ref, quote_date: qDate, validity_date: vDate, payment_deadline: '', client_id: client.id })
           await loadClientContacts(client.id)
           setItems([])
           setMode('create')
@@ -295,7 +295,7 @@ export default function Quotes() {
     const [quotesRes, clientsRes, coursesRes] = await Promise.all([
       // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
       fetchAll(() => supabase.from('quotes').select('*, clients!quotes_client_id_fkey(name, siret, address, postal_code, city, contact_name, contact_phone, contact_email)').order('quote_date', { ascending: false })),
-      fetchAll(() => supabase.from('clients').select('id, name, siret, siren, address, postal_code, city, contact_name, contact_phone, contact_email, status, client_type, effectif, taille_entreprise, opco_subrogation_end').order('name')),
+      fetchAll(() => supabase.from('clients').select('id, name, siret, siren, address, postal_code, city, contact_name, contact_phone, contact_email, status, client_type, tva, effectif, taille_entreprise, opco_subrogation_end').order('name')),
       fetchAll(() => supabase.from('courses').select('id, title, code, price_ht, duration_hours, duration_days, description').order('title'))
     ])
     setQuotes(quotesRes.data || [])
@@ -332,7 +332,7 @@ export default function Quotes() {
     const ref = await generateReference()
     const qDate = format(new Date(), 'yyyy-MM-dd')
     const vDate = calcValidityDate(qDate)
-    setCurrentQuote({ ...emptyQuote, reference: ref, quote_date: qDate, validity_date: vDate, payment_deadline: vDate })
+    setCurrentQuote({ ...emptyQuote, reference: ref, quote_date: qDate, validity_date: vDate, payment_deadline: '' })
     setItems([])
     setContacts([])
     setMode('create')
@@ -386,7 +386,7 @@ export default function Quotes() {
     await loadClientContacts(quote.client_id)
     setCurrentQuote({
       ...quote, id: undefined, reference: ref, quote_date: qDate, validity_date: vDate,
-      payment_deadline: vDate, status: 'draft', created_at: undefined, updated_at: undefined,
+      payment_deadline: null, status: 'draft', created_at: undefined, updated_at: undefined,
       clients: undefined, signature_base64: null,
     })
     setItems(loadedItems.map((it, i) => ({ ...it, id: undefined, quote_id: undefined, position: i })))
@@ -396,6 +396,10 @@ export default function Quotes() {
   async function saveQuote() {
     if (!currentQuote.client_id) return toast.error('Sélectionnez un client')
     if (items.length === 0 || !items[0].description_title) return toast.error('Ajoutez au moins une ligne')
+    // TVA (décision de H, 21/10, 23 h 08) : organisme assujetti, pas de 0 % hors exonération de la formation et autoliquidation
+    const erreurs = erreursTva({ tvaApplicable: currentQuote.tva_applicable, taux: currentQuote.tva_rate,
+      lignes: items.filter((it) => it.description_title), client: clients.find((c) => c.id === currentQuote.client_id) })
+    if (erreurs.length) return toast.error(erreurs[0], { duration: 8000 })
     setSaving(true)
     const totals = calcTotals(items, currentQuote.discount_percent, currentQuote.tva_rate, currentQuote.tva_applicable)
     const quoteData = {
@@ -404,7 +408,8 @@ export default function Quotes() {
       quote_date: currentQuote.quote_date, validity_date: currentQuote.validity_date || null,
       object: currentQuote.object || '', client_reference: currentQuote.client_reference || '',
       status: currentQuote.status, payment_method: currentQuote.payment_method,
-      payment_terms: currentQuote.payment_terms, payment_deadline: currentQuote.payment_deadline || null,
+      // Pas d'échéance sur un devis : le délai suffit, l'échéance se calcule sur la facture (décision de H, 21/10)
+      payment_terms: currentQuote.payment_terms, payment_deadline: null,
       discount_percent: parseFloat(currentQuote.discount_percent) || 0,
       discount_label: currentQuote.discount_label || '',
       tva_rate: parseRate(currentQuote.tva_rate), tva_applicable: currentQuote.tva_applicable,
@@ -960,7 +965,7 @@ export default function Quotes() {
   }
   function handleDateChange(date) {
     const vDate = calcValidityDate(date)
-    setCurrentQuote(prev => ({ ...prev, quote_date: date, validity_date: vDate, payment_deadline: vDate }))
+    setCurrentQuote(prev => ({ ...prev, quote_date: date, validity_date: vDate }))
   }
 
   // ─── Client Combobox logic ────────────────────────────────────────────
@@ -1756,20 +1761,36 @@ export default function Quotes() {
                 </div>
                 <div>
                   <label className="block text-ui-sm text-gray-500 mb-1">TVA</label>
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" checked={currentQuote.tva_applicable}
-                      onChange={(e) => setCurrentQuote(prev => ({ ...prev, tva_applicable: e.target.checked }))}
-                      className="rounded" id="tva-check" />
-                    {currentQuote.tva_applicable && (
-                      <input type="text" inputMode="decimal" value={currentQuote.tva_rate}
+                  {regime?.franchise ? (
+                    <span className="text-ui-sm text-gray-500">Franchise en base : pas de TVA</span>
+                  ) : regime && assujetti(regime) && currentQuote.tva_applicable !== false ? (
+                    <div className="flex items-center gap-2">
+                      <select value={String(parseRate(currentQuote.tva_rate))} aria-label="Taux de TVA"
                         onChange={(e) => setCurrentQuote(prev => ({ ...prev, tva_rate: e.target.value }))}
-                        className="w-16 px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui text-center" />
-                    )}
-                    {currentQuote.tva_applicable && <span className="text-ui-sm text-gray-400">%</span>}
-                    {!currentQuote.tva_applicable && <span className="text-ui-sm text-gray-400">Non applicable</span>}
-                  </div>
-                  {!currentQuote.tva_applicable && regime && !regime.franchise && !regime.exoFormation && (
-                    <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1 max-w-xs">L'organisme est assujetti à la TVA : on ne la retire pas parce que le client ne la récupère pas. Gardez la TVA et fixez le prix en TTC (« Ajuster au TTC voulu »).</p>
+                        className="px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui">
+                        {['20', '10', '5.5', '2.1'].map((t) => <option key={t} value={t}>{t.replace('.', ',')} %</option>)}
+                        {!['20', '10', '5.5', '2.1'].includes(String(parseRate(currentQuote.tva_rate))) && <option value={String(parseRate(currentQuote.tva_rate))}>{String(parseRate(currentQuote.tva_rate)).replace('.', ',')} % (non permis)</option>}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" checked={currentQuote.tva_applicable}
+                        onChange={(e) => setCurrentQuote(prev => ({ ...prev, tva_applicable: e.target.checked }))}
+                        className="rounded" id="tva-check" />
+                      {currentQuote.tva_applicable && (
+                        <input type="text" inputMode="decimal" value={currentQuote.tva_rate}
+                          onChange={(e) => setCurrentQuote(prev => ({ ...prev, tva_rate: e.target.value }))}
+                          className="w-16 px-2 py-1.5 border border-gray-200 rounded-ui-sm text-ui text-center" />
+                      )}
+                      {currentQuote.tva_applicable && <span className="text-ui-sm text-gray-400">%</span>}
+                      {!currentQuote.tva_applicable && <span className="text-ui-sm text-gray-400">Non applicable</span>}
+                    </div>
+                  )}
+                  {currentQuote.tva_applicable === false && regime && assujetti(regime) && (
+                    <div className="mt-1 max-w-xs space-y-1">
+                      <p className="text-ui-sm text-[rgb(var(--c-danger))]">Ce devis est en « TVA non applicable », ce qui n'est pas permis : l'organisme est assujetti. Remettez la TVA, puis fixez le prix en TTC si besoin (« Ajuster au TTC voulu »).</p>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCurrentQuote(prev => ({ ...prev, tva_applicable: true, tva_rate: parseRate(prev.tva_rate) > 0 ? prev.tva_rate : 20 }))}>Remettre la TVA</button>
+                    </div>
                   )}
                 </div>
                 <div>
@@ -1817,7 +1838,7 @@ export default function Quotes() {
                         <option value="service">Service</option><option value="bien">Bien</option>
                       </select>
                       <select value={item.vat_regime || 'normal'} onChange={(e) => { const v = e.target.value; const n = [...items]; n[idx] = { ...n[idx], vat_regime: v, tva_rate: v === 'normal' ? (n[idx].tva_rate || 20) : 0 }; setItems(n) }} className="border border-gray-200 rounded px-1 py-0.5 text-ui-sm text-gray-600" aria-label="Régime de TVA de la ligne">
-                        <option value="normal">TVA normale</option><option value="exonere">Exonérée</option><option value="autoliquidation">Autoliquidation</option>
+                        {regimesPermis(item, clients.find((c) => c.id === currentQuote.client_id), regime || undefined).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                       </select>
                     </div>
                     {/* Row 3: Qté + Unité + PU HT + TVA% + Total = tout sur une ligne */}

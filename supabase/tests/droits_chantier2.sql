@@ -955,7 +955,7 @@ begin
       insert into public.invoices (reference, type, client_id, invoice_date, due_date, status)
       values ('FACT-TRICHE-1', 'invoice', b_cli, current_date, current_date + 30, 'due') returning id, reference into b_f1, b_ref;
       insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate)
-      values (b_f1, 0, 'Ligne A', 3, 33.335, 20), (b_f1, 1, 'Ligne B', 1, 10, 0);
+      values (b_f1, 0, 'Ligne A', 3, 33.335, 20), (b_f1, 1, 'Ligne B', 1, 10, 5.5);
       execute 'reset role';
       if b_ref like 'BROUILLON-%' and (select status from public.invoices where id = b_f1) = 'draft' then
         v_lines := v_lines || 'OK      dir   0362 : un document naît brouillon, sans numéro'::text;
@@ -976,7 +976,8 @@ begin
       execute 'reset role';
       if b_ok then v_lines := v_lines || 'OK      lec   0361 : émission refusée'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   lec   0361 : émission refusée'::text; end if;
-      -- Direction émet : numéro, totaux de la règle unique (3 x 33,335 = 100,01 ; TVA 20,00 ; ligne à 0 %)
+      -- Direction émet : numéro, totaux de la règle unique (3 x 33,335 = 100,01 ; TVA 20,00 + 0,55 ; ligne à 5,5 %,
+      -- plus à 0 % depuis 0427 : un organisme assujetti n'émet plus de ligne au régime normal à 0 %)
       perform set_config('request.jwt.claims', json_build_object('sub', b_dir, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
       b_r1 := public.billing_issue(b_f1);
@@ -989,7 +990,7 @@ begin
       if b_r1 ->> 'reference' like 'FACT-%' and b_n2 = b_n1 + 1 then
         v_lines := v_lines || 'OK      dir   0361 : numéros donnés par la base, consécutifs'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : numéros donnés par la base, consécutifs (' || coalesce(b_r1 ->> 'reference', '') || ', ' || coalesce(b_r2 ->> 'reference', '') || ')'); end if;
-      if (select total_ttc from public.invoices where id = b_f1) = 130.01 and (select total_tva from public.invoices where id = b_f1) = 20.00
+      if (select total_ttc from public.invoices where id = b_f1) = 130.56 and (select total_tva from public.invoices where id = b_f1) = 20.55
          and (select issued_at is not null and seller_snapshot is not null and buyer_snapshot is not null and status = 'due' from public.invoices where id = b_f1) then
         v_lines := v_lines || 'OK      dir   0361 : totaux de la règle unique, coordonnées figées, date d''émission'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0361 : totaux de la règle unique, coordonnées figées (' || (select total_ttc::text || ' / ' || total_tva::text from public.invoices where id = b_f1) || ')'); end if;
@@ -5898,6 +5899,43 @@ begin
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
       v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0426 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
+  -- TVA à 0 % verrouillée et pénalités d'un acheteur public (0427)
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'billing_settings' and column_name = 'mention_penalites_public') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare t_cli uuid; t_inv uuid; t_res jsonb; t_franchise boolean;
+    begin
+      t_franchise := (select tva_applicable is false from public.organization_settings limit 1);
+      update public.organization_settings set tva_applicable = true;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.clients (name, siret, address, postal_code, city, client_type) values
+        ('Lycée essai 0427', '19350710000017', '1 bd', '35700', 'Rennes', 'public') returning id into t_cli;
+      insert into public.invoices (reference, type, client_id, invoice_date, due_date, tva_applicable)
+        values ('x0427', 'invoice', t_cli, current_date, current_date + 30, false) returning id into t_inv;
+      insert into public.invoice_items (invoice_id, position, description_title, quantity, unit_price_ht, tva_rate) values (t_inv, 0, 'Formation', 2, 250, 0);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      t_res := app.billing_check(t_inv);
+      if exists (select 1 from jsonb_array_elements(t_res -> 'points') p where p ->> 'code' = 'tva_zero' and (p ->> 'bloquant')::boolean) then
+        v_lines := v_lines || 'OK      srv   0427 : TVA à 0 % bloquée pour un organisme assujetti'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   srv   0427 : TVA à 0 % bloquée pour un organisme assujetti'::text; end if;
+      if exists (select 1 from jsonb_array_elements_text(t_res -> 'mentions') m where m like '%commande publique%')
+         and not exists (select 1 from jsonb_array_elements_text(t_res -> 'mentions') m where m like '%L441-10%') then
+        v_lines := v_lines || 'OK      srv   0427 : client public, pénalités du code de la commande publique'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   srv   0427 : client public, pénalités du code de la commande publique'::text; end if;
+      delete from public.invoice_items where invoice_id = t_inv;
+      delete from public.invoices where id = t_inv;
+      delete from public.clients where id = t_cli;
+      if t_franchise then update public.organization_settings set tva_applicable = false; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0427 : erreur ' || sqlerrm)::text;
     end;
   end if;
 
