@@ -22,33 +22,42 @@ export async function lienEspaceClient(clientId) {
 }
 
 export const TEXTE_EN_LIGNE = 'Consultez et signez ce document dans votre espace client : scannez le QR code ou saisissez l\'adresse ci-dessous. Vous pouvez aussi le signer et nous le retourner.'
+// Version courte, quand l'encadré se place à côté du cadre de signature (devis : pas de page en plus)
+export const TEXTE_EN_LIGNE_COURT = 'Scannez le QR code ou saisissez l\'adresse pour consulter et signer en ligne.'
+
+const mesures = (compact) => (compact ? { qrS: 22, taille: 7.8, url: 6.6, pas: 3.5, pasUrl: 3 } : { qrS: 26, taille: 8.5, url: 8, pas: 4, pasUrl: 3.6 })
 
 // Hauteur de l'encadré (mm) pour une largeur donnée
-export function hauteurEncadreEnLigne(doc, w) {
-  setF(doc, 'normal'); doc.setFontSize(8.5)
-  const lignes = doc.splitTextToSize(TEXTE_EN_LIGNE, w - 44).length
-  return Math.max(34, 12 + lignes * 4 + 14)
+export function hauteurEncadreEnLigne(doc, w, lien = null, compact = false) {
+  const m = mesures(compact)
+  const tw = w - m.qrS - 18
+  setF(doc, 'normal'); doc.setFontSize(m.taille)
+  const lignes = doc.splitTextToSize(compact ? TEXTE_EN_LIGNE_COURT : TEXTE_EN_LIGNE, tw).length
+  doc.setFontSize(m.url)
+  const url = lien ? doc.splitTextToSize(lien.url, tw).length : 2
+  return Math.max(m.qrS + 8, 11 + lignes * m.pas + 1.5 + url * m.pasUrl + 2 + 6)
 }
 
 /** Dessine l'encadré à (x, y), largeur w ; theme = { accent, text, muted, surface, line } en [r, g, b] ; renvoie sa hauteur */
-export function dessinerEncadreEnLigne(doc, theme, x, y, w, lien) {
-  const h = hauteurEncadreEnLigne(doc, w)
-  const qrS = 26
+export function dessinerEncadreEnLigne(doc, theme, x, y, w, lien, compact = false) {
+  const m = mesures(compact)
+  const h = hauteurEncadreEnLigne(doc, w, lien, compact)
+  const qrS = m.qrS
   doc.setFillColor(...theme.surface); doc.rect(x, y, w, h, 'F')
   doc.setFillColor(...theme.accent); doc.rect(x, y, 1.2, h, 'F')
   setF(doc, 'bold'); doc.setFontSize(7); doc.setTextColor(...theme.accent)
   doc.text('SIGNER EN LIGNE', x + 5, y + 6, { charSpace: 0.4 })
-  setF(doc, 'normal'); doc.setFontSize(8.5); doc.setTextColor(...theme.text)
+  setF(doc, 'normal'); doc.setFontSize(m.taille); doc.setTextColor(...theme.text)
   const tw = w - qrS - 18
-  const lignes = doc.splitTextToSize(TEXTE_EN_LIGNE, tw)
-  lignes.forEach((l, i) => doc.text(l, x + 5, y + 11.5 + i * 4))
-  let yy = y + 11.5 + lignes.length * 4 + 1.5
-  doc.setFontSize(8); doc.setTextColor(...theme.accent)
+  const lignes = doc.splitTextToSize(compact ? TEXTE_EN_LIGNE_COURT : TEXTE_EN_LIGNE, tw)
+  lignes.forEach((l, i) => doc.text(l, x + 5, y + 11.5 + i * m.pas))
+  let yy = y + 11.5 + lignes.length * m.pas + 1.5
+  doc.setFontSize(m.url); doc.setTextColor(...theme.accent)
   const url = doc.splitTextToSize(lien.url, tw)
-  url.forEach((l, i) => doc.textWithLink(l, x + 5, yy + i * 3.6, { url: lien.url }))
-  yy += url.length * 3.6 + 2
+  url.forEach((l, i) => doc.textWithLink(l, x + 5, yy + i * m.pasUrl, { url: lien.url }))
+  yy += url.length * m.pasUrl + 2
   if (lien.code) {
-    setF(doc, 'bold'); doc.setFontSize(9); doc.setTextColor(...theme.text)
+    setF(doc, 'bold'); doc.setFontSize(compact ? 8.5 : 9); doc.setTextColor(...theme.text)
     doc.text(`Code d'accès : ${lien.code}`, x + 5, yy + 1)
   }
   try {

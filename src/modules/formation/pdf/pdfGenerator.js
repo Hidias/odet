@@ -474,7 +474,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
 
   // Signer en ligne (pas sur une convention déjà signée) : adresse de l'espace client, QR code et code d'accès
   if (enLigne && !sigC) {
-    const hE = hauteurEncadreEnLigne(doc, W)
+    const hE = hauteurEncadreEnLigne(doc, W, enLigne)
     y += 6
     ensure(hE)
     dessinerEncadreEnLigne(doc, t, M, y, W, enLigne)
