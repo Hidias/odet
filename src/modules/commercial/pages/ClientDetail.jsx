@@ -1473,8 +1473,13 @@ export default function ClientDetail() {
       )}
 
       {/* ══════ ACTIONS RAPIDES ══════ */}
-      {(d.devis || d.prospection || d.session) && (
       <div className="flex flex-wrap gap-2">
+        {/* Rendez-vous avec guide et notes à la volée, compte rendu sur la fiche (0408) */}
+        <button
+          onClick={() => navigate(`/reunions?nouvelle=1&client=${id}`)}
+          className="flex items-center gap-1.5 btn btn-secondary text-ui font-medium shadow-sm transition-colors">
+          <StickyNote className="w-4 h-4" /> Préparer un rendez-vous
+        </button>
         {d.devis && (
           <button
             onClick={() => navigate(`/devis?client_id=${id}`)}
@@ -1497,7 +1502,6 @@ export default function ClientDetail() {
           </button>
         )}
       </div>
-      )}
 
       {/* ══════ 2 COLONNES ══════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">

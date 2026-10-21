@@ -3,7 +3,7 @@ import {
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
   MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
-  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint, Package, Landmark, Car, ListTodo, CalendarCheck,
+  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint, Package, Landmark, Car, ListTodo, CalendarCheck, BookOpenText,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -37,6 +37,8 @@ export const NAV_SECTIONS = [
       // Actions de l'équipe et point de la semaine (0407)
       { simple: true, to: '/actions', right: 'organisation.reglages.voir', icon: ListTodo, label: 'Actions', roles: STAFF },
       { simple: true, to: '/point-semaine', right: 'manager.cockpit.voir', icon: CalendarCheck, label: 'Point de la semaine', roles: MANAGERS },
+      // Réunions et rendez-vous : guide, notes à la volée, compte rendu (0408)
+      { simple: true, to: '/reunions', right: 'organisation.reglages.voir', icon: BookOpenText, label: 'Réunions', roles: STAFF },
     ],
   },
   {

@@ -182,7 +182,7 @@ export default function PointSemaine() {
                       <div className={`text-ui ${l.suite === 'fait' || l.suite === 'abandonne' ? 'line-through text-gray-500' : 'text-gray-900'}`}>{l.texte}</div>
                       <div className="text-ui-sm text-gray-500 flex flex-wrap items-center gap-x-2">
                         <select className="bg-transparent text-ui-sm text-gray-600 border-0 p-0 pr-5 focus:ring-0" value={l.owner_id || ''} aria-label="Qui s'en occupe"
-                          onChange={(e) => majLigne(l.id, { owner_id: e.target.value || null, owner_nom: e.target.value ? noms[e.target.value] : null })}>
+                          onChange={(e) => majLigne(l.id, { owner_id: e.target.value || null, owner_nom: e.target.value ? noms[e.target.value] : null, owner_choisi: true })}>
                           <option value="">Personne en particulier</option>
                           {equipe.map((p) => <option key={p.id} value={p.id}>{nomProfil(p)}</option>)}
                         </select>

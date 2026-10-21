@@ -257,6 +257,8 @@ ORDRE_PROD = (
     + ['0406']
     # Actions de l'équipe, point de la semaine et bilan, 21/10
     + ['0407']
+    # Notes de réunion et de rendez-vous, 21/10
+    + ['0408']
 )
 
 
