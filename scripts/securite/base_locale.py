@@ -243,6 +243,8 @@ ORDRE_PROD = (
     + ['0399']
     # Portails : version émise des certificats et attestations, 21/10
     + ['0400']
+    # Journal de l'espace client (preuve de mise à disposition), 21/10
+    + ['0401']
 )
 
 

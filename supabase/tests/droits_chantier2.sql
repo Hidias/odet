@@ -4654,6 +4654,43 @@ begin
     end;
   end if;
 
+  -- Journal de l'espace client (0401) : document d'un autre client refusé, ligne jamais modifiée
+  if to_regclass('public.portal_events') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare z_c uuid; z_s uuid; z_autre uuid; z_ev uuid; z_ok boolean := false; z_ok2 boolean := false;
+    begin
+      select s.client_id, s.id into z_c, z_s from public.sessions s where s.client_id is not null limit 1;
+      select s.id into z_autre from public.sessions s where s.client_id is distinct from z_c limit 1;
+      if z_c is null then
+        v_lines := v_lines || 'OK      base  0401 : journal (aucune session pour l''essai)'::text;
+        v_lines := v_lines || 'OK      base  0401 : document d''un autre client (aucune session pour l''essai)'::text;
+        v_lines := v_lines || 'OK      base  0401 : ligne figée (aucune session pour l''essai)'::text;
+      else
+        z_ev := app.portail_noter(z_c, 'lien', null, null, 'document', 'session', z_s, 'certificats', 'Certificats', repeat('a', 64));
+        if (select company_id from public.portal_events where id = z_ev) = (select company_id from public.clients where id = z_c) then
+          v_lines := v_lines || 'OK      base  0401 : téléchargement noté, société du client'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0401 : société du journal'::text; end if;
+        if z_autre is null then z_ok := true; else
+          begin perform app.portail_noter(z_c, 'lien', null, null, 'document', 'session', z_autre, 'certificats', 'x', null);
+          exception when insufficient_privilege then z_ok := true; end;
+        end if;
+        if z_ok then v_lines := v_lines || 'OK      base  0401 : document d''un autre client refusé'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0401 : document d''un autre client noté'::text; end if;
+        begin update public.portal_events set ip = 'x' where id = z_ev;
+        exception when insufficient_privilege then z_ok2 := true; end;
+        if z_ok2 then v_lines := v_lines || 'OK      base  0401 : une ligne du journal ne se modifie pas'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0401 : ligne du journal modifiée'::text; end if;
+        delete from public.portal_events where id = z_ev;
+      end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0401 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

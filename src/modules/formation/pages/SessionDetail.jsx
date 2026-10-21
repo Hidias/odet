@@ -1012,7 +1012,9 @@ export default function SessionDetail() {
   // Ouvrir la modal certificat Non Acquis
   const openCertificatNonAcquisModal = (trainee) => {
     const courseTitle = session?.courses?.title || 'la formation'
-    const existingProposal = remediationProposals[trainee.id] || `Repasser le module ${courseTitle}`
+    // Proposition déjà enregistrée reprise (avant : seule celle saisie depuis l'ouverture de la page l'était)
+    const enregistree = session?.session_trainees?.find(st => st.trainee_id === trainee.id)?.remediation_proposal
+    const existingProposal = remediationProposals[trainee.id] || enregistree || `Repasser le module ${courseTitle}`
     setCertificatModalData({ trainee, proposal: existingProposal })
     setShowCertificatModal(true)
   }

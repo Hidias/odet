@@ -19,6 +19,7 @@ import AnnuaireClient from '../components/AnnuaireClient'
 import RepertoireClient from '../components/RepertoireClient'
 import SitesClient from '../components/SitesClient'
 import EcheancesClient from '../components/EcheancesClient'
+import JournalEspaceClient from '../components/JournalEspaceClient'
 import ComptesEntreprise from '../components/ComptesEntreprise'
 import PistesClient from '../components/PistesClient'
 import RegistreClient from '../../registre/components/RegistreClient'
@@ -1625,6 +1626,9 @@ export default function ClientDetail() {
 
           {/* Comptes de l'espace entreprise (lot 2, 0046) */}
           {d.espace && client && <ComptesEntreprise client={client} contacts={contacts} />}
+
+          {/* Journal de l'espace client : preuve de mise à disposition (0401) */}
+          {client && <JournalEspaceClient client={client} />}
 
           {/* Suivi des affaires et informations commerciales (chantier 10, 0380) */}
           {client && modulesActifs.includes('affaires') && d.devisVoir && (
