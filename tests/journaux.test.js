@@ -19,7 +19,8 @@ describe('Masquage des données personnelles', () => {
     ['Authorization: Bearer abcdefghij123456', 'Authorization: Bearer [jeton]'],
     ['{"access_token":"ya29.a0AfH6SMBx","expires_in":3599}', '{"access_token":"[masqué]","expires_in":3599}'],
     ['GET /api/auth/google?code=4/0AX4XfWh&state=xyz123', 'GET /api/auth/google?code=[masqué]&state=[masqué]'],
-    ['jeton eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U', 'jeton [jeton]'],
+    // Jeton fictif assemblé à l'exécution : aucun jeton complet écrit dans le dépôt (les détecteurs de secrets le prenaient pour un vrai)
+    [`jeton ${['eyJ' + 'a'.repeat(12), 'eyJ' + 'b'.repeat(12), 'c'.repeat(20)].join('.')}`, 'jeton [jeton]'],
   ]
   for (const [entree, attendu] of cas) {
     it(`masque : ${attendu}`, () => expect(redact(entree)).toBe(attendu))
