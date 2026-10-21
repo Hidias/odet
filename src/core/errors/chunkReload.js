@@ -1,5 +1,5 @@
 // Après une mise à jour, un onglet resté ouvert réclame des fichiers qui n'existent plus
-// (page blanche). On recharge alors la page une fois, sans boucle (au plus une fois par minute).
+// (page blanche). On recharge alors la page, sans boucle (trois fois au plus en trois minutes).
 // Code déplacé tel quel depuis src/main.jsx pour être partagé avec l'écran d'erreur (ErrorBoundary).
 // Ajout (chantier B, 19/10) : page restée sur un ancien index juste après un déploiement, constatée en recette :
 // module chargé vide (« reading 'default' » dans React.lazy) ou fichier servi en HTML (type MIME).
@@ -11,14 +11,24 @@ let rechargement = false
 // Vrai quand la page est en train de se recharger : rien ne doit être journalisé pendant ce temps (audit du 19/10 au soir).
 export function rechargementEnCours() { return rechargement }
 
+// Plusieurs mises en ligne peuvent se suivre de près (21/10 : « Failed to fetch dynamically imported module » sur
+// /stagiaires) : le premier rechargement retombait sur une version déjà remplacée et l'erreur s'affichait. Jusqu'à trois
+// rechargements en trois minutes, espacés (immédiat, puis 3 s, puis 8 s), avant d'afficher l'erreur.
+const FENETRE = 3 * 60000
+const DELAIS = [0, 3000, 8000]
 export function reloadOnceAfterUpdate() {
+  // Un rechargement déjà lancé (plusieurs écouteurs voient la même erreur) : on n'en compte pas un autre
+  if (rechargement) return true
+  let essais = []
   try {
-    const last = Number(sessionStorage.getItem('odet_chunk_reload') || 0)
-    if (Date.now() - last < 60000) return false
-    sessionStorage.setItem('odet_chunk_reload', String(Date.now()))
+    essais = JSON.parse(sessionStorage.getItem('odet_chunk_reloads') || '[]').filter((t) => Date.now() - t < FENETRE)
+    if (essais.length >= DELAIS.length) return false
+    sessionStorage.setItem('odet_chunk_reloads', JSON.stringify([...essais, Date.now()]))
   } catch { /* stockage indisponible : on recharge quand même */ }
   rechargement = true
-  window.location.reload()
+  const delai = DELAIS[essais.length] || 0
+  if (delai) setTimeout(() => window.location.reload(), delai)
+  else window.location.reload()
   return true
 }
 
