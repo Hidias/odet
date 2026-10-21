@@ -4448,6 +4448,16 @@ begin
     end;
   end if;
 
+  -- Supports de formation privés (0392)
+  if exists (select 1 from storage.buckets where id = 'course-documents') then
+    v_total := v_total + 1;
+    if not (select public from storage.buckets where id = 'course-documents')
+       and not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
+                       and 'anon' = any (roles) and coalesce(qual, '') like '%course-documents%') then
+      v_lines := v_lines || 'OK      base  0392 : supports de formation privés, aucune lecture anonyme'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0392 : supports de formation encore lisibles sans connexion'::text; end if;
+  end if;
+
   -- Contraintes sans prénoms en dur (0393)
   if exists (select 1 from public.schema_migrations where version = '0393_contraintes_societe')
      or exists (select 1 from pg_constraint where conname = 'prospect_rdv_conducted_by_check' and pg_get_constraintdef(oid) like '%btrim%') then
