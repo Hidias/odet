@@ -19,3 +19,19 @@ describe('marquage des données de test', () => {
     expect(clientOptions([{ id: 'a', name: 'X' }])[0].testTbl).toBe('clients')
   })
 })
+
+import { buildORG, ribDemo } from '../src/core/org/orgUtils'
+describe('RIB de démonstration jamais imprimé (0384)', () => {
+  it('reconnaît le RIB de démonstration', () => {
+    expect(ribDemo({ iban: 'FR76 3000 6000 0112 3456 7890 189', bic: 'AGRIFRPP' })).toBe(true)
+    expect(ribDemo({ iban: 'FR7612345678901234567890104', bic: 'DEMOFRPP' })).toBe(true)
+    expect(ribDemo({ iban: 'FR7612345678901234567890104', bic: 'AGRIFRPP' })).toBe(false)
+  })
+  it('les documents n\'ont pas de bloc bancaire avec le RIB de démonstration', () => {
+    const o = buildORG({ name: 'Essai', iban: 'FR7630006000011234567890189', bic: 'DEMOFRPP', bank_name: 'Banque démo' })
+    expect(o.iban).toBe('')
+    expect(o.bic).toBe('')
+    expect(o.bank_name).toBe('')
+    expect(buildORG({ name: 'Essai', iban: 'FR7612345678901234567890104', bic: 'AGRIFRPP' }).iban).not.toBe('')
+  })
+})

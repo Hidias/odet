@@ -20,6 +20,12 @@ export function formatNda(nda) {
   return `${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 9)} ${digits.slice(9, 11)}`
 }
 
+// Coordonnées bancaires de démonstration (mêmes règles que app.rib_demo, 0384) : BIC « DEMO… » ou IBAN d'exemple
+export function ribDemo(s) {
+  const iban = String(s?.iban || '').replace(/\s/g, '').toUpperCase()
+  return String(s?.bic || '').toUpperCase().startsWith('DEMO') || iban === 'FR7630006000011234567890189'
+}
+
 export function formatIban(iban) {
   if (!iban) return ''
   return String(iban).replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim()
@@ -136,9 +142,10 @@ export function buildORG(o) {
     ndaAttribue: !!ndaFormatted,
     nda_region: s.nda_region || '',
     // Banque
-    bank_name: s.bank_name || '',
-    iban: formatIban(s.iban),
-    bic: s.bic || '',
+    // RIB de démonstration (0384) : jamais imprimé sur un devis, une convention ou un contrat
+    bank_name: ribDemo(s) ? '' : (s.bank_name || ''),
+    iban: ribDemo(s) ? '' : formatIban(s.iban),
+    bic: ribDemo(s) ? '' : (s.bic || ''),
     // Représentant légal
     dirigeant: s.dirigeant_name || '',
     dirigeant_title: s.dirigeant_title || '',
