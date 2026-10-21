@@ -18,6 +18,7 @@ import {
   enregistrerVehicule, attribuer, restituer, releverKm, enregistrerRegle, supprimerRegle, enregistrerEvenement, marquerVerifie,
   enregistrerPlein, lienTicket,
 } from '../lib/vehiculesData'
+import { useAdapte } from '../../../core/branding/adapte'
 
 const dateFr = (d) => (d ? new Date(d).toLocaleDateString('fr-FR') : '')
 const quand = (d) => (d ? new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
@@ -87,6 +88,7 @@ function IncidentSheet({ vehicule, onClose, onSaved }) {
 }
 
 function MonVehicule() {
+  const { facile } = useAdapte()
   const { user } = useAuthStore()
   const [d, setD] = useState(null)
   const [geste, setGeste] = useState(null)
@@ -111,13 +113,13 @@ function MonVehicule() {
               <div className="flex-1 min-w-0"><div className="font-semibold text-ui">{v.plate}</div><div className="text-ui-sm text-gray-600">{[v.brand, v.model].filter(Boolean).join(' ')} · {km(d.kms[v.id])}</div></div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <button type="button" className="btn btn-primary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'plein', v })}><Fuel className="w-5 h-5" aria-hidden="true" />Plein</button>
-              <button type="button" className="btn btn-secondary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'incident', v })}><AlertTriangle className="w-5 h-5" aria-hidden="true" />Incident</button>
+              <button type="button" className="btn btn-primary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'plein', v })}><Fuel className="w-5 h-5" aria-hidden="true" />{facile ? 'J\'ai fait le plein' : 'Plein'}</button>
+              <button type="button" className="btn btn-secondary h-auto py-3 flex-col" onClick={() => setGeste({ kind: 'incident', v })}><AlertTriangle className="w-5 h-5" aria-hidden="true" />{facile ? 'Un problème' : 'Incident'}</button>
               <button type="button" className="btn btn-secondary h-auto py-3 flex-col" onClick={async () => {
                 const val = await demander('Kilométrage au compteur', { title: 'Relevé du compteur', placeholder: 'En km' })
                 if (!val) return
                 try { await releverKm(v.id, val); toast.success('Kilométrage noté'); charger() } catch (e) { toast.error(e.message) }
-              }}><Gauge className="w-5 h-5" aria-hidden="true" />Compteur</button>
+              }}><Gauge className="w-5 h-5" aria-hidden="true" />{facile ? 'Les kilomètres' : 'Compteur'}</button>
             </div>
             {ech.length > 0 && <ul className="text-ui-sm space-y-1">{ech.map((e) => <li key={`${e.kind}-${e.rule_id}`} className="flex items-center gap-2"><Etat s={e.state} />{e.label}{e.due_on ? ` le ${dateFr(e.due_on)}` : ''}{e.due_km ? ` à ${km(e.due_km)}` : ''}</li>)}</ul>}
           </section>

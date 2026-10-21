@@ -7,6 +7,7 @@ import { supabase } from '../../../core/supabase'
 import { loadVisits } from '../lib/itvData'
 import { todayIso, isoDay, parseDay, routeKm, summarize } from '../lib/schedule'
 import { ScanButton, VisitBadge, Kpi, Empty, DueBadge } from '../components/ui'
+import { useAdapte } from '../../../core/branding/adapte'
 
 const dayLabel = (iso) => parseDay(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 const shiftDay = (iso, n) => { const d = parseDay(iso); d.setDate(d.getDate() + n); return isoDay(d) }
@@ -15,6 +16,7 @@ export const mapsUrl = (site) => site?.latitude != null
   : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([site?.address, site?.postal_code, site?.city].filter(Boolean).join(' '))}`
 
 export default function MaJournee({ technicians, isManager, isTechnician, profile }) {
+  const { facile } = useAdapte()
   const [day, setDay] = useState(todayIso())
   const [techId, setTechId] = useState(isTechnician ? profile?.id : (technicians[0]?.id || null))
   const [visits, setVisits] = useState(null)
@@ -76,13 +78,13 @@ export default function MaJournee({ technicians, isManager, isTechnician, profil
       {visits === null ? (
         <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
       ) : visits.length === 0 ? (
-        <Empty title="Aucune visite ce jour-là">{isManager ? 'Les visites se placent dans Planning et tournées.' : 'Votre planning est préparé au bureau.'}</Empty>
+        <Empty title={facile ? 'Pas de visite ce jour' : 'Aucune visite ce jour-là'}>{isManager ? 'Les visites se placent dans Planning et tournées.' : (facile ? 'Le bureau prépare vos visites.' : 'Votre planning est préparé au bureau.')}</Empty>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">
             <Kpi value={visits.length} label={visits.length > 1 ? 'visites' : 'visite'} />
-            <Kpi value={total} label="appareils" />
-            <Kpi value={km ? `${km} km` : '-'} label="environ" />
+            <Kpi value={total} label={facile ? '🧯 appareils' : 'appareils'} />
+            <Kpi value={km ? `${km} km` : '-'} label={facile ? '🚐 de route' : 'environ'} />
           </div>
           {visits.map((v, i) => {
             const c = counts[v.site_id] || { total: 0, fam: {} }
@@ -103,16 +105,16 @@ export default function MaJournee({ technicians, isManager, isTechnician, profil
                 {(current || done) && v.progress?.total > 0 && (
                   <div>
                     <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden"><div className={`h-full ${done ? 'bg-[rgb(var(--c-success))]' : 'bg-accent-500'}`} style={{ width: `${Math.round((v.progress.done / v.progress.total) * 100)}%` }} /></div>
-                    <div className="text-ui-sm text-gray-500 mt-1">{v.progress.done} appareils contrôlés sur {v.progress.total}</div>
+                    <div className="text-ui-sm text-gray-500 mt-1">{v.progress.done} {facile ? 'faits' : 'appareils contrôlés'} sur {v.progress.total}</div>
                   </div>
                 )}
                 {!done && (
                   <div className="flex gap-2">
-                    <a className="btn btn-secondary flex-1" href={mapsUrl(v.sites)} target="_blank" rel="noreferrer"><Navigation className="w-4 h-4" />Itinéraire</a>
-                    {contacts[v.client_id] && <a className="btn btn-secondary flex-1" href={`tel:${String(contacts[v.client_id]).replace(/\s/g, '')}`}><Phone className="w-4 h-4" />Appeler</a>}
+                    <a className="btn btn-secondary flex-1" href={mapsUrl(v.sites)} target="_blank" rel="noreferrer"><Navigation className="w-4 h-4" />{facile ? 'Y aller' : 'Itinéraire'}</a>
+                    {contacts[v.client_id] && <a className="btn btn-secondary flex-1" href={`tel:${String(contacts[v.client_id]).replace(/\s/g, '')}`}><Phone className="w-4 h-4" />{facile ? 'Appeler le client' : 'Appeler'}</a>}
                   </div>
                 )}
-                {v.sites?.access_notes && !done && <div className="text-ui-sm text-gray-600 bg-gray-50 rounded-ui-sm px-3 py-2">Accès : {v.sites.access_notes}</div>}
+                {v.sites?.access_notes && !done && <div className="text-ui-sm text-gray-600 bg-gray-50 rounded-ui-sm px-3 py-2">{facile ? '🚪 Pour entrer : ' : 'Accès : '}{v.sites.access_notes}</div>}
               </div>
             )
           })}

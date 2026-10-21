@@ -159,11 +159,11 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
         {header}
         <div className="card space-y-2">
           <div className="text-ui-sm text-gray-500">{visit.planned_on ? `Prévue le ${frShort(visit.planned_on)}` : 'Non planifiée'}{technician ? `, ${technician.name}` : ''}</div>
-          <div className="font-semibold">{equipment.length} appareils sur ce site</div>
-          {visit.sites?.access_notes && <div className="text-ui-sm text-gray-600">Accès : {visit.sites.access_notes}</div>}
+          <div className="font-semibold">{adapte.facile ? `🧯 ${equipment.length} appareils à voir ici` : `${equipment.length} appareils sur ce site`}</div>
+          {visit.sites?.access_notes && <div className="text-ui-sm text-gray-600">{adapte.facile ? '🚪 Pour entrer : ' : 'Accès : '}{visit.sites.access_notes}</div>}
           {visit.notes && <div className="text-ui-sm text-gray-600">{visit.notes}</div>}
         </div>
-        {canWrite && <button type="button" className="btn btn-primary w-full" style={{ height: 52 }} onClick={begin} disabled={busy}>{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}Démarrer la visite</button>}
+        {canWrite && <button type="button" className="btn btn-primary w-full" style={{ height: 52 }} onClick={begin} disabled={busy}>{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}{adapte.facile ? 'Je commence' : 'Démarrer la visite'}</button>}
         {!equipment.length && <p className="muted text-ui-sm">Aucun appareil enregistré : ajoutez-les pendant la visite avec « Appareil trouvé sur place ».</p>}
       </div>
     )
@@ -275,14 +275,14 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
         </section>
 
         <section className="card space-y-2">
-          <h2 className="section-title">Observations sur le site</h2>
+          <h2 className="section-title">{adapte.facile ? '👀 Ce que vous avez vu sur le site' : 'Observations sur le site'}</h2>
           {(settings.site_observations || []).map((o) => (
             <label key={o} className="flex items-center gap-3 min-h-[40px]">
               <input type="checkbox" className="w-5 h-5" checked={obs.has(o)} onChange={() => toggleObs(o)} />
               <span>{o}</span>
             </label>
           ))}
-          <label className="label" htmlFor="itv-obs">Autres observations</label>
+          <label className="label" htmlFor="itv-obs">{adapte.facile ? 'Autre chose à dire ?' : 'Autres observations'}</label>
           <textarea id="itv-obs" className="textarea" rows={3} value={visit.observations || ''} onChange={(e) => setVisit((v) => ({ ...v, observations: e.target.value }))}
             onBlur={() => updateVisit(visit.id, { observations: visit.observations || null }).catch(() => {})} />
         </section>
@@ -291,18 +291,18 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
         {pontOn && <PontVisite visitId={visit.id} readOnly={readOnly} />}
 
         <section className="card space-y-2">
-          <h2 className="section-title">Signature du client</h2>
-          <label className="label" htmlFor="itv-signer">Nom et fonction</label>
+          <h2 className="section-title">{adapte.facile ? '✍️ Le client signe' : 'Signature du client'}</h2>
+          <label className="label" htmlFor="itv-signer">{adapte.facile ? 'Nom de la personne qui signe' : 'Nom et fonction'}</label>
           <input id="itv-signer" className="input" value={visit.signer_name || ''} onChange={(e) => setVisit((v) => ({ ...v, signer_name: e.target.value }))}
             onBlur={() => updateVisit(visit.id, { signer_name: visit.signer_name || null }).catch(() => {})} />
           {visit.client_signature
             ? <div className="flex items-center gap-3"><img src={visit.client_signature} alt="Signature du client" className="h-20 border border-gray-200 rounded-ui-sm bg-white" /><button type="button" className="btn btn-secondary btn-sm" onClick={() => setSigning(true)}>Refaire</button></div>
-            : <button type="button" className="btn btn-secondary w-full" style={{ height: 52 }} onClick={() => setSigning(true)}><PenLine className="w-5 h-5" />Faire signer le client</button>}
+            : <button type="button" className="btn btn-secondary w-full" style={{ height: 52 }} onClick={() => setSigning(true)}><PenLine className="w-5 h-5" />{adapte.facile ? 'Le client signe ici' : 'Faire signer le client'}</button>}
         </section>
 
         <div className="sticky bottom-0 -mx-3 bg-white border-t border-gray-200 p-3 z-30" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <div>
-            <button type="button" className="btn btn-primary w-full" style={{ height: 52 }} onClick={finish} disabled={busy}>{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}Terminer et produire le rapport</button>
+            <button type="button" className="btn btn-primary w-full" style={{ height: 52 }} onClick={finish} disabled={busy}>{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}{adapte.facile ? '✅ Finir la visite' : 'Terminer et produire le rapport'}</button>
           </div>
         </div>
         <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { takePhoto(e.target.files?.[0], photoTarget); e.target.value = '' }} />
@@ -319,9 +319,9 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
   return (
     <div className="space-y-3 max-w-xl">
       {header}
-      <div className="text-ui-sm text-gray-500">{s.done} contrôlés sur {s.total}{visit.started_at ? `, arrivée ${new Date(visit.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}</div>
+      <div className="text-ui-sm text-gray-500">{s.done} {adapte.facile ? 'faits' : 'contrôlés'} sur {s.total}{visit.started_at ? `, arrivée ${new Date(visit.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}</div>
       <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrer les appareils">
-        {[['all', `Tous ${s.total}`], ['todo', `À contrôler ${s.todo}`], ...families.map((f) => [f, f])].map(([k, l]) => (
+        {[['all', `Tous ${s.total}`], ['todo', adapte.facile ? `À faire ${s.todo}` : `À contrôler ${s.todo}`], ...families.map((f) => [f, f])].map(([k, l]) => (
           <button key={k} type="button" className={`badge whitespace-nowrap ${filter === k ? 'bg-gray-900 text-white' : 'badge-neutral'}`} style={{ height: 32, padding: '0 12px' }} onClick={() => setFilter(k)}>{l}</button>
         ))}
       </div>
@@ -368,7 +368,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
               <div className="space-y-2">
                 {(t.defects || []).length > 0 && r.result !== 'absent' && (
                   <div>
-                    <label className="label" htmlFor={`itv-def-${r.id}`}>Motif</label>
+                    <label className="label" htmlFor={`itv-def-${r.id}`}>{adapte.facile ? 'Quel problème ?' : 'Motif'}</label>
                     <select id={`itv-def-${r.id}`} className="select" value={r.defect || ''} onChange={(e) => patchItem(r, { defect: e.target.value || null })}>
                       <option value="">Choisir</option>
                       {t.defects.map((d) => <option key={d} value={d}>{d}</option>)}
@@ -376,11 +376,11 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
                   </div>
                 )}
                 <div>
-                  <label className="label" htmlFor={`itv-ob-${r.id}`}>Observation</label>
+                  <label className="label" htmlFor={`itv-ob-${r.id}`}>{adapte.facile ? 'Ce que vous voyez' : 'Observation'}</label>
                   <input id={`itv-ob-${r.id}`} className="input" defaultValue={r.observation || ''} onBlur={(e) => e.target.value !== (r.observation || '') && patchItem(r, { observation: e.target.value || null })} />
                 </div>
                 <button type="button" className="btn btn-secondary w-full" onClick={() => { setPhotoTarget(r); itemFileRef.current?.click() }} disabled={busy}>
-                  <Camera className="w-4 h-4" />{r.photo_path ? 'Remplacer la photo' : 'Photo de l\'appareil'}
+                  <Camera className="w-4 h-4" />{r.photo_path ? (adapte.facile ? 'Refaire la photo' : 'Remplacer la photo') : (adapte.facile ? '📷 Prendre une photo' : 'Photo de l\'appareil')}
                 </button>
                 {r.photo_path && photoUrls[r.photo_path] && <img src={photoUrls[r.photo_path]} alt="Photo de l'appareil" className="h-24 rounded-ui-sm object-cover" />}
                 {r.result === 'remplace' && <Remplacement r={r} patchItem={patchItem} operationLabel={settings.operation_labels[r.operation] || r.operation} />}
@@ -391,16 +391,16 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
       })}
 
       {!readOnly && (
-        <button type="button" className="btn btn-secondary w-full border-dashed" onClick={() => setAdding(true)}><Plus className="w-4 h-4" />Appareil trouvé sur place</button>
+        <button type="button" className="btn btn-secondary w-full border-dashed" onClick={() => setAdding(true)}><Plus className="w-4 h-4" />{adapte.facile ? 'J\'ai trouvé un autre appareil' : 'Appareil trouvé sur place'}</button>
       )}
 
       {!readOnly && (
         <div className="sticky bottom-0 -mx-3 bg-white border-t border-gray-200 p-3 z-30 space-y-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <div className="space-y-2">
             {s.todo > 0 && (confirmRest
-              ? <div className="flex gap-2"><button type="button" className="btn btn-success flex-1" onClick={restConforme}><Check className="w-4 h-4" />Confirmer : {s.todo} conformes</button><button type="button" className="btn btn-ghost" onClick={() => setConfirmRest(false)}>Annuler</button></div>
+              ? <div className="flex gap-2"><button type="button" className="btn btn-success flex-1" onClick={restConforme}><Check className="w-4 h-4" />{adapte.facile ? `Oui, les ${s.todo} sont bons` : `Confirmer : ${s.todo} conformes`}</button><button type="button" className="btn btn-ghost" onClick={() => setConfirmRest(false)}>Annuler</button></div>
               : <button type="button" className="btn btn-secondary w-full" onClick={restConforme}><ListChecks className="w-4 h-4" />{adapte.facile ? `Tous les autres sont bons (${s.todo})` : `Tout le reste conforme (${s.todo})`}</button>)}
-            <button type="button" className="btn btn-primary w-full" style={{ height: 50 }} onClick={() => { setStep('cloture'); window.scrollTo(0, 0) }}>Continuer vers la clôture</button>
+            <button type="button" className="btn btn-primary w-full" style={{ height: 50 }} onClick={() => { setStep('cloture'); window.scrollTo(0, 0) }}>{adapte.facile ? 'J\'ai fini les appareils ➜' : 'Continuer vers la clôture'}</button>
           </div>
         </div>
       )}
@@ -413,17 +413,18 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
 // Remplacement d'un appareil : motif obligatoire, information du client si une opération périodique était due,
 // numéro de série du nouvel appareil (repris dans le parc à la clôture). La base refuse la clôture sinon (0354).
 function Remplacement({ r, patchItem, operationLabel }) {
+  const { facile } = useAdapte()
   const manque = replaceMissing(r)
   const periodique = PERIODIC_OPERATIONS.includes(r.operation)
   return (
     <div className={`rounded-ui-sm border p-3 space-y-2 ${manque.length ? 'border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))]' : 'border-gray-200'}`}>
       {periodique && (
         <p className="text-ui-sm text-gray-900">
-          <span className="font-semibold">{operationLabel}</span> était prévue : remplacer à la place demande un motif écrit et l'accord du client.
+          <span className="font-semibold">{operationLabel}</span>{facile ? ' était prévue. Pour changer l\'appareil, il faut une raison et l\'accord du client.' : ' était prévue : remplacer à la place demande un motif écrit et l\'accord du client.'}
         </p>
       )}
       <div>
-        <label className="label" htmlFor={`itv-rr-${r.id}`}>Pourquoi le remplacer ?</label>
+        <label className="label" htmlFor={`itv-rr-${r.id}`}>{facile ? 'Pourquoi le changer ?' : 'Pourquoi le remplacer ?'}</label>
         <select id={`itv-rr-${r.id}`} className="select" value={r.replace_reason || ''} onChange={(e) => patchItem(r, { replace_reason: e.target.value || null })}>
           <option value="">Choisir</option>
           {REPLACE_REASONS.map((m) => <option key={m.code} value={m.code}>{m.label}</option>)}
@@ -437,13 +438,13 @@ function Remplacement({ r, patchItem, operationLabel }) {
       )}
       <label className="flex items-center gap-2 min-h-[44px]">
         <input type="checkbox" className="w-5 h-5" checked={!!r.client_informed} onChange={(e) => patchItem(r, { client_informed: e.target.checked })} />
-        <span className="text-ui">Client informé et d'accord{periodique ? ' (obligatoire)' : ''}</span>
+        <span className="text-ui">{facile ? 'Le client est d\'accord' : 'Client informé et d\'accord'}{periodique ? ' (obligatoire)' : ''}</span>
       </label>
       <div>
-        <label className="label" htmlFor={`itv-sn-${r.id}`}>Numéro de série du nouvel appareil</label>
+        <label className="label" htmlFor={`itv-sn-${r.id}`}>{facile ? 'Numéro écrit sur le nouvel appareil' : 'Numéro de série du nouvel appareil'}</label>
         <input id={`itv-sn-${r.id}`} className="input" maxLength={60} defaultValue={r.new_serial_number || ''} onBlur={(e) => e.target.value !== (r.new_serial_number || '') && patchItem(r, { new_serial_number: e.target.value.trim() || null })} />
       </div>
-      {manque.length > 0 && <p className="text-ui-sm font-semibold text-[rgb(var(--c-warning))]">À compléter avant la clôture : {manque.join(', ')}.</p>}
+      {manque.length > 0 && <p className="text-ui-sm font-semibold text-[rgb(var(--c-warning))]">{facile ? '⚠️ Il manque : ' : 'À compléter avant la clôture : '}{manque.join(', ')}.</p>}
     </div>
   )
 }
@@ -479,6 +480,7 @@ function AddOnSite({ visit, types, onClose, onAdded }) {
 }
 
 function VisitDone({ visit, items, parts, equipmentById, settings, technician, isManager, reload, photoUrls }) {
+  const { facile } = useAdapte()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(null)
   const s = summarize(items)
@@ -534,7 +536,7 @@ function VisitDone({ visit, items, parts, equipmentById, settings, technician, i
         <Kpi value={s.remplace} label="remplacés" tone="info" />
       </div>
       <button type="button" className="btn btn-primary w-full" style={{ height: 50 }} onClick={download} disabled={!!busy}>{busy === 'pdf' ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}Rapport PDF</button>
-      <button type="button" className="btn btn-secondary w-full" onClick={share} disabled={!!busy}><Share2 className="w-4 h-4" />Envoyer le rapport (email, messagerie)</button>
+      <button type="button" className="btn btn-secondary w-full" onClick={share} disabled={!!busy}><Share2 className="w-4 h-4" />{facile ? 'Envoyer le rapport' : 'Envoyer le rapport (email, messagerie)'}</button>
       {isManager && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button type="button" className="btn btn-secondary" onClick={invoice} disabled={!!busy}><Receipt className="w-4 h-4" />{visit.invoice_id ? 'Voir la facture' : 'Créer la facture'}</button>
@@ -558,7 +560,7 @@ function VisitDone({ visit, items, parts, equipmentById, settings, technician, i
       </div>
       {visit.client_signature && <div className="card"><div className="text-ui-sm text-gray-500 mb-1">Signé par {visit.signer_name || 'le client'}</div><img src={visit.client_signature} alt="Signature du client" className="h-16" /></div>}
       {(visit.photos || []).length > 0 && <div className="flex gap-2 flex-wrap">{visit.photos.map((p) => photoUrls[p] && <img key={p} src={photoUrls[p]} alt="Photo de la visite" className="w-20 h-20 rounded-ui-sm object-cover" />)}</div>}
-      <Link to="/interventions/journee" className="btn btn-ghost w-full">Retour à ma journée</Link>
+      <Link to="/interventions/journee" className="btn btn-ghost w-full">{facile ? '⬅ Mes visites du jour' : 'Retour à ma journée'}</Link>
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { fr } from 'date-fns/locale'
 import { useAuthStore } from '../core/store'
 import { RouteErrorBoundary } from '../core/errors/ErrorBoundary'
 import PostIt from '../core/feedback/PostIt'
+import OutilsVoix from '../core/branding/OutilsVoix'
 import WelcomeSheet from '../core/feedback/WelcomeSheet'
 import BandeauInfo from '../core/notices/BandeauInfo'
 import { useNotices } from '../core/notices/notices'
@@ -550,6 +551,7 @@ export default function Layout() {
       )}
 
       {scanOuvert && <ScanModal onClose={() => setScanOuvert(false)} />}
+      <OutilsVoix basMobile={showBottomNav} />
 
       {/* Tiroir mobile */}
       {drawerOpen && (
