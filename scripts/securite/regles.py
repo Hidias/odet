@@ -1360,6 +1360,11 @@ tdx('0401', 'portal_events', sel=f"company_id in {societes('clients.fiches.voir'
 tdx('0404', 'client_shared_documents', sel=any_of(f"company_id in {societes('clients.fiches.voir')}",
     f"(company_id in {societes('interventions.missions.voir')} and client_id in (select app.tech_client_ids()))"),
     upd=f"company_id in {societes('clients.fiches.modifier')}")
+# Correctif 0432 (22/10) : le technicien ne lit que les rapports d'intervention de ses clients, jamais les devis,
+# factures ni contrats (prix masqués au technicien).
+tdx('0432', 'client_shared_documents', sel=any_of(f"company_id in {societes('clients.fiches.voir')}",
+    f"(company_id in {societes('interventions.missions.voir')} and client_id in (select app.tech_client_ids()) and kind = 'rapport')"),
+    upd=f"company_id in {societes('clients.fiches.modifier')}")
 
 # Dépôts du client (0431) : documents signés à la main et déposés depuis l'espace client, lus par qui voit la fiche du
 # client ; ajoutés par le serveur, décidés seulement par public.depot_client_decider (aucune règle d'écriture).
