@@ -4746,7 +4746,7 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
     
     // Charger les devis (envoyés, acceptés = pipeline auto)
     const { data: quotesData } = await fetchAllResult(() => supabase.from('quotes')
-      .select('id, reference, client_id, quote_date, validity_date, status, total_ht, total_ttc, session_id, object, created_by, clients(name)')
+      .select('id, reference, client_id, quote_date, validity_date, status, total_ht, total_ttc, session_id, object, created_by, clients!quotes_client_id_fkey(name)')
       .in('status', ['accepted'])
       .order('quote_date', { ascending: false }))
     

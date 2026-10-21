@@ -188,7 +188,7 @@ export default function Dashboard() {
       supabase.from('reclamations').select('id, reference, subject, description, created_at, session_id, status, date_reception').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
       supabase.from('prospect_rdv').select('*, clients(name)').eq('status', 'a_prendre').order('created_at', { ascending: false }),
       supabase.from('prospect_calls').select('*, clients(name)').eq('needs_callback', true).gte('callback_date', new Date().toISOString().split('T')[0]).order('callback_date').order('callback_time').limit(20),
-      supabase.from('quotes').select('*, clients(name)').order('created_at', { ascending: false }).limit(50),
+      supabase.from('quotes').select('*, clients!quotes_client_id_fkey(name)').order('created_at', { ascending: false }).limit(50),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(20),
       //  TABLE CORRECTE: trainee_evaluations (la vraie table des évals à chaud)
       fetchAll(() => supabase.from('trainee_evaluations').select('session_id, trainee_id, q_org_documents, q_org_accueil, q_org_locaux, q_org_materiel, q_contenu_organisation, q_contenu_supports, q_contenu_duree, q_contenu_programme, q_formateur_pedagogie, q_formateur_expertise, q_formateur_progression, q_formateur_moyens, q_global_adequation, q_global_competences, would_recommend, questionnaire_submitted, submitted_at')),
