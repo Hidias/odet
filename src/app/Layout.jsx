@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast'
 import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react'
+import { SurveillanceInactivite, RepriseSaisie } from '../core/session/Inactivite'
 import {
   Menu, X, Bell, Check, LogOut, ChevronDown, Plus, Settings, ScanLine, Package, Car, UserRound, Sliders, SlidersHorizontal, LayoutDashboard, Calendar, MapPin, Building2, MoreHorizontal, AlertCircle, MessageSquare, Eye, Wrench, ClipboardList, BarChart3, CalendarClock, Phone, Info, Mail, KeyRound,
 } from 'lucide-react'
@@ -663,6 +664,9 @@ export default function Layout() {
         {(showNotifications || showUserMenu || showDisplay || showNouveau) && <div className="fixed inset-0 z-10" onClick={closeMenus} />}
 
         <main className={`max-w-7xl mx-auto ${showBottomNav ? 'has-bottom-nav' : ''}`} style={{ padding: 'var(--space-4) var(--page-px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+          {/* Déconnexion après une heure sans activité, reprise de la saisie interrompue (A1, 21/10) */}
+          <SurveillanceInactivite />
+          <RepriseSaisie />
           {branding?.demo_mode && (
             <div className="mb-4 rounded-ui px-3 py-2 text-ui-sm flex items-center gap-2" style={{ background: 'rgb(var(--c-warning-bg))', color: 'rgb(var(--c-warning))' }}>
               <span className="font-semibold">Mode démonstration</span>
