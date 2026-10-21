@@ -5471,9 +5471,10 @@ begin
       execute 'set local role anon';
       i_j := public.public_inscrire(i_s, i_ins);
       i_id := (i_j->>'id')::uuid;
+      -- Trop de participants : refusé (0420), ou en liste d'attente à partir de 0421
       begin
-        perform public.public_inscrire(i_s, jsonb_set(i_ins, '{participants}', '[{"first_name":"A","last_name":"B"},{"first_name":"C","last_name":"D"},{"first_name":"E","last_name":"F"},{"first_name":"G","last_name":"H"}]'));
-        i_ok := false;
+        i_j := public.public_inscrire(i_s, jsonb_set(jsonb_set(i_ins, '{contact_email}', '"autre.essai@test.invalid"'), '{participants}', '[{"first_name":"A","last_name":"B"},{"first_name":"C","last_name":"D"},{"first_name":"E","last_name":"F"},{"first_name":"G","last_name":"H"}]'));
+        i_ok := i_ok and coalesce((i_j->>'liste_attente')::boolean, false);
       exception when others then i_ok := i_ok and sqlerrm like 'Plus assez de places%';
       end;
       begin
@@ -5541,6 +5542,61 @@ begin
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
       v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0420 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
+  -- Liste d'attente et seuil de maintien (0421)
+  if to_regprocedure('app.liste_attente_avancer(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare w_s uuid; w_s2 uuid; w_j jsonb; w_id1 uuid; w_id2 uuid; w_avant boolean; w_c uuid; w_t uuid; w_n int;
+      w_ins jsonb := '{"kind":"particulier","contact_first_name":"Anne","contact_last_name":"Attente","contact_email":"anne.attente@test.invalid","consent":true,"participants":[{"first_name":"Anne","last_name":"Attente"}]}';
+    begin
+      select calendrier_public into w_avant from public.organization_settings limit 1;
+      update public.organization_settings set calendrier_public = true;
+      insert into public.sessions (session_type, is_public, start_date, end_date, max_participants) values ('inter', true, current_date + 30, current_date + 30, 1) returning id into w_s;
+      execute 'set local role anon';
+      w_id1 := (public.public_inscrire(w_s, w_ins)->>'id')::uuid;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      w_c := (public.inscription_confirmer(w_id1)->>'client_id')::uuid;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      execute 'set local role anon';
+      w_j := public.public_inscrire(w_s, jsonb_set(jsonb_set(w_ins, '{contact_email}', '"bruno.attente@test.invalid"'), '{participants}', '[{"first_name":"Bruno","last_name":"Attente"}]'));
+      w_id2 := (w_j->>'id')::uuid;
+      execute 'reset role';
+      if (w_j->>'liste_attente')::boolean and (select status from public.online_registrations where id = w_id2) = 'liste_attente' then
+        v_lines := v_lines || 'OK      anon  0421 : session complète : demande en liste d''attente au lieu d''un refus'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0421 : liste d''attente ' || coalesce(w_j::text, ''))::text; end if;
+      delete from public.session_trainees where session_id = w_s;
+      if (select status from public.online_registrations where id = w_id2) = 'place_proposee'
+         and exists (select 1 from public.notifications where type = 'liste_attente' and metadata->>'registration_id' = w_id2::text) then
+        v_lines := v_lines || 'OK      base  0421 : place libérée proposée au suivant, équipe prévenue'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0421 : place libérée non proposée'::text; end if;
+      -- Seuil de maintien
+      insert into public.sessions (session_type, start_date, end_date, min_participants) values ('inter', current_date + 5, current_date + 5, 4) returning id into w_s2;
+      perform app.seuil_maintien_verifier();
+      perform app.seuil_maintien_verifier();
+      select count(*) into w_n from public.notifications where type = 'seuil_maintien' and metadata->>'session_id' = w_s2::text;
+      if w_n = 1 then v_lines := v_lines || 'OK      base  0421 : seuil de maintien non atteint à J-10 : une seule alerte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0421 : alertes de seuil ' || w_n)::text; end if;
+      update public.organization_settings set calendrier_public = coalesce(w_avant, false);
+      delete from public.notifications where type in ('seuil_maintien', 'liste_attente', 'inscription_en_ligne') and metadata->>'session_id' in (w_s::text, w_s2::text);
+      delete from public.online_registrations where session_id = w_s;
+      delete from public.session_trainees where session_id in (w_s, w_s2);
+      delete from public.trainee_info_sheets where session_id in (w_s, w_s2);
+      delete from public.session_groups where session_id in (w_s, w_s2);
+      delete from public.sessions where id in (w_s, w_s2);
+      delete from public.trainees where client_id = w_c;
+      delete from public.sites where client_id = w_c;
+      delete from public.clients where id = w_c;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0421 : erreur ' || sqlerrm)::text;
     end;
   end if;
 

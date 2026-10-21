@@ -49,6 +49,7 @@ import PiloteSession from '../../pilote/PiloteSession'
 import BilanAttentes from '../components/BilanAttentes'
 import RessentiSession from '../components/RessentiSession'
 import AvisEntrepriseSession from '../components/AvisEntrepriseSession'
+import SeuilMaintien from '../components/SeuilMaintien'
 import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 const statusLabels = {
@@ -3285,6 +3286,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         />
       </div>
       
+      {/* Seuil de maintien (inter, J-10) */}
+      <SeuilMaintien session={session} peutModifier={d.modifier} />
+
       {/* Tabs */}
       <Tabs value={activeTab} onChange={setActiveTab} visible={5} tabs={[
         { id: 'overview', label: 'Stagiaires', count: sessionTrainees.length },

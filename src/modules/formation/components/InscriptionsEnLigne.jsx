@@ -21,8 +21,10 @@ export default function InscriptionsEnLigne({ session, peutModifier, onConfirmee
   useEffect(() => { if (session?.id) charger() }, [session?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!liste || liste.length === 0) return null
-  const attente = liste.filter((r) => r.status === 'en_attente')
-  const traitees = liste.filter((r) => r.status !== 'en_attente')
+  // Place proposée (liste d'attente, 0421) d'abord, puis demandes en attente ; la liste d'attente ensuite, dans l'ordre
+  const attente = [...liste.filter((r) => r.status === 'place_proposee'), ...liste.filter((r) => r.status === 'en_attente')]
+  const enListe = liste.filter((r) => r.status === 'liste_attente')
+  const traitees = liste.filter((r) => ['confirmee', 'refusee'].includes(r.status))
 
   const confirmerInscription = async (r) => {
     const n = (r.participants || []).length
@@ -50,10 +52,13 @@ export default function InscriptionsEnLigne({ session, peutModifier, onConfirmee
       <div className="flex items-center gap-2">
         <Globe className="w-5 h-5 text-accent-600" aria-hidden="true" />
         <h3 className="font-semibold flex-1">Inscriptions en ligne</h3>
-        {attente.length > 0 && <span className="badge badge-warning">{attente.length} en attente</span>}
+        {attente.length > 0 && <span className="badge badge-warning">{attente.length} à traiter</span>}
+        {enListe.length > 0 && <span className="badge badge-neutral">{enListe.length} en liste d'attente</span>}
       </div>
-      {attente.map((r) => (
-        <div key={r.id} className="border border-gray-200 rounded-ui p-3 space-y-1 text-ui">
+      {[...attente, ...enListe].map((r, i) => (
+        <div key={r.id} className={`border rounded-ui p-3 space-y-1 text-ui ${r.status === 'place_proposee' ? 'border-[rgb(var(--c-success))]' : 'border-gray-200'}`}>
+          {r.status === 'place_proposee' && <div className="text-ui-sm font-medium text-[rgb(var(--c-success))]">Place libérée, proposée à cette demande{r.proposed_at ? ` le ${fmt(r.proposed_at)}` : ''}</div>}
+          {r.status === 'liste_attente' && <div className="text-ui-sm font-medium text-gray-500">Liste d'attente, rang {i - attente.length + 1}</div>}
           <div className="flex flex-wrap items-baseline gap-x-2">
             <span className="font-medium text-gray-900">{r.kind === 'entreprise' ? r.company_name : 'Particulier'}</span>
             {r.siret && <span className="text-ui-sm text-gray-500 font-mono">{r.siret}</span>}

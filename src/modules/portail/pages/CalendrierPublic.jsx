@@ -87,11 +87,11 @@ function Contenu({ integre }) {
                   <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-gray-400" aria-hidden="true" />{s.is_remote ? 'À distance' : [s.postal_code, s.city].filter(Boolean).join(' ') || 'Lieu communiqué à l\'inscription'}</span>
                   <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-gray-400" aria-hidden="true" />{s.price_per_person != null ? `${euros(s.price_per_person)} par personne` : 'Prix sur demande'}</span>
                 </div>
-                {!complet && (
-                  <div className="mt-3">
-                    <button type="button" className="btn btn-primary btn-sm" onClick={() => setAInscrire(s)}>S'inscrire</button>
-                  </div>
-                )}
+                <div className="mt-3">
+                  {complet
+                    ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAInscrire({ ...s, places: null })}>Liste d'attente</button>
+                    : <button type="button" className="btn btn-primary btn-sm" onClick={() => setAInscrire(s)}>S'inscrire</button>}
+                </div>
               </li>
             )
           })}
