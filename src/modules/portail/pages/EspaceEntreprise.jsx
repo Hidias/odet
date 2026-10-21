@@ -26,6 +26,7 @@ import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import AvisEntreprise from '../components/AvisEntreprise'
+import ParticipantsSession from '../components/ParticipantsSession'
 import { lireDocumentPortail, versBase64 } from '../../../core/portail/documentsClient'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
@@ -202,6 +203,24 @@ function Formations() {
   const [orgPdf, setOrgPdf] = useState(null)
   const today = startOfToday()
 
+  // Participants saisis par le client (0430) : état par session, sans effet si la base ne le propose pas encore
+  const [participants, setParticipants] = useState({})
+  const chargerParticipants = async () => {
+    try {
+      const { data: p } = await supabase.rpc('ent_participants')
+      if (Array.isArray(p)) setParticipants(Object.fromEntries(p.map((x) => [x.session_id, x])))
+    } catch { /* fonction absente */ }
+  }
+  useEffect(() => { chargerParticipants() }, [])
+  const enregistrerParticipants = async (sessionId, liste) => {
+    const { data: r, error } = await supabase.rpc('ent_participants_enregistrer', { p_session: sessionId, p_liste: liste })
+    if (error) throw new Error(error.message)
+    const { data: d } = await supabase.rpc('ent_sessions')
+    if (d) setData(d)
+    await chargerParticipants()
+    toast.success(`${r?.nombre ?? liste.length} participant(s) enregistré(s). Votre organisme est prévenu.`)
+  }
+
   // Signatures en ligne du client (0402)
   const chargerSignatures = () => supabase.rpc('ent_signatures').then(({ data: sg }) => setSignatures(Array.isArray(sg) ? sg : []))
   const signatureDe = (sid) => [...signatures].reverse().find((x) => x.session_id === sid && x.document_type === 'convention') || null
@@ -308,13 +327,19 @@ function Formations() {
             ))}
           </ul>
         )}
-        {!s.group_id && !s.convention_signed && !finie && (
-          <div className="mt-3 rounded-ui border border-accent-500/30 bg-accent-500/5 p-3 flex items-center gap-3 flex-wrap">
-            <FileSignature className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
-            <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">La convention de formation attend votre signature.</p>
-            <button type="button" onClick={() => setASigner(s)} className="btn btn-primary btn-sm">Signer en ligne</button>
-          </div>
-        )}
+        {!s.group_id && <ParticipantsSession etat={participants[s.id]} onEnregistrer={(liste) => enregistrerParticipants(s.id, liste)} />}
+        {!s.group_id && !s.convention_signed && !finie && (() => {
+          // Session issue d'un devis : la convention se signe une fois la session confirmée et les participants saisis
+          const et = participants[s.id]
+          const attente = et?.devis ? (et.validation_requise ? 'Votre organisme confirme les dates de la session.' : (et.participants || []).length === 0 ? 'Saisissez d\'abord vos participants.' : null) : null
+          return (
+            <div className="mt-3 rounded-ui border border-accent-500/30 bg-accent-500/5 p-3 flex items-center gap-3 flex-wrap">
+              <FileSignature className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
+              <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">{attente ? `Convention de formation : ${attente}` : 'La convention de formation attend votre signature.'}</p>
+              <button type="button" onClick={() => setASigner(s)} disabled={!!attente} className="btn btn-primary btn-sm">Signer en ligne</button>
+            </div>
+          )
+        })()}
         {finie && avisDispo && (
           <div className="mt-3 rounded-ui border border-gray-200 bg-gray-50 p-3 flex items-center gap-3 flex-wrap">
             <Award className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
@@ -328,7 +353,7 @@ function Formations() {
           {!s.group_id && (s.convention_signed
             ? <Doc s={s} kind="convention_signee" icon={FileSignature} label={signatureDe(s.id) ? 'Convention signée, avec sa preuve' : 'Convention signée'} />
             : <Doc s={s} kind="convention" icon={FileSignature} label="Convention" />)}
-          <Doc s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0} />
+          <Doc s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0 || (participants[s.id]?.devis && !s.convention_signed)} />
           <Doc s={s} kind="emargement" icon={ClipboardList} label="Émargement" disabled={nb === 0} />
           <Doc s={s} kind="attestations" icon={BadgeCheck} label="Attestations" disabled={!finie || nb === 0} />
           <Doc s={s} kind="certificats" icon={Award} label="Certificats" disabled={!finie || !(s.session_trainees || []).some((st) => st.result)} />
