@@ -4417,6 +4417,16 @@ begin
     end;
   end if;
 
+  -- Supports de formation privés (0392)
+  if exists (select 1 from storage.buckets where id = 'course-documents') then
+    v_total := v_total + 1;
+    if not (select public from storage.buckets where id = 'course-documents')
+       and not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
+                       and 'anon' = any (roles) and coalesce(qual, '') like '%course-documents%') then
+      v_lines := v_lines || 'OK      base  0392 : supports de formation privés, aucune lecture anonyme'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0392 : supports de formation encore lisibles sans connexion'::text; end if;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { supabase } from '../../../core/supabase'
+import { ouvrirFichier } from '../../../core/storageUtils'
 import { FileText, CheckCircle, XCircle, Eye, Download, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useDroits } from '../../../core/rights/useDroit'
@@ -181,14 +182,14 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => window.open(document.file_url, '_blank')}
+            onClick={() => ouvrirFichier(document.file_url).catch((e) => toast.error(e.message))}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
             title="Prévisualiser"
           >
             <Eye className="w-5 h-5" />
           </button>
           <button
-            onClick={() => window.open(document.file_url, '_blank')}
+            onClick={() => ouvrirFichier(document.file_url).catch((e) => toast.error(e.message))}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
             title="Télécharger"
           >
