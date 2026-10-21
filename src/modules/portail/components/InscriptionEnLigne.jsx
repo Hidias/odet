@@ -17,6 +17,7 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
   const [busy, setBusy] = useState(false)
   const [erreur, setErreur] = useState('')
   const [fait, setFait] = useState(false)
+  const [enAttente, setEnAttente] = useState(false)
   const max = session.places != null ? Math.max(1, Math.min(20, session.places)) : 20
 
   const champ = (k, label, props = {}) => (
@@ -36,12 +37,13 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
     if (kind === 'entreprise' && parts.length === 0) return setErreur('Indiquez au moins un participant')
     if (!consent) return setErreur('Merci de cocher l\'accord sur l\'usage de vos données')
     setBusy(true)
-    const { error } = await supabase.rpc('public_inscrire', {
+    const { data: rep, error } = await supabase.rpc('public_inscrire', {
       p_session: session.id,
       p_inscription: { ...c, kind, consent, participants: parts, siret: c.siret.replace(/\s/g, '') },
     })
     setBusy(false)
     if (error) return setErreur(error.message || 'Inscription impossible pour le moment')
+    setEnAttente(!!rep?.liste_attente)
     setFait(true)
   }
 
@@ -58,7 +60,8 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
         {fait ? (
           <div className="text-center py-6 space-y-2">
             <CheckCircle className="w-12 h-12 mx-auto text-[rgb(var(--c-success))]" aria-hidden="true" />
-            <p className="font-medium text-gray-900">Demande d'inscription enregistrée</p>
+            <p className="font-medium text-gray-900">{enAttente ? 'Vous êtes sur la liste d\'attente' : 'Demande d\'inscription enregistrée'}</p>
+            {enAttente && <p className="text-sm text-gray-600">La session est complète : dès qu'une place se libère, elle vous est proposée et l'organisme vous recontacte.</p>}
             <p className="text-sm text-gray-600">L'organisme vous recontacte pour confirmer l'inscription et vous transmettre {kind === 'particulier' ? 'le contrat de formation' : 'la convention'} à signer en ligne. Aucun paiement n'est demandé à ce stade.</p>
             <button type="button" className="btn btn-primary" onClick={onFermer}>Fermer</button>
           </div>
