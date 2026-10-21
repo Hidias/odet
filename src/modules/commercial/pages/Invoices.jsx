@@ -26,6 +26,7 @@ import { calcDueDate } from '../lib/echeances'
 import { confirmer } from '../../../ui/Confirm'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { useMarquesDemo } from '../../../core/demo/marquesDemo'
+import { mettreADisposition } from '../../../core/portail/documentsClient'
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
   draft:    { label: 'Brouillon',  color: 'gray',   icon: FileText },
@@ -396,6 +397,9 @@ export default function Invoices() {
         { returnBase64: true, billingClient, orgSettings: organization },
         billingClient
       )
+
+      // La facture envoyée est aussi mise à disposition dans l'espace client, telle quelle (0404)
+      if (!isDraftDoc(sendModalInv) && sendModalInv.id) mettreADisposition({ objectType: 'invoice', objectId: sendModalInv.id, kind: 'facture', label: `${sendModalInv.type === 'credit_note' ? 'Avoir' : 'Facture'} ${sendModalInv.reference || ''}`.trim(), base64: pdfBase64 })
 
       toast.loading('Envoi en cours…', { id: 'send-inv' })
 
@@ -1047,6 +1051,12 @@ export default function Invoices() {
       toast.loading('Génération Factur-X…', { id: 'facturx' })
       await generateFacturXPDF({...inv, parent_reference: pRef, parent_invoice_date: pDate, session_reference: sRef}, itemsList || items, client, contact, { billingClient, orgSettings: organization }, billingClient)
       toast.success('Factur-X téléchargé', { id: 'facturx' })
+      // Facture émise : mise à disposition dans l'espace client, telle quelle (0404), une fois par facture
+      if (!isDraftDoc(inv) && inv.id) {
+        generateFacturXPDF({...inv, parent_reference: pRef, parent_invoice_date: pDate, session_reference: sRef}, itemsList || items, client, contact, { returnBase64: true, billingClient, orgSettings: organization }, billingClient)
+          .then((b64) => mettreADisposition({ objectType: 'invoice', objectId: inv.id, kind: 'facture', label: `${inv.type === 'credit_note' ? 'Avoir' : 'Facture'} ${inv.reference || ''}`.trim(), base64: b64 }))
+          .catch(() => {})
+      }
     } catch (e) {
       toast.error('Erreur Factur-X : ' + e.message, { id: 'facturx' })
     }

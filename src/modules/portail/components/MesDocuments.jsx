@@ -1,0 +1,72 @@
+// Documents mis à disposition par le prestataire (0404) : rapports d'intervention, factures, devis, contrats et
+// autres PDF, rangés tels quels. Chaque téléchargement est noté au journal de l'espace client (0401).
+
+import { useEffect, useState } from 'react'
+import { FileText, Receipt, Wrench, FileSignature, ScrollText, Download, Loader2, FolderOpen } from 'lucide-react'
+
+const TYPES = {
+  rapport: { label: "Rapports d'intervention", icone: Wrench },
+  facture: { label: 'Factures et avoirs', icone: Receipt },
+  devis: { label: 'Devis', icone: FileSignature },
+  contrat: { label: 'Contrats', icone: ScrollText },
+  convention: { label: 'Conventions', icone: FileSignature },
+  attestation: { label: 'Attestations', icone: FileText },
+  autre: { label: 'Autres documents', icone: FileText },
+}
+const ORDRE = ['rapport', 'facture', 'devis', 'contrat', 'convention', 'attestation', 'autre']
+const quand = (d) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+
+function sauver(buf, nom) {
+  const url = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = nom
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/** charger() → liste ; lire(doc) → ArrayBuffer ; noter(doc, buf) facultatif */
+export default function MesDocuments({ charger, lire, noter, titre = 'Vos documents' }) {
+  const [docs, setDocs] = useState(null)
+  const [busy, setBusy] = useState(null)
+  const [erreur, setErreur] = useState('')
+  useEffect(() => { charger().then((d) => setDocs(Array.isArray(d) ? d : [])).catch(() => setDocs([])) // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  if (!docs || docs.length === 0) return null
+
+  const ouvrir = async (d) => {
+    setBusy(d.id); setErreur('')
+    try {
+      const buf = await lire(d)
+      sauver(buf, `${d.label.replace(/[^\p{L}\p{N} _-]+/gu, '').trim().replace(/\s+/g, '_') || 'document'}.pdf`)
+      if (noter) noter(d, buf)
+    } catch (e) { setErreur(e.message || 'Document indisponible') } finally { setBusy(null) }
+  }
+
+  const groupes = ORDRE.map((k) => [k, docs.filter((d) => d.kind === k)]).filter(([, l]) => l.length)
+  return (
+    <section className="vitrine-monte mb-8">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 flex items-center gap-1.5"><FolderOpen className="w-4 h-4" aria-hidden="true" />{titre}</h2>
+      {erreur && <p role="alert" className="mb-3 text-sm text-[rgb(var(--c-danger))]">{erreur}</p>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {groupes.map(([k, liste]) => {
+          const T = TYPES[k]
+          return (
+            <div key={k} className="vitrine-carte rounded-ui-lg border border-gray-200 bg-white p-4">
+              <h3 className="font-display font-semibold text-gray-900 flex items-center gap-2 mb-2"><T.icone className="w-4 h-4 text-accent-600" aria-hidden="true" />{T.label}<span className="text-xs font-normal text-gray-400">({liste.length})</span></h3>
+              <ul className="divide-y divide-gray-100">
+                {liste.slice(0, 12).map((d) => (
+                  <li key={d.id}>
+                    <button type="button" onClick={() => ouvrir(d)} disabled={!!busy} className="w-full py-2 flex items-center gap-3 text-left text-sm hover:text-primary-800 disabled:opacity-50">
+                      <span className="min-w-0 flex-1"><span className="block text-gray-800 truncate">{d.label}</span><span className="block text-xs text-gray-400">Mis à disposition le {quand(d.published_at)}</span></span>
+                      {busy === d.id ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Download className="w-4 h-4 text-gray-400" aria-hidden="true" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}

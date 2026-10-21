@@ -1353,3 +1353,10 @@ tdx('0399', 'training_documents_issued', sel=_AVIS_VOIR, ins=_AVIS_GER, upd=None
 # Journal de l'espace client (0401) : lu par qui voit les fiches clients ; écrit seulement par les fonctions des
 # portails (aucune règle d'écriture), jamais modifié ni effacé : il sert de preuve de mise à disposition.
 tdx('0401', 'portal_events', sel=f"company_id in {societes('clients.fiches.voir')}")
+
+# Documents mis à disposition dans l'espace client (0404) : lus par qui voit la fiche du client ou le technicien de ses
+# visites ; ajoutés par le serveur (vérification de l'appelant puis dépôt) ; seul le retrait se modifie, par qui
+# modifie les fiches clients. Jamais effacés : ils servent de preuve de mise à disposition.
+tdx('0404', 'client_shared_documents', sel=any_of(f"company_id in {societes('clients.fiches.voir')}",
+    f"(company_id in {societes('interventions.missions.voir')} and client_id in (select app.tech_client_ids()))"),
+    upd=f"company_id in {societes('clients.fiches.modifier')}")
