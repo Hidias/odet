@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Calendar, MapPin, Clock, Users, Loader2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import PublicLayout from '../../../app/PublicLayout'
+import InscriptionEnLigne from '../components/InscriptionEnLigne'
 
 // Calendrier public des sessions inter (0419, série du 21/10 n° 27) : formations à venir, dates, horaires, ville,
 // places restantes et prix, avec les filtres formation, ville et mois. Page publique de l'outil (/calendrier) et bloc
@@ -33,6 +34,7 @@ export function placesTexte(places) {
 function Contenu({ integre }) {
   const [data, setData] = useState(null)
   const [f, setF] = useState({ formation: '', ville: '', mois: '' })
+  const [aInscrire, setAInscrire] = useState(null)
 
   useEffect(() => {
     supabase.rpc('public_calendrier').then(({ data: d, error }) => setData(error ? { publie: false } : d || { publie: false }))
@@ -85,15 +87,21 @@ function Contenu({ integre }) {
                   <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-gray-400" aria-hidden="true" />{s.is_remote ? 'À distance' : [s.postal_code, s.city].filter(Boolean).join(' ') || 'Lieu communiqué à l\'inscription'}</span>
                   <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-gray-400" aria-hidden="true" />{s.price_per_person != null ? `${euros(s.price_per_person)} par personne` : 'Prix sur demande'}</span>
                 </div>
+                {!complet && (
+                  <div className="mt-3">
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => setAInscrire(s)}>S'inscrire</button>
+                  </div>
+                )}
               </li>
             )
           })}
         </ul>
       )}
 
+      {aInscrire && <InscriptionEnLigne session={aInscrire} mention={data.mention_maintien} onFermer={() => setAInscrire(null)} />}
       {data.mention_maintien && <p className="text-ui-sm text-gray-500">{data.mention_maintien}</p>}
       {(o.phone || o.email) && (
-        <p className="text-ui-sm text-gray-600">Renseignements et inscriptions : {[o.phone && <a key="t" href={`tel:${o.phone}`} className="text-accent-700 underline">{o.phone}</a>, o.email && <a key="m" href={`mailto:${o.email}`} className="text-accent-700 underline">{o.email}</a>].filter(Boolean).reduce((acc, x, i) => (i ? [...acc, ' · ', x] : [x]), [])}</p>
+        <p className="text-ui-sm text-gray-600">Renseignements : {[o.phone && <a key="t" href={`tel:${o.phone}`} className="text-accent-700 underline">{o.phone}</a>, o.email && <a key="m" href={`mailto:${o.email}`} className="text-accent-700 underline">{o.email}</a>].filter(Boolean).reduce((acc, x, i) => (i ? [...acc, ' · ', x] : [x]), [])}</p>
       )}
     </div>
   )

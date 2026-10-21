@@ -281,6 +281,8 @@ ORDRE_PROD = (
     + ['0418']
     # Calendrier public des sessions inter, 21/10
     + ['0419']
+    # Inscription en ligne aux sessions inter, 21/10
+    + ['0420']
 )
 
 

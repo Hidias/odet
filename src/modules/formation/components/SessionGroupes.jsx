@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, Users, Loader2, FileSignature, Receipt } from 'lucide-react'
+import { Plus, Users, Loader2, FileSignature, Receipt, PenLine } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { EmptyState } from '../../../ui/EmptyState'
 import { confirmer } from '../../../ui/Confirm'
-import { downloadDocument } from '../pdf/pdfGenerator'
+import { downloadDocument, generatePDF } from '../pdf/pdfGenerator'
+import { mettreADisposition } from '../../../core/portail/documentsClient'
+import InscriptionsEnLigne from './InscriptionsEnLigne'
 
 // Groupes d'une session inter (lot 2, 0044) : une entreprise (convention à son nom) ou un particulier qui paie
 // lui-même (contrat de formation, rétractation 10 jours calculée par la base, paiements contrôlés par la base).
@@ -112,6 +114,29 @@ export default function SessionGroupes({ session, peutModifier }) {
     }
   }
 
+  // Convention (entreprise) ou contrat (particulier) du groupe mis à disposition dans l'espace du client pour être
+  // signé en ligne (0420) ; la signature passe le document du groupe à « signé » (la base)
+  const signatureEnLigne = async (g) => {
+    const stagiaires = (parGroupe[g.id] || []).map((i) => i.trainees).filter(Boolean)
+    setBusy(true)
+    try {
+      const nb = Math.max(1, stagiaires.length)
+      const prixGroupe = parseFloat(g.price_total) || (parseFloat(g.price_per_person) ? parseFloat(g.price_per_person) * nb : null)
+      const doc = g.kind === 'particulier'
+        ? await generatePDF('contratParticulier', session, { trainees: stagiaires, trainer: session.trainers || null, particulier: { group: g, client: g.clients || {} } })
+        : await generatePDF('convention', { ...session, clients: g.clients || session.clients, total_price: prixGroupe ?? session.total_price }, { trainees: stagiaires, trainer: session.trainers || null })
+      if (!doc?.base64) throw new Error('Document impossible à générer')
+      const label = `${g.kind === 'particulier' ? 'Contrat de formation' : 'Convention de formation'} ${session.reference || ''}`.trim()
+      const r = await mettreADisposition({ objectType: 'session_group', objectId: g.id, kind: 'contrat', label, base64: doc.base64 })
+      if (!r) throw new Error('Mise à disposition impossible')
+      if (g.doc_status === 'a_envoyer') await supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', g.id)
+      toast.success(r.deja ? 'Déjà dans l\'espace du client, en attente de signature' : 'Document à signer dans l\'espace du client : donnez-lui son accès (fiche client, Espace client)')
+      load()
+    } catch (e) {
+      toast.error(e.message || 'Signature en ligne impossible')
+    } finally { setBusy(false) }
+  }
+
   if (indispo) return <Banner tone="warning">Les groupes ne sont pas encore disponibles. Prévenez le support.</Banner>
   if (groupes === null) return <p className="text-ui-sm text-gray-400">Chargement…</p>
 
@@ -120,6 +145,7 @@ export default function SessionGroupes({ session, peutModifier }) {
 
   return (
     <div className="space-y-3">
+      <InscriptionsEnLigne session={session} peutModifier={peutModifier} onConfirmee={load} />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-ui text-gray-600">Une entreprise ou un particulier par groupe ; une convention ou un contrat et une facture par groupe.</p>
         {peutModifier && <button type="button" className="btn btn-secondary btn-sm" onClick={() => ouvrir(null)}><Plus className="w-4 h-4" /> Ajouter un groupe</button>}
@@ -150,6 +176,7 @@ export default function SessionGroupes({ session, peutModifier }) {
                 {peutModifier && (
                   <div className="flex flex-wrap gap-1.5">
                     {g.kind === 'particulier' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => contrat(g)}><FileSignature className="w-4 h-4" /> Contrat</button>}
+                    {g.doc_status !== 'signe' && g.client_id && <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => signatureEnLigne(g)}><PenLine className="w-4 h-4" /> Signature en ligne</button>}
                     {g.doc_status === 'a_envoyer' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => docStatut(g, 'envoye')}>Marquer envoyé</button>}
                     {g.doc_status !== 'signe' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => docStatut(g, 'signe')}>Marquer signé</button>}
                     {g.invoice_id
