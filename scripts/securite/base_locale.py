@@ -251,6 +251,8 @@ ORDRE_PROD = (
     + ['0403']
     # Documents mis à disposition dans l'espace client, toutes prestations, 21/10
     + ['0404']
+    # Appareil complet sur les signatures, purge des signatures de test, 21/10
+    + ['0405']
 )
 
 
