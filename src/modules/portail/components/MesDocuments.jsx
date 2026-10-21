@@ -2,7 +2,7 @@
 // autres PDF, rangés tels quels. Chaque téléchargement est noté au journal de l'espace client (0401).
 
 import { useEffect, useState } from 'react'
-import { FileText, Receipt, Wrench, FileSignature, ScrollText, Download, Loader2, FolderOpen } from 'lucide-react'
+import { FileText, Receipt, Wrench, FileSignature, ScrollText, Download, Loader2, FolderOpen, PenLine, BadgeCheck } from 'lucide-react'
 
 const TYPES = {
   rapport: { label: "Rapports d'intervention", icone: Wrench },
@@ -24,20 +24,28 @@ function sauver(buf, nom) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-/** charger() → liste ; lire(doc) → ArrayBuffer ; noter(doc, buf) facultatif */
-export default function MesDocuments({ charger, lire, noter, titre = 'Vos documents' }) {
+const SIGNABLES = ['devis', 'contrat']
+
+/**
+ * charger() → liste ; lire(doc) → ArrayBuffer ; noter(doc, buf) facultatif.
+ * Signature (0406) : signatureDe(doc) → signature ou null, onSigner(doc) ouvre la fenêtre de signature,
+ * avecPreuve(doc, buf, sig) → ArrayBuffer du document signé suivi de sa page de preuve.
+ */
+export default function MesDocuments({ charger, lire, noter, titre = 'Vos documents', signatureDe = null, onSigner = null, avecPreuve = null, rafraichir = 0 }) {
   const [docs, setDocs] = useState(null)
   const [busy, setBusy] = useState(null)
   const [erreur, setErreur] = useState('')
   useEffect(() => { charger().then((d) => setDocs(Array.isArray(d) ? d : [])).catch(() => setDocs([])) // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [rafraichir])
   if (!docs || docs.length === 0) return null
 
   const ouvrir = async (d) => {
     setBusy(d.id); setErreur('')
     try {
-      const buf = await lire(d)
-      sauver(buf, `${d.label.replace(/[^\p{L}\p{N} _-]+/gu, '').trim().replace(/\s+/g, '_') || 'document'}.pdf`)
+      let buf = await lire(d)
+      const sig = signatureDe ? signatureDe(d) : null
+      if (sig && avecPreuve) buf = await avecPreuve(d, buf, sig)
+      sauver(buf, `${d.label.replace(/[^\p{L}\p{N} _-]+/gu, '').trim().replace(/\s+/g, '_') || 'document'}${sig ? '_signe' : ''}.pdf`)
       if (noter) noter(d, buf)
     } catch (e) { setErreur(e.message || 'Document indisponible') } finally { setBusy(null) }
   }
@@ -54,14 +62,22 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
             <div key={k} className="vitrine-carte rounded-ui-lg border border-gray-200 bg-white p-4">
               <h3 className="font-display font-semibold text-gray-900 flex items-center gap-2 mb-2"><T.icone className="w-4 h-4 text-accent-600" aria-hidden="true" />{T.label}<span className="text-xs font-normal text-gray-400">({liste.length})</span></h3>
               <ul className="divide-y divide-gray-100">
-                {liste.slice(0, 12).map((d) => (
-                  <li key={d.id}>
-                    <button type="button" onClick={() => ouvrir(d)} disabled={!!busy} className="w-full py-2 flex items-center gap-3 text-left text-sm hover:text-primary-800 disabled:opacity-50">
-                      <span className="min-w-0 flex-1"><span className="block text-gray-800 truncate">{d.label}</span><span className="block text-xs text-gray-400">Mis à disposition le {quand(d.published_at)}</span></span>
-                      {busy === d.id ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Download className="w-4 h-4 text-gray-400" aria-hidden="true" />}
-                    </button>
-                  </li>
-                ))}
+                {liste.slice(0, 12).map((d) => {
+                  const sig = signatureDe ? signatureDe(d) : null
+                  const aSigner = !sig && onSigner && SIGNABLES.includes(d.kind)
+                  return (
+                    <li key={d.id} className="flex items-center gap-2">
+                      <button type="button" onClick={() => ouvrir(d)} disabled={!!busy} className="flex-1 min-w-0 py-2 flex items-center gap-3 text-left text-sm hover:text-primary-800 disabled:opacity-50">
+                        <span className="min-w-0 flex-1"><span className="block text-gray-800 truncate">{d.label}</span>
+                          <span className="block text-xs text-gray-400">{sig
+                            ? <span className="text-[rgb(var(--c-success))] inline-flex items-center gap-1"><BadgeCheck className="w-3.5 h-3.5" aria-hidden="true" />Signé le {quand(sig.signed_at)}, avec sa preuve</span>
+                            : `Mis à disposition le ${quand(d.published_at)}`}</span></span>
+                        {busy === d.id ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Download className="w-4 h-4 text-gray-400" aria-hidden="true" />}
+                      </button>
+                      {aSigner && <button type="button" onClick={() => onSigner(d)} className="btn btn-primary btn-sm shrink-0 gap-1"><PenLine className="w-3.5 h-3.5" aria-hidden="true" />Signer</button>}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )

@@ -253,6 +253,8 @@ ORDRE_PROD = (
     + ['0404']
     # Appareil complet sur les signatures, purge des signatures de test, 21/10
     + ['0405']
+    # Signature en ligne des devis et contrats, 21/10
+    + ['0406']
 )
 
 

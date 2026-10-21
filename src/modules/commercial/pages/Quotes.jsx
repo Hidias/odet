@@ -31,6 +31,7 @@ import { modeleEnvoiDevis } from '../../../core/emails/modeles'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
 import AcompteDevis from '../components/AcompteDevis'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
+import SignatureObjetEnLigne from '../../../core/signature/SignatureObjetEnLigne'
 import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
@@ -1895,6 +1896,7 @@ export default function Quotes() {
                   onChange={(data) => setCurrentQuote(prev => ({ ...prev, signature_base64: data }))}
                   onClear={() => setCurrentQuote(prev => ({ ...prev, signature_base64: null }))}
                 />
+                {currentQuote.id && <SignatureObjetEnLigne objectId={currentQuote.id} titre={`Devis ${currentQuote.reference || ''}`} />}
               </div>
             </div>
           </div>
