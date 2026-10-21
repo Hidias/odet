@@ -112,7 +112,7 @@ function MonStock() {
 
 // ─── Articles ───
 function ArticleSheet({ article, categories, fournisseurs, voirPrix, onClose, onSaved }) {
-  const [v, setV] = useState(() => ({ label: '', reference: '', supplier_reference: '', category_id: '', unit: 'unité', sale_price_ht: '', supplier_id: '', barcode: '', serialized: false, consumable: true, ...(article || {}), achat: article?.achat ?? '' }))
+  const [v, setV] = useState(() => ({ label: '', reference: '', supplier_reference: '', category_id: '', unit: 'unité', sale_price_ht: '', supplier_id: '', barcode: '', serialized: false, consumable: true, ppe: false, ppe_renew_months: '', ...(article || {}), achat: article?.achat ?? '' }))
   const [busy, setBusy] = useState(false)
   const m = (k) => (e) => setV({ ...v, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value })
   const enregistrer = async (e) => {
@@ -153,7 +153,13 @@ function ArticleSheet({ article, categories, fournisseurs, voirPrix, onClose, on
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 min-h-[44px]"><input type="checkbox" className="w-5 h-5" checked={!!v.consumable} onChange={m('consumable')} /><span className="text-ui">Consommable</span></label>
           <label className="flex items-center gap-2 min-h-[44px]"><input type="checkbox" className="w-5 h-5" checked={!!v.serialized} onChange={m('serialized')} /><span className="text-ui">Suivi par numéro de série</span></label>
+          <label className="flex items-center gap-2 min-h-[44px]"><input type="checkbox" className="w-5 h-5" checked={!!v.ppe} onChange={m('ppe')} /><span className="text-ui">EPI remis au personnel</span></label>
         </div>
+        {v.ppe && (
+          <Champ label="Renouveler tous les (mois)" aide="Proposé à chaque remise ; laissez vide si l'usure décide">
+            <input className="input" inputMode="numeric" value={v.ppe_renew_months ?? ''} onChange={(e) => setV({ ...v, ppe_renew_months: e.target.value.replace(/\D/g, '').slice(0, 3) })} />
+          </Champ>
+        )}
       </form>
     </Sheet>
   )

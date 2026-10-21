@@ -16,6 +16,7 @@ import {
 import { etatEcheance, chargerEcheances } from '../lib/rhDocuments'
 import { DemandeSheet } from './Absences'
 import { DocumentsFiche, HabilitationsFiche, SanteFiche } from './DocumentsSante'
+import EpiFiche from './EpiFiche'
 import MaSignature from '../../../core/signatures/MaSignature'
 import { EntretiensFiche } from './EntretiensListes'
 
@@ -144,6 +145,7 @@ export default function MonEspace() {
 
       <EntretiensFiche companyId={fiche.company_id} personId={fiche.id} />
       <HabilitationsFiche companyId={fiche.company_id} personId={fiche.id} />
+      <EpiFiche companyId={fiche.company_id} personId={fiche.id} titre="Mes EPI" />
       <MaSignature companyId={fiche.company_id} />
       <SanteFiche companyId={fiche.company_id} personId={fiche.id} />
       <DocumentsFiche companyId={fiche.company_id} personId={fiche.id} estMoi titre="Mes documents" />

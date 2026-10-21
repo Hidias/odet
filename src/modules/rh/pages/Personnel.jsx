@@ -25,6 +25,7 @@ import {
 import Absences, { DemandeSheet } from './Absences'
 import Heures from './Heures'
 import { DocumentsFiche, HabilitationsFiche, SanteFiche, ConsignesFiche, AffichageAdapteFiche } from './DocumentsSante'
+import EpiFiche from './EpiFiche'
 import MonEspace from './MonEspace'
 import TableauRH from './TableauRH'
 import RegistrePaie from './RegistrePaie'
@@ -478,6 +479,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
       <EntretiensFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} embauche={contrats.map((c) => c.start_on).sort()[0] || null} />
       <ListesFiche personId={p.id} peutGerer={peutGerer} />
       <HabilitationsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
+      <EpiFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
       <SanteFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer && peutRestreints} />
       <ConsignesFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
       {peutGerer && p.profile_id && <AffichageAdapteFiche profileId={p.profile_id} />}

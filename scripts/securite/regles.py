@@ -1329,3 +1329,7 @@ tdx('0386', 'assignment_overrides', sel=f"(company_id in {societes('intervention
 _SIG_MOI = "profile_id = (select auth.uid())"
 tdx('0387', 'user_signatures', sel=f"({_SIG_MOI} or {_RH_GER} or company_id in {societes('formation.sessions.creer')})",
     ins=_SIG_MOI, upd=_SIG_MOI, dele=_SIG_MOI)
+
+# EPI remis au personnel (0394, liste unique A5) : lus par la RH et par la personne elle-même, remis et modifiés par
+# qui gère les dossiers du personnel ; la sortie du stock se fait par la base à la remise.
+tdx('0394', 'hr_ppe_handovers', sel=f"({_RH_DOS} or {_RH_MOI})", ins=_RH_GER, upd=_RH_GER, dele=_RH_GER)
