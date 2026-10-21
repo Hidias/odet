@@ -4386,6 +4386,16 @@ begin
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0389 : stockage « documents » encore public'::text; end if;
   end if;
 
+  -- Plus d'adresse vers l'ancien outil (0390)
+  if to_regclass('app.retrait_ancien_outil') is not null then
+    v_total := v_total + 1;
+    if not exists (select 1 from public.course_documents where file_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%')
+       and not exists (select 1 from public.courses where program_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%')
+       and not exists (select 1 from public.trainers where signature_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%') then
+      v_lines := v_lines || 'OK      base  0390 : plus aucun lien vers l''ancien outil (programmes, documents, signature)'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0390 : des adresses vers l''ancien outil restent'::text; end if;
+  end if;
+
   -- Suivi de chaque certification (0391) : référentiel des preuves et des écarts, échéance APSAD de 3 semaines
   if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'cert_audit_findings' and column_name = 'referential_code') then
     v_total := v_total + 1;

@@ -221,6 +221,8 @@ ORDRE_PROD = (
     + ['0388']
     # Stockage « documents » privé, 20/10
     + ['0389']
+    # Plus d'adresse vers l'ancien outil, 21/10
+    + ['0390']
     # Suivi de chaque certification (preuves et écarts par référentiel, référentiels APSAD), 21/10
     + ['0391']
 )
