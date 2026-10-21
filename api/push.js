@@ -56,13 +56,16 @@ async function handler(req, res) {
   }
 
   if (action === 'tester') {
+    // Délai facultatif (20 s au plus) : laisse le temps de fermer l'application pour un essai téléphone verrouillé
+    const delai = Math.min(Math.max(Number(req.body?.delai) || 0, 0), 20)
+    if (delai) await new Promise((r) => setTimeout(r, delai * 1000))
     const cles = await clesVapid(admin)
     if (!cles) return res.status(400).json({ error: 'Alertes non activées' })
     const { data: appareils } = await admin.from('push_subscriptions').select('*').eq('profile_id', ctx.user.id)
     if (!appareils?.length) return res.status(400).json({ error: 'Aucun appareil activé pour votre compte' })
     let ok = 0
     for (const a of appareils) {
-      if (await envoyerA(admin, cles, a, { title: 'Alertes activées', body: 'Vous recevrez ici les notifications importantes, jamais entre 21 h et 7 h 30.', url: '/' })) ok += 1
+      if (await envoyerA(admin, cles, a, delai ? { title: 'Alerte d\'essai', body: 'Les alertes arrivent bien sur cet appareil.', url: '/' } : { title: 'Alertes activées', body: 'Vous recevrez ici les notifications importantes, jamais entre 21 h et 7 h 30.', url: '/' })) ok += 1
     }
     return res.status(200).json({ envoyes: ok, appareils: appareils.length })
   }
