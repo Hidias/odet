@@ -239,6 +239,8 @@ ORDRE_PROD = (
     + ['0397']
     # Heures réellement suivies, régularisation tracée des émargements, 21/10
     + ['0398']
+    # Certificats et attestations figés une fois émis, 21/10
+    + ['0399']
 )
 
 

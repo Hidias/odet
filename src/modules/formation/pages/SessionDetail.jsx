@@ -26,6 +26,7 @@ import SSTCertificationTab from '../../prevention/components/SSTCertificationTab
 import AvisFormationTab from '../components/AvisFormationTab'
 import RegularisationEmargements from '../components/RegularisationEmargements'
 import { avecHeuresRealisees } from '../lib/emargementControle'
+import { figerDocuments } from '../lib/documentsEmis'
 import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
 import FormativeSummary, { useFormativeSummary } from '../../suivi/components/FormativeSummary'
 import DateTimePickerModal from '../../../ui/DateTimePickerModal'
@@ -1045,7 +1046,7 @@ export default function SessionDetail() {
       failed_objectives_with_comments: failedObjectivesWithComments // Nouveau format
     }
     
-    const [avecHeures] = (await preparerHeures([enrichedTrainee])) || []
+    const [avecHeures] = (await preparerHeures([enrichedTrainee], 'certificat')) || []
     if (!avecHeures) return
     downloadDocument('certificat', session, { trainee: avecHeures, trainer })
     setShowCertificatModal(false)
@@ -1579,10 +1580,11 @@ export default function SessionDetail() {
     (session?.session_trainees || []).filter(st => st.absent).map(st => st.trainee_id)
 
   // Heures réellement suivies (0398) avant l'attestation et le certificat ; null si l'on préfère régulariser d'abord
-  const preparerHeures = async (liste) => {
+  // puis document figé une fois émis (0399) : une correction devient une nouvelle version datée du jour
+  const preparerHeures = async (liste, kind) => {
     const r = await avecHeuresRealisees(session, liste)
     if (r.aRegulariser > 0 && !await confirmer(`${r.aRegulariser} demi-journée${r.aRegulariser > 1 ? 's' : ''} sans émargement à régulariser (${r.noms.join(', ')}) : onglet Présence.\n\nGénérer quand même ? ${r.aRegulariser > 1 ? 'Elles seront comptées' : 'Elle sera comptée'} comme suivie${r.aRegulariser > 1 ? 's' : ''}.`)) return null
-    return r.liste
+    return figerDocuments(session, kind, r.liste)
   }
 
   // Nombre de demi-journées signées par un stagiaire
@@ -2352,13 +2354,16 @@ export default function SessionDetail() {
       const heures = await avecHeuresRealisees(session, traineesWithResult)
       if (heures.aRegulariser) toast(`${heures.aRegulariser} demi-journée(s) sans émargement à régulariser (onglet Présence)`, { icon: '⚠️', duration: 7000 })
       const avecH = (t) => heures.liste.find(x => x.id === t.id) || t
-      const evalues = traineesWithResult.filter(t => t.result && !absentsIds.includes(t.id)).map(avecH)
-      const certificats = evalues.length ? await generateAllPDF('certificat', session, evalues, { trainer }) : null
+      // Documents figés une fois émis (0399) ; sans motif pour une correction, ils restent hors du ZIP
+      const evalues = await figerDocuments(session, 'certificat', traineesWithResult.filter(t => t.result && !absentsIds.includes(t.id)).map(avecH))
+      if (!evalues) toast('Certificats non inclus : correction sans motif', { icon: '⚠️' })
+      const certificats = evalues?.length ? await generateAllPDF('certificat', session, evalues, { trainer }) : null
       if (certificats) zip.file(`Certificats_${ref}.pdf`, certificats.base64, { base64: true })
 
       // 10. Attestations de présence (pas pour un stagiaire absent sur toute la session)
-      const presents = traineesWithResult.filter(t => !absentsIds.includes(t.id)).map(avecH)
-      const attestations = presents.length ? await generateAllPDF('attestation', session, presents, { trainer }) : null
+      const presents = await figerDocuments(session, 'attestation', traineesWithResult.filter(t => !absentsIds.includes(t.id)).map(avecH))
+      if (!presents) toast('Attestations non incluses : correction sans motif', { icon: '⚠️' })
+      const attestations = presents?.length ? await generateAllPDF('attestation', session, presents, { trainer }) : null
       if (attestations) zip.file(`Attestations_${ref}.pdf`, attestations.base64, { base64: true })
 
       // 11. Tests de positionnement - rempli si fait, sinon vierge
@@ -2478,7 +2483,7 @@ export default function SessionDetail() {
       }
       
       // Pour les Acquis, télécharger directement
-      const [enrichedTrainee] = (await preparerHeures([{ ...trainee, result }])) || []
+      const [enrichedTrainee] = (await preparerHeures([{ ...trainee, result }], 'certificat')) || []
       if (!enrichedTrainee) return
       downloadDocument(docType, session, { trainee: enrichedTrainee, trainer })
       toast.success('Certificat généré')
@@ -2516,7 +2521,7 @@ export default function SessionDetail() {
       const stData = session.session_trainees?.find(st => st.trainee_id === trainee.id)
       enrichedTrainee = { ...trainee, result: stData?.result || traineeResults[trainee.id] || null, access_code: stData?.access_code || trainee.access_code || null }
       if (docType === 'attestation') {
-        ;[enrichedTrainee] = (await preparerHeures([enrichedTrainee])) || []
+        ;[enrichedTrainee] = (await preparerHeures([enrichedTrainee], 'attestation')) || []
         if (!enrichedTrainee) return
       }
     }
@@ -2577,7 +2582,7 @@ export default function SessionDetail() {
     }
     if (!liste.length) { toast.error('Aucun document à générer'); return }
     if (docType === 'certificat' || docType === 'attestation') {
-      liste = await preparerHeures(liste)
+      liste = await preparerHeures(liste, docType)
       if (!liste) return
     }
     await downloadAllDocuments(docType, session, liste, { trainer, questions })
