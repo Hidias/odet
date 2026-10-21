@@ -37,9 +37,21 @@ LIGNE_MAX = 200
 EMOJI = re.compile('[\U0001F000-\U0001FAFF☀-➿️]')
 
 
+# Pied de description ajouté par l'outil de développement (ligne de tirets, mention de génération, lien de session) :
+# jamais repris dans le Quoi de neuf, ni rien de ce qui le suit
+PIED = re.compile(r'^\s*(-{2,}|_{2,}|\*{3,})\s*$|generated (by|with)|claude\.(ai|com)|claude code|\U0001F916', re.I)
+
+
 def section(texte, nom):
     m = re.search(r'^#+\s*' + nom + r'\s*$(.*?)(?=^#+\s|\Z)', texte, re.M | re.S | re.I)
-    return m.group(1).strip() if m else None
+    if not m:
+        return None
+    garde = []
+    for l in m.group(1).splitlines():
+        if PIED.search(l):
+            break
+        garde.append(l)
+    return '\n'.join(garde).strip()
 
 
 def nettoyer(ligne):
