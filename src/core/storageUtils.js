@@ -71,7 +71,7 @@ export default sanitizeStorageKey
 
 
 // « documents » privé depuis l'audit du 19/10 (attestations, cartes, documents de session, programmes) : lien signé
-export const PRIVATE_BUCKETS = ['trainer-signatures', 'documents']
+export const PRIVATE_BUCKETS = ['trainer-signatures', 'documents', 'course-documents']
 
 /** Chemin du fichier dans le bucket, depuis une adresse enregistrée ou un chemin */
 export function storagePathFrom(bucket, urlOrPath) {

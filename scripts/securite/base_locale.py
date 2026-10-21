@@ -225,6 +225,8 @@ ORDRE_PROD = (
     + ['0390']
     # Suivi de chaque certification (preuves et écarts par référentiel, référentiels APSAD), 21/10
     + ['0391']
+    # Supports de formation privés, 21/10
+    + ['0392']
 )
 
 

@@ -43,8 +43,17 @@ export default function TraineeDocuments({ token, session, traineeId, onBack }) 
       // Traçabilité du téléchargement (Qualiopi)
       await supabase.rpc('portal_log_download', { p_token: token, p_document_id: doc.id, p_trainee_id: traineeId || null })
 
-      // Ouvrir le PDF dans un nouvel onglet
-      window.open(doc.file_url, '_blank')
+      // Lien signé de quelques minutes (stockage privé, 0392), demandé au serveur avec le jeton du portail.
+      // L'onglet s'ouvre tout de suite pour ne pas être bloqué par le navigateur.
+      const onglet = window.open('', '_blank')
+      const r = await fetch('/api/portail-document', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, document_id: doc.id }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok || !j.url) { if (onglet) onglet.close(); throw new Error(j.error || 'Document indisponible') }
+      if (onglet) onglet.location.href = j.url
+      else window.location.href = j.url
       toast.success('Document ouvert dans un nouvel onglet')
     } catch (error) {
       console.error('Erreur téléchargement:', error)

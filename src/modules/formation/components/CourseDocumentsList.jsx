@@ -3,7 +3,7 @@ import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { supabase } from '../../../core/supabase'
 import { Upload, FileText, Download, Trash2, ChevronDown, ChevronRight, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { buildStorageFileName } from '../../../core/storageUtils'
+import { buildStorageFileName, ouvrirFichier } from '../../../core/storageUtils'
 import { useDroits } from '../../../core/rights/useDroit'
 
 import { confirmer } from '../../../ui/Confirm'
@@ -239,7 +239,7 @@ export default function CourseDocumentsList() {
   }
 
   const downloadDocument = (doc) => {
-    window.open(doc.file_url, '_blank')
+    ouvrirFichier(doc.file_url).catch((e) => toast.error(e.message))
   }
 
   const formatFileSize = (bytes) => {
