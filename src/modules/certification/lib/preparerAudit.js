@@ -70,13 +70,22 @@ export function sessionsEchantillon(sessions, alertes, depuis, aujourdhui = new 
   return { total: terminees.length, completes, aCompleter }
 }
 
-export async function chargerApsad(depuis) {
-  const lignes = must(await fetchAll(() => supabase.from('itv_visit_items')
-    .select('id, result, operation, equipment_id, replace_reason, itv_visits!inner(id, reference, status, finished_at, started_at, planned_on, site_id, client_id, sites(name, city), clients(name))')
+/** Vrai si la famille de matériel relève du référentiel (sans casse ni accents ; sans familles : tout le matériel) */
+export function familleConcernee(famille, familles) {
+  if (!familles || !familles.length) return true
+  const n = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+  const f = n(famille)
+  return familles.some((x) => { const y = n(x); return y && (f === y || f.startsWith(y) || (f.length > 2 && y.startsWith(f))) })
+}
+
+export async function chargerApsad(depuis, familles = null) {
+  const toutes = must(await fetchAll(() => supabase.from('itv_visit_items')
+    .select('id, result, operation, equipment_id, replace_reason, itv_equipment(itv_equipment_types(family)), itv_visits!inner(id, reference, status, finished_at, started_at, planned_on, site_id, client_id, sites(name, city), clients(name))')
     .in('operation', PERIODIC_OPERATIONS.concat(['verification', 'remplacement', 'mise_en_service']))))
+  const lignes = toutes.filter((l) => familleConcernee(l.itv_equipment?.itv_equipment_types?.family, familles))
   const equipements = must(await fetchAll(() => supabase.from('itv_equipment')
-    .select('id, client_id, manufactured_year, status, itv_equipment_types(operations, lifespan_years), clients(name)')
-    .neq('status', 'retire')))
+    .select('id, client_id, manufactured_year, status, itv_equipment_types(family, operations, lifespan_years), clients(name)')
+    .neq('status', 'retire'))).filter((e) => familleConcernee(e.itv_equipment_types?.family, familles))
   // Opérations faites (visites terminées, résultat conforme ou remplacé), comme au démarrage d'une visite
   const faites = {}
   for (const l of lignes) {
@@ -96,4 +105,29 @@ export async function chargerQualiopi(depuis) {
     .gte('end_date', depuis)))
   const alertes = must(await fetchAll(() => supabase.from('completude_alerts').select('id, entity_id, resolved_at').is('resolved_at', null)))
   return sessionsEchantillon(sessions, alertes, depuis)
+}
+
+/**
+ * Personnes qualifiées APSAD (titres du personnel de type « Certification APSAD ») : en cours de validité, expirées,
+ * suspendues, ou parties (dossier archivé). Référentiel général B0 : le départ d'une personne qualifiée se signale au
+ * certificateur sous un mois et se remplace sous trois. Renvoie null si le profil ne voit pas le personnel.
+ */
+export function etatQualifies(titres, aujourdhui = new Date().toISOString().slice(0, 10)) {
+  return (titres || []).filter((t) => !t.archived_at).map((t) => {
+    const p = t.hr_people || {}
+    const nom = [p.first_name, p.usage_name || p.last_name].filter(Boolean).join(' ') || 'Personne'
+    let etat = 'valide'
+    if (p.archived_at) etat = 'partie'
+    else if (t.suspended_at) etat = 'suspendue'
+    else if (t.expires_on && t.expires_on < aujourdhui) etat = 'expiree'
+    return { id: t.id, nom, label: t.label, expire: t.expires_on, etat, partieLe: p.archived_at ? String(p.archived_at).slice(0, 10) : null }
+  }).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
+}
+
+export async function chargerQualifies() {
+  const { data, error } = await supabase.from('hr_qualifications')
+    .select('id, label, expires_on, suspended_at, archived_at, hr_people(first_name, last_name, usage_name, archived_at)')
+    .eq('kind', 'apsad')
+  if (error) return null
+  return etatQualifies(data)
 }

@@ -4386,6 +4386,27 @@ begin
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0389 : stockage « documents » encore public'::text; end if;
   end if;
 
+  -- Suivi de chaque certification (0391) : référentiel des preuves et des écarts, échéance APSAD de 3 semaines
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'cert_audit_findings' and column_name = 'referential_code') then
+    v_total := v_total + 1;
+    declare
+      v_f record;
+      v_q record;
+    begin
+      insert into public.cert_audit_findings (company_id, referential_code, audit_kind, audit_date, severity, description)
+      values ((select id from public.companies order by created_at limit 1), 'apsad-i4nf285', 'initial', date '2026-10-01', 'majeure', 'essai 0391')
+      returning referential_code, due_date into v_f;
+      insert into public.cert_audit_findings (company_id, audit_kind, audit_date, severity, description)
+      values ((select id from public.companies order by created_at limit 1), 'initial', date '2026-10-01', 'majeure', 'essai 0391')
+      returning referential_code, due_date into v_q;
+      if v_f.due_date = date '2026-10-22' and v_q.referential_code is not null and v_q.due_date = date '2027-01-01'
+         and (select count(*) from public.cert_referentials where code in ('apsad-j5f5', 'apsad-i7f7', 'apsad-i17f17', 'apsad-d32') and company_id is null) = 4 then
+        v_lines := v_lines || 'OK      base  0391 : écart APSAD à 3 semaines, écart sans référentiel rattaché à Qualiopi, 4 référentiels APSAD'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || format('ÉCHEC   base  0391 : échéances %s / %s, référentiel %s', v_f.due_date, v_q.due_date, v_q.referential_code); end if;
+      delete from public.cert_audit_findings where description = 'essai 0391';
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

@@ -3,11 +3,11 @@
 
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, MapPin, AlertTriangle, CheckCircle, ChevronRight } from 'lucide-react'
+import { Loader2, MapPin, AlertTriangle, CheckCircle, ChevronRight, UserCheck } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
 import { frDate } from '../lib/certData'
 import { DEFAULT_OPERATION_LABELS } from '../../interventions/lib/schedule'
-import { ilYa, chargerApsad, chargerQualiopi } from '../lib/preparerAudit'
+import { ilYa, chargerApsad, chargerQualiopi, chargerQualifies } from '../lib/preparerAudit'
 
 function Bloc({ titre, children, aside }) {
   return (
@@ -21,26 +21,40 @@ function Bloc({ titre, children, aside }) {
   )
 }
 
-export default function CertPreparer() {
+const ETATS_QUALIFIE = {
+  valide: { label: 'En cours de validité', badge: 'badge-success' },
+  expiree: { label: 'Expirée', badge: 'badge-danger' },
+  suspendue: { label: 'Suspendue', badge: 'badge-danger' },
+  partie: { label: 'Partie de l\'entreprise', badge: 'badge-warning' },
+}
+
+// referentiel : certification suivie en haut du module (APSAD…). Sans lui (Qualiopi), l'écran reste celui d'avant :
+// les deux blocs, APSAD sur tout le matériel et sessions Qualiopi.
+export default function CertPreparer({ referentiel = null }) {
   const modules = useAuthStore((s) => s.modules) || []
   const [mois, setMois] = useState(12)
   const [apsad, setApsad] = useState(null)
   const [qualiopi, setQualiopi] = useState(null)
+  const [qualifies, setQualifies] = useState(undefined)
   const [erreur, setErreur] = useState(null)
   const avecItv = modules.includes('interventions')
   const avecFormation = modules.includes('formation')
+  const familles = referentiel?.equipment_families || null
+  const voirMateriel = avecItv && (!referentiel || (familles && familles.length > 0))
+  const voirSessions = avecFormation && !referentiel
 
   useEffect(() => {
     let vivant = true
     const depuis = ilYa(mois)
     setApsad(null); setQualiopi(null)
     Promise.all([
-      avecItv ? chargerApsad(depuis) : Promise.resolve(false),
-      avecFormation ? chargerQualiopi(depuis) : Promise.resolve(false),
-    ]).then(([a, q]) => { if (vivant) { setApsad(a); setQualiopi(q) } })
+      voirMateriel ? chargerApsad(depuis, familles) : Promise.resolve(false),
+      voirSessions ? chargerQualiopi(depuis) : Promise.resolve(false),
+      referentiel ? chargerQualifies() : Promise.resolve(undefined),
+    ]).then(([a, q, p]) => { if (vivant) { setApsad(a); setQualiopi(q); setQualifies(p) } })
       .catch((e) => { if (vivant) setErreur(e.message || String(e)) })
     return () => { vivant = false }
-  }, [mois, avecItv, avecFormation])
+  }, [mois, voirMateriel, voirSessions, referentiel?.code]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (erreur) return <div className="card text-[rgb(var(--c-danger))]">Impossible de préparer l'audit : {erreur}</div>
   if (apsad === null || qualiopi === null) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
@@ -62,9 +76,43 @@ export default function CertPreparer() {
         </label>
       </div>
 
+      {referentiel && qualifies !== undefined && (
+        <Bloc titre="Personnes qualifiées" aside={<span className="text-ui-sm muted">{qualifies ? qualifies.filter((q) => q.etat === 'valide').length : 0} en cours de validité</span>}>
+          {qualifies === null && <p className="px-4 pb-4 text-ui-sm text-gray-700">Votre profil ne voit pas les dossiers du personnel : demandez à la RH ou à la direction.</p>}
+          {qualifies && qualifies.length === 0 && (
+            <p className="px-4 pb-4 text-ui-sm text-gray-700">
+              Aucun titre « Certification APSAD » dans les dossiers du personnel. L'auditeur vérifie que des personnes
+              qualifiées réalisent les prestations : ajoutez leurs titres dans Personnel, fiche de la personne.
+            </p>
+          )}
+          {qualifies?.length > 0 && (
+            <ul className="divide-y divide-gray-100">
+              {qualifies.map((q) => (
+                <li key={q.id} className="px-4 py-3 flex items-start gap-3">
+                  <UserCheck className="w-4 h-4 mt-1 text-gray-400 flex-none" aria-hidden="true" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-ui">{q.nom}</div>
+                    <div className="text-ui-sm text-gray-600">{[q.label, q.expire ? `jusqu'au ${frDate(q.expire)}` : null].filter(Boolean).join(', ')}</div>
+                    {q.etat === 'partie' && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Départ : prévenir le certificateur sous un mois et remplacer la personne sous trois mois.</div>}
+                  </div>
+                  <span className={`badge ${ETATS_QUALIFIE[q.etat].badge}`}>{ETATS_QUALIFIE[q.etat].label}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Bloc>
+      )}
+
+      {referentiel && !familles?.length && (
+        <div className="card text-ui-sm text-gray-700">
+          Ce référentiel ne se rattache à aucune famille de matériel des interventions : la préparation porte sur les
+          personnes qualifiées, les exigences et les écarts.
+        </div>
+      )}
+
       {apsad && (
         <>
-          <Bloc titre="Sites à proposer (opérations périodiques faites)" aside={<span className="text-ui-sm muted">{apsad.sites.length} site{apsad.sites.length > 1 ? 's' : ''}</span>}>
+          <Bloc titre={familles?.length ? `Sites à proposer (${familles.join(', ').toLowerCase()} : opérations périodiques faites)` : 'Sites à proposer (opérations périodiques faites)'} aside={<span className="text-ui-sm muted">{apsad.sites.length} site{apsad.sites.length > 1 ? 's' : ''}</span>}>
             {apsad.sites.length === 0 && (
               <p className="px-4 pb-4 text-ui-sm text-gray-700">
                 Aucune maintenance additionnelle, révision ni requalification faite sur la période. Sans elles, l'auditeur
@@ -148,7 +196,7 @@ export default function CertPreparer() {
         </Bloc>
       )}
 
-      {!avecItv && !avecFormation && <p className="muted text-ui-sm">Ni Interventions ni Formation n'est actif : rien à préparer ici.</p>}
+      {!referentiel && !avecItv && !avecFormation && <p className="muted text-ui-sm">Ni Interventions ni Formation n'est actif : rien à préparer ici.</p>}
     </div>
   )
 }
