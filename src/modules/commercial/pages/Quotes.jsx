@@ -30,6 +30,8 @@ import { useCapacites } from '../../../core/capacites'
 import { modeleEnvoiDevis } from '../../../core/emails/modeles'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
 import AcompteDevis from '../components/AcompteDevis'
+import FinancementDevis from '../components/FinancementDevis'
+import { champsFinancement } from '../lib/financementDevis'
 
 import { confirmer } from '../../../ui/Confirm'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
@@ -212,7 +214,10 @@ export default function Quotes() {
     client_reference: '', status: 'draft', payment_method: 'virement bancaire',
     payment_terms: 'à 30 jours', payment_deadline: '', discount_percent: 0,
     discount_label: '', tva_rate: 20, tva_applicable: true, notes: '',
-    created_by: currentUserName(), signature_base64: null
+    created_by: currentUserName(), signature_base64: null,
+    // Financement prévu (0397)
+    funding_type: '', funding_client_id: '', funding_name: '', funding_agreement_ref: '',
+    funding_agreement_date: '', funding_subrogation: false, funding_amount_ht: ''
   }
 
   const emptyItem = {
@@ -280,7 +285,7 @@ export default function Quotes() {
     const [quotesRes, clientsRes, coursesRes] = await Promise.all([
       // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
       fetchAll(() => supabase.from('quotes').select('*, clients(name, siret, address, postal_code, city, contact_name, contact_phone, contact_email)').order('quote_date', { ascending: false })),
-      fetchAll(() => supabase.from('clients').select('id, name, siret, siren, address, postal_code, city, contact_name, contact_phone, contact_email, status').order('name')),
+      fetchAll(() => supabase.from('clients').select('id, name, siret, siren, address, postal_code, city, contact_name, contact_phone, contact_email, status, client_type, effectif, taille_entreprise, opco_subrogation_end').order('name')),
       fetchAll(() => supabase.from('courses').select('id, title, code, price_ht, duration_hours, duration_days, description').order('title'))
     ])
     setQuotes(quotesRes.data || [])
@@ -331,6 +336,9 @@ export default function Quotes() {
       payment_deadline: quote.payment_deadline || '', discount_percent: quote.discount_percent || 0,
       discount_label: quote.discount_label || '', tva_rate: quote.tva_rate || 20,
       tva_applicable: quote.tva_applicable !== false, signature_base64: quote.signature_base64 || null,
+      funding_type: quote.funding_type || '', funding_client_id: quote.funding_client_id || '', funding_name: quote.funding_name || '',
+      funding_agreement_ref: quote.funding_agreement_ref || '', funding_agreement_date: quote.funding_agreement_date || '',
+      funding_subrogation: !!quote.funding_subrogation, funding_amount_ht: quote.funding_amount_ht ?? '',
     })
     setItems(loadedItems)
     setMode('edit')
@@ -343,6 +351,9 @@ export default function Quotes() {
       payment_deadline: quote.payment_deadline || '', discount_percent: quote.discount_percent || 0,
       discount_label: quote.discount_label || '', tva_rate: quote.tva_rate || 20,
       tva_applicable: quote.tva_applicable !== false, signature_base64: quote.signature_base64 || null,
+      funding_type: quote.funding_type || '', funding_client_id: quote.funding_client_id || '', funding_name: quote.funding_name || '',
+      funding_agreement_ref: quote.funding_agreement_ref || '', funding_agreement_date: quote.funding_agreement_date || '',
+      funding_subrogation: !!quote.funding_subrogation, funding_amount_ht: quote.funding_amount_ht ?? '',
     })
     setItems(loadedItems)
     setMode('view')
@@ -390,6 +401,7 @@ export default function Quotes() {
       total_ht: totals.totalHt, total_tva: totals.totalTva, total_ttc: totals.totalTtc,
       notes: currentQuote.notes || '', created_by: currentQuote.created_by,
       signature_base64: currentQuote.signature_base64 || null,
+      ...champsFinancement(currentQuote),
       updated_at: new Date().toISOString()
     }
     try {
@@ -736,7 +748,8 @@ export default function Quotes() {
             return (endMins - startMins) <= 270 ? 'half' : 'full' // <= 4h30 = demi-journée
           })(),
           notes: `Créée depuis devis ${quote.reference}`,
-          funding_type: 'none',
+          // Financement prévu dans le devis (0397), sinon aucun
+          funding_type: ({ opco: 'opco', cpf: 'cpf', france_travail: 'france_travail', region: 'region', autre: 'other' })[quote.funding_type] || 'none',
         })
 
         if (error) {
@@ -753,6 +766,30 @@ export default function Quotes() {
           if (sel.nbParticipants) extraUpdates.max_participants = sel.nbParticipants
           if (Object.keys(extraUpdates).length > 0) {
             await supabase.from('sessions').update(extraUpdates).eq('id', newSession.id)
+          }
+          // Financeur du devis repris sur la session ; montant au prorata de la session quand le devis le donne
+          if (quote.funding_type) {
+            const part = Number(quote.funding_amount_ht) > 0 && Number(quote.total_ht) > 0 && Number(sel.totalPriceHt) > 0
+              ? Math.round(Number(sel.totalPriceHt) * Math.min(1, Number(quote.funding_amount_ht) / Number(quote.total_ht)) * 100) / 100
+              : null
+            if (part) {
+              const { error: errF } = await supabase.from('session_fundings').insert({
+                session_id: newSession.id,
+                funder_type: ({ opco: 'opco', cpf: 'cpf', france_travail: 'pole_emploi', region: 'region' })[quote.funding_type] || 'autre',
+                funder_name: quote.funding_name || null,
+                funder_client_id: quote.funding_type === 'opco' ? (quote.funding_client_id || null) : null,
+                dossier_number: quote.funding_agreement_ref || null,
+                agreement_date: quote.funding_agreement_date || null,
+                subrogation: quote.funding_type === 'opco' && !!quote.funding_subrogation,
+                amount_ht: part,
+                percentage: Number(sel.totalPriceHt) > 0 ? Math.round(part / Number(sel.totalPriceHt) * 10000) / 100 : null,
+                notes: `Repris du devis ${quote.reference}`,
+                status: 'pending',
+              })
+              if (errF) toast.error(`Financeur non repris pour ${course.title} : ${errF.message}`)
+            } else {
+              toast(`${course.title} : financeur à compléter dans la session (montant inconnu)`)
+            }
           }
           createdSessions.push({ ...newSession, courseTitle: course.title })
         }
@@ -1711,6 +1748,8 @@ export default function Quotes() {
                 </div>
               </div>
             </div>
+
+            <FinancementDevis quote={currentQuote} setQuote={setCurrentQuote} clients={clients} />
 
             {/* Line items - compact */}
             <div className="bg-white rounded-ui border border-gray-200 p-5">

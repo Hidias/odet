@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf'
+import { mentionFinancement } from '../lib/financementDevis'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
@@ -66,6 +67,7 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   const legal = [
     particulier ? null : "En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
     tvaOn ? null : (formation ? 'TVA non applicable, article 261-4-4° du CGI.' : 'TVA non applicable.'),
+    mentionFinancement(quote),
     companyLegalLine(L),
   ].filter(Boolean)
 
