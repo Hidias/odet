@@ -163,6 +163,7 @@ export function generateCIIXML(invoice, items, client, seller) {
   const exemptionFor = (g) => {
     if (g.cat === 'AE') return { code: 'VATEX-EU-AE', reason: mention(/autoliquidation/i, 'Autoliquidation') }
     if (g.cat !== 'E') return null
+    if (g.debours && !g.exonere) return { code: '', reason: mention(/d[ée]bours/i, 'Débours, art. 267 II 2° du CGI') }
     if (!seller.orgVatApplicable) return { code: 'VATEX-FR-FRANCHISE', reason: mention(/293 ?B/i, 'TVA non applicable, article 293 B du CGI') }
     if (g.exonere || (!vatApplicable && invoice.is_formation_pro !== false)) {
       return { code: 'VATEX-EU-132-1I', reason: mention(/exon[ée]ration/i, 'Exonération de TVA, article 261-4-4° a du CGI (formation professionnelle continue)') }

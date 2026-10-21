@@ -79,7 +79,21 @@ describe('TVA à 0 % verrouillée pour un organisme assujetti', () => {
     expect(erreursTva({ tvaApplicable: true, lignes: [{ description_title: 'x', tva_rate: 0 }], tauxParLigne: true }, assujetti).length).toBe(1)
   })
   it('options de régime proposées', () => {
-    expect(regimesPermis({ course_id: 'c' }, pro, avecAttestation).map(([k]) => k)).toEqual(['normal', 'exonere', 'autoliquidation'])
-    expect(regimesPermis({ course_id: 'c' }, { client_type: 'public' }, assujetti).map(([k]) => k)).toEqual(['normal'])
+    expect(regimesPermis({ course_id: 'c' }, pro, avecAttestation).map(([k]) => k)).toEqual(['normal', 'exonere', 'autoliquidation', 'debours'])
+    expect(regimesPermis({ course_id: 'c' }, { client_type: 'public' }, assujetti).map(([k]) => k)).toEqual(['normal', 'debours'])
+  })
+})
+
+describe('Débours', () => {
+  it('proposé à un organisme assujetti, justificatif exigé', () => {
+    expect(regimesPermis({}, null, assujetti).map(([k]) => k)).toContain('debours')
+    const l = [{ description_title: "Frais d'examen", vat_regime: 'debours' }]
+    expect(erreursTva({ tvaApplicable: true, lignes: l, tauxParLigne: true }, assujetti).length).toBe(1)
+    expect(erreursTva({ tvaApplicable: true, lignes: [{ ...l[0], description_detail: 'Facture n° 12' }], tauxParLigne: true }, assujetti)).toEqual([])
+  })
+  it('hors base de TVA dans les totaux', () => {
+    const t = calcTotals([{ quantity: 1, unit_price_ht: 100, vat_regime: 'normal' }, { quantity: 1, unit_price_ht: 60, vat_regime: 'debours' }], 0, 20, true)
+    expect(t.totalTva).toBe(20)
+    expect(t.totalTtc).toBe(180)
   })
 })

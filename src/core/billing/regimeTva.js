@@ -15,7 +15,7 @@ export async function chargerRegimeTva() {
   try {
     const [{ data: o }, { data: b }] = await Promise.all([
       supabase.from('organization_settings').select('tva_applicable').limit(1).maybeSingle(),
-      supabase.from('billing_settings').select('exoneration_formation_active, exoneration_attestation_ref, mention_exoneration, mention_franchise, mention_autoliquidation, mention_penalites_public, mention_indemnite_public').limit(1).maybeSingle(),
+      supabase.from('billing_settings').select('exoneration_formation_active, exoneration_attestation_ref, mention_exoneration, mention_franchise, mention_autoliquidation, mention_penalites_public, mention_indemnite_public, mention_debours').limit(1).maybeSingle(),
     ])
     regime = {
       charge: true,
@@ -25,6 +25,7 @@ export async function chargerRegimeTva() {
       mentions: {
         exoneration: b?.mention_exoneration || '', franchise: b?.mention_franchise || '', autoliquidation: b?.mention_autoliquidation || '',
         penalitesPublic: b?.mention_penalites_public || '', indemnitePublic: b?.mention_indemnite_public || '',
+        debours: b?.mention_debours || '',
       },
     }
   } catch { /* réglages illisibles (portail) : régime par défaut */ }
@@ -42,7 +43,8 @@ export function tvaLigne(formation, r = regime) {
 
 // Organisme assujetti (décision de H, 21/10, 23 h 08) : pas de TVA à 0 % hors cas prévus. Exonération de la formation :
 // seulement avec l'attestation de la DREETS dans les réglages, sur une ligne de formation. Autoliquidation : client
-// professionnel avec son numéro de TVA. La base refuse aussi l'émission d'une facture hors de ces cas (0427).
+// professionnel avec son numéro de TVA. Débours (0428) : frais payés au nom et pour le compte du client, refacturés à
+// l'euro près, justificatif cité dans le détail. La base refuse aussi l'émission d'une facture hors de ces cas (0427, 0428).
 export const assujetti = (r = regime) => !!r.charge && !r.franchise
 export const exonerationPossible = (r = regime) => !!r.exoFormation && !!r.attestation
 
@@ -51,8 +53,9 @@ export function regimesPermis(ligne, client, r = regime) {
   if (r.franchise) return opts
   if (exonerationPossible(r) && ligne?.course_id) opts.push(['exonere', 'Exonérée (formation)'])
   if (client && client.client_type !== 'particulier' && String(client.tva || '').trim()) opts.push(['autoliquidation', 'Autoliquidation'])
+  opts.push(['debours', 'Débours (hors TVA)'])
   // Régime déjà enregistré mais plus permis : affiché pour être corrigé
-  if (ligne?.vat_regime && !opts.some(([k]) => k === ligne.vat_regime)) opts.push([ligne.vat_regime, `${ligne.vat_regime === 'exonere' ? 'Exonérée' : 'Autoliquidation'} (non permis)`])
+  if (ligne?.vat_regime && !opts.some(([k]) => k === ligne.vat_regime)) opts.push([ligne.vat_regime, `${ligne.vat_regime === 'exonere' ? 'Exonérée' : ligne.vat_regime === 'debours' ? 'Débours' : 'Autoliquidation'} (non permis)`])
   return opts
 }
 
@@ -67,6 +70,7 @@ export function erreursTva({ tvaApplicable, taux, lignes, client, tauxParLigne =
     const nom = it.description_title || 'sans titre'
     if (tauxParLigne && (it.vat_regime || 'normal') === 'normal' && !(Number(String(it.tva_rate ?? 20).replace(',', '.')) > 0)) e.push(`Ligne « ${nom} » à 0 % de TVA : pas permis pour un organisme assujetti (exonération de la formation ou autoliquidation seulement).`)
     if (it.vat_regime === 'exonere' && !(exonerationPossible(r) && it.course_id)) e.push(`Ligne « ${nom} » exonérée : seulement une ligne de formation, avec l'attestation d'exonération dans Paramètres.`)
+    if (it.vat_regime === 'debours' && !String(it.description_detail || '').trim()) e.push(`Ligne « ${nom} » en débours : citez le justificatif (facture du tiers) dans le détail de la ligne.`)
     if (it.vat_regime === 'autoliquidation' && !(client && client.client_type !== 'particulier' && String(client.tva || '').trim())) e.push(`Ligne « ${nom} » en autoliquidation : seulement pour un client professionnel avec son numéro de TVA.`)
   })
   return e
@@ -91,6 +95,7 @@ export function mentionsTvaDevis(lignes, quote, r = regime, formation = false) {
     m.push(r.mentions.exoneration)
   }
   if ((lignes || []).some((it) => it.vat_regime === 'autoliquidation') && r.mentions.autoliquidation) m.push(r.mentions.autoliquidation)
+  if ((lignes || []).some((it) => it.vat_regime === 'debours') && r.mentions.debours) m.push(r.mentions.debours)
   return m
 }
 
