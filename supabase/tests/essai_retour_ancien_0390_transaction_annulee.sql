@@ -51,11 +51,12 @@ create temp view etat_essai as
 create temp table etat_essai_avant as select * from etat_essai;
 
 -- ===== supabase/migrations/0390_sans_ancien_outil.sql =====
--- 0390 : plus d'adresse vers l'ancien outil (Campus d'un autre organisme) dans les formations, demande de H du 21/10.
--- 12 programmes de formation et une signature de formateur pointent encore vers le stockage de cet outil. L'écran les
--- écartait déjà (fichierDeLInstance) ; ici les adresses sont vidées. Rien n'est supprimé : chaque valeur vidée est
--- gardée dans app.retrait_ancien_outil, que le retour arrière relit. Idempotent.
--- Les 18 fiches de documents de formation qui pointent vers cet outil restent (adresse obligatoire) : décision à part.
+-- 0390 : plus de lien vers l'ancien outil (Campus d'un autre organisme) dans les formations, décisions de H du 21/10.
+-- 12 programmes et une signature de formateur pointent vers le stockage de cet outil : adresses vidées.
+-- 18 fiches de documents de formation y pointent aussi (adresse obligatoire) : retirées, avec l'accord de H (21/10,
+-- 6h23 : « oui retire les », documents à recréer plus tard). L'écran les écartait déjà (fichierDeLInstance).
+-- Rien n'est perdu : chaque valeur vidée et chaque fiche retirée est gardée entière dans app.retrait_ancien_outil,
+-- que le retour arrière relit. Idempotent.
 
 create table if not exists app.retrait_ancien_outil (
   id bigserial primary key,
@@ -83,14 +84,29 @@ where t.signature_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%'
 on conflict (table_name, row_id) do nothing;
 update public.trainers set signature_url = null where signature_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%';
 
+-- Fiches de documents de formation hébergées sur l'ancien outil (personne ne les a ouvertes : aucune trace de
+-- téléchargement ni d'accès rattachée)
+insert into app.retrait_ancien_outil (company_id, table_name, row_id, donnees)
+select d.company_id, 'course_documents', d.id, to_jsonb(d)
+from public.course_documents d
+where d.file_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%'
+on conflict (table_name, row_id) do nothing;
+delete from public.course_documents d
+where d.file_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%'
+  and exists (select 1 from app.retrait_ancien_outil r where r.table_name = 'course_documents' and r.row_id = d.id);
+
 insert into public.schema_migrations (version) values ('0390_sans_ancien_outil') on conflict (version) do nothing;
 
 -- ===== supabase/rollback/0390_sans_ancien_outil_retour.sql =====
--- Retour arrière de 0390_sans_ancien_outil.sql : remet les adresses vidées, puis supprime la table de garde. Idempotent.
+-- Retour arrière de 0390_sans_ancien_outil.sql : remet les adresses vidées et les fiches retirées, puis supprime la table de garde. Idempotent.
 
 do $retour$
 begin
   if to_regclass('app.retrait_ancien_outil') is null then return; end if;
+  insert into public.course_documents
+  select (jsonb_populate_record(null::public.course_documents, r.donnees)).*
+  from app.retrait_ancien_outil r where r.table_name = 'course_documents'
+  on conflict (id) do nothing;
   update public.courses c set program_url = r.donnees->>'program_url'
   from app.retrait_ancien_outil r where r.table_name = 'courses' and r.row_id = c.id;
   update public.trainers t set signature_url = r.donnees->>'signature_url'

@@ -4,11 +4,12 @@
 select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '300s', true);
 
 -- ===== supabase/migrations/0390_sans_ancien_outil.sql =====
--- 0390 : plus d'adresse vers l'ancien outil (Campus d'un autre organisme) dans les formations, demande de H du 21/10.
--- 12 programmes de formation et une signature de formateur pointent encore vers le stockage de cet outil. L'écran les
--- écartait déjà (fichierDeLInstance) ; ici les adresses sont vidées. Rien n'est supprimé : chaque valeur vidée est
--- gardée dans app.retrait_ancien_outil, que le retour arrière relit. Idempotent.
--- Les 18 fiches de documents de formation qui pointent vers cet outil restent (adresse obligatoire) : décision à part.
+-- 0390 : plus de lien vers l'ancien outil (Campus d'un autre organisme) dans les formations, décisions de H du 21/10.
+-- 12 programmes et une signature de formateur pointent vers le stockage de cet outil : adresses vidées.
+-- 18 fiches de documents de formation y pointent aussi (adresse obligatoire) : retirées, avec l'accord de H (21/10,
+-- 6h23 : « oui retire les », documents à recréer plus tard). L'écran les écartait déjà (fichierDeLInstance).
+-- Rien n'est perdu : chaque valeur vidée et chaque fiche retirée est gardée entière dans app.retrait_ancien_outil,
+-- que le retour arrière relit. Idempotent.
 
 create table if not exists app.retrait_ancien_outil (
   id bigserial primary key,
@@ -35,5 +36,16 @@ from public.trainers t
 where t.signature_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%'
 on conflict (table_name, row_id) do nothing;
 update public.trainers set signature_url = null where signature_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%';
+
+-- Fiches de documents de formation hébergées sur l'ancien outil (personne ne les a ouvertes : aucune trace de
+-- téléchargement ni d'accès rattachée)
+insert into app.retrait_ancien_outil (company_id, table_name, row_id, donnees)
+select d.company_id, 'course_documents', d.id, to_jsonb(d)
+from public.course_documents d
+where d.file_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%'
+on conflict (table_name, row_id) do nothing;
+delete from public.course_documents d
+where d.file_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%'
+  and exists (select 1 from app.retrait_ancien_outil r where r.table_name = 'course_documents' and r.row_id = d.id);
 
 insert into public.schema_migrations (version) values ('0390_sans_ancien_outil') on conflict (version) do nothing;

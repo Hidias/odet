@@ -4389,9 +4389,10 @@ begin
   -- Plus d'adresse vers l'ancien outil (0390)
   if to_regclass('app.retrait_ancien_outil') is not null then
     v_total := v_total + 1;
-    if not exists (select 1 from public.courses where program_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%')
+    if not exists (select 1 from public.course_documents where file_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%')
+       and not exists (select 1 from public.courses where program_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%')
        and not exists (select 1 from public.trainers where signature_url like 'https://ibvtdiiwlpocibjvlgxr.supabase.co/%') then
-      v_lines := v_lines || 'OK      base  0390 : plus de programme ni de signature vers l''ancien outil'::text;
+      v_lines := v_lines || 'OK      base  0390 : plus aucun lien vers l''ancien outil (programmes, documents, signature)'::text;
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0390 : des adresses vers l''ancien outil restent'::text; end if;
   end if;
 
