@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Sparkles, Loader2, Plus, Check, Trash2, Copy, Mail, Save, ListChecks, BookOpenText, UserPlus, X } from 'lucide-react'
@@ -67,12 +67,23 @@ export default function ReunionDetail() {
     return () => clearTimeout(t)
   }, [notes]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Raccourci : la ligne est insérée au curseur, qui se place juste après ; le bouton ne prend pas le focus (sinon la
+  // barre d'espace le déclencherait à nouveau pendant la frappe)
+  const curseurVoulu = useRef(null)
   const raccourci = (r) => {
     const el = zone.current
-    const { texte, curseur } = insererLigne(notes, el?.selectionStart, r.prefixe)
+    const pos = el && document.activeElement === el ? el.selectionStart : notes.length
+    const { texte, curseur } = insererLigne(notes, pos, r.prefixe)
+    curseurVoulu.current = curseur
     setNotes(texte)
-    requestAnimationFrame(() => { if (el) { el.focus(); el.setSelectionRange(curseur, curseur) } })
   }
+  useLayoutEffect(() => {
+    const el = zone.current
+    if (curseurVoulu.current == null || !el) return
+    el.focus()
+    el.setSelectionRange(curseurVoulu.current, curseurVoulu.current)
+    curseurVoulu.current = null
+  }, [notes])
   const dictee = (t) => setNotes((n) => `${n}${n && !n.endsWith('\n') && !n.endsWith(' ') ? ' ' : ''}${t}`)
 
   const majGuide = (guide) => enregistrer({ guide })
@@ -201,7 +212,7 @@ export default function ReunionDetail() {
             <BookOpenText className="w-4 h-4 text-gray-500" aria-hidden="true" />
             <h2 className="section-title mr-auto">Notes à la volée</h2>
             {!close && RACCOURCIS.map((r) => (
-              <button key={r.id} type="button" className="btn btn-ghost btn-sm" onClick={() => raccourci(r)} title={`Nouvelle ligne « ${r.prefixe.trim()} »`}>{r.libelle}</button>
+              <button key={r.id} type="button" tabIndex={-1} className="btn btn-ghost btn-sm" onMouseDown={(e) => e.preventDefault()} onClick={() => raccourci(r)} title={`Nouvelle ligne « ${r.prefixe.trim()} »`}>{r.libelle}</button>
             ))}
             {!close && <SpeechToTextButton onTranscript={dictee} compact />}
           </div>
