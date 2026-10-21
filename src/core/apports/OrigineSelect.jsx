@@ -7,17 +7,18 @@ let cache = null
 export async function chargerOrigines(force = false) {
   if (cache && !force) return cache
   const [p, c] = await Promise.all([
-    supabase.from('profiles').select('id, display_name, first_name, last_name, email, is_active').eq('is_active', true).order('display_name'),
+    supabase.from('profiles').select('id, display_name, first_name, last_name, email, is_active').order('display_name'),
     supabase.from('business_contributors').select('id, name, kind, active, introduced_by_profile, introduced_by_contributor').order('name'),
   ])
-  cache = { equipe: (p.data || []).filter((x) => x.email), apporteurs: c.error ? [] : c.data || [], disponible: !c.error }
+  // equipe : comptes actifs (choix) ; tous : aussi les comptes désactivés, pour nommer l'historique
+  cache = { equipe: (p.data || []).filter((x) => x.email && x.is_active !== false), tous: p.data || [], apporteurs: c.error ? [] : c.data || [], disponible: !c.error }
   return cache
 }
 
 const nom = (p) => p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email
 
 export function useOrigines() {
-  const [o, setO] = useState(cache || { equipe: [], apporteurs: [], disponible: false })
+  const [o, setO] = useState(cache || { equipe: [], tous: [], apporteurs: [], disponible: false })
   useEffect(() => { chargerOrigines().then(setO) }, [])
   return o
 }
