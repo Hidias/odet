@@ -48,6 +48,7 @@ import SessionGroupes from '../components/SessionGroupes'
 import PiloteSession from '../../pilote/PiloteSession'
 import BilanAttentes from '../components/BilanAttentes'
 import RessentiSession from '../components/RessentiSession'
+import AvisEntrepriseSession from '../components/AvisEntrepriseSession'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
@@ -3779,6 +3780,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {session?.id && <BilanAttentes sessionId={session.id} />}
           {/* Ressenti au fil de la formation (0414) */}
           {session?.id && <RessentiSession sessionId={session.id} inscrits={sessionTrainees} />}
+          {/* Satisfaction de l'entreprise (0415) */}
+          {session?.id && <AvisEntrepriseSession sessionId={session.id} />}
           {/* Évaluations à chaud - qualité complet */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">

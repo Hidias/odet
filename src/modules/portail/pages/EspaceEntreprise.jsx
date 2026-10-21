@@ -22,6 +22,7 @@ import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT } from '../components/Si
 import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
+import AvisEntreprise from '../components/AvisEntreprise'
 import { lireDocumentPortail, versBase64 } from '../../../core/portail/documentsClient'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
@@ -182,6 +183,17 @@ function Formations() {
   const [busy, setBusy] = useState(null)
   const [signatures, setSignatures] = useState([])
   const [aSigner, setASigner] = useState(null)
+  // Satisfaction de l'entreprise (0415) : avis déjà donnés et formation en cours d'avis
+  const [avis, setAvis] = useState({})
+  const [aNoter, setANoter] = useState(null)
+  const [avisDispo, setAvisDispo] = useState(false)
+  useEffect(() => {
+    supabase.rpc('ent_satisfactions').then(({ data, error }) => {
+      if (error || !Array.isArray(data)) return
+      setAvis(Object.fromEntries(data.map((x) => [x.session_id, x.note_globale])))
+      setAvisDispo(true)
+    })
+  }, [])
   const [orgPdf, setOrgPdf] = useState(null)
   const today = startOfToday()
 
@@ -298,6 +310,15 @@ function Formations() {
             <button type="button" onClick={() => setASigner(s)} className="btn btn-primary btn-sm">Signer en ligne</button>
           </div>
         )}
+        {finie && avisDispo && (
+          <div className="mt-3 rounded-ui border border-gray-200 bg-gray-50 p-3 flex items-center gap-3 flex-wrap">
+            <Award className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
+            <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">
+              {avis[s.id] ? `Merci pour votre avis (${avis[s.id]} sur 5).` : 'Votre avis sur cette formation nous aide à progresser.'}
+            </p>
+            <button type="button" onClick={() => setANoter(s)} className={`btn btn-sm ${avis[s.id] ? 'btn-secondary' : 'btn-primary'}`}>{avis[s.id] ? 'Modifier' : 'Donner mon avis'}</button>
+          </div>
+        )}
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
           {!s.group_id && (s.convention_signed
             ? <Doc s={s} kind="convention_signee" icon={FileSignature} label={signatureDe(s.id) ? 'Convention signée, avec sa preuve' : 'Convention signée'} />
@@ -319,6 +340,7 @@ function Formations() {
           genererPdf={() => generatePDF('convention', { ...aSigner, clients: data.client, courses: aSigner.courses || {}, trainers: aSigner.trainers || null }, { trainees: traineesOf(aSigner), trainer: aSigner.trainers || null, costs: [] })}
           onSigner={(p) => signer(aSigner, p)} onFermer={() => setASigner(null)} />
       )}
+      {aNoter && <AvisEntreprise session={aNoter} onFermer={() => setANoter(null)} onEnvoye={(id, n) => setAvis((a) => ({ ...a, [id]: n }))} />}
       {past.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Formations réalisées</h2><div className="space-y-3">{past.map((s) => <Session key={`${s.id}${s.group_id || ''}`} s={s} finie />)}</div></section>}
       {upcoming.length === 0 && past.length === 0 && <p className="text-sm text-gray-500 text-center py-10">Aucune formation enregistrée pour le moment.</p>}
     </div>

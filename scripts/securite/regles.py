@@ -1399,3 +1399,8 @@ tdx('0411', 'push_subscriptions', sel=_PU_MIEN, ins=_PU_MIEN, upd=_PU_MIEN, dele
 # aucune règle d'écriture), lu comme l'avis après formation par le suivi et le formateur de la session, effacé par
 # qui gère le suivi.
 tdx('0414', 'session_ressentis', sel=_AVIS_VOIR, dele=_AVIS_GER)
+
+# Satisfaction de l'entreprise (0415) : donnée par le compte de l'espace entreprise (fonction de la base seulement,
+# aucune règle d'écriture), lue par le suivi, effacée par qui gère le suivi.
+tdx('0415', 'client_satisfactions', sel=f"company_id in {societes('formation.suivi.voir')}",
+    dele=f"company_id in {societes('formation.suivi.gerer')}")

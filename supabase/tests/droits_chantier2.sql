@@ -5216,6 +5216,80 @@ begin
     end;
   end if;
 
+  -- Satisfaction de l'entreprise (0415) : depuis l'espace entreprise, ses sessions terminées seulement, une alerte au premier avis
+  if to_regclass('public.client_satisfactions') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare
+      f_u uuid := gen_random_uuid(); f_c1 uuid; f_c2 uuid; f_s1 uuid; f_s2 uuid; f_s3 uuid; f_j jsonb; f_ok boolean; f_n int;
+    begin
+      insert into auth.users (id, email, aud, role) values (f_u, 'ent.avis@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active) values (f_u, 'ent.avis@test.invalid', 'entreprise', true)
+      on conflict (id) do update set role = 'entreprise', is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      insert into public.clients (name, client_type) values ('Essai avis 1', 'entreprise') returning id into f_c1;
+      insert into public.clients (name, client_type) values ('Essai avis 2', 'entreprise') returning id into f_c2;
+      insert into public.sessions (client_id, start_date, end_date) values (f_c1, current_date - 3, current_date - 2) returning id into f_s1;
+      insert into public.sessions (client_id, start_date, end_date) values (f_c2, current_date - 3, current_date - 2) returning id into f_s2;
+      insert into public.sessions (client_id, start_date, end_date) values (f_c1, current_date + 10, current_date + 10) returning id into f_s3;
+      insert into public.client_accounts (profile_id, client_id, email) values (f_u, f_c1, 'ent.avis@test.invalid');
+      perform set_config('request.jwt.claims', json_build_object('sub', f_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.ent_satisfaction(f_s1, '{"note_globale": 4, "q_organisation": 5, "recommande": true, "besoins": "Habilitation électrique"}');
+      f_j := public.ent_satisfaction(f_s1, '{"note_globale": 5, "recommande": true}');
+      execute 'reset role';
+      select count(*) into f_n from public.notifications where type = 'satisfaction_entreprise' and metadata->>'session_id' = f_s1::text;
+      if (f_j->>'note_globale')::int = 5 and f_n = 1
+         and (select count(*) from public.client_satisfactions where session_id = f_s1) = 1 then
+        v_lines := v_lines || 'OK      ent   0415 : avis de l''entreprise enregistré, modifiable, une seule alerte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ent   0415 : avis ' || coalesce(f_j::text, 'vide') || ' alertes ' || f_n)::text; end if;
+      execute 'set local role authenticated';
+      f_ok := false;
+      begin
+        perform public.ent_satisfaction(f_s2, '{"note_globale": 1}');
+      exception when others then f_ok := true;
+      end;
+      execute 'reset role';
+      if f_ok and not exists (select 1 from public.client_satisfactions where session_id = f_s2) then
+        v_lines := v_lines || 'OK      ent   0415 : pas d''avis sur la session d''une autre entreprise'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0415 : avis sur la session d''une autre entreprise'::text; end if;
+      execute 'set local role authenticated';
+      f_ok := false;
+      begin
+        perform public.ent_satisfaction(f_s3, '{"note_globale": 3}');
+      exception when others then f_ok := sqlerrm like 'L''avis se donne%';
+      end;
+      begin
+        perform public.ent_satisfaction(f_s1, '{"note_globale": 8}');
+        f_ok := false;
+      exception when others then null;
+      end;
+      execute 'reset role';
+      if f_ok then v_lines := v_lines || 'OK      ent   0415 : formation pas terminée et note invalide refusées'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0415 : avis avant la fin ou note invalide acceptés'::text; end if;
+      execute 'set local role authenticated';
+      f_ok := not exists (select 1 from public.client_satisfactions) and jsonb_array_length(public.ent_satisfactions()) = 1;
+      execute 'reset role';
+      if f_ok then v_lines := v_lines || 'OK      ent   0415 : table des avis fermée au compte entreprise, ses avis par la fonction'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0415 : table des avis lisible par le compte entreprise'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+      delete from public.notifications where type = 'satisfaction_entreprise' and metadata->>'client_id' = f_c1::text;
+      delete from public.client_satisfactions where client_id in (f_c1, f_c2);
+      delete from public.client_accounts where profile_id = f_u;
+      delete from public.sessions where id in (f_s1, f_s2, f_s3);
+      delete from public.sites where client_id in (f_c1, f_c2);
+      delete from public.clients where id in (f_c1, f_c2);
+      delete from public.profiles where id = f_u;
+      delete from auth.users where id = f_u;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   ent   0415 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
