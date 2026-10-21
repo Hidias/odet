@@ -3,7 +3,7 @@ import {
   Building2, Receipt, CreditCard, Search, Mail, Globe, Layers, FolderInput, Shield, Wallet, Calculator,
   Megaphone, FolderCheck, CheckCircle, BarChart3, AlertTriangle, Award, Eye, Target, ScrollText,
   MapPin, Briefcase, Settings, Sliders, ShieldCheck, BookUser, Workflow, Sparkles, StickyNote, CalendarClock, Inbox,
-  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint, Package, Landmark, Car, ListTodo, CalendarCheck, BookOpenText,
+  Home, Store, Wrench, ClipboardList, KanbanSquare, Fingerprint, Package, Landmark, Car, ListTodo, CalendarCheck, BookOpenText, HeartHandshake,
 } from 'lucide-react'
 
 // Registre des modules : chaque module déclare sa clé (celle de org_modules),
@@ -80,6 +80,8 @@ export const NAV_SECTIONS = [
       { to: '/pistes', right: 'clients.fiches.voir', icon: Workflow, label: 'Pistes', roles: SALES, module: 'pont', groupe: 'affaires' },
       // Chiffre d'affaires récurrent attendu sur 12 mois (fonction 12, 0150)
       { to: '/previsionnel', right: 'commercial.devis.voir', icon: BarChart3, label: 'Prévisionnel', roles: SALES, module: 'previsionnel', groupe: 'affaires' },
+      // Qui a apporté quoi (0409) : origine du chiffre d'affaires, par personne et par rôle
+      { to: '/apports', right: 'manager.cockpit.voir', icon: HeartHandshake, label: 'Qui a apporté quoi', roles: MANAGERS, groupe: 'affaires' },
       { to: '/prospection', right: 'commercial.prospection.voir', icon: Search, label: 'Suivi commercial', roles: SALES, module: 'prospection' },
       { to: '/mailing', right: 'communication.campagnes.gerer', icon: Mail, label: 'Campagnes email', roles: SALES, module: 'mailing' },
       { to: '/prospection-massive', right: 'commercial.prospection.voir', icon: Globe, label: 'Base prospects', roles: SALES, module: 'prospection' },

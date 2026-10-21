@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import OrigineSelect, { useOrigines } from '../../../core/apports/OrigineSelect'
+import { valeurOrigine, lireOrigine } from '../../../core/apports/apports'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { KanbanSquare, Plus, MessageSquare, Pencil } from 'lucide-react'
@@ -20,6 +22,7 @@ export default function AffairesClient({ client, peutModifierFiche, peutAffaires
   const [edition, setEdition] = useState(null)
   const [echange, setEchange] = useState(null)
   const [fiche, setFiche] = useState(null)
+  const origines = useOrigines()
 
   const charger = useCallback(async () => {
     const [a, m] = await Promise.all([
@@ -47,6 +50,7 @@ export default function AffairesClient({ client, peutModifierFiche, peutAffaires
       owner_id: fiche.owner_id || null, first_contact_on: fiche.first_contact_on || null, informed_at: fiche.informed_at || null,
       opposition_canaux: fiche.opposition_canaux, opposition_motif: fiche.opposition_motif || null,
     }
+    if (origines.disponible) Object.assign(maj, lireOrigine(fiche.origine))
     const { data, error } = await supabase.from('clients').update(maj).eq('id', client.id).select().single()
     if (error) return toast.error(error.message)
     toast.success('Fiche enregistrée')
@@ -99,9 +103,16 @@ export default function AffairesClient({ client, peutModifierFiche, peutAffaires
           <span>Segment : {client.segment ? label('segment', client.segment) : '—'}</span>
           <span>Source : {client.source ? label('source', client.source) : '—'}{client.source_detail ? ` (${client.source_detail})` : ''}</span>
           <span>Responsable : {responsable || '—'}</span>
+          {origines.disponible && <span>Apporté par : {(() => {
+            const v = valeurOrigine(client.introduced_by_profile, client.introduced_by_contributor)
+            if (!v) return '—'
+            if (v.startsWith('p:')) { const p = origines.equipe.find((x) => x.id === v.slice(2)); return p ? (p.display_name || p.email) : 'Membre de l\'équipe' }
+            return origines.apporteurs.find((x) => x.id === v.slice(2))?.name || 'Apporteur'
+          })()}</span>}
           {canaux.length > 0 && <span style={{ color: 'rgb(var(--c-danger))' }}>Opposition : {canaux.map((c) => CANAUX[c]).join(', ')}{client.opposition_at ? ` depuis le ${fr(client.opposition_at)}` : ''}</span>}
           {peutModifierFiche && <button type="button" className="text-accent-700 hover:underline ml-auto" onClick={() => setFiche({
             segment: client.segment || '', source: client.source || '', source_detail: client.source_detail || '', owner_id: client.owner_id || '',
+            origine: valeurOrigine(client.introduced_by_profile, client.introduced_by_contributor),
             first_contact_on: client.first_contact_on || '', informed_at: client.informed_at || '', opposition_canaux: canaux, opposition_motif: client.opposition_motif || '',
           })}>Modifier</button>}
         </div>
@@ -127,6 +138,12 @@ export default function AffairesClient({ client, peutModifierFiche, peutAffaires
                   <option value="">—</option>{comptes.map((c) => <option key={c.id} value={c.id}>{c.display_name || 'Compte'}</option>)}
                 </select>
               </div>
+              {origines.disponible && (
+                <div>
+                  <label className="label" htmlFor="cf-apport">Apporté par</label>
+                  <OrigineSelect id="cf-apport" value={fiche.origine} onChange={(v) => setFiche((f) => ({ ...f, origine: v }))} origines={origines} />
+                </div>
+              )}
               <div>
                 <label className="label" htmlFor="cf-det">Précision sur la source</label>
                 <input id="cf-det" className="input" value={fiche.source_detail} onChange={(e) => setFiche((f) => ({ ...f, source_detail: e.target.value }))} placeholder="Ex. : recommandé par…" />

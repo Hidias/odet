@@ -1384,3 +1384,8 @@ tdx('0408', 'meeting_templates', sel=any_of("company_id is null", VISIBLE), ins=
 _RE_MIEN = "(company_id in (select app.visible_companies()) and created_by = (select auth.uid()))"
 tdx('0408', 'meetings', sel=any_of(_PT_DIR, f"(client_id is not null and company_id in {societes('clients.fiches.voir')})", _RE_MIEN),
     ins=VISIBLE, upd=any_of(_PT_DIR, _RE_MIEN), dele=any_of(_PT_DIR, _RE_MIEN))
+
+# Qui a apporté quoi (0409) : apporteurs extérieurs lus avec les fiches clients, tenus par qui modifie les fiches.
+_AP_VOIR = f"company_id in {societes('clients.fiches.voir')}"
+_AP_MOD = f"company_id in {societes('clients.fiches.modifier')}"
+tdx('0409', 'business_contributors', sel=_AP_VOIR, ins=_AP_MOD, upd=_AP_MOD, dele=_AP_MOD)
