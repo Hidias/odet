@@ -5,13 +5,14 @@ import { useBranding, brandLogo } from '../../../core/branding/BrandingProvider'
 import {
   User, FileText, CheckCircle, AlertCircle, Loader2, Calendar, Star, MessageSquare,
   ExternalLink, Shield, ChevronRight, ChevronLeft, Fingerprint, ClipboardCheck, Sun, Sunset,
-  Zap, Trophy, BookOpen, Lock, Home, GraduationCap, MapPin,
+  Zap, Trophy, BookOpen, Lock, Home, GraduationCap, MapPin, PenLine, Sparkles, ShieldCheck, ArrowRight,
 } from 'lucide-react'
 import { format, parseISO, isToday, eachDayOfInterval } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import TraineeDocuments from '../../formation/components/TraineeDocuments'
 import CompteStagiairePortail from '../components/CompteStagiairePortail'
 import RessentiJour from '../components/RessentiJour'
+import { EcranVitrine, CodeCases } from '../components/Vitrine'
 import { estPanneReseau, garder, enAttente, envoyerEnAttente } from '../lib/fileSignatures'
 import { Banner } from '../../../ui/Banner'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
@@ -238,6 +239,7 @@ export default function TraineePortal() {
   // Numéro de sécurité sociale déjà connu : jamais renvoyé, seulement ses 3 derniers chiffres
   const [ssnOnFile, setSsnOnFile] = useState({ known: false, last3: '' })
   const [codeError, setCodeError] = useState('')
+  const [secoue, setSecoue] = useState(0)
 
   const [infoSheet, setInfoSheet] = useState(null)
   const [attendanceData, setAttendanceData] = useState({})
@@ -318,15 +320,18 @@ export default function TraineePortal() {
   }, [token])
 
   // Entrée par code (0423) : le code personnel identifie le stagiaire ; aucune liste de noms n'est chargée
-  const handleEntrer = async (e) => {
-    e.preventDefault()
+  const handleEntrer = async (e, valeur) => {
+    e?.preventDefault?.()
+    const codeSaisi = valeur || accessCode
+    if (codeSaisi.length !== 6 || submitting) return
     setSubmitting(true)
     setCodeError('')
     try {
-      const { data, error } = await supabase.rpc('portal_entrer', { p_token: token, p_code: accessCode })
+      const { data, error } = await supabase.rpc('portal_entrer', { p_token: token, p_code: codeSaisi })
       if (error) throw error
       if (!data?.success) {
         setCodeError(data?.error || 'Code incorrect')
+        setSecoue((n) => n + 1)
         setSubmitting(false)
         return
       }
@@ -829,6 +834,43 @@ export default function TraineePortal() {
 
   const goHub = () => setCurrentStep('hub')
 
+
+  // Accueil du portail (0423) : vitrine de l'organisme et code personnel, aucun nom d'inscrit
+  if (currentStep === 'select') {
+    const dates = session?.start_date && session?.end_date
+      ? (session.start_date === session.end_date
+        ? format(parseISO(session.start_date), 'd MMMM yyyy', { locale: fr })
+        : `Du ${format(parseISO(session.start_date), 'd MMM', { locale: fr })} au ${format(parseISO(session.end_date), 'd MMM yyyy', { locale: fr })}`)
+      : ''
+    return (
+      <EcranVitrine branding={branding} libelle="Portail stagiaire" pastille="Votre formation" pastilleIcone={Sparkles}
+        titre={session?.courses?.title || 'Votre formation'}
+        accroche={[dates, session?.location_city].filter(Boolean).join(' · ')}
+        atouts={[
+          { i: PenLine, t: 'Émargement sur votre téléphone, matin et après-midi' },
+          { i: FileText, t: 'Votre fiche, vos évaluations et vos documents de formation' },
+          { i: ShieldCheck, t: branding.qualiopi_certified ? 'Organisme certifié Qualiopi, données protégées' : 'Accès personnel protégé par votre code' },
+        ]}
+        pied={`${orgName}${branding.qualiopi_certified ? ', organisme certifié Qualiopi' : ''}`}>
+        <div className="w-12 h-12 rounded-full bg-accent-500/10 text-accent-600 flex items-center justify-center mb-5"><Lock className="w-6 h-6" aria-hidden="true" /></div>
+        <h2 className="font-display text-2xl font-semibold text-gray-900">Votre code personnel</h2>
+        <p className="text-sm text-gray-500 mt-1.5">Il figure sur votre convocation. Sinon, demandez-le à votre formateur.</p>
+        <form onSubmit={handleEntrer} className="mt-6">
+          <CodeCases id="portail-code" code={accessCode} erreur={!!codeError} secoue={secoue}
+            onChange={(v) => { setAccessCode(v); setCodeError('') }} onComplet={(v) => handleEntrer(null, v)} />
+          {codeError && <p role="alert" className="mt-3 text-sm text-[rgb(var(--c-danger))] flex items-start gap-1.5"><AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />{codeError}</p>}
+          <button type="submit" className="btn btn-primary w-full justify-center mt-5 h-11 gap-2" disabled={submitting || accessCode.length !== 6}>
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <>Entrer <ArrowRight className="w-4 h-4" aria-hidden="true" /></>}
+          </button>
+        </form>
+        <button type="button" onClick={() => setShowDocuments(true)} className="btn btn-secondary w-full justify-center mt-3 h-11 gap-2">
+          <FileText className="w-4 h-4" aria-hidden="true" /> Documents de formation
+        </button>
+        <p className="mt-6 text-xs text-gray-400 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />Code personnel : ne le communiquez pas. Aucun nom n'est affiché sur cette page.</p>
+      </EcranVitrine>
+    )
+  }
+
   return (
     <div className="min-h-screen py-4 px-3 sm:py-6 sm:px-4" style={{ background: 'rgb(var(--ground))' }}>
       <style>{portalStyles}</style>
@@ -898,46 +940,6 @@ export default function TraineePortal() {
 
         <div className="bg-white rounded-b-ui-lg shadow-md shadow-primary-900/5 p-5 sm:p-6">
           <div key={currentStep} className="portal-step-enter">
-
-            {/* Entrée par code personnel (0423) */}
-            {currentStep === 'select' && (
-              <div>
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 rounded-ui-lg bg-primary-900 flex items-center justify-center mx-auto mb-4 shadow-md">
-                    <Shield className="w-8 h-8 text-white" />
-                  </div>
-                  <h2 className="font-display text-xl font-bold mb-1">Votre code personnel</h2>
-                  <p className="text-gray-500">Il figure sur votre convocation. Sinon, demandez-le à votre formateur.</p>
-                </div>
-                <form onSubmit={handleEntrer} className="space-y-4">
-                  <div>
-                    <label className={labelClass} htmlFor="portail-code">Code à 6 chiffres</label>
-                    <input id="portail-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={accessCode}
-                      onChange={(e) => setAccessCode(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-ui-lg text-center text-2xl tracking-[0.4em] font-display focus:ring-2 focus:ring-accent-200 focus:border-accent-400"
-                      placeholder="000000" required autoFocus />
-                  </div>
-                  {codeError && (
-                    <div className="flex items-start gap-2 p-3 bg-[rgb(var(--c-danger-bg))] rounded-ui" role="alert">
-                      <AlertCircle className="w-5 h-5 text-[rgb(var(--c-danger))] flex-shrink-0 mt-0.5" />
-                      <div className="text-ui text-[rgb(var(--c-danger))]">{codeError}</div>
-                    </div>
-                  )}
-                  <button type="submit" disabled={submitting || accessCode.length !== 6}
-                    className="w-full py-3.5 bg-accent-500 text-accent-fg font-bold rounded-ui-lg disabled:bg-gray-200 disabled:text-gray-400 flex items-center justify-center gap-2">
-                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />} Entrer
-                  </button>
-                  <p className="text-ui-sm text-center text-gray-400">Votre code est personnel : ne le communiquez pas.</p>
-                </form>
-                <div className="mt-6 pt-5 border-t border-gray-100">
-                  <button onClick={() => setShowDocuments(true)}
-                    className="w-full p-4 bg-primary-900 text-white rounded-ui-lg hover:bg-primary-800 transition-all flex items-center justify-center gap-3 font-semibold">
-                    <FileText className="w-5 h-5" /> Documents de formation
-                  </button>
-                  <p className="text-ui-sm text-center text-gray-400 mt-2">Programme, supports pédagogiques et livrets</p>
-                </div>
-              </div>
-            )}
 
             {/* Fiche de renseignement */}
             {currentStep === 'info_sheet' && selectedTrainee && (
