@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
-import { Plus, Search, Edit, Trash2, X, Save, Clock, Users, Euro, Copy, Upload, FileSpreadsheet, Package, ChevronDown, ChevronRight, ClipboardList, GraduationCap, FileText, Loader2 } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, X, Save, Clock, Users, Euro, Copy, Upload, FileSpreadsheet, Package, ChevronDown, ChevronRight, ClipboardList, GraduationCap, FileText, Loader2, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import TestsPositionnement from './TestsPositionnement'
 import CourseDocumentsList from '../components/CourseDocumentsList'
@@ -16,6 +16,7 @@ import { PICTOGRAMMES } from '../pdf/pictogrammes'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { currentUserName } from '../../../core/org/currentOrg'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
+import { chargerCompletude, piecesManquantes, libellesManquants, PIECES } from '../lib/completude'
 
 // Champs du programme (fiche formation, migration 0048)
 const PROGRAMME_VIDE = {
@@ -142,6 +143,14 @@ export default function Courses() {
   const [importing, setImporting] = useState(false)
   const [importPreview, setImportPreview] = useState(null)
   const [activeTab, setActiveTab] = useState('formations')
+  // Pièces manquantes par formation (programme, support formateur, livret stagiaire, test de positionnement)
+  const [completude, setCompletude] = useState(null)
+  const [seulementIncompletes, setSeulementIncompletes] = useState(false)
+  useEffect(() => {
+    if (activeTab !== 'formations') return
+    chargerCompletude().then(setCompletude).catch(() => setCompletude(null))
+  }, [activeTab, courses])
+  const manquesDe = (c) => (completude ? piecesManquantes(c, completude.parFormation[c.id], completude.themesAvecTest) : [])
   const fileInputRef = useRef(null)
   const programInputRef = useRef(null)
   const [form, setForm] = useState({
@@ -704,15 +713,35 @@ export default function Courses() {
             </select>
           </div>
       
+          {/* Formations auxquelles il manque une pièce */}
+          {completude && (() => {
+            const n = filtered.filter((c) => manquesDe(c).length > 0).length
+            if (!n && !seulementIncompletes) return null
+            return (
+              <div className="flex flex-wrap items-center gap-3 rounded-ui border border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] px-4 py-3 text-ui">
+                <AlertTriangle className="w-5 h-5 text-[rgb(var(--c-warning))] flex-none" aria-hidden="true" />
+                <span className="flex-1 min-w-[12rem]">
+                  {n > 0
+                    ? <><span className="font-semibold">{n} formation{n > 1 ? 's' : ''} incomplète{n > 1 ? 's' : ''}</span> : il manque des pièces ({PIECES.map((p) => p.label).join(', ')}).</>
+                    : 'Toutes les formations affichées sont complètes.'}
+                </span>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSeulementIncompletes((v) => !v)} aria-pressed={seulementIncompletes}>
+                  {seulementIncompletes ? 'Voir toutes les formations' : 'Voir seulement celles-là'}
+                </button>
+              </div>
+            )
+          })()}
+
           {/* Liste */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.length === 0 ? (
+            {(seulementIncompletes ? filtered.filter((c) => manquesDe(c).length > 0) : filtered).length === 0 ? (
               <div className="col-span-full card p-8 text-center text-gray-500">
                 {search || themeFilter ? 'Aucun résultat' : 'Aucune formation - Créez-en une !'}
               </div>
             ) : (
-              filtered.map(course => {
+              (seulementIncompletes ? filtered.filter((c) => manquesDe(c).length > 0) : filtered).map(course => {
                 const theme = getTheme(course.theme_id)
+                const manques = manquesDe(course)
             return (
               <div key={course.id} className="card hover:shadow-md transition-shadow group">
                 <div className="flex items-start justify-between mb-3">
@@ -760,6 +789,13 @@ export default function Courses() {
                 
                 {course.description && (
                   <p className="text-ui text-gray-600 mb-3 line-clamp-2">{course.description}</p>
+                )}
+                {manques.length > 0 && (
+                  <p className="text-ui-sm font-medium text-[rgb(var(--c-warning))] mb-3 flex items-start gap-1.5"
+                    title={manques.map((m) => PIECES.find((p) => p.cle === m)?.aide).filter(Boolean).join('\n')}>
+                    <AlertTriangle className="w-4 h-4 flex-none mt-0.5" aria-hidden="true" />
+                    <span>Il manque : {libellesManquants(manques).join(', ')}</span>
+                  </p>
                 )}
                 
                 <div className="flex flex-wrap gap-3 text-ui text-gray-500">
