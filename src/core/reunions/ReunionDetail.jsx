@@ -11,7 +11,7 @@ import { Sheet } from '../../ui/Sheet'
 import { Banner } from '../../ui/Banner'
 import { confirmer } from '../../ui/Confirm'
 import SpeechToTextButton from '../../ui/SpeechToTextButton'
-import { TYPES_REUNION, RACCOURCIS, nouvelElement, insererLigne, membreDepuisNom, texteCompteRendu, lienMessagerie } from './reunions'
+import { TYPES_REUNION, RACCOURCIS, nouvelElement, insererLigne, membreDepuisNom, texteCompteRendu, lienMessagerie, pointLocal } from './reunions'
 import { chargerEquipe, nomProfil, creerAction } from '../point/actions'
 
 // Réunion ou rendez-vous (0408) : à gauche le guide (questions à poser, sujets à traiter, cochés au fil de l'échange,
@@ -101,7 +101,12 @@ export default function ReunionDetail() {
     await sauverNotes()
     setBusy(true)
     try {
-      const r = await callApi('/api/reunion-point', { meeting_id: id })
+      // Sans assistant configuré (ou indisponible) : les notes sont rangées d'après leurs raccourcis
+      let r
+      try { r = await callApi('/api/reunion-point', { meeting_id: id }) } catch (e) {
+        if (/pas encore de notes/i.test(e.message)) throw e
+        r = pointLocal({ ...m, notes }, equipe, nomProfil)
+      }
       setPoint({
         ...r,
         actions: r.actions.map((a) => ({ ...a, suivre: true, owner_id: membreDepuisNom(a.qui, equipe, nomProfil)?.id || '' })),
@@ -230,7 +235,9 @@ export default function ReunionDetail() {
             <button type="button" className="btn btn-primary" onClick={terminer} disabled={busy}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Enregistrer le compte rendu</button>
           </>}>
           <div className="space-y-4">
-            <Banner tone="info">À relire : l'assistant range vos notes sans rien inventer, mais vérifiez chaque ligne. Rien n'est envoyé.</Banner>
+            <Banner tone="info">{point.sansAssistant
+              ? 'Notes rangées d\'après les raccourcis (Décision, Action, À relancer, Info) et les réponses du guide. Complétez si besoin. Rien n\'est envoyé.'
+              : 'À relire : l\'assistant range vos notes sans rien inventer, mais vérifiez chaque ligne. Rien n\'est envoyé.'}</Banner>
             <div>
               <label className="label" htmlFor="pt-resume">Résumé</label>
               <textarea id="pt-resume" className="input min-h-[90px]" value={point.resume} onChange={(e) => setPoint({ ...point, resume: e.target.value })} />

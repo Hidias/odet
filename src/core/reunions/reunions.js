@@ -66,3 +66,67 @@ export function lienMessagerie({ a = [], objet = '', corps = '' }) {
   const dest = a.map((x) => String(x || '').trim().replace(/[^\w.@+-]/g, '')).filter((x) => x.includes('@')).join(',')
   return `mailto:${dest}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`
 }
+
+// ── Faire le point sans l'assistant (assistant non configuré) : rangement par les raccourcis des notes ──
+const PREFIXES = [
+  ['decisions', /^d[ée]cision\s*:\s*/i],
+  ['actions', /^action(\s*\([^)]*\))?\s*:\s*/i],
+  ['a_relancer', /^[àa]\s*relancer\s*:\s*/i],
+  ['infos', /^info\s*:\s*/i],
+]
+
+/** Date écrite dans une ligne (24/10, 24/10/2026, 24-10-26) : la prochaine à venir si l'année manque */
+export function dateDansTexte(t, auj = new Date()) {
+  const m = String(t || '').match(/\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b/)
+  if (!m) return ''
+  const j = Number(m[1]); const mo = Number(m[2])
+  if (j < 1 || j > 31 || mo < 1 || mo > 12) return ''
+  let a = m[3] ? Number(m[3].length === 2 ? `20${m[3]}` : m[3]) : auj.getFullYear()
+  const iso = (y) => `${y}-${String(mo).padStart(2, '0')}-${String(j).padStart(2, '0')}`
+  const jour = `${auj.getFullYear()}-${String(auj.getMonth() + 1).padStart(2, '0')}-${String(auj.getDate()).padStart(2, '0')}`
+  if (!m[3] && iso(a) < jour) a += 1
+  return iso(a)
+}
+
+export function pointLocal(m, equipe = [], nomProfil = (p) => p?.display_name || '', auj = new Date()) {
+  const out = { decisions: [], actions: [], a_relancer: [], infos: [] }
+  const libres = []
+  for (const brut of String(m.notes || '').split('\n')) {
+    const l = brut.trim()
+    if (!l) continue
+    const p = PREFIXES.find(([, re]) => re.test(l))
+    const texte = p ? l.replace(p[1], '').trim() : l
+    if (!texte) continue
+    if (p) out[p[0]].push(texte); else libres.push(texte)
+  }
+  const reponses = (m.guide || []).filter((g) => String(g.reponse || '').trim()).map((g) => `${g.texte} : ${String(g.reponse).trim()}`)
+  const actions = out.actions.map((t) => {
+    const premier = t.split(/\s+/)[0]
+    const membre = membreDepuisNom(premier, equipe, nomProfil)
+    return { titre: t, qui: membre ? nomProfil(membre) : '', echeance: dateDansTexte(t, auj) }
+  })
+  const date = m.starts_at ? new Date(m.starts_at).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' }) : ''
+  const interne = m.kind === 'reunion_interne'
+  const puces = [...reponses, ...out.infos, ...libres, ...out.decisions].map((x) => `- ${x}`)
+  const etapes = [...actions.map((a) => `- ${a.titre}`), ...out.a_relancer.map((x) => `- ${x}`)]
+  const corps = [
+    interne ? 'Bonjour à tous,' : 'Bonjour,',
+    '',
+    interne ? `Voici le compte rendu de notre réunion${date ? ` du ${date}` : ''}.` : `Merci pour le temps que vous nous avez accordé${date ? ` le ${date}` : ''}.`,
+    '',
+    'Voici le récapitulatif des éléments abordés :',
+    ...(puces.length ? puces : ['- (à compléter)']),
+    ...(etapes.length ? ['', 'Prochaines étapes :', ...etapes] : []),
+    '',
+    interne ? 'Bonne journée,' : 'Nous restons à votre disposition pour toute question.\n\nBien cordialement,',
+  ].join('\n')
+  return {
+    resume: [...reponses, ...libres].join('\n'),
+    decisions: out.decisions,
+    actions,
+    a_relancer: out.a_relancer,
+    prochain_rdv: '',
+    email: { objet: interne ? `Compte rendu : ${m.title}` : `Récapitulatif de notre échange${date ? ` du ${date}` : ''}`, corps },
+    sansAssistant: true,
+  }
+}

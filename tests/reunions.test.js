@@ -32,3 +32,25 @@ describe('réunions', () => {
     expect(lienMessagerie({ a: ['a@b.fr', 'c@d.fr'], objet: 'Récap', corps: 'Bonjour\nà vous' })).toBe('mailto:a@b.fr,c@d.fr?subject=R%C3%A9cap&body=Bonjour%0A%C3%A0%20vous')
   })
 })
+
+import { pointLocal, dateDansTexte } from '../src/core/reunions/reunions.js'
+describe('faire le point sans assistant', () => {
+  it('range les notes d\'après les raccourcis et prépare l\'email', () => {
+    const m = { kind: 'rdv_client', title: 'Découverte', starts_at: '2026-10-21T13:15:00Z',
+      guide: [{ texte: 'Effectif', reponse: '9 salariées' }, { texte: 'Sites', reponse: '' }],
+      notes: 'Former toute l\'équipe au SST\nDécision : deux sessions le samedi\nAction (qui, pour quand) : Hicham envoie le devis avant vendredi 24/10\nÀ relancer : rappeler Anne début novembre\nInfo : MAC pour certaines' }
+    const r = pointLocal(m, [{ id: 'h', display_name: 'Hicham Saidi', first_name: 'Hicham' }], (p) => p.display_name, new Date(2026, 9, 21))
+    expect(r.decisions).toEqual(['deux sessions le samedi'])
+    expect(r.actions).toEqual([{ titre: 'Hicham envoie le devis avant vendredi 24/10', qui: 'Hicham Saidi', echeance: '2026-10-24' }])
+    expect(r.a_relancer).toEqual(['rappeler Anne début novembre'])
+    expect(r.resume).toBe('Effectif : 9 salariées\nFormer toute l\'équipe au SST')
+    expect(r.email.corps).toContain('Voici le récapitulatif des éléments abordés :\n- Effectif : 9 salariées\n- MAC pour certaines\n- Former toute l\'équipe au SST\n- deux sessions le samedi')
+    expect(r.email.corps).toContain('Prochaines étapes :\n- Hicham envoie le devis avant vendredi 24/10\n- rappeler Anne début novembre')
+    expect(r.email.corps).not.toMatch(/\btu\b|\bton\b/)
+  })
+  it('lit une date écrite, l\'année suivante si elle est passée', () => {
+    expect(dateDansTexte('avant le 05/01', new Date(2026, 9, 21))).toBe('2027-01-05')
+    expect(dateDansTexte('le 24/10/26', new Date(2026, 9, 21))).toBe('2026-10-24')
+    expect(dateDansTexte('rien', new Date())).toBe('')
+  })
+})
