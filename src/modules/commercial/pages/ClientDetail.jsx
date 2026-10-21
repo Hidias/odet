@@ -26,6 +26,7 @@ import PistesClient from '../components/PistesClient'
 import RegistreClient from '../../registre/components/RegistreClient'
 import CaClient from '../components/CaClient'
 import AffairesClient from '../components/AffairesClient'
+import TarifsClient from '../components/TarifsClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
@@ -1512,6 +1513,9 @@ export default function ClientDetail() {
           <SitesClient client={client} peutModifier={d.modifier} onClientChange={loadClient} />
 
           <EcheancesClient client={client} peutModifier={d.modifier} peutStagiaires={d.stagiaires} />
+
+          {/* Tarifs négociés (0418) : saisis une fois, repris dans devis, factures, sessions et visites */}
+          {d.devisVoir && <TarifsClient client={client} peutModifier={d.modifier} />}
 
           <div className="bg-white rounded-ui border border-gray-200">
             <button onClick={() => setSections(s => ({ ...s, contacts: !s.contacts }))}

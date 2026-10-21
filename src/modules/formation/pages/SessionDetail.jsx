@@ -5527,7 +5527,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 
                 <div>
                   <label className="label">Prix total HT (€) - surcharge le prix formation</label>
-                  <input type="number" className="input" value={editForm.total_price} onChange={(e) => setEditForm({...editForm, total_price: e.target.value})} placeholder="Laisser vide = prix formation" />
+                  <input type="number" className="input" value={editForm.total_price} onChange={(e) => setEditForm({...editForm, total_price: e.target.value})} placeholder="Vide = tarif du client, sinon prix formation" />
                 </div>
                 
                 {/* Contact pour convocations */}

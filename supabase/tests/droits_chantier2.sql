@@ -5360,6 +5360,55 @@ begin
     end;
   end if;
 
+  -- Tarifs par client (0418) : repris sur la session, l'inscription inter et les pièces ; groupe, date de fin
+  if to_regclass('public.client_prices') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare k_a uuid; k_b uuid; k_c uuid; k_co uuid; k_s1 uuid; k_s2 uuid; k_si uuid; k_g uuid; k_p uuid; k_r public.client_prices;
+    begin
+      insert into public.clients (name, client_type, group_name) values ('Essai tarif A', 'entreprise', 'Groupe essai') returning id into k_a;
+      insert into public.clients (name, client_type, group_name) values ('Essai tarif B', 'entreprise', 'groupe essai ') returning id into k_b;
+      insert into public.clients (name, client_type) values ('Essai tarif C', 'entreprise') returning id into k_c;
+      insert into public.courses (title, code, price_ht) values ('Essai tarif', 'ESSAI-TARIF', 1200) returning id into k_co;
+      insert into public.client_prices (client_id, kind, course_id, prix_ht, prix_inter_ht, pour_le_groupe) values (k_a, 'formation', k_co, 900, 150, true);
+      insert into public.sessions (client_id, course_id, start_date, end_date) values (k_a, k_co, current_date + 40, current_date + 40) returning id into k_s1;
+      insert into public.sessions (client_id, course_id, start_date, end_date, total_price) values (k_a, k_co, current_date + 41, current_date + 41, 1000) returning id into k_s2;
+      if (select total_price from public.sessions where id = k_s1) = 900 and (select total_price from public.sessions where id = k_s2) = 1000 then
+        v_lines := v_lines || 'OK      base  0418 : prix intra du client repris sur la session, prix saisi respecté'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0418 : prix intra du client'::text; end if;
+      insert into public.sessions (course_id, session_type, start_date, end_date) values (k_co, 'inter', current_date + 42, current_date + 42) returning id into k_si;
+      insert into public.session_groups (session_id, client_id, kind) values (k_si, k_b, 'entreprise') returning id into k_g;
+      if (select price_per_person from public.session_groups where id = k_g) = 150 then
+        v_lines := v_lines || 'OK      base  0418 : tarif du groupe repris pour une autre société du groupe (inter par personne)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0418 : tarif du groupe non repris'::text; end if;
+      k_r := app.prix_client(k_c, 'formation', k_co);
+      update public.client_prices set valid_until = current_date - 1 where client_id = k_a;
+      if k_r.id is null and (app.prix_client(k_a, 'formation', k_co)).id is null then
+        v_lines := v_lines || 'OK      base  0418 : aucun tarif hors du groupe, tarif échu ignoré'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0418 : tarif appliqué hors du groupe ou échu'::text; end if;
+      insert into public.client_prices (client_id, kind, remise_pct) values (k_c, 'remise_pieces', 10);
+      k_r := app.prix_client(k_c, 'remise_pieces');
+      perform set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      if k_r.remise_pct = 10 and not exists (select 1 from public.client_prices) then
+        v_lines := v_lines || 'OK      sans  0418 : remise sur les pièces lue par la base, tarifs fermés sans droit'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sans  0418 : tarifs lisibles sans droit'::text; end if;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      delete from public.session_groups where id = k_g;
+      delete from public.sessions where id in (k_s1, k_s2, k_si);
+      delete from public.client_prices where client_id in (k_a, k_b, k_c);
+      delete from public.courses where id = k_co;
+      delete from public.sites where client_id in (k_a, k_b, k_c);
+      delete from public.clients where id in (k_a, k_b, k_c);
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0418 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

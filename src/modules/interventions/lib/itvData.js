@@ -2,6 +2,7 @@
 // Techniciens : comptes du personnel (profiles) cochés dans itv_technicians ; nom et téléphone lus dans le compte.
 
 import { supabase } from '../../../core/supabase'
+import { chargerTarifs, prixVisite } from '../../../core/tarifs/tarifsClient'
 import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { profileName } from '../../../core/org/currentOrg'
 import { DEFAULT_OPERATION_LABELS, todayIso } from './schedule'
@@ -361,7 +362,7 @@ async function currentUserName() {
  * entier à chaque visite), ou forfait de visite hors contrat, puis pièces fournies.
  * nbVisitesAn : nombre de visites prévues par an par le contrat (mois de visite × sites couverts).
  */
-export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1) {
+export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1, tarifs = []) {
   const tva = Number(settings?.tva_rate ?? 20)
   const lines = []
   const day = (visit.started_at || visit.planned_on || '').slice(0, 10)
@@ -372,7 +373,7 @@ export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1) {
     const detail = [`Visite du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}`, n > 1 ? `Forfait annuel ${annuel.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} € HT, ${n} visites par an` : null].filter(Boolean).join('\n')
     lines.push({ description_title: visit.itv_contracts.label || 'Contrat de maintenance', description_detail: detail, quantity: 1, unit: 'forfait', unit_price_ht: part, tva_rate: tva })
   } else {
-    lines.push({ description_title: 'Visite de vérification du matériel de sécurité', description_detail: `${visit.reference || ''} du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}`, quantity: 1, unit: 'forfait', unit_price_ht: Number(settings?.visit_fee_ht || 0), tva_rate: tva })
+    lines.push({ description_title: 'Visite de vérification du matériel de sécurité', description_detail: `${visit.reference || ''} du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}`, quantity: 1, unit: 'forfait', unit_price_ht: prixVisite(tarifs, settings?.visit_fee_ht).prix, tva_rate: tva })
   }
   // Pièces fournies : livraisons de biens (nature de l'opération, 0363) ; forfaits : prestations de services
   for (const p of parts || []) lines.push({ description_title: p.label, description_detail: '', quantity: Number(p.quantity || 1), unit: 'unité', unit_price_ht: Number(p.unit_price_ht || 0), tva_rate: tva, nature: 'bien' })
@@ -392,7 +393,9 @@ async function visitesParAn(contract, clientId) {
 }
 
 export async function createInvoiceDraft(visit, parts, settings) {
-  const lines = invoiceLinesForVisit(visit, parts, settings, await visitesParAn(visit.itv_contracts, visit.client_id))
+  // Forfait de visite hors contrat au tarif du client (0418) ; les pièces gardent le prix posé sur la visite
+  const tarifs = await chargerTarifs(visit.client_id)
+  const lines = invoiceLinesForVisit(visit, parts, settings, await visitesParAn(visit.itv_contracts, visit.client_id), tarifs)
   const t = totals(lines, settings?.tva_rate ?? 20)
   const contact = await loadPrimaryContact(visit.client_id)
   const inv = must(await supabase.from('invoices').insert({

@@ -27,6 +27,8 @@ import { confirmer } from '../../../ui/Confirm'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { useMarquesDemo } from '../../../core/demo/marquesDemo'
 import { mettreADisposition } from '../../../core/portail/documentsClient'
+import { chargerTarifs, prixFormation, ligneAuTarif } from '../../../core/tarifs/tarifsClient'
+import BadgeTarifClient from '../components/BadgeTarifClient'
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
   draft:    { label: 'Brouillon',  color: 'gray',   icon: FileText },
@@ -197,6 +199,13 @@ export default function Invoices() {
   const [typeFilter, setTypeFilter] = useState('')
   const [relanceFilter, setRelanceFilter] = useState(false)
   const [current, setCurrent] = useState(null)
+  // Tarifs du client de la facture (0418) : repris à l'ajout d'une formation, badge « tarif client » sur la ligne
+  const [tarifs, setTarifs] = useState([])
+  useEffect(() => {
+    let actif = true
+    chargerTarifs(current?.client_id).then((t) => { if (actif) setTarifs(t) })
+    return () => { actif = false }
+  }, [current?.client_id])
   const [items, setItems] = useState([emptyItem()])
   const [payments, setPayments] = useState([])
   const [showPaymentForm, setShowPaymentForm] = useState(false)
@@ -577,7 +586,9 @@ export default function Invoices() {
       // Les lignes du devis ne sont plus recopiées : un devis peut couvrir plusieurs sessions et sa remise
       // est déjà intégrée dans le prix de chaque session créée depuis le devis.
       if (sess.courses) {
-        const price = parseFloat(sess.total_price) || parseFloat(sess.courses.price_ht) || 0
+        // Sans prix sur la session : tarif du client (0418), sinon prix du catalogue
+        const tarifsSess = await chargerTarifs(groupe?.client_id || sess.client_id)
+        const price = parseFloat(sess.total_price) || prixFormation(tarifsSess, { ...sess.courses, id: sess.course_id }).prix || 0
         invoiceItems = [{
           code: sess.courses.code || '', description_title: sess.courses.title || '',
           description_detail: `Formation ${sess.is_intra ? 'intra' : 'inter'} du ${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}`,
@@ -677,6 +688,8 @@ export default function Invoices() {
       .select('session_id, trainee_id, trainees(first_name,last_name,client_id,clients(name))')
       .in('session_id', sessionIds)
 
+    // Tarifs du client (0418) pour les sessions sans prix
+    const tarifsLot = await chargerTarifs(first.client_id)
     const invoiceItems = sessionsSorted.map((sess, i) => {
       const names = (stData || []).filter(st => st.session_id === sess.id).map(st => st.trainees).filter(Boolean)
         .map(t => {
@@ -685,7 +698,7 @@ export default function Invoices() {
           return fullName
         })
       const suffix = names.length > 0 ? `\nStagiaires (${names.length}) : ${names.join(', ')}` : ''
-      const price = parseFloat(sess.total_price) || parseFloat(sess.courses.price_ht) || 0
+      const price = parseFloat(sess.total_price) || prixFormation(tarifsLot, { ...sess.courses, id: sess.course_id }).prix || 0
       return {
         code: sess.courses.code || '', description_title: sess.courses.title || '',
         description_detail: `Formation ${sess.is_intra ? 'intra' : 'inter'} du ${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}${suffix}`,
@@ -1134,7 +1147,7 @@ export default function Invoices() {
   const updateItem = (i, f, v) => { const n = [...items]; n[i] = {...n[i], [f]: v}; setItems(n) }
   const addItem = () => setItems([...items, emptyItem()])
   const removeItem = (i) => setItems(items.filter((_, x) => x !== i))
-  const addFromCourse = (c) => setItems([...items.filter(it => it.description_title), {code: c.code || '', description_title: c.title, description_detail: c.description || '', quantity: 1, unit: 'unité', unit_price_ht: c.price_ht || 0, tva_rate: 20, course_id: c.id}])
+  const addFromCourse = (c) => setItems([...items.filter(it => it.description_title), {code: c.code || '', description_title: c.title, description_detail: c.description || '', quantity: 1, unit: 'unité', unit_price_ht: prixFormation(tarifs, c).prix, tva_rate: 20, course_id: c.id}])
 
   // ─── Sort ───
   const toggleSort = (field) => {
@@ -1816,7 +1829,7 @@ export default function Invoices() {
                   </div>
                 </div>
                 <div className="col-span-1"><input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui text-center" readOnly={ro} step="0.01" /></div>
-                <div className="col-span-2"><input type="number" value={item.unit_price_ht} onChange={e => updateItem(idx, 'unit_price_ht', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui text-right" readOnly={ro} step="0.01" /></div>
+                <div className="col-span-2"><input type="number" value={item.unit_price_ht} onChange={e => updateItem(idx, 'unit_price_ht', e.target.value)} className="w-full border rounded px-2 py-1.5 text-ui text-right" readOnly={ro} step="0.01" />{ligneAuTarif(tarifs, item) && <div className="text-right mt-0.5"><BadgeTarifClient /></div>}</div>
                 <div className="col-span-1"><select value={item.tva_rate} onChange={e => updateItem(idx, 'tva_rate', e.target.value)} className="w-full border rounded px-1 py-1.5 text-ui-sm" disabled={ro}>{TVA_RATES.map(r => <option key={r} value={r}>{r}%</option>)}</select></div>
                 <div className="col-span-1 text-right pt-2 text-ui font-medium">{money(calcItemTotal(item))}</div>
                 {!ro && <div className="col-span-1 text-center pt-1"><button onClick={() => removeItem(idx)} className="p-1 text-[rgb(var(--c-danger))] hover:text-[rgb(var(--c-danger))]"><X size={16} /></button></div>}

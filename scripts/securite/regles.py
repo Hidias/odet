@@ -1404,3 +1404,9 @@ tdx('0414', 'session_ressentis', sel=_AVIS_VOIR, dele=_AVIS_GER)
 # aucune règle d'écriture), lue par le suivi, effacée par qui gère le suivi.
 tdx('0415', 'client_satisfactions', sel=f"company_id in {societes('formation.suivi.voir')}",
     dele=f"company_id in {societes('formation.suivi.gerer')}")
+
+# Tarifs par client (0418) : lus par qui voit les devis (jamais par le technicien sans droit aux prix), tenus par qui
+# modifie les fiches clients.
+tdx('0418', 'client_prices', sel=f"company_id in {societes('commercial.devis.voir')}",
+    ins=f"company_id in {societes('clients.fiches.modifier')}", upd=f"company_id in {societes('clients.fiches.modifier')}",
+    dele=f"company_id in {societes('clients.fiches.modifier')}")
