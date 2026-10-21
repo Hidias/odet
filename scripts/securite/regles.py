@@ -1416,6 +1416,14 @@ tdx('0418', 'client_prices', sel=f"company_id in {societes('commercial.devis.voi
 tdx('0420', 'online_registrations', sel=f"company_id in {societes('formation.inscriptions.gerer')}",
     dele=f"company_id in {societes('formation.inscriptions.gerer')}")
 
+# Quiz flash (0425) : parties, joueurs et réponses lus avec les sessions, écrits seulement par les fonctions de la
+# base ; surnoms gérés avec le catalogue.
+for n in ['quiz_flash_parties', 'quiz_flash_joueurs', 'quiz_flash_reponses']:
+    tdx('0425', n, sel=f"company_id in {societes('formation.sessions.voir')}")
+tdx('0425', 'quiz_flash_surnoms', sel=f"company_id in {societes('formation.catalogue.voir')}",
+    ins=f"company_id in {societes('formation.catalogue.gerer')}", upd=f"company_id in {societes('formation.catalogue.gerer')}",
+    dele=f"company_id in {societes('formation.catalogue.gerer')}")
+
 # Créneaux récurrents (0422) : lus avec les sessions, écrits par qui crée les sessions, effacés par qui les supprime.
 tdx('0422', 'session_recurrences', sel=f"company_id in {societes('formation.sessions.voir')}",
     ins=f"company_id in {societes('formation.sessions.creer')}", upd=f"company_id in {societes('formation.sessions.creer')}",

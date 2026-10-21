@@ -106,6 +106,7 @@ export default function TestsPositionnement() {
       for_positioning: !!q.for_positioning,
       for_evaluation: q.kind === 'open' || q.kind === 'survey' ? false : !!q.for_evaluation,
       is_active: q.is_active !== false,
+      ...('for_flash' in q ? { for_flash: q.for_flash !== false } : {}),
       image_url: q.image_url || null,
       scoring_rubric: q.scoring_rubric || null,
       critical: !!q.critical,
@@ -495,6 +496,11 @@ export default function TestsPositionnement() {
                             <label className={`flex items-center gap-2 text-ui py-1 ${scored ? 'cursor-pointer' : 'opacity-50'}`}>
                               <input type="checkbox" checked={!!q.for_evaluation} disabled={!scored || !droits.modifier} onChange={(e) => update(q.id, { for_evaluation: e.target.checked })} className="w-4 h-4 accent-[rgb(var(--c-accent-500))]" /> Entraînement et évaluation des acquis
                             </label>
+                            {(q.kind === 'single' || q.kind === 'truefalse') && (
+                              <label className="flex items-center gap-2 text-ui py-1 cursor-pointer">
+                                <input type="checkbox" checked={q.for_flash !== false} disabled={!droits.modifier} onChange={(e) => update(q.id, { for_flash: e.target.checked })} className="w-4 h-4 accent-[rgb(var(--c-accent-500))]" /> Quiz flash en cours de formation
+                              </label>
+                            )}
                           </div>
                           <div>
                             <div className="label">Image (URL, facultatif)</div>

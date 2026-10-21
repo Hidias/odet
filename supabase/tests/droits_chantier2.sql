@@ -5781,6 +5781,92 @@ begin
     end;
   end if;
 
+  -- Quiz flash (0425) : partie lancée par l'équipe, jeu sur le portail par surnom, points calculés par la base
+  if to_regprocedure('public.quiz_flash_lancer(uuid, text, uuid, integer)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare f_th uuid; f_co uuid; f_s uuid; f_tok text; f_t uuid; f_code text; f_tic text; f_j jsonb; f_p uuid; f_ok boolean; f_soc uuid; f_e jsonb; f_bonne int;
+    begin
+      select id into f_soc from public.companies order by created_at limit 1;
+      insert into public.training_themes (company_id, code, name) values (f_soc, 'QF-ESSAI', 'Essai quiz flash') returning id into f_th;
+      insert into public.theme_questions (company_id, theme_id, question_text, question_type, kind, options, correct_index, explanation)
+      values (f_soc, f_th, 'Q1 essai', 'single_choice', 'single', '["A","B","C","D"]'::jsonb, 1, 'Parce que B'),
+             (f_soc, f_th, 'Q2 essai', 'single_choice', 'single', to_jsonb('["A","B","C"]'::text), 0, null),
+             (f_soc, f_th, 'Q3 essai', 'single_choice', 'truefalse', '["Vrai","Faux"]'::jsonb, 0, null),
+             (f_soc, f_th, 'Q4 ouverte', 'open', 'open', null, null, null);
+      insert into public.courses (company_id, title, theme_id) values (f_soc, 'Essai quiz flash', f_th) returning id into f_co;
+      insert into public.sessions (company_id, course_id, session_type, start_date, end_date) values (f_soc, f_co, 'intra', current_date, current_date)
+        returning id, attendance_token into f_s, f_tok;
+      insert into public.trainees (first_name, last_name) values ('Quiz', 'Joueuse') returning id into f_t;
+      insert into public.session_trainees (session_id, trainee_id) values (f_s, f_t);
+      select access_code into f_code from public.session_trainees where session_id = f_s and trainee_id = f_t;
+      execute 'set local role anon';
+      f_tic := public.portal_entrer(f_tok, f_code)->>'ticket';
+      f_ok := false;
+      begin perform public.quiz_flash_lancer(f_s, 'direct', null, 5); exception when others then f_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      f_j := public.quiz_flash_lancer(f_s, 'direct', null, 5);
+      f_p := (f_j->>'id')::uuid;
+      execute 'reset role';
+      if f_ok and (f_j->>'questions')::int = 3 then
+        v_lines := v_lines || 'OK      dir   0425 : quiz lancé par l''équipe seulement, questions à une bonne réponse du thème (3 sur 4)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0425 : lancement ' || coalesce(f_j::text, ''))::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+      execute 'set local role anon';
+      f_j := public.portal_quiz_flash(f_tok, f_t, f_tic);
+      execute 'reset role';
+      if f_j->>'partie' = f_p::text and f_j->>'phase' = 'attente' and length(f_j->'moi'->>'surnom') > 2 and f_j::text not like '%Joueuse%' then
+        v_lines := v_lines || 'OK      anon  0425 : le stagiaire rejoint le quiz sous un surnom, sans son nom'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0425 : rejoindre ' || coalesce(f_j::text, ''))::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      f_e := public.quiz_flash_piloter(f_p, 'demarrer');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      select correct_index into f_bonne from public.theme_questions where id = (select question_ids[1] from public.quiz_flash_parties where id = f_p);
+      execute 'set local role anon';
+      f_j := public.portal_quiz_flash(f_tok, f_t, f_tic);
+      f_ok := not (f_j->'question' ? 'bonne') and not (f_e->'question' ? 'bonne');
+      f_j := public.portal_quiz_flash_repondre(f_tok, f_t, f_tic, f_p, 0, f_bonne, false);
+      f_ok := f_ok and (f_j->>'juste')::boolean and (f_j->>'points')::int between 500 and 1000;
+      begin perform public.portal_quiz_flash_repondre(f_tok, f_t, f_tic, f_p, 0, 0, false); f_ok := false; exception when others then null; end;
+      execute 'reset role';
+      if f_ok then v_lines := v_lines || 'OK      anon  0425 : réponse notée par la base (rapidité), une seule fois, bonne réponse cachée avant'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0425 : réponse ' || coalesce(f_j::text, ''))::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      f_e := public.quiz_flash_piloter(f_p, 'corriger');
+      execute 'reset role';
+      if f_e->'question' ? 'bonne' and (f_e->'question'->>'reponses')::int = 1 and f_e::text not like '%Joueuse%' then
+        v_lines := v_lines || 'OK      dir   0425 : écran projeté : correction et réponses en direct, jamais de vrai nom'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0425 : écran ' || coalesce(f_e::text, ''))::text; end if;
+      -- Sans le droit : l'écran du formateur est refusé
+      perform set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      f_ok := false;
+      begin perform public.quiz_flash_ecran(f_p); exception when others then f_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if f_ok then v_lines := v_lines || 'OK      sans  0425 : écran et pilotage du quiz réservés à qui peut modifier la session'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sans  0425 : écran du quiz sans droit'::text; end if;
+      delete from public.quiz_flash_parties where session_id = f_s;
+      delete from public.trainee_info_sheets where session_id = f_s;
+      delete from public.session_trainees where session_id = f_s;
+      delete from public.sessions where id = f_s;
+      delete from public.trainees where id = f_t;
+      delete from public.courses where id = f_co;
+      delete from public.theme_questions where theme_id = f_th;
+      delete from public.training_themes where id = f_th;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0425 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

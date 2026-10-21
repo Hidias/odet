@@ -13,6 +13,7 @@ import TraineeDocuments from '../../formation/components/TraineeDocuments'
 import CompteStagiairePortail from '../components/CompteStagiairePortail'
 import RessentiJour from '../components/RessentiJour'
 import { EcranVitrine, CodeCases } from '../components/Vitrine'
+import QuizFlashJeu from '../components/QuizFlashJeu'
 import { estPanneReseau, garder, enAttente, envoyerEnAttente } from '../lib/fileSignatures'
 import { Banner } from '../../../ui/Banner'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
@@ -889,6 +890,8 @@ export default function TraineePortal() {
             </div>
           </div>
         )}
+        {/* Quiz flash lancé par le formateur (0425) : bandeau, puis jeu en plein écran */}
+        {selectedTrainee && !['select', 'absent'].includes(currentStep) && <QuizFlashJeu token={token} traineeId={selectedTrainee.id} ticket={portalTicket} />}
         {/* En-tête aux couleurs de l'organisme */}
         <div className="bg-nav text-nav-fg rounded-t-ui-lg p-5 relative overflow-hidden">
           <div className="relative">
