@@ -292,12 +292,15 @@ export default function DuerpProjects() {
 
       // Fusionner les catégories de risques de tous les secteurs (dédupliquées)
       const allRiskCodes = [...new Set(selectedSectors.flatMap(s => s.default_risk_codes || []))]
+      // Modèles de risques injectés : gardés pour l'écran de rattachement plus bas
+      let templates = []
       if (allRiskCodes.length) {
-        const { data: templates } = await supabase
+        const { data: tpl } = await supabase
           .from('duerp_risk_templates')
           .select('*')
           .in('category_code', allRiskCodes)
           .order('sort_order')
+        templates = tpl || []
         
         if (templates?.length) {
           const risks = templates.map((t, i) => ({

@@ -42,6 +42,11 @@ jobs:
       - name: Tests
         run: npm test
 
+      - name: Noms non définis (écrans et routes)
+        run: |
+          npm i --no-save --no-audit --no-fund eslint@9 eslint-plugin-react@7 eslint-plugin-react-hooks@5 globals@15
+          npx eslint --no-config-lookup -c scripts/qualite/noms.config.mjs src api
+
   # Factur-X : cas fictifs (facture, remise et deux taux, avoir, client public Chorus Pro, particulier, ligne exonérée,
   # autoliquidation, franchise) validés par Mustang (schéma CII et règles EN 16931). Outil libre, aucun service payant.
   facturx:

@@ -225,8 +225,8 @@ export default function ProcessEditor() {
         type,
         title: SHAPE_TYPES[type].label,
         description: '',
-        position_x: centerX - SHAPE_WIDTH / 2,
-        position_y: centerY - SHAPE_HEIGHT / 2,
+        position_x: newX,
+        position_y: newY,
       })
       .select()
       .single()
