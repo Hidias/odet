@@ -1394,3 +1394,8 @@ tdx('0409', 'business_contributors', sel=_AP_VOIR, ins=_AP_MOD, upd=_AP_MOD, del
 # (push_keys) n'ont aucune règle : seul le serveur les lit.
 _PU_MIEN = "profile_id = (select auth.uid())"
 tdx('0411', 'push_subscriptions', sel=_PU_MIEN, ins=_PU_MIEN, upd=_PU_MIEN, dele=_PU_MIEN)
+
+# Ressenti au fil de la formation (0414) : donné par le stagiaire sur le portail (fonction de la base seulement,
+# aucune règle d'écriture), lu comme l'avis après formation par le suivi et le formateur de la session, effacé par
+# qui gère le suivi.
+tdx('0414', 'session_ressentis', sel=_AVIS_VOIR, dele=_AVIS_GER)
