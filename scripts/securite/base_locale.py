@@ -267,6 +267,8 @@ ORDRE_PROD = (
     + ['0412']
     # Alertes sur le téléphone (notifications web), 21/10
     + ['0411']
+    # Bilan des attentes en fin de formation, 21/10
+    + ['0413']
 )
 
 

@@ -46,6 +46,7 @@ import { confirmer, demander } from '../../../ui/Confirm'
 import ChoixSiteSession from '../components/ChoixSiteSession'
 import SessionGroupes from '../components/SessionGroupes'
 import PiloteSession from '../../pilote/PiloteSession'
+import BilanAttentes from '../components/BilanAttentes'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
@@ -3773,6 +3774,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {/* TAB: Suivi & Évaluations */}
       {activeTab === 'suivi' && (
         <div className="space-y-6">
+          {/* Bilan des attentes en fin de formation (0413) */}
+          {session?.id && <BilanAttentes sessionId={session.id} />}
           {/* Évaluations à chaud - qualité complet */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
