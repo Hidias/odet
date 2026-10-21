@@ -62,6 +62,8 @@ const AuditLogs = lazy(importSur(() => import('../core/audit/AuditLogs')))
 const Quotes = lazy(importSur(() => import('../modules/commercial/pages/Quotes')))
 const ActionsEquipe = lazy(importSur(() => import('../core/point/ActionsEquipe')))
 const PointSemaine = lazy(importSur(() => import('../core/point/PointSemaine')))
+const Reunions = lazy(importSur(() => import('../core/reunions/Reunions')))
+const ReunionDetail = lazy(importSur(() => import('../core/reunions/ReunionDetail')))
 const Invoices = lazy(importSur(() => import('../modules/commercial/pages/Invoices')))
 const QualiteEditables = lazy(importSur(() => import('../modules/qualite/pages/QualiteEditables')))
 const Completude = lazy(importSur(() => import('../modules/qualite/pages/Completude')))
@@ -305,6 +307,8 @@ export default function App() {
             <Route path="devis" element={<Quotes />} />
             <Route path="actions" element={<ActionsEquipe />} />
             <Route path="point-semaine" element={<PointSemaine />} />
+            <Route path="reunions" element={<Reunions />} />
+            <Route path="reunions/:id" element={<ReunionDetail />} />
             <Route path="factures" element={<Invoices />} />
             <Route path="prospection" element={<ProspectionTabs />} />
             <Route path="prospection/:id" element={<ProspectRDVDetail />} />

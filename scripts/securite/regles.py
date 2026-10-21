@@ -1373,3 +1373,14 @@ tdx('0407', 'weekly_briefs', sel=_PT_DIR, ins=_PT_DIR, upd=_PT_DIR, dele=_PT_DIR
 _PT_DEST = any_of(_PT_DIR, f"company_id in {societes('parametres.utilisateurs.gerer')}")
 tdx('0407', 'weekly_brief_recipients', sel=any_of(_PT_DEST, "profile_id = (select auth.uid())"), ins=_PT_DEST, upd=_PT_DEST,
     dele=_PT_DEST)
+
+# Réunions et rendez-vous (0408) : trames lues par tous (celles sans société sont proposées à toutes), réglées avec la
+# configuration de l'organisme (trames de plateforme : administration de la plateforme). Réunions lues par la
+# direction, par qui voit les fiches clients (rendez-vous d'un client) et par leur auteur ; ajoutées par tout membre ;
+# modifiées et effacées par la direction ou leur auteur.
+_RE_ORG = f"company_id in {societes('parametres.organisme.modifier')}"
+tdx('0408', 'meeting_templates', sel=any_of("company_id is null", VISIBLE), ins=any_of(_RE_ORG, f"(company_id is null and {PLAT_D})"),
+    upd=any_of(_RE_ORG, f"(company_id is null and {PLAT_D})"), dele=any_of(_RE_ORG, f"(company_id is null and {PLAT_D})"))
+_RE_MIEN = "(company_id in (select app.visible_companies()) and created_by = (select auth.uid()))"
+tdx('0408', 'meetings', sel=any_of(_PT_DIR, f"(client_id is not null and company_id in {societes('clients.fiches.voir')})", _RE_MIEN),
+    ins=VISIBLE, upd=any_of(_PT_DIR, _RE_MIEN), dele=any_of(_PT_DIR, _RE_MIEN))

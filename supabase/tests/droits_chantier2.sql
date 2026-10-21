@@ -4910,6 +4910,46 @@ begin
     end;
   end if;
 
+  -- Réunions (0408) : trames proposées, compte rendu daté, personne choisie gardée au point de la semaine
+  if to_regclass('public.meetings') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare z_co uuid; z_m uuid; z_w date; z_b public.weekly_briefs; z_a uuid; z_p uuid;
+    begin
+      z_co := (select id from public.companies order by created_at limit 1);
+      if (select count(*) from public.meeting_templates where company_id is null and active) >= 5 then
+        v_lines := v_lines || 'OK      base  0408 : trames de rendez-vous proposées à toutes les sociétés'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0408 : trames absentes'::text; end if;
+      insert into public.meetings (company_id, kind, title, notes) values (z_co, 'reunion_interne', 'Réunion essai 0408', 'Décision : essai')
+        returning id into z_m;
+      update public.meetings set status = 'terminee', summary = '{"resume": "essai"}'::jsonb where id = z_m;
+      if (select closed_at is not null from public.meetings where id = z_m) then
+        v_lines := v_lines || 'OK      base  0408 : compte rendu clos et daté'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0408 : compte rendu sans date'::text; end if;
+      delete from public.meetings where id = z_m;
+      -- Point : personne choisie à la main sur une ligne, gardée à l'actualisation
+      z_w := date_trunc('week', (now() at time zone 'Europe/Paris')::date)::date + 84;
+      z_p := (select m.profile_id from public.company_members m where m.company_id = z_co limit 1);
+      insert into public.team_actions (company_id, title, due_on) values (z_co, 'Action essai 0408', z_w + 1) returning id into z_a;
+      z_b := app.point_preparer(z_co, z_w, 'point', null);
+      update public.weekly_briefs set lines = (select jsonb_agg(case when l->>'id' = 'act:' || z_a
+          then l || jsonb_build_object('owner_id', z_p, 'owner_nom', 'Essai', 'owner_choisi', true) else l end) from jsonb_array_elements(lines) l)
+        where id = z_b.id;
+      z_b := app.point_preparer(z_co, z_w, 'point', null);
+      if exists (select 1 from jsonb_array_elements(z_b.lines) l where l->>'id' = 'act:' || z_a and l->>'owner_nom' = 'Essai'
+                 and (l->'owner_id') is not distinct from to_jsonb(z_p)) then
+        v_lines := v_lines || 'OK      base  0408 : personne choisie gardée à l''actualisation du point'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0408 : personne choisie perdue'::text; end if;
+      delete from public.weekly_briefs where company_id = z_co and week_start = z_w;
+      delete from public.team_actions where id = z_a;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0408 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
