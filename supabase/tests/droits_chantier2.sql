@@ -6143,6 +6143,13 @@ begin
     end;
   end if;
 
+  -- Fiche formation complète dans les espaces (0433) : moyens pédagogiques et techniques transmis
+  v_total := v_total + 1;
+  if (select bool_and(position($c$'methods', co.methods$c$ in pg_get_functiondef(f::regprocedure)) > 0 and position($c$'trainer_equipment', co.trainer_equipment$c$ in pg_get_functiondef(f::regprocedure)) > 0)
+      from unnest(array['public.client_portal_data(text,text)', 'public.ent_sessions()', 'public.ext_sessions()']) f) then
+    v_lines := v_lines || 'OK      base  0433 : espaces : moyens pédagogiques et techniques de la formation transmis'::text;
+  else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0433 : moyens de la formation absents des espaces'::text; end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

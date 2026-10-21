@@ -344,7 +344,9 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     { title: 'Engagements des parties', blocks: [{ p: "Le Stagiaire s'engage à suivre la formation avec assiduité et à signer les feuilles d'émargement. L'Organisme de formation s'engage à mettre en oeuvre les moyens pédagogiques, techniques et d'encadrement nécessaires pour atteindre les objectifs visés et à délivrer les documents de fin de formation." }] },
     { title: 'Dispositions financières', blocks: art3 },
     { title: 'Moyens, modalités pédagogiques et intervenants', blocks: [
-      { p: course.teaching_methods || course.pedagogical_methods || "La formation est dispensée selon une approche active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues." },
+      { p: course.methods || course.teaching_methods || course.pedagogical_methods || "La formation est dispensée selon une approche active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues." },
+      ...(course.trainer_equipment ? [{ p: `Moyens techniques : ${course.trainer_equipment}` }] : []),
+      ...(course.material ? [{ p: `À prévoir par le Stagiaire : ${course.material}` }] : []),
       { p: `Intervenant : ${trainer ? `${trainer.first_name} ${trainer.last_name}${trainer.qualifications || trainer.certifications ? `, ${trainer.qualifications || trainer.certifications}` : ''}` : (ORG.dirigeant || "formateur de l'Organisme")}.` },
     ] },
     { title: "Modalités d'évaluation et documents délivrés", blocks: [
@@ -367,8 +369,9 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     { title: 'Dispositions financières', blocks: art3 },
     { title: 'Moyens et modalités pédagogiques', blocks: [
       // Moyens de la formation choisie (fiche formation), sinon la description générale ; intervenant nommé
-      { p: course.teaching_methods || course.pedagogical_methods || "La formation est dispensée selon une approche active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues. Les supports pédagogiques sont adaptés aux objectifs de la formation et au public accueilli." },
-      ...(course.material ? [{ p: `Moyens techniques : ${course.material}` }] : []),
+      { p: course.methods || course.teaching_methods || course.pedagogical_methods || "La formation est dispensée selon une approche active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues. Les supports pédagogiques sont adaptés aux objectifs de la formation et au public accueilli." },
+      ...(course.trainer_equipment ? [{ p: `Moyens techniques : ${course.trainer_equipment}` }] : []),
+      ...(course.material ? [{ p: `À prévoir par les participants : ${course.material}` }] : []),
       { p: `Intervenant : ${trainer ? `${trainer.first_name} ${trainer.last_name}${trainer.qualifications || trainer.certifications ? `, ${trainer.qualifications || trainer.certifications}` : ''}` : (ORG.dirigeant || "formateur de l'Organisme")}.` },
       { p: "La présence des participants est attestée par un émargement dématérialisé par QR code individuel, ou sur support papier en cas d'indisponibilité du réseau. Un émargement est réalisé par demi-journée, signé par chaque participant et contresigné par le formateur." },
     ] },
