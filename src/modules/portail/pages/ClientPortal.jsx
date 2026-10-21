@@ -8,6 +8,7 @@ import PublicLayout from '../../../app/PublicLayout'
 import { useBranding } from '../../../core/branding/BrandingProvider'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
+import { appliquerEmis } from '../../formation/lib/documentsEmis'
 
 // Espace entreprise, version minimale : lien + code à 6 chiffres, consultation des sessions
 // de l'entreprise et téléchargement de ses documents. Lecture seule.
@@ -111,6 +112,12 @@ export default function ClientPortal() {
     return (s.session_trainees || []).map(st => ({ ...st.trainees, result: st.result || null, access_code: st.access_code }))
   }
 
+  // Versions émises des certificats et attestations (0400) ; sans réponse, les documents sont calculés comme avant
+  async function documentsEmis() {
+    const { data: d, error: e } = await supabase.rpc('client_portal_documents_emis', { p_token: token, p_code: code })
+    return e || !Array.isArray(d) ? [] : d
+  }
+
   async function download(s, kind) {
     if (!orgReady) return
     const key = `${s.id}:${kind}`
@@ -135,9 +142,12 @@ export default function ClientPortal() {
           attendanceData: hasAttendance ? { signatures: [], halfdays: s.halfdays || [], proxies: s.proxies || [], absents, trainerSignatureBase64 } : null,
         })
       } else if (kind === 'attestations') {
-        out = await generateAllPDF('attestation', session, trainees.filter(t => !((s.session_trainees || []).find(st => st.trainee_id === t.id)?.absent)), { trainer })
+        // Version émise (0399, 0400) : le client reçoit le document tel qu'il a été remis
+        const emis = await documentsEmis()
+        out = await generateAllPDF('attestation', session, appliquerEmis(emis, s.id, 'attestation', trainees.filter(t => !((s.session_trainees || []).find(st => st.trainee_id === t.id)?.absent))), { trainer })
       } else if (kind === 'certificats') {
-        out = await generateAllPDF('certificat', session, trainees.filter(t => t.result), { trainer })
+        const emis = await documentsEmis()
+        out = await generateAllPDF('certificat', session, appliquerEmis(emis, s.id, 'certificat', trainees).filter(t => t.result), { trainer })
       }
       if (!out) { setError('Aucun document à générer pour cette session'); return }
       saveBase64(out.base64, out.filename)
