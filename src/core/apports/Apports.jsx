@@ -27,7 +27,7 @@ export default function Apports() {
   const [dates, setDates] = useState(periode('annee'))
   const [lignes, setLignes] = useState(null)
   const [erreur, setErreur] = useState(null)
-  const [origines, setOrigines] = useState({ equipe: [], apporteurs: [] })
+  const [origines, setOrigines] = useState({ equipe: [], tous: [], apporteurs: [] })
   const [metier, setMetier] = useState('')
   const [detail, setDetail] = useState(null)
 
@@ -43,7 +43,7 @@ export default function Apports() {
   }, [dates[0], dates[1]]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const noms = useMemo(() => Object.fromEntries([
-    ...origines.equipe.map((p) => [`p:${p.id}`, nomP(p)]),
+    ...(origines.tous || origines.equipe).map((p) => [`p:${p.id}`, nomP(p)]),
     ...origines.apporteurs.map((a) => [`c:${a.id}`, a.name]),
   ]), [origines])
   const filtrees = useMemo(() => (lignes || []).filter((l) => !metier || l.metier === metier), [lignes, metier])
@@ -161,7 +161,7 @@ function ListeApporteurs({ origines, onChange }) {
   const [clients, setClients] = useState([])
   const [busy, setBusy] = useState(false)
   useEffect(() => { fetchAll(() => supabase.from('clients').select('id, name').order('name')).then(({ data }) => setClients(data || [])) }, [])
-  const noms = Object.fromEntries([...origines.equipe.map((p) => [`p:${p.id}`, nomP(p)]), ...origines.apporteurs.map((a) => [`c:${a.id}`, a.name])])
+  const noms = Object.fromEntries([...(origines.tous || origines.equipe).map((p) => [`p:${p.id}`, nomP(p)]), ...origines.apporteurs.map((a) => [`c:${a.id}`, a.name])])
 
   const enregistrer = async () => {
     setBusy(true)
