@@ -1361,6 +1361,10 @@ tdx('0404', 'client_shared_documents', sel=any_of(f"company_id in {societes('cli
     f"(company_id in {societes('interventions.missions.voir')} and client_id in (select app.tech_client_ids()))"),
     upd=f"company_id in {societes('clients.fiches.modifier')}")
 
+# Dépôts du client (0431) : documents signés à la main et déposés depuis l'espace client, lus par qui voit la fiche du
+# client ; ajoutés par le serveur, décidés seulement par public.depot_client_decider (aucune règle d'écriture).
+tdx('0431', 'client_deposits', sel=f"company_id in {societes('clients.fiches.voir')}")
+
 # Point de la semaine (0407) : les actions de l'équipe sont lues et modifiées par la direction (droit du cockpit),
 # et par leur responsable ou leur auteur ; tout membre d'une société en ajoute ; effacées par la direction ou leur
 # auteur. Point, bilan et destinataires : direction (cockpit) ; chacun voit s'il est destinataire ; les destinataires
