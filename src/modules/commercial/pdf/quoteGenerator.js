@@ -1,4 +1,6 @@
 import jsPDF from 'jspdf'
+import { calcTotals } from '../lib/quoteTotals'
+import { chargerRegimeTva, regimeTva, mentionsTvaDevis } from '../../../core/billing/regimeTva'
 import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import { mentionFinancement } from '../lib/financementDevis'
 import 'jspdf-autotable'
@@ -26,30 +28,31 @@ async function orgFor(orgSettings) {
   return { ...prepared, ...buildORG(prepared) }
 }
 
-function totalsFor(quote, items) {
-  const subtotalHt = items.reduce((s, it) => s + (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price_ht) || 0), 0)
-  const dp = parseFloat(quote.discount_percent) || 0
-  const discountAmt = subtotalHt * dp / 100
-  const totalHt = subtotalHt - discountAmt
+// Totaux : même calcul que l'écran du devis (quoteTotals) et que les factures ; lignes exonérées à 0 %
+function totalsFor(quote, items, regime) {
   const rate = (quote.tva_rate === null || quote.tva_rate === undefined || quote.tva_rate === '') ? 20 : (parseFloat(quote.tva_rate) || 0)
-  const tvaOn = quote.tva_applicable !== false
-  const totalTva = tvaOn ? totalHt * rate / 100 : 0
-  const rows = [{ label: 'Total HT', value: fmtEuro(subtotalHt) }]
+  const tvaOn = quote.tva_applicable !== false && !regime.franchise
+  const dp = parseFloat(quote.discount_percent) || 0
+  const t = calcTotals(items, dp, rate, tvaOn)
+  const rows = [{ label: 'Total HT', value: fmtEuro(t.subtotalHt) }]
   if (dp > 0) {
-    rows.push({ label: (quote.discount_label || 'Remise') + ' (' + fmtRate(dp) + ')', value: '-' + fmtEuro(discountAmt), muted: true })
-    rows.push({ label: 'Total net HT', value: fmtEuro(totalHt), bold: true })
+    rows.push({ label: (quote.discount_label || 'Remise') + ' (' + fmtRate(dp) + ')', value: '-' + fmtEuro(t.discountAmount), muted: true })
+    rows.push({ label: 'Total net HT', value: fmtEuro(t.totalHt), bold: true })
   }
-  rows.push(tvaOn ? { label: 'TVA ' + fmtRate(rate), value: fmtEuro(totalTva) } : { label: 'TVA', value: 'non applicable', muted: true })
-  rows.push({ label: 'Total TTC', value: fmtEuro(totalHt + totalTva), grand: true })
+  const toutesExonerees = items.length > 0 && items.every((it) => it.vat_regime === 'exonere')
+  if (!tvaOn) rows.push({ label: 'TVA', value: 'non applicable', muted: true })
+  else if (toutesExonerees) rows.push({ label: 'TVA', value: 'exonérée', muted: true })
+  else rows.push({ label: 'TVA ' + fmtRate(rate), value: fmtEuro(t.totalTva) })
+  rows.push({ label: 'Total TTC', value: fmtEuro(t.totalTtc), grand: true })
   return rows
 }
 
 async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   options = options || {}
   const L = await orgFor(options.orgSettings)
+  const regime = regimeTva().charge ? regimeTva() : await chargerRegimeTva()
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const cb = contactFor(L, options)
-  const tvaOn = quote.tva_applicable !== false
 
   const payment = [
     ['Validité', quote.validity_date ? "jusqu'au " + fmtDate(quote.validity_date) : null],
@@ -67,7 +70,8 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   const formation = (items || []).some(it => !!it.course_id) || !!quote.session_id
   const legal = [
     particulier ? null : "En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
-    tvaOn ? null : (formation ? 'TVA non applicable, article 261-4-4° du CGI.' : 'TVA non applicable.'),
+    // Mentions de TVA des réglages de l'organisme (franchise, exonération de la formation, autoliquidation)
+    ...mentionsTvaDevis(items, quote, regime, formation),
     mentionFinancement(quote),
     companyLegalLine(L),
   ].filter(Boolean)
@@ -97,7 +101,7 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     ],
     object: quote.object || null,
     rows: items.map(itemRow),
-    totals: totalsFor(quote, items),
+    totals: totalsFor(quote, items, regime),
     notes: quote.notes || null,
     signature: {
       label: 'Bon pour accord du client',

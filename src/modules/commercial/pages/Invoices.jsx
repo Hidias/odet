@@ -11,6 +11,7 @@ import { generateFacturXPDF, generateInvoicePDF, calcInvoiceTotals, isDraftDoc }
 import { Sheet } from '../../../ui/Sheet'
 import { useConfirm } from '../../../ui/Confirm'
 import { parseRate } from '../../../core/billing/totals'
+import { chargerRegimeTva, tvaLigne } from '../../../core/billing/regimeTva'
 import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -175,6 +176,8 @@ export default function Invoices() {
   const { estTest } = useMarquesDemo()
   const { organization, fetchOrganization } = useDataStore()
   useEffect(() => { if (!organization) fetchOrganization() }, [])
+  // Régime de TVA de l'organisme : taux des nouvelles lignes de formation (franchise, exonération)
+  useEffect(() => { chargerRegimeTva() }, [])
   const [searchParams, setSearchParams] = useSearchParams()
   const [mode, setMode] = useState('list')
   const [invoices, setInvoices] = useState([])
@@ -579,7 +582,7 @@ export default function Invoices() {
       invoiceItems = [{
         code: '', description_title: `Prestation de formation - ${courseTitle}`,
         description_detail: `Formation du ${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}${sess.subcontract_nb_trainees ? ` - ${sess.subcontract_nb_trainees} stagiaire(s)` : ''}${sess.location_name ? ` - ${sess.location_name}` : ''}`,
-        quantity: days, unit: 'jour', unit_price_ht: rate, tva_rate: 20, course_id: null, position: 0
+        quantity: days, unit: 'jour', unit_price_ht: rate, ...tvaLigne(true), course_id: null, position: 0
       }]
     } else {
       // Prix de la session (net, remise devis incluse) sinon prix formation - même règle que la convention (pdfGenerator)
@@ -592,7 +595,7 @@ export default function Invoices() {
         invoiceItems = [{
           code: sess.courses.code || '', description_title: sess.courses.title || '',
           description_detail: `Formation ${sess.is_intra ? 'intra' : 'inter'} du ${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}`,
-          quantity: 1, unit: 'forfait', unit_price_ht: price, tva_rate: 20, course_id: sess.course_id, position: 0
+          quantity: 1, unit: 'forfait', unit_price_ht: price, ...tvaLigne(true), course_id: sess.course_id, position: 0
         }]
       }
     }
@@ -702,7 +705,7 @@ export default function Invoices() {
       return {
         code: sess.courses.code || '', description_title: sess.courses.title || '',
         description_detail: `Formation ${sess.is_intra ? 'intra' : 'inter'} du ${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}${suffix}`,
-        quantity: 1, unit: 'forfait', unit_price_ht: price, tva_rate: 20, course_id: sess.course_id, position: i
+        quantity: 1, unit: 'forfait', unit_price_ht: price, ...tvaLigne(true), course_id: sess.course_id, position: i
       }
     })
 
@@ -758,7 +761,7 @@ export default function Invoices() {
       return {
         code: '', description_title: courseTitle,
         description_detail: `${fmtDateShort(sess.start_date)}${sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}${sess.subcontract_nb_trainees ? ` - ${sess.subcontract_nb_trainees} stagiaire(s)` : ''}${sess.location_name ? ` - ${sess.location_name}` : ''}${sess.subcontract_client_ref ? ` - Réf: ${sess.subcontract_client_ref}` : ''}`,
-        quantity: days, unit: 'jour', unit_price_ht: rate, tva_rate: 20, course_id: null, position: i
+        quantity: days, unit: 'jour', unit_price_ht: rate, ...tvaLigne(true), course_id: null, position: i
       }
     })
     const allDates = toInvoice.flatMap(s => [s.start_date, s.end_date]).sort()
@@ -1147,7 +1150,7 @@ export default function Invoices() {
   const updateItem = (i, f, v) => { const n = [...items]; n[i] = {...n[i], [f]: v}; setItems(n) }
   const addItem = () => setItems([...items, emptyItem()])
   const removeItem = (i) => setItems(items.filter((_, x) => x !== i))
-  const addFromCourse = (c) => setItems([...items.filter(it => it.description_title), {code: c.code || '', description_title: c.title, description_detail: c.description || '', quantity: 1, unit: 'unité', unit_price_ht: prixFormation(tarifs, c).prix, tva_rate: 20, course_id: c.id}])
+  const addFromCourse = (c) => setItems([...items.filter(it => it.description_title), {code: c.code || '', description_title: c.title, description_detail: c.description || '', quantity: 1, unit: 'unité', unit_price_ht: prixFormation(tarifs, c).prix, ...tvaLigne(true), course_id: c.id}])
 
   // ─── Sort ───
   const toggleSort = (field) => {
