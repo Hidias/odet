@@ -57,7 +57,7 @@ export default function RessentiJour({ token, traineeId, ticket }) {
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-gray-900">Ma journée</div>
           <div className="text-ui-sm text-gray-500">
-            {donne ? `Ressenti donné : ${NOTES.find(([n]) => n === etat.note)?.[1] || etat.note}, modifiable aujourd'hui` : 'Votre ressenti sur la journée, en 10 secondes'}
+            {donne ? `Ressenti donné : ${NOTES.find(([n]) => n === etat.note)?.[1] || etat.note}, modifiable aujourd'hui` : 'Comment s\'est passée la journée ? Une note de 1 à 5, et une remarque si vous le souhaitez'}
           </div>
         </div>
       </button>

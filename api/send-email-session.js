@@ -35,7 +35,7 @@ async function handler(req, res) {
 
     // 1. Configuration SMTP de l'utilisateur connecté et transporteur (redirection démo incluse)
     // Toujours la boîte de l'utilisateur connecté (userId du corps ignoré)
-    const mailer = await getMailer(supabase, req.user.id)
+    const mailer = await getMailer(supabase, req.user.id, { envoiReel: true })
     if (mailer.error) {
       return res.status(400).json({ error: 'Configuration email non trouvée. Configurez votre email dans Paramètres.' })
     }

@@ -16,7 +16,7 @@ export const config = {
 
 // Boîte de l'utilisateur appelant uniquement : aucun appel automatique n'utilise cette route
 async function pickMailer(userId) {
-  const m = await getMailer(supabase, userId)
+  const m = await getMailer(supabase, userId, { envoiReel: true })
   if (m.error) return { error: 'Configurez votre compte email dans Paramètres > Comptes email' }
   return m
 }
