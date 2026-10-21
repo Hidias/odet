@@ -896,6 +896,8 @@ function generateCertificatContent(doc, session, trainee, trainer, { defaultAcqu
     ['Intitulé', course.title || ''],
     ['Dates', session?.start_date === session?.end_date || !session?.end_date ? `Le ${formatDate(session?.start_date)}` : `Du ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`],
     ['Durée', courseHoursText(course)],
+    // Durée réellement suivie (D6353-4), quand l'écran l'a établie à partir de l'émargement (0398)
+    ...(trainee?.heures_realisees != null ? [['Durée suivie', formatHours(trainee.heures_realisees)]] : []),
     ['Lieu', getLocation(session) || ''],
     ['Formateur', trainerName(trainer)],
   ])
@@ -1780,10 +1782,13 @@ function generateAttestationContent(doc, session, trainee, trainer) {
   // Présence : du début à la fin, sauf arrivée tardive ou départ anticipé notés sur la session
   const st = { ...((session?.session_trainees || []).find(x => x.trainee_id === trainee?.id) || {}), ...pickPresence(trainee) }
   const calc = computePresenceHours(session, course, st)
-  const hours = st.presence_hours != null && (st.early_departure || st.arrival_time) ? Number(st.presence_hours) : calc.hours
+  const base = st.presence_hours != null && (st.early_departure || st.arrival_time) ? Number(st.presence_hours) : calc.hours
+  // Heures réellement suivies (0398), préparées par l'écran avec les absences décidées sur l'émargement
+  const hours = trainee?.heures_realisees != null ? Number(trainee.heures_realisees) : base
   const notes = []
   if (st.arrival_time && st.arrival_date) notes.push(`arrivée le ${formatDate(st.arrival_date)} à ${formatHour(st.arrival_time)}`)
   if (st.early_departure && st.departure_date) notes.push(`départ le ${formatDate(st.departure_date)}${st.departure_time ? ` à ${formatHour(st.departure_time)}` : ''}`)
+  if (trainee?.absences_notees?.length) notes.push(`absent : ${trainee.absences_notees.join(', ')}`)
   f.kv([
     ['Intitulé', course.title || ''],
     ['Dates', sessionDatesText(session)],

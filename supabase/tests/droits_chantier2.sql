@@ -4580,6 +4580,35 @@ begin
     end;
   end if;
 
+  -- Régularisation des émargements (0398) : société de la session reprise, décision ni modifiable ni effaçable
+  if to_regclass('public.attendance_regularisations') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare z_s uuid; z_t uuid; z_co uuid;
+    begin
+      select st.session_id, st.trainee_id into z_s, z_t from public.session_trainees st limit 1;
+      if z_s is null then
+        v_lines := v_lines || 'OK      base  0398 : régularisation (aucun stagiaire pour l''essai)'::text;
+        v_lines := v_lines || 'OK      base  0398 : décisions conservées (aucun stagiaire pour l''essai)'::text;
+      else
+        insert into public.attendance_regularisations (session_id, trainee_id, date, period, decision, reason)
+        values (z_s, z_t, current_date, 'morning', 'absent', 'essai') returning company_id into z_co;
+        if z_co = (select company_id from public.sessions where id = z_s) then
+          v_lines := v_lines || 'OK      base  0398 : régularisation rattachée à la société de la session'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0398 : société de la régularisation'::text; end if;
+        if not exists (select 1 from pg_policies where tablename = 'attendance_regularisations' and cmd in ('UPDATE', 'DELETE')) then
+          v_lines := v_lines || 'OK      base  0398 : décisions ni modifiables ni effaçables depuis l''écran'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0398 : une règle permet de modifier ou d''effacer une décision'::text; end if;
+        delete from public.attendance_regularisations where session_id = z_s and reason = 'essai';
+      end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0398 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
