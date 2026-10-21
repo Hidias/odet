@@ -4838,6 +4838,38 @@ begin
     end;
   end if;
 
+  -- Documents de l'espace client (0404) : visibles par le client, retirés mais jamais effacés ni modifiés
+  if to_regclass('public.client_shared_documents') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare z_c uuid; z_d uuid; z_ok boolean := false; z_ok2 boolean := false;
+    begin
+      insert into public.clients (name) values ('Client essai 0404') returning id into z_c;
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      values ((select company_id from public.clients where id = z_c), z_c, 'client', z_c, 'contrat', 'Contrat essai', z_c || '/client/essai.pdf', repeat('d', 64))
+      returning id into z_d;
+      if jsonb_array_length(app.portail_documents_client(z_c)) = 1 then
+        v_lines := v_lines || 'OK      base  0404 : document visible dans l''espace du client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0404 : document absent de l''espace'::text; end if;
+      begin update public.client_shared_documents set label = 'Autre' where id = z_d;
+      exception when insufficient_privilege then z_ok := true; end;
+      begin delete from public.client_shared_documents where id = z_d;
+      exception when insufficient_privilege then z_ok2 := true; end;
+      if z_ok and z_ok2 then v_lines := v_lines || 'OK      base  0404 : un document ne se modifie ni ne s''efface'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0404 : document modifié ou effacé'::text; end if;
+      update public.client_shared_documents set withdrawn_at = now(), withdrawn_reason = 'essai' where id = z_d;
+      if jsonb_array_length(app.portail_documents_client(z_c)) = 0 then
+        v_lines := v_lines || 'OK      base  0404 : document retiré, plus visible par le client'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0404 : document retiré encore visible'::text; end if;
+      delete from public.clients where id = z_c;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0404 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Appareil complet (0405) : l'identifiant du navigateur n'est plus coupé à la première virgule
   if to_regprocedure('app.entete_complet(text)') is not null then
     execute 'reset role';
