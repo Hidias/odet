@@ -18,7 +18,8 @@ import RegistreVue from '../../registre/components/RegistreVue'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
 import { noterCompte, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
-import SignerConvention from '../components/SignerConvention'
+import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT } from '../components/SignerConvention'
+import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import { lireDocumentPortail, versBase64 } from '../../../core/portail/documentsClient'
@@ -498,6 +499,14 @@ function Demandes({ compte, onChange }) {
 
 function Plus_({ compte, org, salaries }) {
   const [vue, setVue] = useState('documents')
+  // Signature des devis et contrats mis à disposition (0406)
+  const [signatures, setSignatures] = useState([])
+  const [docASigner, setDocASigner] = useState(null)
+  const [tourDocs, setTourDocs] = useState(0)
+  const [orgDoc, setOrgDoc] = useState(null)
+  const chargerSignatures = () => supabase.rpc('ent_signatures').then(({ data: sg }) => setSignatures(Array.isArray(sg) ? sg : []))
+  const chargerOrg = async () => { const { data } = await supabase.rpc('ent_org'); const pr = await prepareOrgForPDF(data || {}); setOrgDoc(pr); return pr }
+  useEffect(() => { chargerSignatures() }, [])
   const [catalogue, setCatalogue] = useState(null)
   const [factures, setFactures] = useState(null)
   const [actus, setActus] = useState(null)
@@ -517,11 +526,28 @@ function Plus_({ compte, org, salaries }) {
       </div>
       {vue === 'documents' && (
         <>
-          <MesDocuments titre="Documents mis à disposition"
+          <MesDocuments titre="Documents mis à disposition" rafraichir={tourDocs}
+            signatureDe={(d) => signatures.find((x) => x.document_id === d.id) || null}
+            onSigner={setDocASigner}
+            avecPreuve={async (d, buf, sig) => signeAvecPreuve(d, buf, sig, orgDoc || await chargerOrg())}
             charger={async () => (await supabase.rpc('ent_mes_documents')).data}
             lire={(d) => lireDocumentPortail({}, d.id)}
             noter={(d, buf) => noterCompte({ event: 'document', objectType: d.object_type, objectId: d.object_id, kind: d.kind, label: d.label, base64: versBase64(buf) })} />
           <p className="text-xs text-gray-400">Rapports d'intervention, devis, factures et contrats mis à disposition par {org?.name || 'votre prestataire'} apparaissent ici.</p>
+          {docASigner && (
+            <SignerConvention titre={NOMS_SIGNABLES[docASigner.kind]?.titre} nomDocument={NOMS_SIGNABLES[docASigner.kind]?.nom}
+              accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : ACCORD_DEVIS} libelle={docASigner.label} signataire={{ name: compte?.contact?.name || '' }}
+              genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({}, docASigner.id)), filename: `${docASigner.label}.pdf` })}
+              onSigner={async (p) => {
+                const { data: r, error } = await supabase.rpc('ent_signer_document', { p_document: docASigner.id, p_name: p.name, p_role: p.role, p_signature: p.signature, p_consent: p.consent })
+                if (error) throw new Error(error.message)
+                if (r?.error) throw new Error(r.error)
+                await chargerSignatures()
+                setDocASigner(null); setTourDocs((n) => n + 1)
+                toast.success('Document signé. Merci !')
+              }}
+              onFermer={() => setDocASigner(null)} />
+          )}
         </>
       )}
       {vue === 'catalogue' && (!catalogue ? chargement : (

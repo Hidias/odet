@@ -8,6 +8,8 @@ import PadSimple from '../../../ui/signature/PadSimple'
 import { empreinte } from '../../../core/portail/journal'
 
 export const ACCORD_SIGNATURE = "J'ai lu la convention de formation ci-dessus et je l'accepte au nom de mon entreprise. Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
+export const ACCORD_DEVIS = "J'ai lu le devis ci-dessus et je l'accepte au nom de mon entreprise (bon pour accord). Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
+export const ACCORD_CONTRAT = "J'ai lu le contrat ci-dessus et je l'accepte au nom de mon entreprise. Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
 
 function enBlob(base64) {
   const bin = atob(base64)
@@ -16,11 +18,12 @@ function enBlob(base64) {
   return new Blob([o], { type: 'application/pdf' })
 }
 
-export default function SignerConvention({ session, genererPdf, signataire, onSigner, onFermer }) {
+// Sert aussi aux devis et contrats mis à disposition (0406) : titre, nom du document et texte d'accord en paramètres
+export default function SignerConvention({ session, genererPdf, signataire, onSigner, onFermer, titre = 'Signer la convention', nomDocument = 'la convention', accord = ACCORD_SIGNATURE, libelle = null }) {
   const [pdf, setPdf] = useState(null) // { base64, url, filename }
   const [nom, setNom] = useState(signataire?.name || '')
   const [fonction, setFonction] = useState(signataire?.role || '')
-  const [accord, setAccord] = useState(false)
+  const [accepte, setAccepte] = useState(false)
   const [lu, setLu] = useState(false)
   const [trace, setTrace] = useState(null)
   const [envoi, setEnvoi] = useState(false)
@@ -29,23 +32,23 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
   useEffect(() => {
     let url = null
     genererPdf().then((out) => {
-      if (!out) { setErreur('La convention ne peut pas être affichée.'); return }
+      if (!out) { setErreur('Le document ne peut pas être affiché.'); return }
       url = URL.createObjectURL(enBlob(out.base64))
       setPdf({ base64: out.base64, url, filename: out.filename })
-    }).catch(() => setErreur('La convention ne peut pas être affichée.'))
+    }).catch(() => setErreur('Le document ne peut pas être affiché.'))
     return () => { if (url) URL.revokeObjectURL(url) }
     // PDF préparé une seule fois à l'ouverture : c'est ce document exact qui est lu puis signé
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const pret = pdf && lu && accord && trace && nom.trim().length >= 2 && !envoi
+  const pret = pdf && lu && accepte && trace && nom.trim().length >= 2 && !envoi
 
   const signer = async () => {
     setEnvoi(true); setErreur('')
     try {
       const sha = await empreinte(pdf.base64)
       if (!sha) throw new Error('Empreinte du document impossible sur ce navigateur')
-      await onSigner({ base64: pdf.base64, sha256: sha, name: nom.trim(), role: fonction.trim(), signature: trace, consent: ACCORD_SIGNATURE, label: `Convention de formation ${session.reference || ''}`.trim() })
+      await onSigner({ base64: pdf.base64, sha256: sha, name: nom.trim(), role: fonction.trim(), signature: trace, consent: accord, label: libelle || `Convention de formation ${session?.reference || ''}`.trim() })
     } catch (e) {
       setErreur(e.message || 'Signature impossible, réessayez.')
       setEnvoi(false)
@@ -57,19 +60,19 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
       <div className="vitrine-monte bg-white w-full sm:max-w-lg rounded-t-ui-lg sm:rounded-ui-lg max-h-[92vh] overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-start justify-between gap-3">
           <div>
-            <h2 id="titre-signer" className="font-display text-lg font-semibold text-gray-900 flex items-center gap-2"><PenLine className="w-5 h-5 text-accent-600" aria-hidden="true" />Signer la convention</h2>
-            <p className="text-sm text-gray-500">{session.courses?.title || 'Formation'}{session.reference ? `, ${session.reference}` : ''}</p>
+            <h2 id="titre-signer" className="font-display text-lg font-semibold text-gray-900 flex items-center gap-2"><PenLine className="w-5 h-5 text-accent-600" aria-hidden="true" />{titre}</h2>
+            <p className="text-sm text-gray-500">{libelle || `${session?.courses?.title || 'Formation'}${session?.reference ? `, ${session.reference}` : ''}`}</p>
           </div>
           <button type="button" onClick={onFermer} className="p-1 text-gray-400 hover:text-gray-700" aria-label="Fermer"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-5 py-4 space-y-4">
           <div>
-            <p className="text-sm font-medium text-gray-800">1. Lisez la convention</p>
+            <p className="text-sm font-medium text-gray-800">1. Lisez {nomDocument}</p>
             {pdf ? (
               <a href={pdf.url} target="_blank" rel="noreferrer" onClick={() => setLu(true)} className="mt-2 btn btn-secondary w-full justify-center gap-2">
-                <FileText className="w-4 h-4" aria-hidden="true" />Ouvrir la convention (PDF)
+                <FileText className="w-4 h-4" aria-hidden="true" />Ouvrir {nomDocument} (PDF)
               </a>
-            ) : !erreur && <p className="mt-2 text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />Préparation de la convention…</p>}
+            ) : !erreur && <p className="mt-2 text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />Préparation du document…</p>}
             {pdf && !lu && <p className="mt-1 text-xs text-gray-500">Ouvrez-la pour pouvoir signer.</p>}
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -83,15 +86,15 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
             <PadSimple onChange={setTrace} hauteur={150} label="Signez avec le doigt ou la souris" />
           </div>
           <label className="flex items-start gap-2 text-sm text-gray-700">
-            <input type="checkbox" className="mt-1 rounded" checked={accord} onChange={(e) => setAccord(e.target.checked)} />
-            <span>{ACCORD_SIGNATURE}</span>
+            <input type="checkbox" className="mt-1 rounded" checked={accepte} onChange={(e) => setAccepte(e.target.checked)} />
+            <span>{accord}</span>
           </label>
           {erreur && <p role="alert" className="text-sm text-[rgb(var(--c-danger))]">{erreur}</p>}
           <button type="button" onClick={signer} disabled={!pret} className="btn btn-primary w-full justify-center h-11 gap-2">
-            {envoi ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <PenLine className="w-4 h-4" aria-hidden="true" />}Signer la convention
+            {envoi ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <PenLine className="w-4 h-4" aria-hidden="true" />}{titre}
           </button>
           <p className="text-xs text-gray-400 flex items-start gap-1.5"><ShieldCheck className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
-            Signature électronique simple : la date, l'heure, l'adresse IP, l'appareil et l'empreinte du document sont enregistrés comme preuve. Vous retrouverez la convention signée dans votre espace.</p>
+            Signature électronique simple : la date, l'heure, l'adresse IP, l'appareil et l'empreinte du document sont enregistrés comme preuve. Vous retrouverez le document signé dans votre espace.</p>
         </div>
       </div>
     </div>

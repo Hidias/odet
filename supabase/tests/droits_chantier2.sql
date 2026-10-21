@@ -4816,6 +4816,41 @@ begin
     end;
   end if;
 
+  -- Signature d'un devis depuis l'espace client (0406) : devis accepté, notification, document d'un autre client refusé
+  if to_regprocedure('app.portail_signer_document(uuid,text,uuid,uuid,uuid,text,text,text,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare z_c uuid; z_c2 uuid; z_q uuid; z_d uuid; z_r jsonb; z_ok boolean := false;
+    begin
+      insert into public.clients (name) values ('Client essai 0406') returning id into z_c;
+      insert into public.clients (name) values ('Autre client essai 0406') returning id into z_c2;
+      insert into public.quotes (client_id, status, quote_date, reference) values (z_c, 'sent', current_date, 'DEV-ESSAI-0406') returning id into z_q;
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      values ((select company_id from public.clients where id = z_c), z_c, 'quote', z_q, 'devis', 'Devis essai', z_c || '/q.pdf', repeat('f', 64))
+      returning id into z_d;
+      z_r := app.portail_signer_document(z_c, 'lien', null, null, z_d, 'Essai Signataire', 'Gérant',
+        'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu le devis et je l''accepte au nom de mon entreprise.');
+      if (select status from public.quotes where id = z_q) = 'accepted' and (select signature_base64 from public.quotes where id = z_q) is not null then
+        v_lines := v_lines || 'OK      base  0406 : devis signé en ligne, passé en accepté'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0406 : devis non accepté'::text; end if;
+      if exists (select 1 from public.notifications where metadata->>'signature_id' = z_r->>'id') then
+        v_lines := v_lines || 'OK      base  0406 : l''organisme est prévenu de la signature du devis'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0406 : aucune notification'::text; end if;
+      begin perform app.portail_signer_document(z_c2, 'lien', null, null, z_d, 'Intrus', null,
+        'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu le devis et je l''accepte au nom de mon entreprise.');
+      exception when insufficient_privilege then z_ok := true; end;
+      if z_ok then v_lines := v_lines || 'OK      base  0406 : un autre client ne signe pas ce devis'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0406 : devis signé par un autre client'::text; end if;
+      delete from public.quotes where id = z_q;
+      delete from public.clients where id in (z_c, z_c2);
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0406 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

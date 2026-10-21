@@ -9,7 +9,8 @@ import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
 import { noterLien, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
-import SignerConvention from '../components/SignerConvention'
+import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT } from '../components/SignerConvention'
+import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import { lireDocumentPortail, versBase64 } from '../../../core/portail/documentsClient'
@@ -119,6 +120,8 @@ export default function ClientPortal() {
   const [secoue, setSecoue] = useState(0)
   const [signatures, setSignatures] = useState([])
   const [aSigner, setASigner] = useState(null)
+  const [docASigner, setDocASigner] = useState(null)
+  const [tourDocs, setTourDocs] = useState(0)
   const [info, setInfo] = useState('')
   const [orgPdf, setOrgPdf] = useState(null)
   const [busy, setBusy] = useState(null) // clé du document en cours de génération
@@ -476,7 +479,10 @@ export default function ClientPortal() {
         )}
 
         {/* Documents mis à disposition, toutes prestations (0404) */}
-        <MesDocuments
+        <MesDocuments rafraichir={tourDocs}
+          signatureDe={(d) => signatures.find((x) => x.document_id === d.id) || null}
+          onSigner={setDocASigner}
+          avecPreuve={(d, buf, sig) => signeAvecPreuve(d, buf, sig, orgPdf)}
           charger={async () => (await supabase.rpc('client_portal_mes_documents', { p_token: token, p_code: code })).data}
           lire={(d) => lireDocumentPortail({ token, code }, d.id)}
           noter={(d, buf) => noterLien(token, code, { event: 'document', objectType: d.object_type, objectId: d.object_id, kind: d.kind, label: d.label, base64: versBase64(buf) })} />
@@ -501,6 +507,21 @@ export default function ClientPortal() {
         )}
       </main>
 
+      {docASigner && (
+        <SignerConvention titre={NOMS_SIGNABLES[docASigner.kind]?.titre} nomDocument={NOMS_SIGNABLES[docASigner.kind]?.nom}
+          accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : ACCORD_DEVIS} libelle={docASigner.label} signataire={{}}
+          genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({ token, code }, docASigner.id)), filename: `${docASigner.label}.pdf` })}
+          onSigner={async (p) => {
+            const { data: r, error: e } = await supabase.rpc('client_portal_signer_document', { p_token: token, p_code: code, p_document: docASigner.id,
+              p_name: p.name, p_role: p.role, p_signature: p.signature, p_consent: p.consent })
+            if (e) throw new Error(e.message)
+            if (r?.error) throw new Error(r.error)
+            await chargerSignatures()
+            setDocASigner(null); setTourDocs((n) => n + 1)
+            setInfo(`${docASigner.label} : signé. Merci ! Le document signé et sa preuve sont dans vos documents.`)
+          }}
+          onFermer={() => setDocASigner(null)} />
+      )}
       {aSigner && (
         <SignerConvention session={aSigner} signataire={{ name: aSigner.signatory_name, role: aSigner.signatory_role }}
           genererPdf={() => generatePDF('convention', toPdfSession(aSigner), { trainees: traineesOf(aSigner), trainer: aSigner.trainers || null, costs: [] })}
