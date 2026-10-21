@@ -1349,3 +1349,7 @@ tdx('0398', 'attendance_regularisations', sel=_AVIS_VOIR, ins=_AVIS_GER, upd=Non
 # Certificats et attestations émis (0399) : la version remise est gardée telle quelle ; une correction ajoute une
 # version datée du jour, avec son motif. Lecture et ajout seulement.
 tdx('0399', 'training_documents_issued', sel=_AVIS_VOIR, ins=_AVIS_GER, upd=None, dele=None)
+
+# Journal de l'espace client (0401) : lu par qui voit les fiches clients ; écrit seulement par les fonctions des
+# portails (aucune règle d'écriture), jamais modifié ni effacé : il sert de preuve de mise à disposition.
+tdx('0401', 'portal_events', sel=f"company_id in {societes('clients.fiches.voir')}")

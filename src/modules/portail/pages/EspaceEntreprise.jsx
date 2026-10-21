@@ -17,6 +17,7 @@ import { pdfOrgFrom } from '../../../core/pdf/pdfOrg'
 import RegistreVue from '../../registre/components/RegistreVue'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
+import { noterCompte, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
 // salariés et validités, demandes (inscription inter, formation intra, remplacement, message), catalogue, factures
@@ -61,6 +62,8 @@ export default function EspaceEntreprise() {
     const { data, error } = await supabase.rpc('ent_accueil')
     if (error) { setErreur(error.message?.includes('désactivé') || error.code === '42501' ? 'Votre accès à l\'espace entreprise n\'est pas actif. Contactez votre organisme de formation.' : 'Espace momentanément indisponible, réessayez dans quelques instants.'); return }
     setAccueil(data)
+    // Journal de preuve (0401) : connexion notée une fois par jour et par onglet
+    if (premiereConnexionDuJour('compte')) noterCompte({ event: 'connexion' })
   }
   useEffect(() => { charger() }, [])
 
@@ -220,6 +223,8 @@ function Formations() {
       }
       if (!out) { toast.error('Aucun document pour cette session'); return }
       saveBase64(out.base64, out.filename)
+      // Journal de preuve (0401) : document remis, avec son empreinte
+      noterCompte({ event: 'document', objectType: 'session', objectId: s.id, kind, label: `${LIBELLES_DOCUMENT[kind] || kind}, ${s.reference || ''}`.trim(), base64: out.base64 })
     } catch (err) {
       toast.error(`Document impossible : ${err.message || 'erreur'}`)
     } finally { setBusy(null) }

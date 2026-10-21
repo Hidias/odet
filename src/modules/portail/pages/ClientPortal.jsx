@@ -8,6 +8,7 @@ import { useBranding, brandLogo } from '../../../core/branding/BrandingProvider'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
+import { noterLien, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
 // sessions de l'entreprise et téléchargement de ses documents, en lecture seule. Aux couleurs de l'instance,
@@ -141,6 +142,8 @@ export default function ClientPortal() {
       setOrg(org)
       setData(d)
       try { sessionStorage.setItem(STORAGE_KEY(token), c) } catch { /* ignore */ }
+      // Journal de preuve (0401) : connexion notée une fois par jour et par onglet
+      if (premiereConnexionDuJour(`lien.${token}`)) noterLien(token, c, { event: 'connexion' })
     } catch (err) {
       const msg = err?.message || ''
       setError(msg.includes('Code incorrect') ? 'Code incorrect' : msg.includes('tentatives') ? 'Trop de tentatives, réessayez dans quelques minutes' : msg.includes('invalide') ? 'Ce lien est invalide ou a été désactivé' : 'Connexion impossible pour le moment')
@@ -214,6 +217,8 @@ export default function ClientPortal() {
       }
       if (!out) { setError('Aucun document à générer pour cette session'); return }
       saveBase64(out.base64, out.filename)
+      // Journal de preuve (0401) : document remis, avec son empreinte
+      noterLien(token, code, { event: 'document', objectType: 'session', objectId: s.id, kind, label: `${LIBELLES_DOCUMENT[kind] || kind}, ${s.reference || ''}`.trim(), base64: out.base64 })
     } catch (err) {
       console.error('Document portail entreprise :', err)
       setError('Le document n\'a pas pu être généré : ' + (err.message || 'erreur inconnue'))
