@@ -5,8 +5,9 @@ import { Link, useLocation } from 'react-router-dom'
 import { useDataStore } from '../../../core/store'
 import { useDroits } from '../../../core/rights/useDroit'
 import { supabase } from '../../../core/supabase'
+import CreneauxRecurrents from '../components/CreneauxRecurrents'
 import { 
-  Calendar, Plus, Search, MapPin, Users, Clock, ChevronRight, ChevronDown, X, Trash2, Copy, Building2, List, LayoutGrid, Briefcase, Euro, ClipboardPaste, Loader2, Check
+  Calendar, Plus, Search, MapPin, Users, Clock, ChevronRight, ChevronDown, X, Trash2, Copy, Building2, List, LayoutGrid, Briefcase, Euro, ClipboardPaste, Loader2, Check, Repeat
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -54,6 +55,7 @@ export default function Sessions() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(location.state?.openNew || false)
   const [showMultiSiret, setShowMultiSiret] = useState(false)
+  const [showCreneaux, setShowCreneaux] = useState(false)
   const [viewMode, setViewMode] = useState('list') // 'list' | 'planning'
   
   // Filtres stagiaires
@@ -504,6 +506,10 @@ export default function Sessions() {
               Planning
             </button>
           </div>
+          <button onClick={() => setShowCreneaux(true)} className="btn btn-secondary flex items-center gap-2">
+            <Repeat className="w-4 h-4" />
+            Créneaux récurrents
+          </button>
           {d.creer && (
           <button onClick={() => setShowMultiSiret(true)} className="btn btn-secondary flex items-center gap-2">
             <Building2 className="w-4 h-4" />
@@ -1371,6 +1377,10 @@ export default function Sessions() {
         </div>
       )}
       
+      {showCreneaux && (
+        <CreneauxRecurrents courses={courses} trainers={trainers} peutCreer={d.creer} peutSupprimer={d.supprimer}
+          onFermer={() => setShowCreneaux(false)} onSessionsCreees={() => fetchSessions()} />
+      )}
       {showMultiSiret && d.creer && (
         <MultiSiretWizard
           onClose={() => setShowMultiSiret(false)}

@@ -5600,6 +5600,73 @@ begin
     end;
   end if;
 
+  -- Créneaux récurrents (0422) : sessions de l'année créées seules, sans doublon, fériés et suppressions respectés
+  if to_regclass('public.session_recurrences') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare k_co uuid; k_r uuid; k_r2 uuid; k_j jsonb; k_n int; k_n2 int; k_ok boolean; k_d date; k_soc uuid;
+    begin
+      select id into k_soc from public.companies order by created_at limit 1;
+      insert into public.courses (company_id, title, min_participants, max_participants) values (k_soc, 'Essai créneau récurrent', 4, 10) returning id into k_co;
+      -- Premier mardi du mois
+      insert into public.session_recurrences (company_id, course_id, frequence, rang, jour_semaine, location_city, public_price_per_person)
+        values (k_soc, k_co, 'mensuel', 1, 2, 'Quimper', 180) returning id into k_r;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_j := public.recurrence_generer(k_r);
+      execute 'reset role';
+      select count(*) into k_n from public.sessions where recurrence_id = k_r;
+      k_ok := k_n between 10 and 13 and k_n = (k_j->>'crees')::int + 0
+        and not exists (select 1 from public.sessions where recurrence_id = k_r
+                        and (extract(isodow from start_date) <> 2 or extract(day from start_date) > 7 or not is_public
+                             or session_type <> 'inter' or min_participants <> 4 or max_participants <> 10 or location_city <> 'Quimper'));
+      if k_ok then v_lines := v_lines || 'OK      dir   0422 : premier mardi du mois : sessions inter publiées des douze mois, effectifs de la formation'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0422 : génération ' || coalesce(k_j::text, '') || ' ' || k_n)::text; end if;
+      -- Relance : aucun doublon ; une session supprimée n'est pas recréée ; une session déplacée non plus
+      select min(start_date) into k_d from public.sessions where recurrence_id = k_r;
+      delete from public.sessions where recurrence_id = k_r and start_date = k_d;
+      update public.sessions set start_date = start_date + 1, end_date = end_date + 1
+       where id = (select id from public.sessions where recurrence_id = k_r order by start_date limit 1);
+      perform app.recurrences_etendre();
+      select count(*) into k_n2 from public.sessions where recurrence_id = k_r;
+      if k_n2 = k_n - 1 and exists (select 1 from public.session_recurrences where id = k_r and k_d = any (dates_ecartees)) then
+        v_lines := v_lines || 'OK      base  0422 : relance sans doublon, date supprimée ou déplacée jamais recréée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0422 : relance ' || k_n || ' puis ' || k_n2)::text; end if;
+      -- Jours fériés : chaque 1er mai (et le 8, le 14 juillet…) écarté ; durée en jours ouvrés
+      insert into public.session_recurrences (company_id, course_id, frequence, jour_semaine, nb_jours, intervalle, date_debut)
+        values (k_soc, k_co, 'hebdo', extract(isodow from make_date(extract(year from current_date)::int + 1, 5, 1))::int, 2, 1,
+                make_date(extract(year from current_date)::int + 1, 4, 20)) returning id into k_r2;
+      if to_regclass('public.hr_public_holidays') is not null then
+        perform app.hr_feries_poser(k_soc, extract(year from current_date)::int + 1);
+      end if;
+      k_j := app.recurrence_creer_sessions(k_r2);
+      k_ok := not exists (select 1 from public.sessions where recurrence_id = k_r2 and extract(isodow from end_date) in (6, 7))
+        and not exists (select 1 from public.sessions where recurrence_id = k_r2 and start_date = make_date(extract(year from current_date)::int + 1, 5, 1));
+      if to_regclass('public.hr_public_holidays') is not null and make_date(extract(year from current_date)::int + 1, 5, 1) <= current_date + 366 then
+        k_ok := k_ok and (k_j->'feries') ? to_char(make_date(extract(year from current_date)::int + 1, 5, 1), 'YYYY-MM-DD');
+      end if;
+      if k_ok then v_lines := v_lines || 'OK      base  0422 : jours fériés écartés et signalés, fin en jours ouvrés'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0422 : fériés ' || coalesce(k_j::text, ''))::text; end if;
+      -- Sans le droit : refusé
+      perform set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      k_ok := false;
+      begin perform public.recurrence_generer(k_r); exception when others then k_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if k_ok then v_lines := v_lines || 'OK      sans  0422 : créer les sessions d''un créneau demande le droit de créer des sessions'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sans  0422 : créneau généré sans droit'::text; end if;
+      delete from public.sessions where recurrence_id in (k_r, k_r2);
+      delete from public.session_recurrences where id in (k_r, k_r2);
+      delete from public.courses where id = k_co;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0422 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

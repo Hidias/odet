@@ -284,7 +284,7 @@ ORDRE_PROD = (
     # Inscription en ligne aux sessions inter, 21/10
     + ['0420']
     # Liste d'attente et seuil de maintien, 21/10
-    + ['0421']
+    + ['0421', '0422']
 )
 
 
