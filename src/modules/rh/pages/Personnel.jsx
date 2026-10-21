@@ -93,7 +93,7 @@ function Annuaire({ peutGerer }) {
             return (
               <li key={p.id} className="card space-y-1">
                 <div className="flex items-start gap-2">
-                  <button type="button" className="flex-1 min-w-0 text-left" onClick={() => navigate(p.id)}>
+                  <button type="button" className="flex-1 min-w-0 text-left" onClick={() => navigate(`/collaborateurs/${p.id}`)}>
                     <div className="font-semibold text-ui truncate">{nomComplet(p)}</div>
                     <div className="text-ui-sm text-gray-600 truncate">{[p.job_title, p.team].filter(Boolean).join(' · ') || 'Emploi non renseigné'}</div>
                   </button>
@@ -108,7 +108,7 @@ function Annuaire({ peutGerer }) {
           })}
         </ul>
       )}
-      {creation && <FichePersonneSheet onClose={() => setCreation(false)} onSaved={(id) => { setCreation(false); charger(); navigate(id) }} />}
+      {creation && <FichePersonneSheet onClose={() => setCreation(false)} onSaved={(id) => { setCreation(false); charger(); navigate(`/collaborateurs/${id}`) }} />}
     </div>
   )
 }

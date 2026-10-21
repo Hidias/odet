@@ -116,6 +116,9 @@ html[data-adapte-contraste='1'] .bottom-nav { border-top: 2px solid #111827; }
 html[data-adapte-contraste='1'] .bottom-nav-item { color: #000; font-weight: 600; }
 
 /* Boutons Voix (Écouter, Dicter) : en bas à gauche, au-dessus de la barre du bas sur téléphone */
+/* Place réservée en bas de page : les boutons ne cachent jamais la dernière ligne */
+html[data-adapte-voix='1'] main { padding-bottom: calc(5rem + env(safe-area-inset-bottom)) !important; }
+@media (max-width: 1023px) { html[data-adapte-voix='1'] main.has-bottom-nav { padding-bottom: calc(9rem + env(safe-area-inset-bottom)) !important; } }
 .outils-voix {
   position: fixed; z-index: 45; left: 1rem; bottom: max(1rem, env(safe-area-inset-bottom));
   display: flex; gap: 0.5rem;
