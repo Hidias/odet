@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { fichierDeLInstance } from '../src/core/fichiersInstance'
 
-const BASE = 'https://thcngystpaiamejoaejn.supabase.co'
+const BASE = 'https://abcdefghijklmnopqrst.supabase.co'
 
 describe('fichierDeLInstance', () => {
   it('écarte un fichier hébergé sur un autre projet Supabase', () => {

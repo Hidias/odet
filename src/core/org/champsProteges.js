@@ -52,8 +52,11 @@ function reperes(ctx) {
     .sort((a, b) => String(b[0]).length - String(a[0]).length)
 }
 
-// Traces d'un autre organisme (outil d'origine) : à signaler, jamais remplacées automatiquement
-const AUTRES_ORGANISMES = [/access\s+formation/i, /accessformation/i, /kerbleiz/i, /53\s?29\s?10261\s?29/]
+// Traces d'un autre organisme (outil d'origine) : saisies dans les paramètres de l'organisme (traces_a_signaler, 0412),
+// à signaler, jamais remplacées automatiquement. Un numéro se reconnaît avec ou sans espaces.
+function tracesAutresOrganismes(ctx) {
+  return (ctx?.traces || []).map((t) => motifChiffres(t) || new RegExp(echapper(t).replace(/\s+/g, '\\s+'), 'i')).filter(Boolean)
+}
 
 /** Liste des valeurs tapées à la main : [{ texte, champ }] ; champ vide = à corriger à la main */
 export function valeursEnDur(texte, ctx) {
@@ -65,7 +68,7 @@ export function valeursEnDur(texte, ctx) {
     const m = s.match(re)
     if (m) vus.push({ texte: m[0], champ })
   }
-  for (const re of AUTRES_ORGANISMES) {
+  for (const re of tracesAutresOrganismes(ctx)) {
     const m = s.match(re)
     if (m) vus.push({ texte: m[0], champ: '' })
   }

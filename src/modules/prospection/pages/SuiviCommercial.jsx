@@ -371,7 +371,7 @@ export default function SuiviCommercial() {
             <p className="text-ui-sm text-gray-500">
               Signalé le {fmtDate(rdvRefDate(r))}
               {r.contact_name ? ` · ${r.contact_name}` : ''}
-              {(r.source || '').includes('marine') ? ' · via la prospection téléphonique' : ''}
+              {(r.source || '').includes('phoning') ? ' · via la prospection téléphonique' : ''}
               {r.formations_interet?.length ? ` · ${r.formations_interet.join(', ')}` : ''}
             </p>
             {(r.notes || r.notes_crm) && (

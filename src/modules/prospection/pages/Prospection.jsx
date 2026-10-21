@@ -110,14 +110,14 @@ export default function Prospection() {
   // helper : réalisé sans session liée ET next_action_date dépassée
   const realiseOrphelin = r => r.status === 'realise' && !r.session_id && r.next_action_date && isBefore(parseISO(r.next_action_date), today)
 
-  // Transferts = a_prendre avec source phoning_marine_transfer
+  // Transferts = a_prendre avec source phoning_transfert
   const transferts = filtered
-    .filter(r => r.status === 'a_prendre' && r.source === 'phoning_marine_transfer')
+    .filter(r => r.status === 'a_prendre' && r.source === 'phoning_transfert')
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) // plus anciens en premier
 
   // Chauds = a_prendre signalé en prospection téléphonique (hors transferts)
   const chauds = filtered
-    .filter(r => r.status === 'a_prendre' && r.source?.includes('phoning') && r.source !== 'phoning_marine_transfer')
+    .filter(r => r.status === 'a_prendre' && r.source?.includes('phoning') && r.source !== 'phoning_transfert')
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
 
   //  À relancer = 4 cas (mutuellement exclusif avec chauds/prevus/realises)
@@ -210,7 +210,7 @@ export default function Prospection() {
                 rdv={rdv}
                 onConvert={async () => {
                   await supabase.from('prospect_rdv').update({
-                    source: 'phoning_marine',
+                    source: 'phoning',
                     updated_at: new Date().toISOString(),
                   }).eq('id', rdv.id)
                   loadData()
@@ -455,7 +455,7 @@ function TransfertCard({ rdv, onConvert, onClose, onClick, onDelete }) {
 ───────────────────────────────────────── */
 function RdvCard({ rdv, variant, onClick, onDelete }) {
   const late = !['realise', 'annule', 'reporte'].includes(variant) && (isActionLate(rdv) || (variant === 'prevu' && isRdvLate(rdv)))
-  const isHotFromPhoning = rdv.temperature === 'chaud' && rdv.source?.includes('marine')
+  const isHotFromPhoning = rdv.temperature === 'chaud' && rdv.source?.includes('phoning')
   const isTransfer = rdv.source?.includes('transfer')
   const ago = agoLabel(rdv.updated_at)
 

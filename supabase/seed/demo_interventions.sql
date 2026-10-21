@@ -11,15 +11,15 @@ declare
   v_prefix text := (select coalesce(nullif(trim(doc_prefix), ''), 'APP') from public.organization_settings limit 1);
   v_n int := (select label_next from public.itv_settings where id = 1);
   v_ref int := 0; v_year int; v_tech uuid; v_cnt int; i int; v_res text; v_def text; v_start timestamptz;
-  t_ronan uuid := (select id from auth.users where email = 'ronan.gourmelen@gld-demo.fr');
-  t_loic uuid := (select id from auth.users where email = 'loic.prigent@gld-demo.fr');
+  t_tech1 uuid := (select id from auth.users where email = 'technicien1@exemple.fr');
+  t_tech2 uuid := (select id from auth.users where email = 'technicien2@exemple.fr');
   v_sigs text[] := array(select signature_morning from public.attendance_halfdays where signature_morning like 'data:image%' order by id limit 20);
-  streets text[] := array['rue de la Gare', 'route de Quimper', 'ZA de Kerourvois', 'rue du Port', 'impasse des Ajoncs', 'rue Jean Jaurès', 'ZI de Kergonan', 'chemin de Lestonan'];
+  streets text[] := array['rue de la Gare', 'route de Brest', 'ZA de Kerourvois', 'rue du Port', 'impasse des Ajoncs', 'rue Jean Jaurès', 'ZI de Kergonan', 'chemin de Lestonan'];
   signers text[] := array['Gaëlle Le Floc''h, responsable technique', 'Yannick Cariou, directeur', 'Morgane Tanguy, responsable sécurité', 'Erwan Le Goff, chef d''atelier'];
   years int[] := array[2014, 2016, 2016, 2018, 2019, 2020, 2021, 2021, 2022, 2023, 2024];
   plan16 jsonb := '[]'::jsonb;
 begin
-  if t_ronan is null or t_loic is null then raise exception 'Comptes des techniciens fictifs absents : appliquer demo_interventions_comptes.sql d''abord'; end if;
+  if t_tech1 is null or t_tech2 is null then raise exception 'Comptes des techniciens fictifs absents : appliquer demo_interventions_comptes.sql d''abord'; end if;
   if exists (select 1 from public.itv_equipment eq join public.demo_records r on r.id = eq.client_id and r.tbl = 'clients') then
     raise exception 'Le parc fictif existe déjà';
   end if;
@@ -31,22 +31,22 @@ begin
       (2, 'Supermarché Ty Marc''had', 'Bénodet', '29950', 47.875, -4.106, 'Magasin et réserve:shop', null, null, 10, 0),
       (3, 'Résidence Ar Steredenn', 'Fouesnant', '29170', 47.894, -4.012, 'Tous bâtiments:ehpad', 980, '{3,9}'::int[], 9, 0),
       (4, 'Transports Le Bihannic', 'Briec', '29510', 48.102, -3.997, 'Dépôt et ateliers:warehouse', 520, '{9}'::int[], 9, 1),
-      (5, 'Scierie du Steïr', 'Quimper', '29000', 47.996, -4.102, 'Scierie:industry', null, null, 9, 1),
+      (5, 'Scierie du Steïr', 'Brest', '29000', 47.996, -4.102, 'Scierie:industry', null, null, 9, 1),
       (6, 'Glenan Marine', 'Loctudy', '29750', 47.834, -4.170, 'Atelier naval:industry_small', null, null, 8, 1),
       (7, 'Mareyage Ty Ar Mor', 'Penmarch', '29760', 47.812, -4.338, 'Halle de mareyage:warehouse', 450, '{10}'::int[], 10, 1),
       (8, 'Cornouaille Usinage', 'Pont-l''Abbé', '29120', 47.866, -4.222, 'Usine:industry', null, null, 11, 0),
       (9, 'Agri-Équipements du Pays Bigouden', 'Plonéour-Lanvern', '29720', 47.904, -4.285, 'Magasin et atelier:shop_small', null, null, 10, 1),
-      (10, 'Kervéguen Logistique', 'Quimper', '29000', 47.996, -4.102, 'Entrepôt A:warehouse|Entrepôt B:warehouse_small', 1150, '{4,11}'::int[], 11, 0),
-      (11, 'Imprimerie Kemper Graphik', 'Quimper', '29000', 47.996, -4.102, 'Imprimerie:industry_small', null, null, 3, 0),
-      (12, 'Plasturgie de l''Isole', 'Quimperlé', '29300', 47.873, -3.549, 'Usine:industry', 890, '{6}'::int[], 6, 1),
-      (13, 'Micro-crèche Bugale Mad', 'Plomelin', '29700', 47.932, -4.150, 'Crèche:small', null, null, 5, 0),
+      (10, 'Kervéguen Logistique', 'Brest', '29000', 47.996, -4.102, 'Entrepôt A:warehouse|Entrepôt B:warehouse_small', 1150, '{4,11}'::int[], 11, 0),
+      (11, 'Imprimerie Kemper Graphik', 'Brest', '29000', 47.996, -4.102, 'Imprimerie:industry_small', null, null, 3, 0),
+      (12, 'Plasturgie de l''Isole', 'Brestlé', '29300', 47.873, -3.549, 'Usine:industry', 890, '{6}'::int[], 6, 1),
+      (13, 'Micro-crèche Bugale Mad', 'Morlaix', '29600', 47.932, -4.150, 'Crèche:small', null, null, 5, 0),
       (14, 'Fromagerie Ker Laëz', 'Châteaulin', '29150', 48.197, -4.090, 'Fromagerie:industry_small', null, null, 2, 1)
     ) as x(n, name, town, cp, lat, lng, sites, price, months, last_month, tech)
     order by n
   loop
     select cl.id into v_client from public.clients cl join public.demo_records r on r.id = cl.id and r.tbl = 'clients' where cl.name = c.name;
     if v_client is null then continue; end if;
-    v_tech := case when c.tech = 0 then t_ronan else t_loic end;
+    v_tech := case when c.tech = 0 then t_tech1 else t_tech2 end;
     v_contract := null;
     if c.price is not null then
       insert into public.itv_contracts (client_id, reference, label, start_on, annual_price_ht, visit_months, status)
@@ -104,7 +104,7 @@ begin
         insert into public.itv_visits (reference, client_id, site_id, contract_id, technician_id, due_on, planned_on, route_order, status, started_at, finished_at,
                                        signer_name, client_signature, observations, site_observations)
         values ('ITV-' || extract(year from d) || '-' || lpad(v_ref::text, 4, '0'), v_client, v_site, v_contract,
-                case when random() < 0.5 then t_ronan else t_loic end, date_trunc('month', d)::date, d, 1, 'terminee', v_start, v_start + interval '2 hours 10 minutes',
+                case when random() < 0.5 then t_tech1 else t_tech2 end, date_trunc('month', d)::date, d, 1, 'terminee', v_start, v_start + interval '2 hours 10 minutes',
                 signers[1 + floor(random() * 4)::int], v_sigs[1 + floor(random() * greatest(cardinality(v_sigs), 1))::int],
                 (array[null, null, 'Accès au local technique encombré, signalé au responsable.', 'RAS.'])[1 + floor(random() * 4)::int],
                 (array['[]', '[]', '["Signalétique de sécurité manquante ou dégradée"]', '["Plan d''évacuation absent ou à mettre à jour"]'])[1 + floor(random() * 4)::int]::jsonb)
@@ -134,9 +134,9 @@ begin
       if c.months is not null and cardinality(c.months) > 1 and 9 = any(c.months) then v_next := '2026-09-01'; end if;
 
       if (c.n, i) in ((1, 1), (2, 1), (3, 1)) then
-        plan16 := plan16 || jsonb_build_object('client', v_client, 'site', v_site, 'contract', v_contract, 'due', v_next, 'tech', t_ronan, 'n', c.n);
+        plan16 := plan16 || jsonb_build_object('client', v_client, 'site', v_site, 'contract', v_contract, 'due', v_next, 'tech', t_tech1, 'n', c.n);
       elsif (c.n, i) in ((7, 1), (9, 1)) then
-        plan16 := plan16 || jsonb_build_object('client', v_client, 'site', v_site, 'contract', v_contract, 'due', v_next, 'tech', t_loic, 'n', c.n);
+        plan16 := plan16 || jsonb_build_object('client', v_client, 'site', v_site, 'contract', v_contract, 'due', v_next, 'tech', t_tech2, 'n', c.n);
       elsif v_contract is not null then
         insert into public.itv_visits (client_id, site_id, contract_id, due_on, status)
         select v_client, v_site, v_contract, make_date(2026, m, 1), 'a_planifier' from unnest(c.months) m where m > 10;
@@ -144,21 +144,21 @@ begin
     end loop;
   end loop;
 
-  -- Tournées du vendredi 16 octobre (visite 1 de Ronan : celle de la démonstration)
+  -- Tournées du vendredi 16 octobre (visite 1 du premier technicien : celle de la démonstration)
   insert into public.itv_visits (client_id, site_id, contract_id, technician_id, due_on, planned_on, planned_time, route_order, status)
   select (p ->> 'client')::uuid, (p ->> 'site')::uuid, nullif(p ->> 'contract', '')::uuid, (p ->> 'tech')::uuid, (p ->> 'due')::date, '2026-10-16',
          (array['08:30', '11:00', '14:00'])[(row_number() over (partition by p ->> 'tech' order by (p ->> 'n')::int))::int]::time,
          row_number() over (partition by p ->> 'tech' order by (p ->> 'n')::int), 'planifiee'
   from jsonb_array_elements(plan16) p;
 
-  -- Pour la démonstration : sur le site de la première visite de Ronan, deux extincteurs à eau de 2016 (révision
+  -- Pour la démonstration : sur le site de la première visite du premier technicien, deux extincteurs à eau de 2016 (révision
   -- à 10 ans proposée) et un de 2006 (fin de vie à 20 ans proposée)
   update public.itv_equipment e set manufactured_year = case when x.n = 3 then 2006 else 2016 end,
          installed_on = case when x.n = 3 then null else '2016-05-01'::date end
   from (select eq.id, row_number() over (order by eq.label_code) as n from public.itv_equipment eq
         join public.itv_equipment_types t on t.id = eq.type_id
         where t.name = 'Extincteur à eau pulvérisée'
-          and eq.site_id = (select site_id from public.itv_visits where planned_on = '2026-10-16' and technician_id = t_ronan and route_order = 1)) x
+          and eq.site_id = (select site_id from public.itv_visits where planned_on = '2026-10-16' and technician_id = t_tech1 and route_order = 1)) x
   where e.id = x.id and x.n <= 3;
 
   -- Compteur d'étiquettes, prix d'exemple des pièces et forfait de visite (à régler dans Réglages), module actif

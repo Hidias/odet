@@ -1,6 +1,6 @@
 -- 0363_facturation_mentions.sql : mentions obligatoires, nature et régime de TVA par ligne (Facturation fiable).
 --
--- Règles vérifiées : odet-facturation-phase1.md § 1 et 2. Décision du 17/10 : aucune exonération chez GLD Sécurité
+-- Règles vérifiées : odet-facturation-phase1.md § 1 et 2. Décision du 17/10 : aucune exonération pour la première société
 -- (régime « exonéré formation » désactivé dans ses réglages, disponible pour d'autres organismes).
 --   invoice_items, quote_items : nature (service, bien) et régime de TVA (normal, exonéré, autoliquidation) par ligne ;
 --     la franchise est un régime du vendeur (organization_settings.tva_applicable = faux), pas d'une ligne.
@@ -42,7 +42,7 @@ alter table public.billing_settings add column if not exists mention_debits text
 alter table public.billing_settings add column if not exists exoneration_formation_active boolean not null default false;
 alter table public.billing_settings add column if not exists exoneration_attestation_ref text;
 alter table public.billing_settings add column if not exists exoneration_attestation_date date;
-comment on column public.billing_settings.exoneration_formation_active is 'Exonération de la formation (attestation DREETS, formulaire 3511-SD). GLD Sécurité : désactivée (décision du 17/10)';
+comment on column public.billing_settings.exoneration_formation_active is 'Exonération de la formation (attestation DREETS, formulaire 3511-SD), désactivée par défaut';
 
 alter table public.invoices add column if not exists legal_mentions jsonb;
 alter table public.invoices add column if not exists nature_operation text;

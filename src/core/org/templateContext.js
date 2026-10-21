@@ -107,6 +107,8 @@ export function buildTemplateContext({ org = {}, roles = [], courses = [], deput
     app: { nom: org.app_name || nom },
     role,
     catalogue: (courses || []).map((c) => c.title).filter(Boolean),
+    // Traces d'un ancien organisme à signaler dans les modèles (paramètres, 0412) : jamais remplacées automatiquement
+    traces: (Array.isArray(org.traces_a_signaler) ? org.traces_a_signaler : []).map((t) => String(t || '').trim()).filter((t) => t.length >= 3),
   }
 }
 

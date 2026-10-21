@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { sitesAMontrer, operationsEnRetard, sessionsEchantillon, ilYa } from '../src/modules/certification/lib/preparerAudit'
 
-const visite = (id, jour, site = 's1', status = 'terminee') => ({ id, reference: `ITV-${id}`, status, finished_at: `${jour}T10:00:00Z`, site_id: site, client_id: 'c1', sites: { name: 'Site', city: 'Concarneau' }, clients: { name: 'Client' } })
+const visite = (id, jour, site = 's1', status = 'terminee') => ({ id, reference: `ITV-${id}`, status, finished_at: `${jour}T10:00:00Z`, site_id: site, client_id: 'c1', sites: { name: 'Site', city: 'Brest' }, clients: { name: 'Client' } })
 
 describe('Préparer l\'audit', () => {
   it('sites à montrer : seulement les opérations périodiques faites, sur la période, visite terminée', () => {

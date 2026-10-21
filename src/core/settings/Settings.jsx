@@ -91,6 +91,8 @@ export default function Settings() {
       const f = {}
       ORG_FIELDS.forEach((k) => { f[k] = organization[k] ?? (k === 'zone_departements' ? [] : k === 'ai_profile' ? {} : '') })
       f.zone_departements_text = (organization.zone_departements || []).join(', ')
+      // Traces d'un ancien organisme (0412) : seulement si la base connaît la colonne
+      if (Array.isArray(organization.traces_a_signaler)) f.traces_texte = organization.traces_a_signaler.join('\n')
       setForm(f)
     }
   }, [organization])
@@ -113,6 +115,8 @@ export default function Settings() {
       payload.bank_overdraft = Math.max(0, Number(String(form.bank_overdraft ?? '').replace(',', '.')) || 0)
       payload.ai_profile = form.ai_profile && typeof form.ai_profile === 'object' ? form.ai_profile : {}
       for (const k of ['qualiopi_since', 'date_creation']) if (!payload[k]) payload[k] = null
+      delete payload.traces_texte
+      if (typeof form.traces_texte === 'string') payload.traces_a_signaler = form.traces_texte.split('\n').map((t) => t.trim()).filter((t) => t.length >= 3)
       const { error } = await updateOrganization(payload)
       if (error) throw error
       await refreshBranding()
@@ -343,6 +347,11 @@ export default function Settings() {
                 <li>Conventions, article « Annulation et report » : articles 8 et 9 des conditions générales de vente.</li>
                 <li>Tant qu'aucune version n'est validée, le brouillon enregistré ou le modèle de l'outil est utilisé.</li>
               </ul>
+              {typeof form.traces_texte === 'string' && (
+                <Field label="Traces d'un ancien organisme à signaler" hint="Une par ligne : ancien nom, ancienne adresse, ancien numéro de déclaration. Repérées dans les modèles de documents, jamais remplacées automatiquement.">
+                  <textarea className="input min-h-[90px]" value={form.traces_texte} onChange={(e) => set('traces_texte', e.target.value)} />
+                </Field>
+              )}
             </>
           )}
 

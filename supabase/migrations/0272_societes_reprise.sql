@@ -12,7 +12,7 @@
 --    C2 et C3 retireront ces recopies quand les écrans liront et écriront la société directement.
 --
 -- Le mode d'accès de support reste celui du produit (à la demande) : le choix propre à une instance est posé à part
--- (pour GLD : supabase/instances/odet-gld/c1a_acces_support_permanent.sql, décision du 17/10).
+-- (réglage facultatif : supabase/options/acces_support_permanent.sql).
 -- Migration idempotente. Retour arrière : supabase/rollback/0270-0273_societes_retour.sql
 
 -- Rôles internes qui reçoivent une appartenance

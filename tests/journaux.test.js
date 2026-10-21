@@ -7,13 +7,13 @@ import { redact, redactAny, installConsoleRedaction } from '../api/_lib/redact.j
 describe('Masquage des données personnelles', () => {
   const cas = [
     ['Envoi à jean.dupont@exemple.fr refusé', 'Envoi à [email] refusé'],
-    ['550 5.1.1 <marie+test@gld.fr>: unknown', '550 5.1.1 <[email]>: unknown'],
+    ['550 5.1.1 <marie+test@exemple.fr>: unknown', '550 5.1.1 <[email]>: unknown'],
     ['tél 06 12 34 56 78', 'tél [téléphone]'],
     ['tél 06.12.34.56.78', 'tél [téléphone]'],
     ['tél 0612345678', 'tél [téléphone]'],
     ['tél +33 6 12 34 56 78', 'tél [téléphone]'],
-    ['IBAN FR76 1558 9297 0600 0890 6894 048', 'IBAN [IBAN]'],
-    ['IBAN FR7615589297060008906894048', 'IBAN [IBAN]'],
+    ['IBAN FR76 3000 6000 0112 3456 7890 189', 'IBAN [IBAN]'],
+    ['IBAN FR7630006000011234567890189', 'IBAN [IBAN]'],
     ['NIR 1 85 05 78 006 084 36', 'NIR [NIR]'],
     ['NIR 285057800608436', 'NIR [NIR]'],
     ['Authorization: Bearer abcdefghij123456', 'Authorization: Bearer [jeton]'],
@@ -41,10 +41,10 @@ describe('Masquage des données personnelles', () => {
     const sortie = []
     const faux = { log: (...a) => sortie.push(a), error: (...a) => sortie.push(a) }
     installConsoleRedaction(faux)
-    faux.log('Sync', 'hicham@exemple.fr', { tel: '06 12 34 56 78' })
-    faux.error('Erreur', new Error('IBAN FR76 1558 9297 0600 0890 6894 048'))
+    faux.log('Sync', 'claire@exemple.fr', { tel: '06 12 34 56 78' })
+    faux.error('Erreur', new Error('IBAN FR76 3000 6000 0112 3456 7890 189'))
     const texte = JSON.stringify(sortie.map((a) => a.map((x) => (x instanceof Error ? x.message : x))))
-    expect(texte).not.toMatch(/@exemple\.fr|06 12 34|FR76 1558/)
+    expect(texte).not.toMatch(/@exemple\.fr|06 12 34|FR76 3000 6/)
     expect(texte).toContain('[email]')
   })
 })

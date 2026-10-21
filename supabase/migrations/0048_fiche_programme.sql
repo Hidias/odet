@@ -2,7 +2,7 @@
 -- versions des programmes.
 --
 -- Demande de H (19/10) : saisir dans la fiche formation toutes les informations d'un programme audité (modèle des
--- programmes Access Formation) et les retrouver sur le programme généré, sur une seule page.
+-- programmes d'origine) et les retrouver sur le programme généré, sur une seule page.
 -- 1. courses : effectif minimum et maximum, délai d'accès, recyclage conseillé ou durée de validité, documents
 --    remis, profil du formateur, mention du tarif, modalités, modalités d'évaluation (existante), référence, version
 --    et date de mise à jour du programme.

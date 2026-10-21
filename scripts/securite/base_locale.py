@@ -3,7 +3,7 @@
 
 Sert aux essais d'un chantier AVANT la production : on reconstruit une base avec Supabase simulé
 (rôles anon, authenticated, service_role ; schémas auth, storage, cron, net, vault ; pgcrypto),
-on rejoue les migrations dans l'ordre où elles ont été appliquées sur odet-gld, on ajoute quelques
+on rejoue les migrations dans l'ordre où elles ont été appliquées en production, on ajoute quelques
 données et des comptes comme en production, puis on lance les fichiers d'essai.
 
 Rien ici ne touche la production : la base est locale (PostgreSQL 16 lancé à part).
@@ -263,6 +263,8 @@ ORDRE_PROD = (
     + ['0409']
     # Avancement des stagiaires sur le portail, une notification par session et par jour, 21/10
     + ['0410']
+    # Marque blanche : plus aucun nom écrit dans la base, traces d'un ancien organisme saisies dans les paramètres, 21/10
+    + ['0412']
 )
 
 

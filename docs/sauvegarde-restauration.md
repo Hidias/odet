@@ -6,7 +6,7 @@ Tout se fait depuis GitHub web, onglet **Actions** du dépôt. Aucun terminal.
 
 Le workflow **Sauvegarde de nuit** (`.github/workflows/sauvegarde-nuit.yml`) démarre à 3h17 en été, 2h17 en hiver (heure de Paris). Il fait deux choses :
 
-1. **Export chiffré** de la base Supabase odet-gld :
+1. **Export chiffré** de la base Supabase de l'instance :
    - rôles, schéma (tables, fonctions, déclencheurs, politiques RLS, droits), données de toutes les tables ;
    - comptes utilisateurs (`auth.users`, mots de passe chiffrés compris : chacun se reconnecte avec son mot de passe habituel) ;
    - politiques du Storage et déclencheur `on_auth_user_created` (absents de l'export standard de Supabase, ajoutés par `hors_public.sql`) ;
@@ -32,7 +32,7 @@ Dans GitHub : dépôt `Hidias/odet` > **Settings** > **Secrets and variables** >
 
 | Nom | Où le trouver |
 |---|---|
-| `SUPABASE_DB_URL` | Supabase > projet odet-gld > bouton **Connect** > **Session pooler** (port 5432). Remplacer `[YOUR-PASSWORD]` par le mot de passe de la base. Mot de passe oublié : Settings > Database > **Reset database password** (sans risque : l'application ne l'utilise pas, elle passe par les clés API). |
+| `SUPABASE_DB_URL` | Supabase > projet de l'instance > bouton **Connect** > **Session pooler** (port 5432). Remplacer `[YOUR-PASSWORD]` par le mot de passe de la base. Mot de passe oublié : Settings > Database > **Reset database password** (sans risque : l'application ne l'utilise pas, elle passe par les clés API). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Même valeur que dans Vercel (Supabase > Settings > API Keys > `service_role`). Sert à lire les fichiers du Storage. |
 | `BACKUP_PASSPHRASE` | Une phrase longue inventée (5 mots ou plus). **La noter aussi dans un gestionnaire de mots de passe** : sans elle, aucune sauvegarde n'est lisible, par personne. |
 
@@ -52,7 +52,7 @@ Puis lancer un premier essai : **Actions** > **Sauvegarde de nuit** > **Run work
 
 ## 5. Restaurer (projet Supabase perdu, supprimé ou corrompu)
 
-La restauration se fait **toujours dans un projet Supabase neuf**. Le script refuse une base qui contient déjà des tables, et le workflow refuse l'URL de la production : impossible d'écraser odet-gld par erreur.
+La restauration se fait **toujours dans un projet Supabase neuf**. Le script refuse une base qui contient déjà des tables, et le workflow refuse l'URL de la production : impossible d'écraser la production par erreur.
 
 1. **Créer le projet** : Supabase > New project, région **West EU (Paris)**, Postgres 17. Noter le mot de passe de la base.
 2. **Créer deux secrets** dans GitHub (même écran qu'au point 2) :
@@ -70,7 +70,7 @@ La restauration se fait **toujours dans un projet Supabase neuf**. Le script ref
    - `SUPABASE_SERVICE_ROLE_KEY` : nouvelle clé `service_role` ;
    - **ne pas toucher** `ENCRYPTION_KEY`.
 6. **Vérifier** : se connecter, ouvrir une session, un PDF, le portail stagiaire d'une session, l'espace entreprise. Les utilisateurs déjà connectés devront se reconnecter (le nouveau projet a une autre clé de signature).
-7. **Remettre la sauvegarde sur la nouvelle production** : dans `sauvegarde-nuit.yml` et `restauration.yml`, remplacer `thcngystpaiamejoaejn` par la référence du nouveau projet ; mettre à jour `SUPABASE_DB_URL` et `SUPABASE_SERVICE_ROLE_KEY` ; supprimer les secrets `RESTORE_*`.
+7. **Remettre la sauvegarde sur la nouvelle production** : mettre à jour `SUPABASE_DB_URL` (la référence du projet en est lue : aucun fichier à modifier) et `SUPABASE_SERVICE_ROLE_KEY` ; supprimer les secrets `RESTORE_*`.
 
 ## 6. Retrouver des données effacées par erreur
 

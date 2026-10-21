@@ -72,7 +72,7 @@ export default function ProspectRDVDetail() {
   const [outcomeInfo, setOutcomeInfo] = useState(null)
 
   // CRM fil
-  const [marineCalls, setMarineCalls] = useState([])
+  const [appelsPhoning, setAppelsPhoning] = useState([])
   const [interactions, setInteractions] = useState([])
   const [crmLoading, setCrmLoading] = useState(false)
   const [newNote, setNewNote] = useState('')
@@ -156,7 +156,7 @@ export default function ProspectRDVDetail() {
           .order('interaction_date', { ascending: false })
           .limit(50),
       ])
-      setMarineCalls(calls || [])
+      setAppelsPhoning(calls || [])
       setInteractions(inters || [])
     } catch (err) { console.error('CRM load error:', err) }
     finally { setCrmLoading(false) }
@@ -343,7 +343,7 @@ export default function ProspectRDVDetail() {
 
   // Appels de prospection + interactions en un seul fil chronologique
   const crmFil = [
-    ...marineCalls.map(c => ({
+    ...appelsPhoning.map(c => ({
       _type: 'call',
       id: c.id,
       date: c.called_at,
@@ -375,7 +375,7 @@ export default function ProspectRDVDetail() {
   )
 
   const isTransfer = formData.source?.includes('transfer')
-  const isFromPhoning = formData.source?.includes('marine')
+  const isFromPhoning = formData.source?.includes('phoning')
   const initialNotes = formData.notes || ''
 
   return (
@@ -841,7 +841,7 @@ export default function ProspectRDVDetail() {
               ))}
 
               {/* Note initiale RDV (contexte de la prise de rendez-vous) si elle n'est pas dans les appels */}
-              {initialNotes && marineCalls.length === 0 && (
+              {initialNotes && appelsPhoning.length === 0 && (
                 <div className="rounded-ui-sm border border-gray-200 bg-gray-50 p-3 text-ui-sm">
                   <p className="font-semibold text-gray-800 mb-1">Note initiale</p>
                   <p className="text-gray-800 whitespace-pre-line leading-snug">{initialNotes}</p>

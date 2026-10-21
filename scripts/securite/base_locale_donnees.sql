@@ -51,7 +51,7 @@ insert into public.itv_technicians (profile_id, is_active) values
   ('00000000-0000-4000-8000-000000000015', true)
 on conflict (profile_id) do nothing;
 
-insert into public.clients (name, city) values ('Local client A', 'Quimper'), ('Local client B', 'Brest');
+insert into public.clients (name, city) values ('Local client A', 'Morlaix'), ('Local client B', 'Brest');
 insert into public.quotes (reference, client_id, status, total_ht)
 select 'DEV-LOCAL-0001', id, 'sent', 100 from public.clients where name = 'Local client A';
 insert into public.invoices (reference, client_id, status, total_ht, total_ttc)

@@ -1,6 +1,6 @@
 -- 0380_commercial_affaires.sql : chantier 10, suivi commercial simple (module « affaires »).
 --
--- Spec : odet-pac-commercial-inventaire.md, lots 0 à 3 et cadence du lot 4, ramenés à l'essentiel (Hubert, 19/10 :
+-- Spec : odet-pac-commercial-inventaire.md, lots 0 à 3 et cadence du lot 4, ramenés à l'essentiel (direction, 19/10 :
 -- « pas d'usine à gaz »). Une seule notion à suivre : l'affaire. Toute affaire ouverte a une date de prochaine action.
 -- 1. commercial_lists : listes réglables par société (segments, sources, motifs de perte, étapes avec probabilité),
 --    posées au départ de chaque société.

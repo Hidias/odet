@@ -27,9 +27,6 @@ concurrency:
   group: restauration
   cancel-in-progress: false
 
-env:
-  URL_PRODUCTION: https://thcngystpaiamejoaejn.supabase.co
-
 jobs:
   restauration:
     runs-on: ubuntu-24.04
@@ -42,7 +39,12 @@ jobs:
           A: ${{ secrets.RESTORE_DB_URL }}
           B: ${{ secrets.RESTORE_SERVICE_ROLE_KEY }}
           C: ${{ secrets.BACKUP_PASSPHRASE }}
+          PROD: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          # Référence de la production lue dans son secret : aucune référence d'instance écrite dans le dépôt
+          PROD_REF=$(printf '%s' "$PROD" | sed -nE 's#.*postgres\.([a-z0-9]{20})[:@].*#\1#p; t; s#.*@db\.([a-z0-9]{20})\.supabase\.co.*#\1#p')
+          [ -n "$PROD_REF" ] || { echo "::error::Référence de la production introuvable dans SUPABASE_DB_URL"; exit 1; }
+          URL_PRODUCTION="https://$PROD_REF.supabase.co"
           [ "$CONFIRMATION" = "RESTAURER" ] || { echo "::error::Confirmation absente : écrire RESTAURER"; exit 1; }
           CIBLE="${CIBLE%/}"
           [[ "$CIBLE" =~ ^https://[a-z0-9]+\.supabase\.co$ ]] || { echo "::error::URL du projet cible invalide : $CIBLE"; exit 1; }
@@ -54,7 +56,7 @@ jobs:
           [ -z "$manque" ] || { echo "::error::Secrets manquants :$manque"; exit 1; }
           REF="${CIBLE#https://}"; REF="${REF%%.*}"
           case "$A" in *"$REF"*) ;; *) echo "::error::Le secret RESTORE_DB_URL ne pointe pas vers le projet $REF"; exit 1;; esac
-          case "$A" in *thcngystpaiamejoaejn*) echo "::error::RESTORE_DB_URL pointe vers la production"; exit 1;; esac
+          case "$A" in *"$PROD_REF"*) echo "::error::RESTORE_DB_URL pointe vers la production"; exit 1;; esac
 
       - uses: actions/checkout@v4
 

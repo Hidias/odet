@@ -8,7 +8,7 @@ Lancer `python3 scripts/securite/essai_droits.py` (après `python3 scripts/secur
       photographies est un des tests (« mêmes lignes lues avant et après ») ;
   supabase/tests/essai_retour_c1b_transaction_annulee.sql
       photographie de l'état, 0370 à 0375, retour arrière, comparaison ;
-  supabase/application/c1b_0370-0375_odet-gld.sql
+  supabase/application/c1b_0370-0375.sql
       application réelle (un seul envoi, une seule transaction implicite).
 Les deux essais se terminent TOUJOURS par une erreur volontaire : tout est annulé.
 Base de départ : la production avec C1a (0270 à 0273) appliqué.
@@ -220,11 +220,11 @@ p2 = ["""-- FICHIER GÉNÉRÉ par scripts/securite/essai_droits.py : ne pas modi
 p2 += [bloc(f) for f in mig] + [PENDANT, bloc(retour), VERIF]
 ecrire(root / 'supabase' / 'tests' / 'essai_retour_c1b_transaction_annulee.sql', "".join(p2))
 
-# 3. Application réelle sur odet-gld
+# 3. Application réelle sur l'instance
 p3 = ["""-- FICHIER GÉNÉRÉ par scripts/securite/essai_droits.py : ne pas modifier à la main.
--- APPLICATION RÉELLE des droits composés (C1b) sur l'instance odet-gld : 0370 à 0375. Un seul envoi, une seule
+-- APPLICATION RÉELLE des droits composés (C1b) sur l'instance : 0370 à 0375. Un seul envoi, une seule
 -- transaction implicite : si une instruction échoue, rien n'est appliqué. Chaque migration s'enregistre dans
 -- public.schema_migrations. Retour arrière : supabase/rollback/0370-0375_droits_retour.sql
 """, ENTETE]
 p3 += [bloc(f) for f in mig]
-ecrire(root / 'supabase' / 'application' / 'c1b_0370-0375_odet-gld.sql', "".join(p3))
+ecrire(root / 'supabase' / 'application' / 'c1b_0370-0375.sql', "".join(p3))

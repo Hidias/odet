@@ -1,6 +1,6 @@
 # Module RH, socle (migration 0290)
 
-Module « rh » coupé par défaut : il s'active société par société (Console › Modules), après la relecture de Léandra.
+Module « rh » coupé par défaut : il s'active société par société (Console › Modules), après la relecture de la direction.
 Menu : section « Personnel ».
 
 ## Ce que ça fait

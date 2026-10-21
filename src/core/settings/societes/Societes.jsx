@@ -100,7 +100,7 @@ function Assistant({ modules, personnes, onClose, onCree }) {
           <Field label="Banque"><input className="input" value={f.bank_name} onChange={(e) => set('bank_name', e.target.value)} /></Field>
           <Field label="BIC"><input className="input" value={f.bic} onChange={(e) => set('bic', e.target.value.toUpperCase())} /></Field>
           <Field label="IBAN" className="md:col-span-2"><input className="input" value={f.iban} onChange={(e) => set('iban', e.target.value)} /></Field>
-          <Field label="Initiales des documents" hint="Exemple : GLDR"><input className="input" value={f.doc_prefix} onChange={(e) => set('doc_prefix', e.target.value.toUpperCase())} /></Field>
+          <Field label="Initiales des documents" hint="Exemple : ABC"><input className="input" value={f.doc_prefix} onChange={(e) => set('doc_prefix', e.target.value.toUpperCase())} /></Field>
           <Field label="Début de l'exercice comptable">
             <select className="select" value={f.fiscal_year_start_month} onChange={(e) => set('fiscal_year_start_month', Number(e.target.value))}>
               {MOIS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}

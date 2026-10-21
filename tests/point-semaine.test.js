@@ -23,12 +23,12 @@ describe('point de la semaine', () => {
   })
   it('compose un email sans balise injectée, avec la suite au bilan', () => {
     const html = emailPoint({ kind: 'bilan', week_start: '2026-10-19', note: '<b>Merci</b>',
-      lines: [{ id: 'm:1', section: 'divers', texte: 'Salon <script>', suite: 'reporte', owner_nom: 'Anthony' }] }, { appUrl: 'https://x.fr' })
+      lines: [{ id: 'm:1', section: 'divers', texte: 'Salon <script>', suite: 'reporte', owner_nom: 'Paul' }] }, { appUrl: 'https://x.fr' })
     expect(html).toContain('&lt;script&gt;')
     expect(html).toContain('&lt;b&gt;Merci')
     expect(html).toContain('reporté')
-    expect(html).toContain('(Anthony)')
-    expect(objetEmail({ kind: 'point', week_start: '2026-10-19' }, 'GLD')).toBe('Point de la semaine du 19/10 : GLD')
+    expect(html).toContain('(Paul)')
+    expect(objetEmail({ kind: 'point', week_start: '2026-10-19' }, 'ESSAI')).toBe('Point de la semaine du 19/10 : ESSAI')
   })
 })
 

@@ -96,7 +96,7 @@ export default function Etablissements({ companyId, peutModifier = true, onChang
       {edition && (
         <div className="rounded-ui border border-gray-300 p-3 grid gap-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="Nom de l'établissement" hint="Ex. : Site de Plomelin"><input id="etab-nom" className="input" value={edition.name || ''} onChange={(ev) => setEdition({ ...edition, name: ev.target.value })} /></Field>
+            <Field label="Nom de l'établissement" hint="Ex. : Site principal"><input id="etab-nom" className="input" value={edition.name || ''} onChange={(ev) => setEdition({ ...edition, name: ev.target.value })} /></Field>
             <Field label="SIRET" hint="Facultatif : un site non déclaré n'en a pas"><input id="etab-siret" className="input" value={edition.siret || ''} onChange={(ev) => setEdition({ ...edition, siret: ev.target.value })} /></Field>
             <Field label="Adresse" className="md:col-span-2"><input id="etab-adresse" className="input" value={edition.address || ''} onChange={(ev) => setEdition({ ...edition, address: ev.target.value })} /></Field>
             <Field label="Code postal"><input id="etab-cp" className="input" value={edition.postal_code || ''} onChange={(ev) => setEdition({ ...edition, postal_code: ev.target.value })} /></Field>

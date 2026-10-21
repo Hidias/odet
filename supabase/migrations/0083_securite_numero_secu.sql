@@ -28,7 +28,7 @@ grant all on table public.trainee_ssn to service_role;
 alter table public.trainees add column if not exists ssn_present boolean not null default false;
 alter table public.trainee_info_sheets add column if not exists ssn_present boolean not null default false;
 
--- Reprise des numéros déjà saisis (aucun au 14/10/2026 sur odet-gld)
+-- Reprise des numéros déjà saisis (aucun au 14/10/2026 en production)
 insert into public.trainee_ssn (trainee_id, ssn)
 select t.id, regexp_replace(t.social_security_number, '\s', '', 'g')
 from public.trainees t

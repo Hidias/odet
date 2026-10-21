@@ -13,6 +13,7 @@ import { fetchAll } from '../../../core/fetchAll'
 import { startDocument, numberPages } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
+import { appName } from '../../../core/org/currentOrg'
 import { CONTRATS, joursOuvres, nomComplet, chargerFeries, feriesNonTravailles } from './rhData'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
@@ -78,7 +79,7 @@ export async function telechargerRegistrePDF(rows, { enregistrer = true } = {}) 
     f.section('Stagiaires (partie distincte, L1221-13)')
     f.table(tete, stagiaires.map(ligne), { styles: { fontSize: 7.5 }, columnStyles: { 0: { cellWidth: 9 }, 4: { cellWidth: 11 } } })
   }
-  f.note('Les mentions sont tenues de façon indélébile et conservées 5 ans à compter du départ du salarié. Registre établi à partir des fiches du personnel et des contrats enregistrés dans GLD Solutions.')
+  f.note(`Les mentions sont tenues de façon indélébile et conservées 5 ans à compter du départ du salarié. Registre établi à partir des fiches du personnel et des contrats enregistrés dans ${appName() || "l'outil de gestion"}.`)
   f.finish()
   numberPages(doc, ORG)
   if (enregistrer) doc.save(`registre-unique-du-personnel-${new Date().toISOString().slice(0, 10)}.pdf`)

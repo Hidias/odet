@@ -252,7 +252,7 @@ export function orgHorsFormation(ORG) {
 }
 
 // Ligne d'identification à imprimer sur un document de formation (en-tête, pied de page, parties d'une convention) :
-// « NDA 53 29 10261 29 » quand le numéro est attribué, la mention obligatoire sinon, rien pour un document hors formation.
+// « NDA 11 22 33333 44 » quand le numéro est attribué, la mention obligatoire sinon, rien pour un document hors formation.
 export function ligneNda(ORG, { complet = false } = {}) {
   if (!ORG || ORG.horsFormation || !ORG.nda) return ''
   if (ORG.ndaAttribue === false || /en cours/.test(ORG.nda)) return "Déclaration d'activité en cours d'enregistrement"

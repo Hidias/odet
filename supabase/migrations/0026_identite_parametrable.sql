@@ -63,24 +63,6 @@ as $function$
   );
 $function$;
 
--- Messages d'erreur des fonctions de signature : même texte, sans nom de personne
-do $$
-declare
-  f regprocedure;
-  d text;
-begin
-  for f in
-    select p.oid::regprocedure from pg_proc p
-     where p.pronamespace = 'public'::regnamespace
-       and p.proname in ('trainer_proxy_sign', 'trainer_sign_halfday', 'get_trainer_sign_data')
-       and p.prosrc like '%compte de Hicham SAIDI%'
-  loop
-    d := pg_get_functiondef(f);
-    d := replace(d, 'depuis le compte de Hicham SAIDI', 'depuis un compte administrateur');
-    execute d;
-  end loop;
-end $$;
-
 create or replace function public.cron_call_vercel(p_path text)
 returns bigint
 language plpgsql

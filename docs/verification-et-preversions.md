@@ -2,7 +2,7 @@
 
 ## 1. Méthode d'essai (décision du 14/10/2026)
 
-Pas de base de test séparée. Les migrations sont additives et s'essaient **sur la production, dans une transaction annulée** (`begin; … rollback;`) avec les tests de droits, après avoir vérifié que la sauvegarde de nuit est verte. L'application réelle se fait après recette, avec l'accord écrit de Hicham.
+Pas de base de test séparée. Les migrations sont additives et s'essaient **sur la production, dans une transaction annulée** (`begin; … rollback;`) avec les tests de droits, après avoir vérifié que la sauvegarde de nuit est verte. L'application réelle se fait après recette, avec l'accord écrit de la direction.
 
 ## 2. Préversions Vercel
 

@@ -11,7 +11,7 @@ Utilisation :
       se termine par l'erreur volontaire « N test(s), M échec(s) » : tout est annulé ;
   supabase/tests/essai_retour_<lot>_transaction_annulee.sql : photographie de l'état, migrations, retour arrière,
       comparaison, se termine par « N écart(s) » : tout est annulé ;
-  supabase/application/<lot>_odet-gld.sql : application réelle (une seule transaction) ;
+  supabase/application/<lot>.sql : application réelle (une seule transaction) ;
   supabase/lots/<lot>.conf : description du lot pour l'action.
 Ne pas modifier les fichiers produits à la main. Aucun BEGIN ni COMMIT.
 """
@@ -128,8 +128,8 @@ def main():
            "-- comparaison. Se termine TOUJOURS par l'erreur volontaire « RÉSULTAT DE L'ESSAI DU RETOUR ARRIÈRE » : tout est annulé.\n"
            + ENTETE + ETAT + "".join(bloc(f) for f in mig) + bloc(retour) + VERIF.replace('{lot}', lot))
 
-    application = root / 'supabase' / 'application' / f'{lot}_odet-gld.sql'
-    ecrire(application, gen + f"-- APPLICATION RÉELLE sur odet-gld : {noms}. Une seule transaction : si une instruction échoue,\n"
+    application = root / 'supabase' / 'application' / f'{lot}.sql'
+    ecrire(application, gen + f"-- APPLICATION RÉELLE sur l'instance : {noms}. Une seule transaction : si une instruction échoue,\n"
            f"-- rien n'est appliqué. Retour arrière : {retour.relative_to(root)}\n" + ENTETE + "".join(bloc(f) for f in mig))
 
     conf = root / 'supabase' / 'lots' / f'{lot}.conf'

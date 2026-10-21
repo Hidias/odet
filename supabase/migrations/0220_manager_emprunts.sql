@@ -1,4 +1,4 @@
--- 0220_manager_emprunts.sql : module Manager, emprunts et crédits (spec odet-spec-manager.md § 5, note de Léandra :
+-- 0220_manager_emprunts.sql : module Manager, emprunts et crédits (spec odet-spec-manager.md § 5, note de la direction :
 -- « Ajouter l'échéancier et l'évolution des crédits de la boîte en cours dans Manager »).
 --
 --   - emprunts (loans) : prêteur, nature, objet, capital, taux, durée, dates, périodicité, différé, assurance, frais,

@@ -16,7 +16,7 @@ begin
   delete from clients where name = 'Atelier Démo Kerlan (fictif)';
 
   insert into clients (name, address, postal_code, city, siret, siren, contact_name, contact_function, contact_email, contact_phone, notes, type, client_type, status)
-  values ('Atelier Démo Kerlan (fictif)', '12 rue des Embruns', '29000', 'Quimper', '12345678900012', '123456789',
+  values ('Atelier Démo Kerlan (fictif)', '12 rue des Embruns', '29000', 'Brest', '12345678900012', '123456789',
           'Nolwenn Le Bihan', 'Responsable QSE', 'demo.kerlan@exemple.fr', '02 98 00 00 00', 'Client fictif créé pour la démonstration.', 'client', 'entreprise', 'actif')
   returning id into v_client;
 

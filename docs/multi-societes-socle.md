@@ -32,20 +32,20 @@ Toute table créée après 0273 naît avec une colonne `company_id` (contrôlé 
 |---|---|
 | `supabase/migrations/0270` à `0272` | tables, fonctions, reprise et recopies |
 | `supabase/migrations/0273_societes_regles.sql` | GÉNÉRÉ par `scripts/securite/regles.py` (matrice `MS`) |
-| `supabase/instances/odet-gld/c1a_acces_support_permanent.sql` | réglage propre à l'instance GLD : accès de support permanent (décision du 17/10/2026) |
+| `supabase/options/acces_support_permanent.sql` | réglage facultatif d'une instance : accès de support permanent (à décider par la direction de l'instance) |
 | `supabase/rollback/0270-0273_societes_retour.sql` | retour arrière des quatre migrations |
 | `supabase/tests/droits_chantier2.sql` | tests de droits, bloc C1a en fin de script (joué si `companies` existe) |
 | `supabase/tests/essai_c1a_transaction_annulee.sql` | GÉNÉRÉ par `scripts/securite/essai_societes.py` : migrations et tests, tout annulé |
 | `supabase/tests/essai_retour_c1a_transaction_annulee.sql` | GÉNÉRÉ : photographie, migrations, retour arrière, comparaison, tout annulé |
-| `supabase/application/c1a_0270-0273_odet-gld.sql` | GÉNÉRÉ : application réelle en un envoi |
+| `supabase/application/c1a_0270-0273.sql` | GÉNÉRÉ : application réelle en un envoi |
 
-## Procédure (éditeur SQL de Supabase, projet odet-gld)
+## Procédure (éditeur SQL du projet Supabase de l'instance)
 
 1. Sauvegarde de nuit du jour verte (GitHub › Actions › « Sauvegarde de nuit »).
 2. Coller `supabase/tests/essai_c1a_transaction_annulee.sql`, Run. Attendu : erreur volontaire
    « RÉSULTAT DES TESTS DE DROITS … 0 échec(s) » (202 tests au 18/10 sur une base comme la production).
 3. Coller `supabase/tests/essai_retour_c1a_transaction_annulee.sql`, Run. Attendu : « 0 écart(s) ».
-4. Application : coller `supabase/application/c1a_0270-0273_odet-gld.sql`, Run. Attendu : succès. Les quatre migrations
+4. Application : coller `supabase/application/c1a_0270-0273.sql`, Run. Attendu : succès. Les quatre migrations
    s'enregistrent dans `public.schema_migrations`.
 5. Fusionner la PR, attendre le déploiement Vercel de production.
 6. Rejouer `supabase/tests/droits_chantier2.sql` : attendu « 0 échec(s) ».

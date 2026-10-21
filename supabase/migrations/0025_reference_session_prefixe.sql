@@ -1,5 +1,5 @@
 -- 0025_reference_session_prefixe.sql : la référence automatique des sessions utilisait le préfixe « AF- »
--- (Access Formation) écrit en dur. Le préfixe vient désormais des paramètres (organization_settings.doc_prefix),
+-- (de l'organisme d'origine) écrit en dur. Le préfixe vient désormais des paramètres (organization_settings.doc_prefix),
 -- « SES » à défaut. Format inchangé : {PRÉFIXE}-{CODE FORMATION}-{AAMMJJ}-{NNN}.
 
 create or replace function public.generate_session_reference_v3()

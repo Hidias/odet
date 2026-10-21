@@ -1,5 +1,5 @@
--- 0001_base_schema.sql : socle de données du produit (derive du schema Access Campus du 2026-10-11, nettoye)
--- Tables supprimees volontairement : call_script_steps, call_scripts, client_tags, daily_attendances, evaluations_hot, evaluations_trainer, internal_notes, marine_commissions, marine_queue, phoning_session_items, prospect_search_history, prospect_search_history_backup_20260206, prospect_transfers, prospection_massive_backup_phonecleanup_v2, prospection_massive_backup_phonelink, public_portal_tokens, public_tokens, questionnaire_responses, questionnaires, revues_direction, session_accessibility, session_alerts, session_attendance, session_attendance_days, session_evaluations, session_qualiopi_indicators, stagiaire_tags, veille_reglementaire
+-- 0001_base_schema.sql : socle de données du produit (schéma de départ du produit, nettoyé)
+-- Tables supprimees volontairement : call_script_steps, call_scripts, client_tags, daily_attendances, evaluations_hot, evaluations_trainer, internal_notes, phoning_commissions, phoning_queue, phoning_session_items, prospect_search_history, prospect_search_history_backup_20260206, prospect_transfers, prospection_massive_backup_phonecleanup_v2, prospection_massive_backup_phonelink, public_portal_tokens, public_tokens, questionnaire_responses, questionnaires, revues_direction, session_accessibility, session_alerts, session_attendance, session_attendance_days, session_evaluations, session_qualiopi_indicators, stagiaire_tags, veille_reglementaire
 
 create extension if not exists "pg_cron";
 create extension if not exists "pg_net";
@@ -131,7 +131,7 @@ create table public."bank_statements" (
   "statement_year" integer,
   "period_start" date,
   "period_end" date not null,
-  "account_label" text default 'CMB — 00890689 40'::text,
+  "account_label" text,
   "opening_balance" numeric(12,2) not null,
   "closing_balance" numeric(12,2) not null,
   "total_debits" numeric(12,2) default 0 not null,
@@ -158,11 +158,11 @@ create table public."bpf_declarations" (
   "id" uuid default gen_random_uuid() not null,
   "year" integer not null,
   "status" text default 'draft'::text,
-  "org_name" text default 'Access Formation'::text,
-  "org_siret" text default '94356386600012'::text,
-  "org_nda" text default '53291026129'::text,
-  "org_address" text default '24 Rue Kerbleiz, 29900 Concarneau'::text,
-  "org_dirigeant" text default 'Hicham Saidi'::text,
+  "org_name" text,
+  "org_siret" text,
+  "org_nda" text,
+  "org_address" text,
+  "org_dirigeant" text,
   "exercice_start" date,
   "exercice_end" date,
   "ca_entreprises" numeric(12,2) default 0,
@@ -263,7 +263,7 @@ create table public."budget_emails_sent" (
 create table public."budget_meal_guests" (
   "id" uuid default gen_random_uuid() not null,
   "transaction_id" uuid not null,
-  "meal_for" text default 'hicham'::text not null,
+  "meal_for" text not null,
   "guest_name" text,
   "guest_company" text,
   "motif" text,
@@ -271,7 +271,6 @@ create table public."budget_meal_guests" (
   "created_at" timestamp with time zone default now(),
   "guest_first_name" text,
   "client_id" uuid,
-  constraint "budget_meal_guests_meal_for_check" CHECK ((meal_for = ANY (ARRAY['hicham'::text, 'maxime'::text]))),
   constraint "budget_meal_guests_pkey" PRIMARY KEY (id)
 );
 
@@ -329,7 +328,7 @@ create table public."budget_transaction_invoices" (
   "invoice_id" uuid not null,
   "amount_applied" numeric default 0 not null,
   "reconciled_at" timestamp with time zone default now(),
-  "reconciled_by" text default 'Hicham'::text,
+  "reconciled_by" text,
   "notes" text,
   "created_at" timestamp with time zone default now(),
   constraint "budget_transaction_invoices_pkey" PRIMARY KEY (id),
@@ -363,7 +362,6 @@ create table public."budget_transactions" (
   "linked_transaction_id" uuid,
   "is_private" boolean default false not null,
   "private_owner" text,
-  constraint "budget_transactions_payer_check" CHECK ((payer = ANY (ARRAY['entreprise'::text, 'hicham_perso'::text, 'maxime_perso'::text]))),
   constraint "budget_transactions_private_owner_check" CHECK (((is_private = false) OR (private_owner IS NOT NULL))),
   constraint "budget_transactions_pkey" PRIMARY KEY (id)
 );
@@ -981,7 +979,7 @@ create table public."invoice_payments" (
   "payment_method" character varying default 'virement bancaire'::character varying,
   "payment_reference" character varying,
   "notes" text,
-  "created_by" character varying default 'Hicham Saidi'::character varying,
+  "created_by" character varying,
   "created_at" timestamp with time zone default now(),
   constraint "invoice_payments_pkey" PRIMARY KEY (id)
 );
@@ -1038,7 +1036,7 @@ create table public."invoices" (
   "amount_due" numeric default 0,
   "status" character varying default 'draft'::character varying,
   "notes" text,
-  "created_by" character varying default 'Hicham Saidi'::character varying,
+  "created_by" character varying,
   "created_at" timestamp with time zone default now(),
   "updated_at" timestamp with time zone default now(),
   "is_formation_pro" boolean default true,
@@ -1072,7 +1070,7 @@ create table public."mailing_campaigns" (
   "name" text not null,
   "subject" text not null,
   "body_html" text not null,
-  "signature_caller" text default 'Marine'::text not null,
+  "signature_caller" text default ''::text not null,
   "sender_email" text not null,
   "target_source" text default 'both'::text not null,
   "filters" jsonb default '{}'::jsonb,
@@ -1163,7 +1161,7 @@ create table public."mailing_templates" (
   "name" text not null,
   "subject" text default ''::text not null,
   "body_html" text default ''::text not null,
-  "signature_caller" text default 'Hicham'::text not null,
+  "signature_caller" text default ''::text not null,
   "created_by" text,
   "created_at" timestamp with time zone default now() not null,
   "updated_at" timestamp with time zone default now() not null,
@@ -1241,7 +1239,7 @@ create table public."notifications" (
 
 create table public."org_settings" (
   "id" uuid default uuid_generate_v4() not null,
-  "name" character varying(255) default 'Access Formation'::character varying,
+  "name" character varying(255),
   "siret" character varying(14),
   "nda" character varying(20),
   "address" text,
@@ -1263,7 +1261,7 @@ create table public."org_settings" (
 
 create table public."organization_settings" (
   "id" uuid default gen_random_uuid() not null,
-  "name" character varying(255) default 'Access Formation'::character varying not null,
+  "name" character varying(255) default ''::character varying not null,
   "address" text,
   "postal_code" character varying(10),
   "city" character varying(100),
@@ -1432,7 +1430,7 @@ create table public."prospect_calls" (
   "client_id" uuid not null,
   "called_at" timestamp with time zone default now(),
   "duration_seconds" integer,
-  "called_by" character varying(50) default 'Marine'::character varying,
+  "called_by" character varying(50),
   "call_number" integer default 1,
   "previous_call_id" uuid,
   "contact_name" character varying(200),
@@ -1559,7 +1557,6 @@ create table public."prospect_rdv" (
   "prep_data" jsonb default '{}'::jsonb not null,
   "prep_done_at" timestamp with time zone,
   "triaged_at" timestamp with time zone,
-  constraint "prospect_rdv_conducted_by_check" CHECK (((conducted_by)::text = ANY ((ARRAY['Hicham'::character varying, 'Maxime'::character varying, NULL::character varying])::text[]))),
   constraint "prospect_rdv_outcome_check" CHECK (((outcome IS NULL) OR (outcome = ANY (ARRAY['devis_a_faire'::text, 'devis_envoye'::text, 'a_recontacter'::text, 'sans_suite'::text, 'converti_rappel'::text])))),
   constraint "prospect_rdv_rdv_location_check" CHECK (((rdv_location)::text = ANY ((ARRAY['leurs_locaux'::character varying, 'nos_locaux'::character varying, 'visio'::character varying, 'telephone'::character varying, NULL::character varying])::text[]))),
   constraint "prospect_rdv_rdv_type_check" CHECK (((rdv_type)::text = ANY ((ARRAY['decouverte'::character varying, 'suivi'::character varying, 'signature'::character varying, 'relance'::character varying, 'autre'::character varying, NULL::character varying])::text[]))),
@@ -1759,7 +1756,7 @@ create table public."quotes" (
   "total_tva" numeric(12,2) default 0,
   "total_ttc" numeric(12,2) default 0,
   "notes" text,
-  "created_by" character varying default 'Hicham Saidi'::character varying,
+  "created_by" character varying,
   "created_at" timestamp with time zone default now(),
   "updated_at" timestamp with time zone default now(),
   "signature_base64" text,
@@ -1828,7 +1825,7 @@ create table public."reclamations" (
   "solution_proposed" text,
   "action_taken" text,
   "preventive_action" text,
-  "responsable" text default 'Hicham SAIDI'::text,
+  "responsable" text,
   "status" text default 'open'::text not null,
   "satisfaction_resolved" boolean,
   "created_by" text,
@@ -2242,7 +2239,6 @@ create table public."social_posts" (
   "ai_prompt" text,
   "post_type" text,
   "created_by" uuid,
-  "content_linkedin_hicham" text,
   "content_story" text,
   constraint "social_posts_pkey" PRIMARY KEY (id)
 );
@@ -2644,7 +2640,7 @@ create table public."user_email_configs" (
   constraint "user_email_configs_pkey" PRIMARY KEY (id),
   constraint "user_email_configs_user_id_key" UNIQUE (user_id)
 );
-comment on table public."user_email_configs" is 'Configuration SMTP individuelle pour chaque utilisateur (Access Formation)';
+comment on table public."user_email_configs" is 'Configuration SMTP individuelle pour chaque utilisateur ';
 
 create table public."user_planning_events" (
   "id" uuid default gen_random_uuid() not null,
@@ -4170,7 +4166,7 @@ $function$;
 
 --FN-- get_budget_kpis
 CREATE OR REPLACE FUNCTION public.get_budget_kpis()
- RETURNS TABLE(solde_compte numeric, solde_date date, total_credit numeric, total_debit numeric, cca_hicham numeric, cca_maxime numeric, nb_transactions bigint)
+ RETURNS TABLE(solde_compte numeric, solde_date date, total_credit numeric, total_debit numeric, cca_associes numeric, nb_transactions bigint)
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
@@ -4188,10 +4184,7 @@ AS $function$
       FILTER (WHERE is_personal = false AND linked_transaction_id IS NULL), 0)::numeric, 2) AS total_debit,
  
     ROUND(COALESCE(SUM(COALESCE(debit,0) - COALESCE(credit,0))
-      FILTER (WHERE is_personal = true AND payer = 'hicham_perso'), 0)::numeric, 2)         AS cca_hicham,
- 
-    ROUND(COALESCE(SUM(COALESCE(debit,0) - COALESCE(credit,0))
-      FILTER (WHERE is_personal = true AND payer = 'maxime_perso'), 0)::numeric, 2)         AS cca_maxime,
+      FILTER (WHERE is_personal = true AND payer <> 'entreprise'), 0)::numeric, 2)         AS cca_associes,
  
     COUNT(*)                                                                  AS nb_transactions
   FROM budget_transactions;
@@ -5953,7 +5946,7 @@ BEGIN
   SELECT end_date INTO v_end FROM sessions WHERE id = p_session_id;
   IF paris_today() > v_end AND NOT is_signature_admin() THEN
     RETURN json_build_object('ok', false,
-      'error', 'Session terminée : la régularisation se fait depuis le compte de Hicham SAIDI');
+      'error', 'Session terminée : la régularisation se fait depuis un compte administrateur');
   END IF;
 
   INSERT INTO attendance_proxy_signatures (
@@ -6007,7 +6000,7 @@ BEGIN
   SELECT end_date INTO v_end FROM sessions WHERE id = p_session_id;
   IF paris_today() > v_end AND NOT is_signature_admin() THEN
     RETURN json_build_object('ok', false,
-      'error', 'Session terminée : la régularisation se fait depuis le compte de Hicham SAIDI');
+      'error', 'Session terminée : la régularisation se fait depuis un compte administrateur');
   END IF;
 
   -- Heure réelle de la signature, bornée : jamais dans le futur, jamais avant la demi-journée
@@ -6607,9 +6600,8 @@ create view public."audit_logs_view" as
 create view public."budget_compte_courant" as
  SELECT payer,
         CASE
-            WHEN payer = 'hicham_perso'::text THEN 'Hicham SAIDI'::text
-            WHEN payer = 'maxime_perso'::text THEN 'Maxime LANGLAIS'::text
-            ELSE 'Entreprise'::text
+            WHEN payer = 'entreprise'::text THEN 'Entreprise'::text
+            ELSE payer
         END AS associe_nom,
     count(*) AS nb_operations,
     sum(debit) AS total_debit,

@@ -10,7 +10,7 @@ describe('RH : registre unique du personnel (0313)', () => {
     expect(mentionsContrat({ contract_type: 'cdd', weekly_hours: 35 })).toBe('Contrat à durée déterminée')
     expect(mentionsContrat({ contract_type: 'cdi', weekly_hours: 24 })).toBe('Salarié à temps partiel')
     expect(mentionsContrat({ contract_type: 'cdi', weekly_hours: 35 })).toBe('CDI')
-    expect(mentionsContrat({ contract_type: 'interim', agency_name: 'Agence A', agency_address: 'Quimper' })).toBe('Salarié temporaire (Agence A, Quimper)')
+    expect(mentionsContrat({ contract_type: 'interim', agency_name: 'Agence A', agency_address: 'Brest' })).toBe('Salarié temporaire (Agence A, Brest)')
     expect(mentionsContrat({ contract_type: 'apprentissage', weekly_hours: 35 })).toBe('Apprenti')
   })
   it('lignes dans l\'ordre, incomplètes signalées', async () => {
