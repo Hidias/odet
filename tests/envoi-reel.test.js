@@ -13,3 +13,17 @@ describe('envoi réel du super administrateur', () => {
     expect(o.subject).toBe('Devis')
   })
 })
+
+import { boutonHTML, finirParCordialement } from '../api/_lib/mailer.js'
+describe('mail du devis', () => {
+  it('bouton sans image ni émoji, adresse en clair dessous', () => {
+    const h = boutonHTML('https://espace.exemple.fr/#/entreprise/abc', 'Consulter et signer le devis')
+    expect(h).toContain('href="https://espace.exemple.fr/#/entreprise/abc"')
+    expect(h).toContain('Si le bouton ne s')
+    expect(h).not.toContain('<img')
+  })
+  it('pas de « Bien cordialement » en double', () => {
+    expect(finirParCordialement('Bonjour,\n\nTexte.\n\nBien cordialement,')).toBe(true)
+    expect(finirParCordialement('Bonjour,\n\nTexte.')).toBe(false)
+  })
+})

@@ -1,7 +1,7 @@
 // api/send-email-session.js
 // Envoyer les documents de session (avant/après formation) par email
 
-import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML, finirParCordialement } from './_lib/mailer.js'
 import { requireRight, OFFICE_WRITE, isSafeStoragePath } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
@@ -80,7 +80,7 @@ async function handler(req, res) {
     // 5. Préparer le corps avec signature pro
     let htmlBody = body.replace(/\n/g, '<br>')
     
-    htmlBody += `<br><br><p style="margin: 0;">Bien cordialement,</p>${buildSignatureHTML(sender, org)}`
+    htmlBody += `${finirParCordialement(body) ? '' : '<br><br><p style="margin: 0;">Bien cordialement,</p>'}${buildSignatureHTML(sender, org)}`
     
     const mailOptions = {
       from: `"${sender.name}" <${emailConfig.email}>`,

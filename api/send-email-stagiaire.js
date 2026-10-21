@@ -1,7 +1,7 @@
 // api/send-email-stagiaire.js
 // Envoie un email individuel à un stagiaire avec ses documents en PJ
 
-import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML, finirParCordialement } from './_lib/mailer.js'
 import { requireRight, OFFICE_WRITE, isSafeStoragePath } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
@@ -73,7 +73,7 @@ async function handler(req, res) {
 
     // 5. Signature pro
     let htmlBody = body.replace(/\n/g, '<br>')
-        htmlBody += `<br><br><p style="margin: 0;">Bien cordialement,</p>${buildSignatureHTML(sender, org)}`
+        htmlBody += `${finirParCordialement(body) ? '' : '<br><br><p style="margin: 0;">Bien cordialement,</p>'}${buildSignatureHTML(sender, org)}`
 
     // 6. Copie cachée d'archivage (paramètre de l'organisme)
     const mailOptions = {

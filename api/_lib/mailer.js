@@ -286,6 +286,26 @@ export async function sendWithRetry(transporter, mailOptions, maxRetries = 3) {
   throw lastError
 }
 
+// ---- Bouton vers l'espace client --------------------------------------------
+/**
+ * Bouton « à l'épreuve » des messageries (tableau, couleurs en ligne, pas d'image ni d'émoji) avec l'adresse en clair
+ * en dessous, pour le cas où le bouton ne s'affiche pas.
+ */
+export function boutonHTML(url, libelle, couleur = '#C8102E') {
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin: 18px 0 8px 0; border-collapse: separate;">
+      <tr><td bgcolor="${esc(couleur)}" style="background-color: ${esc(couleur)}; border-radius: 6px;">
+        <a href="${esc(url)}" style="display: inline-block; padding: 12px 22px; font-family: Arial, sans-serif; font-size: 15px; font-weight: bold; color: #ffffff; text-decoration: none; border-radius: 6px;">${esc(libelle)} &rarr;</a>
+      </td></tr>
+    </table>
+    <p style="margin: 0 0 12px 0; font-family: Arial, sans-serif; font-size: 12px; color: #666666;">Si le bouton ne s'affiche pas, copiez cette adresse dans votre navigateur : ${esc(url)}</p>`
+}
+
+// Corps du message : le texte saisi se termine souvent par « Bien cordialement, » : la formule n'est pas répétée
+export function finirParCordialement(texte) {
+  return /cordialement,?\s*$/i.test(String(texte || '').trim())
+}
+
 // ---- HTML : signature et habillage -----------------------------------------
 /**
  * Bloc de signature (modèle « sobre », choisi par H le 19/10) : logo à gauche, filet de la couleur d'accent,

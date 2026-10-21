@@ -1,7 +1,7 @@
 // api/send-quote-email.js
 // Envoyer un devis par email via SMTP (utilise user_email_configs existant)
 
-import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, decrypt } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, decrypt, boutonHTML, finirParCordialement } from './_lib/mailer.js'
 import { saveToSentFolder } from './_lib/save-to-sent.js'
 import { requireRight, SALES } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
@@ -38,7 +38,7 @@ async function handler(req, res) {
   let transporter = null
 
   try {
-    const { userId, to, subject, body, pdfBase64, pdfFilename, programUrls, extraAttachments, quoteId, clientId, createdBy } = req.body || {}
+    const { userId, to, subject, body, pdfBase64, pdfFilename, programUrls, extraAttachments, quoteId, clientId, createdBy, boutonEspace } = req.body || {}
 
     console.log('send-quote-email params:', { userId: !!userId, to: !!to, subject: !!subject, body: !!body, hasPdf: !!pdfBase64 })
 
@@ -65,7 +65,14 @@ async function handler(req, res) {
 
     // 4. Préparer le corps HTML avec signature pro
     let htmlBody = body.replace(/\n/g, '<br>')
-        htmlBody += `<br><br><p style="margin: 0;">Bien cordialement,</p>${buildSignatureHTML(sender, org)}`
+    // Bouton vers l'espace client (facultatif, coché dans l'envoi) : adresse construite ici, depuis l'accès du client
+    let lienEspace = ''
+    if (boutonEspace && clientId) {
+      const { data: acces } = await supabase.from('client_portal_access').select('token, is_active').eq('client_id', clientId).maybeSingle()
+      if (acces?.is_active && acces.token && org.app_url) lienEspace = `${org.app_url}/#/entreprise/${acces.token}`
+    }
+    if (lienEspace) htmlBody += boutonHTML(lienEspace, 'Consulter et signer le devis', org.brand_accent || '#C8102E')
+    htmlBody += `${finirParCordialement(body) ? '' : '<br><br><p style="margin: 0;">Bien cordialement,</p>'}${buildSignatureHTML(sender, org)}`
 
     // 5. Construire les options du mail
     const mailOptions = {
@@ -73,7 +80,7 @@ async function handler(req, res) {
       to: to,
       bcc: org.email_bcc || undefined,
       subject: subject,
-      text: body,
+      text: lienEspace ? `${body}\n\nVotre espace client : ${lienEspace}` : body,
       html: htmlBody,
       attachments: []
     }

@@ -31,6 +31,7 @@ import { modeleEnvoiDevis } from '../../../core/emails/modeles'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
 import AcompteDevis from '../components/AcompteDevis'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
+import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import SignatureObjetEnLigne from '../../../core/signature/SignatureObjetEnLigne'
 import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
@@ -553,11 +554,13 @@ export default function Quotes() {
         defaultTo = clientData.contact_email
       }
 
+      // Accès du client à son espace : l'encadré « Signer en ligne » du devis en dépend
+      const espace = await lienEspaceClient(quote.client_id)
       setSendWizard({
         quote, client: clientData, contact: contactData, items: loadedItems,
-        pdfBlobUrl, pdfBase64, clientContacts
+        pdfBlobUrl, pdfBase64, clientContacts, espace
       })
-      setSendEmail({ to: defaultTo, subject: '', body: '', customInstructions: '' })
+      setSendEmail({ to: defaultTo, subject: '', body: '', customInstructions: '', bouton: false })
       setSendStep(1)
 
       // Programme de chaque formation du devis : PDF déposé dans le stockage de l'instance s'il existe, sinon
@@ -903,7 +906,8 @@ export default function Quotes() {
           extraAttachments: manualAttachments,
           quoteId: quote.id,
           clientId: quote.client_id,
-          createdBy: quote.created_by
+          createdBy: quote.created_by,
+          boutonEspace: !!(sendEmail.bouton && sendWizard.espace)
         })
       })
       const data = await resp.json()
@@ -2109,6 +2113,19 @@ export default function Quotes() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm text-ui font-sans"
                   />
                 </div>
+
+                {/* Lien vers l'espace client : dans le devis (encadré « Signer en ligne »), le mail reste sans lien */}
+                {sendWizard?.espace ? (
+                  <div className="text-ui-sm text-gray-600 space-y-1">
+                    <p>Le devis contient l'encadré « Signer en ligne » (adresse, QR code et code d'accès du client). Le mail part sans lien : c'est ce qui passe le mieux les filtres anti-spam.</p>
+                    <label className="flex items-start gap-2">
+                      <input type="checkbox" className="mt-0.5" checked={!!sendEmail.bouton} onChange={(e) => setSendEmail(prev => ({ ...prev, bouton: e.target.checked }))} />
+                      <span>Ajouter aussi un bouton « Consulter et signer le devis » dans le mail (conseillé seulement quand l'outil a une adresse à votre nom)</span>
+                    </label>
+                  </div>
+                ) : (
+                  <p className="text-ui-sm text-gray-500">Ce client n'a pas encore d'accès à son espace : le devis part sans encadré « Signer en ligne ». Pour l'ajouter, créez l'accès dans sa fiche (Espace entreprise), puis relancez l'envoi.</p>
+                )}
 
                 {/* Régénérer avec instructions : seulement quand l'assistant de rédaction est activé */}
                 {!capacites.ia && (

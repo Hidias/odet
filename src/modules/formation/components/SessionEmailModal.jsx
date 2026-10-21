@@ -10,7 +10,8 @@ import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionEntreprisePDF } from '../pdf/satisfactionEntreprisePDF'
 import { useDataStore } from '../../../core/store'
 import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPasseportPrevention'
-import { prepareOrgForPDF, publicBaseUrl } from '../../../core/org/orgUtils'
+import { prepareOrgForPDF } from '../../../core/org/orgUtils'
+import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 
@@ -412,7 +413,8 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
     }
   }
 
-  const initializeEmail = () => {
+  const initializeEmail = async () => {
+    const espace = emailType === 'before' ? await lienEspaceClient(session?.client_id) : null
     const sessionContact = session?.contact
     const primaryContact = session?.clients?.contacts?.find(c => c.is_primary)
     const firstContact = session?.clients?.contacts?.[0]
@@ -440,7 +442,7 @@ Merci de nous retourner la convention signée ainsi que l'analyse du besoin comp
 
 Concernant le Passeport de Prévention : conformément au Décret n° 2025-748 du 1er août 2025, nous déclarons les formations santé-sécurité dans le Passeport de prévention national. La notice stagiaire est à remettre à chaque participant. Si un salarié refuse de communiquer son NIR, merci de lui faire signer la décharge jointe.
 
-Concernant les convocations, chacune contient un QR code et un lien permettant aux stagiaires de se connecter à notre portail en ligne. Ils pourront y renseigner leurs informations personnelles, indiquer leurs attentes et participer à un test de positionnement avant le début de la formation. Ce test n'a aucun caractère certificatif : il vise uniquement à évaluer leur niveau de connaissances préalable afin de mieux adapter la formation à leur niveau.${session?.attendance_token ? `\n\nLien direct du portail, à transmettre aux stagiaires : ${publicBaseUrl()}/#/portail/${session.attendance_token}` : ''}
+Concernant les convocations, chacune contient un QR code et un lien permettant aux stagiaires de se connecter à notre portail en ligne. Ils pourront y renseigner leurs informations personnelles, indiquer leurs attentes et participer à un test de positionnement avant le début de la formation. Ce test n'a aucun caractère certificatif : il vise uniquement à évaluer leur niveau de connaissances préalable afin de mieux adapter la formation à leur niveau.${espace ? "\n\nLa convention peut aussi être signée en ligne depuis votre espace client : l'adresse, le QR code et votre code d'accès figurent dans l'encadré « Signer en ligne » en fin de convention." : ''}
 
 Restant à votre disposition pour toute information complémentaire.`)
     } else {
