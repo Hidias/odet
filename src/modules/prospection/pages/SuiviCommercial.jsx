@@ -133,7 +133,7 @@ export default function SuiviCommercial() {
           .order('rdv_date', { ascending: true })),
         fetchAll(() => supabase
           .from('quotes')
-          .select('id, reference, client_id, quote_date, created_at, status, object, notes, total_ht, total_ttc, relance_count, last_relance_date, followup_state, veille_until, next_followup_date, lost_reason, followup_notes, triaged_at, clients (name, contact_name, contact_phone, contact_email)')
+          .select('id, reference, client_id, quote_date, created_at, status, object, notes, total_ht, total_ttc, relance_count, last_relance_date, followup_state, veille_until, next_followup_date, lost_reason, followup_notes, triaged_at, clients!quotes_client_id_fkey (name, contact_name, contact_phone, contact_email)')
           .in('status', ['sent', 'partial'])
           .order('quote_date', { ascending: true })),
         fetchAll(() => supabase
