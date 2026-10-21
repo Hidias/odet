@@ -320,6 +320,14 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
   ]
 
   const objectifs = (course.objectives || '').split('\n').map(s => s.trim()).filter(Boolean)
+  // Contenu de l'action (article D6353-1 : intitulé, objectifs et contenu), repris de la fiche formation ; le programme
+  // détaillé est remis avec la convention ou le contrat
+  const contenu = String(course.content || course.program || '').split('\n').map(s => s.replace(/^[-•*\s]+/, '').trim()).filter(Boolean).slice(0, 20)
+  const blocsContenu = contenu.length ? [{ p: 'Contenu de la formation :' }, { list: contenu }] : []
+  // Numéro de déclaration d'activité, sous la forme demandée sur les conventions et contrats : « Enregistré sous le
+  // numéro … auprès du préfet de la région … » (la mention « en cours » figure dans les parties tant qu'il n'est pas attribué)
+  const numeroOfficiel = ligneNda(ORG) && !/en cours/.test(ligneNda(ORG))
+    ? [{ p: `L'Organisme de formation est enregistré sous le numéro ${ORG.ndaFull || ORG.nda}. Cet enregistrement ne vaut pas agrément de l'État.` }] : []
   // Session inter : réserve de maintien de l'organisme (0419, saisie une fois dans les paramètres)
   const maintien = session?.session_type === 'inter' && ORG.mention_maintien
     ? [{ title: 'Maintien de la session', blocks: [{ p: ORG.mention_maintien }] }] : []
@@ -327,7 +335,9 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     { title: 'Objet, nature, durée et effectif', blocks: [
       { p: `Le Stagiaire s'inscrit à l'action de formation « ${course.title || ''} » (action de formation au sens de l'article L6313-1 du Code du travail), d'une durée de ${dureeTxt}, ${datesTxt.charAt(0).toLowerCase() + datesTxt.slice(1)}, organisée en session inter-entreprises.` },
       ...(objectifs.length ? [{ p: "À l'issue de la formation, le Stagiaire sera capable de :" }, { list: objectifs }] : []),
-      { p: `Prérequis : ${course.prerequisites || 'aucun'}. Le programme détaillé est remis avec le présent contrat.` },
+      ...blocsContenu,
+      { p: `Prérequis : ${course.prerequisites || 'aucun'}. Le programme détaillé est remis avec le présent contrat et en fait partie.` },
+      ...numeroOfficiel,
     ] },
     ...maintien,
     { title: 'Délai de rétractation', blocks: [{ p: "À compter de la signature du présent contrat, le Stagiaire dispose d'un délai de dix jours pour se rétracter, par lettre recommandée avec avis de réception adressée à l'Organisme de formation. Dans ce cas, aucune somme ne peut être exigée du Stagiaire (article L6353-5 du Code du travail)." }] },
@@ -348,12 +358,18 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     { title: 'Objet, durée et effectif', blocks: [
       { p: `Le Bénéficiaire confie à l'Organisme de formation la réalisation de l'action « ${course.title || ''} », d'une durée de ${dureeTxt}, ${datesTxt.charAt(0).toLowerCase() + datesTxt.slice(1)}, pour ${trainees.length} participant${trainees.length > 1 ? 's' : ''}.` },
       ...(objectifs.length ? [{ p: "À l'issue de la formation, les participants seront capables de :" }, { list: objectifs }] : []),
+      ...blocsContenu,
+      { p: 'Le programme détaillé est remis avec la présente convention et en fait partie.' },
       ...(trainees.length ? [{ p: 'Participants désignés par le Bénéficiaire :' }, { list: trainees.map(tr => `${(tr.last_name || '').toUpperCase()} ${tr.first_name || ''}`), cols: 2 }] : []),
+      ...numeroOfficiel,
     ] },
     { title: 'Engagements des parties', blocks: [{ p: "Le Bénéficiaire s'engage à assurer la présence des participants inscrits et à fournir les moyens nécessaires à la réalisation de la formation (salle, matériel, conditions d'accueil). L'Organisme de formation s'engage à mettre en oeuvre les moyens pédagogiques, techniques et d'encadrement nécessaires pour atteindre les objectifs visés." }] },
     { title: 'Dispositions financières', blocks: art3 },
     { title: 'Moyens et modalités pédagogiques', blocks: [
-      { p: "La formation est dispensée selon une approche active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues. Les supports pédagogiques sont adaptés aux objectifs de la formation et au public accueilli." },
+      // Moyens de la formation choisie (fiche formation), sinon la description générale ; intervenant nommé
+      { p: course.teaching_methods || course.pedagogical_methods || "La formation est dispensée selon une approche active et participative, combinant apports théoriques, mises en situation pratiques et évaluations formatives continues. Les supports pédagogiques sont adaptés aux objectifs de la formation et au public accueilli." },
+      ...(course.material ? [{ p: `Moyens techniques : ${course.material}` }] : []),
+      { p: `Intervenant : ${trainer ? `${trainer.first_name} ${trainer.last_name}${trainer.qualifications || trainer.certifications ? `, ${trainer.qualifications || trainer.certifications}` : ''}` : (ORG.dirigeant || "formateur de l'Organisme")}.` },
       { p: "La présence des participants est attestée par un émargement dématérialisé par QR code individuel, ou sur support papier en cas d'indisponibilité du réseau. Un émargement est réalisé par demi-journée, signé par chaque participant et contresigné par le formateur." },
     ] },
     { title: "Modalités de suivi et d'évaluation", blocks: [
