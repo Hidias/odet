@@ -38,7 +38,7 @@ export default function SeuilMaintien({ session, peutModifier }) {
     && !['cancelled', 'annulee'].includes(session?.status || '')
 
   const charger = async () => {
-    const [{ data: s }, { data: st }, { data: proch }] = await Promise.all([
+    const [{ data: s, error: errS }, { data: st }, { data: proch }] = await Promise.all([
       supabase.from('sessions').select('maintien_decision, maintien_decision_at').eq('id', session.id).maybeSingle(),
       supabase.from('session_trainees').select('absent, trainees(first_name, last_name, email, phone)').eq('session_id', session.id),
       session.course_id
@@ -46,6 +46,7 @@ export default function SeuilMaintien({ session, peutModifier }) {
           .gt('start_date', session.start_date).order('start_date').limit(3)
         : Promise.resolve({ data: [] }),
     ])
+    if (errS) return setEtat(null) // base pas encore à jour (0421) : rien n'est affiché
     const inscrits = (st || []).filter((x) => !x.absent).map((x) => x.trainees).filter(Boolean)
     setEtat({
       decision: s?.maintien_decision || null,
