@@ -5290,6 +5290,32 @@ begin
     end;
   end if;
 
+  -- Rappel du matin (0416) : une notification par société et par jour, seulement s'il y a quelque chose à faire
+  if to_regprocedure('app.rappel_matin(boolean)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare g_s uuid; g_n int; g_m text;
+    begin
+      delete from public.notifications where type = 'rappel_matin';
+      insert into public.sessions (start_date, end_date) values ((now() at time zone 'Europe/Paris')::date, (now() at time zone 'Europe/Paris')::date) returning id into g_s;
+      perform app.rappel_matin(true);
+      perform app.rappel_matin(true);
+      select count(*), max(message) into g_n, g_m from public.notifications where type = 'rappel_matin' and company_id = app.company_default();
+      if g_n = 1 and g_m like '%session% aujourd''hui%' then
+        v_lines := v_lines || 'OK      base  0416 : rappel du matin, une seule notification par jour avec les sessions du jour'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0416 : rappels ' || g_n || ' ' || coalesce(g_m, ''))::text; end if;
+      delete from public.notifications where type = 'rappel_matin';
+      if (extract(hour from now() at time zone 'Europe/Paris') = 7) or app.rappel_matin(false) = 0 then
+        v_lines := v_lines || 'OK      base  0416 : rien en dehors de 7 h (heure de Paris)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0416 : rappel préparé hors de 7 h'::text; end if;
+      delete from public.notifications where type = 'rappel_matin';
+      delete from public.sessions where id = g_s;
+    exception when others then
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0416 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
