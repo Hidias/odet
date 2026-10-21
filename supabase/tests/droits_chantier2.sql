@@ -4427,6 +4427,17 @@ begin
     else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0392 : supports de formation encore lisibles sans connexion'::text; end if;
   end if;
 
+  -- Contraintes sans prénoms en dur (0393)
+  if exists (select 1 from public.schema_migrations where version = '0393_contraintes_societe')
+     or exists (select 1 from pg_constraint where conname = 'prospect_rdv_conducted_by_check' and pg_get_constraintdef(oid) like '%btrim%') then
+    v_total := v_total + 1;
+    if not exists (select 1 from pg_constraint where conname in ('budget_transactions_payer_check', 'budget_meal_guests_meal_for_check', 'prospect_rdv_conducted_by_check')
+                   and pg_get_constraintdef(oid) ~* '(hicham|maxime)')
+       and 'perso_00000000-0000-0000-0000-000000000000' ~ '^perso_[0-9a-f-]{36}$' then
+      v_lines := v_lines || 'OK      base  0393 : aucune contrainte ne cite un prénom'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0393 : une contrainte cite encore un prénom'::text; end if;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
