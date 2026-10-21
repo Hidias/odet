@@ -1,5 +1,6 @@
 // Tableau des indicateurs du référentiel : preuves trouvées dans la base, ce qui manque,
 // preuves ajoutées à la main, non applicable avec justification.
+// Mode « exigences » (0391) : même tableau pour un référentiel importé (APSAD…), avec ses chapitres et ses preuves.
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -13,15 +14,17 @@ import { confirmer } from '../../../ui/Confirm'
 const FILTERS = [
   ['tous', 'Tous'], ['a_traiter', 'À traiter'], ['modifies', 'Modifiés en 2026'], ['na', 'Non applicables'],
 ]
+const MOTS_QUALIOPI = { un: 'Indicateur', pluriel: 'Indicateurs', chapitre: 'Critère', prouves: 'indicateurs prouvés', base: '/certification/indicateurs' }
+export const MOTS_EXIGENCES = { un: 'Exigence', pluriel: 'Exigences', chapitre: 'Chapitre', prouves: 'exigences prouvées', base: '/certification/exigences' }
 
-function ProofForm({ number, onDone }) {
+function ProofForm({ number, refCode, onDone }) {
   const [p, setP] = useState({ label: '', note: '', url: '', file: null })
   const [busy, setBusy] = useState(false)
   const submit = async () => {
     if (!p.label.trim()) return toast.error('Donner un titre à la preuve')
     if (!p.file && !p.url.trim() && !p.note.trim()) return toast.error('Joindre un fichier, un lien ou une explication')
     setBusy(true)
-    try { await addProof(number, { ...p, label: p.label.trim(), url: p.url.trim() }); onDone(true) } catch (e) { toast.error(e.message) }
+    try { await addProof(number, { ...p, label: p.label.trim(), url: p.url.trim() }, refCode); onDone(true) } catch (e) { toast.error(e.message) }
     setBusy(false)
   }
   return (
@@ -40,7 +43,7 @@ function ProofForm({ number, onDone }) {
   )
 }
 
-function Detail({ ind, refCode, canWrite, onChanged, onBack }) {
+function Detail({ ind, refCode, canWrite, onChanged, onBack, mots = MOTS_QUALIOPI }) {
   const [adding, setAdding] = useState(false)
   const [na, setNa] = useState({ on: ind.status === 'non_applicable', reason: ind.naReason || '' })
   useEffect(() => { setNa({ on: ind.status === 'non_applicable', reason: ind.naReason || '' }); setAdding(false) }, [ind.number, ind.status, ind.naReason])
@@ -62,14 +65,14 @@ function Detail({ ind, refCode, canWrite, onChanged, onBack }) {
 
   return (
     <div className="space-y-4">
-      {onBack && <button type="button" className="btn btn-ghost btn-sm -ml-2" onClick={onBack}><ChevronLeft className="w-4 h-4" />Indicateurs</button>}
+      {onBack && <button type="button" className="btn btn-ghost btn-sm -ml-2" onClick={onBack}><ChevronLeft className="w-4 h-4" />{mots.pluriel}</button>}
       <div className="flex flex-wrap gap-2">
-        <span className="badge badge-neutral">Critère {ind.criterion}</span>
+        <span className="badge badge-neutral">{mots.chapitre} {ind.criterion}</span>
         {ind.change_kind === 'modifie' && <span className="badge badge-warning">Modifié en 2026</span>}
         {ind.change_kind === 'nouveau' && <span className="badge badge-warning">Nouveau en 2026</span>}
         <StatusBadge status={ind.status} />
       </div>
-      <h2 className="section-title text-lg">Indicateur {ind.number} : {ind.short_title}</h2>
+      <h2 className="section-title text-lg">{mots.un} {ind.code || ind.number} : {ind.short_title}</h2>
       <p className="text-ui text-gray-700 leading-relaxed">{ind.text}</p>
       {ind.change_note && <p className="text-ui-sm muted">Changement 2026 : {ind.change_note}</p>}
       {(ind.major_only || ind.new_entrant_light) && (
@@ -125,7 +128,7 @@ function Detail({ ind, refCode, canWrite, onChanged, onBack }) {
             {canWrite && <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={`Retirer ${p.label}`} onClick={() => delProof(p)}><Trash2 className="w-4 h-4" /></button>}
           </div>
         ))}
-        {adding && <ProofForm number={ind.number} onDone={(changed) => { setAdding(false); if (changed) onChanged() }} />}
+        {adding && <ProofForm number={ind.number} refCode={refCode} onDone={(changed) => { setAdding(false); if (changed) onChanged() }} />}
       </div>
 
       {canWrite && ind.status !== 'non_applicable' && (
@@ -145,7 +148,8 @@ function Detail({ ind, refCode, canWrite, onChanged, onBack }) {
   )
 }
 
-export default function CertIndicateurs({ referential: refData, evaluated, settings, canWrite, reloadIndicators, reloadSettings }) {
+export default function CertIndicateurs({ referential: refData, evaluated, settings, canWrite, reloadIndicators, reloadSettings, exigences = false }) {
+  const mots = exigences ? MOTS_EXIGENCES : MOTS_QUALIOPI
   const { num } = useParams()
   const navigate = useNavigate()
   const [filter, setFilter] = useState('tous')
@@ -177,7 +181,7 @@ export default function CertIndicateurs({ referential: refData, evaluated, setti
     return true
   })
   const selected = num ? list.find((i) => i.number === Number(num)) : (wide ? (shown[0] || list[0]) : null)
-  const go = (n) => navigate(`/certification/indicateurs/${n}`)
+  const go = (n) => navigate(`${mots.base}/${n}`)
   const changeRef = async (code) => {
     try { await saveSettings({ referential_code: code }); await reloadSettings(); await reloadIndicators(code) } catch (e) { toast.error(e.message) }
   }
@@ -185,7 +189,7 @@ export default function CertIndicateurs({ referential: refData, evaluated, setti
 
   // Téléphone : l'indicateur choisi occupe tout l'écran
   if (!wide && selected) {
-    return <div className="card"><Detail ind={selected} refCode={refData.code} canWrite={canWrite} onChanged={onChanged} onBack={() => navigate('/certification/indicateurs')} /></div>
+    return <div className="card"><Detail ind={selected} refCode={refData.code} canWrite={canWrite} onChanged={onChanged} mots={mots} onBack={() => navigate(mots.base)} /></div>
   }
 
   return (
@@ -194,13 +198,15 @@ export default function CertIndicateurs({ referential: refData, evaluated, setti
         <div className="flex flex-wrap items-end gap-4 justify-between">
           <div>
             <div className="font-display font-semibold text-2xl">{counts.preuves} / {applicable}</div>
-            <div className="muted text-ui-sm">indicateurs prouvés</div>
+            <div className="muted text-ui-sm">{mots.prouves}</div>
           </div>
+          {!exigences && (
           <label className="block min-w-[260px]"><span className="label">Référentiel</span>
             <select className="select" value={refData.code} disabled={!canWrite} onChange={(e) => changeRef(e.target.value)}>
-              {refData.referentials.map((r) => <option key={r.code} value={r.code}>{r.label}</option>)}
+              {refData.referentials.filter((r) => r.kind === 'qualiopi').map((r) => <option key={r.code} value={r.code}>{r.label}</option>)}
             </select>
           </label>
+          )}
         </div>
         <div className="flex flex-wrap gap-1.5" aria-label="Statut des indicateurs">
           {list.map((i, k) => (
@@ -218,15 +224,15 @@ export default function CertIndicateurs({ referential: refData, evaluated, setti
       <div className="grid gap-4 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] items-start">
         <section className="card card-flush">
           <div className="flex flex-wrap gap-1.5 p-3 border-b border-gray-100">
-            {FILTERS.map(([k, l]) => <button key={k} type="button" className={`btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter(k)}>{l}</button>)}
-            <select className="select !w-auto btn-sm" aria-label="Critère" value={crit || ''} onChange={(e) => setCrit(e.target.value ? Number(e.target.value) : null)}>
-              <option value="">Tous les critères</option>
-              {refData.criteria.map((c) => <option key={c.number} value={c.number}>Critère {c.number}</option>)}
+            {FILTERS.filter(([k]) => !exigences || k !== 'modifies').map(([k, l]) => <button key={k} type="button" className={`btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter(k)}>{l}</button>)}
+            <select className="select !w-auto btn-sm" aria-label={mots.chapitre} value={crit || ''} onChange={(e) => setCrit(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">{exigences ? 'Tous les chapitres' : 'Tous les critères'}</option>
+              {refData.criteria.map((c) => <option key={c.number} value={c.number}>{mots.chapitre} {c.code || c.number}</option>)}
             </select>
           </div>
           {refData.criteria.filter((c) => shown.some((i) => i.criterion === c.number)).map((c) => (
             <div key={c.number}>
-              <div className="px-4 pt-3 pb-1 text-ui-sm font-semibold text-gray-500 uppercase">Critère {c.number} : {c.title}</div>
+              <div className="px-4 pt-3 pb-1 text-ui-sm font-semibold text-gray-500 uppercase">{mots.chapitre} {c.code || c.number} : {c.title}</div>
               {shown.filter((i) => i.criterion === c.number).map((i) => (
                 <button key={i.number} type="button" onClick={() => go(i.number)}
                   className={`w-full text-left flex items-center gap-3 min-h-[52px] px-4 py-2 border-b border-gray-100 hover:bg-gray-50 ${selected?.number === i.number ? 'bg-gray-50' : ''}`}>
@@ -240,9 +246,9 @@ export default function CertIndicateurs({ referential: refData, evaluated, setti
               ))}
             </div>
           ))}
-          {!shown.length && <p className="p-4 muted text-ui-sm">Aucun indicateur pour ce filtre.</p>}
+          {!shown.length && <p className="p-4 muted text-ui-sm">{exigences ? 'Aucune exigence pour ce filtre.' : 'Aucun indicateur pour ce filtre.'}</p>}
         </section>
-        {wide && selected && <section className="card"><Detail ind={selected} refCode={refData.code} canWrite={canWrite} onChanged={onChanged} /></section>}
+        {wide && selected && <section className="card"><Detail ind={selected} refCode={refData.code} canWrite={canWrite} onChanged={onChanged} mots={mots} /></section>}
       </div>
       {settings?.referential_code === 'rnq-2019' && <p className="muted text-ui-sm">Le référentiel 2019 ne s'applique qu'aux audits réalisés jusqu'au 31 octobre 2026.</p>}
     </div>

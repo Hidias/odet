@@ -19,7 +19,7 @@ export default function CertQualiopi({ settings, canWrite, organization, updateO
   const [busy, setBusy] = useState(false)
 
   useEffect(() => { setForm(settings) }, [settings])
-  const reloadFindings = () => loadFindings().then(setFindings).catch((e) => toast.error(e.message))
+  const reloadFindings = () => loadFindings({ qualiopi: true }).then(setFindings).catch((e) => toast.error(e.message))
   useEffect(() => { reloadFindings() }, [])
 
   // Instance déjà certifiée avant le module : on reprend la date et le certificateur des paramètres
@@ -47,7 +47,7 @@ export default function CertQualiopi({ settings, canWrite, organization, updateO
   const submitNc = async () => {
     if (!nc.description?.trim()) return toast.error('Décrire la non-conformité')
     try {
-      await saveFinding({ ...nc, indicator_number: nc.indicator_number ? Number(nc.indicator_number) : null })
+      await saveFinding({ ...nc, indicator_number: nc.indicator_number ? Number(nc.indicator_number) : null, referential_code: settings.referential_code || null })
       setNc(null); await reloadFindings(); await reloadSettings()
     } catch (e) { toast.error(e.message) }
   }

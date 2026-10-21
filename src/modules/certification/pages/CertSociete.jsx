@@ -11,7 +11,7 @@ import {
   chargerCertifications, enregistrerCertification, importerTexte,
 } from '../lib/certSociete'
 
-function FormCertif({ refe, certif, onFini }) {
+export function FormCertif({ refe, certif, onFini }) {
   const [v, setV] = useState(() => ({ statut: certif?.statut || 'visee', ...Object.fromEntries(CHAMPS_CERTIF.map((c) => [c.k, certif?.[c.k] || ''])) }))
   const [busy, setBusy] = useState(false)
   const maj = (k, x) => setV((o) => ({ ...o, [k]: x }))
@@ -55,7 +55,7 @@ function FormCertif({ refe, certif, onFini }) {
   )
 }
 
-function ImportTexte({ refe, copie, onFini }) {
+export function ImportTexte({ refe, copie, onFini }) {
   const [texte, setTexte] = useState('')
   const [busy, setBusy] = useState(false)
   const lues = useMemo(() => lireExigences(texte), [texte])

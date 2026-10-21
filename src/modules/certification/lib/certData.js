@@ -100,6 +100,18 @@ export async function downloadBlob(path, bucket = BUCKET) {
   return data
 }
 
+/** Preuves visibles pour un référentiel : les deux éditions de Qualiopi partagent leurs preuves (numéros communs) ;
+ *  tout autre référentiel n'a que les siennes (0391). */
+export function preuvesDuReferentiel(proofs, code, referentials = []) {
+  const kindDe = (c) => referentials.find((r) => r.code === c)?.kind
+  const qualiopi = kindDe(code) === 'qualiopi'
+  return (proofs || []).filter((p) => {
+    if (!p.referential_code) return qualiopi
+    if (p.referential_code === code) return true
+    return qualiopi && kindDe(p.referential_code) === 'qualiopi'
+  })
+}
+
 export async function loadReferential(code) {
   const [ref, crit, ind, st, proofs] = await Promise.all([
     // fetchAll : pagination complète. Tables sans colonne id : départage sur leur clé
@@ -111,7 +123,8 @@ export async function loadReferential(code) {
     fetchAll(() => supabase.from('cert_proofs').select('*').order('created_at')),
   ])
   for (const r of [ref, crit, ind, st, proofs]) if (r.error) throw r.error
-  return { referentials: ref.data || [], criteria: crit.data || [], indicators: ind.data || [], statuses: st.data || [], proofs: proofs.data || [] }
+  const referentials = ref.data || []
+  return { referentials, criteria: crit.data || [], indicators: ind.data || [], statuses: st.data || [], proofs: preuvesDuReferentiel(proofs.data, code, referentials) }
 }
 
 export async function saveIndicatorStatus(code, number, patch) {
@@ -122,7 +135,7 @@ export async function saveIndicatorStatus(code, number, patch) {
   if (error) throw error
 }
 
-export async function addProof(number, { label, note, url, file }) {
+export async function addProof(number, { label, note, url, file }, referentialCode = null) {
   const { data: u } = await supabase.auth.getUser()
   let file_path = null
   let file_name = null
@@ -133,7 +146,7 @@ export async function addProof(number, { label, note, url, file }) {
     file_name = file.name
   }
   const { data, error } = await supabase.from('cert_proofs')
-    .insert({ indicator_number: number, label, note: note || null, url: url || null, file_path, file_name, created_by: u?.user?.id || null })
+    .insert({ indicator_number: number, label, note: note || null, url: url || null, file_path, file_name, created_by: u?.user?.id || null, ...(referentialCode ? { referential_code: referentialCode } : {}) })
     .select().single()
   if (error) throw error
   return data
@@ -145,10 +158,24 @@ export async function removeProof(p) {
   if (error) throw error
 }
 
-export async function loadFindings() {
-  const { data, error } = await fetchAll(() => supabase.from('cert_audit_findings').select('*').order('created_at', { ascending: false }))
-  if (error) throw error
-  return data || []
+/** Écarts d'audit (0391 : chacun porte son référentiel).
+ *  - sans filtre : tous ;
+ *  - { qualiopi: true } : ceux des référentiels Qualiopi et ceux sans référentiel (écrans d'avant 0391) ;
+ *  - { codes: [...] } : ceux de ces référentiels. */
+export async function loadFindings({ qualiopi = false, codes = null } = {}) {
+  const [f, r] = await Promise.all([
+    fetchAll(() => supabase.from('cert_audit_findings').select('*').order('created_at', { ascending: false })),
+    qualiopi ? fetchAll(() => supabase.from('cert_referentials').select('code, kind'), { orderBy: 'code' }) : Promise.resolve({ data: [] }),
+  ])
+  if (f.error) throw f.error
+  if (r.error) throw r.error
+  const liste = f.data || []
+  if (qualiopi) {
+    const q = new Set((r.data || []).filter((x) => x.kind === 'qualiopi').map((x) => x.code))
+    return liste.filter((x) => !x.referential_code || q.has(x.referential_code))
+  }
+  if (codes) return liste.filter((x) => codes.includes(x.referential_code))
+  return liste
 }
 
 export async function saveFinding(f) {
