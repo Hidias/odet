@@ -2,6 +2,7 @@
 // signature du client) et rapport PDF. Chaque geste est enregistré tout de suite.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { chargerTarifs, prixPiece } from '../../../core/tarifs/tarifsClient'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { ChevronLeft, Loader2, Camera, Plus, Minus, Check, FileDown, Share2, Receipt, FileText, Trash2, PenLine, Play, ListChecks, Volume2 } from 'lucide-react'
@@ -238,7 +239,8 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
               const p = catalog.find((x) => x.id === v)
               const ex = parts.find((x) => x.part_id === v)
               if (ex) { const q = Number(ex.quantity) + 1; await updateVisitPart(ex.id, { quantity: q }); setParts((l) => l.map((x) => (x.id === ex.id ? { ...x, quantity: q } : x))); return }
-              row = { visit_id: visit.id, part_id: p.id, label: p.name, quantity: 1, unit_price_ht: p.price_ht }
+              // Prix de la pièce au tarif du client (0418) ; sans droit aux prix, la base l'applique elle-même
+              row = { visit_id: visit.id, part_id: p.id, label: p.name, quantity: 1, unit_price_ht: prixPiece(await chargerTarifs(visit.client_id), p).prix }
             }
             try { const saved = await addVisitPart(row); setParts((l) => [...l, saved]) } catch (err) { toast.error(err.message) }
           }}>

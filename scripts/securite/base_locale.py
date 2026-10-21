@@ -277,6 +277,8 @@ ORDRE_PROD = (
     + ['0416']
     # Émargement sans réseau (envoi différé), 21/10
     + ['0417']
+    # Tarifs par client, 21/10
+    + ['0418']
 )
 
 

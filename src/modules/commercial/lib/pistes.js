@@ -5,6 +5,7 @@
 
 import { supabase } from '../../../core/supabase'
 import { computeDocumentTotals, lineTotal } from '../../../core/billing/totals'
+import { chargerTarifs, tarifPour } from '../../../core/tarifs/tarifsClient'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 const todayIso = () => new Date().toISOString().slice(0, 10)
@@ -45,13 +46,17 @@ export async function preparerDevisPiste(lead) {
       : { data: [] }
     const n = await nonFormes(lead)
     const c = (courses || [])[0]
+    // Tarif du client (0418) : par personne (inter) ou par groupe (intra), avant le prix du catalogue
+    const tarifs = await chargerTarifs(lead.client_id)
     if (c) {
-      const parPersonne = n > 0 && Number(c.price_ht) > 0
+      const t = tarifPour(tarifs, { kind: 'formation', course_id: c.id })
+      const parPersonne = n > 0 && (Number(t?.prix_inter_ht) > 0 || (!(Number(t?.prix_ht) > 0) && Number(c.price_ht) > 0))
+      const prixGroupe = Number(t?.prix_ht) > 0 ? Number(t.prix_ht) : Number(c.price_per_day || 0) * Number(c.duration_days || 1) || Number(c.price_ht || 0)
       lines.push({
         course_id: c.id, code: c.code || null, description_title: c.title,
         description_detail: n > 0 ? `${n} salarié${n > 1 ? 's' : ''} du site sans formation valide connue` : 'Un groupe',
         quantity: parPersonne ? n : 1, unit: parPersonne ? 'stagiaire' : 'groupe',
-        unit_price_ht: parPersonne ? Number(c.price_ht) : Number(c.price_per_day || 0) * Number(c.duration_days || 1) || Number(c.price_ht || 0),
+        unit_price_ht: parPersonne ? (Number(t?.prix_inter_ht) > 0 ? Number(t.prix_inter_ht) : Number(c.price_ht)) : prixGroupe,
         tva_rate: 20,
       })
       ;(courses || []).slice(1).forEach((o) => lines.push({ course_id: o.id, code: o.code || null, description_title: `Variante : ${o.title}`, description_detail: 'À garder ou retirer', quantity: 0, unit: 'groupe', unit_price_ht: Number(o.price_ht || 0), tva_rate: 20 }))

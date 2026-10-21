@@ -38,6 +38,9 @@ import { champsFinancement } from '../lib/financementDevis'
 import { confirmer } from '../../../ui/Confirm'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
+import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
+import { FRAIS_CATALOGUE } from '../lib/fraisCatalogue'
+import BadgeTarifClient from '../components/BadgeTarifClient'
 const STATUS_CONFIG = {
   draft: { label: 'Brouillon', class: 'bg-gray-100 text-gray-700', icon: '' },
   sent: { label: 'Envoyé', class: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', icon: '' },
@@ -227,17 +230,17 @@ export default function Quotes() {
     quantity: 1, unit: 'unité', unit_price_ht: 0, tva_rate: 20, course_id: '', nature: 'service', vat_regime: 'normal'
   }
 
-  // Lignes prêtes à l'emploi (bouton « Matériel et frais ») : matériel de formation et forfaits de déplacement.
-  // Zones de déplacement : tarifs 2 et 3 à fixer (le prix reste modifiable sur la ligne).
-  const predefinedMaterials = [
-    { code: 'DEP-Z1', description_title: 'Forfait frais de déplacement zone 1', description_detail: '', unit_price_ht: 30, unit: 'forfait', nature: 'service' },
-    { code: 'DEP-Z2', description_title: 'Forfait frais de déplacement zone 2', description_detail: 'Tarif à fixer', unit_price_ht: 0, unit: 'forfait', nature: 'service' },
-    { code: 'DEP-Z3', description_title: 'Forfait frais de déplacement zone 3', description_detail: 'Tarif à fixer', unit_price_ht: 0, unit: 'forfait', nature: 'service' },
-    { code: 'MAT-EXT-EAU', description_title: 'Extincteur de formation à eau', description_detail: '1 pour 3 personnes', unit_price_ht: 20, unit: 'unité' },
-    { code: 'MAT-EXT-CO2', description_title: 'Extincteur CO2', description_detail: '1 pour 2 personnes', unit_price_ht: 20, unit: 'unité' }
-  ]
+  // Lignes prêtes à l'emploi (bouton « Matériel et frais ») : liste commune (lib/fraisCatalogue)
+  const predefinedMaterials = FRAIS_CATALOGUE
 
   useEffect(() => { loadAll() }, [])
+  // Tarifs du client du devis (0418) : repris à l'ajout d'une ligne, badge « tarif client » sur la ligne
+  const [tarifs, setTarifs] = useState([])
+  useEffect(() => {
+    let actif = true
+    chargerTarifs(currentQuote?.client_id).then((t) => { if (actif) setTarifs(t) })
+    return () => { actif = false }
+  }, [currentQuote?.client_id])
 
   // Synchro édition relance quand IA a généré le brouillon
   useEffect(() => {
@@ -928,20 +931,24 @@ export default function Quotes() {
   function addFromCourse(course) {
     setItems([...items, {
       ...emptyItem, code: course.code || '', description_title: course.title,
-      description_detail: course.description || '', unit_price_ht: course.price_ht || 0,
+      description_detail: course.description || '', unit_price_ht: prixFormation(tarifs, course).prix,
       course_id: course.id, position: items.length
     }])
   }
   function addFromMaterial(mat) {
     setItems([...items, {
       ...emptyItem, code: mat.code, description_title: mat.description_title,
-      description_detail: mat.description_detail, unit_price_ht: mat.unit_price_ht,
+      description_detail: mat.description_detail, unit_price_ht: prixFrais(tarifs, mat.code, mat.unit_price_ht).prix,
       unit: mat.unit, position: items.length, nature: mat.nature || 'bien'
     }])
   }
-  function handleClientChange(clientId) {
+  async function handleClientChange(clientId) {
     setCurrentQuote(prev => ({ ...prev, client_id: clientId, contact_id: '' }))
     loadClientContacts(clientId)
+    // Lignes restées au prix du catalogue : passées au tarif du nouveau client (jamais un prix modifié à la main)
+    const t = await chargerTarifs(clientId)
+    const [lignes, n] = appliquerTarifs(t, items, { courses, frais: FRAIS_CATALOGUE })
+    if (n > 0) { setItems(lignes); toast.success(`${n} ligne${n > 1 ? 's' : ''} au tarif du client`) }
   }
   function handleDateChange(date) {
     const vDate = calcValidityDate(date)
@@ -1481,7 +1488,7 @@ export default function Quotes() {
                       </td>
                       <td className="text-center px-2 py-3 text-ui">{item.quantity}</td>
                       <td className="text-center px-2 py-3 text-ui-sm text-gray-500">{item.unit || '-'}</td>
-                      <td className="text-right px-2 py-3 text-ui">{money(item.unit_price_ht)}</td>
+                      <td className="text-right px-2 py-3 text-ui">{money(item.unit_price_ht)}{ligneAuTarif(tarifs, item) && <div><BadgeTarifClient /></div>}</td>
                       <td className="text-right px-4 py-3 text-ui font-medium">{money((item.quantity || 0) * (item.unit_price_ht || 0))}</td>
                     </tr>
                   ))}
@@ -1805,6 +1812,7 @@ export default function Quotes() {
                         <label className="text-ui-sm text-gray-400">PU HT</label>
                         <input type="text" inputMode="decimal" value={item.unit_price_ht} onChange={(e) => updateItem(idx, 'unit_price_ht', e.target.value)}
                           className="w-20 px-2 py-1 border border-gray-200 rounded text-ui text-right" />
+                        {ligneAuTarif(tarifs, item) && <BadgeTarifClient />}
                       </div>
                       <div className="flex items-center gap-1">
                         <label className="text-ui-sm text-gray-400">TVA%</label>
