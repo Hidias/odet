@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import { X, Send, Loader, CheckCircle, AlertCircle, Mail, FileText, Upload, Trash2, Eye, ChevronLeft, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { preparerDocuments } from '../lib/documentsEmis'
 import { generatePDF } from '../pdf/pdfGenerator'
 import { readableUrl } from '../../../core/storageUtils'
 import { useCapacites } from '../../../core/capacites'
@@ -257,7 +258,10 @@ export default function StageEmailModal({ session, onClose }) {
     const uploads = []
     const basePath = `stagiaire-emails/${session.id}/${trainee.id}`
 
-    const cert = await generatePDF('certificat', session, { trainee, trainer })
+    // Heures réellement suivies et documents figés une fois émis (0398, 0399)
+    const [pourCert] = (await preparerDocuments(session, 'certificat', [trainee])) || []
+    if (!pourCert) throw new Error('Correction d\'un certificat émis sans motif : envoi arrêté')
+    const cert = await generatePDF('certificat', session, { trainee: pourCert, trainer })
     if (cert) {
       const filename = `Certificat_${ref}_${trainee.last_name}.pdf`
       const path = `${basePath}/${slugify(filename)}`
@@ -265,7 +269,9 @@ export default function StageEmailModal({ session, onClose }) {
       uploads.push({ path, filename })
     }
 
-    const att = await generatePDF('attestation', session, { trainee, trainer })
+    const [pourAtt] = (await preparerDocuments(session, 'attestation', [trainee])) || []
+    if (!pourAtt) throw new Error('Correction d\'une attestation émise sans motif : envoi arrêté')
+    const att = await generatePDF('attestation', session, { trainee: pourAtt, trainer })
     if (att) {
       const filename = `Attestation_${ref}_${trainee.last_name}.pdf`
       const path = `${basePath}/${slugify(filename)}`

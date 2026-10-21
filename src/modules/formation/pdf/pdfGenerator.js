@@ -14,7 +14,7 @@ import { APP_VERSION } from '../../../core/version'
 import { loadPublishedDoc, versionLabel, cgvCancellationText } from '../../qualite/richdocs/published'
 import { writeRichDoc } from '../../qualite/richdocs/richDocPDF'
 import { loadTemplateContext, buildTemplateContext, fillTemplate } from '../../../core/org/templateContext'
-import { computePresenceHours, formatHours } from '../lib/presence'
+import { formatHours, heuresDuDocument } from '../lib/presence'
 import { buildProgrammePDF, buildCataloguePDF } from './programmePDF'
 import { pictogrammePNG } from './pictogrammes'
 // Codes documentaires : préfixe propre à l'organisme (ORG.doc_prefix) + code du type de document
@@ -930,9 +930,11 @@ function generateCertificatContent(doc, session, trainee, trainer, { defaultAcqu
 
   f.note("Sans préjudice des délais imposés par les règles fiscales, comptables ou commerciales, je m'engage à conserver l'ensemble des pièces justificatives ayant permis d'établir le présent certificat pendant une durée de 3 ans à compter de la fin de l'année du dernier paiement. En cas de cofinancement des fonds européens, la durée de conservation est étendue conformément aux obligations conventionnelles spécifiques.", { after: 5 })
 
+  // Document émis (0399) : une version corrigée est datée du jour et annule la précédente
+  if (trainee?.document_emis?.remplace) f.note(mentionRemplace('certificat', trainee.document_emis), { after: 3 })
   f.ensure(39)
   f.body(9)
-  doc.text(`Fait à ${ORG.lieu_signature || ORG.city || ''}, le ${formatDate(session?.end_date || new Date())}.`, f.M, f.y)
+  doc.text(`Fait à ${ORG.lieu_signature || ORG.city || ''}, le ${formatDate(trainee?.document_emis?.issued_on || session?.end_date || new Date())}.`, f.M, f.y)
   f.y += 4
   f.signatures([{ label: 'Le dispensateur de formation', name: `${ORG.dirigeant || ''}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}`, hint: 'Cachet et signature', stamp: ORG.stamp_base64, image: ORG.dirigeant_signature_base64 }], { height: 32 })
   f.finish()
@@ -1747,6 +1749,12 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
   drawFooter(doc, ORG, CODE)
 }
 
+// « Annule et remplace » d'une version corrigée (0399)
+function mentionRemplace(kind, emis) {
+  const nom = kind === 'certificat' ? 'le certificat de réalisation' : "l'attestation de présence"
+  return `Version ${emis.version} : ce document annule et remplace ${nom} du ${formatDate(emis.remplace.issued_on)} (version ${emis.remplace.version}).`
+}
+
 // Champs de présence éventuellement portés directement par l'objet stagiaire
 function pickPresence(t) {
   const out = {}
@@ -1781,10 +1789,8 @@ function generateAttestationContent(doc, session, trainee, trainer) {
   const horaires = session?.start_time ? `De ${formatHour(session.start_time)} à ${formatHour(session?.end_time)}` : ''
   // Présence : du début à la fin, sauf arrivée tardive ou départ anticipé notés sur la session
   const st = { ...((session?.session_trainees || []).find(x => x.trainee_id === trainee?.id) || {}), ...pickPresence(trainee) }
-  const calc = computePresenceHours(session, course, st)
-  const base = st.presence_hours != null && (st.early_departure || st.arrival_time) ? Number(st.presence_hours) : calc.hours
-  // Heures réellement suivies (0398), préparées par l'écran avec les absences décidées sur l'émargement
-  const hours = trainee?.heures_realisees != null ? Number(trainee.heures_realisees) : base
+  // Heures réellement suivies (0398) si l'écran les a établies, sinon heures de présence
+  const hours = heuresDuDocument(session, course, st, trainee)
   const notes = []
   if (st.arrival_time && st.arrival_date) notes.push(`arrivée le ${formatDate(st.arrival_date)} à ${formatHour(st.arrival_time)}`)
   if (st.early_departure && st.departure_date) notes.push(`départ le ${formatDate(st.departure_date)}${st.departure_time ? ` à ${formatHour(st.departure_time)}` : ''}`)
@@ -1806,7 +1812,8 @@ function generateAttestationContent(doc, session, trainee, trainer) {
   const boxH = 38
   f.ensure(boxH + 10)
   f.body(9)
-  doc.text(`Fait à ${ORG.lieu_signature || ORG.city}, le ${formatDate(session?.end_date || new Date())}.`, M, f.y)
+  if (trainee?.document_emis?.remplace) { f.para(mentionRemplace('attestation', trainee.document_emis), { size: 9, after: 3 }); f.body(9) }
+  doc.text(`Fait à ${ORG.lieu_signature || ORG.city}, le ${formatDate(trainee?.document_emis?.issued_on || session?.end_date || new Date())}.`, M, f.y)
   f.y += 6
   const by = f.y
   doc.setDrawColor(...t.line); doc.setLineWidth(0.3); doc.rect(M, by, colW, boxH)

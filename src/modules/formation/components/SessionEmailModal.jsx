@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import { X, FileText, Send, Loader, CheckCircle, AlertCircle, Upload, Trash2, Eye, Edit3, History, Mail, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { preparerDocuments } from '../lib/documentsEmis'
 import { generatePDF, generateAllPDF, setOrganization } from '../pdf/pdfGenerator'
 import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionEntreprisePDF } from '../pdf/satisfactionEntreprisePDF'
@@ -591,7 +592,10 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       } else {
         // ── CERTIFICATS ──
         addLog(`Certificats (${traineesWithResult.length} stagiaires)...`)
-        const certificats = await generateAllPDF('certificat', session, traineesWithResult, { trainer })
+        // Heures réellement suivies et documents figés une fois émis (0398, 0399)
+        const pourCertificats = await preparerDocuments(session, 'certificat', traineesWithResult)
+        if (!pourCertificats) throw new Error('Correction d\'un certificat émis sans motif : envoi arrêté')
+        const certificats = await generateAllPDF('certificat', session, pourCertificats, { trainer })
         if (certificats) {
           files.push({ id: 'certificats', name: certificats.filename, base64: certificats.base64, size: certificats.size })
           addLog('Certificats générés')
@@ -599,7 +603,9 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
 
         // ── ATTESTATIONS ──
         addLog(`Attestations (${traineesWithResult.length} stagiaires)...`)
-        const attestations = await generateAllPDF('attestation', session, traineesWithResult, { trainer })
+        const pourAttestations = await preparerDocuments(session, 'attestation', traineesWithResult)
+        if (!pourAttestations) throw new Error('Correction d\'une attestation émise sans motif : envoi arrêté')
+        const attestations = await generateAllPDF('attestation', session, pourAttestations, { trainer })
         if (attestations) {
           files.push({ id: 'attestations', name: attestations.filename, base64: attestations.base64, size: attestations.size })
           addLog('Attestations générées')

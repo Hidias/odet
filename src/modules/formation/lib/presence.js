@@ -185,3 +185,13 @@ export function libelleDemiJournee(hd) {
   const [a, m, j] = String(hd.date).split('-')
   return `${j}/${m}/${a} ${LIBELLE_PERIODE[hd.period] || hd.period}`
 }
+
+/**
+ * Heures portées par l'attestation et le certificat d'un stagiaire : heures réellement suivies si l'écran les a
+ * établies (0398), sinon heures de présence (arrivée tardive, départ anticipé, ou toute la formation).
+ */
+export function heuresDuDocument(session, course, st = {}, trainee = {}) {
+  if (trainee?.heures_realisees != null) return Number(trainee.heures_realisees)
+  const partiel = st.presence_hours != null && (st.early_departure || st.arrival_time)
+  return partiel ? Number(st.presence_hours) : computePresenceHours(session, course, st).hours
+}

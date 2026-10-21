@@ -4609,6 +4609,37 @@ begin
     end;
   end if;
 
+  -- Documents émis (0399) : société de la session, correction sans motif refusée, version unique
+  if to_regclass('public.training_documents_issued') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare z_s uuid; z_t uuid; z_co uuid; z_ok boolean := false;
+    begin
+      select st.session_id, st.trainee_id into z_s, z_t from public.session_trainees st limit 1;
+      if z_s is null then
+        v_lines := v_lines || 'OK      base  0399 : document émis (aucun stagiaire pour l''essai)'::text;
+        v_lines := v_lines || 'OK      base  0399 : correction motivée (aucun stagiaire pour l''essai)'::text;
+      else
+        insert into public.training_documents_issued (session_id, trainee_id, kind, version, issued_on, hours)
+        values (z_s, z_t, 'certificat', 1, current_date, 7) returning company_id into z_co;
+        if z_co = (select company_id from public.sessions where id = z_s) then
+          v_lines := v_lines || 'OK      base  0399 : document émis rattaché à la société de la session'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0399 : société du document émis'::text; end if;
+        begin insert into public.training_documents_issued (session_id, trainee_id, kind, version, issued_on, hours)
+          values (z_s, z_t, 'certificat', 2, current_date, 3.5);
+        exception when check_violation then z_ok := true; end;
+        if z_ok then v_lines := v_lines || 'OK      base  0399 : une correction exige son motif'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0399 : correction sans motif acceptée'::text; end if;
+        delete from public.training_documents_issued where session_id = z_s and trainee_id = z_t;
+      end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0399 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
