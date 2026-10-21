@@ -227,6 +227,8 @@ ORDRE_PROD = (
     + ['0391']
     # Supports de formation privés, 21/10
     + ['0392']
+    # Contraintes sans prénoms en dur, 21/10
+    + ['0393']
 )
 
 
