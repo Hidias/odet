@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Smartphone, BellRing, BellOff, Loader2 } from 'lucide-react'
+import { Smartphone, BellRing, BellOff, Loader2, Send } from 'lucide-react'
 import { supabase } from '../supabase'
 import { callApi } from '../api'
 import { getCurrentCompanyId } from '../company/companyContext'
@@ -56,6 +56,17 @@ export default function AlertesTelephone() {
     } catch (e) { toast.error(e.message || 'Activation impossible') } finally { setBusy(false) }
   }
 
+  // Essai téléphone verrouillé : l'alerte part dans 15 secondes, le temps de fermer l'application
+  // (sur iPhone, une alerte reçue pendant que l'application est ouverte peut ne pas s'afficher en bandeau).
+  const tester = async () => {
+    setBusy(true)
+    toast.success("Alerte d'essai dans 15 secondes : fermez l'application ou verrouillez l'appareil", { duration: 8000 })
+    try {
+      const r = await callApi('/api/push', { action: 'tester', delai: 15 })
+      if (!r?.envoyes) toast.error("L'alerte d'essai n'a pas pu partir vers cet appareil : coupez puis réactivez les alertes")
+    } catch (e) { toast.error(e.message || "Alerte d'essai impossible") } finally { setBusy(false) }
+  }
+
   const couper = async () => {
     setBusy(true)
     try {
@@ -75,6 +86,7 @@ export default function AlertesTelephone() {
     <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2 text-ui-sm">
       <Smartphone className="w-4 h-4 text-gray-500 flex-none" aria-hidden="true" />
       {etat === 'actif' && <><span className="flex-1 text-gray-700">Alertes actives sur cet appareil</span>
+        <button type="button" className="text-accent-700 hover:underline inline-flex items-center gap-1" onClick={tester} disabled={busy}><Send className="w-3.5 h-3.5" />Essai</button>
         <button type="button" className="text-accent-700 hover:underline inline-flex items-center gap-1" onClick={couper} disabled={busy}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellOff className="w-3.5 h-3.5" />}Couper</button></>}
       {etat === 'inactif' && <><span className="flex-1 text-gray-700">Recevoir les alertes sur cet appareil</span>
         <button type="button" className="text-accent-700 hover:underline inline-flex items-center gap-1" onClick={activer} disabled={busy}>{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}Activer</button></>}
