@@ -11,6 +11,9 @@ import { supabase } from '../../../core/supabase'
 import { callApi } from '../../../core/api'
 import { useAuthStore } from '../../../core/store'
 import PublicLayout from '../../../app/PublicLayout'
+import { useBranding } from '../../../core/branding/BrandingProvider'
+import { BandeauAccueil, PersonnaliserEspace } from '../components/Vitrine'
+import { useMonProfil } from '../lib/monProfil'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { pdfOrgFrom } from '../../../core/pdf/pdfOrg'
@@ -60,6 +63,10 @@ export default function EspaceEntreprise() {
   const [onglet, setOnglet] = useState('accueil')
   const [accueil, setAccueil] = useState(null)
   const [erreur, setErreur] = useState(null)
+  // Accueil « Bonjour » + prénom du compte (jamais le nom de l'entreprise), photo ou logo choisis par la personne
+  const { branding } = useBranding()
+  const moi = useMonProfil()
+  const [perso, setPerso] = useState(false)
   // Registre de sécurité (fonction 11) : proposé si le module est actif ; dossier de dépôt du compte
   const [mods, setMods] = useState({ registre: false })
   useEffect(() => { supabase.rpc('ent_modules').then(({ data }) => { if (data) setMods(data) }) }, [])
@@ -92,15 +99,13 @@ export default function EspaceEntreprise() {
   if (!accueil) return <PublicLayout title="Espace entreprise"><div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div></PublicLayout>
 
   return (
-    <PublicLayout title="Espace entreprise">
+    <PublicLayout title="Espace entreprise" bandeau={(
+      <BandeauAccueil branding={branding} libelle="Espace entreprise" prenom={moi.prenom} photo={moi.photo}
+        sousTitre={`Vos formations avec ${accueil.org?.name || branding.org_name || 'votre organisme'}`}
+        onPersonnaliser={() => setPerso(true)} onQuitter={logout} />
+    )}>
+      {perso && <PersonnaliserEspace prenom={moi.prenom} photo={moi.photo} onEnregistrer={moi.enregistrer} onFermer={() => setPerso(false)} />}
       <div className="pb-20">
-        <div className="flex items-start justify-between gap-3 mb-5">
-          <div className="min-w-0">
-            <h1 className="font-display text-xl font-semibold text-gray-900 truncate">{accueil.client?.name}</h1>
-            <p className="text-sm text-gray-500 truncate">{accueil.compte?.contact?.name ? `${accueil.compte.contact.name}, ` : ''}vos formations avec {accueil.org?.name}</p>
-          </div>
-          <button type="button" onClick={logout} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5 shrink-0"><LogOut className="w-4 h-4" />Quitter</button>
-        </div>
         {onglet === 'accueil' && <Accueil a={accueil} aller={setOnglet} />}
         {onglet === 'formations' && <Formations />}
         {onglet === 'salaries' && <Salaries />}

@@ -5867,6 +5867,40 @@ begin
     end;
   end if;
 
+  -- Photo du profil (0426) : chacun change la sienne seulement, image vérifiée
+  if to_regprocedure('public.mon_profil_photo(text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare h_ok boolean; h_prenom text;
+    begin
+      h_prenom := (select first_name from public.profiles where id = u_dir);
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.mon_profil_photo('data:image/png;base64,iVBORw0KGgo=');
+      perform public.mon_profil_prenom('Sophie');
+      h_ok := false;
+      begin perform public.mon_profil_photo('javascript:alert(1)'); exception when others then h_ok := true; end;
+      execute 'reset role';
+      if h_ok and (select photo from public.profiles where id = u_dir) = 'data:image/png;base64,iVBORw0KGgo='
+         and (select first_name from public.profiles where id = u_dir) = 'Sophie' then
+        v_lines := v_lines || 'OK      dir   0426 : photo et prénom du profil enregistrés, contenu autre qu''une image refusé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0426 : photo du profil'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+      execute 'set local role anon';
+      h_ok := false;
+      begin perform public.mon_profil_photo(null); exception when others then h_ok := true; end;
+      execute 'reset role';
+      update public.profiles set photo = null, first_name = h_prenom where id = u_dir;
+      if h_ok then v_lines := v_lines || 'OK      anon  0426 : photo du profil impossible sans compte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0426 : photo sans compte'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0426 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

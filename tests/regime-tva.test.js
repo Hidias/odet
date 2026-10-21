@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { tvaLigne, appliquerRegime, mentionsTvaDevis, ajusterAuTtc } from '../src/core/billing/regimeTva'
+import { tvaLigne, appliquerRegime, mentionsTvaDevis, ajusterAuTtc, ligneAForfaitiser, forfaitiser } from '../src/core/billing/regimeTva'
 import { calcTotals } from '../src/modules/commercial/lib/quoteTotals'
 
 const assujetti = { charge: true, franchise: false, exoFormation: false, mentions: { exoneration: 'Exo.', franchise: 'Franchise.', autoliquidation: 'Auto.' } }
@@ -33,5 +33,24 @@ describe('régime de TVA de l\'organisme', () => {
     const r = ajusterAuTtc([{ quantity: 1, unit_price_ht: 418 }], 500, 20, calc)
     expect(r.ttc).toBe(500)
     expect(r.lignes[0].unit_price_ht).toBe(416.67)
+  })
+})
+
+describe('TTC rond avec plusieurs unités', () => {
+  const calc = (l) => calcTotals(l, 0, 20, true)
+  it('2 × 250 TTC : arrondi signalé, puis forfait juste à 500', () => {
+    const lignes = [{ description_title: 'SST', quantity: 2, unit: 'jour', unit_price_ht: 250, vat_regime: 'normal' }]
+    const r = ajusterAuTtc(lignes, '500', 20, calc)
+    expect(r.exact).toBe(false)
+    const k = ligneAForfaitiser(r.lignes)
+    expect(k).toBe(0)
+    const f = ajusterAuTtc(forfaitiser(r.lignes, k), '500', 20, calc)
+    expect(f.exact).toBe(true)
+    expect(f.ttc).toBe(500)
+    expect(f.lignes[0]).toMatchObject({ quantity: 1, unit: 'forfait', unit_price_ht: 416.67, description_detail: '(2 jours)' })
+  })
+  it('quantité 1 : juste sans forfait', () => {
+    const r = ajusterAuTtc([{ description_title: 'SST', quantity: 1, unit_price_ht: 500, vat_regime: 'normal' }], '500', 20, calc)
+    expect(r.exact).toBe(true)
   })
 })

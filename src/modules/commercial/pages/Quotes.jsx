@@ -22,7 +22,7 @@ import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 import { calcItemTotal, calcTotals } from '../lib/quoteTotals'
-import { chargerRegimeTva, tvaLigne, appliquerRegime, ajusterAuTtc } from '../../../core/billing/regimeTva'
+import { chargerRegimeTva, tvaLigne, appliquerRegime, ajusterAuTtc, ligneAForfaitiser, forfaitiser } from '../../../core/billing/regimeTva'
 import { parseRate } from '../../../core/billing/totals'
 import { quoteDay, nextQuoteReference } from '../lib/references'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -1353,26 +1353,26 @@ export default function Quotes() {
     const st = STATUS_CONFIG[currentQuote.status] || STATUS_CONFIG.draft
     const q = currentQuote
     return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-5xl mx-auto">
         <BandeauTest tbl="quotes" id={q.id} />
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setMode('list')} className="p-2 hover:bg-gray-100 rounded-ui-sm transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
+          <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
+            <button onClick={() => setMode('list')} aria-label="Retour à la liste" className="p-2 -ml-2 sm:ml-0 hover:bg-gray-100 rounded-ui-sm transition-colors shrink-0">
               <ArrowLeft size={20} />
             </button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-gray-900">Devis {q.reference}</h1>
+            <div className="min-w-0">
+              <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900"><span className="sm:hidden block text-ui-sm font-medium text-gray-500">Devis</span><span className="hidden sm:inline">Devis </span><span className="whitespace-nowrap">{q.reference}</span></h1>
                 <BadgeTest tbl="quotes" id={q.id} />
                 <span className={`px-2.5 py-1 rounded text-ui-sm font-medium ${st.class}`}>{st.icon} {st.label}</span>
               </div>
-              <p className="text-ui text-gray-500">
+              <p className="text-ui-sm sm:text-ui text-gray-500">
                 {q.quote_date && format(new Date(q.quote_date), 'dd MMMM yyyy', { locale: fr })}
                 {q.created_by && ` · par ${q.created_by}`}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => downloadPDF(q)} disabled={generatingPdf}
               className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm hover:bg-[rgb(var(--c-warning-bg))] text-ui disabled:opacity-50">
               <Download size={15} /> PDF
@@ -1387,7 +1387,7 @@ export default function Quotes() {
               className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 text-ui">
               <Edit2 size={15} /> Modifier
             </button>
-            <div className="relative" ref={actionMenuId === 'view' ? actionMenuRef : null}>
+            <div className="relative ml-auto sm:ml-0" ref={actionMenuId === 'view' ? actionMenuRef : null}>
               <button onClick={() => setActionMenuId(actionMenuId === 'view' ? null : 'view')}
                 className="p-2 hover:bg-gray-100 rounded-ui-sm transition-colors">
                 <MoreHorizontal size={20} />
@@ -1465,8 +1465,8 @@ export default function Quotes() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6 min-w-0">
             {/* Objet */}
             {q.object && (
               <div className="bg-white rounded-ui border p-4">
@@ -1475,8 +1475,21 @@ export default function Quotes() {
               </div>
             )}
 
-            {/* Lignes */}
-            <div className="bg-white rounded-ui border overflow-hidden">
+            {/* Lignes : cartes sur téléphone, tableau à partir de la tablette */}
+            <div className="sm:hidden bg-white rounded-ui border divide-y">
+              {items.map((item, i) => (
+                <div key={i} className="p-4">
+                  <p className="font-medium text-gray-900 text-ui">{item.description_title}</p>
+                  {item.description_detail && <p className="text-ui-sm text-gray-500 mt-0.5 whitespace-pre-line">{item.description_detail}</p>}
+                  <div className="mt-2 flex items-baseline justify-between gap-3 text-ui">
+                    <span className="text-gray-500">{item.quantity} {item.unit || ''} × {money(item.unit_price_ht)}</span>
+                    <span className="font-semibold text-gray-900 whitespace-nowrap">{money((item.quantity || 0) * (item.unit_price_ht || 0))}</span>
+                  </div>
+                  {ligneAuTarif(tarifs, item) && <div className="mt-1"><BadgeTarifClient /></div>}
+                </div>
+              ))}
+            </div>
+            <div className="hidden sm:block bg-white rounded-ui border overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 text-ui-sm text-gray-500 uppercase">
@@ -1513,7 +1526,7 @@ export default function Quotes() {
                 </div>
                 <div className="divide-y divide-[rgb(var(--c-warning)/0.3)]">
                   {items.map(item => (
-                    <div key={item.id} className="flex items-center gap-3 px-4 py-3">
+                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-ui font-medium text-gray-900 truncate">{item.description_title}</p>
                         <p className="text-ui-sm text-gray-400">{money((item.quantity || 0) * (item.unit_price_ht || 0))}</p>
@@ -1555,7 +1568,7 @@ export default function Quotes() {
             {/* Totaux */}
             <div className="bg-white rounded-ui border p-4">
               <div className="flex justify-end">
-                <div className="w-64 space-y-1.5 text-ui">
+                <div className="w-full sm:w-64 space-y-1.5 text-ui">
                   <div className="flex justify-between"><span className="text-gray-500">Total HT</span><span className="font-medium">{money(totals.totalHt)}</span></div>
                   {currentQuote.discount_percent > 0 && (
                     <div className="flex justify-between text-[rgb(var(--c-danger))]"><span>Remise {currentQuote.discount_percent}%{currentQuote.discount_label ? ` (${currentQuote.discount_label})` : ''}</span><span>-{money(totals.discountAmount)}</span></div>
@@ -1595,23 +1608,23 @@ export default function Quotes() {
     const totals = calcTotals(items, currentQuote.discount_percent, currentQuote.tva_rate, currentQuote.tva_applicable)
     const selectedClient = clients.find(c => c.id === currentQuote.client_id)
     return (
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setMode('list')} className="p-2 hover:bg-gray-100 rounded-ui-sm transition-colors">
+      <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
+          <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
+            <button onClick={() => setMode('list')} aria-label="Retour à la liste" className="p-2 -ml-2 sm:ml-0 hover:bg-gray-100 rounded-ui-sm transition-colors shrink-0">
               <ArrowLeft size={20} />
             </button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">
-                {mode === 'create' ? 'Nouveau devis' : `Devis ${currentQuote.reference}`}
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">
+                {mode === 'create' ? 'Nouveau devis' : <>Devis <span className="whitespace-nowrap">{currentQuote.reference}</span></>}
                 {mode !== 'create' && <BadgeTest tbl="quotes" id={currentQuote.id} className="ml-2" />}
               </h1>
-              <p className="text-ui text-gray-500">
+              <p className="text-ui-sm sm:text-ui text-gray-500">
                 {mode === 'create' ? currentQuote.reference : `Créé le ${currentQuote.created_at ? format(new Date(currentQuote.created_at), 'dd/MM/yyyy', { locale: fr }) : ''}`}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {mode === 'edit' && (
               <>
                 <select value={currentQuote.status}
@@ -1780,7 +1793,7 @@ export default function Quotes() {
             <FinancementDevis quote={currentQuote} setQuote={setCurrentQuote} clients={clients} />
 
             {/* Line items - compact */}
-            <div className="bg-white rounded-ui border border-gray-200 p-5">
+            <div className="bg-white rounded-ui border border-gray-200 p-3 sm:p-5">
               <h2 className="font-semibold text-gray-900 mb-3">Lignes du devis</h2>
               <div className="space-y-2">
                 {items.map((item, idx) => (
@@ -1788,7 +1801,7 @@ export default function Quotes() {
                     {/* Row 1: Code + Title + Description inline */}
                     <div className="flex items-start gap-2 mb-2">
                       <input type="text" value={item.code} onChange={(e) => updateItem(idx, 'code', e.target.value)}
-                        placeholder="Code" className="w-24 px-2 py-1.5 border border-gray-200 rounded text-ui-sm font-mono flex-shrink-0" />
+                        placeholder="Code" className="w-16 sm:w-24 px-2 py-1.5 border border-gray-200 rounded text-ui-sm font-mono flex-shrink-0" />
                       <input type="text" value={item.description_title} onChange={(e) => updateItem(idx, 'description_title', e.target.value)}
                         placeholder="Titre de la ligne *"
                         className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-ui font-medium" />
@@ -1808,7 +1821,7 @@ export default function Quotes() {
                       </select>
                     </div>
                     {/* Row 3: Qté + Unité + PU HT + TVA% + Total = tout sur une ligne */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                       <div className="flex items-center gap-1">
                         <label className="text-ui-sm text-gray-400 whitespace-nowrap">Qté</label>
                         <input type="text" inputMode="decimal" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
@@ -1830,7 +1843,7 @@ export default function Quotes() {
                         <input type="text" inputMode="decimal" value={item.tva_rate} onChange={(e) => updateItem(idx, 'tva_rate', e.target.value)}
                           className="w-14 px-2 py-1 border border-gray-200 rounded text-ui text-center" />
                       </div>
-                      <div className="ml-auto text-right">
+                      <div className="ml-auto text-right w-full sm:w-auto">
                         <span className="text-ui font-semibold text-gray-900">{money(calcItemTotal(item))}</span>
                       </div>
                     </div>
@@ -1838,7 +1851,7 @@ export default function Quotes() {
                 ))}
               </div>
               {/* Add buttons - always at bottom after lines */}
-              <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
                 <PickerMenu
                   buttonClassName="text-ui px-3 py-1.5 bg-gray-100 text-gray-600 rounded-ui-sm hover:bg-gray-200 transition-colors flex items-center gap-1"
                   searchPlaceholder="Rechercher une formation..."
@@ -1864,7 +1877,7 @@ export default function Quotes() {
               </div>
               {/* Totals */}
               <div className="mt-4 pt-4 border-t border-gray-200 flex justify-end">
-                <div className="w-72 space-y-1.5 text-ui">
+                <div className="w-full sm:w-72 space-y-1.5 text-ui">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Total HT</span>
                     <span className="font-medium">{money(totals.subtotalHt)}</span>
@@ -1897,10 +1910,18 @@ export default function Quotes() {
                     const v = await demander('Total TTC voulu (en euros) : les prix HT des lignes sont ajustés pour l\'obtenir, TVA comprise.', { title: 'Ajuster au TTC voulu', placeholder: 'par exemple 500' })
                     if (!v) return
                     const lignes = items.filter((it) => it.description_title)
-                    const r = ajusterAuTtc(lignes, v, currentQuote.tva_rate, (l) => calcTotals(l, currentQuote.discount_percent, currentQuote.tva_rate, currentQuote.tva_applicable))
+                    const calc = (l) => calcTotals(l, currentQuote.discount_percent, currentQuote.tva_rate, currentQuote.tva_applicable)
+                    let r = ajusterAuTtc(lignes, v, currentQuote.tva_rate, calc)
                     if (!r) return toast.error('Montant non reconnu')
+                    // TTC rond inatteignable avec plusieurs unités au centime (2 × 208,33 HT = 499,99 TTC) : proposer le forfait
+                    const k = r.exact ? -1 : ligneAForfaitiser(r.lignes)
+                    if (k >= 0) {
+                      const l = r.lignes[k]
+                      const ok = await confirmer({ title: 'Tomber juste au centime', confirmLabel: 'Passer en forfait', message: `Avec ${String(l.quantity).replace('.', ',')} × un prix au centime, le total tombe à ${money(r.ttc)} au lieu de ${money(Number(String(v).replace(',', '.')))}. Passer la ligne « ${l.description_title} » en forfait (quantité 1, la quantité est reportée dans le détail) pour tomber juste ?` })
+                      if (ok) r = ajusterAuTtc(forfaitiser(r.lignes, k), v, currentQuote.tva_rate, calc) || r
+                    }
                     setItems([...r.lignes, ...items.filter((it) => !it.description_title)])
-                    toast.success(`Total TTC : ${money(r.ttc)}${Math.abs(r.ttc - Number(String(v).replace(',', '.'))) >= 0.01 ? ' (arrondi au centime : mettez une ligne en quantité 1 pour tomber juste)' : ''}`, { duration: 7000 })
+                    toast.success(`Total TTC : ${money(r.ttc)}`, { duration: 5000 })
                   }}>Ajuster au TTC voulu</button>
                 </div>
               </div>
