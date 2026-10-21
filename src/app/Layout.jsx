@@ -20,6 +20,7 @@ import { useUiPrefs } from '../core/branding/useUiPrefs'
 import { UI_PRESETS, DENSITIES, NAVS, RADII, LISTS, modeParDefaut, OPTIONS_ADAPTE } from '../core/branding/presets'
 import { visibleSections, visibleSettingsItems, accesPage, pageTitleFor, sectionIdFor, entreesMenu, ongletsPour, entreePourChemin, creationsVisibles } from '../core/modules/registry'
 import PageRefusee from '../core/rights/PageRefusee'
+import AlertesTelephone from '../core/push/AlertesTelephone'
 import { ScanModal } from '../modules/interventions/components/ui'
 import { SelecteurSociete, ChoixSociete, BandeauVueGroupe } from '../core/company/SelecteurSociete'
 
@@ -477,6 +478,7 @@ export default function Layout() {
           </button>
         )}
       </div>
+      <AlertesTelephone />
       <div className="max-h-96 overflow-y-auto">
         {notifications.length === 0 ? (
           <p className="p-4 text-center text-gray-500 text-ui">Aucune notification</p>
