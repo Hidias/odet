@@ -2,7 +2,7 @@
 // Écritures automatiques de la nuit (migration 0376) : sessions passées « terminées », rappels du jour,
 // alertes qualité (notes basses), statuts « due » et « en retard » des factures envoyées ; puis les relances à
 // valider (0043, scheduled_actions_generate : préparées, jamais envoyées), les étapes des sessions (0160, pilote_generate)
-// et les purges RGPD à valider (0344, rgpd_purges_generer).
+// les purges RGPD à valider (0344, rgpd_purges_generer) et le point de la semaine (0407, point_semaine_generer).
 // Toute la logique est dans la base (public.daily_maintenance, idempotente) ; cette route ne fait que la lancer.
 //
 // Déclenchée chaque nuit par la tâche planifiée Vercel (vercel.json, en-tête Authorization: Bearer CRON_SECRET),
@@ -43,10 +43,16 @@ async function handler(req, res) {
   const { data: pur, error: purErr } = await admin.rpc('rgpd_purges_generer')
   if (!purErr) purges = pur
   else if (purErr.code !== 'PGRST202') { erreurs.purges = purErr.code || 'erreur'; console.error('[maintenance-nuit] purges', purErr.code || 'erreur') }
+  // Point de la semaine (0407) : le lundi le point, le vendredi le bilan, là où des destinataires sont choisis ;
+  // préparé et signalé par une notification, jamais envoyé sans une personne
+  let point = null
+  const { data: pt, error: ptErr } = await admin.rpc('point_semaine_generer')
+  if (!ptErr) point = pt
+  else if (ptErr.code !== 'PGRST202') { erreurs.point = ptErr.code || 'erreur'; console.error('[maintenance-nuit] point', ptErr.code || 'erreur') }
   await purgerJournalTaches()
   const nbErreurs = Object.keys(erreurs).length
   // 500 si une étape a échoué : le journal des tâches la note « erreur » et le suivi des erreurs la reçoit
-  return res.status(nbErreurs ? 500 : 200).json({ ok: !nbErreurs, resultat: data, relances, pilote, purges, ...(nbErreurs ? { error: `Étapes en erreur : ${Object.entries(erreurs).map(([k, v]) => `${k} (${v})`).join(', ')}` } : {}) })
+  return res.status(nbErreurs ? 500 : 200).json({ ok: !nbErreurs, resultat: data, relances, pilote, purges, point, ...(nbErreurs ? { error: `Étapes en erreur : ${Object.entries(erreurs).map(([k, v]) => `${k} (${v})`).join(', ')}` } : {}) })
 }
 
 export default withErrorLog(withJobLog(handler, 'maintenance-nuit'), 'maintenance-nuit')

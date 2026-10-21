@@ -1,3 +1,4 @@
+import { getCurrentCompanyId } from '../company/companyContext'
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -573,7 +574,25 @@ function UsersSection({ isSuperadmin }) {
   // Dernière connexion de chaque compte (serveur) : un compte qui n'a jamais servi peut être supprimé, les autres
   // se désactivent (historique conservé). Inconnu tant que la réponse n'est pas arrivée.
   const [activite, setActivite] = useState(null)
+  // Destinataires du point du lundi et du bilan du vendredi (0407) ; colonne absente si la table n'est pas lisible
+  const [dest, setDest] = useState(null)
+  const chargerDest = async () => {
+    let q = supabase.from('weekly_brief_recipients').select('profile_id, point, bilan')
+    if (getCurrentCompanyId()) q = q.eq('company_id', getCurrentCompanyId())
+    const { data, error } = await q
+    setDest(error ? null : Object.fromEntries((data || []).map((d) => [d.profile_id, d])))
+  }
+  const majDest = async (p, champ, v) => {
+    const actuel = dest?.[p.id] || { point: false, bilan: false }
+    const ligne = { profile_id: p.id, point: actuel.point, bilan: actuel.bilan, [champ]: v }
+    if (getCurrentCompanyId()) ligne.company_id = getCurrentCompanyId()
+    const { error } = await supabase.from('weekly_brief_recipients').upsert(ligne, { onConflict: 'company_id,profile_id' })
+    if (error) return toast.error(error.message)
+    toast.success(v ? `${p.display_name || p.email} recevra le ${champ === 'point' ? 'point du lundi' : 'bilan du vendredi'}` : 'Mis à jour')
+    chargerDest()
+  }
   const load = async () => {
+    chargerDest()
     const [{ data }, { data: tr }] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at'),
       supabase.from('trainers').select('id, first_name, last_name').order('last_name'),
@@ -637,7 +656,7 @@ function UsersSection({ isSuperadmin }) {
       <h2 className="section-title">Utilisateurs et rôles</h2>
       <div className="overflow-x-auto">
         <table>
-          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Fiche formateur</th><th>Agenda Google</th><th>Actif</th><th></th></tr></thead>
+          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Fiche formateur</th><th>Agenda Google</th>{dest && <th>Point et bilan</th>}<th>Actif</th><th></th></tr></thead>
           <tbody>
             {profiles.map((p) => (
               <tr key={p.id}>
@@ -656,6 +675,16 @@ function UsersSection({ isSuperadmin }) {
                   </select>
                 </td>
                 <td><GcalCell profile={p} onSave={(patch) => update(p.id, patch)} /></td>
+                {dest && (
+                  <td className="whitespace-nowrap">
+                    <label className="inline-flex items-center gap-1 text-ui-sm mr-3" title="Reçoit le point du lundi">
+                      <input type="checkbox" checked={!!dest[p.id]?.point} disabled={!p.is_active} onChange={(e) => majDest(p, 'point', e.target.checked)} />Lundi
+                    </label>
+                    <label className="inline-flex items-center gap-1 text-ui-sm" title="Reçoit le bilan du vendredi">
+                      <input type="checkbox" checked={!!dest[p.id]?.bilan} disabled={!p.is_active} onChange={(e) => majDest(p, 'bilan', e.target.checked)} />Vendredi
+                    </label>
+                  </td>
+                )}
                 <td><Toggle checked={p.is_active} onChange={(v) => update(p.id, { is_active: v })} label="" /></td>
                 <td className="text-right whitespace-nowrap">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => reset(p.email)} disabled={busy}><KeyRound className="w-4 h-4" />Mot de passe</button>

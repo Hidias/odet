@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sun, KanbanSquare, Inbox, Calendar, MapPin, CreditCard, Receipt, PhoneCall, CheckCircle, FileText } from 'lucide-react'
+import { Sun, KanbanSquare, Inbox, Calendar, MapPin, CreditCard, Receipt, PhoneCall, CheckCircle, FileText, ListTodo } from 'lucide-react'
 import { supabase } from '../../core/supabase'
 import { useAuthStore } from '../../core/store'
 
@@ -30,6 +30,7 @@ async function compter(requete) {
 export default function MaJournee() {
   const modules = useAuthStore((s) => s.modules) || []
   const can = useAuthStore((s) => s.can)
+  const moi = useAuthStore((s) => s.profile?.id)
   const [lignes, setLignes] = useState(null)
 
   useEffect(() => {
@@ -38,6 +39,11 @@ export default function MaJournee() {
     const a = (m) => modules.includes(m)
     const ok = (code) => can?.(code) !== false
     const sujets = [
+      // Mes actions (0407) : à faire aujourd'hui ou en retard
+      moi && {
+        icon: ListTodo, to: '/actions', libelle: (n) => `${n} action${n > 1 ? 's' : ''} à faire (aujourd'hui ou en retard)`,
+        q: () => supabase.from('team_actions').select('id').eq('owner_id', moi).eq('status', 'a_faire').lte('due_on', auj),
+      },
       a('affaires') && ok('commercial.devis.voir') && {
         icon: KanbanSquare, to: '/affaires', libelle: (n) => `${n} affaire${n > 1 ? 's' : ''} à relancer (aujourd'hui ou en retard)`,
         q: () => supabase.from('v_pipeline').select('id').lte('next_action_on', auj),
@@ -83,7 +89,7 @@ export default function MaJournee() {
       if (vivant) setLignes(r.filter((x) => x.n > 0))
     })()
     return () => { vivant = false }
-  }, [modules.join(','), can]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [modules.join(','), can, moi]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <section className="surface overflow-hidden" aria-label="Ma journée">
