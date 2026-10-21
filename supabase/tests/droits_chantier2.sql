@@ -4787,6 +4787,17 @@ begin
     end;
   end if;
 
+  -- Appareil complet (0405) : l'identifiant du navigateur n'est plus coupé à la première virgule
+  if to_regprocedure('app.entete_complet(text)') is not null then
+    execute 'reset role';
+    v_total := v_total + 1;
+    perform set_config('request.headers', '{"user-agent":"Mozilla/5.0 (Macintosh) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"}', true);
+    if app.entete_complet('user-agent') like '%Chrome/130.0%' then
+      v_lines := v_lines || 'OK      base  0405 : appareil gardé en entier'::text;
+    else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0405 : appareil coupé'::text; end if;
+    perform set_config('request.headers', '', true);
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
