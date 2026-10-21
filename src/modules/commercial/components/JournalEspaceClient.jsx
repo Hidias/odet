@@ -9,19 +9,13 @@ import 'jspdf-autotable'
 import { supabase } from '../../../core/supabase'
 import { startDocument } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { appareilLisible as appareil } from '../../../core/signature/preuve'
 
 const quand = (d) => new Date(d).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'medium' })
 const EVENEMENTS = { connexion: { label: 'Connexion', icone: LogIn }, document: { label: 'Document téléchargé', icone: FileText }, signature: { label: 'Signature', icone: PenLine } }
 const CANAUX = { lien: 'lien et code', compte: 'compte' }
 
-/** Appareil lisible à partir de l'identifiant du navigateur */
-export function appareil(ua) {
-  const u = String(ua || '')
-  if (!u) return ''
-  const os = /iPhone|iPad/.test(u) ? 'iPhone ou iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows' : /Mac OS X/.test(u) ? 'Mac' : /Linux/.test(u) ? 'Linux' : 'autre système'
-  const nav = /Edg\//.test(u) ? 'Edge' : /Firefox\//.test(u) ? 'Firefox' : /Chrome\//.test(u) ? 'Chrome' : /Safari\//.test(u) ? 'Safari' : 'navigateur'
-  return `${nav}, ${os}`
-}
+export { appareil }
 
 export async function exporterJournal(client, lignes) {
   const ORG = await loadPdfOrg(true)

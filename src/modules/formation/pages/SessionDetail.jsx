@@ -25,6 +25,7 @@ import SessionDocumentAccess from '../components/SessionDocumentAccess'
 import SSTCertificationTab from '../../prevention/components/SSTCertificationTab'
 import AvisFormationTab from '../components/AvisFormationTab'
 import RegularisationEmargements from '../components/RegularisationEmargements'
+import SignatureEnLigne from '../components/SignatureEnLigne'
 import { avecHeuresRealisees } from '../lib/emargementControle'
 import { figerDocuments } from '../lib/documentsEmis'
 import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
@@ -3246,6 +3247,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     )}
                   </div>
                 </div>
+                <SignatureEnLigne session={session} />
                 {session.convention_signed_file_url ? (
                   <button
                     onClick={handleDownloadConvention}

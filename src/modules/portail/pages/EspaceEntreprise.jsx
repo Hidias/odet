@@ -18,6 +18,8 @@ import RegistreVue from '../../registre/components/RegistreVue'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
 import { noterCompte, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
+import SignerConvention from '../components/SignerConvention'
+import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
 // salariés et validités, demandes (inscription inter, formation intra, remplacement, message), catalogue, factures
@@ -175,14 +177,34 @@ function Formations() {
   const [data, setData] = useState(null)
   const [orgPret, setOrgPret] = useState(false)
   const [busy, setBusy] = useState(null)
+  const [signatures, setSignatures] = useState([])
+  const [aSigner, setASigner] = useState(null)
+  const [orgPdf, setOrgPdf] = useState(null)
   const today = startOfToday()
 
+  // Signatures en ligne du client (0402)
+  const chargerSignatures = () => supabase.rpc('ent_signatures').then(({ data: sg }) => setSignatures(Array.isArray(sg) ? sg : []))
+  const signatureDe = (sid) => [...signatures].reverse().find((x) => x.session_id === sid && x.document_type === 'convention') || null
+  const signer = async (s, p) => {
+    const { data: r, error } = await supabase.rpc('ent_signer', { p_session: s.id, p_kind: 'convention', p_sha256: p.sha256, p_name: p.name,
+      p_role: p.role, p_signature: p.signature, p_consent: p.consent, p_label: p.label })
+    if (error) throw new Error(error.message)
+    if (r?.error) throw new Error(r.error)
+    // Le PDF exact signé est gardé (son empreinte est vérifiée par le serveur)
+    if (r?.id && !r.deja) await deposerConvention({}, r.id, p.base64)
+    setData((d) => ({ ...d, sessions: d.sessions.map((x) => (x.id === s.id ? { ...x, convention_signed: true } : x)) }))
+    await chargerSignatures()
+    setASigner(null)
+    toast.success('Convention signée. Merci !')
+  }
+
   useEffect(() => {
-    (async () => {
+    chargerSignatures()
+    ;(async () => {
       const [{ data: d, error }, { data: org }] = await Promise.all([supabase.rpc('ent_sessions'), supabase.rpc('ent_org')])
       if (error) { toast.error('Formations indisponibles'); setData({ sessions: [] }); return }
       setData(d)
-      if (org) { setOrganization(await prepareOrgForPDF(org)); setOrgPret(true) }
+      if (org) { const pr = await prepareOrgForPDF(org); setOrganization(pr); setOrgPdf(pr); setOrgPret(true) }
     })()
   }, [])
 
@@ -205,6 +227,9 @@ function Formations() {
       const trainer = s.trainers || null
       let out = null
       if (kind === 'convention') out = await generatePDF('convention', session, { trainees, trainer, costs: [] })
+      // Convention signée en ligne, avec sa page de preuve (0402)
+      else if (kind === 'convention_signee') out = await conventionSignee({}, s, signatureDe(s.id), orgPdf,
+        () => generatePDF('convention', { ...session, signature_client: signatureDe(s.id) }, { trainees, trainer, costs: [] }))
       else if (kind === 'convocations') out = await generateAllPDF('convocation', session, trainees, { trainer })
       else if (kind === 'emargement') {
         const absents = (s.session_trainees || []).filter((st) => st.absent).map((st) => st.trainee_id)
@@ -263,8 +288,17 @@ function Formations() {
             ))}
           </ul>
         )}
+        {!s.group_id && !s.convention_signed && !finie && (
+          <div className="mt-3 rounded-ui border border-accent-500/30 bg-accent-500/5 p-3 flex items-center gap-3 flex-wrap">
+            <FileSignature className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
+            <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">La convention de formation attend votre signature.</p>
+            <button type="button" onClick={() => setASigner(s)} className="btn btn-primary btn-sm">Signer en ligne</button>
+          </div>
+        )}
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {!s.group_id && <Doc s={s} kind="convention" icon={FileSignature} label="Convention" />}
+          {!s.group_id && (s.convention_signed
+            ? <Doc s={s} kind="convention_signee" icon={FileSignature} label={signatureDe(s.id) ? 'Convention signée, avec sa preuve' : 'Convention signée'} />
+            : <Doc s={s} kind="convention" icon={FileSignature} label="Convention" />)}
           <Doc s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0} />
           <Doc s={s} kind="emargement" icon={ClipboardList} label="Émargement" disabled={nb === 0} />
           <Doc s={s} kind="attestations" icon={BadgeCheck} label="Attestations" disabled={!finie || nb === 0} />
@@ -277,6 +311,11 @@ function Formations() {
   return (
     <div className="space-y-5">
       {upcoming.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">À venir ou en cours</h2><div className="space-y-3">{upcoming.map((s) => <Session key={`${s.id}${s.group_id || ''}`} s={s} finie={false} />)}</div></section>}
+      {aSigner && (
+        <SignerConvention session={aSigner} signataire={{ name: aSigner.signatory_name, role: aSigner.signatory_role }}
+          genererPdf={() => generatePDF('convention', { ...aSigner, clients: data.client, courses: aSigner.courses || {}, trainers: aSigner.trainers || null }, { trainees: traineesOf(aSigner), trainer: aSigner.trainers || null, costs: [] })}
+          onSigner={(p) => signer(aSigner, p)} onFermer={() => setASigner(null)} />
+      )}
       {past.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Formations réalisées</h2><div className="space-y-3">{past.map((s) => <Session key={`${s.id}${s.group_id || ''}`} s={s} finie />)}</div></section>}
       {upcoming.length === 0 && past.length === 0 && <p className="text-sm text-gray-500 text-center py-10">Aucune formation enregistrée pour le moment.</p>}
     </div>

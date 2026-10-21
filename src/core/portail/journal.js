@@ -5,6 +5,7 @@ import { supabase } from '../supabase'
 
 export const LIBELLES_DOCUMENT = {
   convention: 'Convention de formation',
+  convention_signee: 'Convention signée et sa preuve',
   convocations: 'Convocations',
   emargement: "Feuille d'émargement",
   attestations: 'Attestations de présence',

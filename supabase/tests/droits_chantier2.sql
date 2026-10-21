@@ -4691,6 +4691,40 @@ begin
     end;
   end if;
 
+  -- Signature depuis l'espace client (0402) : session signée, notification, signature figée
+  if to_regprocedure('app.portail_signer(uuid,text,uuid,uuid,uuid,text,text,text,text,text,text,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare z_c uuid; z_s uuid; z_r jsonb; z_ok boolean := false;
+    begin
+      select s.client_id, s.id into z_c, z_s from public.sessions s where s.client_id is not null limit 1;
+      if z_c is null then
+        v_lines := v_lines || 'OK      base  0402 : signature (aucune session pour l''essai)'::text;
+        v_lines := v_lines || 'OK      base  0402 : notification (aucune session pour l''essai)'::text;
+        v_lines := v_lines || 'OK      base  0402 : signature figée (aucune session pour l''essai)'::text;
+      else
+        update public.sessions set convention_signed = false where id = z_s;
+        z_r := app.portail_signer(z_c, 'lien', null, null, z_s, 'convention', repeat('c', 64), 'Essai Signataire', 'Gérant',
+          'data:image/png;base64,iVBORw0KGgo=', 'J''ai lu la convention et je l''accepte.', 'Convention essai');
+        if (select convention_signed from public.sessions where id = z_s) then
+          v_lines := v_lines || 'OK      base  0402 : la session passe en convention signée'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0402 : session non marquée signée'::text; end if;
+        if exists (select 1 from public.notifications where metadata->>'signature_id' = z_r->>'id') then
+          v_lines := v_lines || 'OK      base  0402 : l''organisme est prévenu'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0402 : aucune notification'::text; end if;
+        begin update public.document_signatures set signer_name = 'Autre' where id = (z_r->>'id')::uuid;
+        exception when insufficient_privilege then z_ok := true; end;
+        if z_ok then v_lines := v_lines || 'OK      base  0402 : la signature du client ne se modifie pas'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0402 : signature du client modifiée'::text; end if;
+      end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0402 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
