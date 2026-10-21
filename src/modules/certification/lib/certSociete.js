@@ -106,7 +106,7 @@ export function lireExigences(texte) {
 
 export async function chargerCertifications() {
   const [r, c] = await Promise.all([
-    supabase.from('cert_referentials').select('code, label, legal_ref, source_url, notes, sort_order, kind, issuer, text_source, company_id').order('sort_order'),
+    supabase.from('cert_referentials').select('code, label, legal_ref, source_url, notes, sort_order, kind, issuer, text_source, company_id, equipment_families').order('sort_order'),
     supabase.from('cert_company_certifications').select('*'),
   ])
   if (r.error) throw r.error
