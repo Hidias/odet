@@ -15,6 +15,7 @@ import { loadPublishedDoc, versionLabel, cgvCancellationText } from '../../quali
 import { writeRichDoc } from '../../qualite/richdocs/richDocPDF'
 import { loadTemplateContext, buildTemplateContext, fillTemplate } from '../../../core/org/templateContext'
 import { formatHours, heuresDuDocument } from '../lib/presence'
+import { ajouterPagePreuve } from '../../../core/signature/preuve'
 import { buildProgrammePDF, buildCataloguePDF } from './programmePDF'
 import { pictogrammePNG } from './pictogrammes'
 // Codes documentaires : préfixe propre à l'organisme (ORG.doc_prefix) + code du type de document
@@ -437,10 +438,12 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
   ensure(sigBlockH)
   y += 2
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
-  doc.text(`Fait en deux exemplaires à ${ORG.lieu_signature || ORG.city}, le ${formatDate(new Date())}.`, M, y)
+  // Convention signée en ligne (0402) : datée du jour de la signature du client
+  const sigC = session?.signature_client || null
+  doc.text(`Fait en deux exemplaires à ${ORG.lieu_signature || ORG.city}, le ${formatDate(sigC?.signed_at || new Date())}.`, M, y)
   y += 7
   const boxH = 34
-  const sigCol = (x, label, l1, l2) => {
+  const sigCol = (x, label, l1, l2, hint = 'Signature et cachet') => {
     doc.setDrawColor(...t.line); doc.setLineWidth(0.3)
     doc.rect(x, y, colW, boxH)
     doc.setFillColor(...t.surface); doc.rect(x, y, colW, 11, 'F')
@@ -449,16 +452,22 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...t.text)
     doc.text(`${l1 || ''}${l2 ? ', ' + l2 : ''}`, x + 4, y + 8.8)
     doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(...t.muted)
-    doc.text('Signature et cachet', x + 4, y + boxH - 3)
+    doc.text(hint, x + 4, y + boxH - 3)
     doc.setTextColor(...t.text)
   }
   sigCol(M, "Pour l'organisme de formation", ORG.dirigeant, ORG.dirigeant_title || 'Dirigeant')
-  sigCol(M + colW + gap, P ? 'Le stagiaire' : 'Pour le bénéficiaire', signatory.name || client.name || '', signatory.role)
+  sigCol(M + colW + gap, P ? 'Le stagiaire' : 'Pour le bénéficiaire', sigC?.signer_name || signatory.name || client.name || '', sigC ? sigC.signer_role : signatory.role,
+    sigC ? `Signé en ligne le ${new Date(sigC.signed_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}, preuve en dernière page` : 'Signature et cachet')
   if (ORG.stamp_base64) drawImageFitted(doc, ORG.stamp_base64, M + 6, y + 12, 44, 19, 'JPEG')
   if (ORG.dirigeant_signature_base64) drawImageFitted(doc, ORG.dirigeant_signature_base64, M + 52, y + 13, 34, 17)
+  if (sigC?.signature_data) {
+    const x2 = M + colW + gap
+    drawImageFitted(doc, sigC.signature_data, x2 + 4, y + 12, colW - 8, boxH - 19)
+  }
   y += boxH
 
   drawFooter(doc, ORG, CODE)
+  if (sigC) ajouterPagePreuve(doc, ORG, sigC, { titre: 'Convention de formation', reference: ref, code: CODE })
   numberPages(doc, ORG)
   return doc
 }

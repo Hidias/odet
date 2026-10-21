@@ -245,6 +245,8 @@ ORDRE_PROD = (
     + ['0400']
     # Journal de l'espace client (preuve de mise à disposition), 21/10
     + ['0401']
+    # Signature de la convention depuis l'espace client, 21/10
+    + ['0402']
 )
 
 

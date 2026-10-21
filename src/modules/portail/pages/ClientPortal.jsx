@@ -9,6 +9,8 @@ import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
 import { noterLien, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
+import SignerConvention from '../components/SignerConvention'
+import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
 // sessions de l'entreprise et téléchargement de ses documents, en lecture seule. Aux couleurs de l'instance,
@@ -113,6 +115,10 @@ export default function ClientPortal() {
   const [orgReady, setOrgReady] = useState(false)
   const [org, setOrg] = useState(null)
   const [secoue, setSecoue] = useState(0)
+  const [signatures, setSignatures] = useState([])
+  const [aSigner, setASigner] = useState(null)
+  const [info, setInfo] = useState('')
+  const [orgPdf, setOrgPdf] = useState(null)
   const [busy, setBusy] = useState(null) // clé du document en cours de génération
 
   // Reprise de session dans le même onglet
@@ -138,9 +144,11 @@ export default function ClientPortal() {
       if (org?.error) throw new Error(org.error)
       const prepared = await prepareOrgForPDF(org)
       setOrganization(prepared)
+      setOrgPdf(prepared)
       setOrgReady(true)
       setOrg(org)
       setData(d)
+      chargerSignatures(c)
       try { sessionStorage.setItem(STORAGE_KEY(token), c) } catch { /* ignore */ }
       // Journal de preuve (0401) : connexion notée une fois par jour et par onglet
       if (premiereConnexionDuJour(`lien.${token}`)) noterLien(token, c, { event: 'connexion' })
@@ -178,6 +186,28 @@ export default function ClientPortal() {
     return (s.session_trainees || []).map(st => ({ ...st.trainees, result: st.result || null, access_code: st.access_code }))
   }
 
+  // Signatures en ligne du client (0402)
+  async function chargerSignatures(c = code) {
+    const { data: sg } = await supabase.rpc('client_portal_signatures', { p_token: token, p_code: c })
+    setSignatures(Array.isArray(sg) ? sg : [])
+  }
+  const signatureDe = (sid) => [...signatures].reverse().find((x) => x.session_id === sid && x.document_type === 'convention') || null
+
+  async function signer(s, payload) {
+    const { data: r, error: e } = await supabase.rpc('client_portal_signer', {
+      p_token: token, p_code: code, p_session: s.id, p_kind: 'convention', p_sha256: payload.sha256, p_name: payload.name,
+      p_role: payload.role, p_signature: payload.signature, p_consent: payload.consent, p_label: payload.label,
+    })
+    if (e) throw new Error(e.message)
+    if (r?.error) throw new Error(r.error)
+    // Le PDF exact signé est gardé (son empreinte est vérifiée par le serveur)
+    if (r?.id && !r.deja) await deposerConvention({ token, code }, r.id, payload.base64)
+    setData((d) => ({ ...d, sessions: d.sessions.map((x) => (x.id === s.id ? { ...x, convention_signed: true } : x)) }))
+    await chargerSignatures()
+    setASigner(null)
+    setInfo('Convention signée. Merci ! Vous pouvez télécharger la convention signée avec sa preuve.')
+  }
+
   // Versions émises des certificats et attestations (0400) ; sans réponse, les documents sont calculés comme avant
   async function documentsEmis() {
     const { data: d, error: e } = await supabase.rpc('client_portal_documents_emis', { p_token: token, p_code: code })
@@ -195,6 +225,10 @@ export default function ClientPortal() {
       let out = null
       if (kind === 'convention') {
         out = await generatePDF('convention', session, { trainees, trainer, costs: [] })
+      } else if (kind === 'convention_signee') {
+        // Convention signée : en ligne (document signé + page de preuve) ou scan déposé par l'organisme (0402)
+        out = await conventionSignee({ token, code }, s, signatureDe(s.id), orgPdf,
+          () => generatePDF('convention', { ...session, signature_client: signatureDe(s.id) }, { trainees, trainer, costs: [] }))
       } else if (kind === 'convocations') {
         out = await generateAllPDF('convocation', session, trainees, { trainer })
       } else if (kind === 'emargement') {
@@ -359,8 +393,17 @@ export default function ClientPortal() {
                 ))}
               </ul>
             )}
+            {!s.convention_signed && !finished && (
+              <div className="mt-4 rounded-ui border border-accent-500/30 bg-accent-500/5 p-3 flex items-center gap-3 flex-wrap">
+                <FileSignature className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
+                <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">La convention de formation attend votre signature.</p>
+                <button type="button" onClick={() => setASigner(s)} className="btn btn-primary btn-sm">Signer en ligne</button>
+              </div>
+            )}
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <DocButton s={s} kind="convention" icon={FileSignature} label="Convention de formation" />
+              {s.convention_signed
+                ? <DocButton s={s} kind="convention_signee" icon={FileSignature} label={signatureDe(s.id) ? 'Convention signée, avec sa preuve' : 'Convention signée'} />
+                : <DocButton s={s} kind="convention" icon={FileSignature} label="Convention de formation" />}
               <DocButton s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0} />
               <DocButton s={s} kind="emargement" icon={ClipboardList} label="Feuille d'émargement" disabled={nb === 0} />
               <DocButton s={s} kind="attestations" icon={BadgeCheck} label="Attestations de présence" disabled={!finished || nb === 0} />
@@ -412,6 +455,7 @@ export default function ClientPortal() {
 
       <main className="max-w-5xl mx-auto px-4 py-8 w-full flex-1">
         {error && <p role="alert" className="mb-4 text-sm text-[rgb(var(--c-danger))] flex items-center gap-1.5"><AlertCircle className="w-4 h-4" aria-hidden="true" />{error}</p>}
+        {info && <p role="status" className="vitrine-monte mb-4 rounded-ui bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] text-sm px-3 py-2 flex items-center gap-2"><BadgeCheck className="w-4 h-4" aria-hidden="true" />{info}</p>}
 
         {upcoming.length > 0 && (
           <section className="mb-8">
@@ -448,6 +492,12 @@ export default function ClientPortal() {
           </section>
         )}
       </main>
+
+      {aSigner && (
+        <SignerConvention session={aSigner} signataire={{ name: aSigner.signatory_name, role: aSigner.signatory_role }}
+          genererPdf={() => generatePDF('convention', toPdfSession(aSigner), { trainees: traineesOf(aSigner), trainer: aSigner.trainers || null, costs: [] })}
+          onSigner={(p) => signer(aSigner, p)} onFermer={() => setASigner(null)} />
+      )}
 
       <footer className="border-t border-gray-200 bg-white" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="max-w-5xl mx-auto px-4 py-4 text-center text-xs text-gray-500">
