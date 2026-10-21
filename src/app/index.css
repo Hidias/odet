@@ -403,12 +403,14 @@ html[data-lists='cards'] .dt-cards { display: block; }
 
 /* ── Vitrine des portails publics (espace entreprise) : apparitions, halos, secousse du code ── */
 @keyframes vitrine-monte { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-@keyframes vitrine-flotte { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(18px, -22px) scale(1.08); } }
+/* Intensité « Marqué » choisie par H le 21/10 (démo Quiz flash GLD) : mouvement net et teinte qui varie doucement */
+@keyframes vitrine-flotte { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(60px, 40px) scale(1.18); } 66% { transform: translate(-40px, 30px) scale(.9); } }
+@keyframes vitrine-teinte { 0%, 100% { filter: blur(64px) hue-rotate(0deg); } 50% { filter: blur(64px) hue-rotate(-30deg); } }
 @keyframes vitrine-secoue { 0%, 100% { transform: none; } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
 @keyframes vitrine-curseur { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes vitrine-reflet { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
 .vitrine-monte { opacity: 0; animation: vitrine-monte .6s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: var(--delai, 0ms); }
-.vitrine-halo { position: absolute; border-radius: 9999px; filter: blur(48px); opacity: .55; animation: vitrine-flotte 14s ease-in-out infinite; pointer-events: none; }
+.vitrine-halo { position: absolute; border-radius: 9999px; filter: blur(64px); opacity: .5; animation: vitrine-flotte 11s ease-in-out infinite, vitrine-teinte 9s ease-in-out infinite; pointer-events: none; }
 .vitrine-secoue { animation: vitrine-secoue .45s ease-in-out; }
 .vitrine-curseur { animation: vitrine-curseur 1s steps(1) infinite; }
 .vitrine-carte { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
