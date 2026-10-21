@@ -11,6 +11,7 @@ import { format, parseISO, isToday, eachDayOfInterval } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import TraineeDocuments from '../../formation/components/TraineeDocuments'
 import CompteStagiairePortail from '../components/CompteStagiairePortail'
+import RessentiJour from '../components/RessentiJour'
 import { Banner } from '../../../ui/Banner'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
 import QuizEngine from '../../formation/quiz/QuizEngine'
@@ -1126,6 +1127,9 @@ export default function TraineePortal() {
                     subtitle={format(new Date(), 'EEEE d MMMM', { locale: fr })}
                     onClick={() => setCurrentStep('attendance')} />
                 )}
+
+                {/* Ressenti au fil de la formation (0414) */}
+                {inDates && <RessentiJour token={token} traineeId={selectedTrainee.id} ticket={portalTicket} />}
 
                 {positioningQuestions.length > 0 && (
                   <HubCard icon={ClipboardCheck} title="Test de positionnement" tone={positioningTestCompleted ? 'done' : 'accent'}

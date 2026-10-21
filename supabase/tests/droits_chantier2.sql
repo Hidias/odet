@@ -5153,6 +5153,69 @@ begin
     end;
   end if;
 
+  -- Ressenti au fil de la formation (0414) : un par stagiaire et par jour, pendant la formation, une notification tenue à jour
+  if to_regclass('public.session_ressentis') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare z_s uuid; z_s2 uuid; z_t1 uuid; z_t2 uuid; z_tok text; z_tok2 text; z_j json; z_n int; z_msg text; z_ok boolean;
+    begin
+      insert into public.sessions (start_date, end_date) values ((now() at time zone 'Europe/Paris')::date, (now() at time zone 'Europe/Paris')::date + 1)
+        returning id, attendance_token into z_s, z_tok;
+      insert into public.sessions (start_date, end_date) values (current_date + 20, current_date + 20) returning id, attendance_token into z_s2, z_tok2;
+      insert into public.trainees (first_name, last_name) values ('Essai', 'Ressenti un') returning id into z_t1;
+      insert into public.trainees (first_name, last_name) values ('Essai', 'Ressenti deux') returning id into z_t2;
+      insert into public.session_trainees (session_id, trainee_id) values (z_s, z_t1), (z_s, z_t2), (z_s2, z_t1);
+      update public.session_trainees set access_code = null where session_id in (z_s, z_s2);
+      execute 'set local role anon';
+      perform public.portal_ressenti(z_tok, z_t1, null, 2, 'Trop de théorie');
+      z_j := public.portal_ressenti(z_tok, z_t2, null, 5, null);
+      z_j := public.portal_ressenti(z_tok, z_t1, null, null, null);
+      execute 'reset role';
+      select count(*), max(message) into z_n, z_msg from public.notifications where type = 'ressenti_stagiaires' and metadata->>'session_id' = z_s::text;
+      if (z_j->>'note')::int = 2 and z_j->>'commentaire' = 'Trop de théorie' and (z_j->>'ouvert')::boolean then
+        v_lines := v_lines || 'OK      anon  0414 : ressenti du jour enregistré et relu par le portail'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0414 : relecture ' || coalesce(z_j::text, 'vide'))::text; end if;
+      if z_n = 1 and z_msg = '2 ressentis, 3,5 sur 5, 1 difficulté, 1 remarque.' then
+        v_lines := v_lines || 'OK      base  0414 : une seule notification par session et par jour, tenue à jour'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0414 : notifications ' || z_n || ' ' || coalesce(z_msg, ''))::text; end if;
+      execute 'set local role anon';
+      z_ok := false;
+      begin
+        perform public.portal_ressenti(z_tok2, z_t1, null, 4, null);
+      exception when others then z_ok := sqlerrm like 'Le ressenti se donne%';
+      end;
+      begin
+        perform public.portal_ressenti(z_tok, z_t1, null, 9, null);
+        z_ok := false;
+      exception when others then null;
+      end;
+      execute 'reset role';
+      if z_ok then v_lines := v_lines || 'OK      anon  0414 : hors des jours de formation et note invalide refusés'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0414 : ressenti hors formation ou note invalide acceptés'::text; end if;
+      execute 'set local role anon';
+      z_ok := false;
+      begin
+        perform 1 from public.session_ressentis limit 1;
+        z_ok := not found;
+      exception when others then z_ok := true;
+      end;
+      execute 'reset role';
+      if z_ok then v_lines := v_lines || 'OK      anon  0414 : ressentis illisibles sans compte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0414 : ressentis lisibles sans compte'::text; end if;
+      delete from public.notifications where type = 'ressenti_stagiaires' and metadata->>'session_id' = z_s::text;
+      delete from public.session_ressentis where session_id in (z_s, z_s2);
+      delete from public.trainee_info_sheets where session_id in (z_s, z_s2);
+      delete from public.session_trainees where session_id in (z_s, z_s2);
+      delete from public.sessions where id in (z_s, z_s2);
+      delete from public.trainees where id in (z_t1, z_t2);
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0414 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
