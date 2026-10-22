@@ -38,6 +38,9 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
   const [busy, setBusy] = useState(false)
   const [adding, setAdding] = useState(false)
   const [signing, setSigning] = useState(false)
+  // Signature du client sur place (0442) : preuve datée en base ; refaire demande un motif
+  const [preuve, setPreuve] = useState(null)
+  const [refaire, setRefaire] = useState(null)
   const [photoUrls, setPhotoUrls] = useState({})
   const [highlight, setHighlight] = useState(null)
   const fileRef = useRef(null)
@@ -60,6 +63,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
     const [its, ps] = await Promise.all([loadVisitItems(id), loadVisitParts(id)])
     setVisit(v); setEquipment(eq || []); setItems(its || []); setParts(ps || [])
     if (v.status === 'terminee') setStep('termine')
+    if (v.client_signature) supabase.rpc('itv_visit_preuve_signature', { p_visit: v.id }).then(({ data }) => setPreuve(data || null)).catch(() => {})
     if (!v.signer_name && v.status !== 'terminee') {
       const c = await loadPrimaryContact(v.client_id)
       if (c) setVisit((x) => ({ ...x, signer_name: [c.name || [c.first_name, c.last_name].filter(Boolean).join(' '), c.fonction || c.role].filter(Boolean).join(', ') }))
@@ -297,9 +301,24 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
           <h2 className="section-title">{adapte.facile ? '✍️ Le client signe' : 'Signature du client'}</h2>
           <label className="label" htmlFor="itv-signer">{adapte.facile ? 'Nom de la personne qui signe' : 'Nom et fonction'}</label>
           <input id="itv-signer" className="input" value={visit.signer_name || ''} onChange={(e) => setVisit((v) => ({ ...v, signer_name: e.target.value }))}
-            onBlur={() => updateVisit(visit.id, { signer_name: visit.signer_name || null }).catch(() => {})} />
+            disabled={!!visit.client_signature && refaire === null}
+            onBlur={() => { if (!visit.client_signature) updateVisit(visit.id, { signer_name: visit.signer_name || null }).catch(() => {}) }} />
           {visit.client_signature
-            ? <div className="flex items-center gap-3"><img src={visit.client_signature} alt="Signature du client" className="h-20 border border-gray-200 rounded-ui-sm bg-white" /><button type="button" className="btn btn-secondary btn-sm" onClick={() => setSigning(true)}>Refaire</button></div>
+            ? <div className="space-y-2">
+                <div className="flex items-center gap-3"><img src={visit.client_signature} alt="Signature du client" className="h-20 border border-gray-200 rounded-ui-sm bg-white" />{refaire === null && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRefaire('')}>Refaire</button>}</div>
+                {preuve?.signed_at && <p className="text-ui-sm text-gray-500">Signé le {new Date(preuve.signed_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} · preuve enregistrée{preuve.refaite ? ` (refaite ${preuve.refaite} fois)` : ''}</p>}
+                {refaire !== null && (
+                  <div className="space-y-2">
+                    <label className="label" htmlFor="itv-motif-signature">Pourquoi refaire la signature ?</label>
+                    <input id="itv-motif-signature" className="input" value={refaire} onChange={(e) => setRefaire(e.target.value)} placeholder="Ex. : signature illisible, mauvais signataire" />
+                    <div className="flex gap-2">
+                      <button type="button" className="btn btn-primary btn-sm" disabled={refaire.trim().length < 5} onClick={() => setSigning(true)}>Faire signer à nouveau</button>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRefaire(null)}>Annuler</button>
+                    </div>
+                    <p className="text-ui-sm text-gray-500">La première signature reste conservée en preuve, avec ce motif.</p>
+                  </div>
+                )}
+              </div>
             : <button type="button" className="btn btn-secondary w-full" style={{ height: 52 }} onClick={() => setSigning(true)}><PenLine className="w-5 h-5" />{adapte.facile ? 'Le client signe ici' : 'Faire signer le client'}</button>}
         </section>
 
@@ -312,7 +331,14 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
         {signing && (
           <FullscreenSignaturePad title="Signature du client" subtitle={visit.signer_name || visit.clients?.name} confirmLabel="Valider la signature"
             onCancel={() => setSigning(false)}
-            onValidate={async (img) => { setSigning(false); setVisit((v) => ({ ...v, client_signature: img })); await updateVisit(visit.id, { client_signature: img }).catch((e) => toast.error(e.message)) }} />
+            onValidate={async (img) => {
+              setSigning(false)
+              const { data, error } = await supabase.rpc('itv_visit_signer', { p_visit: visit.id, p_signature: img, p_signer: visit.signer_name || null, p_motif: refaire || null })
+              if (error) { toast.error(error.message); return }
+              setVisit((v) => ({ ...v, client_signature: img }))
+              setRefaire(null)
+              setPreuve((p) => ({ ...(p || {}), signed_at: data?.signed_at, refaite: (p?.refaite || 0) + (visit.client_signature ? 1 : 0) }))
+            }} />
         )}
       </div>
     )
