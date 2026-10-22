@@ -126,10 +126,41 @@ function generateVersionEntreprise() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// DÉCHARGE : NIR NON COMMUNIQUÉ (22/10 : générée aux couleurs de l'organisme, plus de fichier à déposer)
+// Décret n° 2025-748 du 1er août 2025 : l'organisme collecte le NIR (auprès de l'employeur ou du stagiaire) pour
+// déclarer la formation ; sans NIR, il ne peut pas compléter le passeport et la déclaration revient à l'employeur.
+// ═══════════════════════════════════════════════════════════
+function generateDecharge() {
+  const doc = new jsPDF({ compress: true })
+  const f = startDocument(doc, ORG, { docLabel: 'Passeport de prévention', code: 'PPREV-NIR', title: 'Numéro de sécurité sociale non communiqué', subtitle: 'Passeport de prévention : déclaration du stagiaire' })
+  f.fields([{ label: 'Nom et prénom du stagiaire', value: '', w: 2 }, { label: 'Date de naissance', value: '', w: 1 }])
+  f.fields([{ label: 'Entreprise', value: '', w: 2 }, { label: 'Poste', value: '', w: 1 }])
+  f.fields([{ label: 'Formation suivie', value: '', w: 2 }, { label: 'Dates', value: '', w: 1 }])
+  f.section('Déclaration')
+  f.para(`Je soussigné(e), stagiaire désigné(e) ci-dessus, ne communique pas mon numéro de sécurité sociale (NIR) à ${nom()} pour la déclaration de cette formation dans mon passeport de prévention.`)
+  f.para('Je suis informé(e) que :')
+  f.bullets([
+    `le passeport de prévention recense les formations en santé et sécurité au travail (loi du 2 août 2021, décret n° 2025-748 du 1er août 2025) et que mon numéro de sécurité sociale sert uniquement à y inscrire cette formation ;`,
+    `sans ce numéro, ${nom()} ne peut pas déclarer cette formation dans mon passeport de prévention ;`,
+    "la déclaration revient alors à mon employeur, et je peux moi-même ajouter cette formation à mon passeport, avec l'attestation remise, depuis moncompteformation.gouv.fr ;",
+    `je peux à tout moment revenir sur ce choix en communiquant mon numéro à ${nom()} ou à mon employeur.`,
+  ])
+  f.space(2)
+  f.signatures([
+    { label: 'Le stagiaire', hint: 'Date et signature' },
+    { label: "Pour l'entreprise", hint: 'Nom, date et signature' },
+  ], { height: 30 })
+  f.note(`Document à remettre à ${nom()} au plus tard le jour de la formation. ${contact()}`)
+  f.finish()
+  return doc
+}
+
+// ═══════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════
 export function generatePasseportPreventionPDF(version = 'stagiaire', orgSettings = null) {
   applyOrgSettings(orgSettings)
+  if (version === 'decharge') return generateDecharge()
   return version === 'entreprise' ? generateVersionEntreprise() : generateVersionStagiaire()
 }
 
