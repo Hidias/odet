@@ -6202,6 +6202,13 @@ begin
       begin update public.quotes set status = 'draft' where id = r_q; exception when insufficient_privilege then r_ok3 := true; end;
       begin delete from public.quotes where id = r_q; exception when insufficient_privilege then r_ok4 := true; end;
       update public.quotes set notes = 'note libre' where id = r_q;
+      -- Enregistrement par un compte de l'équipe (correctif 0438) : les déclencheurs ne doivent pas échouer sur les droits
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      update public.quotes set notes = 'note de la direction' where id = r_q;
+      update public.quote_items set accepted = true where quote_id = r_q;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
       if r_ok and r_ok2 and r_ok3 and r_ok4 and app.devis_signe(r_q) then
         v_lines := v_lines || 'OK      base  0435 : devis signé figé (montants, lignes, retour en brouillon, effacement)'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0435 : devis signé figé'::text; end if;
