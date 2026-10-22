@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Users, UserPlus, Trash2, Loader2, X, Lock, CheckCircle2, Search, Clock, Ban } from 'lucide-react'
 import { normaliserNir } from '../../passeport/lib/rules'
@@ -15,7 +15,7 @@ export const GENRES = [
   { v: 'non_binary', l: 'Non genré' },
 ]
 
-const ligneVide = () => ({ first_name: '', last_name: '', gender: '', nom_naissance: '', naissance_modifiee: false, email: '', ssn: '', birth_date: '', birth_place: '', job_title: '', ssn_present: false, statut: null })
+const ligneVide = () => ({ first_name: '', last_name: '', gender: '', naissance_differente: false, nom_naissance: '', email: '', ssn: '', birth_date: '', birth_place: '', job_title: '', ssn_present: false, statut: null })
 const mailOk = (m) => !m || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m.trim())
 const lisible = (t) => /\p{L}/u.test(t || '')
 const nirOk = (v) => !v.trim() || normaliserNir(v).ok
@@ -47,7 +47,7 @@ export const erreursLigne = (l) => {
   const e = []
   if (!l.first_name.trim() || !l.last_name.trim()) e.push('nom et prénom requis')
   else if (!lisible(l.first_name) || !lisible(l.last_name)) e.push('nom ou prénom illisible')
-  if (String(l.nom_naissance || '').trim() && !lisible(l.nom_naissance)) e.push('nom de naissance illisible')
+  if (l.naissance_differente && !lisible(l.nom_naissance)) e.push('nom de naissance à indiquer')
   if (!mailOk(l.email)) e.push('e-mail invalide')
   if (!nirOk(l.ssn)) e.push(`n° de sécurité sociale : ${normaliserNir(l.ssn).error}`)
   if (!dateOk(l.birth_date)) e.push(versIso(l.birth_date) || !String(l.birth_date).trim() ? 'date de naissance invraisemblable' : 'date de naissance au format JJ/MM/AAAA')
@@ -60,7 +60,7 @@ export function ligneDepuis(p) {
   const naissance = (p.nom_naissance || '').toUpperCase()
   return {
     ...ligneVide(), first_name: p.first_name || '', last_name: p.last_name || '', gender: p.gender || '', email: p.email || '',
-    nom_naissance: naissance || usage, naissance_modifiee: !!naissance && naissance !== usage,
+    naissance_differente: !!naissance && naissance !== usage, nom_naissance: naissance && naissance !== usage ? naissance : '',
     birth_date: depuisIso(p.birth_date), birth_place: p.birth_place || '', job_title: p.job_title || '', ssn_present: !!p.ssn_present,
     statut: p.statut && p.statut !== 'inscrit' ? p.statut : null,
   }
@@ -139,14 +139,11 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
     chargerSalaries().then((d) => setSalaries(Array.isArray(d) ? d : [])).catch(() => setSalaries([]))
   }, [chargerSalaries])
 
-  const maj = (i, champ, v) => setLignes((ls) => ls.map((l, k) => {
-    if (k !== i) return l
-    const n = { ...l, [champ]: v }
-    // Le nom de naissance suit le nom d'usage tant qu'il n'a pas été changé à la main
-    if (champ === 'last_name' && !l.naissance_modifiee) n.nom_naissance = String(v || '').toUpperCase()
-    if (champ === 'nom_naissance') n.naissance_modifiee = normal(v) !== normal(l.last_name)
-    return n
-  }))
+  const maj = (i, champ, v) => setLignes((ls) => ls.map((l, k) => (k === i ? { ...l, [champ]: v } : l)))
+  // Passage de la saisie au récapitulatif : la fenêtre revient en haut (22/10 : sur Safari, le récapitulatif restait
+  // hors de vue, la fenêtre paraissait vide et bloquée)
+  const fenetre = useRef(null)
+  useEffect(() => { if (fenetre.current) fenetre.current.scrollTop = 0 }, [recap])
   const remplies = lignes.filter(remplie)
   const problemes = remplies.map((l, i) => ({ i, e: erreursLigne(l) })).filter((x) => x.e.length)
 
@@ -174,7 +171,7 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
     try {
       await onEnregistrer(remplies.map((l) => ({
         first_name: l.first_name.trim(), last_name: l.last_name.trim(),
-        nom_naissance: (l.nom_naissance || '').trim() || l.last_name.trim(), gender: l.gender || null,
+        nom_naissance: l.naissance_differente && l.nom_naissance.trim() ? l.nom_naissance.trim() : l.last_name.trim(), gender: l.gender || null,
         email: l.email.trim() || null, ssn: l.ssn.trim() || null, birth_date: versIso(l.birth_date),
         birth_place: l.birth_place.trim() || null, job_title: l.job_title.trim() || null,
       })))
@@ -195,7 +192,7 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
   // Rendue au niveau de la page (22/10) : dans une carte animée, la fenêtre était coupée et ne défilait pas
   return createPortal(
     <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onFermer}>
-      <div role="dialog" aria-modal="true" aria-labelledby="participants-titre" className="vitrine-monte w-full sm:max-w-2xl bg-white rounded-t-ui-lg sm:rounded-ui-lg max-h-[92vh] overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} onClick={(e) => e.stopPropagation()}>
+      <div ref={fenetre} role="dialog" aria-modal="true" aria-labelledby="participants-titre" className="vitrine-monte w-full sm:max-w-2xl bg-white rounded-t-ui-lg sm:rounded-ui-lg max-h-[92vh] overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 py-4 flex items-start justify-between gap-3">
           <div>
             <h2 id="participants-titre" className="font-display text-lg font-semibold text-gray-900">{recap ? 'Vérifiez avant d\'enregistrer' : 'Vos participants'}</h2>
@@ -255,7 +252,6 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {champ(i, l, 'first_name', 'Prénom *', { autoCapitalize: 'words' })}
                     {champ(i, l, 'last_name', "Nom d'usage *", { autoCapitalize: 'characters' })}
-                    {champ(i, l, 'nom_naissance', 'Nom de naissance', { autoCapitalize: 'characters', placeholder: 'Identique au nom d\'usage' })}
                     <div className="text-sm">
                       <span className="text-gray-600" id={`genre-${i}`}>Genre</span>
                       <div className="mt-1 grid grid-cols-3 gap-1" role="radiogroup" aria-labelledby={`genre-${i}`}>
@@ -266,6 +262,13 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
                           </button>
                         ))}
                       </div>
+                    </div>
+                    <div className="sm:col-span-2 space-y-2">
+                      <label className="flex items-start gap-2 text-sm text-gray-700">
+                        <input type="checkbox" className="rounded mt-0.5" checked={l.naissance_differente} onChange={(ev) => maj(i, 'naissance_differente', ev.target.checked)} />
+                        <span>Nom de naissance différent du nom d'usage <span className="text-gray-500">(nom marital par exemple : utile au Passeport de prévention)</span></span>
+                      </label>
+                      {l.naissance_differente && champ(i, l, 'nom_naissance', 'Nom de naissance', { autoCapitalize: 'characters' })}
                     </div>
                     {champ(i, l, 'email', 'E-mail (pour recevoir sa convocation)', { type: 'email', inputMode: 'email' })}
                     {champ(i, l, 'job_title', 'Poste occupé')}
@@ -295,7 +298,7 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
             {remplies.length === 0 && <p className="text-sm text-gray-600">Aucun participant : la liste sera vidée.</p>}
             <ul className="divide-y divide-gray-100 rounded-ui border border-gray-200">
               {remplies.map((l, i) => {
-                const nn = (l.nom_naissance || '').trim()
+                const nn = l.naissance_differente ? (l.nom_naissance || '').trim() : ''
                 const infos = [
                   genreDe(l.gender) || null,
                   nn && normal(nn) !== normal(l.last_name) ? `nom de naissance ${nn.toUpperCase()}` : null,
