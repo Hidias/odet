@@ -6399,6 +6399,89 @@ begin
     end;
   end if;
 
+  -- Demande du n° à l'entreprise après 3 essais (0440)
+  if to_regprocedure('public.portail_nir_demander(text,uuid,text,text,text,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare m_s uuid; m_tok text; m_t uuid; m_t2 uuid; m_code text; m_j json; m_cl uuid; m_cc uuid; m_ok boolean; m_ok2 boolean; m_ok3 boolean;
+      m_r jsonb; m_e jsonb; m_l jsonb; m_sig uuid; m_cle text;
+    begin
+      insert into public.clients (name) values ('Client essai 0440') returning id into m_cl;
+      insert into public.client_contacts (client_id, name, first_name, email) values (m_cl, 'Sophie Contact', 'Sophie', 'contact.0440@test.invalid') returning id into m_cc;
+      insert into public.sessions (client_id, contact_id, start_date, end_date, reference) values (m_cl, m_cc, current_date, current_date, 'SES-ESSAI-0440')
+        returning id, attendance_token into m_s, m_tok;
+      insert into public.trainees (first_name, last_name, client_id, gender) values ('Marc', 'Essai', m_cl, 'male') returning id into m_t;
+      insert into public.trainees (first_name, last_name, client_id) values ('Autre', 'Salarie', m_cl) returning id into m_t2;
+      insert into public.session_trainees (session_id, trainee_id) values (m_s, m_t);
+      select access_code into m_code from public.session_trainees where session_id = m_s and trainee_id = m_t;
+      insert into public.client_portal_access (client_id, token, access_code, is_active) values (m_cl, 'essai-0440-lien', '440440', true);
+      perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+      execute 'set local role anon';
+      m_j := public.portal_entrer(m_tok, m_code);
+      m_ok := false;
+      begin perform public.portail_nir_demander(m_tok, m_t, null, 'data:image/png;base64,iVBORw0KGgo=', repeat('a', 64), 'Marc Essai');
+      exception when insufficient_privilege then m_ok := true; end;
+      m_r := public.portail_nir_demander(m_tok, m_t, m_j->>'ticket', 'data:image/png;base64,iVBORw0KGgo=', repeat('a', 64), 'Marc Essai');
+      m_e := public.portail_nir_demander(m_tok, m_t, m_j->>'ticket', 'data:image/png;base64,iVBORw0KGgo=', repeat('b', 64), 'Marc Essai');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      m_sig := (m_r ->> 'signature_id')::uuid;
+      if m_ok and not (m_r ->> 'envoi_auto')::boolean and (m_e ->> 'deja')::boolean
+         and (select count(*) from public.document_signatures where session_id = m_s and document_type = 'autorisation_nir') = 1
+         and exists (select 1 from public.notifications where type = 'nir_demande' and metadata ->> 'session_id' = m_s::text and message like '%à envoyer depuis la session%') then
+        v_lines := v_lines || 'OK      anon  0440 : demande du n° signée par le stagiaire (ticket exigé, une seule fois), organisme prévenu, envoi automatique fermé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0440 : demande signée ' || coalesce(m_r::text, '')); end if;
+      -- Données de l'e-mail : serveur seulement, contact de la session
+      m_ok := false;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.nir_demande_pour_envoi(m_sig); exception when insufficient_privilege then m_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      m_e := public.nir_demande_pour_envoi(m_sig);
+      if m_ok and m_e ->> 'email' = 'contact.0440@test.invalid' and m_e ->> 'contact_name' = 'Sophie' and m_e ->> 'last_name' = 'Essai' then
+        v_lines := v_lines || 'OK      dir   0440 : données de l''e-mail de demande lues par le serveur seulement, adressé au contact de la session'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0440 : données de l''e-mail ' || coalesce(m_e::text, '')); end if;
+      -- Espace client : la demande apparaît ; n° faux refusé ; salarié sans demande refusé ; bon n° rangé à part
+      m_cle := '1850578006084' || lpad((97 - (1850578006084 % 97))::text, 2, '0');
+      m_ok := false; m_ok2 := false; m_ok3 := false;
+      perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+      execute 'set local role anon';
+      m_l := public.client_portal_nir_demandes('essai-0440-lien', '440440');
+      begin perform public.client_portal_nir_transmettre('essai-0440-lien', '440440', m_t, '1850578006084'); exception when sqlstate '22023' then m_ok := true; end;
+      begin perform public.client_portal_nir_transmettre('essai-0440-lien', '440440', m_t2, m_cle); exception when insufficient_privilege then m_ok2 := true; end;
+      m_e := public.client_portal_nir_transmettre('essai-0440-lien', '440440', m_t, m_cle);
+      m_r := public.portail_nir_demande_etat(m_tok, m_t, m_j->>'ticket');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if jsonb_array_length(m_l) = 1 and not (m_l -> 0 ->> 'renseigne')::boolean and m_ok and m_ok2 and m_e ->> 'fin' = right(m_cle, 3)
+         and (m_r ->> 'renseigne')::boolean
+         and (select ssn = m_cle from public.trainee_ssn where trainee_id = m_t)
+         and (select social_security_number is null and ssn_present from public.trainees where id = m_t)
+         and exists (select 1 from public.notifications where type = 'nir_transmis' and metadata ->> 'trainee_id' = m_t::text) then
+        v_lines := v_lines || 'OK      anon  0440 : l''entreprise voit la demande et transmet le n° (vérifié, rangé à part), seulement pour un salarié qui l''a demandé'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0440 : transmission ' || coalesce(m_l::text, '') || coalesce(m_e::text, '')); end if;
+      -- Mauvais code : rien de lisible
+      perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+      execute 'set local role anon';
+      m_l := public.client_portal_nir_demandes('essai-0440-lien', '000000');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if m_l ? 'error' then v_lines := v_lines || 'OK      anon  0440 : demandes illisibles sans le bon code'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0440 : demandes lisibles sans code'::text; end if;
+      m_ok := false;
+      begin delete from public.document_signatures where id = m_sig; exception when insufficient_privilege then m_ok := true; end;
+      if m_ok then v_lines := v_lines || 'OK      base  0440 : l''autorisation signée ne s''efface pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0440 : autorisation effaçable'::text; end if;
+      delete from public.client_portal_access where client_id = m_cl;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0440 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

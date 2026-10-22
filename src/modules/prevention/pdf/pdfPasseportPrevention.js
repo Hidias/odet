@@ -160,11 +160,44 @@ function generateDecharge(d = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// AUTORISATION : L'EMPLOYEUR TRANSMET LE NIR (0440, 22/10 : le stagiaire ne retrouve pas son numéro)
+// Signée dans le portail stagiaire, jointe à l'e-mail envoyé au contact de l'entreprise. Le document signé porte
+// l'identifiant de la signature (mots-clés du PDF), contrôlé par le serveur avant l'envoi.
+// ═══════════════════════════════════════════════════════════
+function generateAutorisation(d = {}) {
+  const doc = new jsPDF({ compress: true })
+  if (d.signatureId) doc.setProperties({ keywords: `odet-autorisation-nir ${d.signatureId}` })
+  const f = startDocument(doc, ORG, { docLabel: 'Passeport de prévention', code: 'PPREV-NIR-A', title: 'Transmission du numéro de sécurité sociale', subtitle: "Passeport de prévention : autorisation du stagiaire à son employeur" })
+  f.fields([{ label: 'Nom et prénom du stagiaire', value: d.stagiaire || '', w: 2 }, { label: 'Date de naissance', value: d.naissance || '', w: 1 }])
+  f.fields([{ label: 'Entreprise', value: d.entreprise || '', w: 2 }, { label: 'Poste', value: d.poste || '', w: 1 }])
+  f.fields([{ label: 'Formation suivie', value: d.formation || '', w: 2 }, { label: 'Dates', value: d.dates || '', w: 1 }])
+  f.section('Autorisation')
+  f.para(`Je soussigné(e), stagiaire désigné(e) ci-dessus, ne retrouve pas mon numéro de sécurité sociale (NIR). J'autorise mon employeur, ${d.entreprise || 'désigné ci-dessus'}, à le transmettre à ${nom()}.`)
+  f.para('Je suis informé(e) que :')
+  f.bullets([
+    `ce numéro sert uniquement à inscrire cette formation dans mon passeport de prévention (loi du 2 août 2021, décret n° 2025-748 du 1er août 2025) ;`,
+    `mon employeur le saisit dans son espace sécurisé chez ${nom()} : il est vérifié, rangé à part et n'est jamais transmis par e-mail ;`,
+    `je peux retirer cette autorisation à tout moment en prévenant ${nom()} ou mon employeur.`,
+  ])
+  f.space(2)
+  const quand = d.signedAt ? new Date(d.signedAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Paris' }) : ''
+  f.signatures(d.signature ? [
+    { label: 'Le stagiaire', name: d.stagiaire || '', hint: `Signé en ligne le ${quand}`, image: d.signature },
+  ] : [
+    { label: 'Le stagiaire', hint: 'Date et signature' },
+  ], { height: 30 })
+  f.note(`Signature électronique simple : date, heure, appareil et empreinte du document conservés par ${nom()}. ${contact()}`)
+  f.finish()
+  return doc
+}
+
+// ═══════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════
 export function generatePasseportPreventionPDF(version = 'stagiaire', orgSettings = null, donnees = {}) {
   applyOrgSettings(orgSettings)
   if (version === 'decharge') return generateDecharge(donnees)
+  if (version === 'autorisation') return generateAutorisation(donnees)
   return version === 'entreprise' ? generateVersionEntreprise() : generateVersionStagiaire()
 }
 

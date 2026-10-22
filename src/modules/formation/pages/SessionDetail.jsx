@@ -35,6 +35,7 @@ import SessionChecklist from '../components/SessionChecklist'
 import SessionNeedsAnalysis from '../components/SessionNeedsAnalysis'
 import SessionEmailModal from '../components/SessionEmailModal'
 import CircuitSession from '../components/CircuitSession'
+import DemandesNirSession from '../components/DemandesNirSession'
 import DepotsClient from '../../../core/signature/DepotsClient'
 import StageEmailModal from '../components/StageEmailModal'
 import { SignatureAuditBadge } from '../../../ui/signature/SignaturePad'
@@ -3318,6 +3319,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       
       {/* Circuit devis signé → participants → convocations (0430) */}
       <CircuitSession session={session} peutModifier={d.modifier} onChange={() => fetchSessions()} onEnvoyer={handleSendEmailBefore} />
+      <DemandesNirSession session={session} peutEnvoyer={d.modifier} />
 
       {/* Seuil de maintien (inter, J-10) */}
       <SeuilMaintien session={session} peutModifier={d.modifier} />

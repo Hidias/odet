@@ -17,6 +17,7 @@ import MesDocuments from '../components/MesDocuments'
 import ParticipantsSession from '../components/ParticipantsSession'
 import DeposerSigne from '../components/DeposerSigne'
 import RecapSession from '../components/RecapSession'
+import NumerosDemandes from '../components/NumerosDemandes'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
@@ -211,6 +212,18 @@ export default function ClientPortal() {
     return e || !Array.isArray(d) ? [] : d
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // N° de sécurité sociale demandés par les salariés (0440)
+  const chargerDemandesNir = useCallback(async () => {
+    const { data: d, error: e } = await supabase.rpc('client_portal_nir_demandes', { p_token: token, p_code: code })
+    return e || !Array.isArray(d) ? [] : d
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const transmettreNir = async (traineeId, nir) => {
+    const { data: d, error: e } = await supabase.rpc('client_portal_nir_transmettre', { p_token: token, p_code: code, p_trainee: traineeId, p_nir: nir })
+    if (e || d?.error) throw new Error(e?.message || d?.error || 'Enregistrement impossible')
+    return d
+  }
 
   // Session issue d'un devis (22/10, décision de H) : convocations visibles une fois validées et envoyées par
   // l'organisme (chaque participant présent a reçu la sienne), jamais avant la signature de la convention
@@ -533,6 +546,7 @@ export default function ClientPortal() {
         {error && <p role="alert" className="mb-4 text-sm text-[rgb(var(--c-danger))] flex items-center gap-1.5"><AlertCircle className="w-4 h-4" aria-hidden="true" />{error}</p>}
         {info && <p role="status" className="vitrine-monte mb-4 rounded-ui bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] text-sm px-3 py-2 flex items-center gap-2"><BadgeCheck className="w-4 h-4" aria-hidden="true" />{info}</p>}
 
+        <NumerosDemandes charger={chargerDemandesNir} transmettre={transmettreNir} />
         {upcoming.length > 0 && (
           <section className="mb-8">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">À venir ou en cours</h2>
