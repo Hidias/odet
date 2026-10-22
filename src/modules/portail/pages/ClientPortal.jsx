@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Lock, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, ShieldCheck, Clock, Phone, Mail, Globe, Accessibility, ArrowRight, Sparkles, GraduationCap } from 'lucide-react'
+import { Lock, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, ShieldCheck, Clock, Phone, Mail, Globe, Accessibility, ArrowRight, Sparkles, GraduationCap, Printer } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../../../core/supabase'
@@ -16,6 +16,7 @@ import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import ParticipantsSession from '../components/ParticipantsSession'
 import DeposerSigne from '../components/DeposerSigne'
+import { imprimer } from '../../../core/fichiers/imprimer'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
@@ -202,6 +203,11 @@ export default function ClientPortal() {
   function toPdfSession(s) {
     return { ...s, clients: data.client, courses: s.courses || {}, trainers: s.trainers || null }
   }
+  // Session issue d'un devis (22/10, décision de H) : convocations visibles une fois validées et envoyées par
+  // l'organisme (chaque participant présent a reçu la sienne), jamais avant la signature de la convention
+  const convocationsEnAttente = (s) => !!participants[s.id]?.devis && (!s.convention_signed
+    || !(s.session_trainees || []).filter((st) => !st.absent).every((st) => st.convocation_sent_at))
+
   function traineesOf(s) {
     return (s.session_trainees || []).map(st => ({ ...st.trainees, result: st.result || null, access_code: st.access_code }))
   }
@@ -234,8 +240,17 @@ export default function ClientPortal() {
     return e || !Array.isArray(d) ? [] : d
   }
 
-  async function download(s, kind) {
+  // Télécharger, ou imprimer directement (22/10) : même document, même trace au journal
+  function download(s, kind, imp = false) {
     if (!orgReady) return
+    if (!imp) return remettreDoc(s, kind, (out) => saveBase64(out.base64, out.filename))
+    let fin = null
+    const pret = new Promise((r) => { fin = r })
+    imprimer(() => pret).catch(() => { /* erreur déjà affichée */ })
+    remettreDoc(s, kind, (out) => fin(out.base64)).finally(() => fin(null))
+  }
+
+  async function remettreDoc(s, kind, remettre) {
     const key = `${s.id}:${kind}`
     setBusy(key)
     try {
@@ -270,7 +285,7 @@ export default function ClientPortal() {
         out = await generateAllPDF('certificat', session, appliquerEmis(emis, s.id, 'certificat', trainees).filter(t => t.result), { trainer })
       }
       if (!out) { setError('Aucun document à générer pour cette session'); return }
-      saveBase64(out.base64, out.filename)
+      remettre(out)
       // Journal de preuve (0401) : document remis, avec son empreinte
       noterLien(token, code, { event: 'document', objectType: 'session', objectId: s.id, kind, label: `${LIBELLES_DOCUMENT[kind] || kind}, ${s.reference || ''}`.trim(), base64: out.base64 })
     } catch (err) {
@@ -364,14 +379,20 @@ export default function ClientPortal() {
   const DocButton = ({ s, kind, icon: Icon, label, disabled }) => {
     const key = `${s.id}:${kind}`
     return (
-      <button onClick={() => download(s, kind)} disabled={disabled || !!busy || !orgReady}
-        className="vitrine-doc flex items-center gap-2.5 px-3 py-2.5 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 disabled:opacity-40 disabled:cursor-not-allowed text-left">
-        <span className="shrink-0 w-8 h-8 rounded-ui-sm bg-gray-50 flex items-center justify-center">
-          {busy === key ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Icon className="w-4 h-4" aria-hidden="true" />}
-        </span>
-        <span className="min-w-0 flex-1">{label}</span>
-        {!busy && !disabled && <Download className="w-4 h-4 text-gray-400" aria-hidden="true" />}
-      </button>
+      <div className="flex items-stretch gap-1">
+        <button onClick={() => download(s, kind)} disabled={disabled || !!busy || !orgReady}
+          className="vitrine-doc flex-1 min-w-0 flex items-center gap-2.5 px-3 py-2.5 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 disabled:opacity-40 disabled:cursor-not-allowed text-left">
+          <span className="shrink-0 w-8 h-8 rounded-ui-sm bg-gray-50 flex items-center justify-center">
+            {busy === key ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Icon className="w-4 h-4" aria-hidden="true" />}
+          </span>
+          <span className="min-w-0 flex-1">{label}</span>
+          {!busy && !disabled && <Download className="w-4 h-4 text-gray-400" aria-hidden="true" />}
+        </button>
+        <button type="button" onClick={() => download(s, kind, true)} disabled={disabled || !!busy || !orgReady} title="Imprimer" aria-label={`Imprimer : ${label}`}
+          className="px-3 rounded-ui border border-gray-200 bg-white text-gray-500 hover:border-primary-300 hover:text-primary-700 disabled:opacity-40 disabled:cursor-not-allowed">
+          <Printer className="w-4 h-4" aria-hidden="true" />
+        </button>
+      </div>
     )
   }
 
@@ -439,7 +460,7 @@ export default function ClientPortal() {
                 ? <DocButton s={s} kind="convention_signee" icon={FileSignature} label={signatureDe(s.id) ? 'Convention signée, avec sa preuve' : 'Convention signée'} />
                 : <DocButton s={s} kind="convention" icon={FileSignature} label="Convention de formation" />}
               {/* Session issue d'un devis : convocations après la convention signée (l'organisme les valide et les envoie) */}
-              <DocButton s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0 || (participants[s.id]?.devis && !s.convention_signed)} />
+              <DocButton s={s} kind="convocations" icon={FileText} label={convocationsEnAttente(s) ? 'Convocations (après validation par votre organisme)' : 'Convocations'} disabled={nb === 0 || convocationsEnAttente(s)} />
               <DocButton s={s} kind="emargement" icon={ClipboardList} label="Feuille d'émargement" disabled={nb === 0} />
               <DocButton s={s} kind="attestations" icon={BadgeCheck} label="Attestations de présence" disabled={!finished || nb === 0} />
               <DocButton s={s} kind="certificats" icon={Award} label="Certificats de réalisation" disabled={!finished || nbResults === 0} />

@@ -4843,8 +4843,7 @@ begin
       exception when insufficient_privilege then z_ok := true; end;
       if z_ok then v_lines := v_lines || 'OK      base  0406 : un autre client ne signe pas ce devis'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0406 : devis signé par un autre client'::text; end if;
-      delete from public.quotes where id = z_q;
-      delete from public.clients where id in (z_c, z_c2);
+      -- Devis signé : il ne s'efface plus (0435), les données d'essai partent avec l'annulation de la suite
     exception when others then
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
@@ -6149,6 +6148,91 @@ begin
       from unnest(array['public.client_portal_data(text,text)', 'public.ent_sessions()', 'public.ext_sessions()']) f) then
     v_lines := v_lines || 'OK      base  0433 : espaces : moyens pédagogiques et techniques de la formation transmis'::text;
   else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0433 : moyens de la formation absents des espaces'::text; end if;
+
+  -- Retours du premier essai réel (0435) : participants complets, devis signé figé, nouvelles versions
+  if to_regprocedure('public.devis_nouvelle_version(uuid)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 7;
+    declare r_c uuid; r_co uuid; r_q uuid; r_d uuid; r_s uuid; r_v2 uuid; r_v2b uuid; r_t uuid; r_ok boolean; r_ok2 boolean; r_ok3 boolean; r_ok4 boolean;
+    begin
+      if app.nir_complet('1 85 05 78 006 084 91') = '185057800608491' and app.nir_complet('1850578006084') = '185057800608491'
+         and app.nir_complet('185057800608492') is null and app.nir_complet('abc') is null and app.nir_complet('') is null
+         and app.nir_complet('285052A012345') like '285052A012345__' then
+        v_lines := v_lines || 'OK      base  0435 : n° de sécurité sociale contrôlé (clé calculée ou vérifiée, Corse)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0435 : contrôle du n° de sécurité sociale'::text; end if;
+
+      insert into public.clients (name, address, postal_code, city) values ('Client essai 0435', '1 rue', '29000', 'Quimper') returning id into r_c;
+      insert into public.courses (title, duration_hours) values ('Formation essai 0435', 7) returning id into r_co;
+      insert into public.quotes (client_id, status, quote_date, reference, object, total_ht) values (r_c, 'sent', current_date, 'DEV-ESSAI-0435', 'Formation du 10 décembre 2099', 500) returning id into r_q;
+      insert into public.quote_items (quote_id, position, description_title, quantity, unit_price_ht, tva_rate, total_ht, course_id) values (r_q, 0, 'Formation', 1, 500, 20, 500, r_co);
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      values ((select company_id from public.clients where id = r_c), r_c, 'quote', r_q, 'devis', 'Devis essai 0435', r_c || '/q.pdf', repeat('e', 64)) returning id into r_d;
+      perform app.portail_signer_document(r_c, 'lien', null, null, r_d, 'Essai Signataire', null, 'data:image/png;base64,iVBORw0KGgo=',
+        'J''ai lu le devis et je l''accepte. Mention : « Bon pour accord ».');
+      select id into r_s from public.sessions where quote_id = r_q;
+      update public.sessions set validation_requise = false where id = r_s;
+
+      -- Participants : champs administratifs, n° rangé à part, nom de naissance par défaut, une seule notification
+      perform app.participants_enregistrer(r_c, 'lien', null, null, r_s,
+        '[{"first_name":"Lea","last_name":"Martin","nom_naissance":"Durand","email":"lea@test.invalid","ssn":"2 85 05 78 006 084","birth_date":"1985-05-02","birth_place":"Quimper","job_title":"Cariste"},{"first_name":"Tom","last_name":"Petit"}]'::jsonb);
+      perform app.participants_enregistrer(r_c, 'lien', null, null, r_s,
+        '[{"first_name":"Lea","last_name":"Martin"},{"first_name":"Tom","last_name":"Petit","job_title":"Magasinier"}]'::jsonb);
+      select t.id into r_t from public.trainees t where t.client_id = r_c and t.first_name = 'Lea';
+      if (select nom_naissance = 'DURAND' and email = 'lea@test.invalid' and birth_date = date '1985-05-02' and birth_place = 'Quimper'
+                 and job_title = 'Cariste' and ssn_present and social_security_number is null from public.trainees where id = r_t)
+         and (select length(ssn) = 15 from public.trainee_ssn where trainee_id = r_t)
+         and (select nom_naissance = 'PETIT' and job_title = 'Magasinier' from public.trainees where client_id = r_c and first_name = 'Tom')
+         and (select count(*) from public.notifications where type = 'participants_saisis' and metadata ->> 'session_id' = r_s::text) = 1 then
+        v_lines := v_lines || 'OK      base  0435 : participants avec nom de naissance, n° rangé à part, rien d''effacé, une seule notification'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0435 : participants complets'::text; end if;
+      r_ok := false; r_ok2 := false;
+      begin perform app.participants_enregistrer(r_c, 'lien', null, null, r_s, '[{"first_name":"Lea","last_name":"Martin","ssn":"123"}]'::jsonb);
+      exception when sqlstate '22023' then r_ok := true; end;
+      begin perform app.participants_enregistrer(r_c, 'lien', null, null, r_s, '[{"first_name":"123","last_name":"456"}]'::jsonb);
+      exception when sqlstate '22023' then r_ok2 := true; end;
+      if r_ok and r_ok2 and position('convocation_sent_at' in pg_get_functiondef('public.ent_sessions()'::regprocedure)) > 0 then
+        v_lines := v_lines || 'OK      base  0435 : n° faux et noms illisibles refusés ; date de convocation remise aux espaces'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0435 : contrôles de saisie'::text; end if;
+
+      -- Devis signé figé
+      r_ok := false; r_ok2 := false; r_ok3 := false; r_ok4 := false;
+      begin update public.quotes set total_ht = 600 where id = r_q; exception when insufficient_privilege then r_ok := true; end;
+      begin delete from public.quote_items where quote_id = r_q; exception when insufficient_privilege then r_ok2 := true; end;
+      begin update public.quotes set status = 'draft' where id = r_q; exception when insufficient_privilege then r_ok3 := true; end;
+      begin delete from public.quotes where id = r_q; exception when insufficient_privilege then r_ok4 := true; end;
+      update public.quotes set notes = 'note libre' where id = r_q;
+      if r_ok and r_ok2 and r_ok3 and r_ok4 and app.devis_signe(r_q) then
+        v_lines := v_lines || 'OK      base  0435 : devis signé figé (montants, lignes, retour en brouillon, effacement)'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0435 : devis signé figé'::text; end if;
+
+      -- Nouvelle version par la direction
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      r_v2 := public.devis_nouvelle_version(r_q);
+      r_v2b := public.devis_nouvelle_version(r_q);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      update public.quote_items set unit_price_ht = 450, total_ht = 450 where quote_id = r_v2;
+      if r_v2 = r_v2b and (select reference = 'DEV-ESSAI-0435-V2' and status = 'draft' and version = 2 and previous_quote_id = r_q and signature_base64 is null from public.quotes where id = r_v2)
+         and (select count(*) from public.quote_items where quote_id = r_v2) = 1 then
+        v_lines := v_lines || 'OK      dir   0435 : nouvelle version créée en brouillon (-V2), lignes copiées et modifiables, reprise si déjà en cours'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0435 : nouvelle version'::text; end if;
+
+      -- V2 acceptée : V1 remplacée, la session suit, pas de seconde session
+      update public.quotes set status = 'accepted' where id = r_v2;
+      if (select status = 'replaced' and replaced_by_id = r_v2 from public.quotes where id = r_q)
+         and (select quote_id from public.sessions where id = r_s) = r_v2
+         and (select count(*) from public.sessions where quote_id in (r_q, r_v2)) = 1
+         and exists (select 1 from public.notifications where type = 'devis_version_acceptee' and metadata ->> 'quote_id' = r_v2::text) then
+        v_lines := v_lines || 'OK      base  0435 : V2 acceptée : V1 remplacée, la session suit la V2, organisme prévenu'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0435 : V2 acceptée'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 7; v_lines := v_lines || ('ÉCHEC   base  0435 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
 
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then

@@ -1959,7 +1959,34 @@ export default function SessionDetail() {
     navigate('/sessions')
   }
   
+  // Convention signée par le client (0435, décision de H du 22/10) : changer ce qu'elle engage (dates, horaires, lieu,
+  // prix, formation, formateur) reste possible mais demande un avenant ou une nouvelle signature ; les participants,
+  // eux, se gèrent sans alerte
+  const CHAMPS_CONVENTION = {
+    start_date: 'les dates', end_date: 'les dates', start_time: 'les horaires', end_time: 'les horaires',
+    location_name: 'le lieu', location_address: 'le lieu', location_postal_code: 'le lieu', location_city: 'le lieu', is_remote: 'le lieu',
+    total_price: 'le prix', custom_price_ht: 'le prix', use_custom_price: 'le prix', price_mode: 'le prix',
+    course_id: 'la formation', trainer_id: 'le formateur',
+  }
   const handleSaveEdit = async () => {
+    if (session?.convention_signed) {
+      const norm = (v, k) => {
+        const t = v === null || v === undefined ? '' : String(v).trim()
+        if (k.endsWith('_time')) return t.slice(0, 5)
+        return t !== '' && !Number.isNaN(Number(t)) && typeof v !== 'boolean' ? String(Number(t)) : t
+      }
+      const touches = [...new Set(Object.entries(CHAMPS_CONVENTION)
+        .filter(([k]) => k in editForm && norm(editForm[k], k) !== norm(session[k], k))
+        .map(([, l]) => l))]
+      if (touches.length) {
+        const ok = await confirmer({
+          title: 'Convention déjà signée',
+          message: `La convention de cette session est signée par le client. Changer ${touches.join(', ')} demande un avenant ou une nouvelle signature de la convention. Enregistrer quand même ?`,
+          confirmLabel: 'Enregistrer quand même', cancelLabel: 'Annuler',
+        })
+        if (!ok) return
+      }
+    }
     try {
       // Mise à jour des infos session
       const { trainer_id, ...sessionData } = editForm

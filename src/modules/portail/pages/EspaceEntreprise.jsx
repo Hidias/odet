@@ -3,7 +3,7 @@ import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
 import {
   Home, GraduationCap, Users, MessageSquare, MoreHorizontal, Calendar, MapPin, FileText, FileSignature, ClipboardList,
-  Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, BookOpen, Receipt, Megaphone, ExternalLink, Send, Plus, Trash2, ShieldCheck, FolderOpen,
+  Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, BookOpen, Receipt, Megaphone, ExternalLink, Send, Plus, Trash2, ShieldCheck, FolderOpen, Printer,
 } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr as frLocale } from 'date-fns/locale'
@@ -28,6 +28,7 @@ import MesDocuments from '../components/MesDocuments'
 import AvisEntreprise from '../components/AvisEntreprise'
 import ParticipantsSession from '../components/ParticipantsSession'
 import DeposerSigne from '../components/DeposerSigne'
+import { imprimer } from '../../../core/fichiers/imprimer'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
@@ -261,10 +262,24 @@ function Formations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
+  // Session issue d'un devis (22/10, décision de H) : convocations visibles une fois validées et envoyées par
+  // l'organisme (chaque participant présent a reçu la sienne), jamais avant la signature de la convention
+  const convocationsEnAttente = (s) => !!participants[s.id]?.devis && (!s.convention_signed
+    || !(s.session_trainees || []).filter((st) => !st.absent).every((st) => st.convocation_sent_at))
+
   const traineesOf = (s) => (s.session_trainees || []).map((st) => ({ ...st.trainees, result: st.result || null, access_code: st.access_code }))
 
-  const download = async (s, kind) => {
+  // Télécharger, ou imprimer directement (22/10) : même document, même trace au journal
+  const download = (s, kind, imp = false) => {
     if (!orgPret) return
+    if (!imp) return remettreDoc(s, kind, (out) => saveBase64(out.base64, out.filename))
+    let fin = null
+    const pret = new Promise((r) => { fin = r })
+    imprimer(() => pret).catch(() => { /* erreur déjà affichée */ })
+    remettreDoc(s, kind, (out) => fin(out.base64)).finally(() => fin(null))
+  }
+
+  const remettreDoc = async (s, kind, remettre) => {
     setBusy(`${s.id}:${kind}`)
     try {
       const session = { ...s, clients: data.client, courses: s.courses || {}, trainers: s.trainers || null }
@@ -292,7 +307,7 @@ function Formations() {
         out = await generateAllPDF('certificat', session, appliquerEmis(emis, s.id, 'certificat', trainees).filter((t) => t.result), { trainer })
       }
       if (!out) { toast.error('Aucun document pour cette session'); return }
-      saveBase64(out.base64, out.filename)
+      remettre(out)
       // Journal de preuve (0401) : document remis, avec son empreinte
       noterCompte({ event: 'document', objectType: 'session', objectId: s.id, kind, label: `${LIBELLES_DOCUMENT[kind] || kind}, ${s.reference || ''}`.trim(), base64: out.base64 })
     } catch (err) {
@@ -303,11 +318,17 @@ function Formations() {
   if (!data) return <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
 
   const Doc = ({ s, kind, icon: Icon, label, disabled }) => (
-    <button type="button" onClick={() => download(s, kind)} disabled={disabled || !!busy || !orgPret}
-      className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 disabled:opacity-40">
-      {busy === `${s.id}:${kind}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}{label}
-      <Download className="w-3.5 h-3.5 ml-auto text-gray-400" />
-    </button>
+    <div className="flex items-stretch gap-1">
+      <button type="button" onClick={() => download(s, kind)} disabled={disabled || !!busy || !orgPret}
+        className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 disabled:opacity-40">
+        {busy === `${s.id}:${kind}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}<span className="truncate">{label}</span>
+        <Download className="w-3.5 h-3.5 ml-auto text-gray-400 shrink-0" />
+      </button>
+      <button type="button" onClick={() => download(s, kind, true)} disabled={disabled || !!busy || !orgPret} title="Imprimer" aria-label={`Imprimer : ${label}`}
+        className="px-2.5 rounded-ui border border-gray-200 bg-white text-gray-500 hover:border-primary-300 hover:text-primary-700 disabled:opacity-40">
+        <Printer className="w-4 h-4" aria-hidden="true" />
+      </button>
+    </div>
   )
 
   const Session = ({ s, finie }) => {
@@ -367,7 +388,7 @@ function Formations() {
           {!s.group_id && (s.convention_signed
             ? <Doc s={s} kind="convention_signee" icon={FileSignature} label={signatureDe(s.id) ? 'Convention signée, avec sa preuve' : 'Convention signée'} />
             : <Doc s={s} kind="convention" icon={FileSignature} label="Convention" />)}
-          <Doc s={s} kind="convocations" icon={FileText} label="Convocations" disabled={nb === 0 || (participants[s.id]?.devis && !s.convention_signed)} />
+          <Doc s={s} kind="convocations" icon={FileText} label={convocationsEnAttente(s) ? 'Convocations (après validation par votre organisme)' : 'Convocations'} disabled={nb === 0 || convocationsEnAttente(s)} />
           <Doc s={s} kind="emargement" icon={ClipboardList} label="Émargement" disabled={nb === 0} />
           <Doc s={s} kind="attestations" icon={BadgeCheck} label="Attestations" disabled={!finie || nb === 0} />
           <Doc s={s} kind="certificats" icon={Award} label="Certificats" disabled={!finie || !(s.session_trainees || []).some((st) => st.result)} />

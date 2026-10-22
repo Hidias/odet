@@ -1696,7 +1696,20 @@ function pageFlow(doc, { ref, docLabel, code, startY }) {
   return f
 }
 
+// Convocation sur une seule page (22/10, décision de H) : la mise en page normale est essayée d'abord ; si elle
+// déborde, une version resserrée (objectifs en une ligne, liste « À prévoir » en une phrase), puis une version courte
+// (sans objectifs, déjà au programme). Mesuré sur un document d'essai, puis dessiné dans le vrai document.
 function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataURL = null) {
+  let niveau = 0
+  for (; niveau < 3; niveau++) {
+    const essai = new jsPDF({ compress: true })
+    dessinerConvocation(essai, session, trainee, trainer, qrCodeDataURL, niveau)
+    if (essai.getNumberOfPages() === 1) break
+  }
+  dessinerConvocation(doc, session, trainee, trainer, qrCodeDataURL, Math.min(niveau, 3))
+}
+
+function dessinerConvocation(doc, session, trainee, trainer, qrCodeDataURL = null, niveau = 0) {
   const course = session?.courses || {}
   const client = session?.clients || {}
   const ref = session?.reference || ''
@@ -1736,9 +1749,9 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
     doc.setTextColor(...f.t.text)
     f.y += 6
   }
-  f.y += 4
+  f.y += niveau ? 2 : 4
 
-  f.para('Merci de vous présenter à la session de formation selon les informations suivantes. Pour toute question, votre contact est indiqué ci-dessus.', { after: 2 })
+  if (niveau < 2) f.para('Merci de vous présenter à la session de formation selon les informations suivantes. Pour toute question, votre contact est indiqué ci-dessus.', { after: 2 })
 
   // ── La formation ──
   f.section('La formation')
@@ -1751,8 +1764,11 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
     ['Lieu', lieu || 'Communiqué ultérieurement'],
     ['Formateur', trainerName(trainer)],
   ])
-  const objectifs = (course.objectives || '').split('\n').map(s => s.trim()).filter(Boolean)
-  if (objectifs.length) {
+  const objectifs = niveau >= 2 ? [] : (course.objectives || '').split('\n').map(s => s.trim()).filter(Boolean)
+  if (objectifs.length && niveau === 1) {
+    f.y += 3
+    f.para(`Objectifs : ${objectifs.map((o) => o.replace(/^[-•·*]\s*/, '').replace(/[.;]\s*$/, '')).join(' ; ')}.`, { size: 8.5, after: 1 })
+  } else if (objectifs.length) {
     f.y += 3
     f.ensure(5 + f.LINE * 2)
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...t.muted)
@@ -1764,12 +1780,14 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
   // ── À prévoir ── (espace après le tableau : sans objectifs, le titre chevauchait la ligne « Formateur »)
   if (!objectifs.length) f.y += 5
   f.section('À prévoir')
-  f.bullets([
+  const aPrevoir = [
     "Votre pièce d'identité",
     'Votre numéro de sécurité sociale',
     "Une tenue adaptée et le matériel indiqué par le formateur, le cas échéant",
     ...(course.material ? [`Matériel : ${course.material}`] : []),
-  ])
+  ]
+  if (niveau) f.para(`${aPrevoir.map((x) => x.replace(/[.;\s]+$/, '')).join(' ; ')}.`, { size: 8.5, after: 1 })
+  else f.bullets(aPrevoir)
 
   // ── Portail stagiaire (QR code) ──
   const qrSize = 28
@@ -1812,7 +1830,7 @@ function generateConvocationContent(doc, session, trainee, trainer, qrCodeDataUR
 
   // ── Accessibilité, contact, ponctualité ──
   const handi = ORG.referent_handicap_email ? `au référent handicap (${ORG.referent_handicap_email})` : `à ${ORG.email}`
-  f.para(`Accessibilité : en cas de besoins spécifiques (mobilité, audition, vision ou autre), merci de nous en informer ${handi} au moins 72 heures avant la formation.`)
+  f.para(`Accessibilité : en cas de besoins spécifiques (mobilité, audition, vision ou autre), merci de nous en informer ${handi} au moins 72 heures avant la formation.`, niveau ? { size: 8.5 } : {})
   f.ensure(f.LINE + 12) // la formule de fin reste avec la signature
   f.para('Nous vous remercions pour votre ponctualité et votre participation active.', { after: 4 })
 
