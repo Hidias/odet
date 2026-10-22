@@ -12,6 +12,8 @@ import { format } from 'date-fns'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
+import ChampNir from '../../../core/nir/ChampNir'
+import { verifierNir } from '../../../core/nir/verifierNir'
 
 // Fonction de formatage des noms
 const formatName = (value, type) => {
@@ -258,6 +260,11 @@ export default function Trainees() {
       }
     }
     
+    if (!passeportOn && !form.refused_ssn && form.social_security_number) {
+      const v = verifierNir(form.social_security_number)
+      if (!v.ok) { toast.error(`N° de sécurité sociale : ${v.erreurs[0]}`); return }
+    }
+
     // Préparer les données en convertissant les chaînes vides en null
     const dataToSave = {
       first_name: form.first_name,
@@ -394,6 +401,11 @@ export default function Trainees() {
       toast.error('Au moins un stagiaire avec nom et prénom requis')
       return
     }
+    const nirFaux = passeportOn ? null : validTrainees.find((t) => t.social_security_number && !verifierNir(t.social_security_number).ok)
+    if (nirFaux) {
+      toast.error(`N° de sécurité sociale de ${nirFaux.first_name} ${nirFaux.last_name} : ${verifierNir(nirFaux.social_security_number).erreurs[0]}`)
+      return
+    }
     
     // Vérification des doublons si pas forcé
     if (!forceCreate) {
@@ -451,7 +463,7 @@ export default function Trainees() {
         last_name: trainee.last_name,
         email: trainee.email || null,
         phone: trainee.phone || null,
-        social_security_number: passeportOn ? null : (trainee.social_security_number || null),
+        social_security_number: passeportOn || !trainee.social_security_number ? null : verifierNir(trainee.social_security_number).nir15,
         client_id: bulkClientId || null,
       })
       if (error) {
@@ -892,14 +904,10 @@ export default function Trainees() {
                 ) : (
                 <div>
                   <label className="label">N° Sécurité Sociale</label>
-                  <input 
-                    type="text" 
-                    className="input font-mono" 
-                    placeholder={selectedTrainee?.ssn_present ? 'Déjà enregistré : laisser vide pour le conserver' : 'X XX XX XX XXX XXX XX'} 
-                    value={form.social_security_number} 
-                    onChange={(e) => setForm({...form, social_security_number: e.target.value})}
-                    disabled={form.refused_ssn}
-                  />
+                  <ChampNir id="fiche-nir" value={form.social_security_number} disabled={form.refused_ssn}
+                    onChange={(v) => setForm({ ...form, social_security_number: v })}
+                    ctx={{ gender: form.gender, birth_date: form.birth_date }}
+                    placeholder={selectedTrainee?.ssn_present ? 'Déjà enregistré : laisser vide pour le conserver' : '15 caractères, clé comprise'} />
                   <label className="flex items-center gap-2 mt-2 text-ui text-gray-600">
                     <input 
                       type="checkbox" 

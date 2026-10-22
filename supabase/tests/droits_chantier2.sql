@@ -6025,16 +6025,16 @@ begin
         v_lines := v_lines || 'OK      base  0430 : devis signé, session préparée à valider (date lue dans l''objet), organisme prévenu'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0430 : session préparée depuis le devis signé'::text; end if;
       p_ok := false;
-      begin perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"first_name":"Anne","last_name":"Essai"}]'::jsonb);
+      begin perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"gender":"female","first_name":"Anne","last_name":"Essai"}]'::jsonb);
       exception when sqlstate '22023' then p_ok := true; end;
       if p_ok then v_lines := v_lines || 'OK      base  0430 : participants refusés tant que la session n''est pas validée'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0430 : participants refusés avant validation'::text; end if;
       update public.sessions set validation_requise = false, max_participants = 2 where id = p_s;
       p_ok := false;
-      begin perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"first_name":"A","last_name":"Un"},{"first_name":"B","last_name":"Deux"},{"first_name":"C","last_name":"Trois"}]'::jsonb);
+      begin perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"gender":"female","first_name":"A","last_name":"Un"},{"gender":"female","first_name":"B","last_name":"Deux"},{"gender":"female","first_name":"C","last_name":"Trois"}]'::jsonb);
       exception when sqlstate '22023' then p_ok := true; end;
-      perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"first_name":"Anne","last_name":"Essai","email":"anne@test.invalid"},{"first_name":"Paul","last_name":"Essai"}]'::jsonb);
-      perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"first_name":"anne","last_name":"ESSAI"}]'::jsonb);
+      perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"gender":"female","first_name":"Anne","last_name":"Essai","email":"anne@test.invalid"},{"gender":"female","first_name":"Paul","last_name":"Essai"}]'::jsonb);
+      perform app.participants_enregistrer(p_c, 'lien', null, null, p_s, '[{"gender":"female","first_name":"anne","last_name":"ESSAI"}]'::jsonb);
       p_et := (select e from jsonb_array_elements(app.participants_etat(p_c)) e where e ->> 'session_id' = p_s::text);
       if p_ok and (select count(*) from public.session_trainees where session_id = p_s) = 1
          and (p_et ->> 'ouvert')::boolean and jsonb_array_length(p_et -> 'participants') = 1
@@ -6156,9 +6156,9 @@ begin
     v_total := v_total + 7;
     declare r_c uuid; r_co uuid; r_q uuid; r_d uuid; r_s uuid; r_v2 uuid; r_v2b uuid; r_t uuid; r_ok boolean; r_ok2 boolean; r_ok3 boolean; r_ok4 boolean;
     begin
-      if app.nir_complet('1 85 05 78 006 084 91') = '185057800608491' and app.nir_complet('1850578006084') = '185057800608491'
+      if app.nir_complet('1 85 05 78 006 084 91') = '185057800608491' and (app.nir_complet('1850578006084') = '185057800608491' or app.nir_complet('1850578006084') is null)
          and app.nir_complet('185057800608492') is null and app.nir_complet('abc') is null and app.nir_complet('') is null
-         and app.nir_complet('285052A012345') like '285052A012345__' then
+         and app.nir_complet('285052A012345' || lpad((97 - (replace('285052A012345', '2A', '19')::numeric % 97)::int)::text, 2, '0')) like '285052A012345__' then
         v_lines := v_lines || 'OK      base  0435 : n° de sécurité sociale contrôlé (clé calculée ou vérifiée, Corse)'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0435 : contrôle du n° de sécurité sociale'::text; end if;
 
@@ -6175,9 +6175,9 @@ begin
 
       -- Participants : champs administratifs, n° rangé à part, nom de naissance par défaut, une seule notification
       perform app.participants_enregistrer(r_c, 'lien', null, null, r_s,
-        '[{"first_name":"Lea","last_name":"Martin","nom_naissance":"Durand","email":"lea@test.invalid","ssn":"2 85 05 78 006 084","birth_date":"1985-05-02","birth_place":"Quimper","job_title":"Cariste"},{"first_name":"Tom","last_name":"Petit"}]'::jsonb);
+        '[{"gender":"female","first_name":"Lea","last_name":"Martin","nom_naissance":"Durand","email":"lea@test.invalid","ssn":"2 85 05 78 006 084 41","birth_date":"1985-05-02","birth_place":"Quimper","job_title":"Cariste"},{"gender":"female","first_name":"Tom","last_name":"Petit"}]'::jsonb);
       perform app.participants_enregistrer(r_c, 'lien', null, null, r_s,
-        '[{"first_name":"Lea","last_name":"Martin"},{"first_name":"Tom","last_name":"Petit","job_title":"Magasinier"}]'::jsonb);
+        '[{"gender":"female","first_name":"Lea","last_name":"Martin"},{"gender":"female","first_name":"Tom","last_name":"Petit","job_title":"Magasinier"}]'::jsonb);
       select t.id into r_t from public.trainees t where t.client_id = r_c and t.first_name = 'Lea';
       if (select nom_naissance = 'DURAND' and email = 'lea@test.invalid' and birth_date = date '1985-05-02' and birth_place = 'Quimper'
                  and job_title = 'Cariste' and ssn_present and social_security_number is null from public.trainees where id = r_t)
@@ -6187,10 +6187,17 @@ begin
         v_lines := v_lines || 'OK      base  0435 : participants avec nom de naissance, n° rangé à part, rien d''effacé, une seule notification'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0435 : participants complets'::text; end if;
       r_ok := false; r_ok2 := false;
-      begin perform app.participants_enregistrer(r_c, 'lien', null, null, r_s, '[{"first_name":"Lea","last_name":"Martin","ssn":"123"}]'::jsonb);
+      begin perform app.participants_enregistrer(r_c, 'lien', null, null, r_s, '[{"gender":"female","first_name":"Lea","last_name":"Martin","ssn":"123"}]'::jsonb);
       exception when sqlstate '22023' then r_ok := true; end;
-      begin perform app.participants_enregistrer(r_c, 'lien', null, null, r_s, '[{"first_name":"123","last_name":"456"}]'::jsonb);
+      begin perform app.participants_enregistrer(r_c, 'lien', null, null, r_s, '[{"gender":"female","first_name":"123","last_name":"456"}]'::jsonb);
       exception when sqlstate '22023' then r_ok2 := true; end;
+      r_ok3 := false;
+      begin perform app.participants_enregistrer(r_c, 'lien', null, null, r_s, '[{"first_name":"Lea","last_name":"Martin"}]'::jsonb);
+      exception when sqlstate '22023' then r_ok3 := true; end;
+      if r_ok3 and app.nir_complet('1850578006084') is null and app.nir_complet('185057800608491') = '185057800608491'
+         and app.nir_complet('185057800608490') is null and app.nir_complet('785057800608' || '4' || lpad((97 - (7850578006084 % 97))::text, 2, '0')) is not null then
+        v_lines := v_lines || 'OK      base  0439 : genre obligatoire, n° à 15 caractères (clé vérifiée), n° provisoire accepté'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0439 : genre et n° à 15 caractères'::text; end if;
       if r_ok and r_ok2 and position('convocation_sent_at' in pg_get_functiondef('public.ent_sessions()'::regprocedure)) > 0 then
         v_lines := v_lines || 'OK      base  0435 : n° faux et noms illisibles refusés ; date de convocation remise aux espaces'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0435 : contrôles de saisie'::text; end if;
@@ -6340,9 +6347,9 @@ begin
 
       -- Places : 2 + 1 en dépassement ; le 3e attend l'accord, un 4e est refusé
       w_r := app.participants_enregistrer(w_c, 'lien', null, null, w_s,
-        '[{"first_name":"Ana","last_name":"Un","gender":"female","nom_naissance":"Deux"},{"first_name":"Bob","last_name":"Trois","gender":"male"},{"first_name":"Cy","last_name":"Quatre","gender":"non_binary"}]'::jsonb);
+        '[{"gender":"female","first_name":"Ana","last_name":"Un","gender":"female","nom_naissance":"Deux"},{"gender":"female","first_name":"Bob","last_name":"Trois","gender":"male"},{"gender":"female","first_name":"Cy","last_name":"Quatre","gender":"non_binary"}]'::jsonb);
       w_ok := false;
-      begin perform app.participants_enregistrer(w_c, 'lien', null, null, w_s, '[{"first_name":"A","last_name":"Un"},{"first_name":"B","last_name":"Deux"},{"first_name":"C","last_name":"Trois"},{"first_name":"D","last_name":"Quatre"}]'::jsonb);
+      begin perform app.participants_enregistrer(w_c, 'lien', null, null, w_s, '[{"gender":"female","first_name":"A","last_name":"Un"},{"gender":"female","first_name":"B","last_name":"Deux"},{"gender":"female","first_name":"C","last_name":"Trois"},{"gender":"female","first_name":"D","last_name":"Quatre"}]'::jsonb);
       exception when sqlstate '22023' then w_ok := true; end;
       select trainee_id into w_t from public.session_places_attente where session_id = w_s;
       if (w_r ->> 'inscrits')::int = 2 and (w_r ->> 'attente')::int = 1 and w_ok

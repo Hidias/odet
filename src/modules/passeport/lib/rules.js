@@ -2,6 +2,7 @@
 // lecture de l'accusé de traitement. Fonctions pures, sans dépendance : utilisées par les écrans et par la
 // route serveur api/passeport.js. Les valeurs réglementaires (colonnes, délais, valeurs autorisées) viennent
 // du réglage versionné pp_format_versions, jamais de ce fichier.
+import { verifierNir } from '../../../core/nir/verifierNir.js'
 
 // ── Dates (chaînes AAAA-MM-JJ, sans fuseau horaire) ──
 const pad = (n) => String(n).padStart(2, '0')
@@ -106,7 +107,14 @@ export function nirKey(nir13) {
 }
 
 // Accepte 13 ou 15 caractères (avec clé), espaces et points ignorés. Renvoie le numéro à 13 caractères.
-export function normaliserNir(input) {
+// { saisie: true } : numéro tapé par une personne (22/10, décision de H) : 15 caractères obligatoires, clé vérifiée,
+// numéro provisoire (7 ou 8) accepté. Les numéros déjà enregistrés gardent la règle d'origine.
+export function normaliserNir(input, { saisie = false } = {}) {
+  if (saisie) {
+    const v = verifierNir(input)
+    if (v.vide) return { ok: false, error: 'Numéro vide' }
+    return v.ok ? { ok: true, nir: v.nir13, provisoire: v.provisoire } : { ok: false, error: v.erreurs[0] }
+  }
   const raw = String(input || '').toUpperCase().replace(/[\s.\-]/g, '')
   if (!raw) return { ok: false, error: 'Numéro vide' }
   if (raw.length !== 13 && raw.length !== 15) return { ok: false, error: 'Le numéro doit contenir 13 caractères, ou 15 avec la clé' }

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Users, UserPlus, Trash2, Loader2, X, Lock, CheckCircle2, Search, Clock, Ban } from 'lucide-react'
-import { normaliserNir } from '../../passeport/lib/rules'
+import { verifierNir } from '../../../core/nir/verifierNir'
+import ChampNir from '../../../core/nir/ChampNir'
 
 // Participants d'une session saisis par le client depuis son espace (0430, décisions de H du 21/10) : seulement une
 // fois le devis signé et la session confirmée par l'organisme, jusqu'à la signature de la convention. Nom et prénom
@@ -18,7 +19,7 @@ export const GENRES = [
 const ligneVide = () => ({ first_name: '', last_name: '', gender: '', naissance_differente: false, nom_naissance: '', email: '', ssn: '', birth_date: '', birth_place: '', job_title: '', ssn_present: false, statut: null })
 const mailOk = (m) => !m || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m.trim())
 const lisible = (t) => /\p{L}/u.test(t || '')
-const nirOk = (v) => !v.trim() || normaliserNir(v).ok
+const nirOk = (v) => !String(v || '').trim() || verifierNir(v).ok
 const normal = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 // Date de naissance saisie en JJ/MM/AAAA (22/10 : le champ date de Safari affichait la date du jour en gris, prise
 // pour une valeur saisie) ; envoyée au format AAAA-MM-JJ
@@ -49,7 +50,8 @@ export const erreursLigne = (l) => {
   else if (!lisible(l.first_name) || !lisible(l.last_name)) e.push('nom ou prénom illisible')
   if (l.naissance_differente && !lisible(l.nom_naissance)) e.push('nom de naissance à indiquer')
   if (!mailOk(l.email)) e.push('e-mail invalide')
-  if (!nirOk(l.ssn)) e.push(`n° de sécurité sociale : ${normaliserNir(l.ssn).error}`)
+  if (!l.gender) e.push('genre à indiquer')
+  if (!nirOk(l.ssn)) e.push('n° de sécurité sociale à corriger (ou laissez la case vide)')
   if (!dateOk(l.birth_date)) e.push(versIso(l.birth_date) || !String(l.birth_date).trim() ? 'date de naissance invraisemblable' : 'date de naissance au format JJ/MM/AAAA')
   return e
 }
@@ -253,7 +255,7 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
                     {champ(i, l, 'first_name', 'Prénom *', { autoCapitalize: 'words' })}
                     {champ(i, l, 'last_name', "Nom d'usage *", { autoCapitalize: 'characters' })}
                     <div className="text-sm">
-                      <span className="text-gray-600" id={`genre-${i}`}>Genre</span>
+                      <span className="text-gray-600" id={`genre-${i}`}>Genre *</span>
                       <div className="mt-1 grid grid-cols-3 gap-1" role="radiogroup" aria-labelledby={`genre-${i}`}>
                         {GENRES.map((g) => (
                           <button key={g.v} type="button" role="radio" aria-checked={l.gender === g.v} onClick={() => maj(i, 'gender', l.gender === g.v ? '' : g.v)}
@@ -276,7 +278,8 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
                       <input className="input w-full mt-1" value={l.birth_date} onChange={(e) => maj(i, 'birth_date', masqueDate(e.target.value))} inputMode="numeric" placeholder="JJ/MM/AAAA" autoComplete="off" maxLength={10} /></label>
                     {champ(i, l, 'birth_place', 'Lieu de naissance')}
                   </div>
-                  {champ(i, l, 'ssn', 'N° de sécurité sociale', { inputMode: 'numeric', placeholder: l.ssn_present ? 'Déjà renseigné : laissez vide pour le garder' : '13 ou 15 caractères' })}
+                  <ChampNir id={`nir-${i}`} label="N° de sécurité sociale (15 caractères, clé comprise)" value={l.ssn} onChange={(v) => maj(i, 'ssn', v)}
+                    ctx={{ gender: l.gender, birth_date: versIso(l.birth_date) }} placeholder={l.ssn_present ? 'Déjà renseigné : laissez vide pour le garder' : '1 85 05 78 006 084 36'} />
                   {e.length > 0 && <p className="text-sm text-[rgb(var(--c-warning))]">{e.join(' ; ')}</p>}
                 </fieldset>
               )
