@@ -6490,6 +6490,66 @@ begin
     end;
   end if;
 
+  -- Signature du client sur place protégée (0442)
+  if to_regprocedure('public.itv_visit_signer(uuid,text,text,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare g_v uuid; g_v2 uuid; g_ok boolean; g_ok2 boolean; g_ok3 boolean; g_ok4 boolean; g_ok5 boolean; g_p jsonb;
+      g_png text := 'data:image/png;base64,iVBORw0KGgo=';
+    begin
+      insert into public.itv_visits (client_id, site_id, technician_id, status) values (v_client_tech, v_site, u_tech, 'en_cours') returning id into g_v;
+      insert into public.itv_visits (client_id, site_id, status) values (v_client, v_site2, 'en_cours') returning id into g_v2;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      g_ok := false; g_ok2 := false; g_ok3 := false; g_ok4 := false; g_ok5 := false;
+      begin update public.itv_visits set client_signature = g_png where id = g_v; exception when insufficient_privilege then g_ok := true; end;
+      perform public.itv_visit_signer(g_v, g_png, 'Jean Client');
+      begin perform public.itv_visit_signer(g_v, g_png, 'Jean Client'); exception when sqlstate '22023' then g_ok2 := true; end;
+      perform public.itv_visit_signer(g_v, g_png, 'Jean Client', 'Signature illisible, refaite');
+      begin update public.itv_visits set signer_name = 'Autre' where id = g_v; exception when insufficient_privilege then g_ok3 := true; end;
+      begin perform public.itv_visit_signer(g_v2, g_png, 'X'); exception when others then g_ok4 := true; end;
+      begin perform app.itv_signature_preuve(g_v, null); exception when insufficient_privilege then g_ok5 := true; end;
+      g_p := public.itv_visit_preuve_signature(g_v);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if g_ok and g_ok2 and g_ok3 and g_ok4 and g_ok5 and g_p ->> 'signed_at' is not null and (g_p ->> 'refaite')::int = 1
+         and length(g_p ->> 'document_hash') = 64
+         and (select count(*) from public.document_signatures where document_type = 'bon_intervention' and metadata ->> 'visit_id' = g_v::text and status = 'valid') = 1
+         and (select metadata ->> 'motif' from public.document_signatures where document_type = 'bon_intervention' and metadata ->> 'visit_id' = g_v::text and status = 'valid') = 'Signature illisible, refaite'
+         and (select signer_name = 'Jean Client' and client_signature = g_png from public.itv_visits where id = g_v) then
+        v_lines := v_lines || 'OK      tech  0442 : signature du client sur place enregistrée avec preuve datée, refaite seulement avec un motif, jamais en direct'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0442 : signature sur place ' || coalesce(g_p::text, '') || g_ok::text || g_ok2::text || g_ok3::text || g_ok4::text || g_ok5::text); end if;
+      -- La preuve ne se modifie pas et ne s'efface pas, même par la direction
+      g_ok := false; g_ok2 := false;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin update public.document_signatures set signer_name = 'Autre' where document_type = 'bon_intervention' and metadata ->> 'visit_id' = g_v::text;
+        g_ok := not found; exception when insufficient_privilege then g_ok := true; end;
+      begin delete from public.document_signatures where document_type = 'bon_intervention' and metadata ->> 'visit_id' = g_v::text;
+        g_ok2 := not found; exception when insufficient_privilege then g_ok2 := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if g_ok and g_ok2 and (select count(*) from public.document_signatures where document_type = 'bon_intervention' and metadata ->> 'visit_id' = g_v::text) = 2 then
+        v_lines := v_lines || 'OK      dir   0442 : preuve de signature sur place ni modifiable ni effaçable'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0442 : preuve modifiable ou effaçable'::text; end if;
+      -- Visite terminée : plus de signature
+      update public.itv_visits set status = 'terminee', finished_at = now() where id = g_v;
+      g_ok := false;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.itv_visit_signer(g_v, g_png, 'Jean Client', 'Encore une fois'); exception when sqlstate '23514' then g_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if g_ok then v_lines := v_lines || 'OK      tech  0442 : visite terminée, signature figée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0442 : signature refaite après clôture'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0442 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
