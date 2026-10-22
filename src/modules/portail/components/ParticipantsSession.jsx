@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Users, UserPlus, Trash2, Loader2, X, Lock, CheckCircle2 } from 'lucide-react'
 import { normaliserNir } from '../../passeport/lib/rules'
 
@@ -12,11 +13,27 @@ const ligneVide = () => ({ first_name: '', last_name: '', naissance_identique: t
 const mailOk = (m) => !m || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m.trim())
 const lisible = (t) => /\p{L}/u.test(t || '')
 const nirOk = (v) => !v.trim() || normaliserNir(v).ok
+// Date de naissance saisie en JJ/MM/AAAA (22/10 : le champ date de Safari affichait la date du jour en gris, prise
+// pour une valeur saisie) ; envoyée au format AAAA-MM-JJ
+export const versIso = (d) => {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(d || '').trim())
+  if (!m) return null
+  const iso = `${m[3]}-${m[2]}-${m[1]}`
+  const t = new Date(`${iso}T12:00:00`)
+  return !Number.isNaN(t.getTime()) && t.toISOString().slice(0, 10) === iso ? iso : null
+}
+const depuisIso = (iso) => { const [y, m, j] = String(iso || '').slice(0, 10).split('-'); return y && m && j ? `${j}/${m}/${y}` : '' }
+const masqueDate = (v) => {
+  const c = String(v || '').replace(/\D/g, '').slice(0, 8)
+  return [c.slice(0, 2), c.slice(2, 4), c.slice(4, 8)].filter(Boolean).join('/')
+}
 const dateOk = (d) => {
-  if (!d) return true
-  const t = new Date(`${d}T12:00:00`)
+  if (!String(d || '').trim()) return true
+  const iso = versIso(d)
+  if (!iso) return false
+  const t = new Date(`${iso}T12:00:00`)
   const max = new Date(); max.setFullYear(max.getFullYear() - 14)
-  return !Number.isNaN(t.getTime()) && t >= new Date('1930-01-01T00:00:00') && t <= max
+  return t >= new Date('1930-01-01T00:00:00') && t <= max
 }
 const remplie = (l) => [l.first_name, l.last_name, l.email, l.ssn, l.birth_date, l.birth_place, l.job_title, l.naissance_identique ? '' : l.nom_naissance].some((v) => String(v || '').trim())
 export const erreursLigne = (l) => {
@@ -26,7 +43,7 @@ export const erreursLigne = (l) => {
   if (!l.naissance_identique && !lisible(l.nom_naissance)) e.push('nom de naissance à indiquer')
   if (!mailOk(l.email)) e.push('e-mail invalide')
   if (!nirOk(l.ssn)) e.push(`n° de sécurité sociale : ${normaliserNir(l.ssn).error}`)
-  if (!dateOk(l.birth_date)) e.push('date de naissance invraisemblable')
+  if (!dateOk(l.birth_date)) e.push(versIso(l.birth_date) || !String(l.birth_date).trim() ? 'date de naissance invraisemblable' : 'date de naissance au format JJ/MM/AAAA')
   return e
 }
 
@@ -69,7 +86,7 @@ function FenetreParticipants({ etat, onEnregistrer, onFermer }) {
       return {
         ...ligneVide(), first_name: p.first_name || '', last_name: p.last_name || '', email: p.email || '',
         naissance_identique: !naissance || naissance === usage, nom_naissance: naissance && naissance !== usage ? p.nom_naissance : '',
-        birth_date: p.birth_date || '', birth_place: p.birth_place || '', job_title: p.job_title || '', ssn_present: !!p.ssn_present,
+        birth_date: depuisIso(p.birth_date), birth_place: p.birth_place || '', job_title: p.job_title || '', ssn_present: !!p.ssn_present,
       }
     })
     return l.length ? l : [ligneVide()]
@@ -95,7 +112,7 @@ function FenetreParticipants({ etat, onEnregistrer, onFermer }) {
       await onEnregistrer(remplies.map((l) => ({
         first_name: l.first_name.trim(), last_name: l.last_name.trim(),
         nom_naissance: l.naissance_identique ? null : l.nom_naissance.trim(),
-        email: l.email.trim() || null, ssn: l.ssn.trim() || null, birth_date: l.birth_date || null,
+        email: l.email.trim() || null, ssn: l.ssn.trim() || null, birth_date: versIso(l.birth_date),
         birth_place: l.birth_place.trim() || null, job_title: l.job_title.trim() || null,
       })))
       setFait(true)
@@ -111,7 +128,8 @@ function FenetreParticipants({ etat, onEnregistrer, onFermer }) {
       <input className="input w-full mt-1" value={l[nom]} onChange={(e) => maj(i, nom, e.target.value)} autoComplete="off" {...props} /></label>
   )
 
-  return (
+  // Rendue au niveau de la page (22/10) : dans une carte animée, la fenêtre était coupée et ne défilait pas
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onFermer}>
       <div role="dialog" aria-modal="true" aria-labelledby="participants-titre" className="vitrine-monte w-full sm:max-w-2xl bg-white rounded-t-ui-lg sm:rounded-ui-lg max-h-[92vh] overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 py-4 flex items-start justify-between gap-3">
@@ -151,7 +169,8 @@ function FenetreParticipants({ etat, onEnregistrer, onFermer }) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {champ(i, l, 'email', 'E-mail (pour recevoir sa convocation)', { type: 'email', inputMode: 'email' })}
                     {champ(i, l, 'job_title', 'Poste occupé')}
-                    {champ(i, l, 'birth_date', 'Date de naissance', { type: 'date' })}
+                    <label className="block text-sm"><span className="text-gray-600">Date de naissance</span>
+                      <input className="input w-full mt-1" value={l.birth_date} onChange={(e) => maj(i, 'birth_date', masqueDate(e.target.value))} inputMode="numeric" placeholder="JJ/MM/AAAA" autoComplete="off" maxLength={10} /></label>
                     {champ(i, l, 'birth_place', 'Lieu de naissance')}
                   </div>
                   {champ(i, l, 'ssn', 'N° de sécurité sociale', { inputMode: 'numeric', placeholder: l.ssn_present ? 'Déjà renseigné : laissez vide pour le garder' : '13 ou 15 caractères' })}
@@ -178,7 +197,7 @@ function FenetreParticipants({ etat, onEnregistrer, onFermer }) {
               {remplies.map((l, i) => {
                 const infos = [
                   !l.naissance_identique && l.nom_naissance.trim() ? `nom de naissance ${l.nom_naissance.trim().toUpperCase()}` : null,
-                  l.birth_date ? `né(e) le ${new Date(`${l.birth_date}T12:00:00`).toLocaleDateString('fr-FR')}${l.birth_place.trim() ? ` à ${l.birth_place.trim()}` : ''}` : (l.birth_place.trim() ? `né(e) à ${l.birth_place.trim()}` : null),
+                  l.birth_date ? `né(e) le ${l.birth_date}${l.birth_place.trim() ? ` à ${l.birth_place.trim()}` : ''}` : (l.birth_place.trim() ? `né(e) à ${l.birth_place.trim()}` : null),
                   l.job_title.trim() || null, l.email.trim() || null,
                   l.ssn.trim() ? 'n° de sécurité sociale indiqué' : (l.ssn_present ? 'n° de sécurité sociale déjà connu' : null),
                 ].filter(Boolean)
@@ -201,6 +220,7 @@ function FenetreParticipants({ etat, onEnregistrer, onFermer }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

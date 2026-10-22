@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { LogOut, Sparkles, ImagePlus, X, Loader2, SmilePlus } from 'lucide-react'
 import { brandLogo } from '../../../core/branding/BrandingProvider'
 
@@ -195,7 +196,8 @@ export function PersonnaliserEspace({ prenom: p0 = '', photo: f0 = null, onEnreg
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
   }, [onFermer])
-  return (
+  // Rendue au niveau de la page (22/10) : jamais coupée par une carte animée
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onFermer}>
       <div role="dialog" aria-modal="true" aria-labelledby="perso-titre" className="vitrine-monte w-full sm:max-w-md bg-white rounded-t-ui-lg sm:rounded-ui-lg p-5 space-y-4" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3">
@@ -226,6 +228,7 @@ export function PersonnaliserEspace({ prenom: p0 = '', photo: f0 = null, onEnreg
           <button type="button" className="btn btn-primary" onClick={enregistrer} disabled={occupe}>{occupe && <Loader2 className="w-4 h-4 animate-spin" />}Enregistrer</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
