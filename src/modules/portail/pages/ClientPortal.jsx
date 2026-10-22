@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Lock, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, ShieldCheck, Clock, Phone, Mail, Globe, Accessibility, ArrowRight, Sparkles, GraduationCap, Printer } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
@@ -16,6 +16,7 @@ import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import ParticipantsSession from '../components/ParticipantsSession'
 import DeposerSigne from '../components/DeposerSigne'
+import RecapSession from '../components/RecapSession'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
@@ -204,6 +205,13 @@ export default function ClientPortal() {
   function toPdfSession(s) {
     return { ...s, clients: data.client, courses: s.courses || {}, trainers: s.trainers || null }
   }
+  // Salariés déjà connus du client, pour les retrouver dans la saisie des participants (0437)
+  const chargerSalaries = useCallback(async () => {
+    const { data: d, error: e } = await supabase.rpc('client_portal_salaries_connus', { p_token: token, p_code: code })
+    return e || !Array.isArray(d) ? [] : d
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Session issue d'un devis (22/10, décision de H) : convocations visibles une fois validées et envoyées par
   // l'organisme (chaque participant présent a reçu la sienne), jamais avant la signature de la convention
   const convocationsEnAttente = (s) => !!participants[s.id]?.devis && (!s.convention_signed
@@ -427,6 +435,7 @@ export default function ClientPortal() {
               {lieu && <span className="flex items-start gap-1.5"><MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" aria-hidden="true" />{lieu}</span>}
               <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />{nb} participant{nb > 1 ? 's' : ''}{s.trainers ? `, formateur ${s.trainers.first_name} ${s.trainers.last_name}` : ''}</span>
             </div>
+            {!finished && <RecapSession s={s} lieu={lieu} sansHoraires />}
             {nb > 0 && (
               <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Participants">
                 {(s.session_trainees || []).map(st => (
@@ -436,11 +445,11 @@ export default function ClientPortal() {
                 ))}
               </ul>
             )}
-            <ParticipantsSession etat={participants[s.id]} onEnregistrer={(liste) => enregistrerParticipants(s.id, liste)} />
+            <ParticipantsSession etat={participants[s.id]} onEnregistrer={(liste) => enregistrerParticipants(s.id, liste)} chargerSalaries={chargerSalaries} />
             {!s.convention_signed && !finished && (() => {
               // Session issue d'un devis : la convention se signe une fois la session confirmée et les participants saisis
               const et = participants[s.id]
-              const attente = et?.devis ? (et.validation_requise ? 'Votre organisme confirme les dates de la session.' : (et.participants || []).length === 0 ? 'Saisissez d\'abord vos participants.' : null) : null
+              const attente = et?.devis ? (et.validation_requise ? 'Votre organisme confirme les dates de la session.' : (et.participants || []).length === 0 ? 'Saisissez d\'abord vos participants.' : (et.participants || []).some((x) => x.statut === 'attente') ? 'votre organisme confirme d\'abord les places en plus du maximum.' : null) : null
               const dep = depotDe('session', s.id)
               if (dep?.status === 'recu') return (
                 <p className="mt-4 rounded-ui border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">Convention signée et déposée le {fmtDate(dep.deposited_at)} : votre organisme la valide.</p>

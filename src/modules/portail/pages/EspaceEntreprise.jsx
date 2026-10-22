@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
 import {
@@ -28,6 +28,7 @@ import MesDocuments from '../components/MesDocuments'
 import AvisEntreprise from '../components/AvisEntreprise'
 import ParticipantsSession from '../components/ParticipantsSession'
 import DeposerSigne from '../components/DeposerSigne'
+import RecapSession from '../components/RecapSession'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
@@ -263,6 +264,13 @@ function Formations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
+  // Salariés déjà connus du client, pour les retrouver dans la saisie des participants (0437)
+  const chargerSalaries = useCallback(async () => {
+    const { data: d, error: e } = await supabase.rpc('ent_salaries_connus')
+    return e || !Array.isArray(d) ? [] : d
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Session issue d'un devis (22/10, décision de H) : convocations visibles une fois validées et envoyées par
   // l'organisme (chaque participant présent a reçu la sienne), jamais avant la signature de la convention
   const convocationsEnAttente = (s) => !!participants[s.id]?.devis && (!s.convention_signed
@@ -347,6 +355,7 @@ function Formations() {
           {lieu && <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-gray-400" />{lieu}</span>}
           <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-gray-400" />{nb} participant{nb > 1 ? 's' : ''}{s.group_id ? ' (session inter)' : ''}</span>
         </div>
+        {!finie && <RecapSession s={s} lieu={lieu} />}
         {nb > 0 && (
           <ul className="mt-3 flex flex-wrap gap-1.5">
             {s.session_trainees.map((st) => (
@@ -356,11 +365,11 @@ function Formations() {
             ))}
           </ul>
         )}
-        {!s.group_id && <ParticipantsSession etat={participants[s.id]} onEnregistrer={(liste) => enregistrerParticipants(s.id, liste)} />}
+        {!s.group_id && <ParticipantsSession etat={participants[s.id]} onEnregistrer={(liste) => enregistrerParticipants(s.id, liste)} chargerSalaries={chargerSalaries} />}
         {!s.group_id && !s.convention_signed && !finie && (() => {
           // Session issue d'un devis : la convention se signe une fois la session confirmée et les participants saisis
           const et = participants[s.id]
-          const attente = et?.devis ? (et.validation_requise ? 'Votre organisme confirme les dates de la session.' : (et.participants || []).length === 0 ? 'Saisissez d\'abord vos participants.' : null) : null
+          const attente = et?.devis ? (et.validation_requise ? 'Votre organisme confirme les dates de la session.' : (et.participants || []).length === 0 ? 'Saisissez d\'abord vos participants.' : (et.participants || []).some((x) => x.statut === 'attente') ? 'votre organisme confirme d\'abord les places en plus du maximum.' : null) : null
           const dep = depots.find((x) => x.object_type === 'session' && x.object_id === s.id) || null
           if (dep?.status === 'recu') return (
             <p className="mt-3 rounded-ui border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">Convention signée et déposée le {fmtDate(dep.deposited_at)} : votre organisme la valide.</p>

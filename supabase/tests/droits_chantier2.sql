@@ -6293,6 +6293,98 @@ begin
     end;
   end if;
 
+  -- Circuit premium (0437) : genre, places en dépassement, confirmation de session, sessions supplémentaires, relances
+  if to_regprocedure('public.session_confirmer(uuid,jsonb)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare w_c uuid; w_co uuid; w_q uuid; w_d uuid; w_s uuid; w_s2 uuid; w_tr uuid; w_ok boolean; w_r jsonb; w_t uuid; w_et jsonb;
+    begin
+      insert into public.clients (name, address, postal_code, city) values ('Client essai 0437', '1 rue', '29000', 'Quimper') returning id into w_c;
+      insert into public.courses (title, duration_hours) values ('Formation essai 0437', 2) returning id into w_co;
+      select id into w_tr from public.trainers limit 1;
+      if w_tr is null then insert into public.trainers (first_name, last_name) values ('Formateur', 'Essai') returning id into w_tr; end if;
+      insert into public.quotes (client_id, status, quote_date, reference, object) values (w_c, 'sent', current_date, 'DEV-ESSAI-0437', 'Formation du 15 décembre 2099') returning id into w_q;
+      insert into public.quote_items (quote_id, position, description_title, quantity, unit_price_ht, tva_rate, total_ht, course_id) values (w_q, 0, 'Formation', 1, 500, 20, 500, w_co);
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      values ((select company_id from public.clients where id = w_c), w_c, 'quote', w_q, 'devis', 'Devis essai 0437', w_c || '/q.pdf', repeat('f', 64)) returning id into w_d;
+      perform app.portail_signer_document(w_c, 'lien', null, null, w_d, 'Essai Signataire', null, 'data:image/png;base64,iVBORw0KGgo=',
+        'J''ai lu le devis et je l''accepte. Mention : « Bon pour accord ».');
+      select id into w_s from public.sessions where quote_id = w_q;
+
+      -- Confirmation par la direction : contrôle des champs, puis enregistrement d'un bloc
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      w_ok := false;
+      begin perform public.session_confirmer(w_s, jsonb_build_object('start_date', '2099-12-15', 'start_time', '16:00', 'end_time', '14:00', 'trainer_id', w_tr, 'max_participants', 2, 'location_city', 'Quimper'));
+      exception when sqlstate '22023' then w_ok := true; end;
+      perform public.session_confirmer(w_s, jsonb_build_object('start_date', '2099-12-15', 'start_time', '14:00', 'end_time', '16:00', 'trainer_id', w_tr,
+        'max_participants', 2, 'places_supplementaires', 1, 'location_name', 'Salle A', 'location_city', 'Quimper', 'total_price', 250));
+      w_s2 := public.session_ajouter_depuis_devis(w_s, jsonb_build_object('start_date', '2099-12-16', 'start_time', '14:00', 'end_time', '16:00', 'trainer_id', w_tr,
+        'max_participants', 10, 'location_name', 'Salle A', 'location_city', 'Quimper', 'total_price', 250));
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if w_ok and (select not validation_requise and start_time = '14:00' and end_time = '16:00' and day_type = 'half' and trainer_id = w_tr and max_participants = 2
+                   and places_supplementaires = 1 and total_price = 250 from public.sessions where id = w_s)
+         and (select quote_id = w_q and not validation_requise and start_date = date '2099-12-16' from public.sessions where id = w_s2)
+         and exists (select 1 from public.session_trainers where session_id = w_s and trainer_id = w_tr) then
+        v_lines := v_lines || 'OK      dir   0437 : session confirmée d''un bloc (horaires contrôlés, demi-journée, formateur), seconde session du devis'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0437 : confirmation de session'::text; end if;
+
+      -- Places : 2 + 1 en dépassement ; le 3e attend l'accord, un 4e est refusé
+      w_r := app.participants_enregistrer(w_c, 'lien', null, null, w_s,
+        '[{"first_name":"Ana","last_name":"Un","gender":"female","nom_naissance":"Deux"},{"first_name":"Bob","last_name":"Trois","gender":"male"},{"first_name":"Cy","last_name":"Quatre","gender":"non_binary"}]'::jsonb);
+      w_ok := false;
+      begin perform app.participants_enregistrer(w_c, 'lien', null, null, w_s, '[{"first_name":"A","last_name":"Un"},{"first_name":"B","last_name":"Deux"},{"first_name":"C","last_name":"Trois"},{"first_name":"D","last_name":"Quatre"}]'::jsonb);
+      exception when sqlstate '22023' then w_ok := true; end;
+      select trainee_id into w_t from public.session_places_attente where session_id = w_s;
+      if (w_r ->> 'inscrits')::int = 2 and (w_r ->> 'attente')::int = 1 and w_ok
+         and (select gender = 'female' and nom_naissance = 'DEUX' from public.trainees where client_id = w_c and first_name = 'Ana')
+         and (select first_name from public.trainees where id = w_t) = 'Cy' then
+        v_lines := v_lines || 'OK      base  0437 : genre et nom de naissance enregistrés, participant en plus du maximum en attente, plafond tenu'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0437 : places en dépassement ' || coalesce(w_r::text, '')); end if;
+
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.participant_attente_decider(w_s, w_t, true);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      w_et := (select e from jsonb_array_elements(app.participants_etat(w_c)) e where e ->> 'session_id' = w_s::text);
+      if (select count(*) from public.session_trainees where session_id = w_s) = 3 and not exists (select 1 from public.session_places_attente where session_id = w_s)
+         and jsonb_array_length(w_et -> 'participants') = 3 and (w_et ->> 'places_supplementaires')::int = 1
+         and jsonb_array_length(app.salaries_du_client(w_c)) = 3 and not (app.salaries_du_client(w_c) -> 0 ? 'ssn') then
+        v_lines := v_lines || 'OK      dir   0437 : participant accepté et inscrit ; salariés du client retrouvés sans n° de sécurité sociale'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0437 : accord et salariés connus'::text; end if;
+
+      -- Relances : seconde session sans participants à moins de 10 jours
+      update public.sessions set start_date = current_date + 5, end_date = current_date + 5 where id = w_s2;
+      insert into public.client_contacts (client_id, name, email) values (w_c, 'Contact Essai', 'contact@test.invalid') returning id into w_t;
+      update public.sessions set contact_id = w_t where id = w_s2;
+      -- Interrupteur fermé : rien n'est dû ; ouvert : la relance est due
+      if exists (select 1 from jsonb_array_elements(public.circuit_relances_dues()) e where e ->> 'session_id' = w_s2::text) then w_ok := false; else w_ok := true; end if;
+      insert into public.auto_send_switches (company_id, kind, enabled) values ((select company_id from public.sessions where id = w_s2), 'relance_circuit', true)
+        on conflict (company_id, kind) do update set enabled = true, suspended_until = null;
+      w_r := (select e from jsonb_array_elements(public.circuit_relances_dues()) e where e ->> 'session_id' = w_s2::text);
+      perform public.circuit_relance_marquer(w_s2, 'participants', 'contact@test.invalid');
+      if w_ok and w_r ->> 'kind' = 'participants' and w_r ->> 'email' = 'contact@test.invalid'
+         and not exists (select 1 from jsonb_array_elements(public.circuit_relances_dues()) e where e ->> 'session_id' = w_s2::text) then
+        v_lines := v_lines || 'OK      base  0437 : relance des participants due à J-10, une seule fois, seulement envoi automatique ouvert'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0437 : relances ' || coalesce(w_r::text, '')); end if;
+      w_ok := false;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.circuit_relances_dues(); exception when insufficient_privilege then w_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if w_ok then v_lines := v_lines || 'OK      dir   0437 : relances calculées par le serveur seulement'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0437 : relances lisibles par un compte'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0437 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

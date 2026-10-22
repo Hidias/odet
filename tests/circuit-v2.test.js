@@ -3,12 +3,17 @@ import { describe, it, expect } from 'vitest'
 import { erreursLigne } from '../src/modules/portail/components/ParticipantsSession'
 import { estMobile } from '../src/core/fichiers/imprimer'
 
-const ligne = (x = {}) => ({ first_name: 'Léa', last_name: 'Martin', naissance_identique: true, nom_naissance: '', email: '', ssn: '', birth_date: '', birth_place: '', job_title: '', ...x })
+const ligne = (x = {}) => ({ first_name: 'Léa', last_name: 'Martin', gender: '', nom_naissance: 'MARTIN', email: '', ssn: '', birth_date: '', birth_place: '', job_title: '', ...x })
 
 describe('participants saisis par le client', () => {
   it('accepte nom et prénom seuls', () => expect(erreursLigne(ligne())).toEqual([]))
   it('refuse un nom illisible', () => expect(erreursLigne(ligne({ first_name: '123' }))).toContain('nom ou prénom illisible'))
-  it('demande le nom de naissance si différent', () => expect(erreursLigne(ligne({ naissance_identique: false }))).toContain('nom de naissance à indiquer'))
+  it('refuse un nom de naissance illisible', () => expect(erreursLigne(ligne({ nom_naissance: '123' }))).toContain('nom de naissance illisible'))
+  it('pré-remplit depuis un salarié connu', async () => {
+    const { ligneDepuis } = await import('../src/modules/portail/components/ParticipantsSession')
+    const l = ligneDepuis({ first_name: 'Léa', last_name: 'Martin', nom_naissance: null, gender: 'female', birth_date: '1985-05-02', statut: 'attente' })
+    expect(l).toMatchObject({ nom_naissance: 'MARTIN', naissance_modifiee: false, gender: 'female', birth_date: '02/05/1985', statut: 'attente' })
+  })
   it('contrôle le n° de sécurité sociale', () => {
     expect(erreursLigne(ligne({ ssn: '1 85 05 78 006 084 91' }))).toEqual([])
     expect(erreursLigne(ligne({ ssn: '1850578006084' }))).toEqual([])
