@@ -227,6 +227,10 @@ export default function TraineePortal() {
   const [decharge, setDecharge] = useState(null)
   const [dechargeOuverte, setDechargeOuverte] = useState(false)
   const [apresDecharge, setApresDecharge] = useState(null)
+  // N° introuvable (0440) : après 3 essais refusés, le stagiaire peut demander à son entreprise de le transmettre
+  const [essaisNir, setEssaisNir] = useState(0)
+  const [demandeNir, setDemandeNir] = useState(null)
+  const [autorisationOuverte, setAutorisationOuverte] = useState(false)
   // Numéro de sécurité sociale déjà connu : jamais renvoyé, seulement ses 3 derniers chiffres
   const [ssnOnFile, setSsnOnFile] = useState({ known: false, last3: '' })
   const [codeError, setCodeError] = useState('')
@@ -246,6 +250,20 @@ export default function TraineePortal() {
   const [formErrors, setFormErrors] = useState({})
   // Contexte de vérification du n° de sécurité sociale (genre et date de naissance saisis dans la fiche)
   const ctxNir = { gender: infoForm.gender, birth_date: /^\d{2}\/\d{2}\/\d{4}$/.test(infoForm.birth_date_display || '') ? infoForm.birth_date_display.split('/').reverse().join('-') : null }
+  const dateCourte = (d) => (d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '')
+  // Sous le champ du numéro : demande déjà faite, ou proposée après 3 essais refusés (0440)
+  const aideNir = demandeNir?.demandee && !demandeNir?.renseigne ? (
+    <p className="text-ui-sm mt-2 rounded-ui bg-[rgb(var(--c-success-bg))] text-gray-800 p-2">
+      {demandeNir.envoyee_le
+        ? `Demande envoyée à votre entreprise le ${dateCourte(demandeNir.envoyee_le)} : elle saisira votre numéro, laissez la case vide.`
+        : `Demande signée le ${dateCourte(demandeNir.signed_at)} : votre organisme la transmet à votre entreprise, qui saisira votre numéro. Laissez la case vide.`}
+    </p>
+  ) : essaisNir >= 3 && !demandeNir?.demandee ? (
+    <div className="mt-2 rounded-ui border border-gray-200 bg-gray-50 p-3">
+      <p className="text-ui-sm text-gray-800">Votre numéro ne passe pas ? Votre entreprise le connaît et peut nous le transmettre, avec votre accord.</p>
+      <button type="button" className="btn btn-secondary btn-sm mt-2" onClick={() => setAutorisationOuverte(true)}>Demander à mon entreprise</button>
+    </div>
+  ) : null
   // Passeport de prévention (module actif) : le numéro part chiffré par le serveur, jamais par les fonctions du portail
   const [pp, setPp] = useState({ enabled: false })
 
@@ -390,6 +408,9 @@ export default function TraineePortal() {
       setDecharge(null)
       supabase.rpc('portail_decharge_nir_etat', { p_token: token, p_trainee_id: trainee.id, p_ticket: ticket })
         .then(({ data }) => setDecharge(data || null)).catch(() => setDecharge(null))
+      setDemandeNir(null); setEssaisNir(0)
+      supabase.rpc('portail_nir_demande_etat', { p_token: token, p_trainee_id: trainee.id, p_ticket: ticket })
+        .then(({ data }) => setDemandeNir(data && !data.error ? data : null)).catch(() => setDemandeNir(null))
       setPositioningQuestions(questions)
       setPositioningTestCompleted(testCompleted)
 
@@ -471,12 +492,12 @@ export default function TraineePortal() {
     if (pp.enabled) {
       if (!pp.refuse) {
         if (!String(pp.nom || '').trim()) errors.pp = 'Nom de naissance requis, ou cochez la case'
-        else if (!pp.nir && !pp.nir_present) errors.pp = 'Numéro requis, ou cochez la case'
+        else if (!pp.nir && !pp.nir_present && !demandeNir?.demandee) errors.pp = 'Numéro requis, ou cochez la case'
         else if (pp.nir && !normaliserNir(pp.nir, { saisie: true }).ok) errors.pp = normaliserNir(pp.nir, { saisie: true }).error
       }
     } else if (!infoForm.ssn_refused) {
       const ssnNumbers = infoForm.ssn.replace(/\s/g, '')
-      if (!ssnNumbers) { if (!ssnOnFile.known) errors.ssn = 'Numéro requis, ou cochez "Je refuse"' }
+      if (!ssnNumbers) { if (!ssnOnFile.known && !demandeNir?.demandee) errors.ssn = 'Numéro requis, ou cochez "Je refuse"' }
       else if (!verifierNir(ssnNumbers).ok) errors.ssn = verifierNir(ssnNumbers).erreurs[0]
     }
     if (!infoForm.gender) errors.gender = 'Genre requis'
@@ -485,6 +506,8 @@ export default function TraineePortal() {
     if (!infoForm.job_title) errors.job_title = 'Intitulé du poste requis'
     if (!infoForm.training_expectations || infoForm.training_expectations.trim().length === 0) errors.training_expectations = 'Vos attentes sont requises'
     setFormErrors(errors)
+    // Numéro tapé puis refusé : un essai de plus (au 3e, la demande à l'entreprise est proposée)
+    if ((errors.ssn && infoForm.ssn) || (errors.pp && pp.nir)) setEssaisNir((n) => n + 1)
     if (Object.keys(errors).length > 0) return
 
     setSubmitting(true)
@@ -603,6 +626,38 @@ export default function TraineePortal() {
     setApresDecharge(null)
     if (suite) suite()
   }
+  // ---------------- Demande du numéro à l'entreprise (0440) ----------------
+  const orgDuPortail = async () => {
+    const { data: org, error } = await supabase.rpc('portail_org_stagiaire', { p_token: token, p_trainee_id: selectedTrainee.id, p_ticket: portalTicket })
+    if (error || !org) throw new Error('Organisme introuvable')
+    return (await prepareOrgForPDF(org)) || org
+  }
+  const genererAutorisation = async (sig = null) =>
+    generatePasseportPreventionPDF('autorisation', await orgDuPortail(), donneesDecharge(session, selectedTrainee, sig)).output('datauristring').split(',')[1]
+  const signerAutorisation = async ({ signature, sha256, nom }) => {
+    const { data, error } = await supabase.rpc('portail_nir_demander', {
+      p_token: token, p_trainee_id: selectedTrainee.id, p_ticket: portalTicket, p_signature: signature, p_hash: sha256, p_nom: nom,
+    })
+    if (error) throw new Error(error.message || 'Signature impossible')
+    let envoyeeLe = null
+    if (data?.envoi_auto && !data?.deja) {
+      try {
+        const pdf = await genererAutorisation({ id: data.signature_id, signature_data: signature, signed_at: data.signed_at })
+        const r = await fetch('/api/nir-demande', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 'portail', token, trainee_id: selectedTrainee.id, ticket: portalTicket, signature_id: data.signature_id, pdf }),
+        })
+        const j = await r.json().catch(() => ({}))
+        if (j.envoye) envoyeeLe = new Date().toISOString()
+      } catch { /* l'organisme est prévenu et envoie la demande lui-même */ }
+    }
+    setDemandeNir({ demandee: true, signature_id: data?.signature_id, signed_at: data?.signed_at, envoyee_le: envoyeeLe, renseigne: false })
+    setInfoForm((f) => ({ ...f, ssn: '' }))
+    if (pp.enabled) setPp((p) => ({ ...p, nir: '' }))
+    setFormErrors((e) => ({ ...e, ssn: undefined, pp: undefined }))
+    setAutorisationOuverte(false)
+  }
+
   const reporterDecharge = () => {
     setDechargeOuverte(false)
     const suite = apresDecharge
@@ -929,6 +984,10 @@ export default function TraineePortal() {
           <DechargeNir genererPdf={genererDecharge} nom={[selectedTrainee.first_name, (selectedTrainee.last_name || '').toUpperCase()].filter(Boolean).join(' ')}
             onSigner={signerDecharge} onPlusTard={reporterDecharge} />
         )}
+        {autorisationOuverte && selectedTrainee && (
+          <DechargeNir variante="autorisation" genererPdf={() => genererAutorisation()} nom={[selectedTrainee.first_name, (selectedTrainee.last_name || '').toUpperCase()].filter(Boolean).join(' ')}
+            onSigner={signerAutorisation} onPlusTard={() => setAutorisationOuverte(false)} />
+        )}
         {/* En-tête aux couleurs de l'organisme */}
         <div className="bg-nav text-nav-fg rounded-t-ui-lg p-5 relative overflow-hidden">
           <div className="relative">
@@ -1038,7 +1097,10 @@ export default function TraineePortal() {
                 </div>
 
                 {pp.enabled ? (
-                  <PasseportPortalBlock value={pp} onChange={setPp} error={formErrors.pp} ctx={ctxNir} />
+                  <div>
+                    <PasseportPortalBlock value={pp} onChange={setPp} error={formErrors.pp} ctx={ctxNir} />
+                    {!pp.refuse && !pp.nir_present && aideNir}
+                  </div>
                 ) : (
                 <div>
                   <label className={labelClass} htmlFor="portail-nir">Numéro de Sécurité sociale {!infoForm.ssn_refused && '*'}</label>
@@ -1049,6 +1111,7 @@ export default function TraineePortal() {
                   {ssnOnFile.known && !infoForm.ssn_refused && !infoForm.ssn && (
                     <p className="text-ui-sm mt-1 text-gray-500">Numéro déjà enregistré. Laissez vide pour le conserver, ou saisissez-le pour le corriger.</p>
                   )}
+                  {!infoForm.ssn_refused && !ssnOnFile.known && aideNir}
                   <label className="flex items-start gap-2 mt-2 cursor-pointer">
                     <input type="checkbox" checked={infoForm.ssn_refused}
                       onChange={(e) => setInfoForm({ ...infoForm, ssn_refused: e.target.checked, ssn: e.target.checked ? '' : infoForm.ssn })} className="w-4 h-4 mt-0.5 accent-[rgb(var(--c-accent-500))]" />

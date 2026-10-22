@@ -27,6 +27,7 @@ import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import AvisEntreprise from '../components/AvisEntreprise'
 import ParticipantsSession from '../components/ParticipantsSession'
+import NumerosDemandes from '../components/NumerosDemandes'
 import DeposerSigne from '../components/DeposerSigne'
 import RecapSession from '../components/RecapSession'
 import { imprimer } from '../../../core/fichiers/imprimer'
@@ -271,6 +272,17 @@ function Formations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // N° de sécurité sociale demandés par les salariés (0440)
+  const chargerDemandesNir = useCallback(async () => {
+    const { data: d, error: e } = await supabase.rpc('ent_nir_demandes')
+    return e || !Array.isArray(d) ? [] : d
+  }, [])
+  const transmettreNir = async (traineeId, nir) => {
+    const { data: d, error: e } = await supabase.rpc('ent_nir_transmettre', { p_trainee: traineeId, p_nir: nir })
+    if (e || d?.error) throw new Error(e?.message || d?.error || 'Enregistrement impossible')
+    return d
+  }
+
   // Session issue d'un devis (22/10, décision de H) : convocations visibles une fois validées et envoyées par
   // l'organisme (chaque participant présent a reçu la sienne), jamais avant la signature de la convention
   const convocationsEnAttente = (s) => !!participants[s.id]?.devis && (!s.convention_signed
@@ -410,6 +422,7 @@ function Formations() {
 
   return (
     <div className="space-y-5">
+      <NumerosDemandes charger={chargerDemandesNir} transmettre={transmettreNir} />
       {upcoming.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">À venir ou en cours</h2><div className="space-y-3">{upcoming.map((s) => <Session key={`${s.id}${s.group_id || ''}`} s={s} finie={false} />)}</div></section>}
       {aSigner && (
         <SignerConvention session={aSigner} signataire={{ name: aSigner.signatory_name, role: aSigner.signatory_role }}

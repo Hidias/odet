@@ -19,8 +19,11 @@ export function donneesDecharge(session = {}, trainee = {}, sig = null) {
     dates: debut && fin && debut !== fin ? `du ${debut} au ${fin}` : debut,
     signature: sig?.signature_data || null,
     signedAt: sig?.signed_at || null,
+    signatureId: sig?.id || null,
   }
 }
 
 export const nomFichierDecharge = (trainee = {}) =>
   `Decharge_NIR_${String(trainee.last_name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_')}_${String(trainee.first_name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_')}.pdf`
+
+export const nomFichierAutorisation = (trainee = {}) => nomFichierDecharge(trainee).replace(/^Decharge_NIR_/, 'Autorisation_NIR_')

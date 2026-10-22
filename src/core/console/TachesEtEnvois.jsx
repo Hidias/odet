@@ -37,6 +37,7 @@ export const TYPES_ENVOI = [
   { kind: 'visite_hors_contrat', label: 'Vérifications à prévoir', aide: 'Clients sans contrat dont le matériel arrive à échéance' },
   { kind: 'justificatif_prestataire', label: 'Justificatifs des prestataires', aide: 'Documents manquants ou périmés' },
   { kind: 'relance_circuit', label: 'Relances du circuit de formation', aide: 'Au client : participants non saisis à J-10, convention non signée à J-7' },
+  { kind: 'demande_nir', label: 'Demande du n° de sécurité sociale', aide: "Au contact de l'entreprise, dès que le stagiaire signe l'autorisation (sinon : envoi depuis la session)" },
 ]
 
 const quand = (d) => (d ? `${format(new Date(d), "d MMM 'à' HH'h'mm", { locale: fr })} (il y a ${formatDistanceToNowStrict(new Date(d), { locale: fr })})` : '')
