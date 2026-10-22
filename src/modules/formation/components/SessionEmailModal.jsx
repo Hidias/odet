@@ -11,6 +11,7 @@ import { generateSatisfactionEntreprisePDF } from '../pdf/satisfactionEntreprise
 import { useDataStore } from '../../../core/store'
 import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPasseportPrevention'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
+import { donneesDecharge, nomFichierDecharge } from '../../prevention/lib/dechargeNir'
 import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
@@ -443,7 +444,7 @@ Veuillez trouver ci-joints les documents relatifs à la formation "${courseTitle
 
 Merci de nous retourner la convention signée ainsi que l'analyse du besoin complétée et signée avant le début de la formation.
 
-Concernant le Passeport de Prévention : conformément au Décret n° 2025-748 du 1er août 2025, nous déclarons les formations santé-sécurité dans le Passeport de prévention national. La notice stagiaire est à remettre à chaque participant. Si un salarié refuse de communiquer son NIR, merci de lui faire signer la décharge jointe.
+Concernant le Passeport de Prévention : conformément au Décret n° 2025-748 du 1er août 2025, nous déclarons les formations santé-sécurité dans le Passeport de prévention national. La notice stagiaire est à remettre à chaque participant. Un salarié qui ne souhaite pas communiquer son numéro de sécurité sociale signe la décharge en ligne depuis son portail stagiaire ; à défaut, merci de lui faire signer la décharge jointe.
 
 Concernant les convocations, chacune contient un QR code et un lien permettant aux stagiaires de se connecter à notre portail en ligne. Ils pourront y renseigner leurs informations personnelles, indiquer leurs attentes et participer à un test de positionnement avant le début de la formation. Ce test n'a aucun caractère certificatif : il vise uniquement à évaluer leur niveau de connaissances préalable afin de mieux adapter la formation à leur niveau.${espace ? "\n\nLa convention peut aussi être signée en ligne depuis votre espace client : l'adresse, le QR code et votre code d'accès figurent dans l'encadré « Signer en ligne » en fin de convention." : ''}
 
@@ -599,6 +600,34 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         if (attestations) {
           files.push({ id: 'attestations', name: attestations.filename, base64: attestations.base64, size: attestations.size })
           addLog('Attestations générées')
+        }
+
+        // ── PASSEPORT DE PRÉVENTION : numéro non communiqué (0436, décision de H du 22/10) ──
+        // Décharges signées dans le portail jointes ; un paragraphe dit à l'entreprise que la déclaration lui revient
+        try {
+          const refusants = (session?.session_trainees || []).filter((st) => st.trainees?.refused_ssn && !st.absent).map((st) => st.trainees)
+          if (refusants.length) {
+            const { data: decharges } = await supabase.from('document_signatures').select('trainee_id, signature_data, signed_at')
+              .eq('session_id', session.id).eq('document_type', 'decharge_nir').eq('status', 'valid')
+            const orgPP = (await prepareOrgForPDF(organization)) || organization
+            const signees = []
+            for (const t of refusants) {
+              const sig = (decharges || []).find((d) => d.trainee_id === t.id)
+              if (!sig) continue
+              const base64 = generatePasseportPreventionPDF('decharge', orgPP, donneesDecharge(session, t, sig)).output('datauristring').split(',')[1]
+              files.push({ id: `decharge_nir_${t.id}`, name: nomFichierDecharge(t), base64, size: base64.length })
+              signees.push(t)
+            }
+            const nomDe = (t) => `${t.first_name || ''} ${(t.last_name || '').toUpperCase()}`.trim()
+            const liste = (l) => (l.length > 1 ? `${l.slice(0, -1).map(nomDe).join(', ')} et ${nomDe(l[l.length - 1])}` : nomDe(l[0]))
+            const sansDecharge = refusants.filter((t) => !signees.includes(t))
+            const paragraphe = `\n\nPasseport de prévention : ${liste(refusants)} ${refusants.length > 1 ? "n'ont" : "n'a"} pas souhaité communiquer ${refusants.length > 1 ? 'leur' : 'son'} numéro de sécurité sociale. Nous ne pouvons donc pas déclarer cette formation dans ${refusants.length > 1 ? 'leur' : 'son'} passeport de prévention : conformément à l'article 7 du décret n° 2025-748 du 1er août 2025, cette déclaration vous revient, depuis votre espace employeur du Passeport de prévention.${signees.length ? ` ${signees.length > 1 ? 'Les décharges signées sont jointes' : 'La décharge signée est jointe'} (${liste(signees)}).` : ''}${sansDecharge.length ? ` Décharge non signée en ligne pour ${liste(sansDecharge)}.` : ''}`
+            setEmailBody((prev) => (prev.includes('Passeport de prévention : ') ? prev : prev.replace(/\n\nNous vous remercions pour votre confiance/, `${paragraphe}\n\nNous vous remercions pour votre confiance`)))
+            addLog(`Passeport de prévention : ${refusants.length} numéro(s) non communiqué(s), ${signees.length} décharge(s) jointe(s)`)
+          }
+        } catch (e) {
+          console.error('Décharges NIR :', e)
+          addLog('Décharges du Passeport de prévention non jointes')
         }
 
         // ── ÉMARGEMENT (signatures stagiaires + signature formateur) ──
