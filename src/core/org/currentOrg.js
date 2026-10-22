@@ -20,6 +20,13 @@ export function setSocieteCache(identite) {
     city: identite.city, siret: identite.siret, nda: identite.nda, doc_prefix: identite.doc_prefix,
   } : null
 }
+// Comptes qui ne font pas partie de l'équipe (22/10 : un compte de l'espace entreprise apparaissait parmi les
+// interlocuteurs d'un devis) : clients et stagiaires ont un profil pour se connecter, ils ne sont jamais proposés
+// comme membre de l'équipe. Filtre PostgREST à passer à .or() sur les lectures de profiles.
+export const ROLES_HORS_EQUIPE = ['entreprise', 'stagiaire']
+export const FILTRE_EQUIPE = `role.is.null,role.not.in.(${ROLES_HORS_EQUIPE.join(',')})`
+export const estEquipe = (p) => !ROLES_HORS_EQUIPE.includes(p?.role)
+
 export function setTeamCache(list) { teamCache = Array.isArray(list) ? list : [] }
 export function setCurrentProfile(p) { meCache = p || null }
 

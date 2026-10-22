@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { valeurOrigine } from './apports'
+import { FILTRE_EQUIPE } from '../org/currentOrg'
 
 // Choix de l'origine (0409) : un membre de l'équipe ou un apporteur extérieur. Valeur « p:<id> » ou « c:<id> ».
 let cache = null
 export async function chargerOrigines(force = false) {
   if (cache && !force) return cache
   const [p, c] = await Promise.all([
-    supabase.from('profiles').select('id, display_name, first_name, last_name, email, is_active').order('display_name'),
+    supabase.from('profiles').select('id, display_name, first_name, last_name, email, is_active').or(FILTRE_EQUIPE).order('display_name'),
     supabase.from('business_contributors').select('id, name, kind, active, introduced_by_profile, introduced_by_contributor').order('name'),
   ])
   // equipe : comptes actifs (choix) ; tous : aussi les comptes désactivés, pour nommer l'historique

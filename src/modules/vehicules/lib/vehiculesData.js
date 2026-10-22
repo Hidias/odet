@@ -5,6 +5,7 @@
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { compresser } from '../../../core/feedback/retours'
+import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 export const nombre = (v) => (v === '' || v == null ? null : Number(String(v).replace(/\s/g, '').replace(',', '.')))
@@ -37,7 +38,7 @@ export const chargerPleins = async (vehicleId = null) => {
 export const chargerConsommation = async (vehicleId) => must(await supabase.from('v_vehicle_consumption').select('*').eq('vehicle_id', vehicleId).order('filled_at'))
 export const chargerEvenements = async (vehicleId) => must(await supabase.from('vehicle_events').select('*').eq('vehicle_id', vehicleId).order('happened_on', { ascending: false }))
 export const chargerRegles = async (vehicleId) => must(await supabase.from('vehicle_maintenance_rules').select('*').eq('vehicle_id', vehicleId).order('kind'))
-export const chargerComptes = async () => must(await supabase.from('profiles').select('id, first_name, last_name, display_name, email, is_active').order('last_name'))
+export const chargerComptes = async () => must(await supabase.from('profiles').select('id, first_name, last_name, display_name, email, is_active').or(FILTRE_EQUIPE).order('last_name'))
 export const nomCompte = (p) => (p ? (`${p.first_name || ''} ${p.last_name || ''}`.trim() || p.display_name || p.email) : '')
 
 export async function enregistrerVehicule(v) {

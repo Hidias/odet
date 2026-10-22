@@ -7,6 +7,7 @@ import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { profileName } from '../../../core/org/currentOrg'
 import { DEFAULT_OPERATION_LABELS, todayIso } from './schedule'
 import { computeDocumentTotals, lineTotal } from '../../../core/billing/totals'
+import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 
@@ -54,7 +55,7 @@ export async function loadTechnicians({ all = false } = {}) {
     .map((r) => ({ id: r.profile_id, name: profileName(r.profiles), phone: r.profiles.phone, email: r.profiles.email, color: r.color, is_active: r.is_active && r.profiles.is_active }))
     .sort((a, b) => a.name.localeCompare(b.name, 'fr', { numeric: true }))
 }
-export const loadStaffProfiles = async () => must(await supabase.from('profiles').select('id, first_name, last_name, display_name, email, role, is_active').order('created_at'))
+export const loadStaffProfiles = async () => must(await supabase.from('profiles').select('id, first_name, last_name, display_name, email, role, is_active').or(FILTRE_EQUIPE).order('created_at'))
 export async function setTechnician(profileId, on, color) {
   if (on) return must(await supabase.from('itv_technicians').upsert({ profile_id: profileId, is_active: true, ...(color ? { color } : {}) }))
   return must(await supabase.from('itv_technicians').update({ is_active: false }).eq('profile_id', profileId))

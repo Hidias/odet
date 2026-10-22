@@ -8,6 +8,7 @@ import { supabase } from '../../../core/supabase'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { AffaireSheet, EchangeSheet, useListesCommerciales } from './AffaireSheets'
 import { urgence, URGENCES, FERMEES, CANAUX, euros } from '../lib/affaires'
+import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
 
 // Fiche client, bloc « Commercial » (chantier 10, 0380) : ce que le client achète déjà (calculé), ses affaires,
 // et les informations commerciales de la fiche (segment, source, responsable, opposition), modifiables en un clic.
@@ -34,7 +35,7 @@ export default function AffairesClient({ client, peutModifierFiche, peutAffaires
   }, [client.id])
   useEffect(() => { charger() }, [charger])
   useEffect(() => {
-    supabase.from('profiles').select('id, display_name').eq('is_active', true).order('display_name')
+    supabase.from('profiles').select('id, display_name').eq('is_active', true).or(FILTRE_EQUIPE).order('display_name')
       .then(({ data }) => setComptes(data || []))
   }, [])
 

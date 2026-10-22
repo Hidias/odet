@@ -1,13 +1,14 @@
 // Actions de l'équipe (0407) : une seule table pour le point de la semaine, le bilan, les réunions et la saisie libre.
 import { supabase } from '../supabase'
 import { decaler, iso } from './pointSemaine'
+import { FILTRE_EQUIPE } from '../org/currentOrg'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 
 export const STATUTS_ACTION = { a_faire: 'À faire', fait: 'Fait', abandonne: 'Abandonné' }
 
 export async function chargerEquipe() {
-  const { data } = await supabase.from('profiles').select('id, display_name, first_name, last_name, email, is_active').eq('is_active', true).order('display_name')
+  const { data } = await supabase.from('profiles').select('id, display_name, first_name, last_name, email, is_active').eq('is_active', true).or(FILTRE_EQUIPE).order('display_name')
   return (data || []).filter((p) => p.email)
 }
 

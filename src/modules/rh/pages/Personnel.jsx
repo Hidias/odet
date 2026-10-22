@@ -30,6 +30,7 @@ import MonEspace from './MonEspace'
 import TableauRH from './TableauRH'
 import RegistrePaie from './RegistrePaie'
 import { EntretiensFiche, ListesFiche } from './EntretiensListes'
+import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const euros = (n) => Number(n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -135,7 +136,7 @@ function FichePersonneSheet({ personne = null, onClose, onSaved }) {
   const [busy, setBusy] = useState(false)
   const [comptes, setComptes] = useState([])
   useEffect(() => {
-    supabase.from('profiles').select('id, first_name, last_name, display_name, email, is_active').order('last_name')
+    supabase.from('profiles').select('id, first_name, last_name, display_name, email, is_active').or(FILTRE_EQUIPE).order('last_name')
       .then(({ data }) => setComptes((data || []).filter((c) => c.is_active !== false || c.id === personne?.profile_id)))
   }, [personne?.profile_id])
   const m = (k) => (e) => setV({ ...v, [k]: e.target.value })
