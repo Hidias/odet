@@ -15,8 +15,8 @@ describe('participants saisis par le client', () => {
     expect(erreursLigne(ligne({ ssn: '185057800608492' })).join()).toMatch(/clé/)
   })
   it('refuse une date de naissance invraisemblable', () => {
-    expect(erreursLigne(ligne({ birth_date: '2020-01-01' }))).toContain('date de naissance invraisemblable')
-    expect(erreursLigne(ligne({ birth_date: '1985-05-02' }))).toEqual([])
+    expect(erreursLigne(ligne({ birth_date: '01/01/2020' }))).toContain('date de naissance invraisemblable')
+    expect(erreursLigne(ligne({ birth_date: '02/05/1985' }))).toEqual([])
   })
   it('contrôle l\'e-mail', () => expect(erreursLigne(ligne({ email: 'lea@' }))).toContain('e-mail invalide'))
 })
@@ -28,5 +28,15 @@ describe('impression', () => {
     expect(estMobile('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 5)).toBe(true)
     expect(estMobile('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 0)).toBe(false)
     expect(estMobile('Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 0)).toBe(false)
+  })
+})
+
+describe('date de naissance en JJ/MM/AAAA', () => {
+  it('convertit et refuse une date impossible', async () => {
+    const { versIso } = await import('../src/modules/portail/components/ParticipantsSession')
+    expect(versIso('02/05/1985')).toBe('1985-05-02')
+    expect(versIso('31/02/1985')).toBeNull()
+    expect(versIso('1985-05-02')).toBeNull()
+    expect(erreursLigne(ligne({ birth_date: '1985' }))).toContain('date de naissance au format JJ/MM/AAAA')
   })
 })

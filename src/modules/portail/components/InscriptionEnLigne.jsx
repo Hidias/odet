@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Loader2, Plus, Trash2, CheckCircle } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 
@@ -47,7 +48,8 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
     setFait(true)
   }
 
-  return (
+  // Rendue au niveau de la page (22/10) : jamais coupée par une carte animée
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-label="Inscription en ligne">
       <div className="bg-white w-full sm:max-w-lg rounded-t-ui-lg sm:rounded-ui-lg max-h-[92vh] overflow-y-auto p-4 space-y-3">
         <div className="flex items-start gap-2">
@@ -122,6 +124,7 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

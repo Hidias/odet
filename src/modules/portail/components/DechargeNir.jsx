@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { FileText, Loader2, PenLine, ShieldCheck, X } from 'lucide-react'
 import PadSimple from '../../../ui/signature/PadSimple'
 import { empreinte } from '../../../core/portail/journal'
@@ -50,7 +51,8 @@ export default function DechargeNir({ genererPdf, nom, onSigner, onPlusTard }) {
   }
 
   const pret = pdf && lu && accepte && trace && !envoi
-  return (
+  // Rendue au niveau de la page (22/10) : dans une carte animée, la fenêtre était coupée et ne défilait pas
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="titre-decharge">
       <div className="bg-white w-full sm:max-w-lg rounded-t-ui-lg sm:rounded-ui-lg max-h-[92vh] overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-start justify-between gap-3">
@@ -91,6 +93,7 @@ export default function DechargeNir({ genererPdf, nom, onSigner, onPlusTard }) {
             Signature électronique simple : la date, l'heure, l'adresse IP, l'appareil et l'empreinte du document sont enregistrés comme preuve.</p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

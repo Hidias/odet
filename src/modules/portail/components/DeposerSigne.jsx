@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Printer, Upload, Camera, Loader2, X, CheckCircle2, FileText } from 'lucide-react'
 import { preparerDepot, tailleLisible, enBase64 } from '../../../core/fichiers/compression'
 
@@ -36,7 +37,8 @@ export default function DeposerSigne({ titre = 'Imprimer, signer et déposer', n
     } catch (err) { setErreur(err.message || 'Dépôt impossible, réessayez.') } finally { setOccupe(false) }
   }
 
-  return (
+  // Rendue au niveau de la page (22/10) : dans une carte animée, la fenêtre était coupée et ne défilait pas
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onFermer}>
       <div role="dialog" aria-modal="true" aria-labelledby="depot-titre" className="vitrine-monte w-full sm:max-w-lg bg-white rounded-t-ui-lg sm:rounded-ui-lg max-h-[92vh] overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-start justify-between gap-3">
@@ -83,6 +85,7 @@ export default function DeposerSigne({ titre = 'Imprimer, signer et déposer', n
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
