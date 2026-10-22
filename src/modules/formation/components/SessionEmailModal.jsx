@@ -565,32 +565,17 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
 
         // ── DOCUMENTS PASSEPORT PRÉVENTION (3 PDF depuis Storage) ──
         addLog('Documents Passeport Prévention...')
-        // Notices générées aux couleurs de l'organisme ; la décharge reste un fichier du Storage
+        // Notices et décharge générées aux couleurs de l'organisme
         try {
           const orgForPP = (await prepareOrgForPDF(organization)) || organization
-          ;[['notice_stagiaire_pp', 'stagiaire', 'Notice_Stagiaire_Passeport_Prevention.pdf'], ['notice_employeur_pp', 'entreprise', 'Notice_Employeur_Passeport_Prevention.pdf']].forEach(([id, version, name]) => {
+          // Décharge « NIR non communiqué » générée elle aussi (22/10 : le fichier du stockage manquait)
+          ;[['notice_stagiaire_pp', 'stagiaire', 'Notice_Stagiaire_Passeport_Prevention.pdf'], ['notice_employeur_pp', 'entreprise', 'Notice_Employeur_Passeport_Prevention.pdf'], ['decharge_nir_pp', 'decharge', 'Decharge_NIR_non_communique_Passeport_Prevention.pdf']].forEach(([id, version, name]) => {
             const base64 = generatePasseportPreventionPDF(version, orgForPP).output('datauristring').split(',')[1]
             files.push({ id, name, base64, size: base64.length })
           })
         } catch (e) {
           console.error('Erreur notices Passeport Prévention:', e)
           addLog('Notices Passeport Prévention non générées')
-        }
-        const passeportDocs = [
-          { id: 'decharge_nir_pp', path: 'templates/passeport-prevention/Decharge_Refus_NIR_Passeport_Prevention.pdf', name: 'Decharge_Refus_NIR_Passeport_Prevention.pdf' },
-        ]
-        for (const doc of passeportDocs) {
-          try {
-            const { data: blob, error: dlError } = await supabase.storage
-              .from('documents')
-              .download(doc.path)
-            if (dlError) throw dlError
-            const base64 = await blobToBase64(blob)
-            files.push({ id: doc.id, name: doc.name, base64, size: base64.length })
-          } catch (e) {
-            console.error(`Erreur téléchargement ${doc.name}:`, e)
-            addLog(`${doc.name} non trouvé dans Storage`)
-          }
         }
         addLog('Documents Passeport Prévention ajoutés')
 
