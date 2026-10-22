@@ -1370,6 +1370,12 @@ tdx('0432', 'client_shared_documents', sel=any_of(f"company_id in {societes('cli
 # client ; ajoutés par le serveur, décidés seulement par public.depot_client_decider (aucune règle d'écriture).
 tdx('0431', 'client_deposits', sel=f"company_id in {societes('clients.fiches.voir')}")
 
+# Places en dépassement (0437) : participants saisis par le client au-delà du maximum, en attente de l'accord de
+# l'organisme ; lus avec le suivi des sessions, décidés seulement par public.participant_attente_decider.
+tdx('0437', 'session_places_attente', sel=f"company_id in {societes('formation.suivi.voir')}")
+# Relances du circuit (0437) : trace des relances envoyées au client, lue avec le suivi, écrite par le serveur.
+tdx('0437', 'circuit_relances', sel=f"company_id in {societes('formation.suivi.voir')}")
+
 # Point de la semaine (0407) : les actions de l'équipe sont lues et modifiées par la direction (droit du cockpit),
 # et par leur responsable ou leur auteur ; tout membre d'une société en ajoute ; effacées par la direction ou leur
 # auteur. Point, bilan et destinataires : direction (cockpit) ; chacun voit s'il est destinataire ; les destinataires
