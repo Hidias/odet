@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { Loader2, Lock } from 'lucide-react'
 import { apiPasseport, enregistrerNom, enregistrerRefus, loadNirEtat } from '../lib/ppData'
 import { nomAVerifier, nomPortail, normaliserNir } from '../lib/rules'
+import ChampNir from '../../../core/nir/ChampNir'
 
 import { confirmer } from '../../../ui/Confirm'
 export default function PasseportTraineeBlock({ trainee, onChange, compact = false }) {
@@ -40,7 +41,7 @@ export default function PasseportTraineeBlock({ trainee, onChange, compact = fal
   }
 
   const saveNir = async (force = false) => {
-    const n = normaliserNir(nir)
+    const n = normaliserNir(nir, { saisie: true })
     if (!n.ok) { toast.error(n.error); return }
     setBusy(true)
     try {
@@ -100,8 +101,8 @@ export default function PasseportTraineeBlock({ trainee, onChange, compact = fal
         )}
         {saisie ? (
           <div className="space-y-2">
-            <input className="input font-mono" inputMode="text" autoComplete="off" placeholder="13 caractères, ou 15 avec la clé"
-              value={nir} onChange={(e) => { setNir(e.target.value); setEcarts(null) }} aria-label="Nouveau numéro de sécurité sociale" />
+            <ChampNir id={`pp-nir-${trainee.id}`} value={nir} onChange={(v) => { setNir(v); setEcarts(null) }}
+              ctx={{ gender: trainee.gender, birth_date: trainee.birth_date }} placeholder="15 caractères, clé comprise" />
             {ecarts && (
               <div className="text-ui-sm text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))] rounded-ui p-2">
                 {ecarts}. <button type="button" className="underline" onClick={() => saveNir(true)}>Enregistrer quand même</button>

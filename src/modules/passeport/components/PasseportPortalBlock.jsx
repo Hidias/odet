@@ -1,12 +1,13 @@
 // Portail stagiaire : bloc « Votre Passeport de prévention » de la fiche de renseignement.
 // Affiché seulement quand le module est actif. Le numéro saisi part chiffré par le serveur et n'est jamais
 // renvoyé : au retour, on n'affiche que ses 3 derniers caractères.
+import ChampNir from '../../../core/nir/ChampNir'
 
 const inputClass = 'w-full px-3 py-2.5 border border-gray-200 rounded-ui text-base focus:border-accent-400 focus:ring-2 focus:ring-accent-100'
 const labelClass = 'block text-ui font-medium text-gray-800 mb-1'
 const errorClass = 'text-ui-sm text-[rgb(var(--c-danger))] mt-1'
 
-export default function PasseportPortalBlock({ value, onChange, error }) {
+export default function PasseportPortalBlock({ value, onChange, error, ctx = {} }) {
   const v = value || {}
   const set = (patch) => onChange({ ...v, ...patch })
   return (
@@ -26,11 +27,11 @@ export default function PasseportPortalBlock({ value, onChange, error }) {
       </div>
       <div>
         <label className={labelClass} htmlFor="pp-nir">Numéro de sécurité sociale {!v.refuse && !v.nir_present && '*'}</label>
-        <input id="pp-nir" type="text" inputMode="text" autoComplete="off" value={v.nir || ''} disabled={v.refuse} maxLength={21}
-          placeholder={v.refuse ? 'Non communiqué' : (v.nir_present ? `Déjà enregistré, se termine par ${v.fin}` : '1 23 45 67 890 123 45')}
-          onChange={(e) => set({ nir: e.target.value.toUpperCase() })} className={`${inputClass} font-mono ${v.refuse ? 'bg-gray-50 text-gray-400' : ''}`} />
+        <ChampNir id="pp-nir" value={v.nir || ''} disabled={v.refuse} ctx={ctx}
+          placeholder={v.refuse ? 'Non communiqué' : (v.nir_present ? `Déjà enregistré, se termine par ${v.fin}` : '1 85 05 78 006 084 36')}
+          onChange={(nir) => set({ nir })} className={`${inputClass} ${v.refuse ? 'bg-gray-50 text-gray-400' : ''}`} />
         <p className="text-ui-sm text-gray-500 mt-1">
-          {v.nir_present && !v.refuse ? 'Laissez vide pour le conserver, ou saisissez-le pour le corriger. ' : 'Sur votre carte Vitale. '}
+          {v.nir_present && !v.refuse ? 'Laissez vide pour le conserver, ou saisissez-le pour le corriger. ' : 'Sur votre carte Vitale : 15 caractères, clé comprise. '}
           Il est chiffré dès l'envoi et ne s'affichera plus jamais en entier.
         </p>
       </div>

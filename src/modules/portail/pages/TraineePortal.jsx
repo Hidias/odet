@@ -25,6 +25,8 @@ import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPassepor
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { portailPasseport } from '../../passeport/lib/ppData'
 import { normaliserNir } from '../../passeport/lib/rules'
+import ChampNir from '../../../core/nir/ChampNir'
+import { verifierNir } from '../../../core/nir/verifierNir'
 
 // Portail stagiaire : identification, fiche de renseignement, positionnement (quiz),
 // émargement par signature, entraînement, évaluation des acquis, satisfaction.
@@ -150,26 +152,6 @@ const evalQuestions = {
 
 const EVAL_KEYS = Object.values(evalQuestions).flat().map((q) => q.key)
 
-const formatSSN = (value) => {
-  const numbers = value.replace(/\D/g, '').slice(0, 15)
-  const t = numbers
-  if (t.length <= 1) return t
-  if (t.length <= 3) return `${t.slice(0, 1)} ${t.slice(1)}`
-  if (t.length <= 5) return `${t.slice(0, 1)} ${t.slice(1, 3)} ${t.slice(3)}`
-  if (t.length <= 7) return `${t.slice(0, 1)} ${t.slice(1, 3)} ${t.slice(3, 5)} ${t.slice(5)}`
-  if (t.length <= 10) return `${t.slice(0, 1)} ${t.slice(1, 3)} ${t.slice(3, 5)} ${t.slice(5, 7)} ${t.slice(7)}`
-  if (t.length <= 13) return `${t.slice(0, 1)} ${t.slice(1, 3)} ${t.slice(3, 5)} ${t.slice(5, 7)} ${t.slice(7, 10)} ${t.slice(10)}`
-  return `${t.slice(0, 1)} ${t.slice(1, 3)} ${t.slice(3, 5)} ${t.slice(5, 7)} ${t.slice(7, 10)} ${t.slice(10, 13)} ${t.slice(13)}`
-}
-
-const validateSSNKey = (ssn) => {
-  const numbers = ssn.replace(/\s/g, '')
-  if (numbers.length !== 15) return false
-  const ssnNumber = numbers.slice(0, 13)
-  const key = parseInt(numbers.slice(13, 15), 10)
-  return key === 97 - (parseInt(ssnNumber, 10) % 97)
-}
-
 const inputClass = 'w-full px-3 py-2.5 border border-gray-200 rounded-ui text-base focus:border-accent-400 focus:ring-2 focus:ring-accent-100'
 const labelClass = 'block text-ui font-medium text-gray-800 mb-1'
 const errorClass = 'text-ui-sm text-[rgb(var(--c-danger))] mt-1'
@@ -262,6 +244,8 @@ export default function TraineePortal() {
     last_training_year: '', highest_diploma: '', csp: '', job_title: '', training_expectations: '', gender: '', rgpd_consent: false,
   })
   const [formErrors, setFormErrors] = useState({})
+  // Contexte de vérification du n° de sécurité sociale (genre et date de naissance saisis dans la fiche)
+  const ctxNir = { gender: infoForm.gender, birth_date: /^\d{2}\/\d{2}\/\d{4}$/.test(infoForm.birth_date_display || '') ? infoForm.birth_date_display.split('/').reverse().join('-') : null }
   // Passeport de prévention (module actif) : le numéro part chiffré par le serveur, jamais par les fonctions du portail
   const [pp, setPp] = useState({ enabled: false })
 
@@ -488,14 +472,12 @@ export default function TraineePortal() {
       if (!pp.refuse) {
         if (!String(pp.nom || '').trim()) errors.pp = 'Nom de naissance requis, ou cochez la case'
         else if (!pp.nir && !pp.nir_present) errors.pp = 'Numéro requis, ou cochez la case'
-        else if (pp.nir && !normaliserNir(pp.nir).ok) errors.pp = normaliserNir(pp.nir).error
+        else if (pp.nir && !normaliserNir(pp.nir, { saisie: true }).ok) errors.pp = normaliserNir(pp.nir, { saisie: true }).error
       }
     } else if (!infoForm.ssn_refused) {
       const ssnNumbers = infoForm.ssn.replace(/\s/g, '')
       if (!ssnNumbers) { if (!ssnOnFile.known) errors.ssn = 'Numéro requis, ou cochez "Je refuse"' }
-      else if (ssnNumbers.length !== 15) errors.ssn = 'Le numéro doit contenir 15 chiffres (13 + clé)'
-      else if (!/^\d{15}$/.test(ssnNumbers)) errors.ssn = 'Le numéro ne doit contenir que des chiffres'
-      else if (!validateSSNKey(infoForm.ssn)) errors.ssn = 'La clé de contrôle est incorrecte, vérifiez votre numéro'
+      else if (!verifierNir(ssnNumbers).ok) errors.ssn = verifierNir(ssnNumbers).erreurs[0]
     }
     if (!infoForm.gender) errors.gender = 'Genre requis'
     if (!infoForm.highest_diploma) errors.highest_diploma = 'Diplôme requis'
@@ -1056,21 +1038,16 @@ export default function TraineePortal() {
                 </div>
 
                 {pp.enabled ? (
-                  <PasseportPortalBlock value={pp} onChange={setPp} error={formErrors.pp} />
+                  <PasseportPortalBlock value={pp} onChange={setPp} error={formErrors.pp} ctx={ctxNir} />
                 ) : (
                 <div>
-                  <label className={labelClass}>Numéro de Sécurité sociale {!infoForm.ssn_refused && '*'}</label>
-                  <input type="text" value={infoForm.ssn} onChange={(e) => setInfoForm({ ...infoForm, ssn: formatSSN(e.target.value) })}
-                    disabled={infoForm.ssn_refused} placeholder={infoForm.ssn_refused ? 'Non communiqué' : (ssnOnFile.known ? `Déjà enregistré (se termine par ${ssnOnFile.last3})` : '1 23 45 67 890 123 45')} maxLength={21}
-                    className={`${inputClass} font-mono ${infoForm.ssn_refused ? 'bg-gray-50 text-gray-400' : ''}`} />
+                  <label className={labelClass} htmlFor="portail-nir">Numéro de Sécurité sociale {!infoForm.ssn_refused && '*'}</label>
+                  <ChampNir id="portail-nir" value={infoForm.ssn} onChange={(v) => setInfoForm({ ...infoForm, ssn: v })} ctx={ctxNir}
+                    disabled={infoForm.ssn_refused} placeholder={infoForm.ssn_refused ? 'Non communiqué' : (ssnOnFile.known ? `Déjà enregistré (se termine par ${ssnOnFile.last3})` : '1 85 05 78 006 084 36')}
+                    className={`${inputClass} ${infoForm.ssn_refused ? 'bg-gray-50 text-gray-400' : ''}`} aide={!ssnOnFile.known ? 'Sur votre carte Vitale : 15 caractères, clé comprise.' : null} />
                   {formErrors.ssn && <p className={errorClass}>{formErrors.ssn}</p>}
                   {ssnOnFile.known && !infoForm.ssn_refused && !infoForm.ssn && (
                     <p className="text-ui-sm mt-1 text-gray-500">Numéro déjà enregistré. Laissez vide pour le conserver, ou saisissez-le pour le corriger.</p>
-                  )}
-                  {infoForm.ssn && !infoForm.ssn_refused && infoForm.ssn.replace(/\s/g, '').length === 15 && (
-                    <p className={`text-ui-sm mt-1 ${validateSSNKey(infoForm.ssn) ? 'text-[rgb(var(--c-success))]' : 'text-[rgb(var(--c-warning))]'}`}>
-                      {validateSSNKey(infoForm.ssn) ? 'Numéro valide' : 'Clé de contrôle incorrecte, vérifiez votre saisie'}
-                    </p>
                   )}
                   <label className="flex items-start gap-2 mt-2 cursor-pointer">
                     <input type="checkbox" checked={infoForm.ssn_refused}

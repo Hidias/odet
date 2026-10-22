@@ -3,10 +3,11 @@ import { describe, it, expect } from 'vitest'
 import { erreursLigne } from '../src/modules/portail/components/ParticipantsSession'
 import { estMobile } from '../src/core/fichiers/imprimer'
 
-const ligne = (x = {}) => ({ first_name: 'Léa', last_name: 'Martin', gender: '', naissance_differente: false, nom_naissance: '', email: '', ssn: '', birth_date: '', birth_place: '', job_title: '', ...x })
+const ligne = (x = {}) => ({ first_name: 'Léa', last_name: 'Martin', gender: 'female', naissance_differente: false, nom_naissance: '', email: '', ssn: '', birth_date: '', birth_place: '', job_title: '', ...x })
 
 describe('participants saisis par le client', () => {
-  it('accepte nom et prénom seuls', () => expect(erreursLigne(ligne())).toEqual([]))
+  it('accepte nom, prénom et genre seuls', () => expect(erreursLigne(ligne())).toEqual([]))
+  it('demande le genre', () => expect(erreursLigne(ligne({ gender: '' }))).toContain('genre à indiquer'))
   it('refuse un nom illisible', () => expect(erreursLigne(ligne({ first_name: '123' }))).toContain('nom ou prénom illisible'))
   it('demande le nom de naissance quand il est différent', () => expect(erreursLigne(ligne({ naissance_differente: true, nom_naissance: '' }))).toContain('nom de naissance à indiquer'))
   it('pré-remplit depuis un salarié connu', async () => {
@@ -16,8 +17,8 @@ describe('participants saisis par le client', () => {
   })
   it('contrôle le n° de sécurité sociale', () => {
     expect(erreursLigne(ligne({ ssn: '1 85 05 78 006 084 91' }))).toEqual([])
-    expect(erreursLigne(ligne({ ssn: '1850578006084' }))).toEqual([])
-    expect(erreursLigne(ligne({ ssn: '185057800608492' })).join()).toMatch(/clé/)
+    expect(erreursLigne(ligne({ ssn: '1850578006084' }))).toContain('n° de sécurité sociale à corriger (ou laissez la case vide)')
+    expect(erreursLigne(ligne({ ssn: '185057800608492' }))).toContain('n° de sécurité sociale à corriger (ou laissez la case vide)')
   })
   it('refuse une date de naissance invraisemblable', () => {
     expect(erreursLigne(ligne({ birth_date: '01/01/2020' }))).toContain('date de naissance invraisemblable')

@@ -248,7 +248,7 @@ async function handler(req, res) {
       } else {
         if (!nom) return res.status(400).json({ error: 'Nom de naissance requis' })
         if (body.nir) {
-          const n = normaliserNir(body.nir)
+          const n = normaliserNir(body.nir, { saisie: true })
           if (!n.ok) return res.status(400).json({ error: n.error })
           // Sexe et date de naissance : ceux de la fiche en cours de saisie s'ils sont fournis, sinon ceux en base
           const { data: t } = await admin.from('trainees').select('gender, birth_date').eq('id', traineeId).maybeSingle()
@@ -273,7 +273,7 @@ async function handler(req, res) {
     if (action === 'staff-save') {
       const traineeId = body.trainee_id
       if (!traineeId) return res.status(400).json({ error: 'Stagiaire manquant' })
-      const n = normaliserNir(body.nir)
+      const n = normaliserNir(body.nir, { saisie: true })
       if (!n.ok) return res.status(400).json({ error: n.error })
       const { data: t } = await admin.from('trainees').select('gender, birth_date').eq('id', traineeId).maybeSingle()
       if (!t) return res.status(404).json({ error: 'Stagiaire non trouvé' })
