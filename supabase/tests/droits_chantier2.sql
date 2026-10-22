@@ -6470,6 +6470,14 @@ begin
       perform set_config('request.jwt.claims', '', true);
       if m_l ? 'error' then v_lines := v_lines || 'OK      anon  0440 : demandes illisibles sans le bon code'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0440 : demandes lisibles sans code'::text; end if;
+      -- Numéro passé dans le Passeport (reprise) : toujours connu pour l'entreprise (0441)
+      delete from public.trainee_ssn where trainee_id = m_t;
+      update public.trainees set ssn_present = false where id = m_t;
+      insert into public.pp_nir (trainee_id, nir_chiffre, fin) values (m_t, 'v1:essai', right(m_cle, 3)) on conflict (trainee_id) do nothing;
+      if (select bool_or((p ->> 'ssn_present')::boolean) from jsonb_array_elements(app.salaries_du_client(m_cl)) p where p ->> 'trainee_id' = m_t::text) then
+        v_lines := v_lines || 'OK      base  0441 : n° passé dans le Passeport toujours vu comme connu par l''entreprise'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0441 : n° du Passeport vu comme manquant'::text; end if;
+      v_total := v_total + 1;
       m_ok := false;
       begin delete from public.document_signatures where id = m_sig; exception when insufficient_privilege then m_ok := true; end;
       if m_ok then v_lines := v_lines || 'OK      base  0440 : l''autorisation signée ne s''efface pas'::text;
