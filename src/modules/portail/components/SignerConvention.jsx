@@ -1,4 +1,5 @@
-// Signature de la convention depuis l'espace client (0402). Le client lit le PDF exact qu'il signe, coche son
+// Signature de la convention depuis l'espace client (0402). Le client ouvre et lit le PDF exact qu'il signe (obligatoire
+// avant de signer, rappel de H du 22/10), coche son
 // accord et signe à l'écran ; l'empreinte SHA-256 de ce PDF part avec la signature. La base relève l'adresse IP et
 // l'appareil, marque la session « convention signée » et prévient l'organisme.
 
@@ -79,13 +80,19 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
         </div>
         <div className="px-5 py-4 space-y-4">
           <div>
-            <p className="text-sm font-medium text-gray-800">1. Lisez {nomDocument}</p>
+            <p className="text-sm font-medium text-gray-800">1. Ouvrez et lisez {nomDocument} avant de signer</p>
             {pdf ? (
               <a href={pdf.url} target="_blank" rel="noreferrer" onClick={() => setLu(true)} className="mt-2 btn btn-secondary w-full justify-center gap-2">
                 <FileText className="w-4 h-4" aria-hidden="true" />Ouvrir {nomDocument} (PDF)
               </a>
             ) : !erreur && <p className="mt-2 text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />Préparation du document…</p>}
-            {pdf && !lu && <p className="mt-1 text-xs text-gray-500">Ouvrez-la pour pouvoir signer.</p>}
+            {pdf && (
+              <p className={`mt-1 text-xs ${lu ? 'text-gray-500' : 'text-accent-700'}`}>
+                {lu
+                  ? 'Vérifiez la prestation, les dates, le prix et les conditions : en signant, vous acceptez le document tel qu\'il est.'
+                  : 'Ouvrez le document et lisez-le en entier : la signature n\'est possible qu\'ensuite.'}
+              </p>
+            )}
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block text-sm"><span className="text-gray-600">Nom et prénom du signataire</span>
@@ -110,6 +117,7 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
             <span>{accord}</span>
           </label>
           {erreur && <p role="alert" className="text-sm text-[rgb(var(--c-danger))]">{erreur}</p>}
+          {pdf && !lu && <p className="text-xs text-gray-500">Pour signer, ouvrez d'abord le document (étape 1).</p>}
           <button type="button" onClick={signer} disabled={!pret} className="btn btn-primary w-full justify-center h-11 gap-2">
             {envoi ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <PenLine className="w-4 h-4" aria-hidden="true" />}{titre}
           </button>

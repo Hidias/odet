@@ -6,6 +6,7 @@
 import { startDocument, setF, numberPages, PAGE_MARGIN, drawImageFitted, drawKeyValues } from '../../../core/pdf/layout'
 import { dessinerEncadreEnLigne, hauteurEncadreEnLigne } from '../../../core/portail/lienEspace'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
+import { marquerZoneSignature } from '../../../core/signature/zone'
 
 export function fmtMoney(v) {
   var n = Math.abs(parseFloat(v) || 0).toFixed(2).split('.')
@@ -197,6 +198,7 @@ export function renderCommercialDoc(doc, Lsource, p) {
     doc.setDrawColor(...t.line); doc.setLineWidth(0.3)
     doc.rect(sx, by, totW, sh)
     if (p.signature.image) drawImageFitted(doc, p.signature.image, sx + 2, by + 1, totW - 4, sh - 2)
+    else marquerZoneSignature(doc, { x: sx, y: by, w: totW, h: sh })
     doc.setTextColor(...t.text)
     f.y = Math.max(by + sh, ys + (noteLines.length ? noteLines.length * 4 + 10 : 0), ys + hCote) + 6
     if (enLigneACote) enLigneBas = null

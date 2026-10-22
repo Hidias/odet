@@ -18,6 +18,7 @@ import { writeRichDoc } from '../../qualite/richdocs/richDocPDF'
 import { loadTemplateContext, buildTemplateContext, fillTemplate } from '../../../core/org/templateContext'
 import { formatHours, heuresDuDocument } from '../lib/presence'
 import { ajouterPagePreuve } from '../../../core/signature/preuve'
+import { marquerZoneSignature } from '../../../core/signature/zone'
 import { buildProgrammePDF, buildCataloguePDF } from './programmePDF'
 import { pictogrammePNG } from './pictogrammes'
 // Codes documentaires : préfixe propre à l'organisme (ORG.doc_prefix) + code du type de document
@@ -492,6 +493,9 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
   if (sigC?.signature_data) {
     const x2 = M + colW + gap
     drawImageFitted(doc, sigC.signature_data, x2 + 4, y + 12, colW - 8, boxH - 19)
+  } else if (!sigC) {
+    // Cadre réservé au client : la signature en ligne y sera reportée (zone.js)
+    marquerZoneSignature(doc, { x: M + colW + gap, y: y + 11, w: colW, h: boxH - 11 })
   }
   y += boxH
 
