@@ -229,6 +229,21 @@ function FenetreConfirmation({ session, onFermer, onFait }) {
     return `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ''}, ${min <= 270 ? 'demi-journée' : 'journée'}`
   }, [f.start_time, f.end_time])
 
+  // Horaires d'une journée qui ne collent pas à la durée de la formation (22/10 : 9 h–17 h préparé pour une
+  // formation de 2 heures) : alerte et fin proposée
+  const ecartDuree = useMemo(() => {
+    const h = Number(session.courses?.duration_hours)
+    if (!h || !f.start_time || !f.end_time || (f.end_date && f.end_date !== f.start_date)) return null
+    const [h1, m1] = f.start_time.split(':').map(Number); const [h2, m2] = f.end_time.split(':').map(Number)
+    const min = h2 * 60 + m2 - (h1 * 60 + m1)
+    const attendu = Math.round(h * 60)
+    if (attendu > 8 * 60 || Math.abs(min - attendu) <= 15) return null
+    // Une journée de 7 h garde sa pause de midi (9 h–17 h) : pas d'alerte
+    if (attendu >= 6 * 60 && min - attendu <= 90 && min >= attendu) return null
+    const fin = h1 * 60 + m1 + attendu
+    return fin < 24 * 60 ? `${String(Math.floor(fin / 60)).padStart(2, '0')}:${String(fin % 60).padStart(2, '0')}` : null
+  }, [session.courses?.duration_hours, f.start_time, f.end_time, f.start_date, f.end_date])
+
   const donnees = (base) => ({
     start_date: base.start_date, end_date: base.end_date || base.start_date, start_time: base.start_time, end_time: base.end_time,
     location_name: f.location_name, location_address: f.location_address, location_postal_code: f.location_postal_code, location_city: f.location_city,
@@ -278,6 +293,12 @@ function FenetreConfirmation({ session, onFermer, onFait }) {
             <h3 className="text-ui font-semibold text-gray-900 mb-2">{nbDevis > 1 ? `Session 1 sur ${nbDevis}` : 'Dates et horaires'}</h3>
             {ligneDates(f, maj, 'Session 1')}
             {duree && <p className="text-ui-sm text-gray-500 mt-1">{duree}{session.courses?.duration_hours ? ` (formation prévue : ${Number(session.courses.duration_hours)} h)` : ''}</p>}
+            {ecartDuree && (
+              <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1 flex items-center gap-2 flex-wrap">
+                <AlertTriangle className="w-4 h-4" aria-hidden="true" />Les horaires ne correspondent pas à la durée de la formation.
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => maj('end_time', ecartDuree)}>Finir à {ecartDuree.replace(':', 'h')}</button>
+              </p>
+            )}
           </section>
 
           {nbDevis > 1 && (
