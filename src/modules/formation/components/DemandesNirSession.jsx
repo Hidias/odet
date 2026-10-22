@@ -18,6 +18,7 @@ export default function DemandesNirSession({ session, peutEnvoyer = false }) {
   const { organization, fetchOrganization } = useDataStore()
   const [demandes, setDemandes] = useState([])
   const [envoi, setEnvoi] = useState(null)
+  const [dansPasseport, setDansPasseport] = useState(new Set())
 
   const charger = useCallback(async () => {
     if (!session?.id) return
@@ -26,6 +27,12 @@ export default function DemandesNirSession({ session, peutEnvoyer = false }) {
         .eq('session_id', session.id).eq('document_type', 'autorisation_nir').eq('status', 'valid').order('signed_at', { ascending: false }),
       supabase.from('session_emails_sent').select('created_at, to_email, attachments').eq('session_id', session.id).eq('email_type', 'demande_nir'),
     ])
+    // Numéro déjà passé dans le Passeport (reprise automatique) : reçu aussi
+    const ids = [...new Set((sigs || []).map((s) => s.trainee_id))]
+    if (ids.length) {
+      const { data: pp } = await supabase.rpc('pp_nir_etat', { p_trainee_ids: ids })
+      setDansPasseport(new Set((pp || []).map((x) => x.trainee_id)))
+    }
     setDemandes((sigs || []).map((s) => ({
       ...s,
       envoi: (mails || []).find((m) => (m.attachments || []).some((a) => a?.signature_id === s.id)) || null,
@@ -67,7 +74,7 @@ export default function DemandesNirSession({ session, peutEnvoyer = false }) {
       <ul className="mt-2 space-y-2">
         {demandes.map((d) => {
           const t = stagiaire(d.trainee_id)
-          const renseigne = !!t.ssn_present
+          const renseigne = !!t.ssn_present || dansPasseport.has(d.trainee_id)
           return (
             <li key={d.id} className="flex items-center justify-between gap-3 flex-wrap text-ui">
               <span>

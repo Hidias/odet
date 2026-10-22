@@ -158,6 +158,10 @@
     {
       "path": "/api/relances-circuit",
       "schedule": "0 8 * * 1-5"
+    },
+    {
+      "path": "/api/passeport",
+      "schedule": "*/15 * * * *"
     }
   ],
   "regions": [

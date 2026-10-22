@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { getAdminClient, requireRight } from './_lib/auth.js'
+import { getAdminClient, requireRight, hasCronSecret } from './_lib/auth.js'
 import {
   normaliserNir, ecartsNir, finNir, statutInscription, construireFichier, identifiants, nomFichier,
 } from '../src/modules/passeport/lib/rules.js'
@@ -100,6 +100,35 @@ async function etatStagiaire(admin, traineeId) {
     nir_present: !!n,
     fin: n?.fin || null,
   }
+}
+
+// Source unique (décision du 17/10) : les numéros saisis par l'ancien chemin (table trainee_ssn : liste des
+// participants et « Numéros demandés » de l'espace client, fiche hors module) passent dans pp_nir chiffré, puis sont
+// effacés. Automatique depuis le 22/10 (décision de H) : toutes les 15 minutes, à l'ouverture du Passeport et avant
+// chaque fichier. Aucun numéro dans la réponse ni dans les journaux.
+async function reprendreAnciens(admin, by, { dry = false } = {}) {
+  const { data: rows, error: e1 } = await admin.from('trainee_ssn').select('trainee_id, ssn')
+  if (e1) {
+    // Table absente (chantier 2 non appliqué) : rien à reprendre
+    if (e1.code === '42P01' || e1.code === 'PGRST205') return { en_attente: 0, repris: 0, invalides: 0, deja_dans_le_passeport: 0 }
+    throw Object.assign(new Error('Lecture impossible'), { code: e1.code })
+  }
+  const ids = (rows || []).map((r) => r.trainee_id)
+  if (dry) return { en_attente: ids.length }
+  const { data: deja } = await admin.from('pp_nir').select('trainee_id').in('trainee_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000'])
+  const dejaSet = new Set((deja || []).map((d) => d.trainee_id))
+  let repris = 0; let invalides = 0; let doublons = 0
+  for (const r of rows || []) {
+    if (!dejaSet.has(r.trainee_id)) {
+      const n = normaliserNir(r.ssn)
+      if (!n.ok) { invalides++; continue }
+      await enregistrerNir(admin, r.trainee_id, n.nir, 'fiche', by)
+      repris++
+    } else doublons++
+    await admin.from('trainee_ssn').delete().eq('trainee_id', r.trainee_id)
+    await admin.from('trainees').update({ ssn_present: false }).eq('id', r.trainee_id)
+  }
+  return { en_attente: invalides, repris, deja_dans_le_passeport: doublons, invalides }
 }
 
 // ── Fabrication des fichiers ──
@@ -226,6 +255,16 @@ async function demoMode(admin) {
 }
 
 async function handler(req, res) {
+  // Tâche planifiée (toutes les 15 minutes) : reprise des numéros saisis hors du Passeport
+  if (req.method === 'GET' && hasCronSecret(req)) {
+    let admin
+    try { admin = getAdminClient() } catch (e) { logErr('init', e); return res.status(500).json({ error: 'Serveur non configuré' }) }
+    try {
+      if (!(await moduleOn(admin))) return res.status(200).json({ ok: true, module: false })
+      const r = await reprendreAnciens(admin, null)
+      return res.status(200).json({ ok: true, repris: r.repris, invalides: r.invalides })
+    } catch (e) { logErr('reprise-auto', e); return res.status(500).json({ error: 'Reprise impossible' }) }
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
   const body = req.body || {}
   const action = body.action
@@ -283,35 +322,13 @@ async function handler(req, res) {
       return res.status(200).json({ ok: true, fin: finNir(n.nir) })
     }
 
-    // Source unique (décision du 17/10) : les numéros saisis par l'ancien chemin (table trainee_ssn du
-    // chantier 2, en clair côté base mais sans aucun accès direct) passent dans pp_nir chiffré, puis sont effacés.
-    // { dry: true } : compte seulement. Aucun numéro dans la réponse ni dans les journaux.
     if (action === 'reprise-ancien') {
-      const { data: rows, error: e1 } = await admin.from('trainee_ssn').select('trainee_id, ssn')
-      if (e1) {
-        // Table absente (chantier 2 non appliqué) : rien à reprendre
-        if (e1.code === '42P01' || e1.code === 'PGRST205') return res.status(200).json({ en_attente: 0, repris: 0, invalides: 0 })
-        throw e1
-      }
-      const ids = (rows || []).map((r) => r.trainee_id)
-      if (body.dry) return res.status(200).json({ en_attente: ids.length })
-      const { data: deja } = await admin.from('pp_nir').select('trainee_id').in('trainee_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000'])
-      const dejaSet = new Set((deja || []).map((d) => d.trainee_id))
-      let repris = 0; let invalides = 0; let doublons = 0
-      for (const r of rows || []) {
-        if (!dejaSet.has(r.trainee_id)) {
-          const n = normaliserNir(r.ssn)
-          if (!n.ok) { invalides++; continue }
-          await enregistrerNir(admin, r.trainee_id, n.nir, 'fiche', ctx.profile.id)
-          repris++
-        } else doublons++
-        await admin.from('trainee_ssn').delete().eq('trainee_id', r.trainee_id)
-        await admin.from('trainees').update({ ssn_present: false }).eq('id', r.trainee_id)
-      }
-      return res.status(200).json({ en_attente: invalides, repris, deja_dans_le_passeport: doublons, invalides })
+      return res.status(200).json(await reprendreAnciens(admin, ctx.profile.id, { dry: !!body.dry }))
     }
 
     if (action === 'generate') {
+      // Aucun numéro oublié : reprise juste avant le fichier
+      try { await reprendreAnciens(admin, ctx.profile.id) } catch (e) { logErr('reprise-avant-fichier', e) }
       const r = await generer(admin, ctx.profile, body)
       if (r.error) return res.status(r.status).json({ error: r.error })
       res.setHeader('Cache-Control', 'no-store')

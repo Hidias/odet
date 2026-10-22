@@ -42,8 +42,9 @@ export default function Passeport() {
   useEffect(() => { if (enabled && allowed) reload() }, [enabled, allowed, reload])
   useEffect(() => {
     if (!enabled || !allowed) return
-    apiPasseport('reprise-ancien', { dry: true }).then((r) => setAncien(r?.en_attente || 0)).catch(() => setAncien(0))
-  }, [enabled, allowed])
+    // Reprise automatique à l'ouverture (22/10) : seuls les numéros illisibles restent à vérifier
+    apiPasseport('reprise-ancien').then((r) => { setAncien(r?.en_attente || 0); if (r?.repris) reload() }).catch(() => setAncien(0))
+  }, [enabled, allowed, reload])
 
   const reprendre = async () => {
     setReprise({ busy: true, message: null })
@@ -145,9 +146,9 @@ export default function Passeport() {
         <h1 className="page-title">Passeport de prévention</h1>
       </div>
       {ancien > 0 && (
-        <Banner tone="warning" title={`${ancien} numéro(s) de sécurité sociale saisi(s) hors du Passeport`}
-          action={<Button size="sm" variant="secondary" loading={reprise.busy} onClick={reprendre}>Les reprendre dans le Passeport</Button>}>
-          Saisis avant l'activation du module ou par un ancien écran. Une fois repris, ils sont chiffrés ici et effacés de l'ancien emplacement.
+        <Banner tone="warning" title={`${ancien} numéro(s) de sécurité sociale illisible(s) à vérifier`}
+          action={<Button size="sm" variant="secondary" loading={reprise.busy} onClick={reprendre}>Réessayer</Button>}>
+          Saisis hors du Passeport et refusés à la reprise (format ou clé) : à ressaisir sur la fiche du stagiaire. Les autres numéros passent ici automatiquement.
         </Banner>
       )}
       {reprise.message && <Banner tone="info" onClose={() => setReprise({ busy: false, message: null })}>{reprise.message}</Banner>}
