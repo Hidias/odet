@@ -160,6 +160,9 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [toEmail, setToEmail] = useState('')
+  // Convocation envoyée aussi à chaque stagiaire qui a un e-mail (22/10, décision de H)
+  const [envoyerAuxStagiaires, setEnvoyerAuxStagiaires] = useState(true)
+  const stagiairesAvecMail = (session?.session_trainees || []).filter((st) => !st.absent && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(st.trainees?.email || '').trim()))
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -998,8 +1001,13 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
           throw new Error(`Erreur upload : ${file.name}`)
         }
 
-        uploadedPaths.push({ path: storagePath, filename: file.name })
+        uploadedPaths.push({ path: storagePath, filename: file.name, fileId: file.id })
       }
+      const convocationsStagiaires = emailType === 'before' && envoyerAuxStagiaires
+        ? uploadedPaths.filter((u) => String(u.fileId).startsWith('convocation_'))
+          .map((u) => ({ traineeId: String(u.fileId).slice('convocation_'.length), path: u.path }))
+          .filter((c) => stagiairesAvecMail.some((st) => st.trainee_id === c.traineeId))
+        : []
 
       // 2) Appeler l'API avec les chemins (léger)
       const response = await apiFetch('/api/send-email-session', {
@@ -1010,9 +1018,10 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
           to: toEmail,
           subject: emailSubject,
           body: emailBody,
-          attachmentPaths: uploadedPaths,
+          attachmentPaths: uploadedPaths.map(({ path, filename }) => ({ path, filename })),
           sessionId: session.id,
-          emailType
+          emailType,
+          convocationsStagiaires,
         })
       })
 
@@ -1032,6 +1041,9 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       }
 
       setStep('sent')
+      const st = result.stagiaires
+      if (st?.envoyes) toast.success(`Convocation envoyée aussi à ${st.envoyes} stagiaire${st.envoyes > 1 ? 's' : ''}`)
+      if (st?.echecs?.length) toast.error(`Convocation non envoyée à : ${st.echecs.join(', ')}`, { duration: 8000 })
       toast.success('Email envoyé avec succès !')
       setTimeout(() => onClose(true), 2000)
 
@@ -1393,6 +1405,14 @@ Réponds uniquement avec le texte du compte rendu, sans titre ni introduction.`
                   className="w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-ui"
                   placeholder="email@exemple.fr"
                 />
+                {emailType === 'before' && (stagiairesAvecMail.length > 0 ? (
+                  <label className="mt-2 flex items-start gap-2 text-ui-sm text-gray-700">
+                    <input type="checkbox" className="mt-0.5 rounded" checked={envoyerAuxStagiaires} onChange={(e) => setEnvoyerAuxStagiaires(e.target.checked)} />
+                    <span>Envoyer aussi à chaque stagiaire sa propre convocation, dans un message à part ({stagiairesAvecMail.length} avec e-mail : {stagiairesAvecMail.map((st) => `${st.trainees?.first_name || ''} ${(st.trainees?.last_name || '').toUpperCase()}`.trim()).join(', ')}).</span>
+                  </label>
+                ) : (session?.session_trainees || []).length > 0 && (
+                  <p className="mt-2 text-ui-sm text-gray-500">Aucun stagiaire n'a d'e-mail : seule l'entreprise reçoit les convocations.</p>
+                ))}
               </div>
 
               {/* Objet */}

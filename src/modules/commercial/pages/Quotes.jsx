@@ -51,7 +51,9 @@ const STATUS_CONFIG = {
   refused: { label: 'Refusé', class: 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]', icon: '' },
   expired: { label: 'Expiré', class: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', icon: '' },
   partial: { label: 'Partiellement accepté', class: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]', icon: '' },
-  invoiced: { label: 'Facturé', class: 'bg-gray-100 text-gray-800', icon: '' }
+  invoiced: { label: 'Facturé', class: 'bg-gray-100 text-gray-800', icon: '' },
+  // Remplacé par une version plus récente, acceptée (0435)
+  replaced: { label: 'Remplacé', class: 'bg-gray-100 text-gray-500 line-through', icon: '' },
 }
 
 const PAYMENT_METHODS = [
@@ -339,7 +341,29 @@ export default function Quotes() {
     setMode('create')
   }
 
+  // Devis signé par le client (0435, décision de H du 22/10) : il ne se modifie plus ; un changement passe par une
+  // nouvelle version (V2, V3…) à faire signer, la session suivra la version acceptée
   async function openEdit(quote) {
+    if (['accepted', 'partial', 'invoiced', 'replaced'].includes(quote.status)) {
+      const { data: signe } = await supabase.rpc('devis_est_signe', { p_quote: quote.id })
+      if (signe) {
+        if (quote.status === 'replaced') { toast.error('Ce devis est remplacé par une version plus récente : modifiez la dernière version.'); return }
+        if (quote.status === 'invoiced') { toast.error('Devis signé et facturé : un changement passe par un avoir et une nouvelle facture.'); return }
+        const ok = await confirmer({
+          title: 'Devis signé par le client',
+          message: `Le devis ${quote.reference} est signé : il ne se modifie plus. Créer une nouvelle version (${String(quote.reference || '').replace(/-V\d+$/, '')}-V${(quote.version || 1) + 1}) à modifier puis faire signer ? Le devis signé reste valable tant que la nouvelle version n'est pas acceptée.`,
+          confirmLabel: 'Créer la nouvelle version', cancelLabel: 'Annuler',
+        })
+        if (!ok) return
+        const { data: idV, error: eV } = await supabase.rpc('devis_nouvelle_version', { p_quote: quote.id })
+        if (eV || !idV) { toast.error(eV?.message || 'Nouvelle version impossible'); return }
+        const { data: v } = await supabase.from('quotes').select('*').eq('id', idV).maybeSingle()
+        if (!v) { toast.error('Nouvelle version introuvable'); return }
+        toast.success(`Version ${v.reference} créée : modifiez-la puis envoyez-la au client.`)
+        loadAll()
+        return openEdit(v)
+      }
+    }
     const loadedItems = await loadQuoteItems(quote.id)
     await loadClientContacts(quote.client_id)
     setCurrentQuote({
@@ -1402,6 +1426,8 @@ export default function Quotes() {
                 {q.quote_date && format(new Date(q.quote_date), 'dd MMMM yyyy', { locale: fr })}
                 {q.created_by && ` · par ${q.created_by}`}
               </p>
+              {(q.version || 1) > 1 && <p className="text-ui-sm text-gray-500">Version {q.version}, remplace le devis signé précédent{q.status === 'accepted' ? ' (acceptée)' : ' : à faire signer'}.</p>}
+              {q.status === 'replaced' && <p className="text-ui-sm text-[rgb(var(--c-warning))]">Remplacé par une version plus récente{q.replaced_at ? ` le ${format(new Date(q.replaced_at), 'dd/MM/yyyy', { locale: fr })}` : ''} : ce devis signé reste archivé tel quel.</p>}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -1666,7 +1692,7 @@ export default function Quotes() {
                 <select value={currentQuote.status}
                   onChange={(e) => setCurrentQuote(prev => ({ ...prev, status: e.target.value }))}
                   className="px-3 py-2 border border-gray-200 rounded-ui-sm text-ui">
-                  {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                  {Object.entries(STATUS_CONFIG).filter(([k]) => k !== 'replaced' || currentQuote.status === 'replaced').map(([k, v]) => (
                     <option key={k} value={k}>{v.icon} {v.label}</option>
                   ))}
                 </select>

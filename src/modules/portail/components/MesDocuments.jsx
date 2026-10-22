@@ -2,7 +2,8 @@
 // autres PDF, rangés tels quels. Chaque téléchargement est noté au journal de l'espace client (0401).
 
 import { useEffect, useState } from 'react'
-import { FileText, Receipt, Wrench, FileSignature, ScrollText, Download, Loader2, FolderOpen, PenLine, BadgeCheck, Printer, Clock, AlertCircle } from 'lucide-react'
+import { FileText, Receipt, Wrench, FileSignature, ScrollText, Download, Loader2, FolderOpen, PenLine, BadgeCheck, Printer, Clock, AlertCircle, Upload } from 'lucide-react'
+import { imprimer } from '../../../core/fichiers/imprimer'
 
 const TYPES = {
   rapport: { label: "Rapports d'intervention", icone: Wrench },
@@ -40,15 +41,29 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
   }, [rafraichir])
   if (!docs || docs.length === 0) return null
 
+  // Le document tel que remis (signé : suivi de sa page de preuve)
+  const contenu = async (d) => {
+    let buf = await lire(d)
+    const sig = signatureDe ? signatureDe(d) : null
+    if (sig && avecPreuve) buf = await avecPreuve(d, buf, sig)
+    return { buf, sig }
+  }
+
   const ouvrir = async (d) => {
     setBusy(d.id); setErreur('')
     try {
-      let buf = await lire(d)
-      const sig = signatureDe ? signatureDe(d) : null
-      if (sig && avecPreuve) buf = await avecPreuve(d, buf, sig)
+      const { buf, sig } = await contenu(d)
       sauver(buf, `${d.label.replace(/[^\p{L}\p{N} _-]+/gu, '').trim().replace(/\s+/g, '_') || 'document'}${sig ? '_signe' : ''}.pdf`)
       if (noter) noter(d, buf)
     } catch (e) { setErreur(e.message || 'Document indisponible') } finally { setBusy(null) }
+  }
+
+  // Impression directe (22/10) : noté au journal comme un téléchargement
+  const imprimerDoc = (d) => {
+    setBusy(`imp:${d.id}`); setErreur('')
+    imprimer(async () => { const { buf } = await contenu(d); if (noter) noter(d, buf); return buf })
+      .catch((e) => setErreur(e.message || 'Impression impossible'))
+      .finally(() => setBusy(null))
   }
 
   const groupes = ORDRE.map((k) => [k, docs.filter((d) => d.kind === k)]).filter(([, l]) => l.length)
@@ -80,8 +95,11 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
                             : `Mis à disposition le ${quand(d.published_at)}`}</span></span>
                         {busy === d.id ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Download className="w-4 h-4 text-gray-400" aria-hidden="true" />}
                       </button>
+                      <button type="button" onClick={() => imprimerDoc(d)} disabled={!!busy} title="Imprimer" aria-label={`Imprimer ${d.label}`} className="p-2 shrink-0 text-gray-400 hover:text-primary-700 disabled:opacity-50">
+                        {busy === `imp:${d.id}` ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Printer className="w-4 h-4" aria-hidden="true" />}
+                      </button>
                       {aSigner && (!depot || depot.status === 'refuse') && <button type="button" onClick={() => onSigner(d)} className="btn btn-primary btn-sm shrink-0 gap-1"><PenLine className="w-3.5 h-3.5" aria-hidden="true" />Signer</button>}
-                      {deposable && <button type="button" onClick={() => onDeposer(d)} title="Imprimer, signer à la main et déposer" aria-label={`Imprimer, signer et déposer ${d.label}`} className="btn btn-secondary btn-sm shrink-0 gap-1"><Printer className="w-3.5 h-3.5" aria-hidden="true" /><span className="hidden sm:inline">Déposer signé</span></button>}
+                      {deposable && <button type="button" onClick={() => onDeposer(d)} title="Imprimer, signer à la main et déposer" aria-label={`Imprimer, signer et déposer ${d.label}`} className="btn btn-secondary btn-sm shrink-0 gap-1"><Upload className="w-3.5 h-3.5" aria-hidden="true" /><span className="hidden sm:inline">Déposer signé</span></button>}
                     </li>
                   )
                 })}
