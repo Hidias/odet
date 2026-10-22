@@ -45,7 +45,8 @@ export default function DeposerSigne({ titre = 'Imprimer, signer et déposer', n
         </div>
         <div className="px-5 py-4 space-y-4">
           <div>
-            <p className="text-sm font-medium text-gray-800">1. Imprimez {nomDocument}</p>
+            <p className="text-sm font-medium text-gray-800">1. Imprimez et lisez {nomDocument}</p>
+            <p className="text-sm text-gray-600 mt-1">Lisez le document en entier avant de signer : en le signant, vous acceptez la prestation, les dates, le prix et les conditions tels qu'ils y figurent.</p>
             <button type="button" className="mt-2 btn btn-secondary w-full justify-center gap-2" onClick={() => telecharger().catch((e) => setErreur(e.message))}>
               <Printer className="w-4 h-4" aria-hidden="true" />Télécharger pour imprimer
             </button>
