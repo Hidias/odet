@@ -1,4 +1,4 @@
-import { setCurrentProfile, setTeamCache, profileName, setSocieteCache } from './org/currentOrg'
+import { setCurrentProfile, setTeamCache, profileName, setSocieteCache, ROLES_HORS_EQUIPE } from './org/currentOrg'
 import { create } from 'zustand'
 import { supabase, ADMIN_EMAILS } from './supabase'
 import { buildStorageFileName } from './storageUtils'
@@ -95,7 +95,7 @@ export const useAuthStore = create((set, get) => ({
       try {
         const { data: members } = await supabase.from('profiles').select('id, first_name, last_name, display_name, email, sender_email, role, is_active')
         setTeamCache((members || [])
-          .filter((m) => m.is_active !== false && !['comptable', 'lecture'].includes(m.role))
+          .filter((m) => m.is_active !== false && !['comptable', 'lecture', 'formateur_externe', ...ROLES_HORS_EQUIPE].includes(m.role))
           .map((m) => ({ id: m.id, name: profileName(m), firstName: m.first_name || profileName(m).split(' ')[0], email: m.sender_email || m.email, role: m.role })))
       } catch {
         setTeamCache([])
