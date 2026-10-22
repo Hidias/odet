@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { FileText, Loader2, PenLine, ShieldCheck, X } from 'lucide-react'
 import PadSimple from '../../../ui/signature/PadSimple'
 import { empreinte } from '../../../core/portail/journal'
+import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 
 export const ACCORD_SIGNATURE = "J'ai lu la convention de formation ci-dessus et je l'accepte au nom de mon entreprise. Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
 export const ACCORD_DEVIS = "J'ai lu le devis ci-dessus et je l'accepte au nom de mon entreprise (bon pour accord). Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
@@ -47,7 +48,7 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
       if (!out) { setErreur('Le document ne peut pas être affiché.'); return }
       url = URL.createObjectURL(enBlob(out.base64))
       setPdf({ base64: out.base64, url, filename: out.filename })
-    }).catch(() => setErreur('Le document ne peut pas être affiché.'))
+    }).catch((e) => { if (!rechargerSiMiseAJour(e)) setErreur('Le document ne peut pas être affiché.') })
     return () => { if (url) URL.revokeObjectURL(url) }
     // PDF préparé une seule fois à l'ouverture : c'est ce document exact qui est lu puis signé
     // eslint-disable-next-line react-hooks/exhaustive-deps

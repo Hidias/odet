@@ -6234,6 +6234,65 @@ begin
     end;
   end if;
 
+  -- Décharge NIR signée depuis le portail stagiaire (0436)
+  if to_regprocedure('public.portail_decharge_nir_signer(text,uuid,text,text,text,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare n_s uuid; n_tok text; n_t uuid; n_code text; n_j json; n_cl uuid; n_ok boolean; n_ok2 boolean; n_e jsonb;
+    begin
+      insert into public.clients (name) values ('Client essai 0436') returning id into n_cl;
+      insert into public.sessions (client_id, start_date, end_date, reference) values (n_cl, current_date, current_date, 'SES-ESSAI-0436')
+        returning id, attendance_token into n_s, n_tok;
+      insert into public.trainees (first_name, last_name, client_id) values ('Nina', 'Essai', n_cl) returning id into n_t;
+      insert into public.session_trainees (session_id, trainee_id) values (n_s, n_t);
+      select access_code into n_code from public.session_trainees where session_id = n_s and trainee_id = n_t;
+      perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+      execute 'set local role anon';
+      n_j := public.portal_entrer(n_tok, n_code);
+      -- Refus pas encore coché : signature refusée ; sans ticket : refusée
+      n_ok := false;
+      begin perform public.portail_decharge_nir_signer(n_tok, n_t, n_j->>'ticket', 'data:image/png;base64,iVBORw0KGgo=', repeat('a', 64), 'Nina Essai');
+      exception when sqlstate '22023' then n_ok := true; end;
+      n_ok2 := false;
+      begin perform public.portail_decharge_nir_signer(n_tok, n_t, null, 'data:image/png;base64,iVBORw0KGgo=', repeat('a', 64), 'Nina Essai');
+      exception when insufficient_privilege then n_ok2 := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      update public.trainees set refused_ssn = true where id = n_t;
+      perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+      execute 'set local role anon';
+      perform public.portail_decharge_nir_signer(n_tok, n_t, n_j->>'ticket', 'data:image/png;base64,iVBORw0KGgo=', repeat('a', 64), 'Nina Essai');
+      perform public.portail_decharge_nir_signer(n_tok, n_t, n_j->>'ticket', 'data:image/png;base64,iVBORw0KGgo=', repeat('b', 64), 'Nina Essai');
+      n_e := public.portail_decharge_nir_etat(n_tok, n_t, n_j->>'ticket');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if n_ok and n_ok2 and (n_e ->> 'signee')::boolean and (n_e ->> 'refuse')::boolean
+         and (select count(*) from public.document_signatures where session_id = n_s and document_type = 'decharge_nir') = 1
+         and exists (select 1 from public.notifications where type = 'decharge_nir_signee' and metadata ->> 'session_id' = n_s::text) then
+        v_lines := v_lines || 'OK      anon  0436 : décharge signée par le stagiaire refusant (ticket exigé, une seule fois), organisme prévenu'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0436 : décharge NIR ' || coalesce(n_e::text, '')); end if;
+      n_ok := false; n_ok2 := false;
+      begin update public.document_signatures set signer_name = 'Autre' where session_id = n_s and document_type = 'decharge_nir';
+      exception when insufficient_privilege then n_ok := true; end;
+      begin delete from public.document_signatures where session_id = n_s and document_type = 'decharge_nir';
+      exception when insufficient_privilege then n_ok2 := true; end;
+      if n_ok and n_ok2 then v_lines := v_lines || 'OK      base  0436 : la décharge signée ne se modifie pas et ne s''efface pas'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0436 : décharge modifiable ou effaçable'::text; end if;
+      perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+      execute 'set local role anon';
+      n_e := public.portail_org_stagiaire(n_tok, n_t, n_j->>'ticket');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if n_e ? 'name' and not (n_e ? 'iban') then v_lines := v_lines || 'OK      anon  0436 : identité de l''organisme pour les documents du portail, sans coordonnées bancaires'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0436 : identité de l''organisme'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0436 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

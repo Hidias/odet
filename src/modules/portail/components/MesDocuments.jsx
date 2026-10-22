@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { FileText, Receipt, Wrench, FileSignature, ScrollText, Download, Loader2, FolderOpen, PenLine, BadgeCheck, Printer, Clock, AlertCircle, Upload } from 'lucide-react'
 import { imprimer } from '../../../core/fichiers/imprimer'
+import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 
 const TYPES = {
   rapport: { label: "Rapports d'intervention", icone: Wrench },
@@ -55,14 +56,14 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
       const { buf, sig } = await contenu(d)
       sauver(buf, `${d.label.replace(/[^\p{L}\p{N} _-]+/gu, '').trim().replace(/\s+/g, '_') || 'document'}${sig ? '_signe' : ''}.pdf`)
       if (noter) noter(d, buf)
-    } catch (e) { setErreur(e.message || 'Document indisponible') } finally { setBusy(null) }
+    } catch (e) { if (!rechargerSiMiseAJour(e)) setErreur(e.message || 'Document indisponible') } finally { setBusy(null) }
   }
 
   // Impression directe (22/10) : noté au journal comme un téléchargement
   const imprimerDoc = (d) => {
     setBusy(`imp:${d.id}`); setErreur('')
     imprimer(async () => { const { buf } = await contenu(d); if (noter) noter(d, buf); return buf })
-      .catch((e) => setErreur(e.message || 'Impression impossible'))
+      .catch((e) => { if (!rechargerSiMiseAJour(e)) setErreur(e.message || 'Impression impossible') })
       .finally(() => setBusy(null))
   }
 

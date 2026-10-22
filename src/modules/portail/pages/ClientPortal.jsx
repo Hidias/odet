@@ -17,6 +17,7 @@ import MesDocuments from '../components/MesDocuments'
 import ParticipantsSession from '../components/ParticipantsSession'
 import DeposerSigne from '../components/DeposerSigne'
 import { imprimer } from '../../../core/fichiers/imprimer'
+import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
@@ -289,6 +290,7 @@ export default function ClientPortal() {
       // Journal de preuve (0401) : document remis, avec son empreinte
       noterLien(token, code, { event: 'document', objectType: 'session', objectId: s.id, kind, label: `${LIBELLES_DOCUMENT[kind] || kind}, ${s.reference || ''}`.trim(), base64: out.base64 })
     } catch (err) {
+      if (rechargerSiMiseAJour(err)) return
       console.error('Document portail entreprise :', err)
       setError('Le document n\'a pas pu être généré : ' + (err.message || 'erreur inconnue'))
     } finally {

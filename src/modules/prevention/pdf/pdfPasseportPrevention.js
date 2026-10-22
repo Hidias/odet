@@ -130,12 +130,12 @@ function generateVersionEntreprise() {
 // Décret n° 2025-748 du 1er août 2025 : l'organisme collecte le NIR (auprès de l'employeur ou du stagiaire) pour
 // déclarer la formation ; sans NIR, il ne peut pas compléter le passeport et la déclaration revient à l'employeur.
 // ═══════════════════════════════════════════════════════════
-function generateDecharge() {
+function generateDecharge(d = {}) {
   const doc = new jsPDF({ compress: true })
   const f = startDocument(doc, ORG, { docLabel: 'Passeport de prévention', code: 'PPREV-NIR', title: 'Numéro de sécurité sociale non communiqué', subtitle: 'Passeport de prévention : déclaration du stagiaire' })
-  f.fields([{ label: 'Nom et prénom du stagiaire', value: '', w: 2 }, { label: 'Date de naissance', value: '', w: 1 }])
-  f.fields([{ label: 'Entreprise', value: '', w: 2 }, { label: 'Poste', value: '', w: 1 }])
-  f.fields([{ label: 'Formation suivie', value: '', w: 2 }, { label: 'Dates', value: '', w: 1 }])
+  f.fields([{ label: 'Nom et prénom du stagiaire', value: d.stagiaire || '', w: 2 }, { label: 'Date de naissance', value: d.naissance || '', w: 1 }])
+  f.fields([{ label: 'Entreprise', value: d.entreprise || '', w: 2 }, { label: 'Poste', value: d.poste || '', w: 1 }])
+  f.fields([{ label: 'Formation suivie', value: d.formation || '', w: 2 }, { label: 'Dates', value: d.dates || '', w: 1 }])
   f.section('Déclaration')
   f.para(`Je soussigné(e), stagiaire désigné(e) ci-dessus, ne communique pas mon numéro de sécurité sociale (NIR) à ${nom()} pour la déclaration de cette formation dans mon passeport de prévention.`)
   f.para('Je suis informé(e) que :')
@@ -146,7 +146,11 @@ function generateDecharge() {
     `je peux à tout moment revenir sur ce choix en communiquant mon numéro à ${nom()} ou à mon employeur.`,
   ])
   f.space(2)
-  f.signatures([
+  // Signée en ligne depuis le portail stagiaire (0436) : signature, date et heure ; l'entreprise en est informée
+  const quand = d.signedAt ? new Date(d.signedAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Paris' }) : ''
+  f.signatures(d.signature ? [
+    { label: 'Le stagiaire', name: d.stagiaire || '', hint: `Signé en ligne le ${quand}`, image: d.signature },
+  ] : [
     { label: 'Le stagiaire', hint: 'Date et signature' },
     { label: "Pour l'entreprise", hint: 'Nom, date et signature' },
   ], { height: 30 })
@@ -158,9 +162,9 @@ function generateDecharge() {
 // ═══════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════
-export function generatePasseportPreventionPDF(version = 'stagiaire', orgSettings = null) {
+export function generatePasseportPreventionPDF(version = 'stagiaire', orgSettings = null, donnees = {}) {
   applyOrgSettings(orgSettings)
-  if (version === 'decharge') return generateDecharge()
+  if (version === 'decharge') return generateDecharge(donnees)
   return version === 'entreprise' ? generateVersionEntreprise() : generateVersionStagiaire()
 }
 

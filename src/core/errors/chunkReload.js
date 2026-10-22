@@ -46,3 +46,10 @@ export function importSur(charger) {
     throw err
   })
 }
+
+// Erreur attrapée par un écran (téléchargement d'un document, signature…) : si c'est un fichier de l'ancienne version
+// après une mise à jour, la page se recharge au lieu d'afficher « document impossible » (constaté le 22/10 sur l'espace
+// entreprise juste après une mise en ligne). Renvoie vrai si la page se recharge.
+export function rechargerSiMiseAJour(err) {
+  return CHUNK_ERROR.test(err?.message || String(err || '')) && reloadOnceAfterUpdate()
+}

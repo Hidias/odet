@@ -29,6 +29,7 @@ import AvisEntreprise from '../components/AvisEntreprise'
 import ParticipantsSession from '../components/ParticipantsSession'
 import DeposerSigne from '../components/DeposerSigne'
 import { imprimer } from '../../../core/fichiers/imprimer'
+import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
@@ -311,6 +312,7 @@ function Formations() {
       // Journal de preuve (0401) : document remis, avec son empreinte
       noterCompte({ event: 'document', objectType: 'session', objectId: s.id, kind, label: `${LIBELLES_DOCUMENT[kind] || kind}, ${s.reference || ''}`.trim(), base64: out.base64 })
     } catch (err) {
+      if (rechargerSiMiseAJour(err)) return
       toast.error(`Document impossible : ${err.message || 'erreur'}`)
     } finally { setBusy(null) }
   }

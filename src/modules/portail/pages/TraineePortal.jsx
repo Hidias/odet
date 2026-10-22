@@ -19,6 +19,10 @@ import { Banner } from '../../../ui/Banner'
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
 import QuizEngine from '../../formation/quiz/QuizEngine'
 import PasseportPortalBlock from '../../passeport/components/PasseportPortalBlock'
+import DechargeNir from '../components/DechargeNir'
+import { donneesDecharge } from '../../prevention/lib/dechargeNir'
+import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPasseportPrevention'
+import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { portailPasseport } from '../../passeport/lib/ppData'
 import { normaliserNir } from '../../passeport/lib/rules'
 
@@ -237,6 +241,10 @@ export default function TraineePortal() {
   const [accessCode, setAccessCode] = useState('')
   // Ticket délivré par la vérification du code d'accès, exigé ensuite pour lire ou modifier la fiche
   const [portalTicket, setPortalTicket] = useState(null)
+  // Décharge « numéro non communiqué » (0436) : état, fenêtre ouverte et suite du parcours après signature
+  const [decharge, setDecharge] = useState(null)
+  const [dechargeOuverte, setDechargeOuverte] = useState(false)
+  const [apresDecharge, setApresDecharge] = useState(null)
   // Numéro de sécurité sociale déjà connu : jamais renvoyé, seulement ses 3 derniers chiffres
   const [ssnOnFile, setSsnOnFile] = useState({ known: false, last3: '' })
   const [codeError, setCodeError] = useState('')
@@ -395,6 +403,9 @@ export default function TraineePortal() {
       portailPasseport('portal-state', { token, trainee_id: trainee.id, code: accessCode || undefined })
         .then((st) => setPp(st.enabled ? { ...st, nom: st.nom_naissance, nir: '', refuse: st.refuse } : { enabled: false }))
         .catch(() => setPp({ enabled: false }))
+      setDecharge(null)
+      supabase.rpc('portail_decharge_nir_etat', { p_token: token, p_trainee_id: trainee.id, p_ticket: ticket })
+        .then(({ data }) => setDecharge(data || null)).catch(() => setDecharge(null))
       setPositioningQuestions(questions)
       setPositioningTestCompleted(testCompleted)
 
@@ -563,11 +574,26 @@ export default function TraineePortal() {
       setInfoSheet({ ...infoForm, ssn: '', filled_at: new Date().toISOString() })
       if (ppWarning) setPp((p) => ({ ...p, warning: ppWarning }))
 
-      if (positioningQuestions.length > 0 && !positioningTestCompleted) {
-        setCurrentStep('hub')
-        startQuiz('positioning')
+      const suite = () => {
+        if (positioningQuestions.length > 0 && !positioningTestCompleted) {
+          setCurrentStep('hub')
+          startQuiz('positioning')
+        } else {
+          routeAfterLoad(session, attendanceData, evaluationData)
+        }
+      }
+      // Numéro non communiqué : la décharge à signer s'ouvre avant la suite du parcours (0436)
+      const refuse = pp.enabled ? !!pp.refuse : !!infoForm.ssn_refused
+      let etatDecharge = null
+      if (refuse) {
+        try { etatDecharge = (await supabase.rpc('portail_decharge_nir_etat', { p_token: token, p_trainee_id: selectedTrainee.id, p_ticket: portalTicket })).data } catch { etatDecharge = null }
+        setDecharge(etatDecharge)
+      }
+      if (refuse && etatDecharge && !etatDecharge.signee) {
+        setApresDecharge(() => suite)
+        setDechargeOuverte(true)
       } else {
-        routeAfterLoad(session, attendanceData, evaluationData)
+        suite()
       }
     } catch (err) {
       console.error('Erreur :', err)
@@ -575,6 +601,31 @@ export default function TraineePortal() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // ---------------- Décharge « numéro non communiqué » (0436) ----------------
+  const genererDecharge = async () => {
+    const { data: org, error } = await supabase.rpc('portail_org_stagiaire', { p_token: token, p_trainee_id: selectedTrainee.id, p_ticket: portalTicket })
+    if (error || !org) throw new Error('Organisme introuvable')
+    const orgPdf = (await prepareOrgForPDF(org)) || org
+    return generatePasseportPreventionPDF('decharge', orgPdf, donneesDecharge(session, selectedTrainee)).output('datauristring').split(',')[1]
+  }
+  const signerDecharge = async ({ signature, sha256, nom }) => {
+    const { data, error } = await supabase.rpc('portail_decharge_nir_signer', {
+      p_token: token, p_trainee_id: selectedTrainee.id, p_ticket: portalTicket, p_signature: signature, p_hash: sha256, p_nom: nom,
+    })
+    if (error) throw new Error(error.message || 'Signature impossible')
+    setDecharge((d) => ({ ...(d || {}), refuse: true, signee: true, signed_at: data?.signed_at }))
+    setDechargeOuverte(false)
+    const suite = apresDecharge
+    setApresDecharge(null)
+    if (suite) suite()
+  }
+  const reporterDecharge = () => {
+    setDechargeOuverte(false)
+    const suite = apresDecharge
+    setApresDecharge(null)
+    if (suite) suite()
   }
 
   // ---------------- Quiz ----------------
@@ -892,6 +943,10 @@ export default function TraineePortal() {
         )}
         {/* Quiz flash lancé par le formateur (0425) : bandeau, puis jeu en plein écran */}
         {selectedTrainee && !['select', 'absent'].includes(currentStep) && <QuizFlashJeu token={token} traineeId={selectedTrainee.id} ticket={portalTicket} />}
+        {dechargeOuverte && selectedTrainee && (
+          <DechargeNir genererPdf={genererDecharge} nom={[selectedTrainee.first_name, (selectedTrainee.last_name || '').toUpperCase()].filter(Boolean).join(' ')}
+            onSigner={signerDecharge} onPlusTard={reporterDecharge} />
+        )}
         {/* En-tête aux couleurs de l'organisme */}
         <div className="bg-nav text-nav-fg rounded-t-ui-lg p-5 relative overflow-hidden">
           <div className="relative">
@@ -1111,6 +1166,13 @@ export default function TraineePortal() {
             {/* Espace stagiaire */}
             {currentStep === 'hub' && selectedTrainee && (
               <div className="space-y-3">
+                {decharge?.refuse && !decharge?.signee && (
+                  <div className="rounded-ui border border-accent-500/30 bg-accent-500/5 p-3 flex items-center gap-3 flex-wrap">
+                    <PenLine className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
+                    <p className="flex-1 min-w-[12rem] text-ui-sm text-gray-800">Vous ne communiquez pas votre numéro de sécurité sociale : merci de signer la décharge.</p>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => setDechargeOuverte(true)}>Signer la décharge</button>
+                  </div>
+                )}
                 <div className="flex items-end justify-between">
                   <div>
                     <h2 className="font-display text-lg font-bold text-gray-900">Mon espace</h2>
