@@ -6968,6 +6968,56 @@ begin
     end;
   end if;
 
+  -- Espace formateur, émargement (0453)
+  if to_regclass('public.trainer_halfday_signatures') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare ef_t1 uuid; ef_t2 uuid; ef_s1 uuid; ef_s2 uuid; ef_tr uuid; ef_u uuid := gen_random_uuid();
+            ef_sig text := 'data:image/png;base64,' || repeat('A', 200);
+            ef_d json; ef_a json; ef_b jsonb; ef_c jsonb; ef_e jsonb; ef_x json; ef_l jsonb;
+    begin
+      insert into public.trainers (first_name, last_name) values ('Essai', 'Externe 0453') returning id into ef_t1;
+      insert into public.trainers (first_name, last_name) values ('Autre', 'Formateur 0453') returning id into ef_t2;
+      insert into public.sessions (client_id, trainer_id, start_date, end_date, start_time, end_time, attendance_token)
+      values (v_client, ef_t1, public.paris_today(), public.paris_today(), '00:00', '23:59', md5(gen_random_uuid()::text)) returning id into ef_s1;
+      insert into public.sessions (client_id, trainer_id, start_date, end_date, start_time, end_time, attendance_token)
+      values (v_client, ef_t2, public.paris_today(), public.paris_today(), '00:00', '23:59', md5(gen_random_uuid()::text)) returning id into ef_s2;
+      insert into public.trainees (first_name, last_name, client_id) values ('Essai', 'Émargement', v_client) returning id into ef_tr;
+      insert into public.session_trainees (session_id, trainee_id) values (ef_s1, ef_tr), (ef_s2, ef_tr);
+      insert into auth.users (id, email, aud, role) values (ef_u, 'ext.0453@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active, trainer_id) values (ef_u, 'ext.0453@test.invalid', 'formateur_externe', true, ef_t1)
+      on conflict (id) do update set role = excluded.role, trainer_id = excluded.trainer_id, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      perform set_config('request.jwt.claims', json_build_object('sub', ef_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      ef_d := public.get_trainer_sign_data(ef_s1);
+      ef_a := public.trainer_sign_halfday(ef_s1, ef_tr, public.paris_today(), 'morning', ef_sig);
+      ef_x := public.trainer_sign_halfday(ef_s2, ef_tr, public.paris_today(), 'morning', ef_sig);
+      ef_b := public.formateur_signer(ef_s1, public.paris_today(), 'morning', ef_sig);
+      ef_c := public.formateur_signer(ef_s1, public.paris_today(), 'morning', ef_sig);
+      ef_e := public.formateur_signer(ef_s2, public.paris_today(), 'morning', ef_sig);
+      ef_l := public.formateur_signatures(ef_s1);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if (ef_d->>'ok')::boolean and (ef_a->>'ok')::boolean and not (ef_x->>'ok')::boolean then
+        v_lines := v_lines || 'OK      ext   0453 : le formateur externe fait signer ses stagiaires, pas ceux d''une autre session'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ext   0453 : feuille ' || coalesce(ef_d::text, '?') || ' / ' || coalesce(ef_a::text, '?') || ' / ' || coalesce(ef_x::text, '?')); end if;
+      if (ef_b->>'ok')::boolean and not (ef_c->>'ok')::boolean and not (ef_e->>'ok')::boolean and jsonb_array_length(ef_l->'signes') = 1 then
+        v_lines := v_lines || 'OK      ext   0453 : signature du formateur par demi-journée, une seule fois, seulement sur ses sessions'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ext   0453 : signature formateur ' || coalesce(ef_b::text, '?') || ' / ' || coalesce(ef_c::text, '?') || ' / ' || coalesce(ef_e::text, '?')); end if;
+      if (select count(*) from public.trainer_halfday_signatures where session_id = ef_s1 and trainer_id = ef_t1) = 1
+         and (select company_id from public.trainer_halfday_signatures where session_id = ef_s1) = (select company_id from public.sessions where id = ef_s1) then
+        v_lines := v_lines || 'OK      base  0453 : signature rangée dans la société de la session'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0453 : société de la signature'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0453 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

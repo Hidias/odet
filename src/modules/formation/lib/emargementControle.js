@@ -11,6 +11,12 @@ export async function chargerEmargement(sessionId) {
   return { halfdays: h.data || [], proxies: p.data || [], regularisations: r.error ? [] : (r.data || []) }
 }
 
+/** Signatures du formateur par demi-journée (0453) pour la feuille d'émargement ; vide avant la migration */
+export async function signaturesFormateur(sessionId) {
+  const { data, error } = await supabase.from('trainer_halfday_signatures').select('trainer_id, date, period, signature, signed_at').eq('session_id', sessionId)
+  return error ? [] : (data || [])
+}
+
 /**
  * Ajoute à chaque stagiaire ses heures réellement suivies (heures_realisees, absences_notees) pour l'attestation et le
  * certificat, et compte les demi-journées encore à régulariser.

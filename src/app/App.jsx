@@ -283,6 +283,12 @@ export default function App() {
               <EspaceExterne />
             </ExterneRoute>
           } />
+          {/* Émargement sur le téléphone du formateur externe (0453) : même page que le formateur salarié */}
+          <Route path="/mon-espace/signature/:sessionId" element={
+            <ExterneRoute>
+              <SignatureFormateur externe />
+            </ExterneRoute>
+          } />
 
           {/* ─── Route Espace Comptable (comptable + admins) ─── */}
           <Route path="/comptable" element={

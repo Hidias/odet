@@ -546,6 +546,13 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
   const proxies = attendanceData?.proxies || []         // signatures recueillies par un tiers
   const absents = attendanceData?.absents || []         // ids des stagiaires notés absents
   const trainerSignatureBase64 = attendanceData?.trainerSignatureBase64
+  // Signature du formateur par demi-journée (0453) : elle prime ; sinon l'image enregistrée sur chaque demi-journée tenue
+  const trainerHalfdays = attendanceData?.trainerHalfdays || []
+  const trainerIdPdf = attendanceData?.trainerId || null
+  const getTrainerHalfday = (dateStr, period) => {
+    const liste = trainerHalfdays.filter(h => String(h.date).substring(0, 10) === dateStr && h.period === period && h.signature)
+    return (trainerIdPdf && liste.find(h => h.trainer_id === trainerIdPdf)) || liste[0] || null
+  }
 
   const getSignature = (traineeId, dateStr, period) => {
     const target = period === 'morning' ? 'am' : 'pm'
@@ -751,7 +758,10 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
       const dateStr = isBlank ? null : format(day, 'yyyy-MM-dd')
       const drawTrainerCell = (cellX, period) => {
         doc.rect(cellX, y, dayColW, rowH)
-        if (isBlank || !trainerSignatureBase64 || !dateStr) return
+        if (isBlank || !dateStr) return
+        const propre = getTrainerHalfday(dateStr, period)
+        if (propre) { drawImageFitted(doc, propre.signature, cellX + 1, y + 1, dayColW - 2, rowH - 2); return }
+        if (!trainerSignatureBase64) return
         const tenue = trainees.some(tr => tr.id && !absents.includes(tr.id) && (
           getProxy(tr.id, dateStr, period) || getSignature(tr.id, dateStr, period) || getHalfday(tr.id, dateStr, period)
         ))

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
-import { Calendar, MapPin, Users, Download, Loader2, LogOut, AlertCircle, BadgeCheck, Award, ClipboardList, FileText, ExternalLink, ShieldCheck, GraduationCap } from 'lucide-react'
+import { Calendar, MapPin, Users, Download, Loader2, LogOut, AlertCircle, BadgeCheck, Award, ClipboardList, FileText, ExternalLink, ShieldCheck, GraduationCap, PenLine, CalendarPlus } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr as frLocale } from 'date-fns/locale'
 import { supabase } from '../../../core/supabase'
 import { useAuthStore } from '../../../core/store'
 import PublicLayout from '../../../app/PublicLayout'
+import { telechargerIcsSessions } from '../../../core/fichiers/agenda'
 import { useBranding } from '../../../core/branding/BrandingProvider'
 import { BandeauAccueil, PersonnaliserEspace } from '../components/Vitrine'
 import { useMonProfil } from '../lib/monProfil'
@@ -95,8 +97,23 @@ function partager(sessions) {
   return { up, pa }
 }
 
+const lieuDe = (s) => (s.is_remote ? 'À distance' : [s.location_name, s.location_address, [s.location_postal_code, s.location_city].filter(Boolean).join(' ')].filter(Boolean).join(', '))
+
+/** Session en cours aujourd'hui : l'émargement sur le téléphone du formateur est ouvert (0453) */
+export function sessionDuJour(s, aujourdhui = format(new Date(), 'yyyy-MM-dd')) {
+  const d = String(s?.start_date || '').slice(0, 10)
+  const f = String(s?.end_date || s?.start_date || '').slice(0, 10)
+  return !!d && d <= aujourdhui && aujourdhui <= f
+}
+
+/** Note de l'agenda du formateur : client, nombre de stagiaires, salle ; jamais de prix */
+export function noteAgenda(s) {
+  const nb = (s?.session_trainees || []).length
+  return [s?.client?.name ? `Client : ${s.client.name}` : '', nb ? `${nb} stagiaire${nb > 1 ? 's' : ''}` : '', s?.room ? `Salle : ${s.room}` : ''].filter(Boolean).join('\n')
+}
+
 function Dates({ s }) {
-  const lieu = [s.location_name, s.location_address, [s.location_postal_code, s.location_city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+  const lieu = lieuDe(s)
   return (
     <div className="mt-1.5 flex flex-col gap-1 text-sm text-gray-600">
       <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-gray-400" />{s.start_date === s.end_date ? fmtDate(s.start_date) : `${fmtDate(s.start_date)} au ${fmtDate(s.end_date)}`}{s.start_time ? `, ${heure(s.start_time)} à ${heure(s.end_time)}` : ''}</span>
@@ -176,6 +193,7 @@ function EspaceFormateur({ logout }) {
   const [onglet, setOnglet] = useState('sessions')
   const [justif, setJustif] = useState(null)
   const [busy, setBusy] = useState(null)
+  const navigate = useNavigate()
   const { up, pa } = useMemo(() => partager(data?.sessions), [data])
   useEffect(() => { if (onglet === 'justificatifs' && !justif) supabase.rpc('ext_justificatifs').then(({ data: j }) => setJustif(j || { certificats: [] })) }, [onglet])
   if (erreur) return <Erreur erreur={erreur} logout={logout} titre={titre} />
@@ -224,9 +242,19 @@ function EspaceFormateur({ logout }) {
           </details>
         )}
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {!finie && nb > 0 && sessionDuJour(s) && (
+            <button type="button" onClick={() => navigate(`/mon-espace/signature/${s.id}`)} className="sm:col-span-2 flex items-center justify-center gap-2 px-3 py-3 rounded-ui bg-primary-600 text-white font-semibold">
+              <PenLine className="w-4 h-4" />Faire signer l'émargement
+            </button>
+          )}
+          {!finie && (
+            <button type="button" onClick={() => telechargerIcsSessions([s], { lieuDe, prefixe: 'Intervention', noteDe: noteAgenda }, `Intervention_${s.reference || 'session'}.ics`)} className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300">
+              <CalendarPlus className="w-4 h-4" />Ajouter à mon agenda<Download className="w-3.5 h-3.5 ml-auto text-gray-400" />
+            </button>
+          )}
           {!finie && nb > 0 && (
             <button type="button" onClick={() => emargement(s)} disabled={!!busy || !orgPret} className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 disabled:opacity-40">
-              {busy === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}Feuille d'émargement<Download className="w-3.5 h-3.5 ml-auto text-gray-400" />
+              {busy === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}Feuille d'émargement papier<Download className="w-3.5 h-3.5 ml-auto text-gray-400" />
             </button>
           )}
           {fichierDeLInstance(s.courses?.program_url) && (
@@ -249,6 +277,11 @@ function EspaceFormateur({ logout }) {
       </div>
       {onglet === 'sessions' && (
         <div className="space-y-5">
+          {up.length > 1 && (
+            <button type="button" onClick={() => telechargerIcsSessions(up, { lieuDe, prefixe: 'Intervention', noteDe: noteAgenda }, 'Mon_planning.ics')} className="btn btn-secondary btn-sm w-full sm:w-auto">
+              <CalendarPlus className="w-4 h-4" />Toutes mes sessions à venir dans mon agenda
+            </button>
+          )}
           {up.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">À venir ou en cours</h2><div className="space-y-3">{up.map((s) => <Session key={s.id} s={s} finie={false} />)}</div></section>}
           {pa.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Sessions passées</h2><div className="space-y-3">{pa.map((s) => <Session key={s.id} s={s} finie />)}</div></section>}
           {up.length === 0 && pa.length === 0 && <p className="text-sm text-gray-500 text-center py-10">Aucune session pour le moment.</p>}
