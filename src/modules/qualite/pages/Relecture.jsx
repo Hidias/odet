@@ -5,13 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  ChevronLeft, CheckCircle, Pencil, MessageSquare, Loader2, Download, Upload, Send, RotateCcw, X, HelpCircle, Users, Check, FileText,
+  ChevronLeft, CheckCircle, Pencil, MessageSquare, Loader2, Download, Upload, Send, RotateCcw, X, HelpCircle, Users, Check, FileText, Plus,
 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { useAuthStore } from '../../../core/store'
 import { useDroits } from '../../../core/rights/useDroit'
 import { docCode, currentUserName } from '../../../core/org/currentOrg'
-import { loadTemplateContext } from '../../../core/org/templateContext'
+import { callApi } from '../../../core/api'
+import { loadTemplateContext, fillDeep } from '../../../core/org/templateContext'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { confirmer } from '../../../ui/Confirm'
 import { loadTemplates, isRich, fromTemplate, frDate, todayIso, plusOneYear, bracketGaps, encadresAValider } from '../richdocs/model'
@@ -31,7 +32,7 @@ const STATUT_AVIS = {
 const COND = { particuliers: 'Particuliers seulement', professionnels: 'Professionnels seulement' }
 const clone = (x) => JSON.parse(JSON.stringify(x))
 
-function Diff({ parts }) {
+export function Diff({ parts }) {
   return (
     <p className="text-ui leading-relaxed whitespace-pre-wrap">
       {parts.map((d, i) => d.t === '=' ? <span key={i}>{d.s}</span>
@@ -41,7 +42,7 @@ function Diff({ parts }) {
   )
 }
 
-function Avis({ it, moi, peutDecider, onDecider, onRetirer, busy }) {
+function Avis({ it, moi, peutDecider, onDecider, onRetirer, busy, ctx }) {
   const [refus, setRefus] = useState(null)
   const auteur = it.author_quality === 'expert' ? (it.author_label || 'Expert') : it.author_quality === 'modele' ? QUALITES.modele : (it.author_name || 'Équipe')
   return (
@@ -51,7 +52,8 @@ function Avis({ it, moi, peutDecider, onDecider, onRetirer, busy }) {
         <span className="text-gray-500">{auteur}{it.author_quality === 'expert' ? ' · expert' : ''} · {frDate(it.created_at)}</span>
         <StatusChip status={STATUT_AVIS[it.status] || STATUT_AVIS.ouverte} />
       </div>
-      {it.kind === 'modification' && <Diff parts={diffProposition(it.base, it.proposed)} />}
+      {it.kind === 'modification' && <Diff parts={diffProposition(it.author_quality === 'expert' && ctx ? fillDeep(it.base, ctx) : it.base, it.proposed)} />}
+      {it.kind === 'modification' && it.author_quality === 'expert' && /\{\{/.test(JSON.stringify(it.base || '')) && <p className="text-ui-sm text-gray-500">L'expert a lu les champs de l'entreprise remplis : une fois acceptée, remettez les champs (adresse, SIRET…) avec « Modifier l'article » si besoin.</p>}
       {it.text && it.kind !== 'question' && <p className="text-ui text-gray-700 whitespace-pre-line">{it.text}</p>}
       {it.decision_note && <p className="text-ui-sm text-gray-500">Décision de {it.decided_name || 'la direction'} : {it.decision_note}</p>}
       {it.status === 'ouverte' && (
@@ -75,7 +77,7 @@ function Avis({ it, moi, peutDecider, onDecider, onRetirer, busy }) {
   )
 }
 
-function EditeurArticle({ section, titre = 'Votre proposition', onAnnuler, onEnregistrer, libelle = 'Proposer', busy }) {
+export function EditeurArticle({ section, titre = 'Votre proposition', onAnnuler, onEnregistrer, libelle = 'Proposer', busy }) {
   const [s, setS] = useState(() => clone(section))
   return (
     <div className="rounded-ui-sm border border-primary-200 bg-primary-50/40 p-3 space-y-2">
@@ -91,7 +93,7 @@ function EditeurArticle({ section, titre = 'Votre proposition', onAnnuler, onEnr
   )
 }
 
-function Commentaire({ onAnnuler, onEnregistrer, busy, placeholder = 'Votre remarque' }) {
+export function Commentaire({ onAnnuler, onEnregistrer, busy, placeholder = 'Votre remarque' }) {
   const [t, setT] = useState('')
   return (
     <div className="space-y-2">
@@ -100,6 +102,82 @@ function Commentaire({ onAnnuler, onEnregistrer, busy, placeholder = 'Votre rema
         <button type="button" className="btn btn-primary btn-sm" disabled={busy || t.trim().length < 2} onClick={() => onEnregistrer(t.trim())}>Envoyer</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onAnnuler}>Annuler</button>
       </div>
+    </div>
+  )
+}
+
+const QUALITES_EXPERT = { avocat: 'Avocat', juriste: 'Juriste', expert_comptable: 'Expert-comptable', comptable: 'Comptable', autre: 'Autre' }
+
+/** Experts invités en ligne (0457) : lien et code, envoyés dans deux e-mails séparés ou copiés */
+function ExpertsEnLigne({ review, ctx, onChange }) {
+  const [l, setL] = useState(null)
+  const [f, setF] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const charger = useCallback(() => supabase.from('doc_review_experts').select('*').eq('review_id', review.id).order('invited_at')
+    .then(({ data, error }) => setL(error ? [] : data || [])), [review.id])
+  useEffect(() => { charger() }, [charger])
+  if (!l) return null
+  const lien = (e) => `${window.location.origin}/#/relecture-expert/${e.token}`
+  const copier = async (t, ok) => { try { await navigator.clipboard.writeText(t); toast.success(ok) } catch { toast(t) } }
+  const inviter = async () => {
+    setBusy(true)
+    try {
+      // Texte montré à l'expert : champs de l'entreprise remplis (il n'a pas accès aux réglages)
+      if (ctx) await supabase.from('doc_reviews').update({ expert_view: { sections: fillDeep(review.content.sections, ctx) } }).eq('id', review.id)
+      const { error } = await supabase.from('doc_review_experts').insert({ review_id: review.id, name: f.name.trim(), quality: f.quality, email: f.email.trim() || null })
+      if (error) throw new Error(error.message)
+      setF(null); await charger(); onChange?.()
+      toast.success('Expert invité : envoyez-lui le lien puis le code, ou copiez-les')
+    } catch (e) { toast.error(e.message) }
+    setBusy(false)
+  }
+  const envoyer = async (e, quoi) => {
+    setBusy(true)
+    try { const r = await callApi('/api/comptes-externes', { action: 'expert_envoyer', expert_id: e.id, quoi }); toast.success(`${quoi === 'lien' ? 'Lien' : 'Code'} envoyé à ${r.envoye_a}`); charger() } catch (err) { toast.error(err.message) }
+    setBusy(false)
+  }
+  const retirer = async (e) => {
+    if (!await confirmer(`Retirer l'invitation de ${e.name} ? Son lien ne fonctionnera plus ; ses avis déjà déposés restent.`)) return
+    const { error } = await supabase.from('doc_review_experts').update({ revoked_at: new Date().toISOString() }).eq('id', e.id)
+    if (error) toast.error(error.message); else charger()
+  }
+  const fr = (d) => (d ? new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
+  return (
+    <div className="rounded-ui-sm border border-gray-200 p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-semibold text-ui flex-1">Relecture en ligne par l'expert</p>
+        {!f && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setF({ name: review.expert_label?.split(',')[0] || '', quality: 'avocat', email: '' })}><Plus className="w-4 h-4" />Inviter un expert</button>}
+      </div>
+      <p className="text-ui-sm text-gray-500">L'expert ouvre le document avec un lien et un code, sans compte. Il valide, propose une rédaction ou commente chaque article ; quand il termine, ses avis arrivent ici à arbitrer.</p>
+      {f && (
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="block"><span className="label">Nom</span><input className="input" value={f.name} maxLength={120} placeholder="Me Dupont" onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
+          <label className="block"><span className="label">Qualité</span><select className="select w-full" value={f.quality} onChange={(e) => setF({ ...f, quality: e.target.value })}>{Object.entries(QUALITES_EXPERT).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+          <label className="block"><span className="label">E-mail (pour l'envoi)</span><input className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
+          <div className="sm:col-span-3 flex gap-2">
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy || f.name.trim().length < 2} onClick={inviter}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Créer l'invitation</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setF(null)}>Annuler</button>
+          </div>
+        </div>
+      )}
+      {l.map((e) => {
+        const fini = !!e.done_at; const retire = !!e.revoked_at
+        return (
+          <div key={e.id} className="border-t border-gray-100 pt-2 space-y-1.5">
+            <p className="text-ui"><span className="font-semibold">{e.name}</span> · {QUALITES_EXPERT[e.quality]}{e.email ? ` · ${e.email}` : ''}</p>
+            <p className="text-ui-sm text-gray-500">{retire ? 'Invitation retirée' : fini ? `Relecture terminée le ${fr(e.done_at)}` : e.opened_at ? `Ouvert le ${fr(e.opened_at)}` : 'Pas encore ouvert'}{e.link_sent_at ? ` · lien envoyé le ${fr(e.link_sent_at)}` : ''}{e.code_sent_at ? ` · code envoyé le ${fr(e.code_sent_at)}` : ''}</p>
+            {!retire && !fini && (
+              <div className="flex flex-wrap gap-2">
+                {e.email && <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => envoyer(e, 'lien')}><Send className="w-4 h-4" />Envoyer le lien</button>}
+                {e.email && <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !e.link_sent_at} title={e.link_sent_at ? '' : 'Envoyez d\'abord le lien'} onClick={() => envoyer(e, 'code')}><Send className="w-4 h-4" />Envoyer le code (e-mail séparé)</button>}
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => copier(lien(e), 'Lien copié')}>Copier le lien</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => copier(e.access_code, 'Code copié : transmettez-le séparément du lien')}>Copier le code</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => retirer(e)}>Retirer</button>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -317,7 +395,8 @@ function Circuit({ id }) {
           </>}
           {actions.has('abandonner') && <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={async () => { if (await confirmer('Abandonner ce circuit ? Le document reste dans sa version en vigueur ; les avis restent consultables.')) changerEtat('abandonnee', {}, 'Circuit abandonné') }}>Abandonner</button>}
         </div>
-        {r.status === 'expert' && <p className="text-ui-sm text-gray-500">Envoyez le PDF ou le fichier Word à l'expert. Quand il vous le renvoie corrigé, importez-le : chaque changement devient une modification à arbitrer. Le fichier Word peut aussi contenir ses modifications suivies, acceptées à l'import.</p>}
+        {r.status === 'expert' && actions.has('retour_expert') && <ExpertsEnLigne review={r} ctx={ctx} onChange={charger} />}
+        {r.status === 'expert' && <p className="text-ui-sm text-gray-500">Sans relecture en ligne : envoyez le dossier PDF ou le fichier Word à l'expert. Quand il vous le renvoie corrigé, importez-le : chaque changement devient une modification à arbitrer. Le fichier Word peut aussi contenir ses modifications suivies, acceptées à l'import.</p>}
         {expert !== null && (
           <div className="flex flex-wrap items-end gap-2">
             <label className="block flex-1 min-w-[14rem]"><span className="label">Expert (nom et qualité)</span><input className="input" value={expert} maxLength={120} placeholder="Me Dupont, avocat" onChange={(e) => setExpert(e.target.value)} /></label>
@@ -380,7 +459,7 @@ function Circuit({ id }) {
       {(generaux.length > 0 || actions.has('avis')) && (
         <section className="card p-3 space-y-2">
           <h2 className="font-semibold">Remarques sur l'ensemble du document</h2>
-          {generaux.map((it) => <Avis key={it.id} it={it} moi={profile?.id} peutDecider={actions.has('decider')} onDecider={decider} onRetirer={retirer} busy={busy} />)}
+          {generaux.map((it) => <Avis key={it.id} it={it} moi={profile?.id} peutDecider={actions.has('decider')} onDecider={decider} onRetirer={retirer} busy={busy} ctx={ctx} />)}
           {actions.has('avis') && (ouvert?.section === '__doc' ? <Commentaire busy={busy} onAnnuler={() => setOuvert(null)} onEnregistrer={(t) => deposer({ kind: 'commentaire', text: t })} />
             : <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOuvert({ section: '__doc', kind: 'commentaire' })}><MessageSquare className="w-4 h-4" />Commenter le document</button>)}
         </section>
@@ -400,7 +479,7 @@ function Circuit({ id }) {
               {valides.length > 0 && <span className="text-ui-sm text-[rgb(var(--c-success))] flex items-center gap-1"><Check className="w-4 h-4" aria-hidden="true" />Validé par {valides.map((v) => v.author_name || v.author_label).join(', ')}</span>}
             </div>
             <div className="space-y-2">{(s.blocks || []).map((b, i) => <BlockView key={i} b={b} ctx={ctx} />)}</div>
-            {autres.map((it) => <Avis key={it.id} it={it} moi={profile?.id} peutDecider={actions.has('decider')} onDecider={decider} onRetirer={retirer} busy={busy} />)}
+            {autres.map((it) => <Avis key={it.id} it={it} moi={profile?.id} peutDecider={actions.has('decider')} onDecider={decider} onRetirer={retirer} busy={busy} ctx={ctx} />)}
             {ouvre && ouvert.kind === 'modification' && <EditeurArticle section={s} busy={busy} onAnnuler={() => setOuvert(null)} onEnregistrer={(p) => deposer({ section_id: s.id, kind: 'modification', proposed: p })} />}
             {ouvre && ouvert.kind === 'texte' && <EditeurArticle section={s} busy={busy} titre="Texte arbitré de l'article" libelle="Enregistrer le texte" onAnnuler={() => setOuvert(null)} onEnregistrer={(p) => modifierTexte(s.id, p)} />}
             {ouvre && ouvert.kind === 'commentaire' && <Commentaire busy={busy} onAnnuler={() => setOuvert(null)} onEnregistrer={(t) => deposer({ section_id: s.id, kind: 'commentaire', text: t })} />}
