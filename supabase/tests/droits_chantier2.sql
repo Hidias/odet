@@ -6655,6 +6655,57 @@ begin
     end;
   end if;
 
+  -- Avenant au devis signé (0446)
+  if to_regprocedure('public.devis_avenant(uuid,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare av_q uuid; av_brouillon uuid; av1 uuid; av2 uuid; av_ok boolean; av_ok2 boolean; av_ref text; av_ref2 text;
+    begin
+      insert into public.quotes (reference, client_id, status) values ('DEV-ESSAI-0446', v_client, 'sent') returning id into av_q;
+      insert into public.quotes (reference, client_id, status) values ('DEV-ESSAI-0446B', v_client, 'sent') returning id into av_brouillon;
+      insert into public.document_signatures (document_type, client_id, signer_type, signer_name, signature_data, document_hash, signed_at, metadata, status)
+      values ('devis', v_client, 'client', 'Client essai', 'data:image/png;base64,AA', repeat('a', 64), now(), jsonb_build_object('object_type', 'quote', 'object_id', av_q), 'valid');
+      update public.quotes set status = 'accepted' where id = av_q;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      av1 := public.devis_avenant(av_q, 'Deux blocs de plus constatés sur place');
+      av2 := public.devis_avenant(av1, 'Retrait d''un extincteur');
+      av_ok := false; av_ok2 := false;
+      begin perform public.devis_avenant(av_brouillon, 'Avant signature'); exception when sqlstate '22023' then av_ok := true; end;
+      begin perform public.devis_avenant(av_q, 'abc'); exception when sqlstate '22023' then av_ok2 := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      declare t_ok boolean := false;
+      begin
+        begin perform public.devis_avenant(av_q, 'Essai du technicien'); exception when insufficient_privilege then t_ok := true; end;
+        execute 'reset role';
+        perform set_config('request.jwt.claims', '', true);
+        select reference into av_ref from public.quotes where id = av1;
+        select reference into av_ref2 from public.quotes where id = av2;
+        if av_ref = 'DEV-ESSAI-0446-AV1' and av_ref2 = 'DEV-ESSAI-0446-AV2'
+           and (select amendment_of = av_q and amendment_number = 2 and status = 'draft' from public.quotes where id = av2) then
+          v_lines := v_lines || 'OK      com   0446 : avenants numérotés rattachés au devis signé (AV1, AV2), jamais à un avenant'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   com   0446 : avenants ' || coalesce(av_ref, '') || ' ' || coalesce(av_ref2, '')); end if;
+        if av_ok and av_ok2 and t_ok then v_lines := v_lines || 'OK      com   0446 : avenant refusé avant signature, sans motif, ou sans le droit'::text;
+        else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0446 : garde de l''avenant'::text; end if;
+      end;
+      -- Avenant signé : aucune session préparée
+      insert into public.document_signatures (document_type, client_id, signer_type, signer_name, signature_data, document_hash, signed_at, metadata, status)
+      values ('devis', v_client, 'client', 'Client essai', 'data:image/png;base64,AA', repeat('b', 64), now(), jsonb_build_object('object_type', 'quote', 'object_id', av1), 'valid');
+      update public.quotes set status = 'accepted' where id = av1;
+      if position('amendment_of is null' in pg_get_functiondef('app.devis_signe_sessions()'::regprocedure)) > 0
+         and not exists (select 1 from public.sessions where quote_id = av1) then
+        v_lines := v_lines || 'OK      base  0446 : un avenant signé ne prépare pas de session'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0446 : session préparée par un avenant'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0446 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

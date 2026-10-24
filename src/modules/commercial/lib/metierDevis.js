@@ -93,8 +93,10 @@ export const PIECES_ENTREPRISE_PAR_METIER = {
   installation: ['rc_pro', 'decennale'],
 }
 
-/** Documents qualité à joindre (sans doublon) pour les métiers du devis */
+/** Documents qualité à joindre (sans doublon) pour les métiers du devis. Un avenant (0446) n'en joint aucun : les
+ * conditions acceptées avec le devis s'y appliquent. */
 export function documentsAJoindre(quote, items) {
+  if (quote?.amendment_of) return []
   const vus = new Set()
   const out = []
   metiersPourPieces(quote, items).forEach((m) => (DOCS_PAR_METIER[m] || []).forEach((d) => {
@@ -107,6 +109,7 @@ export function documentsAJoindre(quote, items) {
 
 /** Types de pièces de l'entreprise à joindre */
 export function piecesEntrepriseAJoindre(quote, items) {
+  if (quote?.amendment_of) return []
   const set = new Set()
   metiersPourPieces(quote, items).forEach((m) => (PIECES_ENTREPRISE_PAR_METIER[m] || []).forEach((k) => set.add(k)))
   return [...set]

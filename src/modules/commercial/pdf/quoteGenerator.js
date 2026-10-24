@@ -10,6 +10,7 @@ import { renderCommercialDoc, itemRow, fmtEuro, fmtRate, issuerLines, recipientL
 import { devisDeFormation } from '../lib/metierDevis'
 import { mentionsDevis, chargerMentionsDevis, formulaireRetractation } from '../lib/mentionsDevis'
 import { photosDuDevis } from '../lib/photosDevis'
+import { supabase } from '../../../core/supabase'
 
 // Devis et bon de commande partiel sur la mise en page commune des documents.
 // Identité de l'organisme : uniquement depuis organization_settings (options.orgSettings).
@@ -50,6 +51,24 @@ function totalsFor(quote, items, regime) {
   return rows
 }
 
+// Avenant (0446) : devis signé de rattachement, avenants déjà acceptés avant celui-ci, écart de celui-ci
+async function infoAvenant(quote, items) {
+  if (!quote?.amendment_of) return null
+  const rate = (quote.tva_rate === null || quote.tva_rate === undefined || quote.tva_rate === '') ? 20 : (parseFloat(quote.tva_rate) || 0)
+  const ecart = calcTotals(items, parseFloat(quote.discount_percent) || 0, rate, quote.tva_applicable !== false).totalHt
+  try {
+    const [{ data: base }, { data: autres }] = await Promise.all([
+      supabase.from('quotes').select('reference, total_ht, conditions_acceptees, updated_at').eq('id', quote.amendment_of).maybeSingle(),
+      supabase.from('quotes').select('id, total_ht, status, amendment_number').eq('amendment_of', quote.amendment_of),
+    ])
+    const avenants = (autres || []).filter((a) => a.id !== quote.id && ['accepted', 'partial', 'invoiced'].includes(a.status)
+      && (Number(a.amendment_number) || 0) < (Number(quote.amendment_number) || 0)).reduce((t, a) => t + (Number(a.total_ht) || 0), 0)
+    return { reference: base?.reference || '', signe_le: base?.conditions_acceptees?.acceptees_le || null, montant_devis: Number(base?.total_ht) || 0, avenants, ecart }
+  } catch {
+    return { reference: '', signe_le: null, montant_devis: 0, avenants: 0, ecart }
+  }
+}
+
 async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   options = options || {}
   const L = await orgFor(options.orgSettings)
@@ -76,7 +95,8 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   // Mentions selon le métier et le client (0444) : devis à distance, matériel, acompte, délai, éco-participation,
   // assurances et déchets des travaux, rétractation et garanties légales d'un particulier ; textes des réglages
   const md = options.mentionsDevis || await chargerMentionsDevis()
-  const mm = mentionsDevis({ quote, items, client, textes: md.textes, pieces: md.pieces })
+  const avenant = options.avenant !== undefined ? options.avenant : await infoAvenant(quote, items)
+  const mm = mentionsDevis({ quote, items, client, textes: md.textes, pieces: md.pieces, avenant })
   const legal = [
     particulier ? null : publicClient && penalitesPublic ? penalitesPublic : "En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
     ...(partial ? [] : mm.legal),
@@ -95,16 +115,17 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     enLigne,
     formation,
     ref: partial ? quote.reference + '-P' : quote.reference,
-    docLabel: partial ? 'Bon de commande' : 'Devis',
-    code: partial ? 'BDC' : 'DEV',
-    title: partial ? 'Bon de commande partiel' : 'Devis',
-    subtitle: partial ? 'Lignes acceptées du devis ' + quote.reference + ' du ' + fmtDate(quote.quote_date) + ', montants recalculés sur ces seules lignes' : null,
+    docLabel: partial ? 'Bon de commande' : avenant ? 'Avenant' : 'Devis',
+    code: partial ? 'BDC' : avenant ? 'AVN' : 'DEV',
+    title: partial ? 'Bon de commande partiel' : avenant ? `Avenant n° ${quote.amendment_number || ''}`.trim() : 'Devis',
+    subtitle: partial ? 'Lignes acceptées du devis ' + quote.reference + ' du ' + fmtDate(quote.quote_date) + ', montants recalculés sur ces seules lignes'
+      : avenant ? `Au devis ${avenant.reference}${quote.amendment_reason ? ' : ' + quote.amendment_reason : ''}. Écart chiffré : lignes en plus, ou en moins (quantité négative).` : null,
     issuerLabel: 'Émetteur',
     issuerLines: issuerLines(L, cb),
     recipientLabel: 'Client',
     recipientLines: recipientLines(client, contact, true),
     meta: [
-      ['N° de devis', quote.reference],
+      [avenant ? 'N° d\'avenant' : 'N° de devis', quote.reference],
       ['Date', fmtDate(quote.quote_date)],
       ['Valable jusqu\'au', quote.validity_date ? fmtDate(quote.validity_date) : null],
       ['Réf. client', quote.client_reference || null],
@@ -112,7 +133,7 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     object: quote.object || null,
     rows: items.map((it) => itemRow(Number(it.eco_ht) > 0
       ? { ...it, description_detail: [it.description_detail, `Dont éco-participation : ${fmtEuro(it.eco_ht)} HT l'unité`].filter(Boolean).join('\n') }
-      : it, { tvaOn: quote.tva_applicable !== false && !regime.franchise, taux: (quote.tva_rate === null || quote.tva_rate === undefined || quote.tva_rate === '') ? 20 : (parseFloat(quote.tva_rate) || 0) })),
+      : it, { signe: true, tvaOn: quote.tva_applicable !== false && !regime.franchise, taux: (quote.tva_rate === null || quote.tva_rate === undefined || quote.tva_rate === '') ? 20 : (parseFloat(quote.tva_rate) || 0) })),
     totals: totalsFor(quote, items, regime),
     notes: quote.notes || null,
     signature: {

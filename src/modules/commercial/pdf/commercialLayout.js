@@ -43,7 +43,8 @@ export function itemRow(it, opts) {
   if (it.description_detail) desc += '\n' + it.description_detail
   var unite = it.unit && it.unit !== 'unité' ? '\n' + it.unit : ''
   var tva = o.tvaOn === false ? '-' : (it.vat_regime && it.vat_regime !== 'normal' ? '0 %' : fmtRate(tv))
-  return [it.code || '', desc, fmtQty(q) + unite, fmtMoney(pu), tva, fmtMoney(lt)]
+  // o.signe : total d'une ligne en moins affiché avec son signe (avenant, 0446)
+  return [it.code || '', desc, fmtQty(q) + unite, fmtMoney(pu), tva, (o.signe && lt < 0 ? '-' : '') + fmtMoney(lt)]
 }
 
 /**
