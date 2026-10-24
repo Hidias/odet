@@ -7181,6 +7181,33 @@ begin
     end;
   end if;
 
+  -- Dernière connexion des comptes externes (0456)
+  if exists (select 1 from public.schema_migrations where version = '0456_derniere_connexion') then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 1;
+    declare dc_t uuid; dc_u uuid := gen_random_uuid(); dc_j jsonb;
+    begin
+      insert into public.trainers (first_name, last_name) values ('Essai', 'Connexion 0456') returning id into dc_t;
+      insert into auth.users (id, email, aud, role, last_sign_in_at) values (dc_u, 'ext.0456@test.invalid', 'authenticated', 'authenticated', now() - interval '1 hour');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active, trainer_id) values (dc_u, 'ext.0456@test.invalid', 'formateur_externe', true, dc_t)
+      on conflict (id) do update set role = excluded.role, trainer_id = excluded.trainer_id, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      dc_j := public.acces_externe_etat('formateur', dc_t);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if dc_j->>'last_seen_at' is not null then v_lines := v_lines || 'OK      dir   0456 : fiche formateur : dernière connexion de son espace affichée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0456 : dernière connexion ' || coalesce(dc_j::text, '?')); end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0456 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

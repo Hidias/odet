@@ -13,6 +13,7 @@ import { buildQualityDocPDF } from '../pdf/qualityDocsPDF'
 import { loadTemplates, isRich, fromTemplate, docStatus } from '../richdocs/model'
 import RichDocEditor, { StatusChip } from '../richdocs/RichDocEditor'
 import { ReglageCircuit } from '../richdocs/CircuitDocument'
+import DossierRelecture from '../richdocs/DossierRelecture'
 import { buildRichDocPDF } from '../richdocs/richDocPDF'
 import { loadPublishedDoc } from '../richdocs/published'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
@@ -345,6 +346,7 @@ export default function QualiteEditables() {
   // Nouveau modèle (procédures, documents stagiaires et clients, gouvernance, pilotage, fiches)
   const [templates, setTemplates] = useState(null)
   const [richOpen, setRichOpen] = useState(null)
+  const [dossierPdf, setDossierPdf] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('tous')
   useEffect(() => { loadTemplates().then(setTemplates).catch((e) => toast.error(e.message)) }, [])
@@ -936,8 +938,11 @@ export default function QualiteEditables() {
                   </button>
                   {isExp && cat.id === 'commerce' && (
                     <div className="border-t px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-gray-50">
-                      <p className="text-ui-sm text-gray-600">Joints aux devis selon leur métier. Les projets de clauses sont marqués « À valider par l'avocat ».</p>
-                      <button type="button" onClick={dossierAvocat} disabled={generating} className="btn btn-sm btn-secondary flex items-center gap-1"><Download className="w-4 h-4" /> Dossier pour l'avocat (Word)</button>
+                      <p className="text-ui-sm text-gray-600">Joints aux devis selon leur métier. Les projets de clauses sont marqués « À valider » ; le dossier de relecture les liste pour le relecteur (avocat, juriste, expert-comptable).</p>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => setDossierPdf(true)} disabled={!templates} className="btn btn-sm btn-primary flex items-center gap-1"><Download className="w-4 h-4" /> Dossier de relecture (PDF)</button>
+                        <button type="button" onClick={dossierAvocat} disabled={generating} className="btn btn-sm btn-secondary flex items-center gap-1"><Download className="w-4 h-4" /> Version Word</button>
+                      </div>
                     </div>
                   )}
                   {isExp && (
@@ -1150,6 +1155,7 @@ export default function QualiteEditables() {
       )}
       
       {renderEditor()}
+      {dossierPdf && templates && <DossierRelecture templates={templates} onFermer={() => setDossierPdf(false)} />}
       {richOpen && templates?.[richOpen] && (
         <RichDocEditor
           key={richOpen}

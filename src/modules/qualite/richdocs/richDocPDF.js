@@ -71,7 +71,13 @@ function drawBlock(f, b, ctx) {
   if (b.t === 'ul') { bulletList(f, b.items || [], ctx); return }
   if (b.t === 'ol') { bulletList(f, b.items || [], ctx, { ordered: true, start: b.start || 1 }); return }
   if (b.t === 'check') { f.checks((b.items || []).filter(Boolean).map((it) => ({ label: strip(fillText(it, ctx)) }))); return }
-  if (b.t === 'note') { f.callout('À retenir', strip(fillText(b.text, ctx))); return }
+  if (b.t === 'note') {
+    // Projet de clause (« À valider… ») : signalé comme tel, jamais présenté comme une information à retenir
+    const t = strip(fillText(b.text, ctx))
+    const m = t.match(/^À valider( par [^:]+)?\s*:\s*/i)
+    f.callout(m ? 'À valider' : 'À retenir', m ? t.slice(m[0].length) : t)
+    return
+  }
   if (b.t === 'quote') { f.callout(null, (b.paras || []).filter(Boolean).map((p) => strip(fillText(p, ctx))).join('\n\n'), { tone: 'muted' }); return }
   if (b.t === 'table') {
     const head = (b.head || []).map((h) => strip(fillText(h, ctx)))
