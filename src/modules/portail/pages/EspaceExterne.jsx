@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
-import { Calendar, MapPin, Users, Download, Loader2, LogOut, AlertCircle, BadgeCheck, Award, ClipboardList, FileText, ExternalLink, ShieldCheck, GraduationCap, PenLine, CalendarPlus } from 'lucide-react'
+import { Calendar, MapPin, Users, Download, Loader2, LogOut, AlertCircle, BadgeCheck, Award, ClipboardList, FileText, ExternalLink, ShieldCheck, GraduationCap, PenLine, CalendarPlus, Receipt } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr as frLocale } from 'date-fns/locale'
 import { supabase } from '../../../core/supabase'
 import { useAuthStore } from '../../../core/store'
 import PublicLayout from '../../../app/PublicLayout'
 import { telechargerIcsSessions } from '../../../core/fichiers/agenda'
+import MesFrais from '../components/MesFrais'
 import { useBranding } from '../../../core/branding/BrandingProvider'
 import { BandeauAccueil, PersonnaliserEspace } from '../components/Vitrine'
 import { useMonProfil } from '../lib/monProfil'
@@ -271,10 +272,12 @@ function EspaceFormateur({ logout }) {
 
   return (
     <PublicLayout title={titre} bandeau={<Entete libelle={titre} prenom={data.trainer?.first_name} sousTitre="Vos interventions" logout={logout} />}>
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         <button type="button" onClick={() => setOnglet('sessions')} className={`btn btn-sm ${onglet === 'sessions' ? 'btn-primary' : 'btn-secondary'}`}><Calendar className="w-4 h-4" /> Mes sessions</button>
         <button type="button" onClick={() => setOnglet('justificatifs')} className={`btn btn-sm ${onglet === 'justificatifs' ? 'btn-primary' : 'btn-secondary'}`}><ShieldCheck className="w-4 h-4" /> Mes justificatifs</button>
+        <button type="button" onClick={() => setOnglet('frais')} className={`btn btn-sm ${onglet === 'frais' ? 'btn-primary' : 'btn-secondary'}`}><Receipt className="w-4 h-4" /> Mes frais</button>
       </div>
+      {onglet === 'frais' && <MesFrais sessions={[...up, ...pa]} Carte={Carte} />}
       {onglet === 'sessions' && (
         <div className="space-y-5">
           {up.length > 1 && (
