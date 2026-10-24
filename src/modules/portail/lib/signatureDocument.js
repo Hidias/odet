@@ -6,6 +6,8 @@ import { buildORG } from '../../../core/org/orgUtils'
 export const NOMS_SIGNABLES = {
   devis: { titre: 'Signer le devis', nom: 'le devis' },
   contrat: { titre: 'Signer le contrat', nom: 'le contrat' },
+  // Bon d'intervention signé à distance (0451)
+  rapport: { titre: 'Signer le bon d\'intervention', nom: 'le bon d\'intervention' },
 }
 
 /** ArrayBuffer du document suivi de sa page de preuve */

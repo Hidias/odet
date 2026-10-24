@@ -1361,6 +1361,11 @@ tdx('0399', 'training_documents_issued', sel=_AVIS_VOIR, ins=_AVIS_GER, upd=None
 # Journal de l'espace client (0401) : lu par qui voit les fiches clients ; écrit seulement par les fonctions des
 # portails (aucune règle d'écriture), jamais modifié ni effacé : il sert de preuve de mise à disposition.
 tdx('0401', 'portal_events', sel=f"company_id in {societes('clients.fiches.voir')}")
+# Avis de passage (0451) : lus par qui voit les visites et par leur auteur ; écrits par qui gère les visites ou par le
+# technicien pour sa visite.
+tdx('0451', 'itv_visit_notices', sel=f"(company_id in {societes('interventions.visites.voir')} or created_by = (select auth.uid()))",
+    ins=f"(company_id in {societes('interventions.visites.gerer')} or (company_id in {societes('interventions.missions.realiser')} and visit_id in (select v.id from public.itv_visits v where v.technician_id = (select auth.uid()))))",
+    upd=f"company_id in {societes('interventions.visites.gerer')}", dele=f"company_id in {societes('interventions.visites.gerer')}")
 # Appareils de l'espace client (0449) : lus par qui gère l'espace entreprise, écrits seulement par les fonctions de la base.
 tdx('0449', 'portal_devices', sel=f"company_id in {societes('clients.espace.gerer')}")
 

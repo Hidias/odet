@@ -13,6 +13,7 @@ import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 export const ACCORD_SIGNATURE = "J'ai lu la convention de formation ci-dessus et je l'accepte au nom de mon entreprise. Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
 export const ACCORD_DEVIS = "J'ai lu le devis ci-dessus et je l'accepte au nom de mon entreprise (bon pour accord). Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
 export const ACCORD_CONTRAT = "J'ai lu le contrat ci-dessus et je l'accepte au nom de mon entreprise. Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
+export const ACCORD_BON = "J'ai lu le bon d'intervention ci-dessus et je reconnais, au nom de mon entreprise, l'intervention décrite. Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
 
 // Mention écrite au clavier par le signataire (décision de H, 21/10, 23 h 36) : celle du document (« Lu et approuvé,
 // bon pour accord ») ou, au plus court, « Bon pour accord ». Elle part avec l'accord et figure sur la page de preuve ;
