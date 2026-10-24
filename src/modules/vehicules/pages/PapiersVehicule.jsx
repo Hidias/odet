@@ -244,7 +244,7 @@ export function MesPapiers({ vehicule, km, profile, onDeclarer }) {
         {cg && <button type="button" className="btn btn-secondary btn-sm" onClick={() => ouvrir(cg)}><Eye className="w-4 h-4" aria-hidden="true" />Carte grise</button>}
         {att && <button type="button" className="btn btn-secondary btn-sm" onClick={() => ouvrir(att)}><Eye className="w-4 h-4" aria-hidden="true" />Attestation d'assurance{!papierValable(att) ? ' (échue)' : ''}</button>}
       </div>
-      {l && (!cg || !att) && <p className="text-ui-sm muted">{[!cg && 'carte grise', !att && 'attestation d\'assurance'].filter(Boolean).join(' et ')} pas encore déposée{!cg && !att ? 's' : ''} par le responsable du parc.</p>}
+      {l && (!cg || !att) && <p className="text-ui-sm muted">{!cg && !att ? 'Carte grise et attestation d\'assurance pas encore déposées' : !cg ? 'Carte grise pas encore déposée' : 'Attestation d\'assurance pas encore déposée'} par le responsable du parc.</p>}
       {guide && <GuideAccident vehicule={vehicule} km={km} profile={profile} vierge={vierge} attestation={att} onClose={() => setGuide(false)} onDeclarer={() => { setGuide(false); onDeclarer?.() }} />}
     </div>
   )
