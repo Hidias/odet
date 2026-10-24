@@ -4,11 +4,11 @@
 // Chaque document a ses articles réservés aux particuliers (cond « particuliers ») et aux professionnels
 // (cond « professionnels ») : un seul document, deux variantes, une seule histoire de versions.
 //
-// PROJETS À FAIRE VALIDER PAR L'AVOCAT : chaque clause sensible porte un encadré « À valider par l'avocat ». Les
+// PROJETS À FAIRE VALIDER PAR L'EXPERT (avocat, juriste, comptable, expert du métier… selon l'entreprise) : chaque clause sensible porte un encadré « À valider par l'expert ». Les
 // passages entre crochets sont à compléter par l'organisme avant validation. Références légales vérifiées le
 // 24/10/2026, à relire à la source à la validation.
 
-const note = (text) => ({ t: 'note', text: `À valider par l'avocat : ${text}` })
+const note = (text) => ({ t: 'note', text: `À valider par l'expert : ${text}` })
 const p = (text) => ({ t: 'p', text })
 const ul = (...items) => ({ t: 'ul', items })
 

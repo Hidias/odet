@@ -148,7 +148,7 @@ export function ReglageCircuit({ commerce = [] }) {
         <h3 className="font-semibold flex-1 min-w-[12rem]">Circuit de validation des documents</h3>
         {enCours > 0 && <a href="#/relectures" className="btn btn-secondary btn-sm">{enCours} relecture{enCours > 1 ? 's' : ''} en cours</a>}
       </div>
-      <p className="text-ui-sm text-gray-500">Chaque document peut être validé directement, relu par l'équipe, ou relu puis vérifié par un expert (avocat, juriste, expert-comptable…). Le réglage se fait ici pour tous les documents, et dans la fiche de chacun.</p>
+      <p className="text-ui-sm text-gray-500">Chaque document peut être validé directement, relu par l'équipe, ou relu puis vérifié par un expert (juridique, comptable, du métier… selon l'entreprise). Le réglage se fait ici pour tous les documents, et dans la fiche de chacun.</p>
       {d.valider ? (
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="block"><span className="label">Par défaut</span>

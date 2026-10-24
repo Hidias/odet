@@ -266,7 +266,7 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
     setBusy(null)
   }
 
-  // Relecture par l'avocat (24/10) : export Word, réimport de la version relue, comparaison, brouillon
+  // Relecture par l'expert (24/10) : export Word, réimport de la version relue, comparaison, brouillon
   const [relue, setRelue] = useState(null) // { sections, changes, fichier }
   const exporterWord = async () => {
     setBusy('word')
@@ -294,7 +294,7 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
   const appliquerRelue = async () => {
     setBusy('save')
     try {
-      await persist({ ...content, sections: relue.sections, status: 'brouillon', motif: `Relecture de l'avocat (${relue.fichier}), importée le ${frDate(todayIso())}` })
+      await persist({ ...content, sections: relue.sections, status: 'brouillon', motif: `Relecture de l'expert (${relue.fichier}), importée le ${frDate(todayIso())}` })
       setRelue(null)
       toast.success('Version relue enregistrée en brouillon : vérifiez-la, puis validez-la pour qu\'elle parte avec les devis.')
     } catch (err) { toast.error(err.message) }

@@ -106,7 +106,7 @@ export function Commentaire({ onAnnuler, onEnregistrer, busy, placeholder = 'Vot
   )
 }
 
-const QUALITES_EXPERT = { avocat: 'Avocat', juriste: 'Juriste', expert_comptable: 'Expert-comptable', comptable: 'Comptable', autre: 'Autre' }
+const QUALITES_EXPERT = { autre: 'Expert (sans précision)', avocat: 'Avocat', juriste: 'Juriste', expert_comptable: 'Expert-comptable', comptable: 'Comptable' }
 
 /** Experts invités en ligne (0457) : lien et code, envoyés dans deux e-mails séparés ou copiés */
 function ExpertsEnLigne({ review, ctx, onChange }) {
@@ -146,7 +146,7 @@ function ExpertsEnLigne({ review, ctx, onChange }) {
     <div className="rounded-ui-sm border border-gray-200 p-3 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-semibold text-ui flex-1">Relecture en ligne par l'expert</p>
-        {!f && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setF({ name: review.expert_label?.split(',')[0] || '', quality: 'avocat', email: '' })}><Plus className="w-4 h-4" />Inviter un expert</button>}
+        {!f && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setF({ name: review.expert_label?.split(',')[0] || '', quality: 'autre', email: '' })}><Plus className="w-4 h-4" />Inviter un expert</button>}
       </div>
       <p className="text-ui-sm text-gray-500">L'expert ouvre le document avec un lien et un code, sans compte. Il valide, propose une rédaction ou commente chaque article ; quand il termine, ses avis arrivent ici à arbitrer.</p>
       {f && (
@@ -399,7 +399,7 @@ function Circuit({ id }) {
         {r.status === 'expert' && <p className="text-ui-sm text-gray-500">Sans relecture en ligne : envoyez le dossier PDF ou le fichier Word à l'expert. Quand il vous le renvoie corrigé, importez-le : chaque changement devient une modification à arbitrer. Le fichier Word peut aussi contenir ses modifications suivies, acceptées à l'import.</p>}
         {expert !== null && (
           <div className="flex flex-wrap items-end gap-2">
-            <label className="block flex-1 min-w-[14rem]"><span className="label">Expert (nom et qualité)</span><input className="input" value={expert} maxLength={120} placeholder="Me Dupont, avocat" onChange={(e) => setExpert(e.target.value)} /></label>
+            <label className="block flex-1 min-w-[14rem]"><span className="label">Expert (nom et qualité)</span><input className="input" value={expert} maxLength={120} placeholder="Nom et qualité de l'expert" onChange={(e) => setExpert(e.target.value)} /></label>
             <button type="button" className="btn btn-primary btn-sm" disabled={busy || expert.trim().length < 2} onClick={async () => { if (await changerEtat('expert', { expert_label: expert.trim() }, 'Chez l\'expert : téléchargez le dossier ci-dessous')) setExpert(null) }}>Confirmer</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setExpert(null)}>Annuler</button>
           </div>

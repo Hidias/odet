@@ -75,8 +75,8 @@ describe('Conditions générales : variante professionnels ou particuliers', () 
       expect(t[id].numeroter).toBe(true)
       expect(t[id].sections.some((s) => s.cond === 'particuliers'), id).toBe(true)
       expect(t[id].sections.some((s) => s.cond === 'professionnels'), id).toBe(true)
-      // Projets : chaque jeu porte des clauses à faire valider par l'avocat
-      expect(JSON.stringify(t[id]).includes('À valider par l\'avocat'), id).toBe(true)
+      // Projets : chaque jeu porte des clauses à faire valider par l'expert
+      expect(JSON.stringify(t[id]).includes('À valider par l\'expert'), id).toBe(true)
       // Aucun renvoi par numéro d'article (numérotés à l'impression, variante par variante)
       expect(t[id].sections.every((s) => !/^Article \d/.test(s.title)), id).toBe(true)
     }

@@ -6,7 +6,7 @@ import { diffMots } from './docxRichDoc'
 export const MODES = {
   direct: { label: 'Validation directe', aide: 'Une personne qui valide les documents valide seule, sans relecture.' },
   interne: { label: 'Relecture par l\'équipe', aide: 'Des personnes de l\'entreprise relisent, la direction arbitre et valide.' },
-  complet: { label: 'Relecture et expert', aide: 'Relecture par l\'équipe, puis vérification par un expert (avocat, juriste, expert-comptable…), puis validation par la direction.' },
+  complet: { label: 'Relecture et expert', aide: 'Relecture par l\'équipe, puis vérification par un expert (juridique, comptable, du métier… selon l\'entreprise), puis validation par la direction.' },
 }
 
 export const ETATS = {

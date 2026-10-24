@@ -71,7 +71,7 @@ export default function DossierRelecture({ templates, onFermer, relecteurInitial
           ))}
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMixtes([...mixtes, []])}><Plus className="w-4 h-4" />Ajouter un mixte</button>
         </div>
-        <label className="block"><span className="label">Relecteur (facultatif)</span><input className="input" value={relecteur} maxLength={120} placeholder="Me Dupont, avocat" onChange={(e) => setRelecteur(e.target.value)} /></label>
+        <label className="block"><span className="label">Relecteur (facultatif)</span><input className="input" value={relecteur} maxLength={120} placeholder="Nom et qualité de l'expert" onChange={(e) => setRelecteur(e.target.value)} /></label>
         <label className="block"><span className="label">Précision pour le relecteur (facultatif)</span><textarea className="input w-full" rows={2} maxLength={1000} value={consigne} onChange={(e) => setConsigne(e.target.value)} /></label>
         <label className="block"><span className="label">Réponse souhaitée avant le (facultatif)</span><input type="date" className="input" value={echeance} onChange={(e) => setEcheance(e.target.value)} /></label>
         <label className="flex items-center gap-2 min-h-[40px] text-ui"><input type="checkbox" className="w-4 h-4" checked={avecWord} onChange={(e) => setAvecWord(e.target.checked)} />Joindre aussi les fichiers Word (corrections en modifications suivies, réimportées dans la relecture)</label>
