@@ -6797,24 +6797,24 @@ begin
     perform set_config('request.jwt.claims', '', true);
     perform set_config('request.headers', '{"user-agent": "Mozilla/5.0 (iPhone) Safari"}', true);
     v_total := v_total + 4;
-    declare ec_client uuid; ec_r jsonb; ec_r2 jsonb; ec_e1 jsonb; ec_e2 jsonb; ec_ok jsonb; ec_old jsonb; ec_n int; ec_nsa int;
+    declare ec_jeton text := md5(gen_random_uuid()::text); ec_client uuid; ec_r jsonb; ec_r2 jsonb; ec_e1 jsonb; ec_e2 jsonb; ec_ok jsonb; ec_old jsonb; ec_n int; ec_nsa int;
     begin
       insert into public.clients (name) values ('Client essai 0449') returning id into ec_client;
-      insert into public.client_portal_access (client_id, token, access_code, is_active) values (ec_client, 'essai-0449-jeton', '135790', true);
+      insert into public.client_portal_access (client_id, token, access_code, is_active) values (ec_client, ec_jeton, '135790', true);
       execute 'set local role anon';
-      ec_r := public.client_portal_appareil('essai-0449-jeton', '135790', repeat('a', 64));
-      ec_r2 := public.client_portal_appareil('essai-0449-jeton', '135790', repeat('b', 64));
-      ec_e1 := public.client_portal_changer_code('essai-0449-jeton', '135790', '123456');
-      ec_e2 := public.client_portal_changer_code('essai-0449-jeton', '135790', '777777');
-      ec_ok := public.client_portal_changer_code('essai-0449-jeton', '135790', '246813');
-      ec_old := public.client_portal_appareil('essai-0449-jeton', '135790', repeat('a', 64));
+      ec_r := public.client_portal_appareil(ec_jeton, '135790', repeat('a', 64));
+      ec_r2 := public.client_portal_appareil(ec_jeton, '135790', repeat('b', 64));
+      ec_e1 := public.client_portal_changer_code(ec_jeton, '135790', '123456');
+      ec_e2 := public.client_portal_changer_code(ec_jeton, '135790', '777777');
+      ec_ok := public.client_portal_changer_code(ec_jeton, '135790', '246813');
+      ec_old := public.client_portal_appareil(ec_jeton, '135790', repeat('a', 64));
       execute 'reset role';
       if (ec_r->>'nouveau')::boolean = false and (ec_r2->>'nouveau')::boolean and jsonb_array_length(ec_r2->'appareils') = 2
          and exists (select 1 from public.notifications where type = 'espace_client_appareil' and metadata->>'client_id' = ec_client::text) then
         v_lines := v_lines || 'OK      anon  0449 : appareil inconnu signalé (le premier ne l''est pas), liste des appareils'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0449 : appareils ' || coalesce(ec_r2::text, '?')); end if;
       if ec_e1 ? 'error' and ec_e2 ? 'error' and ec_ok ? 'ok' and ec_old ? 'error'
-         and (select access_code from public.client_portal_access where token = 'essai-0449-jeton') = '246813' then
+         and (select access_code from public.client_portal_access where token = ec_jeton) = '246813' then
         v_lines := v_lines || 'OK      anon  0449 : code changé par le client (suite et répétition refusées), ancien code refusé'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0449 : changement de code'::text; end if;
       perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
