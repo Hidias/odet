@@ -26,7 +26,7 @@ import SSTCertificationTab from '../../prevention/components/SSTCertificationTab
 import AvisFormationTab from '../components/AvisFormationTab'
 import RegularisationEmargements from '../components/RegularisationEmargements'
 import SignatureEnLigne from '../components/SignatureEnLigne'
-import { avecHeuresRealisees } from '../lib/emargementControle'
+import { avecHeuresRealisees, signaturesFormateur } from '../lib/emargementControle'
 import { figerDocuments } from '../lib/documentsEmis'
 import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
 import FormativeSummary, { useFormativeSummary } from '../../suivi/components/FormativeSummary'
@@ -2359,7 +2359,7 @@ export default function SessionDetail() {
         trainer,
         isBlank: !hasAttendance,
         attendanceData: hasAttendance
-          ? { signatures: signatures || [], halfdays: halfDays || [], digitalSignatures: digitalSigs || [], proxies: proxies || [], absents: getAbsentTraineeIds(), trainerSignatureBase64 }
+          ? { signatures: signatures || [], halfdays: halfDays || [], digitalSignatures: digitalSigs || [], proxies: proxies || [], absents: getAbsentTraineeIds(), trainerSignatureBase64, trainerHalfdays: await signaturesFormateur(session.id), trainerId: trainer?.id }
           : (trainerSignatureBase64 ? { signatures: [], halfdays: [], digitalSignatures: [], trainerSignatureBase64 } : null)
       })
       if (emargement) zip.file(`Emargement_${ref}.pdf`, emargement.base64, { base64: true })
@@ -2597,7 +2597,9 @@ export default function SessionDetail() {
         digitalSignatures: digitalSigs || [],
         proxies: proxies || [],
         absents: getAbsentTraineeIds(),
-        trainerSignatureBase64
+        trainerSignatureBase64,
+        trainerHalfdays: await signaturesFormateur(session.id),
+        trainerId: trainer?.id,
       }
     }
 

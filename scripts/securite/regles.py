@@ -1367,6 +1367,9 @@ tdx('0452', 'course_modules', sel=f"(company_id in {societes('formation.catalogu
     ins=f"company_id in {societes('formation.catalogue.gerer')}", upd=f"company_id in {societes('formation.catalogue.gerer')}",
     dele=f"company_id in {societes('formation.catalogue.gerer')}")
 tdx('0452', 'course_module_progress', sel=f"company_id in {societes('formation.sessions.voir')}")
+# Signature du formateur par demi-journée (0453) : lue par le suivi et par le formateur de ses sessions, écrite
+# seulement par public.formateur_signer (aucune règle d'écriture), jamais remplacée.
+tdx('0453', 'trainer_halfday_signatures', sel=_AVIS_VOIR)
 # Avis de passage (0451) : lus par qui voit les visites et par leur auteur ; écrits par qui gère les visites ou par le
 # technicien pour sa visite.
 tdx('0451', 'itv_visit_notices', sel=f"(company_id in {societes('interventions.visites.voir')} or created_by = (select auth.uid()))",
