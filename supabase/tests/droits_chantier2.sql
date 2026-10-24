@@ -7018,6 +7018,75 @@ begin
     end;
   end if;
 
+  -- Notes de frais du formateur (0454)
+  if to_regclass('public.trainer_expenses') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare nf_t uuid; nf_t2 uuid; nf_s uuid; nf_u uuid := gen_random_uuid(); nf_co uuid; nf_id uuid; nf_id2 uuid;
+            nf_e1 boolean := false; nf_e2 boolean := false; nf_e3 boolean := false; nf_e4 boolean := false; nf_e5 boolean := false;
+            nf_e6 boolean := false; nf_e7 boolean := false; nf_l jsonb; nf_r record;
+    begin
+      insert into public.trainers (first_name, last_name) values ('Essai', 'Frais 0454') returning id, company_id into nf_t, nf_co;
+      insert into public.trainers (first_name, last_name) values ('Autre', 'Frais 0454') returning id into nf_t2;
+      insert into public.sessions (client_id, trainer_id, start_date, end_date, attendance_token)
+      values (v_client, nf_t, current_date, current_date, md5(gen_random_uuid()::text)) returning id into nf_s;
+      insert into auth.users (id, email, aud, role) values (nf_u, 'ext.0454@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active, trainer_id) values (nf_u, 'ext.0454@test.invalid', 'formateur_externe', true, nf_t)
+      on conflict (id) do update set role = excluded.role, trainer_id = excluded.trainer_id, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      perform set_config('request.jwt.claims', json_build_object('sub', nf_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.ext_frais_ajouter(current_date, 'repas', 18.5, null, nf_s, 'Midi', null); exception when sqlstate '22023' then nf_e1 := true; end;
+      begin perform public.ext_frais_ajouter(current_date, 'repas', 18.5, null, nf_s, 'Midi', nf_co::text || '/' || nf_t2::text || '/x.jpg'); exception when sqlstate '42501' then nf_e2 := true; end;
+      begin perform public.ext_frais_ajouter(current_date, 'kilometres', 30, null, nf_s, null, null); exception when sqlstate '22023' then nf_e3 := true; end;
+      nf_id := public.ext_frais_ajouter(current_date, 'repas', 18.5, null, nf_s, 'Midi', nf_co::text || '/' || nf_t::text || '/ticket.jpg');
+      nf_id2 := public.ext_frais_ajouter(current_date, 'kilometres', 42.3, 120, nf_s, 'Aller-retour', null);
+      begin insert into storage.objects (bucket_id, name) values ('frais', nf_co::text || '/' || nf_t2::text || '/autre.jpg'); exception when insufficient_privilege then nf_e4 := true; end;
+      insert into storage.objects (bucket_id, name) values ('frais', nf_co::text || '/' || nf_t::text || '/ticket.jpg');
+      nf_l := public.ext_frais();
+      execute 'reset role';
+      if nf_e1 and nf_e2 and nf_e3 and nf_e4 and jsonb_array_length(nf_l->'frais') = 2
+         and exists (select 1 from public.notifications n where n.type = 'frais_formateur' and n.metadata->>'expense_id' = nf_id::text) then
+        v_lines := v_lines || 'OK      ext   0454 : note de frais avec ticket ou kilomètres, dans son dossier seulement ; l''organisme est prévenu'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ext   0454 : déclaration ' || nf_e1 || nf_e2 || nf_e3 || nf_e4 || ' ' || coalesce(nf_l::text, '?')); end if;
+      -- Décision par la direction
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin update public.trainer_expenses set status = 'refusee' where id = nf_id2; exception when sqlstate '23514' then nf_e5 := true; end;
+      begin update public.trainer_expenses set amount_ttc = 99 where id = nf_id; exception when sqlstate '42501' then nf_e6 := true; end;
+      update public.trainer_expenses set status = 'validee' where id = nf_id;
+      update public.trainer_expenses set status = 'remboursee' where id = nf_id;
+      update public.trainer_expenses set status = 'refusee', decision_note = 'Sans rapport avec la session' where id = nf_id2;
+      execute 'reset role';
+      select status, paid_on, decided_at into nf_r from public.trainer_expenses where id = nf_id;
+      if nf_e5 and nf_e6 and nf_r.status = 'remboursee' and nf_r.paid_on is not null and nf_r.decided_at is not null then
+        v_lines := v_lines || 'OK      dir   0454 : décision dans l''ordre, refus avec motif, montant déclaré non modifiable'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0454 : décision ' || nf_e5 || nf_e6 || ' ' || coalesce(nf_r.status, '?')); end if;
+      -- Le formateur n'annule pas une note traitée ; il ne lit aucune table
+      perform set_config('request.jwt.claims', json_build_object('sub', nf_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.ext_frais_annuler(nf_id); exception when sqlstate '22023' then nf_e7 := true; end;
+      nf_l := public.ext_frais();
+      execute 'reset role';
+      if nf_e7 and (select count(*) from jsonb_array_elements(nf_l->'frais') f where f->>'status' = 'refusee' and f->>'decision_note' is not null) = 1 then
+        v_lines := v_lines || 'OK      ext   0454 : le formateur voit la décision et son motif, n''annule pas une note traitée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ext   0454 : suivi par le formateur'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', nf_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      if not exists (select 1 from public.trainer_expenses) then
+        execute 'reset role';
+        v_lines := v_lines || 'OK      ext   0454 : aucune note lisible en direct par le formateur externe'::text;
+      else execute 'reset role'; v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ext   0454 : table lisible'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0454 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

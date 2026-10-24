@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { useDroits } from '../../../core/rights/useDroit'
+import FraisFormateur from '../components/FraisFormateur'
 import AccesExterne from '../components/AccesExterne'
 import { Plus, Search, Edit, Trash2, X, UserCheck, Save, Award, FileText, Upload, Calendar, AlertTriangle, Eye, Settings, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -490,6 +491,8 @@ export default function Trainers() {
               {selectedTrainer.is_internal === false && (
                 <div className="px-6 pb-4"><AccesExterne kind="formateur" id={selectedTrainer.id} email={selectedTrainer.email} peutGerer={d.gerer} /></div>
               )}
+              {/* Notes de frais déclarées par le formateur (0454) : rien sans le droit des coûts des sessions */}
+              <FraisFormateur trainerId={selectedTrainer.id} />
               <div className="flex justify-end gap-2 p-4 border-t">
                 {peutModifierFiche(selectedTrainer) && <button onClick={() => { setShowPreview(false); handleEdit(selectedTrainer) }} className="btn btn-primary"><Edit className="w-4 h-4 mr-2" />Modifier</button>}
               </div>
