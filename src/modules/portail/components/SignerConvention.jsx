@@ -18,6 +18,11 @@ export const ACCORD_CONTRAT = "J'ai lu le contrat ci-dessus et je l'accepte au n
 // bon pour accord ») ou, au plus court, « Bon pour accord ». Elle part avec l'accord et figure sur la page de preuve ;
 // la base refuse une signature sans elle (0429).
 export const MENTION_DOCUMENT = 'Lu et approuvé, bon pour accord'
+
+// Devis remis avec ses conditions générales (0444) : case obligatoire, recopiée dans l'accord enregistré (la base
+// refuse une signature sans elle quand des conditions sont jointes au devis)
+export const ACCORD_CONDITIONS = "J'ai lu et j'accepte les conditions générales jointes au devis (pages qui suivent le devis dans le document)."
+export const avecConditions = (libelle) => /conditions g[ée]n[ée]rales/i.test(String(libelle || ''))
 const normaliser = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]+/g, ' ').trim()
 export const mentionValable = (t, mention = MENTION_DOCUMENT) => {
   const n = normaliser(t)
@@ -37,6 +42,8 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
   const [nom, setNom] = useState(signataire?.name || '')
   const [fonction, setFonction] = useState(signataire?.role || '')
   const [accepte, setAccepte] = useState(false)
+  const conditions = avecConditions(libelle)
+  const [cgvOk, setCgvOk] = useState(false)
   const [lu, setLu] = useState(false)
   const [trace, setTrace] = useState(null)
   const [mentionSaisie, setMentionSaisie] = useState('')
@@ -56,14 +63,14 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
   }, [])
 
   const mentionOk = mentionValable(mentionSaisie, mention)
-  const pret = pdf && lu && accepte && trace && mentionOk && nom.trim().length >= 2 && !envoi
+  const pret = pdf && lu && accepte && (!conditions || cgvOk) && trace && mentionOk && nom.trim().length >= 2 && !envoi
 
   const signer = async () => {
     setEnvoi(true); setErreur('')
     try {
       const sha = await empreinte(pdf.base64)
       if (!sha) throw new Error('Empreinte du document impossible sur ce navigateur')
-      await onSigner({ base64: pdf.base64, sha256: sha, name: nom.trim(), role: fonction.trim(), signature: trace, consent: `${accord} Mention écrite par le signataire : « ${mentionSaisie.trim()} ».`, label: libelle || `Convention de formation ${session?.reference || ''}`.trim() })
+      await onSigner({ base64: pdf.base64, sha256: sha, name: nom.trim(), role: fonction.trim(), signature: trace, consent: `${accord}${conditions ? ` ${ACCORD_CONDITIONS}` : ''} Mention écrite par le signataire : « ${mentionSaisie.trim()} ».`, label: libelle || `Convention de formation ${session?.reference || ''}`.trim() })
     } catch (e) {
       setErreur(e.message || 'Signature impossible, réessayez.')
       setEnvoi(false)
@@ -115,6 +122,12 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
             <p className="text-sm font-medium text-gray-800 mb-2">3. Signez dans le cadre</p>
             <PadSimple onChange={setTrace} hauteur={150} label="Signez avec le doigt ou la souris" />
           </div>
+          {conditions && (
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input type="checkbox" className="mt-1 rounded" checked={cgvOk} onChange={(e) => setCgvOk(e.target.checked)} />
+              <span>{ACCORD_CONDITIONS}</span>
+            </label>
+          )}
           <label className="flex items-start gap-2 text-sm text-gray-700">
             <input type="checkbox" className="mt-1 rounded" checked={accepte} onChange={(e) => setAccepte(e.target.checked)} />
             <span>{accord}</span>

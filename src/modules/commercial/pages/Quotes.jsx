@@ -30,8 +30,10 @@ import { useRelanceIA } from '../lib/useRelanceIA'
 import { useCapacites } from '../../../core/capacites'
 import { modeleEnvoiDevis } from '../../../core/emails/modeles'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
+import { preparerDevisPublie } from '../lib/conditionsDevis'
 import { devisDeFormation, METIERS, libelleMetier, metierDevis, metierDeduit, metierLigne, objetsProposes, documentsAJoindre, piecesEntrepriseAJoindre, pieceValable } from '../lib/metierDevis'
 import AcompteDevis from '../components/AcompteDevis'
+import MentionsDevisForm from '../components/MentionsDevisForm'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import SignatureObjetEnLigne from '../../../core/signature/SignatureObjetEnLigne'
@@ -230,7 +232,10 @@ export default function Quotes() {
     funding_type: '', funding_client_id: '', funding_name: '', funding_agreement_ref: '',
     funding_agreement_date: '', funding_subrogation: false, funding_amount_ht: '',
     // Métier du devis (0443) : vide = déduit des lignes
-    metier: ''
+    metier: '',
+    // Conditions du devis (0444)
+    a_distance: false, a_distance_le: null, a_distance_infos: [], hors_etablissement: false,
+    delai_execution: '', acompte_pct: '', dechets: ''
   }
 
   const emptyItem = {
@@ -421,7 +426,7 @@ export default function Quotes() {
     setCurrentQuote({
       ...quote, id: undefined, reference: ref, quote_date: qDate, validity_date: vDate,
       payment_deadline: null, status: 'draft', created_at: undefined, updated_at: undefined,
-      clients: undefined, signature_base64: null,
+      clients: undefined, signature_base64: null, conditions_jointes: undefined, conditions_acceptees: undefined,
     })
     setItems(loadedItems.map((it, i) => ({ ...it, id: undefined, quote_id: undefined, position: i })))
     setMode('create')
@@ -452,6 +457,13 @@ export default function Quotes() {
       signature_base64: currentQuote.signature_base64 || null,
       ...champsFinancement(currentQuote),
       metier: currentQuote.metier || null,
+      // Conditions du devis (0444)
+      a_distance: !!currentQuote.a_distance, a_distance_le: currentQuote.a_distance ? (currentQuote.a_distance_le || null) : null,
+      a_distance_infos: currentQuote.a_distance && Array.isArray(currentQuote.a_distance_infos) ? currentQuote.a_distance_infos : [],
+      hors_etablissement: !!currentQuote.hors_etablissement,
+      delai_execution: (currentQuote.delai_execution || '').trim() || null,
+      acompte_pct: Number.isFinite(parseFloat(currentQuote.acompte_pct)) && parseFloat(currentQuote.acompte_pct) > 0 ? Math.min(100, parseFloat(currentQuote.acompte_pct)) : null,
+      dechets: (currentQuote.dechets || '').trim() || null,
       updated_at: new Date().toISOString()
     }
     try {
@@ -475,7 +487,9 @@ export default function Quotes() {
         // Nature et régime de TVA de la ligne (0363), repris sur la facture
         nature: it.nature === 'bien' ? 'bien' : 'service', vat_regime: it.vat_regime || 'normal',
         // Métier de la ligne (0443) : celui choisi, sinon déduit (formation du catalogue, bien = vente)
-        metier: metierLigne(it) || null
+        metier: metierLigne(it) || null,
+        // Éco-participation unitaire comprise dans le prix (0444)
+        eco_ht: Number.isFinite(parseFloat(String(it.eco_ht ?? '').replace(',', '.'))) && parseFloat(String(it.eco_ht).replace(',', '.')) > 0 ? parseFloat(String(it.eco_ht).replace(',', '.')) : null
       }))
       if (itemsToInsert.length > 0) {
         const { error: itemsError } = await supabase.from('quote_items').insert(itemsToInsert)
@@ -517,9 +531,15 @@ export default function Quotes() {
 
   // Devis remis (envoyé ou accepté) : mis à disposition dans l'espace client, tel quel (0404). Un devis modifié depuis
   // remplace l'ancienne version, sauf si celle-ci est déjà signée (le serveur la garde figée)
-  function publierDevis(quote, doc) {
+  // Remis avec ses conditions générales validées, dans la variante du client (0444) : un seul document lu et signé
+  async function publierDevisPdf(quote, items, client, base64) {
+    const pub = await preparerDevisPublie(quote, items, client, base64)
+    return mettreADisposition({ objectType: 'quote', objectId: quote.id, kind: 'devis', label: pub.label, base64: pub.base64 })
+  }
+  function publierDevis(quote, doc, items) {
     if (!quote?.id || !doc || !['sent', 'accepted', 'partial'].includes(quote.status)) return
-    mettreADisposition({ objectType: 'quote', objectId: quote.id, kind: 'devis', label: `Devis ${quote.reference || ''}`.trim(), base64: versBase64(doc.output('arraybuffer')) })
+    const client = clients.find(c => c.id === quote.client_id) || quote.clients || {}
+    publierDevisPdf(quote, items || [], client, versBase64(doc.output('arraybuffer'))).catch((e) => console.warn('Mise à disposition du devis :', e.message))
   }
 
   // Devis passé en « envoyé » ou modifié après envoi : son PDF est refait et mis à disposition, pour que le client le
@@ -536,7 +556,7 @@ export default function Quotes() {
         contactData = data
       }
       const doc = await generateQuotePDF(q, loadedItems, clientData, contactData, { orgSettings: organization, skipSave: true })
-      await mettreADisposition({ objectType: 'quote', objectId: q.id, kind: 'devis', label: `Devis ${q.reference || ''}`.trim(), base64: versBase64(doc.output('arraybuffer')) })
+      await publierDevisPdf(q, loadedItems, clientData, versBase64(doc.output('arraybuffer')))
     } catch (e) { console.warn('Mise à disposition du devis :', e.message) }
   }
 
@@ -552,7 +572,7 @@ export default function Quotes() {
         contactData = data
       }
       const doc = await generateQuotePDF(quote, loadedItems, clientData, contactData, { orgSettings: organization })
-      publierDevis(quote, doc)
+      publierDevis(quote, doc, loadedItems)
       toast.success('PDF généré !')
     } catch (err) { console.error(err); toast.error('Erreur PDF: ' + err.message) }
     setGeneratingPdf(false)
@@ -566,7 +586,7 @@ export default function Quotes() {
       const contactData = currentQuote.contact_id ? contacts.find(c => c.id === currentQuote.contact_id) || null : null
       const itemsForPdf = items.filter(it => it.description_title).map(it => ({ ...it, total_ht: calcItemTotal(it) }))
       const doc = await generateQuotePDF(currentQuote, itemsForPdf, clientData, contactData, { orgSettings: organization })
-      publierDevis(currentQuote, doc)
+      publierDevis(currentQuote, doc, itemsForPdf)
       toast.success('PDF généré !')
     } catch (err) { console.error(err); toast.error('Erreur PDF: ' + err.message) }
     setGeneratingPdf(false)
@@ -1008,7 +1028,7 @@ export default function Quotes() {
       const data = await resp.json()
       if (!resp.ok) throw new Error(data.error || 'Erreur envoi')
       // Le PDF envoyé est celui que le client trouve et signe dans son espace
-      await mettreADisposition({ objectType: 'quote', objectId: quote.id, kind: 'devis', label: `Devis ${quote.reference || ''}`.trim(), base64: pdfBase64 })
+      await publierDevisPdf({ ...quote, status: quote.status === 'draft' ? 'sent' : quote.status }, sendWizard.items || [], sendWizard.client || {}, pdfBase64)
       toast.success('Devis envoyé par email !')
       closeSendWizard()
       loadAll() // Refresh pour voir le nouveau statut
@@ -1838,6 +1858,10 @@ export default function Quotes() {
             </div>
 
 
+            {/* Devis à distance, particulier démarché, délai, acompte, déchets (0444) */}
+            <MentionsDevisForm quote={currentQuote} setQuote={setCurrentQuote} items={items}
+              client={clients.find((c) => c.id === currentQuote.client_id)} />
+
             {/* Dates + Conditions + TVA - inline compact */}
             <div className="bg-white rounded-ui border border-gray-200 p-4">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -1957,6 +1981,13 @@ export default function Quotes() {
                           <option value="">{metierLigne({ ...item, metier: '' }) ? `Métier : ${libelleMetier(metierLigne({ ...item, metier: '' }))}` : 'Métier : à préciser'}</option>
                           {METIERS.filter((m) => m.id !== 'formation').map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                         </select>
+                      )}
+                      {/* Éco-participation comprise dans le prix d'un bien (0444) */}
+                      {item.nature === 'bien' && !item.course_id && !/^MAT-/.test(item.code || '') && (
+                        <label className="flex items-center gap-1 text-ui-sm text-gray-500">Dont éco-participation
+                          <input type="text" inputMode="decimal" value={item.eco_ht ?? ''} onChange={(e) => updateItem(idx, 'eco_ht', e.target.value)}
+                            className="w-16 px-1 py-0.5 border border-gray-200 rounded text-ui-sm" aria-label="Éco-participation unitaire HT" placeholder="0" /> € HT
+                        </label>
                       )}
                     </div>
                     {/* Row 3: Qté + Unité + PU HT + TVA% + Total = tout sur une ligne */}
