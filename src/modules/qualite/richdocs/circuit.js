@@ -109,6 +109,29 @@ export async function enregistrerReglages({ defaultMode = null, perDoc = null } 
   return data
 }
 
+/**
+ * Validation réservée (0458) : pour les documents choisis, seules les personnes désignées confirment une version ;
+ * les autres envoient une demande. { reservee, peutConfirmer }
+ */
+export function reservation(reglages, docId, { uid = null, superadmin = false } = {}) {
+  const val = reglages?.validateurs || []
+  const reservee = val.length > 0 && (reglages?.docs_reserves || []).includes(docId)
+  return { reservee, peutConfirmer: !reservee || superadmin || (!!uid && val.includes(uid)) }
+}
+
+/** Réglage de la validation réservée : personnes désignées et documents concernés (null : inchangé) */
+export async function enregistrerReservation({ validateurs = null, docs = null } = {}) {
+  const { data, error } = await supabase.rpc('validation_reservee_regler', { p_validateurs: validateurs, p_docs: docs })
+  if (error) throw new Error(error.message)
+  return data
+}
+
+/** Demande de validation d'un document réservé : notifiée aux seules personnes désignées */
+export async function demanderValidation({ docId, docName, motif }) {
+  const { error } = await supabase.rpc('demander_validation', { p_doc_id: docId, p_doc_name: docName, p_motif: motif || null })
+  if (error) throw new Error(error.message)
+}
+
 export async function circuitOuvert(docId) {
   const { data } = await supabase.from('doc_reviews').select('*').eq('doc_id', docId).in('status', ['relecture', 'arbitrage', 'expert']).maybeSingle()
   return data || null

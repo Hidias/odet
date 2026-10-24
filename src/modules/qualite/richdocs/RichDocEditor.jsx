@@ -22,6 +22,7 @@ import { champCasse, valeursEnDurPartout, remplacerEnDurPartout } from '../../..
 
 import { confirmer } from '../../../ui/Confirm'
 import CircuitDocument from './CircuitDocument'
+import { reservation, demanderValidation } from './circuit'
 export const VALIDATE_ROLES = ['superadmin', 'admin', 'direction']
 
 const TONE = {
@@ -154,7 +155,10 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
   const [validating, setValidating] = useState(false)
   const [motif, setMotif] = useState('')
   // Circuit de validation (0455) : « direct » tant que rien n'est réglé ; relecture en cours = texte figé ici
-  const [circuit, setCircuit] = useState({ mode: 'direct', ouvert: null })
+  const [circuit, setCircuit] = useState({ mode: 'direct', ouvert: null, reglages: null })
+  // Validation réservée (0458) : les autres personnes envoient une demande de confirmation
+  const reserve = reservation(circuit.reglages, tpl.id, { uid: profile?.id, superadmin: userRole === 'superadmin' })
+  const demande = content.validation_demandee || null
   const code = docCode(tpl.code)
   const dirty = JSON.stringify(content) !== initial.current
   const status = docStatus(content)
@@ -244,10 +248,24 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
         motif: motif.trim(), validated_by: profile?.id || null, validated_by_name: currentUserName() || null, next_review: nextReview,
       })
       if (error) throw error
-      await persist({ ...verifie, status: 'valide', version: nextVersion, validated_at: today, next_review: nextReview, motif: null })
+      await persist({ ...verifie, status: 'valide', version: nextVersion, validated_at: today, next_review: nextReview, motif: null, validation_demandee: null })
       await loadHistory()
       setValidating(false); setMotif('')
       toast.success(`Version ${nextVersion} validée`)
+    } catch (e) { toast.error(e.message) }
+    setBusy(null)
+  }
+
+  // Document réservé : le brouillon est enregistré avec la demande, puis les personnes désignées sont prévenues
+  const demander = async () => {
+    if (!motif.trim()) { toast.error('Indiquez le motif de cette version'); return }
+    setBusy('validate')
+    try {
+      const verifie = await verifierChamps(content)
+      await persist({ ...verifie, status: 'brouillon', validation_demandee: { par: currentUserName() || null, le: todayIso(), motif: motif.trim(), version: nextVersion } })
+      await demanderValidation({ docId: tpl.id, docName: tpl.name, motif: motif.trim() })
+      setValidating(false); setMotif('')
+      toast.success('Demande envoyée : la version entrera en vigueur après confirmation')
     } catch (e) { toast.error(e.message) }
     setBusy(null)
   }
@@ -334,7 +352,7 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
           </label>
         </section>
       )}
-      <CircuitDocument tpl={tpl} avantLancement={avantLancement} onMode={(mode, ouvert) => setCircuit({ mode, ouvert })} />
+      <CircuitDocument tpl={tpl} avantLancement={avantLancement} onMode={(mode, ouvert, reglages) => setCircuit({ mode, ouvert, reglages })} />
       {(tpl.family === 'commerce' || String(tpl.id).startsWith('cgv')) && (
         <section>
           <h2 className="font-semibold text-ui mb-1">Relecture hors circuit (secours)</h2>
@@ -394,7 +412,7 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
           <button type="button" className="btn btn-secondary xl:hidden" onClick={() => setShowFiche(true)}><Info className="w-4 h-4" />Fiche</button>
           <button type="button" className="btn btn-secondary" disabled={busy === 'pdf'} onClick={() => pdf()}>{busy === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}Aperçu PDF</button>
           {canEdit && dirty && <button type="button" className="btn btn-secondary" disabled={!!busy} onClick={saveDraft}>{busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Enregistrer le brouillon</button>}
-          {canValidate && circuit.mode === 'direct' && (dirty || content.status !== 'valide') && <button type="button" className="btn btn-primary" disabled={!!busy} onClick={() => setValidating(true)}><CheckCircle className="w-4 h-4" />Valider la version {nextVersion}</button>}
+          {canValidate && circuit.mode === 'direct' && (dirty || content.status !== 'valide') && <button type="button" className="btn btn-primary" disabled={!!busy} onClick={() => { if (reserve.peutConfirmer && demande?.motif && !motif) setMotif(demande.motif); setValidating(true) }}><CheckCircle className="w-4 h-4" />Valider la version {nextVersion}</button>}
           {circuit.ouvert && <a href={`#/relectures/${circuit.ouvert.id}`} className="btn btn-primary"><CheckCircle className="w-4 h-4" />Relecture en cours</a>}
         </div>
       </header>
@@ -417,6 +435,13 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
         </nav>
 
         <main className="flex-1 min-w-0 card p-4 sm:p-6 overflow-y-auto">
+          {demande && content.status !== 'valide' && (
+            <div className="mb-3 rounded-ui-sm border border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] p-3 text-ui-sm" role="status">
+              {reserve.peutConfirmer
+                ? <p><span className="font-semibold">Validation demandée</span>{demande.par ? ` par ${demande.par}` : ''}{demande.le ? ` le ${frDate(demande.le)}` : ''}{demande.motif ? ` : « ${demande.motif} »` : ''}. Relisez puis validez la version {nextVersion}.</p>
+                : <p><span className="font-semibold">Validation demandée</span>{demande.le ? ` le ${frDate(demande.le)}` : ''} : la version entrera en vigueur après confirmation.</p>}
+            </div>
+          )}
           <div className="md:hidden mb-3">
             <label className="label" htmlFor="rd-sommaire">Section</label>
             <select id="rd-sommaire" className="select w-full" value={active} onChange={(e) => { setActive(e.target.value); if (mode === 'lire') document.getElementById(`sec-${e.target.value}`)?.scrollIntoView({ block: 'start' }) }}>
@@ -516,6 +541,7 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
         <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white rounded-ui w-full max-w-lg p-5 space-y-3">
             <h2 className="font-semibold text-lg">Valider la version {nextVersion}</h2>
+            {!reserve.peutConfirmer && <p className="text-ui-sm rounded-ui-sm bg-primary-50 text-gray-800 p-3">La validation de ce document est confirmée par une seconde personne. Votre demande part avec le motif ci-dessous ; la version entrera en vigueur dès sa confirmation.</p>}
             <p className="text-ui-sm text-gray-600">Le texte est figé avec la date, votre nom et le motif. Il devient la version en vigueur et sa prochaine revue est fixée à un an. Les versions précédentes restent consultables.</p>
             {(gaps.length > 0 || missing.length > 0) && (
               <div className="rounded-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] p-3 text-ui-sm space-y-1">
@@ -528,7 +554,7 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
             </label>
             <div className="flex justify-end gap-2">
               <button type="button" className="btn btn-secondary" onClick={() => setValidating(false)}>Annuler</button>
-              <button type="button" className="btn btn-primary" disabled={busy === 'validate'} onClick={validate}>{busy === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}Valider</button>
+              <button type="button" className="btn btn-primary" disabled={busy === 'validate'} onClick={reserve.peutConfirmer ? validate : demander}>{busy === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}{reserve.peutConfirmer ? 'Valider' : 'Envoyer pour confirmation'}</button>
             </div>
           </div>
         </div>
