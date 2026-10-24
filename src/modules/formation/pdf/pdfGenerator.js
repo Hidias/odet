@@ -1287,7 +1287,7 @@ function generateLivret(session = null) {
     writeRichDoc(f, QT.livret.content, QT.ctx)
   } else {
     f.section('Qui sommes-nous ?')
-    f.para(`${ORG.nameFull || ORG.name}, ${ORG.adressePrincipale || ORG.addressFull || ''}.`)
+    f.para(`${ORG.name || ORG.legal_name}, ${ORG.adressePrincipale || ORG.addressFull || ''}.`)
     f.section('Vos interlocuteurs')
     f.kv([
       ['Responsable', [ORG.dirigeant, ORG.dirigeant_title].filter(Boolean).join(', ')],

@@ -40,7 +40,7 @@ export async function genererTitrePDF(p) {
 
   f.section('Titulaire')
   f.fields([{ label: 'Nom et prénom', value: nom, w: 2 }, { label: 'Fonction', value: p.jobTitle || '', w: 2 }])
-  f.fields([{ label: 'Employeur', value: ORG.nameFull || ORG.name, w: 3 }, { label: 'Délivré le', value: frDate(p.deliveredOn) }, { label: "Valable jusqu'au", value: frDate(p.qual?.expires_on) || 'à préciser' }])
+  f.fields([{ label: 'Employeur', value: ORG.legal_name || ORG.name, w: 3 }, { label: 'Délivré le', value: frDate(p.deliveredOn) }, { label: "Valable jusqu'au", value: frDate(p.qual?.expires_on) || 'à préciser' }])
 
   if (elec) {
     f.section('Habilitation')

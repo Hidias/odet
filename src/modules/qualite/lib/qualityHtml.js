@@ -1,4 +1,4 @@
-import { ligneNda } from '../../../core/org/orgUtils'
+import { ligneNda, ligneIdentiteLegale } from '../../../core/org/orgUtils'
 // Mise en forme commune des documents qualité rédigés en HTML (CGV, livret, politique qualité,
 // procédures, règlement…) : à l'affichage et à l'impression, on retire les styles d'origine
 // (dégradés, émojis, couleurs propres à un ancien organisme) et on applique la même identité
@@ -138,12 +138,13 @@ export function brandQualityHtml(html, ORG, { title = '', version = '', code = '
 
   const logo = ORG.logo_base64 || ORG.logo_url
   const ident = [
-    `<strong>${esc(ORG.nameFull || ORG.name || '')}</strong>`,
+    `<strong>${esc(ORG.name || ORG.legal_name || '')}</strong>`,
     esc(ORG.adressePrincipale || ORG.address || ''),
     esc([ORG.phone, ORG.email].filter(Boolean).join('   ')),
     esc([ORG.siret ? `SIRET ${ORG.siret}` : '', ligneNda(ORG)].filter(Boolean).join('   ')),
+    esc(ORG.qualiopiMention || ''),
   ].filter(Boolean).join('<br>')
-  const foot1 = [ORG.nameFull || ORG.name, ORG.adressePrincipale || ORG.addressFull, ORG.siegeMention].filter(Boolean).join('  ·  ')
+  const foot1 = ligneIdentiteLegale(ORG)
   const foot2 = [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.naf ? `NAF ${ORG.naf}` : '', ORG.tva ? `TVA ${ORG.tva}` : '', ligneNda(ORG, { complet: true })].filter(Boolean).join('  ·  ')
   const docRef = `${ORG.doc_prefix ? ORG.doc_prefix + '-' : ''}${code}`
 

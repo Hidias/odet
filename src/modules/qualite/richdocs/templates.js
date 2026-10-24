@@ -5695,7 +5695,7 @@ const TEMPLATES = {
     "blocks": [
      {
       "t": "p",
-      "text": "Les présentes conditions s'appliquent à toutes les prestations de formation de {{org.nom}}, {{org.raison_sociale}}, SIRET {{org.siret}}, déclaration d'activité n° {{org.nda}} auprès du préfet de la région {{org.region_nda}} (cet enregistrement ne vaut pas agrément de l'État). Toute commande vaut acceptation des présentes conditions, qui prévalent sur tout autre document du client sauf accord écrit contraire."
+      "text": "Les présentes conditions s'appliquent à toutes les prestations de formation de {{org.nom}}, déclaration d'activité n° {{org.nda}} auprès du préfet de la région {{org.region_nda}} (cet enregistrement ne vaut pas agrément de l'État). Toute commande vaut acceptation des présentes conditions, qui prévalent sur tout autre document du client sauf accord écrit contraire."
      }
     ]
    },

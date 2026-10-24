@@ -71,7 +71,7 @@ export async function genererFicheRemisePDF(p) {
   const nom = `${p.person?.first_name || ''} ${(p.person?.last_name || '').toUpperCase()}`.trim()
   f.section('Salarié')
   f.fields([{ label: 'Nom et prénom', value: nom, w: 2 }, { label: 'Fonction', value: p.jobTitle || '', w: 2 }])
-  f.fields([{ label: 'Employeur', value: ORG.nameFull || ORG.name, w: 3 }, { label: 'Remis le', value: frDate(p.handedOn) }])
+  f.fields([{ label: 'Employeur', value: ORG.legal_name || ORG.name, w: 3 }, { label: 'Remis le', value: frDate(p.handedOn) }])
   f.section('Équipements remis')
   f.table(['Équipement', 'Référence', 'Quantité', 'Taille', 'À renouveler le'],
     (p.lignes || []).map((l) => [l.label || '', l.reference || '', `${l.quantity} ${l.unit || ''}`.trim(), l.size || '', frDate(l.renew_on) || '']))
