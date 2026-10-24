@@ -6749,6 +6749,48 @@ begin
     end;
   end if;
 
+  -- Suivi des véhicules : avis de contravention, équipements, états des lieux (0448)
+  if to_regclass('public.vehicle_fines') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare sv_v uuid; sv_v2 uuid; sv_co uuid; sv_a uuid; sv_a2 uuid; sv_f public.vehicle_fines; sv_f2 uuid; sv_n int; sv_ok boolean := false; sv_etat text;
+    begin
+      insert into public.vehicles (plate) values ('ES-448-AA') returning id, company_id into sv_v, sv_co;
+      insert into public.vehicles (plate) values ('ES-448-BB') returning id into sv_v2;
+      insert into public.vehicle_assignments (vehicle_id, profile_id, start_on, end_on) values (sv_v, u_tech, date '2026-10-01', date '2026-10-20') returning id into sv_a;
+      insert into public.vehicle_assignments (vehicle_id, profile_id, start_on) values (sv_v2, u_com, date '2026-10-01') returning id into sv_a2;
+      insert into public.vehicle_fines (vehicle_id, offense_at, notice_on) values (sv_v, timestamptz '2026-10-10 08:30+02', date '2026-10-15') returning * into sv_f;
+      insert into public.vehicle_fines (vehicle_id, offense_at, notice_on) values (sv_v, timestamptz '2026-09-10 08:30+02', date '2026-09-15') returning id into sv_f2;
+      if sv_f.profile_id = u_tech and sv_f.driver_source = 'attribution' and sv_f.deadline_on = date '2026-11-29' and sv_f.status = 'a_designer'
+         and (select profile_id is null from public.vehicle_fines where id = sv_f2)
+         and exists (select 1 from public.notifications where type = 'vehicule_amende' and metadata->>'fine_id' = sv_f.id::text)
+         and exists (select 1 from public.v_vehicle_deadlines where kind = 'designation' and rule_id = sv_f.id) then
+        v_lines := v_lines || 'OK      base  0448 : conducteur retrouvé à la date de l''infraction, désignation sous 45 jours dans les échéances'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0448 : avis ' || coalesce(sv_f.driver_source, '?') || ' ' || coalesce(sv_f.deadline_on::text, '?')); end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into sv_n from public.vehicle_fines where id in (sv_f.id, sv_f2);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if sv_n = 1 then v_lines := v_lines || 'OK      tech  0448 : le conducteur voit son avis de contravention, pas les autres'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0448 : avis lus par le conducteur : ' || sv_n); end if;
+      insert into public.vehicle_equipment (vehicle_id, kind, next_check_on) values (sv_v, 'extincteur', current_date - 1);
+      select state into sv_etat from public.v_vehicle_deadlines where vehicle_id = sv_v and kind = 'equipement';
+      if sv_etat = 'depassee' then v_lines := v_lines || 'OK      base  0448 : vérification de l''extincteur du véhicule dans les échéances'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0448 : équipement ' || coalesce(sv_etat, '?')); end if;
+      begin insert into public.vehicle_papers (vehicle_id, assignment_id, kind, moment, file_path) values (sv_v, sv_a2, 'etat_des_lieux', 'remise', sv_co || '/' || sv_v || '/edl.jpg');
+      exception when sqlstate '23514' then sv_ok := true; end;
+      insert into public.vehicle_papers (vehicle_id, assignment_id, kind, moment, file_path) values (sv_v, sv_a, 'etat_des_lieux', 'restitution', sv_co || '/' || sv_v || '/edl.jpg');
+      if sv_ok then v_lines := v_lines || 'OK      base  0448 : photos d''état des lieux rattachées à une attribution du même véhicule'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0448 : garde de l''état des lieux'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0448 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

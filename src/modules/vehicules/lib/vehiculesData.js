@@ -43,6 +43,7 @@ export const nomCompte = (p) => (p ? (`${p.first_name || ''} ${p.last_name || ''
 
 export async function enregistrerVehicule(v) {
   const { id, created_at: _c, updated_at: _u, company_id: _co, ...reste } = propre(v)
+  for (const k of ['purchase_price_ttc', 'monthly_cost_ttc', 'insurance_annual_ttc']) if (k in reste) reste[k] = nombre(reste[k])
   if (id) return must(await supabase.from('vehicles').update(reste).eq('id', id).select('id').single())
   return must(await supabase.from('vehicles').insert(reste).select('id').single())
 }
