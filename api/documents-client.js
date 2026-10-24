@@ -140,7 +140,8 @@ async function accesClient(req) {
   const appelant = clientDeLAppelant(req)
   const [{ data: d }, { data: docs }, { data: compte }] = await Promise.all([
     appelant.rpc('ent_sessions'), appelant.rpc('ent_mes_documents'),
-    ctx.admin.from('client_accounts').select('client_id').eq('profile_id', ctx.user.id).eq('is_active', true).maybeSingle(),
+    // Société affichée (0450 : un compte peut suivre plusieurs sociétés clientes)
+    appelant.rpc('ent_societes').then((r) => ({ data: (Array.isArray(r.data) ? r.data : []).find((x) => x.actif) || null })),
   ])
   if (!d || !compte?.client_id) return null
   return { admin: ctx.admin, clientId: compte.client_id, canal: 'compte', accessId: null, profileId: ctx.user.id, sessions: d.sessions || [], docs: Array.isArray(docs) ? docs : [] }

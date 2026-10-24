@@ -6839,6 +6839,42 @@ begin
     end;
   end if;
 
+  -- Un compte pour plusieurs sociétés clientes (0450)
+  if to_regclass('public.client_account_actif') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare ms_c1 uuid; ms_c2 uuid; ms_a1 uuid; ms_a2 uuid; ms_soc jsonb; ms_av uuid; ms_ap uuid; ms_ok boolean := false; ms_c3 uuid; ms_a3 uuid;
+    begin
+      insert into public.clients (name) values ('Société A essai 0450') returning id into ms_c1;
+      insert into public.clients (name) values ('Société B essai 0450') returning id into ms_c2;
+      insert into public.clients (name) values ('Société C essai 0450') returning id into ms_c3;
+      insert into public.client_accounts (profile_id, client_id, email) values (u_ent, ms_c1, 'essai.ent@test.invalid') returning id into ms_a1;
+      insert into public.client_accounts (profile_id, client_id, email) values (u_ent, ms_c2, 'essai.ent@test.invalid') returning id into ms_a2;
+      insert into public.client_accounts (profile_id, client_id, email) values (u_tech, ms_c3, 'essai.tech@test.invalid') returning id into ms_a3;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ent, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      ms_soc := public.ent_societes();
+      perform public.ent_choisir(ms_a1);
+      ms_av := (app.ent_compte()).id;
+      perform public.ent_choisir(ms_a2);
+      ms_ap := (app.ent_compte()).id;
+      begin perform public.ent_choisir(ms_a3); exception when insufficient_privilege then ms_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if jsonb_array_length(ms_soc) = 2 then v_lines := v_lines || 'OK      ent   0450 : un compte, deux sociétés clientes listées'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ent   0450 : sociétés ' || coalesce(ms_soc::text, '?')); end if;
+      if ms_av = ms_a1 and ms_ap = ms_a2 then v_lines := v_lines || 'OK      ent   0450 : société choisie, l''espace suit le choix'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0450 : choix de la société'::text; end if;
+      if ms_ok then v_lines := v_lines || 'OK      ent   0450 : impossible de choisir la société d''un autre compte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ent   0450 : choix d''une société d''un autre compte'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0450 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
