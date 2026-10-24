@@ -994,8 +994,12 @@ tdx('0320', 'vehicle_events', sel=f"({_VH_VOIR} or {_VH_COUT} or vehicle_id in (
 tdx('0320', 'vehicle_fuel', sel=f"({_VH_VOIR} or {_VH_COUT} or driver_id = (select auth.uid()))", ins=f"({_VH_GER} or {_VH_SIEN})", upd=_VH_GER, dele=_VH_GER)
 # Papiers des véhicules (0447) : lus par qui voit le parc, par le conducteur pour son véhicule et (constat vierge, sans
 # véhicule) par qui utilise son véhicule ; le conducteur dépose le constat et les photos de son sinistre.
-tdx('0447', 'vehicle_papers', sel=f"({_VH_VOIR} or vehicle_id in (select app.vehicules_miens()) or (vehicle_id is null and company_id in {societes('vehicules.siens.utiliser')}))",
-    ins=f"({_VH_GER} or ({_VH_SIEN[1:-1]} and kind in ('constat', 'photo_sinistre')))", upd=_VH_GER, dele=_VH_GER)
+tdx('0448', 'vehicle_papers', sel=f"({_VH_VOIR} or vehicle_id in (select app.vehicules_miens()) or (vehicle_id is null and company_id in {societes('vehicules.siens.utiliser')}))",
+    ins=f"({_VH_GER} or ({_VH_SIEN[1:-1]} and kind in ('constat', 'photo_sinistre', 'etat_des_lieux')))", upd=_VH_GER, dele=_VH_GER)
+# Avis de contravention (0448) : lus par qui voit le parc ou les coûts et par le conducteur désigné ; équipements du
+# véhicule lus aussi par son conducteur ; tenus par qui gère le parc. Papiers : le conducteur dépose aussi l'état des lieux.
+tdx('0448', 'vehicle_fines', sel=f"({_VH_VOIR} or {_VH_COUT} or profile_id = (select auth.uid()))", ins=_VH_GER, upd=_VH_GER, dele=_VH_GER)
+tdx('0448', 'vehicle_equipment', sel=f"({_VH_VOIR} or vehicle_id in (select app.vehicules_miens()))", ins=_VH_GER, upd=_VH_GER, dele=_VH_GER)
 
 
 def build_suite(migration):

@@ -21,6 +21,8 @@ import {
 } from '../lib/vehiculesData'
 import { useAdapte } from '../../../core/branding/adapte'
 import { PapiersSection, SinistresSection, MesPapiers, ConstatVierge, PhotosSinistre } from './PapiersVehicule'
+import { AmendesSection, EquipementsSection, PhotosEtatDesLieux, CoutVehicule } from './SuiviVehicule'
+import { coutTotal } from '../lib/suiviVehicule'
 
 const dateFr = (d) => (d ? new Date(d).toLocaleDateString('fr-FR') : '')
 const quand = (d) => (d ? new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
@@ -131,8 +133,9 @@ function MonVehicule() {
     try {
       const [vs, attr, kms, ech, pleins] = await Promise.all([chargerVehicules(), chargerAttributions(), chargerKm(), chargerEcheances(), chargerPleins()])
       const miens = attr.filter((a) => a.profile_id === user?.id && !a.end_on).map((a) => a.vehicle_id)
-      setD({ vs: vs.filter((v) => miens.includes(v.id)), kms, ech, pleins: pleins.filter((p) => p.driver_id === user?.id).slice(0, 5) })
-    } catch (e) { toast.error(e.message); setD({ vs: [], kms: {}, ech: [], pleins: [] }) }
+      const attrDe = Object.fromEntries(attr.filter((a) => a.profile_id === user?.id && !a.end_on).map((a) => [a.vehicle_id, a.id]))
+      setD({ vs: vs.filter((v) => miens.includes(v.id)), attrDe, kms, ech, pleins: pleins.filter((p) => p.driver_id === user?.id).slice(0, 5) })
+    } catch (e) { toast.error(e.message); setD({ vs: [], attrDe: {}, kms: {}, ech: [], pleins: [] }) }
   }, [user?.id])
   useEffect(() => { charger() }, [charger])
   if (!d) return <Spinner />
@@ -158,6 +161,7 @@ function MonVehicule() {
             </div>
             {ech.length > 0 && <ul className="text-ui-sm space-y-1">{ech.map((e) => <li key={`${e.kind}-${e.rule_id}`} className="flex items-center gap-2"><Etat s={e.state} />{e.label}{e.due_on ? ` le ${dateFr(e.due_on)}` : ''}{e.due_km ? ` à ${km(e.due_km)}` : ''}</li>)}</ul>}
             <MesPapiers vehicule={v} km={d.kms[v.id]} profile={profile} onDeclarer={() => setGeste({ kind: 'sinistre', v })} />
+            {d.attrDe[v.id] && <div className="flex flex-wrap items-center gap-2 text-ui-sm"><span className="text-gray-600">État des lieux :</span><PhotosEtatDesLieux vehicule={v} assignmentId={d.attrDe[v.id]} moment="remise" libelle="Photos du véhicule" /></div>}
           </section>
         )
       })}
@@ -177,7 +181,7 @@ function MonVehicule() {
 
 // ─── Fiche véhicule ───
 function VehiculeSheet({ vehicule, onClose, onSaved }) {
-  const [v, setV] = useState(() => ({ plate: '', vin: '', brand: '', model: '', energy: 'gazole', first_registration_on: '', acquisition: 'achat', lessor: '', contract_ref: '', contract_end_on: '', insurer: '', insurance_policy: '', insurance_due_on: '', fuel_card_last4: '', status: 'actif', notes: '', type_variant: '', national_genre: '', commercial_name: '', registration_formula: '', green_card_number: '', insurer_agency: '', insurer_agency_address: '', insurer_agency_contact: '', own_damage_covered: null, ...(vehicule || {}) }))
+  const [v, setV] = useState(() => ({ plate: '', vin: '', brand: '', model: '', energy: 'gazole', first_registration_on: '', acquisition: 'achat', lessor: '', contract_ref: '', contract_end_on: '', insurer: '', insurance_policy: '', insurance_due_on: '', fuel_card_last4: '', status: 'actif', notes: '', type_variant: '', national_genre: '', commercial_name: '', registration_formula: '', green_card_number: '', insurer_agency: '', insurer_agency_address: '', insurer_agency_contact: '', own_damage_covered: null, acquired_on: '', purchase_price_ttc: '', monthly_cost_ttc: '', insurance_annual_ttc: '', ...(vehicule || {}) }))
   const m = (k) => (e) => setV({ ...v, [k]: e.target.value })
   const enregistrer = async (e) => {
     e.preventDefault()
@@ -212,6 +216,11 @@ function VehiculeSheet({ vehicule, onClose, onSaved }) {
         <Champ label="Téléphone ou e-mail de l'agence"><input className="input" value={v.insurer_agency_contact || ''} onChange={m('insurer_agency_contact')} /></Champ>
         <Champ label="Adresse de l'agence" className="sm:col-span-2"><input className="input" value={v.insurer_agency_address || ''} onChange={m('insurer_agency_address')} /></Champ>
         <Champ label="Dégâts du véhicule couverts par le contrat"><select className="select" value={v.own_damage_covered == null ? '' : v.own_damage_covered ? 'oui' : 'non'} onChange={(e) => setV({ ...v, own_damage_covered: e.target.value === '' ? null : e.target.value === 'oui' })}><option value="">Non renseigné</option><option value="oui">Oui</option><option value="non">Non</option></select></Champ>
+        <h3 className="sm:col-span-2 font-semibold text-ui pt-2">Coûts <span className="font-normal text-ui-sm muted">(pour le coût total du véhicule)</span></h3>
+        <Champ label="Entrée dans le parc le"><input className="input" type="date" value={v.acquired_on || ''} onChange={m('acquired_on')} /></Champ>
+        {v.acquisition === 'achat' && <Champ label="Prix d'achat TTC"><input className="input" inputMode="decimal" value={v.purchase_price_ttc ?? ''} onChange={m('purchase_price_ttc')} /></Champ>}
+        {v.acquisition !== 'achat' && <Champ label={v.acquisition === 'credit' ? 'Mensualité TTC' : 'Loyer mensuel TTC'}><input className="input" inputMode="decimal" value={v.monthly_cost_ttc ?? ''} onChange={m('monthly_cost_ttc')} /></Champ>}
+        <Champ label="Assurance annuelle TTC"><input className="input" inputMode="decimal" value={v.insurance_annual_ttc ?? ''} onChange={m('insurance_annual_ttc')} /></Champ>
         <Champ label="Carte carburant (4 derniers chiffres)" aide="Jamais le numéro complet"><input className="input" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" value={v.fuel_card_last4 || ''} onChange={m('fuel_card_last4')} /></Champ>
         <Champ label="Notes" className="sm:col-span-2"><textarea className="input min-h-[3rem]" value={v.notes || ''} onChange={m('notes')} /></Champ>
       </form>
@@ -225,6 +234,7 @@ function FicheVehicule({ vehicule, kmActuel, comptes, attribution, peutGerer, on
   const [attr, setAttr] = useState(null)
   const [regle, setRegle] = useState(null)
   const [ev, setEv] = useState(null)
+  const [amendes, setAmendes] = useState([])
   const v = vehicule
   const charger = useCallback(async () => {
     try {
@@ -250,7 +260,7 @@ function FicheVehicule({ vehicule, kmActuel, comptes, attribution, peutGerer, on
           <div className="card p-3"><div className="text-ui-sm text-gray-600">Compteur</div><div className="font-semibold text-ui tabular-nums">{km(kmActuel) || '—'}</div></div>
           <div className="card p-3"><div className="text-ui-sm text-gray-600">Conducteur</div><div className="font-semibold text-ui">{conducteur || 'aucun'}</div></div>
           <div className="card p-3"><div className="text-ui-sm text-gray-600">Consommation</div><div className="font-semibold text-ui">{consoMoy ? `${consoMoy.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} l/100` : 'à calculer'}</div></div>
-          <div className="card p-3"><div className="text-ui-sm text-gray-600">Dépensé</div><div className="font-semibold text-ui tabular-nums">{euros(coutCarbu + coutEntretien)}</div><div className="text-ui-sm text-gray-500">carburant {euros(coutCarbu)}</div></div>
+          <div className="card p-3"><div className="text-ui-sm text-gray-600">Coût total</div><div className="font-semibold text-ui tabular-nums">{d ? euros(coutTotal({ vehicule: v, pleins: d.pleins, evenements: d.evs, amendes }).total) : '…'}</div><div className="text-ui-sm text-gray-500">carburant {euros(coutCarbu)} · entretien {euros(coutEntretien)}</div></div>
         </div>
 
         {peutGerer && (
@@ -259,6 +269,7 @@ function FicheVehicule({ vehicule, kmActuel, comptes, attribution, peutGerer, on
             {attribution ? (
               <div className="flex flex-wrap items-center gap-2 text-ui">
                 <span>{conducteur} depuis le {dateFr(attribution.start_on)}{attribution.start_km != null ? ` (${km(attribution.start_km)})` : ''}</span>
+                <PhotosEtatDesLieux vehicule={v} assignmentId={attribution.id} moment="remise" />
                 <button type="button" className="btn btn-secondary btn-sm ml-auto" onClick={() => setAttr({ mode: 'fin', endKm: kmActuel || '', endFuel: '', endNotes: '' })}><LogOut className="w-4 h-4" aria-hidden="true" />Restitution</button>
               </div>
             ) : <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAttr({ mode: 'debut', profileId: '', startKm: kmActuel || '', startFuel: '', startNotes: '' })}><UserPlus className="w-4 h-4" aria-hidden="true" />Attribuer</button>}
@@ -275,6 +286,7 @@ function FicheVehicule({ vehicule, kmActuel, comptes, attribution, peutGerer, on
                 {attr.mode === 'debut' && attr.profileId && <PermisVerif vehicleId={v.id} profileId={attr.profileId} />}
                 <Champ label="Compteur (km)"><input className="input" inputMode="numeric" value={attr.mode === 'debut' ? attr.startKm : attr.endKm} onChange={(e) => setAttr({ ...attr, [attr.mode === 'debut' ? 'startKm' : 'endKm']: e.target.value })} /></Champ>
                 <Champ label="Carburant"><select className="select" value={attr.mode === 'debut' ? attr.startFuel : attr.endFuel} onChange={(e) => setAttr({ ...attr, [attr.mode === 'debut' ? 'startFuel' : 'endFuel']: e.target.value })}><option value="">—</option>{['Réserve', '1/4', '1/2', '3/4', 'Plein'].map((x) => <option key={x}>{x}</option>)}</select></Champ>
+                {attr.mode === 'fin' && <div className="sm:col-span-2"><PhotosEtatDesLieux vehicule={v} assignmentId={attribution.id} moment="restitution" /></div>}
                 <Champ label="État des lieux (observations)" className="sm:col-span-2"><input className="input" value={attr.mode === 'debut' ? attr.startNotes : attr.endNotes} onChange={(e) => setAttr({ ...attr, [attr.mode === 'debut' ? 'startNotes' : 'endNotes']: e.target.value })} placeholder="Rayures, propreté, équipements" /></Champ>
                 <div className="flex gap-2 sm:col-span-2"><button type="submit" className="btn btn-primary btn-sm">Enregistrer</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAttr(null)}>Annuler</button></div>
               </form>
@@ -341,7 +353,13 @@ function FicheVehicule({ vehicule, kmActuel, comptes, attribution, peutGerer, on
 
         {d && <SinistresSection evenements={d.evs} peutGerer={peutGerer} onChange={actualiser} />}
 
+        <AmendesSection vehicule={v} comptes={comptes} peutGerer={peutGerer} onAmendes={setAmendes} />
+
+        <EquipementsSection vehicule={v} peutGerer={peutGerer} onChange={actualiser} />
+
         <PapiersSection vehicule={v} kmActuel={kmActuel} conducteur={attribution ? comptes.find((c) => c.id === attribution.profile_id) || null : null} peutGerer={peutGerer} evenements={d?.evs || []} />
+
+        {d && <CoutVehicule vehicule={v} pleins={d.pleins} evenements={d.evs} amendes={amendes} />}
 
         <section className="space-y-2">
           <h3 className="font-semibold text-ui flex items-center gap-2"><Fuel className="w-4 h-4 text-gray-400" aria-hidden="true" />Pleins</h3>

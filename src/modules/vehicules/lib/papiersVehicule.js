@@ -12,6 +12,8 @@ export const PAPIERS = {
   attestation_assurance: 'Attestation d\'assurance',
   constat: 'Constat amiable rempli',
   photo_sinistre: 'Photo du sinistre',
+  etat_des_lieux: 'Photo d\'état des lieux',
+  avis_contravention: 'Avis de contravention',
   cession: 'Certificat de cession signé',
   autre: 'Autre document',
   constat_vierge: 'Constat amiable vierge',
@@ -48,14 +50,14 @@ export const dernier = (papiers, kind) => (papiers || []).find((p) => p.kind ===
 const nomFichier = (f) => String(f?.name || 'document').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '-').slice(-80)
 
 /** Dépose un fichier dans le stockage privé « vehicules » puis la fiche du papier */
-export async function deposerPapier({ companyId, vehicleId = null, eventId = null, kind, file, label = null, validFrom = null, validUntil = null }) {
+export async function deposerPapier({ companyId, vehicleId = null, eventId = null, assignmentId = null, fineId = null, moment = null, kind, file, label = null, validFrom = null, validUntil = null }) {
   if (!file) throw new Error('Choisissez un fichier')
   if (file.size > 5 * 1024 * 1024) throw new Error('Fichier trop lourd (5 Mo au plus)')
   const chemin = `${companyId}/${vehicleId || 'parc'}/${Date.now()}-${kind}-${nomFichier(file)}`
   must(await supabase.storage.from('vehicules').upload(chemin, file, { contentType: file.type || 'application/octet-stream' }))
   try {
     return must(await supabase.from('vehicle_papers').insert({
-      vehicle_id: vehicleId, event_id: eventId, kind, label: label || null, valid_from: validFrom || null, valid_until: validUntil || null,
+      vehicle_id: vehicleId, event_id: eventId, kind, ...(assignmentId ? { assignment_id: assignmentId, moment } : {}), ...(fineId ? { fine_id: fineId } : {}), label: label || null, valid_from: validFrom || null, valid_until: validUntil || null,
       file_path: chemin, file_name: file.name?.slice(0, 200) || null, company_id: companyId,
     }).select('*').single())
   } catch (e) {
