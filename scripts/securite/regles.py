@@ -1373,6 +1373,16 @@ tdx('0453', 'trainer_halfday_signatures', sel=_AVIS_VOIR)
 # Notes de frais du formateur (0454) : lues et décidées par qui gère les coûts des sessions ; déclarées seulement par
 # les fonctions de l'espace formateur (aucune règle de création), jamais effacées.
 tdx('0454', 'trainer_expenses', sel=f"company_id in {societes('formation.couts.gerer')}", upd=f"company_id in {societes('formation.couts.gerer')}")
+# Circuit de validation des documents (0455) : réglages lus avec les documents, modifiés par qui valide ; circuits et
+# avis lus avec les documents ou par leurs relecteurs ; la garde de la base fixe qui fait quoi à chaque étape.
+_DV, _DG, _DVAL = societes('qualite.documents.voir'), societes('qualite.documents.gerer'), societes('qualite.documents.valider')
+tdx('0455', 'doc_review_settings', sel=f"company_id in {_DV}", ins=f"company_id in {_DVAL}", upd=f"company_id in {_DVAL}")
+tdx('0455', 'doc_reviews', sel=f"(company_id in {_DV} or id in (select app.mes_relectures()))", ins=f"company_id in {_DG}",
+    upd=f"(company_id in {_DG} or company_id in {_DVAL})")
+tdx('0455', 'doc_review_participants', sel=f"(company_id in {_DV} or review_id in (select app.mes_relectures()))", ins=f"company_id in {_DG}",
+    upd=f"(profile_id = (select auth.uid()) or company_id in {_DG})", dele=f"company_id in {_DG}")
+tdx('0455', 'doc_review_items', sel=f"(company_id in {_DV} or review_id in (select app.mes_relectures()))",
+    ins=f"(company_id in {_DG} or review_id in (select app.mes_relectures()))", upd=f"(author_id = (select auth.uid()) or company_id in {_DVAL})")
 # Avis de passage (0451) : lus par qui voit les visites et par leur auteur ; écrits par qui gère les visites ou par le
 # technicien pour sa visite.
 tdx('0451', 'itv_visit_notices', sel=f"(company_id in {societes('interventions.visites.voir')} or created_by = (select auth.uid()))",

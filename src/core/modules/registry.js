@@ -276,6 +276,8 @@ const ALIASES = [
   // ses propres données (audit du 19/10 au soir)
   { prefix: '/collaborateurs/mon-espace', to: null },
   { prefix: '/design-systeme', to: null },
+  // Relecture d'un document (0455) : tout compte de l'équipe invité à relire ; la base ne montre que ses circuits
+  { prefix: '/relectures', to: null },
 ]
 
 // Entrée du registre qui garde une adresse (la plus précise), ou null si l'adresse n'est pas gardée

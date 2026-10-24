@@ -12,6 +12,7 @@ import {
 import { buildQualityDocPDF } from '../pdf/qualityDocsPDF'
 import { loadTemplates, isRich, fromTemplate, docStatus } from '../richdocs/model'
 import RichDocEditor, { StatusChip } from '../richdocs/RichDocEditor'
+import { ReglageCircuit } from '../richdocs/CircuitDocument'
 import { buildRichDocPDF } from '../richdocs/richDocPDF'
 import { loadPublishedDoc } from '../richdocs/published'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
@@ -915,6 +916,7 @@ export default function QualiteEditables() {
                 ))}
               </div>
             </div>
+            <ReglageCircuit commerce={richList.filter((t) => t.family === 'commerce' || t.id === 'cgv').map((t) => t.id)} />
             {toReview > 0 && <p className="text-ui text-[rgb(var(--c-warning))] bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-2">{toReview} document{toReview > 1 ? 's' : ''} validé{toReview > 1 ? 's' : ''} il y a plus d'un an : revue annuelle à faire.</p>}
             {!templates && <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}
             {CATS.map((cat) => {

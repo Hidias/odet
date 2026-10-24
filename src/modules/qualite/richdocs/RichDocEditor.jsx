@@ -21,6 +21,7 @@ import { exportDocx, importDocx, comparerSections } from './docxRichDoc'
 import { champCasse, valeursEnDurPartout, remplacerEnDurPartout } from '../../../core/org/champsProteges'
 
 import { confirmer } from '../../../ui/Confirm'
+import CircuitDocument from './CircuitDocument'
 export const VALIDATE_ROLES = ['superadmin', 'admin', 'direction']
 
 const TONE = {
@@ -41,7 +42,7 @@ export function RichText({ text, ctx }) {
   })
 }
 
-function BlockView({ b, ctx }) {
+export function BlockView({ b, ctx }) {
   if (b.t === 'p') return <p className="text-ui leading-relaxed text-gray-700"><RichText text={b.text} ctx={ctx} /></p>
   if (b.t === 'h') return <h4 className="font-semibold text-ui text-gray-900 pt-1"><RichText text={b.text} ctx={ctx} /></h4>
   if (b.t === 'note') return <div className="rounded-ui-sm bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] p-3 text-ui text-gray-800"><RichText text={b.text} ctx={ctx} /></div>
@@ -89,7 +90,7 @@ function BlockView({ b, ctx }) {
 
 const rowsFor = (s) => Math.min(14, Math.max(2, Math.ceil(String(s || '').length / 85) + String(s || '').split('\n').length - 1))
 
-function BlockEdit({ b, onChange }) {
+export function BlockEdit({ b, onChange }) {
   if (b.t === 'p' || b.t === 'h' || b.t === 'note') {
     return <textarea className="input w-full leading-relaxed" rows={b.t === 'h' ? 1 : rowsFor(b.text)} value={b.text || ''} onChange={(e) => onChange({ ...b, text: e.target.value })} aria-label={BLOCK_LABEL[b.t]} />
   }
@@ -152,6 +153,8 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
   const [showFiche, setShowFiche] = useState(false)
   const [validating, setValidating] = useState(false)
   const [motif, setMotif] = useState('')
+  // Circuit de validation (0455) : « direct » tant que rien n'est réglé ; relecture en cours = texte figé ici
+  const [circuit, setCircuit] = useState({ mode: 'direct', ouvert: null })
   const code = docCode(tpl.code)
   const dirty = JSON.stringify(content) !== initial.current
   const status = docStatus(content)
@@ -296,6 +299,14 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
     setBusy(null)
   }
 
+  // Lancement de la relecture : le brouillon en cours est d'abord enregistré, c'est lui que l'équipe relit
+  const avantLancement = async () => {
+    if (!dirty) return content
+    const c = await verifierChamps(content)
+    await persist({ ...c, status: 'brouillon' })
+    return c
+  }
+
   const copyField = async (f) => {
     if (!f) return
     try { await navigator.clipboard.writeText(f); toast.success('Champ copié : collez-le dans le texte') } catch { toast(f) }
@@ -321,10 +332,11 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
           </label>
         </section>
       )}
+      <CircuitDocument tpl={tpl} avantLancement={avantLancement} onMode={(mode, ouvert) => setCircuit({ mode, ouvert })} />
       {(tpl.family === 'commerce' || String(tpl.id).startsWith('cgv')) && (
         <section>
-          <h2 className="font-semibold text-ui mb-1">Relecture par l'avocat</h2>
-          <p className="text-ui-sm text-gray-500 mb-2">Exportez en Word, faites relire, puis importez la version relue : l'outil montre chaque changement avant de l'enregistrer en brouillon.</p>
+          <h2 className="font-semibold text-ui mb-1">Relecture hors circuit (secours)</h2>
+          <p className="text-ui-sm text-gray-500 mb-2">Exportez en Word, faites relire, puis importez la version relue : l'outil montre chaque changement avant de l'enregistrer en brouillon. Le circuit de validation ci-dessus fait la même chose en gardant la trace de chaque avis.</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy === 'word'} onClick={exporterWord}>{busy === 'word' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}Exporter en Word</button>
             {canEdit && (
@@ -375,12 +387,13 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
         <div className="flex flex-wrap gap-2">
           <div className="inline-flex rounded-ui-sm bg-gray-100 p-0.5" role="group" aria-label="Mode">
             <button type="button" className={`h-9 px-3 rounded-ui-sm text-ui-sm font-semibold flex items-center gap-1.5 ${mode === 'lire' ? 'bg-white shadow-sm' : 'text-gray-600'}`} onClick={() => setMode('lire')}><Eye className="w-4 h-4" />Lire</button>
-            {canEdit && <button type="button" className={`h-9 px-3 rounded-ui-sm text-ui-sm font-semibold flex items-center gap-1.5 ${mode === 'modifier' ? 'bg-white shadow-sm' : 'text-gray-600'}`} onClick={() => setMode('modifier')}><Pencil className="w-4 h-4" />Modifier</button>}
+            {canEdit && !circuit.ouvert && <button type="button" className={`h-9 px-3 rounded-ui-sm text-ui-sm font-semibold flex items-center gap-1.5 ${mode === 'modifier' ? 'bg-white shadow-sm' : 'text-gray-600'}`} onClick={() => setMode('modifier')}><Pencil className="w-4 h-4" />Modifier</button>}
           </div>
           <button type="button" className="btn btn-secondary xl:hidden" onClick={() => setShowFiche(true)}><Info className="w-4 h-4" />Fiche</button>
           <button type="button" className="btn btn-secondary" disabled={busy === 'pdf'} onClick={() => pdf()}>{busy === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}Aperçu PDF</button>
           {canEdit && dirty && <button type="button" className="btn btn-secondary" disabled={!!busy} onClick={saveDraft}>{busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Enregistrer le brouillon</button>}
-          {canValidate && (dirty || content.status !== 'valide') && <button type="button" className="btn btn-primary" disabled={!!busy} onClick={() => setValidating(true)}><CheckCircle className="w-4 h-4" />Valider la version {nextVersion}</button>}
+          {canValidate && circuit.mode === 'direct' && (dirty || content.status !== 'valide') && <button type="button" className="btn btn-primary" disabled={!!busy} onClick={() => setValidating(true)}><CheckCircle className="w-4 h-4" />Valider la version {nextVersion}</button>}
+          {circuit.ouvert && <a href={`#/relectures/${circuit.ouvert.id}`} className="btn btn-primary"><CheckCircle className="w-4 h-4" />Relecture en cours</a>}
         </div>
       </header>
 
