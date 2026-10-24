@@ -189,3 +189,6 @@ export function insertableFields(ctx) {
     ...roles.flatMap((code) => [[`{{role.${code}}}`, `Rôle : ${ctx.role[code].label || code}`], [`{{role.${code}.email}}`, `Email : ${ctx.role[code].label || code}`]]),
   ]
 }
+
+/** Encadrés « À valider… » restants (projets de clauses) : une version remise aux clients ne doit plus en contenir */
+export const encadresAValider = (content) => (content?.sections || []).reduce((n, s) => n + (s.blocks || []).filter((b) => b.t === 'note' && /^À valider\b/i.test(String(b.text || '').trim())).length, 0)

@@ -14,7 +14,7 @@ import { docCode, currentUserName } from '../../../core/org/currentOrg'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import {
   richTokens, sectionChanged, resetSection, docStatus, bracketGaps, missingRoles, visibleSections,
-  emptyBlock, BLOCK_LABEL, insertableFields, todayIso, plusOneYear, frDate,
+  emptyBlock, BLOCK_LABEL, insertableFields, todayIso, plusOneYear, frDate, encadresAValider,
 } from './model'
 import { buildRichDocPDF } from './richDocPDF'
 import { exportDocx, importDocx, comparerSections } from './docxRichDoc'
@@ -232,6 +232,8 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
 
   const validate = async () => {
     if (!motif.trim()) { toast.error('Indiquez le motif de cette version'); return }
+    const encadres = encadresAValider(content)
+    if (encadres && !await confirmer(`Encore ${encadres} encadré${encadres > 1 ? 's' : ''} « À valider » dans ce document : ${encadres > 1 ? 'ils seront imprimés' : 'il sera imprimé'} sur la version remise aux clients. Valider quand même ?`)) return
     setBusy('validate')
     try {
       const verifie = await verifierChamps(content)
@@ -402,7 +404,7 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
           <span className="text-ui-sm font-semibold text-gray-500 px-2 py-1.5">SOMMAIRE</span>
           {content.sections.map((s) => {
             const changed = sectionChanged(s, tpl)
-            const hidden = s.cond && !(s.cond === 'particuliers' && content.options?.particuliers)
+            const hidden = s.cond && !sections.includes(s)
             return (
               <button key={s.id} type="button" onClick={() => { setActive(s.id); if (mode === 'lire') document.getElementById(`sec-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
                 className={`text-left min-h-[34px] px-2 py-1 rounded-ui-sm text-ui-sm flex items-center gap-2 ${active === s.id ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'} ${hidden ? 'opacity-50' : ''}`}>

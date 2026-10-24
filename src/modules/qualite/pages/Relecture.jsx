@@ -14,11 +14,14 @@ import { docCode, currentUserName } from '../../../core/org/currentOrg'
 import { loadTemplateContext } from '../../../core/org/templateContext'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { confirmer } from '../../../ui/Confirm'
-import { loadTemplates, isRich, fromTemplate, frDate, todayIso, plusOneYear, bracketGaps } from '../richdocs/model'
+import { loadTemplates, isRich, fromTemplate, frDate, todayIso, plusOneYear, bracketGaps, encadresAValider } from '../richdocs/model'
 import { BlockView, BlockEdit, StatusChip } from '../richdocs/RichDocEditor'
 import { buildRichDocPDF } from '../richdocs/richDocPDF'
 import { exportDocx, importDocx } from '../richdocs/docxRichDoc'
 import { ETATS, QUALITES, etapes, etapeCourante, diffProposition, resteATrancher, actionsPossibles, propositionsDepuisFichier } from '../richdocs/circuit'
+import DossierRelecture from '../richdocs/DossierRelecture'
+import { PRESTATIONS } from '../richdocs/dossierRelecture'
+import { DOCS_PAR_METIER } from '../../commercial/lib/metierDevis'
 
 const NATURE = { validation: 'Article validé', modification: 'Modification proposée', commentaire: 'Commentaire', question: 'Question', reponse: 'Réponse' }
 const STATUT_AVIS = {
@@ -153,6 +156,8 @@ function Circuit({ id }) {
   const [ouvert, setOuvert] = useState(null) // { section, kind: 'modification' | 'commentaire' | 'texte' }
   const [validation, setValidation] = useState(null) // motif
   const [expert, setExpert] = useState(null) // libellé de l'expert
+  const [dossier, setDossier] = useState(false)
+  const [tpls, setTpls] = useState(null)
 
   const charger = useCallback(async () => {
     const [a, b, c] = await Promise.all([
@@ -164,7 +169,7 @@ function Circuit({ id }) {
     setR(a.data); setItems(b.data || []); setParts(c.data || [])
   }, [id])
   useEffect(() => { charger() }, [charger])
-  useEffect(() => { loadTemplates().then((t) => setTpl(r ? t[r.doc_id] || null : null)).catch(() => {}) }, [r?.doc_id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadTemplates().then((t) => { setTpls(t); setTpl(r ? t[r.doc_id] || null : null) }).catch(() => {}) }, [r?.doc_id]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { loadTemplateContext().then(setCtx).catch(() => {}) }, [])
 
   const estRelecteur = parts.some((p) => p.profile_id === profile?.id)
@@ -252,6 +257,8 @@ function Circuit({ id }) {
   const courante = etapeCourante(r)
   const iCourante = r.status === 'validee' ? liste.length - 1 : liste.findIndex(([k]) => k === courante)
   const gaps = bracketGaps({ model: 'rich', sections: r.content.sections })
+  const encadres = encadresAValider(r.content)
+  const prestationsDuDoc = PRESTATIONS.filter((m) => (DOCS_PAR_METIER[m] || []).some((x) => x.doc === r.doc_id))
   const motifParDefaut = () => {
     const relu = [...new Set(parts.map((p) => p.profile_name).filter(Boolean))]
     return [`Circuit de relecture (tour ${r.round})`, relu.length ? `relu par ${relu.join(', ')}` : '', r.expert_returned_at ? `vérifié par ${r.expert_label || 'l\'expert'} le ${frDate(r.expert_returned_at)}` : ''].filter(Boolean).join(', ')
@@ -297,7 +304,8 @@ function Circuit({ id }) {
           {actions.has('expert') && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setExpert(r.expert_label || '')}><Send className="w-4 h-4" />Envoyer à l'expert</button>}
           {actions.has('valider') && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setValidation(motifParDefaut())}><CheckCircle className="w-4 h-4" />Valider la version</button>}
           {actions.has('dossier_expert') && <>
-            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => telecharger('pdf')}><Download className="w-4 h-4" />PDF pour l'expert</button>
+            {prestationsDuDoc.length > 0 && tpls && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setDossier(true)}><Download className="w-4 h-4" />Dossier de relecture (PDF)</button>}
+            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => telecharger('pdf')}><Download className="w-4 h-4" />PDF de ce document</button>
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => telecharger('docx')}><Download className="w-4 h-4" />Word pour l'expert</button>
           </>}
           {actions.has('retour_expert') && <>
@@ -321,15 +329,18 @@ function Circuit({ id }) {
           onEnregistrer={(t) => deposer({ kind: 'commentaire', text: t, author_quality: 'expert', author_label: r.expert_label || 'Expert' })} />}
         {validation !== null && (
           <div className="space-y-2 rounded-ui-sm border border-gray-200 p-3">
+            {encadres > 0 && <p className="text-ui-sm text-[rgb(var(--c-danger))]">Encore {encadres} encadré{encadres > 1 ? 's' : ''} « À valider » dans le texte : retirez-les (« Modifier l'article ») une fois les clauses tranchées. Une version remise aux clients ne doit plus en contenir.</p>}
             {gaps.length > 0 && <p className="text-ui-sm text-[rgb(var(--c-warning))]">Encore {gaps.length} passage{gaps.length > 1 ? 's' : ''} entre crochets à compléter : {[...new Set(gaps.map((g) => g.gap))].slice(0, 5).join(', ')}.</p>}
             <label className="block"><span className="label">Motif de cette version</span><input className="input" value={validation} maxLength={500} onChange={(e) => setValidation(e.target.value)} /></label>
             <div className="flex gap-2">
-              <button type="button" className="btn btn-primary btn-sm" disabled={busy || validation.trim().length < 3} onClick={valider}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Valider : la version s'applique</button>
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy || validation.trim().length < 3 || encadres > 0} onClick={valider}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Valider : la version s'applique</button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setValidation(null)}>Annuler</button>
             </div>
           </div>
         )}
       </div>
+
+      {dossier && tpls && <DossierRelecture templates={tpls} relecteurInitial={r.expert_label || ''} prestationsInitiales={prestationsDuDoc} onFermer={() => setDossier(false)} />}
 
       {/* Questions ouvertes */}
       {questions.length > 0 && (
