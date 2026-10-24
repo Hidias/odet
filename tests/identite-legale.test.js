@@ -16,6 +16,7 @@ describe('Identité légale', () => {
     expect(identiteLegale('ESSAI SECURITE', s)).toBe('ESSAI SECURITE, SARL au capital de 10 000 € · RCS Quimper 123 456 789')
     expect(identiteLegale('Essai SAS', { forme_juridique: 'SAS' })).toBe('Essai SAS')
     expect(identiteLegale('Essai', {})).toBe('Essai')
+    expect(identiteLegale('GLD Sécurité', { forme_juridique: 'SARL', capital_social: '1000', rcs: '830 695 649 R.C.S. Quimper' })).toBe('GLD Sécurité, SARL au capital de 1000 € · 830 695 649 R.C.S. Quimper')
   })
 
   it('pied de page : identité légale et siège ; nom commercial seul en tête', () => {

@@ -278,7 +278,7 @@ export function identiteLegale(legalName, s = {}) {
   const capital = String(s.capital_social || '').trim()
   const premiere = capital ? `${avecForme} au capital de ${capital}${/€|eur/i.test(capital) ? '' : ' €'}` : avecForme
   const rcs = String(s.rcs || '').trim()
-  return [premiere, rcs ? (/^rcs\b/i.test(rcs) ? rcs : `RCS ${rcs}`) : ''].filter(Boolean).join(' · ')
+  return [premiere, rcs ? (/r\.?\s?c\.?\s?s\b/i.test(rcs) ? rcs : `RCS ${rcs}`) : ''].filter(Boolean).join(' · ')
 }
 
 /** Première ligne du pied de page : identité légale complète et siège (une seule fois par document, 24/10) */
