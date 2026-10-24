@@ -20,6 +20,7 @@ import {
   enregistrerPlein, lienTicket,
 } from '../lib/vehiculesData'
 import { useAdapte } from '../../../core/branding/adapte'
+import { PapiersSection, SinistresSection, MesPapiers, ConstatVierge, PhotosSinistre } from './PapiersVehicule'
 
 const dateFr = (d) => (d ? new Date(d).toLocaleDateString('fr-FR') : '')
 const quand = (d) => (d ? new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
@@ -65,22 +66,39 @@ function PleinSheet({ vehicule, kmActuel, onClose, onSaved }) {
   )
 }
 
-function IncidentSheet({ vehicule, onClose, onSaved }) {
-  const [v, setV] = useState({ kind: 'panne', description: '', km: '', immobilise: false })
+function IncidentSheet({ vehicule, kindInitial = 'panne', onClose, onSaved }) {
+  const [v, setV] = useState({ kind: kindInitial, description: '', km: '', immobilise: false, happened_on: new Date().toISOString().slice(0, 10), third_party: '', injuries: false })
+  const [sinistre, setSinistre] = useState(null)
   const valider = async (e) => {
     e.preventDefault()
     try {
-      await enregistrerEvenement({ vehicle_id: vehicule.id, kind: v.immobilise ? 'immobilisation' : v.kind, description: v.description, km: v.km })
-      toast.success('Incident déclaré')
-      onSaved()
+      const ligne = { vehicle_id: vehicule.id, kind: v.immobilise && v.kind !== 'sinistre' ? 'immobilisation' : v.kind, description: v.description, km: v.km }
+      if (v.kind === 'sinistre') Object.assign(ligne, { happened_on: v.happened_on, third_party: v.third_party, injuries: v.injuries, description: v.immobilise ? `${v.description} (le véhicule ne peut plus rouler)` : v.description })
+      const r = await enregistrerEvenement(ligne)
+      toast.success(v.kind === 'sinistre' ? 'Sinistre déclaré : le responsable du parc est prévenu' : 'Incident déclaré')
+      if (v.kind === 'sinistre' && r?.id) setSinistre(r.id)
+      else onSaved()
     } catch (err) { toast.error(err.message) }
   }
+  if (sinistre) {
+    return (
+      <Sheet title={`Sinistre déclaré : ${vehicule.plate}`} onClose={onSaved}>
+        <div className="space-y-3 text-ui">
+          <p>Ajoutez la photo du constat signé et des dégâts : elles sont rangées avec le sinistre pour la déclaration à l'assureur.</p>
+          <PhotosSinistre vehicule={vehicule} eventId={sinistre} onDone={onSaved} />
+        </div>
+      </Sheet>
+    )
+  }
   return (
-    <Sheet title={`Incident : ${vehicule.plate}`} onClose={onClose}
+    <Sheet title={`${v.kind === 'sinistre' ? 'Sinistre' : 'Incident'} : ${vehicule.plate}`} onClose={onClose}
       footer={<><button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button><button type="submit" form="incident" className="btn btn-primary">Déclarer</button></>}>
       <form id="incident" onSubmit={valider} className="space-y-3">
         <Champ label="Type"><select className="select" value={v.kind} onChange={(e) => setV({ ...v, kind: e.target.value })}><option value="panne">Panne</option><option value="sinistre">Sinistre (accident, choc)</option><option value="reparation">Réparation à prévoir</option></select></Champ>
+        {v.kind === 'sinistre' && <Champ label="Date de l'accident"><input className="input" type="date" required max={new Date().toISOString().slice(0, 10)} value={v.happened_on} onChange={(e) => setV({ ...v, happened_on: e.target.value })} /></Champ>}
         <Champ label="Ce qui s'est passé"><textarea className="input min-h-[5rem]" required value={v.description} onChange={(e) => setV({ ...v, description: e.target.value })} /></Champ>
+        {v.kind === 'sinistre' && <Champ label="Autre véhicule ou tiers (facultatif)" aide="Nom, assureur, immatriculation"><input className="input" value={v.third_party} onChange={(e) => setV({ ...v, third_party: e.target.value })} /></Champ>}
+        {v.kind === 'sinistre' && <label className="flex items-center gap-2 min-h-[44px]"><input type="checkbox" className="w-5 h-5" checked={v.injuries} onChange={(e) => setV({ ...v, injuries: e.target.checked })} /><span className="text-ui">Il y a un blessé</span></label>}
         <Champ label="Compteur (km, facultatif)"><input className="input" inputMode="numeric" value={v.km} onChange={(e) => setV({ ...v, km: e.target.value })} /></Champ>
         <label className="flex items-center gap-2 min-h-[44px]"><input type="checkbox" className="w-5 h-5" checked={v.immobilise} onChange={(e) => setV({ ...v, immobilise: e.target.checked })} /><span className="text-ui">Le véhicule ne peut plus rouler</span></label>
       </form>
@@ -106,7 +124,7 @@ function PermisVerif({ vehicleId, profileId }) {
 
 function MonVehicule() {
   const { facile } = useAdapte()
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
   const [d, setD] = useState(null)
   const [geste, setGeste] = useState(null)
   const charger = useCallback(async () => {
@@ -139,6 +157,7 @@ function MonVehicule() {
               }}><Gauge className="w-5 h-5" aria-hidden="true" />{facile ? 'Les kilomètres' : 'Compteur'}</button>
             </div>
             {ech.length > 0 && <ul className="text-ui-sm space-y-1">{ech.map((e) => <li key={`${e.kind}-${e.rule_id}`} className="flex items-center gap-2"><Etat s={e.state} />{e.label}{e.due_on ? ` le ${dateFr(e.due_on)}` : ''}{e.due_km ? ` à ${km(e.due_km)}` : ''}</li>)}</ul>}
+            <MesPapiers vehicule={v} km={d.kms[v.id]} profile={profile} onDeclarer={() => setGeste({ kind: 'sinistre', v })} />
           </section>
         )
       })}
@@ -151,14 +170,14 @@ function MonVehicule() {
         </section>
       )}
       {geste?.kind === 'plein' && <PleinSheet vehicule={geste.v} kmActuel={d.kms[geste.v.id]} onClose={() => setGeste(null)} onSaved={() => { setGeste(null); charger() }} />}
-      {geste?.kind === 'incident' && <IncidentSheet vehicule={geste.v} onClose={() => setGeste(null)} onSaved={() => { setGeste(null); charger() }} />}
+      {['incident', 'sinistre'].includes(geste?.kind) && <IncidentSheet vehicule={geste.v} kindInitial={geste.kind === 'sinistre' ? 'sinistre' : 'panne'} onClose={() => setGeste(null)} onSaved={() => { setGeste(null); charger() }} />}
     </div>
   )
 }
 
 // ─── Fiche véhicule ───
 function VehiculeSheet({ vehicule, onClose, onSaved }) {
-  const [v, setV] = useState(() => ({ plate: '', vin: '', brand: '', model: '', energy: 'gazole', first_registration_on: '', acquisition: 'achat', lessor: '', contract_ref: '', contract_end_on: '', insurer: '', insurance_policy: '', insurance_due_on: '', fuel_card_last4: '', status: 'actif', notes: '', ...(vehicule || {}) }))
+  const [v, setV] = useState(() => ({ plate: '', vin: '', brand: '', model: '', energy: 'gazole', first_registration_on: '', acquisition: 'achat', lessor: '', contract_ref: '', contract_end_on: '', insurer: '', insurance_policy: '', insurance_due_on: '', fuel_card_last4: '', status: 'actif', notes: '', type_variant: '', national_genre: '', commercial_name: '', registration_formula: '', green_card_number: '', insurer_agency: '', insurer_agency_address: '', insurer_agency_contact: '', own_damage_covered: null, ...(vehicule || {}) }))
   const m = (k) => (e) => setV({ ...v, [k]: e.target.value })
   const enregistrer = async (e) => {
     e.preventDefault()
@@ -179,8 +198,20 @@ function VehiculeSheet({ vehicule, onClose, onSaved }) {
         <Champ label="Acquisition"><select className="select" value={v.acquisition} onChange={m('acquisition')}>{Object.entries(ACQUISITIONS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Champ>
         {loue && <Champ label="Loueur ou organisme"><input className="input" value={v.lessor || ''} onChange={m('lessor')} /></Champ>}
         {loue && <Champ label="Fin du contrat"><input className="input" type="date" value={v.contract_end_on || ''} onChange={m('contract_end_on')} /></Champ>}
+        <h3 className="sm:col-span-2 font-semibold text-ui pt-2">Carte grise <span className="font-normal text-ui-sm muted">(reprise par le certificat de cession)</span></h3>
+        <Champ label="Type, variante, version (D.2)"><input className="input" value={v.type_variant || ''} onChange={m('type_variant')} /></Champ>
+        <Champ label="Genre national (J.1)" aide="VP, CTTE…"><input className="input uppercase" value={v.national_genre || ''} onChange={m('national_genre')} /></Champ>
+        <Champ label="Dénomination commerciale (D.3)"><input className="input" value={v.commercial_name || ''} onChange={m('commercial_name')} /></Champ>
+        <Champ label="Numéro de formule" aide="Sur le 1er volet de la carte grise (ex. 2019AB12345)"><input className="input uppercase" value={v.registration_formula || ''} onChange={m('registration_formula')} /></Champ>
+        <h3 className="sm:col-span-2 font-semibold text-ui pt-2">Assurance <span className="font-normal text-ui-sm muted">(reprise par le constat amiable)</span></h3>
         <Champ label="Assureur"><input className="input" value={v.insurer || ''} onChange={m('insurer')} /></Champ>
+        <Champ label="N° de contrat"><input className="input" value={v.insurance_policy || ''} onChange={m('insurance_policy')} /></Champ>
+        <Champ label="N° de carte verte"><input className="input" value={v.green_card_number || ''} onChange={m('green_card_number')} /></Champ>
         <Champ label="Échéance de l'assurance"><input className="input" type="date" value={v.insurance_due_on || ''} onChange={m('insurance_due_on')} /></Champ>
+        <Champ label="Agence ou courtier"><input className="input" value={v.insurer_agency || ''} onChange={m('insurer_agency')} /></Champ>
+        <Champ label="Téléphone ou e-mail de l'agence"><input className="input" value={v.insurer_agency_contact || ''} onChange={m('insurer_agency_contact')} /></Champ>
+        <Champ label="Adresse de l'agence" className="sm:col-span-2"><input className="input" value={v.insurer_agency_address || ''} onChange={m('insurer_agency_address')} /></Champ>
+        <Champ label="Dégâts du véhicule couverts par le contrat"><select className="select" value={v.own_damage_covered == null ? '' : v.own_damage_covered ? 'oui' : 'non'} onChange={(e) => setV({ ...v, own_damage_covered: e.target.value === '' ? null : e.target.value === 'oui' })}><option value="">Non renseigné</option><option value="oui">Oui</option><option value="non">Non</option></select></Champ>
         <Champ label="Carte carburant (4 derniers chiffres)" aide="Jamais le numéro complet"><input className="input" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" value={v.fuel_card_last4 || ''} onChange={m('fuel_card_last4')} /></Champ>
         <Champ label="Notes" className="sm:col-span-2"><textarea className="input min-h-[3rem]" value={v.notes || ''} onChange={m('notes')} /></Champ>
       </form>
@@ -308,6 +339,10 @@ function FicheVehicule({ vehicule, kmActuel, comptes, attribution, peutGerer, on
           ))}
         </section>
 
+        {d && <SinistresSection evenements={d.evs} peutGerer={peutGerer} onChange={actualiser} />}
+
+        <PapiersSection vehicule={v} kmActuel={kmActuel} conducteur={attribution ? comptes.find((c) => c.id === attribution.profile_id) || null : null} peutGerer={peutGerer} evenements={d?.evs || []} />
+
         <section className="space-y-2">
           <h3 className="font-semibold text-ui flex items-center gap-2"><Fuel className="w-4 h-4 text-gray-400" aria-hidden="true" />Pleins</h3>
           {d && (d.pleins.length === 0 ? <p className="text-ui-sm muted">Aucun plein.</p> : <ListePleins pleins={d.pleins.slice(0, 20)} peutGerer={peutGerer} onChange={actualiser} />)}
@@ -356,7 +391,7 @@ function Parc({ peutGerer }) {
   const alertes = (id) => d.ech.filter((e) => e.vehicle_id === id && ['depassee', 'bientot'].includes(e.state))
   return (
     <div className="space-y-3">
-      {peutGerer && <div className="flex"><button type="button" className="btn btn-primary ml-auto" onClick={() => setNouveau(true)}><Plus className="w-4 h-4" aria-hidden="true" />Nouveau véhicule</button></div>}
+      {peutGerer && <div className="flex flex-wrap items-center gap-2 justify-end">{d.vs[0] && <ConstatVierge companyId={d.vs[0].company_id} />}<button type="button" className="btn btn-primary" onClick={() => setNouveau(true)}><Plus className="w-4 h-4" aria-hidden="true" />Nouveau véhicule</button></div>}
       <DataTable rows={d.vs} onRowClick={setFiche} columns={[
         { key: 'plate', label: 'Véhicule', mobile: 'title', render: (v) => <span className={v.status === 'actif' ? '' : 'text-gray-400'}>{v.plate}</span> },
         { key: 'modele', label: 'Modèle', mobile: 'subtitle', render: (v) => [v.brand, v.model].filter(Boolean).join(' ') },

@@ -992,6 +992,10 @@ tdx('0320', 'vehicle_maintenance_rules', sel=f"({_VH_VOIR} or vehicle_id in (sel
 tdx('0320', 'vehicle_odometer', sel=f"({_VH_VOIR} or vehicle_id in (select app.vehicules_miens()))", ins=f"({_VH_GER} or {_VH_SIEN})", dele=_VH_GER)
 tdx('0320', 'vehicle_events', sel=f"({_VH_VOIR} or {_VH_COUT} or vehicle_id in (select app.vehicules_miens()))", ins=f"({_VH_GER} or {_VH_SIEN})", upd=_VH_GER, dele=_VH_GER)
 tdx('0320', 'vehicle_fuel', sel=f"({_VH_VOIR} or {_VH_COUT} or driver_id = (select auth.uid()))", ins=f"({_VH_GER} or {_VH_SIEN})", upd=_VH_GER, dele=_VH_GER)
+# Papiers des véhicules (0447) : lus par qui voit le parc, par le conducteur pour son véhicule et (constat vierge, sans
+# véhicule) par qui utilise son véhicule ; le conducteur dépose le constat et les photos de son sinistre.
+tdx('0447', 'vehicle_papers', sel=f"({_VH_VOIR} or vehicle_id in (select app.vehicules_miens()) or (vehicle_id is null and company_id in {societes('vehicules.siens.utiliser')}))",
+    ins=f"({_VH_GER} or ({_VH_SIEN[1:-1]} and kind in ('constat', 'photo_sinistre')))", upd=_VH_GER, dele=_VH_GER)
 
 
 def build_suite(migration):
