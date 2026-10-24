@@ -52,6 +52,11 @@ export const orgSiret = () => b().siret || ''
 export const orgNda = () => b().nda || ''
 export const orgDirigeant = () => b().dirigeant_name || ''
 export const orgAddressLine = () => [b().address, [b().postal_code, b().city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+/** Identité juridique et adresse de la société courante (formulaires officiels : certificat de cession, constat) */
+export const orgIdentite = () => {
+  const o = b()
+  return { legal_name: orgLegalName(), siret: o.siret || '', address: o.address || '', postal_code: o.postal_code || '', city: o.city || '', phone: o.phone || '', email: o.email || '' }
+}
 export const orgQualiopi = () => !!b().qualiopi_certified
 export const appName = () => b().app_name || b().org_name || ''
 

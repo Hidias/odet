@@ -6706,6 +6706,49 @@ begin
     end;
   end if;
 
+  -- Papiers des véhicules et suivi des sinistres (0447)
+  if to_regclass('public.vehicle_papers') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare vp_v1 uuid; vp_v2 uuid; vp_co uuid; vp_p1 uuid; vp_p2 uuid; vp_n int; vp_ok boolean := false; vp_ok2 boolean := false; vp_e uuid; vp_ev public.vehicle_events;
+    begin
+      insert into public.vehicles (plate) values ('ES-447-AA') returning id, company_id into vp_v1, vp_co;
+      insert into public.vehicles (plate) values ('ES-447-BB') returning id into vp_v2;
+      insert into public.vehicle_assignments (vehicle_id, profile_id) values (vp_v1, u_tech);
+      insert into public.vehicle_papers (vehicle_id, kind, file_path) values (vp_v1, 'carte_grise', vp_co || '/' || vp_v1 || '/cg.pdf') returning id into vp_p1;
+      insert into public.vehicle_papers (vehicle_id, kind, file_path) values (vp_v2, 'carte_grise', vp_co || '/' || vp_v2 || '/cg.pdf') returning id into vp_p2;
+      begin insert into public.vehicle_papers (vehicle_id, kind, file_path) values (vp_v1, 'autre', gen_random_uuid() || '/x.pdf');
+      exception when sqlstate '23514' then vp_ok2 := true; end;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into vp_n from public.vehicle_papers where id in (vp_p1, vp_p2);
+      begin insert into public.vehicle_papers (vehicle_id, kind, file_path) values (vp_v1, 'carte_grise', vp_co || '/' || vp_v1 || '/faux.pdf');
+      exception when insufficient_privilege then vp_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if vp_n = 1 then v_lines := v_lines || 'OK      tech  0447 : le conducteur lit les papiers de son véhicule, pas ceux des autres'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   tech  0447 : papiers lus par le conducteur : ' || vp_n); end if;
+      if vp_ok and vp_ok2 then v_lines := v_lines || 'OK      tech  0447 : carte grise déposée seulement par qui gère le parc, fichier dans le dossier de la société'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0447 : garde des papiers'::text; end if;
+      -- Sinistre du vendredi 23/10/2026 : à déclarer avant le vendredi 30/10 (5 jours ouvrés), responsable prévenu
+      insert into public.vehicle_events (vehicle_id, kind, happened_on, description) values (vp_v1, 'sinistre', date '2026-10-23', 'Choc arrière') returning * into vp_ev;
+      if vp_ev.claim_deadline_on = date '2026-10-30' and vp_ev.claim_status = 'a_declarer'
+         and exists (select 1 from public.notifications where type = 'vehicule_sinistre' and metadata->>'event_id' = vp_ev.id::text) then
+        v_lines := v_lines || 'OK      base  0447 : sinistre à déclarer sous 5 jours ouvrés, responsable prévenu'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0447 : sinistre ' || coalesce(vp_ev.claim_deadline_on::text, '?') || ' ' || coalesce(vp_ev.claim_status, '?')); end if;
+      update public.vehicle_events set claim_declared_on = date '2026-10-26' where id = vp_ev.id returning * into vp_ev;
+      insert into public.vehicle_events (vehicle_id, kind, description) values (vp_v1, 'panne', 'Batterie') returning id into vp_e;
+      if vp_ev.claim_status = 'declare' and (select claim_status is null and claim_deadline_on is null from public.vehicle_events where id = vp_e) then
+        v_lines := v_lines || 'OK      base  0447 : sinistre déclaré suivi, panne sans suivi de déclaration'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0447 : suivi du sinistre'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0447 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

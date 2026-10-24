@@ -69,8 +69,10 @@ export const supprimerRegle = async (id) => must(await supabase.from('vehicle_ma
 export async function enregistrerEvenement(e) {
   const { id, created_at: _c, updated_at: _u, company_id: _co, created_by: _b, ...reste } = propre(e)
   reste.km = nombre(reste.km); reste.cost_ttc = nombre(reste.cost_ttc)
+  for (const k of ['deductible', 'indemnity']) if (k in reste) reste[k] = nombre(reste[k])
+  for (const k of ['claim_declared_on', 'claim_status', 'at_fault']) if (k in reste && !reste[k]) reste[k] = null
   if (id) return must(await supabase.from('vehicle_events').update(reste).eq('id', id))
-  return must(await supabase.from('vehicle_events').insert(reste))
+  return must(await supabase.from('vehicle_events').insert(reste).select('id').single())
 }
 export const marquerVerifie = async (id) => must(await supabase.from('vehicle_fuel').update({ status: 'normal' }).eq('id', id))
 
