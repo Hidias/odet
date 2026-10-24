@@ -45,7 +45,8 @@ export default function ComptesEntreprise({ client, contacts = [] }) {
     try {
       const r = await callApi('/api/espace-entreprise', { action: 'inviter', client_id: client.id, ...form })
       setForm(null)
-      setLien({ email: form.email, link: r.link, nouveau: true })
+      if (r.link) setLien({ email: form.email, link: r.link, nouveau: true })
+      else toast.success(`${form.email} a déjà un compte : ce client est ajouté à son espace (il choisit la société affichée)`, { duration: 7000 })
       load()
     } catch (e) {
       toast.error(e.message)

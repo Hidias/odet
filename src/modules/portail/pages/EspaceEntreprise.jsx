@@ -79,6 +79,14 @@ export default function EspaceEntreprise() {
   const [securite, setSecurite] = useState(false)
   const [appareils, setAppareils] = useState([])
   const [nouvelAppareil, setNouvelAppareil] = useState(false)
+  // Plusieurs sociétés clientes pour un même compte (0450)
+  const [societes, setSocietes] = useState([])
+  useEffect(() => { supabase.rpc('ent_societes').then(({ data }) => { if (Array.isArray(data)) setSocietes(data) }) }, [])
+  const choisirSociete = async (accountId) => {
+    const { error } = await supabase.rpc('ent_choisir', { p_account: accountId })
+    if (error) { toast.error('Changement impossible'); return }
+    window.location.reload()
+  }
   // Registre de sécurité (fonction 11) : proposé si le module est actif ; dossier de dépôt du compte
   const [mods, setMods] = useState({ registre: false })
   useEffect(() => { supabase.rpc('ent_modules').then(({ data }) => { if (data) setMods(data) }) }, [])
@@ -121,6 +129,14 @@ export default function EspaceEntreprise() {
         onPersonnaliser={() => setPerso(true)} onQuitter={logout} onSecurite={() => setSecurite(true)} />
     )}>
       {perso && <PersonnaliserEspace prenom={moi.prenom} photo={moi.photo} onEnregistrer={moi.enregistrer} onFermer={() => setPerso(false)} />}
+      {societes.length > 1 && (
+        <label className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-gray-600">Société affichée</span>
+          <select className="select w-auto min-w-[14rem]" value={societes.find((x) => x.actif)?.account_id || ''} onChange={(e) => choisirSociete(e.target.value)}>
+            {societes.map((x) => <option key={x.account_id} value={x.account_id}>{x.name}{x.city ? ` (${x.city})` : ''}</option>)}
+          </select>
+        </label>
+      )}
       {securite && <SecuriteEspace mode="compte" appareils={appareils} onFermer={() => setSecurite(false)} />}
       {nouvelAppareil && (
         <div role="alert" className="mb-4 rounded-ui bg-amber-50 border border-amber-200 text-amber-900 text-sm px-3 py-2.5 flex flex-wrap items-center gap-2">

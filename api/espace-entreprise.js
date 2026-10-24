@@ -94,11 +94,15 @@ async function handler(req, res) {
     let link = null
     if (existant) {
       if (existant.role !== 'entreprise') return res.status(409).json({ error: 'Cette adresse est celle d\'un compte de l\'organisme : utilisez une autre adresse' })
-      const { data: deja } = await admin.from('client_accounts').select('id').eq('profile_id', existant.id).maybeSingle()
-      if (deja) return res.status(409).json({ error: 'Cette adresse a déjà un compte entreprise' })
-      const r = await lienMotDePasse(admin, email, false)
-      if (r.error) return res.status(400).json({ error: r.error })
-      link = r.link
+      // 0450 : un même compte peut suivre plusieurs sociétés clientes ; refusé seulement s'il suit déjà celle-ci
+      const { data: deja } = await admin.from('client_accounts').select('id').eq('profile_id', existant.id).eq('client_id', client.id).maybeSingle()
+      if (deja) return res.status(409).json({ error: 'Cette adresse a déjà un compte pour ce client' })
+      const { count: autres } = await admin.from('client_accounts').select('id', { count: 'exact', head: true }).eq('profile_id', existant.id)
+      if (!autres) {
+        const r = await lienMotDePasse(admin, email, false)
+        if (r.error) return res.status(400).json({ error: r.error })
+        link = r.link
+      }
     } else {
       const r = await lienMotDePasse(admin, email, true)
       if (r.error) return res.status(400).json({ error: r.error })
