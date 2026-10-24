@@ -33,6 +33,8 @@ import RecapSession from '../components/RecapSession'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
+import { empreinteAppareil } from '../../../core/portail/appareil'
+import SecuriteEspace from '../components/SecuriteEspace'
 
 // Espace entreprise avec compte (lot 2, 0046) : accueil (choses à faire, échéances), formations et documents,
 // salariés et validités, demandes (inscription inter, formation intra, remplacement, message), catalogue, factures
@@ -73,6 +75,10 @@ export default function EspaceEntreprise() {
   const { branding } = useBranding()
   const moi = useMonProfil()
   const [perso, setPerso] = useState(false)
+  // Sécurité (0449) : appareils du compte, alerte au premier passage d'un appareil inconnu, mot de passe
+  const [securite, setSecurite] = useState(false)
+  const [appareils, setAppareils] = useState([])
+  const [nouvelAppareil, setNouvelAppareil] = useState(false)
   // Registre de sécurité (fonction 11) : proposé si le module est actif ; dossier de dépôt du compte
   const [mods, setMods] = useState({ registre: false })
   useEffect(() => { supabase.rpc('ent_modules').then(({ data }) => { if (data) setMods(data) }) }, [])
@@ -83,6 +89,10 @@ export default function EspaceEntreprise() {
     setAccueil(data)
     // Journal de preuve (0401) : connexion notée une fois par jour et par onglet
     if (premiereConnexionDuJour('compte')) noterCompte({ event: 'connexion' })
+    try {
+      const { data: ap } = await supabase.rpc('ent_appareil', { p_device: await empreinteAppareil() })
+      if (ap && !ap.error) { setAppareils(ap.appareils || []); setNouvelAppareil(!!ap.nouveau) }
+    } catch { /* fonction absente : rien ne casse */ }
   }
   useEffect(() => { charger() }, [])
 
@@ -107,10 +117,18 @@ export default function EspaceEntreprise() {
   return (
     <PublicLayout title="Espace entreprise" bandeau={(
       <BandeauAccueil branding={branding} libelle="Espace entreprise" prenom={moi.prenom} photo={moi.photo}
-        sousTitre={`Vos formations avec ${accueil.org?.name || branding.org_name || 'votre organisme'}`}
-        onPersonnaliser={() => setPerso(true)} onQuitter={logout} />
+        sousTitre={`Votre espace avec ${accueil.org?.name || branding.org_name || 'votre organisme'}`}
+        onPersonnaliser={() => setPerso(true)} onQuitter={logout} onSecurite={() => setSecurite(true)} />
     )}>
       {perso && <PersonnaliserEspace prenom={moi.prenom} photo={moi.photo} onEnregistrer={moi.enregistrer} onFermer={() => setPerso(false)} />}
+      {securite && <SecuriteEspace mode="compte" appareils={appareils} onFermer={() => setSecurite(false)} />}
+      {nouvelAppareil && (
+        <div role="alert" className="mb-4 rounded-ui bg-amber-50 border border-amber-200 text-amber-900 text-sm px-3 py-2.5 flex flex-wrap items-center gap-2">
+          <span className="flex-1 min-w-[12rem]">Première connexion à votre compte depuis cet appareil. Si ce n'est pas vous, changez votre mot de passe.</span>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSecurite(true)}>Voir</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNouvelAppareil(false)}>C'est moi</button>
+        </div>
+      )}
       <div className="pb-20">
         {onglet === 'accueil' && <Accueil a={accueil} aller={setOnglet} />}
         {onglet === 'formations' && <Formations />}

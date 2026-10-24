@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { LogOut, Sparkles, ImagePlus, X, Loader2, SmilePlus } from 'lucide-react'
+import { LogOut, KeyRound, Sparkles, ImagePlus, X, Loader2, SmilePlus } from 'lucide-react'
 import { brandLogo } from '../../../core/branding/BrandingProvider'
 
 // Vitrine commune des pages vues de l'extérieur (espace entreprise, portail stagiaire, espaces externes, calendrier) :
@@ -143,18 +143,25 @@ export function Avatar({ photo, prenom, taille = 'w-12 h-12', className = '' }) 
 }
 
 // Bandeau sombre animé des espaces : marque, bouton Quitter, avatar et salutation, puis le contenu passé (chiffres…)
-export function BandeauAccueil({ branding, libelle, prenom, photo, sousTitre, onPersonnaliser, onQuitter, children }) {
+export function BandeauAccueil({ branding, libelle, prenom, photo, sousTitre, onPersonnaliser, onQuitter, onSecurite = null, children }) {
   return (
     <section className="relative overflow-hidden bg-primary-900 text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <Halos />
       <div className="relative max-w-3xl mx-auto px-4 pt-4 pb-7">
         <div className="flex items-center justify-between gap-3">
           <Marque branding={branding} sombre libelle={libelle} />
-          {onQuitter && (
-            <button type="button" onClick={onQuitter} className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 text-sm">
-              <LogOut className="w-4 h-4" aria-hidden="true" />Quitter
-            </button>
-          )}
+          <span className="flex items-center gap-2 shrink-0">
+            {onSecurite && (
+              <button type="button" onClick={onSecurite} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 text-sm">
+                <KeyRound className="w-4 h-4" aria-hidden="true" /><span className="hidden sm:inline">Sécurité</span>
+              </button>
+            )}
+            {onQuitter && (
+              <button type="button" onClick={onQuitter} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 text-sm">
+                <LogOut className="w-4 h-4" aria-hidden="true" />Quitter
+              </button>
+            )}
+          </span>
         </div>
         <div className="mt-6 flex items-center gap-4">
           <Avatar photo={photo} prenom={prenom} taille="w-14 h-14 sm:w-16 sm:h-16" className="vitrine-monte" />

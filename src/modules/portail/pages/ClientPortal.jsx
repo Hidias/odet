@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Lock, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, ShieldCheck, Clock, Phone, Mail, Globe, Accessibility, ArrowRight, Sparkles, GraduationCap, Printer } from 'lucide-react'
+import { Lock, KeyRound, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, ShieldCheck, Clock, Phone, Mail, Globe, Accessibility, ArrowRight, Sparkles, GraduationCap, Printer } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../../../core/supabase'
@@ -21,6 +21,8 @@ import NumerosDemandes from '../components/NumerosDemandes'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
+import { empreinteAppareil } from '../../../core/portail/appareil'
+import SecuriteEspace from '../components/SecuriteEspace'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
 // sessions de l'entreprise et téléchargement de ses documents, en lecture seule. Aux couleurs de l'instance,
@@ -137,6 +139,21 @@ export default function ClientPortal() {
   const depotDe = (type, id) => depots.find((x) => x.object_type === type && x.object_id === id) || null
   const [perso, setPerso] = useState(() => lirePerso(token))
   const [persoOuvert, setPersoOuvert] = useState(false)
+  // Sécurité (0449) : appareils, code, compte personnel
+  const [securite, setSecurite] = useState(false)
+  const [appareils, setAppareils] = useState([])
+  const [nouvelAppareil, setNouvelAppareil] = useState(false)
+  const [accesInfos, setAccesInfos] = useState(null)
+  const chargerSecurite = async (c) => {
+    try {
+      const [{ data: ap }, { data: inf }] = await Promise.all([
+        supabase.rpc('client_portal_appareil', { p_token: token, p_code: c, p_device: await empreinteAppareil() }),
+        supabase.rpc('client_portal_acces_infos', { p_token: token, p_code: c }),
+      ])
+      if (ap && !ap.error) { setAppareils(ap.appareils || []); setNouvelAppareil(!!ap.nouveau) }
+      if (inf && !inf.error) setAccesInfos(inf)
+    } catch { /* fonctions absentes : rien ne casse */ }
+  }
   const enregistrerPerso = async ({ prenom, photo }) => {
     const v = { prenom: prenom || '', photo: photo || null }
     try { window.localStorage.setItem(PERSO_KEY(token), JSON.stringify(v)) } catch { throw new Error('Ce navigateur ne permet pas de garder ce choix.') }
@@ -173,6 +190,7 @@ export default function ClientPortal() {
       chargerSignatures(c)
       chargerParticipants(c)
       chargerDepots(c)
+      chargerSecurite(c)
       try { sessionStorage.setItem(STORAGE_KEY(token), c) } catch { /* ignore */ }
       // Journal de preuve (0401) : connexion notée une fois par jour et par onglet
       if (premiereConnexionDuJour(`lien.${token}`)) noterLien(token, c, { event: 'connexion' })
@@ -329,17 +347,17 @@ export default function ClientPortal() {
           <div className="relative"><Marque branding={branding} sombre /></div>
           <div className="relative mt-6 sm:mt-10 lg:mt-auto max-w-lg">
             <p className="vitrine-monte inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs tracking-wide" style={{ '--delai': '80ms' }}>
-              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> Votre espace formation
+              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> Votre espace client
             </p>
             <h1 className="vitrine-monte mt-4 font-display text-2xl sm:text-4xl font-semibold leading-tight" style={{ '--delai': '160ms' }}>
-              Toutes les formations de vos équipes, au même endroit.
+              Vos devis, formations, interventions et documents, au même endroit.
             </h1>
             <p className="vitrine-monte mt-3 text-white/75 hidden sm:block" style={{ '--delai': '240ms' }}>
-              Dates, lieux, participants et documents officiels avec {branding.org_name || 'votre organisme de formation'}, disponibles à tout moment.
+              Tout ce que vous faites avec {branding.org_name || 'votre prestataire'}, signé en ligne et disponible à tout moment.
             </p>
             <ul className="mt-6 space-y-3 text-sm hidden sm:block">
               {[
-                { i: FileText, t: 'Conventions, convocations, émargements, attestations et certificats à télécharger' },
+                { i: FileText, t: 'Devis et conventions à signer en ligne, rapports d\'intervention, factures, attestations et certificats' },
                 { i: Clock, t: 'Disponible jour et nuit, sans demande à faire' },
                 { i: ShieldCheck, t: branding.qualiopi_certified ? 'Organisme certifié Qualiopi, documents conformes' : 'Accès protégé par votre code personnel' },
               ].map((x, k) => (
@@ -386,6 +404,7 @@ export default function ClientPortal() {
               </button>
             </form>
             <p className="mt-6 text-xs text-gray-400 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />Code personnel à votre entreprise. Après 5 essais, l'accès se bloque quelques minutes.</p>
+            <p className="mt-3 text-sm text-gray-600">Vous avez un compte personnel ? <a href="#/espace-client" className="font-medium text-primary-800 underline underline-offset-2">Se connecter avec mon adresse e-mail</a></p>
           </div>
         </section>
       </div>
@@ -502,7 +521,10 @@ export default function ClientPortal() {
       <header className="sticky top-0 z-10 bg-white/85 backdrop-blur border-b border-gray-200" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
           <Marque branding={branding} />
-          <button onClick={logout} className="btn btn-secondary btn-sm flex items-center gap-1.5"><LogOut className="w-4 h-4" aria-hidden="true" />Quitter</button>
+          <span className="flex items-center gap-2">
+            <button type="button" onClick={() => setSecurite(true)} className="btn btn-ghost btn-sm flex items-center gap-1.5"><KeyRound className="w-4 h-4" aria-hidden="true" /><span className="hidden sm:inline">{accesInfos && !accesInfos.compte ? 'Sécurité et compte' : 'Sécurité'}</span></button>
+            <button onClick={logout} className="btn btn-secondary btn-sm flex items-center gap-1.5"><LogOut className="w-4 h-4" aria-hidden="true" />Quitter</button>
+          </span>
         </div>
       </header>
 
@@ -513,20 +535,20 @@ export default function ClientPortal() {
             <Avatar photo={perso.photo} prenom={perso.prenom} taille="w-14 h-14 sm:w-16 sm:h-16" className="vitrine-monte" />
             <div className="min-w-0">
               <h1 className="vitrine-monte font-display text-2xl sm:text-3xl font-semibold truncate" style={{ '--delai': '80ms' }}>{salutation(perso.prenom)}</h1>
-              <p className="vitrine-monte text-white/70 mt-0.5 truncate" style={{ '--delai': '140ms' }}>{branding.org_name ? `Vos formations avec ${branding.org_name}` : 'Vos formations'}</p>
+              <p className="vitrine-monte text-white/70 mt-0.5 truncate" style={{ '--delai': '140ms' }}>{sessionsToutes.length ? (branding.org_name ? `Vos formations avec ${branding.org_name}` : 'Vos formations') : (branding.org_name ? `Votre espace ${branding.org_name}` : 'Votre espace')}</p>
             </div>
           </div>
           <button type="button" onClick={() => setPersoOuvert(true)} className="vitrine-monte mt-4 inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white underline-offset-4 hover:underline" style={{ '--delai': '200ms' }}>
             <Sparkles className="w-4 h-4" aria-hidden="true" />Personnaliser mon espace
           </button>
-          <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {sessionsToutes.length > 0 && <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Chiffre valeur={past.length} libelle="Réalisées" icone={GraduationCap} delai={200} />
             <Chiffre valeur={upcoming.length} libelle="À venir" icone={Calendar} delai={260} />
             <Chiffre valeur={formes.size} libelle="Salariés formés" icone={Users} delai={320} />
             {reussite != null
               ? <Chiffre valeur={reussite} suffixe=" %" libelle="Réussite" icone={Award} delai={380} />
               : <Chiffre valeur={sessionsToutes.length} libelle="Formations" icone={FileText} delai={380} />}
-          </div>
+          </div>}
           {prochaine && (
             <div className="vitrine-monte mt-5 rounded-ui-lg bg-white text-gray-900 p-4 flex items-center gap-4 flex-wrap" style={{ '--delai': '440ms' }}>
               <span className="w-10 h-10 rounded-full bg-accent-500/10 text-accent-600 flex items-center justify-center shrink-0"><Clock className="w-5 h-5" aria-hidden="true" /></span>
@@ -540,6 +562,18 @@ export default function ClientPortal() {
         </div>
       </section>
 
+      {nouvelAppareil && (
+        <div role="alert" className="bg-amber-50 border-b border-amber-200 text-amber-900 text-sm">
+          <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center gap-2">
+            <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+            <span className="flex-1 min-w-[12rem]">Première ouverture de votre espace sur cet appareil. Si ce n'est pas vous ou un collègue, changez le code.</span>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSecurite(true)}>Voir</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNouvelAppareil(false)}>C'est moi</button>
+          </div>
+        </div>
+      )}
+      {securite && <SecuriteEspace mode="lien" token={token} code={code} infos={accesInfos} appareils={appareils} onFermer={() => setSecurite(false)}
+        onCode={(n) => { setCode(n); try { sessionStorage.setItem(STORAGE_KEY(token), n) } catch { /* ignore */ } }} />}
       {persoOuvert && <PersonnaliserEspace prenom={perso.prenom} photo={perso.photo} onEnregistrer={enregistrerPerso} onFermer={() => setPersoOuvert(false)}
         note="Votre choix reste sur cet appareil : il ne change rien pour vos collègues." />}
       <main className="max-w-5xl mx-auto px-4 py-8 w-full flex-1">
@@ -560,7 +594,7 @@ export default function ClientPortal() {
           </section>
         )}
         {upcoming.length === 0 && past.length === 0 && (
-          <p className="text-sm text-gray-500 text-center py-10">Aucune formation enregistrée pour le moment.</p>
+          <p className="text-sm text-gray-500 text-center py-10">Rien pour le moment : vos devis, conventions, rapports et documents arriveront ici.</p>
         )}
 
         {/* Documents mis à disposition, toutes prestations (0404) */}

@@ -21,6 +21,7 @@ import SitesClient from '../components/SitesClient'
 import EcheancesClient from '../components/EcheancesClient'
 import JournalEspaceClient from '../components/JournalEspaceClient'
 import DocumentsEspaceClient from '../components/DocumentsEspaceClient'
+import EnvoiAccesEspace from '../components/EnvoiAccesEspace'
 import ComptesEntreprise from '../components/ComptesEntreprise'
 import PistesClient from '../components/PistesClient'
 import RegistreClient from '../../registre/components/RegistreClient'
@@ -1598,7 +1599,7 @@ export default function ClientDetail() {
             <div className="px-5 pb-4">
               {!portalAccess ? (
                 <>
-                  <p className="text-ui-sm text-gray-500 mb-3">Donne au client un lien et un code pour consulter ses sessions et télécharger ses documents (convention, convocations, émargement, attestations, certificats).</p>
+                  <p className="text-ui-sm text-gray-500 mb-3">Donne au client un lien et un code pour ses devis, conventions, rapports, factures et documents ; il peut ensuite créer son compte personnel.</p>
                   {d.espace && (
                     <button onClick={createPortalAccess} disabled={portalBusy}
                       className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-primary-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
@@ -1628,6 +1629,7 @@ export default function ClientDetail() {
                       </button>
                     )}
                   </div>
+                  <EnvoiAccesEspace acces={portalAccess} contacts={contacts} peutGerer={!!d.espace} onChange={loadPortalAccess} />
                 </div>
               )}
             </div>
