@@ -19,6 +19,7 @@ import { ResultBadge, VisitBadge, ScanButton, Sheet, Kpi } from '../components/u
 import { buildRapportPDF } from '../pdf/rapportPDF'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import PontVisite from '../components/PontVisite'
+import { AvisPassage, SignatureADistance } from '../components/AvisEtSignature'
 import { useAuthStore } from '../../../core/store'
 import { useAdapte, parler, voixDisponible } from '../../../core/branding/adapte'
 
@@ -170,6 +171,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
           {visit.notes && <div className="text-ui-sm text-gray-600">{visit.notes}</div>}
         </div>
         {canWrite && <button type="button" className="btn btn-primary w-full" style={{ height: 52 }} onClick={begin} disabled={busy}>{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}{adapte.facile ? 'Je commence' : 'Démarrer la visite'}</button>}
+        {canWrite && <AvisPassage visit={visit} />}
         {!equipment.length && <p className="muted text-ui-sm">Aucun appareil enregistré : ajoutez-les pendant la visite avec « Appareil trouvé sur place ».</p>}
       </div>
     )
@@ -518,7 +520,7 @@ function VisitDone({ visit, items, parts, equipmentById, settings, technician, i
     const { data: tech } = visit.technician_id ? await supabase.from('profiles').select('first_name, last_name, display_name, email').eq('id', visit.technician_id).maybeSingle() : { data: null }
     const out = await buildRapportPDF({ visit, items, parts, equipmentById, settings, technicianName: tech ? profileName(tech) : (technician?.name || '') })
     // Le rapport remis est mis à disposition dans l'espace client, tel quel (0404) ; un seul par visite
-    mettreADisposition({ objectType: 'itv_visit', objectId: visit.id, kind: 'rapport',
+    await mettreADisposition({ objectType: 'itv_visit', objectId: visit.id, kind: 'rapport',
       label: `Rapport d'intervention ${visit.reference || ''} du ${frShort((visit.started_at || visit.planned_on || '').slice(0, 10))}`.replace(/\s+/g, ' ').trim(),
       base64: versBase64(out.doc.output('arraybuffer')) })
     return out
@@ -592,6 +594,7 @@ function VisitDone({ visit, items, parts, equipmentById, settings, technician, i
           )
         })}
       </div>
+      <SignatureADistance visit={visit} reload={reload} publierRapport={makePdf} />
       {visit.client_signature && <div className="card"><div className="text-ui-sm text-gray-500 mb-1">Signé par {visit.signer_name || 'le client'}</div><img src={visit.client_signature} alt="Signature du client" className="h-16" /></div>}
       {(visit.photos || []).length > 0 && <div className="flex gap-2 flex-wrap">{visit.photos.map((p) => photoUrls[p] && <img key={p} src={photoUrls[p]} alt="Photo de la visite" className="w-20 h-20 rounded-ui-sm object-cover" />)}</div>}
       <Link to="/interventions/journee" className="btn btn-ghost w-full">{facile ? '⬅ Mes visites du jour' : 'Retour à ma journée'}</Link>

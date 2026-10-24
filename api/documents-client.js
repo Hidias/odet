@@ -31,7 +31,7 @@ const TABLES = {
   // Groupe inter (0420) : convention ou contrat du groupe, signé en ligne par son client
   session_group: ['session_groups', 'client_id'],
 }
-const KINDS = ['rapport', 'facture', 'devis', 'contrat', 'convention', 'attestation', 'autre']
+const KINDS = ['rapport', 'facture', 'devis', 'contrat', 'convention', 'attestation', 'autre', 'avis_passage']
 
 async function publier(req, res) {
   const ctx = await requireUser(req)
@@ -55,7 +55,8 @@ async function publier(req, res) {
     const { data: deja } = await admin.from('client_shared_documents').select('id, published_at').eq('object_type', type).eq('object_id', id).eq('kind', kind).is('withdrawn_at', null).maybeSingle()
     if (deja) {
       // Devis modifié depuis sa mise à disposition et pas encore signé : nouvelle version (l'ancienne est retirée)
-      const modifie = type === 'quote' && obj.updated_at && new Date(obj.updated_at) > new Date(deja.published_at)
+      // Avis de passage (0451) : chaque nouvel avis remplace le précédent
+      const modifie = kind === 'avis_passage' || (type === 'quote' && obj.updated_at && new Date(obj.updated_at) > new Date(deja.published_at))
       if (!modifie) return res.status(200).json({ id: deja.id, deja: true })
       const { data: sig } = await admin.from('document_signatures').select('id').eq('status', 'valid').eq('metadata->>document_id', deja.id).limit(1)
       if (sig?.length) return res.status(200).json({ id: deja.id, deja: true, signe: true })

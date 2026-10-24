@@ -8,6 +8,7 @@ import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 
 const TYPES = {
   rapport: { label: "Rapports d'intervention", icone: Wrench },
+  avis_passage: { label: 'Avis de passage', icone: Clock },
   facture: { label: 'Factures et avoirs', icone: Receipt },
   devis: { label: 'Devis', icone: FileSignature },
   contrat: { label: 'Contrats', icone: ScrollText },
@@ -15,7 +16,7 @@ const TYPES = {
   attestation: { label: 'Attestations', icone: FileText },
   autre: { label: 'Autres documents', icone: FileText },
 }
-const ORDRE = ['rapport', 'facture', 'devis', 'contrat', 'convention', 'attestation', 'autre']
+const ORDRE = ['rapport', 'avis_passage', 'facture', 'devis', 'contrat', 'convention', 'attestation', 'autre']
 const quand = (d) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 
 function sauver(buf, nom) {
@@ -34,7 +35,7 @@ const SIGNABLES = ['devis', 'contrat']
  * avecPreuve(doc, buf, sig) → ArrayBuffer du document signé suivi de sa page de preuve.
  */
 // Dépôt signé à la main (0431) : onDeposer(doc) ouvre la fenêtre, depotDe(doc) → dernier dépôt du client ou null
-export default function MesDocuments({ charger, lire, noter, titre = 'Vos documents', signatureDe = null, onSigner = null, avecPreuve = null, rafraichir = 0, onDeposer = null, depotDe = null }) {
+export default function MesDocuments({ charger, lire, noter, titre = 'Vos documents', signatureDe = null, onSigner = null, avecPreuve = null, rafraichir = 0, onDeposer = null, depotDe = null, aSignerEnPlus = null }) {
   const [docs, setDocs] = useState(null)
   const [busy, setBusy] = useState(null)
   const [erreur, setErreur] = useState('')
@@ -81,7 +82,7 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
               <ul className="divide-y divide-gray-100">
                 {liste.slice(0, 12).map((d) => {
                   const sig = signatureDe ? signatureDe(d) : null
-                  const aSigner = !sig && onSigner && SIGNABLES.includes(d.kind)
+                  const aSigner = !sig && onSigner && (SIGNABLES.includes(d.kind) || (d.kind === 'rapport' && aSignerEnPlus?.has?.(d.id)))
                   const depot = depotDe ? depotDe(d) : null
                   const deposable = !sig && onDeposer && d.kind === 'devis' && (!depot || depot.status === 'refuse')
                   return (

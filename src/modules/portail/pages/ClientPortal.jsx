@@ -10,7 +10,7 @@ import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
 import { noterLien, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
-import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT } from '../components/SignerConvention'
+import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON } from '../components/SignerConvention'
 import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
@@ -144,6 +144,8 @@ export default function ClientPortal() {
   const [appareils, setAppareils] = useState([])
   const [nouvelAppareil, setNouvelAppareil] = useState(false)
   const [accesInfos, setAccesInfos] = useState(null)
+  // Bons d'intervention à signer à distance (0451)
+  const [rapportsASigner, setRapportsASigner] = useState(new Set())
   const chargerSecurite = async (c) => {
     try {
       const [{ data: ap }, { data: inf }] = await Promise.all([
@@ -152,6 +154,8 @@ export default function ClientPortal() {
       ])
       if (ap && !ap.error) { setAppareils(ap.appareils || []); setNouvelAppareil(!!ap.nouveau) }
       if (inf && !inf.error) setAccesInfos(inf)
+      const { data: as } = await supabase.rpc('client_portal_a_signer', { p_token: token, p_code: c })
+      if (Array.isArray(as)) setRapportsASigner(new Set(as))
     } catch { /* fonctions absentes : rien ne casse */ }
   }
   const enregistrerPerso = async ({ prenom, photo }) => {
@@ -602,7 +606,7 @@ export default function ClientPortal() {
           onDeposer={(d) => setADeposer({ doc: d })}
           depotDe={(d) => (d.object_type === 'quote' ? depotDe('quote', d.object_id) : null)}
           signatureDe={(d) => signatures.find((x) => x.document_id === d.id) || null}
-          onSigner={setDocASigner}
+          onSigner={setDocASigner} aSignerEnPlus={rapportsASigner}
           avecPreuve={(d, buf, sig) => signeAvecPreuve(d, buf, sig, orgPdf)}
           charger={async () => (await supabase.rpc('client_portal_mes_documents', { p_token: token, p_code: code })).data}
           lire={(d) => lireDocumentPortail({ token, code }, d.id)}
@@ -647,7 +651,7 @@ export default function ClientPortal() {
 
       {docASigner && (
         <SignerConvention titre={NOMS_SIGNABLES[docASigner.kind]?.titre} nomDocument={NOMS_SIGNABLES[docASigner.kind]?.nom}
-          accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : ACCORD_DEVIS} libelle={docASigner.label} signataire={{}}
+          accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={{}}
           genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({ token, code }, docASigner.id)), filename: `${docASigner.label}.pdf` })}
           onSigner={async (p) => {
             const { data: r, error: e } = await supabase.rpc('client_portal_signer_document', { p_token: token, p_code: code, p_document: docASigner.id,

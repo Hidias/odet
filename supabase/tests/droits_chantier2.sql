@@ -6875,6 +6875,58 @@ begin
     end;
   end if;
 
+  -- Avis de passage et bon d'intervention signé à distance (0451)
+  if to_regclass('public.itv_visit_notices') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare bd_jeton text := md5(gen_random_uuid()::text); bd_code text := '581347'; bd_client uuid; bd_site uuid; bd_v uuid; bd_v2 uuid;
+            bd_doc uuid; bd_doc2 uuid; bd_ok boolean := false; bd_ok2 boolean := false; bd_r jsonb; bd_n int;
+    begin
+      insert into public.clients (name) values ('Client essai 0451') returning id into bd_client;
+      insert into public.sites (client_id, name) values (bd_client, 'Site essai 0451') returning id into bd_site;
+      insert into public.client_portal_access (client_id, token, access_code, is_active) values (bd_client, bd_jeton, bd_code, true);
+      insert into public.itv_visits (client_id, site_id, status) values (bd_client, bd_site, 'terminee') returning id into bd_v;
+      insert into public.itv_visits (client_id, site_id, status) values (bd_client, bd_site, 'terminee') returning id into bd_v2;
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      select c.company_id, bd_client, 'itv_visit', bd_v, 'rapport', 'Rapport essai 0451', bd_client || '/itv_visit/' || bd_v || '/r.pdf', repeat('c', 64)
+        from public.clients c where c.id = bd_client returning id into bd_doc;
+      insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+      select c.company_id, bd_client, 'itv_visit', bd_v2, 'rapport', 'Rapport essai 0451 bis', bd_client || '/itv_visit/' || bd_v2 || '/r.pdf', repeat('d', 64)
+        from public.clients c where c.id = bd_client returning id into bd_doc2;
+      -- Demande de signature à distance sur la 1re visite seulement
+      update public.itv_visits set remote_signature_requested_at = now() where id = bd_v;
+      execute 'set local role anon';
+      bd_r := public.client_portal_signer_document(bd_jeton, bd_code, bd_doc, 'Client Essai', 'Gérant', 'data:image/png;base64,AA',
+        'J''ai écrit « Bon pour accord » et je reconnais l''intervention décrite');
+      begin
+        perform public.client_portal_signer_document(bd_jeton, bd_code, bd_doc2, 'Client Essai', 'Gérant', 'data:image/png;base64,AA',
+          'J''ai écrit « Bon pour accord » et je reconnais l''intervention décrite');
+      exception when sqlstate '22023' then bd_ok := true; end;
+      execute 'reset role';
+      if (select remote_signed_at is not null and remote_signature_id = (bd_r->>'id')::uuid from public.itv_visits where id = bd_v) and bd_ok
+         and exists (select 1 from public.notifications where type = 'bon_intervention_signe' and metadata->>'document_id' = bd_doc::text) then
+        v_lines := v_lines || 'OK      anon  0451 : bon d''intervention signé à distance (seulement s''il a été envoyé à signer), trace sur la visite'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0451 : signature à distance ' || coalesce(bd_r::text, '?')); end if;
+      -- Personne ne pose la signature à distance à la main
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin update public.itv_visits set remote_signed_at = now() where id = bd_v2; exception when insufficient_privilege then bd_ok2 := true; end;
+      insert into public.itv_visit_notices (visit_id, kind, passage_on, window_text) values (bd_v2, 'absent', current_date, '14 h 30');
+      select count(*) into bd_n from public.itv_visit_notices where visit_id = bd_v2;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if bd_ok2 then v_lines := v_lines || 'OK      sa    0451 : signature à distance jamais posée à la main'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0451 : signature à distance posée à la main'::text; end if;
+      if bd_n = 1 then v_lines := v_lines || 'OK      sa    0451 : avis de passage (client absent) enregistré'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0451 : avis de passage'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0451 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

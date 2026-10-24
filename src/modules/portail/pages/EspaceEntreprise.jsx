@@ -21,7 +21,7 @@ import RegistreVue from '../../registre/components/RegistreVue'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { appliquerEmis } from '../../formation/lib/documentsEmis'
 import { noterCompte, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
-import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT } from '../components/SignerConvention'
+import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON } from '../components/SignerConvention'
 import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
@@ -660,6 +660,9 @@ function Plus_({ compte, org, salaries }) {
   // Signature des devis et contrats mis à disposition (0406)
   const [signatures, setSignatures] = useState([])
   const [docASigner, setDocASigner] = useState(null)
+  // Bons d'intervention à signer à distance (0451)
+  const [rapportsASigner, setRapportsASigner] = useState(new Set())
+  useEffect(() => { supabase.rpc('ent_a_signer').then(({ data }) => { if (Array.isArray(data)) setRapportsASigner(new Set(data)) }) }, [])
   const [tourDocs, setTourDocs] = useState(0)
   const [orgDoc, setOrgDoc] = useState(null)
   const chargerSignatures = () => supabase.rpc('ent_signatures').then(({ data: sg }) => setSignatures(Array.isArray(sg) ? sg : []))
@@ -693,7 +696,7 @@ function Plus_({ compte, org, salaries }) {
             onDeposer={setDocADeposer}
             depotDe={(d) => (d.object_type === 'quote' ? depots.find((x) => x.object_type === 'quote' && x.object_id === d.object_id) || null : null)}
             signatureDe={(d) => signatures.find((x) => x.document_id === d.id) || null}
-            onSigner={setDocASigner}
+            onSigner={setDocASigner} aSignerEnPlus={rapportsASigner}
             avecPreuve={async (d, buf, sig) => signeAvecPreuve(d, buf, sig, orgDoc || await chargerOrg())}
             charger={async () => (await supabase.rpc('ent_mes_documents')).data}
             lire={(d) => lireDocumentPortail({}, d.id)}
@@ -711,7 +714,7 @@ function Plus_({ compte, org, salaries }) {
           )}
           {docASigner && (
             <SignerConvention titre={NOMS_SIGNABLES[docASigner.kind]?.titre} nomDocument={NOMS_SIGNABLES[docASigner.kind]?.nom}
-              accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : ACCORD_DEVIS} libelle={docASigner.label} signataire={{ name: compte?.contact?.name || '' }}
+              accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={{ name: compte?.contact?.name || '' }}
               genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({}, docASigner.id)), filename: `${docASigner.label}.pdf` })}
               onSigner={async (p) => {
                 const { data: r, error } = await supabase.rpc('ent_signer_document', { p_document: docASigner.id, p_name: p.name, p_role: p.role, p_signature: p.signature, p_consent: p.consent })
