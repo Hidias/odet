@@ -386,6 +386,26 @@ export default function QualiteEditables() {
     setGenerating(false)
   }
 
+  // Dossier pour l'avocat (24/10) : points à valider par métier, les quatre jeux de conditions, mentions des devis
+  const dossierAvocat = async () => {
+    setGenerating(true)
+    try {
+      const [{ dossierAvocatDocx }, { data: bs }] = await Promise.all([
+        import('../richdocs/docxRichDoc'),
+        supabase.from('billing_settings').select('mentions_devis').limit(1).maybeSingle(),
+      ])
+      const ids = ['cgv', 'cgv-maintenance', 'cgv-vente', 'cgv-installation', 'garantie-vente', 'perimetre-maintenance']
+      const docs = ids.filter((id) => templates?.[id]).map((id) => ({ tpl: templates[id], code: docCode(templates[id].code), content: isRich(savedDocs[id]) ? savedDocs[id] : fromTemplate(templates[id]) }))
+      const blob = await dossierAvocatDocx({ docs, mentions: bs?.mentions_devis || {} })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `Dossier avocat conditions commerciales ${new Date().toISOString().slice(0, 10)}.docx`
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+    } catch (e) { console.error(e); toast.error('Dossier impossible') }
+    setGenerating(false)
+  }
+
   const toggleCat = (id) => setExpandedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
   const getColor = (c) => ({ blue: 'bg-[rgb(var(--c-info))]', green: 'bg-[rgb(var(--c-success))]', purple: 'bg-gray-700', orange: 'bg-[rgb(var(--c-warning))]', teal: 'bg-gray-700', gray: 'bg-gray-500' }[c] || 'bg-gray-500')
   
@@ -912,6 +932,12 @@ export default function QualiteEditables() {
                     </div>
                     {isExp ? <ChevronDown className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
                   </button>
+                  {isExp && cat.id === 'commerce' && (
+                    <div className="border-t px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-gray-50">
+                      <p className="text-ui-sm text-gray-600">Joints aux devis selon leur métier. Les projets de clauses sont marqués « À valider par l'avocat ».</p>
+                      <button type="button" onClick={dossierAvocat} disabled={generating} className="btn btn-sm btn-secondary flex items-center gap-1"><Download className="w-4 h-4" /> Dossier pour l'avocat (Word)</button>
+                    </div>
+                  )}
                   {isExp && (
                     <div className="border-t divide-y">
                       {rich.map((t) => (
