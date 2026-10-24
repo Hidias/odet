@@ -17,6 +17,7 @@ import {
   emptyBlock, BLOCK_LABEL, insertableFields, todayIso, plusOneYear, frDate,
 } from './model'
 import { buildRichDocPDF } from './richDocPDF'
+import { exportDocx, importDocx, comparerSections } from './docxRichDoc'
 import { champCasse, valeursEnDurPartout, remplacerEnDurPartout } from '../../../core/org/champsProteges'
 
 import { confirmer } from '../../../ui/Confirm'
@@ -260,6 +261,41 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
     setBusy(null)
   }
 
+  // Relecture par l'avocat (24/10) : export Word, réimport de la version relue, comparaison, brouillon
+  const [relue, setRelue] = useState(null) // { sections, changes, fichier }
+  const exporterWord = async () => {
+    setBusy('word')
+    try {
+      const blob = await exportDocx({ tpl, content, code })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${code || tpl.id} ${tpl.name}${content.version ? ` v${content.version}` : ''}.docx`.replace(/[\\/:*?"<>|]+/g, '-')
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+    } catch (e) { toast.error(e.message || 'Export impossible') }
+    setBusy(null)
+  }
+  const importerWord = async (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    setBusy('import')
+    try {
+      const imp = await importDocx(await f.arrayBuffer(), content.sections)
+      setRelue({ sections: imp.sections, changes: comparerSections(content.sections, imp.sections), fichier: f.name })
+    } catch (err) { toast.error(err.message || 'Fichier illisible') }
+    setBusy(null)
+  }
+  const appliquerRelue = async () => {
+    setBusy('save')
+    try {
+      await persist({ ...content, sections: relue.sections, status: 'brouillon', motif: `Relecture de l'avocat (${relue.fichier}), importée le ${frDate(todayIso())}` })
+      setRelue(null)
+      toast.success('Version relue enregistrée en brouillon : vérifiez-la, puis validez-la pour qu\'elle parte avec les devis.')
+    } catch (err) { toast.error(err.message) }
+    setBusy(null)
+  }
+
   const copyField = async (f) => {
     if (!f) return
     try { await navigator.clipboard.writeText(f); toast.success('Champ copié : collez-le dans le texte') } catch { toast(f) }
@@ -283,6 +319,20 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
             <input type="checkbox" className="w-4 h-4 mt-0.5" disabled={!canEdit} checked={!!content.options?.particuliers} onChange={(e) => setContent((c) => ({ ...c, options: { ...(c.options || {}), particuliers: e.target.checked } }))} />
             <span>Clients particuliers : affiche ici les articles qui leur sont réservés (rétractation, garanties légales, médiation de la consommation). Sur un devis, la bonne variante est jointe toute seule selon le client. Renseignez le médiateur avant de valider.</span>
           </label>
+        </section>
+      )}
+      {(tpl.family === 'commerce' || String(tpl.id).startsWith('cgv')) && (
+        <section>
+          <h2 className="font-semibold text-ui mb-1">Relecture par l'avocat</h2>
+          <p className="text-ui-sm text-gray-500 mb-2">Exportez en Word, faites relire, puis importez la version relue : l'outil montre chaque changement avant de l'enregistrer en brouillon.</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn btn-secondary btn-sm" disabled={busy === 'word'} onClick={exporterWord}>{busy === 'word' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}Exporter en Word</button>
+            {canEdit && (
+              <label className="btn btn-secondary btn-sm cursor-pointer">{busy === 'import' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}Importer la version relue
+                <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={importerWord} />
+              </label>
+            )}
+          </div>
         </section>
       )}
       <section>
@@ -415,6 +465,34 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
           <div className="bg-white w-full max-w-sm h-full p-4 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-end"><button type="button" className="h-10 w-10 flex items-center justify-center" aria-label="Fermer la fiche" onClick={() => setShowFiche(false)}><X className="w-5 h-5" /></button></div>
             {fiche}
+          </div>
+        </div>
+      )}
+
+      {relue && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="titre-relue">
+          <div className="bg-white rounded-ui w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-gray-100">
+              <h2 id="titre-relue" className="font-semibold text-lg">Version relue : {relue.fichier}</h2>
+              <p className="text-ui-sm text-gray-600">{relue.changes.filter((c) => c.type !== 'identique').length} article{relue.changes.filter((c) => c.type !== 'identique').length > 1 ? 's' : ''} changé{relue.changes.filter((c) => c.type !== 'identique').length > 1 ? 's' : ''} sur {relue.changes.length}. En vert ce qui est ajouté, en rouge barré ce qui est retiré.</p>
+            </div>
+            <div className="p-5 overflow-y-auto space-y-3">
+              {relue.changes.filter((c) => c.type !== 'identique').map((c, i) => (
+                <div key={i} className="border border-gray-200 rounded-ui-sm p-3">
+                  <p className="font-semibold text-ui">{c.type === 'ajout' ? 'Article ajouté : ' : c.type === 'retrait' ? 'Article retiré : ' : ''}{c.title || 'Introduction'}{c.cond ? ` [${c.cond}]` : ''}{c.titreAvant ? <span className="text-gray-500 font-normal"> (avant : {c.titreAvant})</span> : null}{c.condChange ? <span className="text-[rgb(var(--c-warning))] font-normal"> (destinataire changé)</span> : null}</p>
+                  <p className="text-ui-sm leading-relaxed whitespace-pre-wrap mt-1">
+                    {(c.diff || []).map((d, j) => (
+                      <span key={j} className={d.t === '+' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : d.t === '-' ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] line-through' : 'text-gray-700'}>{d.s}</span>
+                    ))}
+                  </p>
+                </div>
+              ))}
+              {relue.changes.every((c) => c.type === 'identique') && <p className="text-ui text-gray-600">Aucun changement par rapport au document actuel.</p>}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex flex-wrap justify-end gap-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setRelue(null)}>Annuler</button>
+              <button type="button" className="btn btn-primary" disabled={busy === 'save' || !canEdit || relue.changes.every((c) => c.type === 'identique')} onClick={appliquerRelue}>{busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Enregistrer en brouillon</button>
+            </div>
           </div>
         </div>
       )}
