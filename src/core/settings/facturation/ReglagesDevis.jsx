@@ -17,6 +17,21 @@ const KINDS = [
   ['autre', 'Autre pièce'],
 ]
 const libelleKind = (k) => KINDS.find(([id]) => id === k)?.[1] || k
+// Mentions des devis (0444) : textes réglables, champs entre accolades remplis par l'outil
+const MENTIONS = [
+  ['cgv', 'Acceptation des conditions générales', 'Près de la signature, sur tout devis qui joint des conditions générales'],
+  ['distance', 'Devis établi à distance', 'Champs {date} et {infos}. Imprimée quand la case est cochée sur le devis'],
+  ['materiel', 'Prix du matériel', 'Devis de vente de matériel, ou de travaux avec du matériel'],
+  ['acompte', 'Acompte à la commande', 'Champ {pct}. Imprimée quand un acompte est saisi (vente, installation)'],
+  ['delai', 'Délai de livraison ou d\'intervention', 'Champ {delai}'],
+  ['eco', 'Éco-participation', 'Champ {montant} : total compris dans les lignes de matériel'],
+  ['retractation', 'Rétractation (particulier)', 'Contrat conclu hors établissement ou à distance ; le formulaire type est joint'],
+  ['garanties', 'Garanties légales (particulier)', 'Vente de matériel à un particulier'],
+  ['tva_reduite', 'Taux réduit de TVA (particulier)', 'Attestation du client près de la signature, travaux à 10 % ou 5,5 %. À valider par l\'expert-comptable'],
+  ['rc_pro', 'Assurance responsabilité civile professionnelle', 'Champs {assureur}, {contrat}, {couverture} repris de la pièce valable ci-dessous (installation et travaux)'],
+  ['decennale', 'Assurance décennale', 'Mêmes champs, depuis l\'attestation décennale valable (installation et travaux)'],
+  ['dechets', 'Déchets de chantier', 'Champ {dechets} saisi sur le devis de travaux'],
+]
 const vide = { kind: 'rc_pro', label: '', insurer: '', policy_number: '', coverage: '', valid_from: '', valid_until: '' }
 const frDate = (d) => (d ? d.split('-').reverse().join('/') : '')
 
@@ -32,6 +47,7 @@ async function voirPiece(path) {
 export default function ReglagesDevis() {
   const [r, setR] = useState(null)
   const [textes, setTextes] = useState({})
+  const [mentions, setMentions] = useState({})
   const [occupe, setOccupe] = useState(false)
   const [pieces, setPieces] = useState([])
   const [nouvelle, setNouvelle] = useState(vide)
@@ -41,9 +57,19 @@ export default function ReglagesDevis() {
     .then(({ data }) => setPieces(data || []), () => setPieces([]))
 
   useEffect(() => {
-    supabase.from('billing_settings').select('company_id, objets_devis').limit(1).maybeSingle().then(({ data }) => {
+    supabase.from('billing_settings').select('company_id, objets_devis, mentions_devis').limit(1).maybeSingle().then(({ data, error }) => {
+      if (error) {
+        // Avant 0444 : seuls les objets
+        supabase.from('billing_settings').select('company_id, objets_devis').limit(1).maybeSingle().then(({ data: d2 }) => {
+          if (!d2 || !('objets_devis' in d2)) return
+          setR(d2)
+          setTextes(Object.fromEntries(METIERS.map((m) => [m.id, (d2.objets_devis?.[m.id] || []).join('\n')])))
+        })
+        return
+      }
       if (!data || !('objets_devis' in data)) return
       setR(data)
+      setMentions(data.mentions_devis || {})
       setTextes(Object.fromEntries(METIERS.map((m) => [m.id, (data.objets_devis?.[m.id] || []).join('\n')])))
     })
     chargerPieces()
@@ -57,6 +83,15 @@ export default function ReglagesDevis() {
     setOccupe(false)
     if (error) return toast.error(error.message)
     toast.success('Objets des devis enregistrés')
+  }
+
+  const enregistrerMentions = async () => {
+    setOccupe(true)
+    const m = Object.fromEntries(MENTIONS.map(([k]) => [k, String(mentions[k] || '').trim()]))
+    const { error } = await supabase.from('billing_settings').update({ mentions_devis: m, updated_at: new Date().toISOString() }).eq('company_id', r.company_id)
+    setOccupe(false)
+    if (error) return toast.error(error.message)
+    toast.success('Mentions des devis enregistrées')
   }
 
   const ajouterPiece = async () => {
@@ -106,6 +141,21 @@ export default function ReglagesDevis() {
         ))}
       </div>
       <div><button type="button" className="btn btn-secondary" disabled={occupe} onClick={enregistrerObjets}>Enregistrer les objets</button></div>
+
+      {'mentions_devis' in r && (
+        <>
+          <h2 className="section-title">Devis : mentions</h2>
+          <p className="text-ui-sm text-gray-500">Imprimées selon le métier du devis et le client. Un texte vide n'est pas imprimé. Les conditions générales jointes sont celles validées dans Qualité › Documents.</p>
+          <div className="grid grid-cols-1 gap-4">
+            {MENTIONS.map(([k, label, hint]) => (
+              <Field key={k} label={label} hint={hint}>
+                <textarea className="input" rows={2} value={mentions[k] || ''} onChange={(e) => setMentions({ ...mentions, [k]: e.target.value })} />
+              </Field>
+            ))}
+          </div>
+          <div><button type="button" className="btn btn-secondary" disabled={occupe} onClick={enregistrerMentions}>Enregistrer les mentions</button></div>
+        </>
+      )}
 
       <h2 className="section-title">Devis : pièces de l'entreprise</h2>
       <p className="text-ui-sm text-gray-500">Jointes toutes seules aux devis d'installation et de travaux (responsabilité civile professionnelle, décennale) tant qu'elles sont valables. Les conditions générales de chaque métier se rédigent dans Qualité › Documents › Conditions commerciales.</p>

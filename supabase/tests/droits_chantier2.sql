@@ -6588,6 +6588,42 @@ begin
     end;
   end if;
 
+  -- Mentions des devis et conditions générales acceptées (0444)
+  if to_regprocedure('app.devis_conditions_figees()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare c_q uuid; c_ok boolean; c_ok2 boolean; c_acc jsonb;
+    begin
+      insert into public.quotes (reference, client_id, status, conditions_acceptees, a_distance, a_distance_infos)
+      values ('ESSAI-0444', v_client, 'sent', '{"herite":true}'::jsonb, true, '["photos"]'::jsonb)
+      returning id into c_q;
+      c_ok2 := (select conditions_acceptees is null from public.quotes where id = c_q);
+      update public.quotes set conditions_jointes = '[{"doc":"cgv-vente","version":2,"audience":"pro"}]'::jsonb where id = c_q;
+      update public.quotes set conditions_acceptees = '{"faux":true}'::jsonb where id = c_q;
+      c_ok := (select conditions_acceptees is null from public.quotes where id = c_q);
+      update public.quotes set status = 'accepted' where id = c_q;
+      select conditions_acceptees into c_acc from public.quotes where id = c_q;
+      if c_ok and c_ok2 and c_acc -> 'conditions' -> 0 ->> 'doc' = 'cgv-vente' and (c_acc -> 'conditions' -> 0 ->> 'version')::int = 2 and c_acc ? 'acceptees_le' then
+        v_lines := v_lines || 'OK      base  0444 : conditions générales jointes figées à l''acceptation, jamais écrites à la main ni héritées'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0444 : conditions acceptées ' || coalesce(c_acc::text, 'vide')); end if;
+      c_ok := false;
+      begin update public.quotes set conditions_jointes = '[]'::jsonb where id = c_q; exception when insufficient_privilege then c_ok := true; end;
+      if c_ok then v_lines := v_lines || 'OK      base  0444 : conditions acceptées non modifiables'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0444 : conditions acceptées modifiables'::text; end if;
+      c_ok2 := position('(0444)' in pg_get_functiondef('app.portail_signer_document(uuid,text,uuid,uuid,uuid,text,text,text,text)'::regprocedure)) > 0;
+      c_ok := false;
+      begin insert into public.quotes (reference, client_id, acompte_pct) values ('ESSAI-0444-B', v_client, 120); exception when check_violation then c_ok := true; end;
+      if c_ok and c_ok2 and (select mentions_devis ? 'distance' from public.billing_settings limit 1) then
+        v_lines := v_lines || 'OK      base  0444 : signature en ligne exige l''accord sur les conditions générales jointes ; mentions réglables'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0444 : accord sur les conditions ou mentions'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0444 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { renderCommercialDoc, itemRow, fmtEuro, fmtRate, issuerLines, recipientLines, companyLegalLine, bankRows } from './commercialLayout'
 import { devisDeFormation } from '../lib/metierDevis'
+import { mentionsDevis, chargerMentionsDevis, formulaireRetractation } from '../lib/mentionsDevis'
 
 // Devis et bon de commande partiel sur la mise en page commune des documents.
 // Identité de l'organisme : uniquement depuis organization_settings (options.orgSettings).
@@ -71,8 +72,13 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   const publicClient = client && client.client_type === 'public'
   const penalitesPublic = [regime.mentions.penalitesPublic, regime.mentions.indemnitePublic].filter(Boolean).join(' ')
   const formation = devisDeFormation(quote, items)
+  // Mentions selon le métier et le client (0444) : devis à distance, matériel, acompte, délai, éco-participation,
+  // assurances et déchets des travaux, rétractation et garanties légales d'un particulier ; textes des réglages
+  const md = options.mentionsDevis || await chargerMentionsDevis()
+  const mm = mentionsDevis({ quote, items, client, textes: md.textes, pieces: md.pieces })
   const legal = [
     particulier ? null : publicClient && penalitesPublic ? penalitesPublic : "En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
+    ...(partial ? [] : mm.legal),
     // Mentions de TVA des réglages de l'organisme (franchise, exonération de la formation, autoliquidation)
     ...mentionsTvaDevis(items, quote, regime, formation),
     mentionFinancement(quote),
@@ -103,17 +109,36 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
       ['Réf. client', quote.client_reference || null],
     ],
     object: quote.object || null,
-    rows: items.map((it) => itemRow(it, { tvaOn: quote.tva_applicable !== false && !regime.franchise, taux: (quote.tva_rate === null || quote.tva_rate === undefined || quote.tva_rate === '') ? 20 : (parseFloat(quote.tva_rate) || 0) })),
+    rows: items.map((it) => itemRow(Number(it.eco_ht) > 0
+      ? { ...it, description_detail: [it.description_detail, `Dont éco-participation : ${fmtEuro(it.eco_ht)} HT l'unité`].filter(Boolean).join('\n') }
+      : it, { tvaOn: quote.tva_applicable !== false && !regime.franchise, taux: (quote.tva_rate === null || quote.tva_rate === undefined || quote.tva_rate === '') ? 20 : (parseFloat(quote.tva_rate) || 0) })),
     totals: totalsFor(quote, items, regime),
     notes: quote.notes || null,
     signature: {
       label: 'Bon pour accord du client',
-      hint: 'Nom, fonction, date, signature, cachet et mention « Lu et approuvé, bon pour accord »',
+      // Près de la signature : acceptation des conditions générales jointes (0444), attestation du taux réduit
+      hint: [...mm.signature, 'Nom, fonction, date, signature, cachet et mention « Lu et approuvé, bon pour accord »'].join(' '),
       image: quote.signature_base64 || null,
     },
     payment,
     legal,
   })
+  // Particulier, contrat conclu hors établissement ou à distance : formulaire type de rétractation joint (0444)
+  if (!partial && particulier && quote.hors_etablissement) {
+    doc.addPage()
+    const M = 18
+    doc.setFont(undefined, 'bold'); doc.setFontSize(13)
+    doc.text('Formulaire de rétractation', M, 24)
+    doc.setFont(undefined, 'normal'); doc.setFontSize(9)
+    doc.text(`Devis ${quote.reference || ''} du ${fmtDate(quote.quote_date)}`, M, 31)
+    let y = 42
+    doc.setFontSize(10)
+    formulaireRetractation(L).forEach((l) => {
+      const lines = doc.splitTextToSize(l, 174)
+      doc.text(lines, M, y)
+      y += lines.length * 5 + (/:$/.test(l) ? 12 : 4)
+    })
+  }
   return doc
 }
 
