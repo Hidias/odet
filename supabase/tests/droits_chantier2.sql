@@ -7268,6 +7268,62 @@ begin
     end;
   end if;
 
+  -- Validation réservée (0458)
+  if to_regprocedure('public.demander_validation(text,text,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare vr_doc text := 'essai-0458-' || left(md5(gen_random_uuid()::text), 6);
+            vr_sec jsonb := '[{"id": "a", "title": "Objet", "blocks": [{"t": "p", "text": "Texte."}]}]'::jsonb;
+            vr_e1 boolean := false; vr_e2 boolean := false; vr_e3 boolean := false; vr_brouillon boolean := false;
+            vr_vu_dir int; vr_vu_sa int; vr_ok boolean := false;
+    begin
+      -- Le super administrateur se désigne seul validateur du document
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.validation_reservee_regler(array[u_sa], array[vr_doc]);
+      execute 'reset role';
+      -- La direction (qui valide les documents) : version refusée, statut « valide » refusé, brouillon permis
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin insert into public.quality_doc_versions (doc_id, version, content, motif) values (vr_doc, 1, jsonb_build_object('sections', vr_sec), 'Essai');
+      exception when insufficient_privilege then vr_e1 := true; end;
+      begin insert into public.quality_documents (doc_id, code, name, content, version) values (vr_doc, 'ESS', 'Essai', jsonb_build_object('sections', vr_sec, 'status', 'valide', 'version', 1), '1');
+      exception when insufficient_privilege then vr_e2 := true; end;
+      insert into public.quality_documents (doc_id, code, name, content, version) values (vr_doc, 'ESS', 'Essai', jsonb_build_object('sections', vr_sec, 'status', 'brouillon'), '0');
+      vr_brouillon := true;
+      begin perform public.validation_reservee_regler(array[]::uuid[], array[]::text[]);
+      exception when insufficient_privilege then vr_e3 := true; end;
+      perform public.demander_validation(vr_doc, 'Essai réservé', 'Pour essai');
+      select count(*) into vr_vu_dir from public.notifications where metadata->>'doc_id' = vr_doc;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into vr_vu_sa from public.notifications where metadata->>'doc_id' = vr_doc;
+      insert into public.quality_doc_versions (doc_id, version, content, motif) values (vr_doc, 1, jsonb_build_object('sections', vr_sec), 'Confirmé');
+      update public.quality_documents set content = content || '{"status": "valide", "version": 1}'::jsonb, version = '1' where doc_id = vr_doc;
+      vr_ok := true;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if vr_e1 and vr_e2 and vr_brouillon then
+        v_lines := v_lines || 'OK      dir   0458 : document réservé : version et statut « valide » refusés, brouillon permis'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0458 : réservé ' || vr_e1 || ' ' || vr_e2 || ' ' || vr_brouillon); end if;
+      if vr_e3 then
+        v_lines := v_lines || 'OK      dir   0458 : la réservation ne se lève que par une personne désignée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0458 : réservation levée par la direction'::text; end if;
+      if vr_vu_dir = 0 and vr_vu_sa = 1 then
+        v_lines := v_lines || 'OK      dir   0458 : demande de validation notifiée aux seules personnes désignées'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0458 : notification vue ' || vr_vu_dir || ' / ' || vr_vu_sa); end if;
+      if vr_ok then
+        v_lines := v_lines || 'OK      sa    0458 : la personne désignée confirme la version'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0458 : confirmation'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0458 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

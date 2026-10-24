@@ -19,7 +19,7 @@ import { loadTemplates, isRich, fromTemplate, frDate, todayIso, plusOneYear, bra
 import { BlockView, BlockEdit, StatusChip } from '../richdocs/RichDocEditor'
 import { buildRichDocPDF } from '../richdocs/richDocPDF'
 import { exportDocx, importDocx } from '../richdocs/docxRichDoc'
-import { ETATS, QUALITES, etapes, etapeCourante, diffProposition, resteATrancher, actionsPossibles, propositionsDepuisFichier } from '../richdocs/circuit'
+import { ETATS, QUALITES, etapes, etapeCourante, diffProposition, resteATrancher, actionsPossibles, propositionsDepuisFichier, chargerReglages, reservation, demanderValidation } from '../richdocs/circuit'
 import DossierRelecture from '../richdocs/DossierRelecture'
 import { PRESTATIONS } from '../richdocs/dossierRelecture'
 import { DOCS_PAR_METIER } from '../../commercial/lib/metierDevis'
@@ -222,7 +222,9 @@ function ListeRelectures() {
 
 function Circuit({ id }) {
   const navigate = useNavigate()
-  const { profile } = useAuthStore()
+  const { profile, userRole } = useAuthStore()
+  const [reglages, setReglages] = useState(null)
+  useEffect(() => { chargerReglages().then(setReglages).catch(() => setReglages(null)) }, [])
   const d = useDroits({ valider: 'qualite.documents.valider', gerer: ['qualite.documents.gerer', 'qualite.documents.valider'] })
   const [r, setR] = useState(null)
   const [items, setItems] = useState([])
@@ -380,7 +382,9 @@ function Circuit({ id }) {
           }}>Passer à l'arbitrage</button>}
           {actions.has('renvoyer') && <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={async () => { if (await confirmer('Renvoyer le texte arbitré en relecture à l\'équipe (nouveau tour) ?')) changerEtat('relecture', {}, 'Renvoyé en relecture') }}><RotateCcw className="w-4 h-4" />Renvoyer en relecture</button>}
           {actions.has('expert') && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setExpert(r.expert_label || '')}><Send className="w-4 h-4" />Envoyer à l'expert</button>}
-          {actions.has('valider') && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setValidation(motifParDefaut())}><CheckCircle className="w-4 h-4" />Valider la version</button>}
+          {actions.has('valider') && (reservation(reglages, r.doc_id, { uid: profile?.id, superadmin: userRole === 'superadmin' }).peutConfirmer
+            ? <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setValidation(motifParDefaut())}><CheckCircle className="w-4 h-4" />Valider la version</button>
+            : <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => agir(() => demanderValidation({ docId: r.doc_id, docName: r.doc_name, motif: motifParDefaut() }), 'Demande envoyée : la version entrera en vigueur après confirmation')}><CheckCircle className="w-4 h-4" />Demander la validation</button>)}
           {actions.has('dossier_expert') && <>
             {prestationsDuDoc.length > 0 && tpls && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setDossier(true)}><Download className="w-4 h-4" />Dossier de relecture (PDF)</button>}
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => telecharger('pdf')}><Download className="w-4 h-4" />PDF de ce document</button>

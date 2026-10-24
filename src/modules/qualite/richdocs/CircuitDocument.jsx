@@ -6,7 +6,8 @@ import toast from 'react-hot-toast'
 import { Loader2, Send, X, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { useDroits } from '../../../core/rights/useDroit'
-import { MODES, ETATS, modeDuDocument, chargerReglages, enregistrerReglages, circuitOuvert, lancerCircuit } from './circuit'
+import { MODES, ETATS, modeDuDocument, chargerReglages, enregistrerReglages, circuitOuvert, lancerCircuit, enregistrerReservation } from './circuit'
+import { useAuthStore } from '../../../core/store'
 import { StatusChip } from './RichDocEditor'
 import { confirmer } from '../../../ui/Confirm'
 
@@ -85,7 +86,7 @@ export default function CircuitDocument({ tpl, avantLancement, onMode }) {
       .catch(() => { setReglages({ default_mode: 'direct', per_doc: {}, absent: true }); setOuvert(null) })
   }, [tpl.id])
   const mode = modeDuDocument(reglages, tpl.id)
-  useEffect(() => { if (reglages) onMode?.(mode, ouvert || null) }, [mode, ouvert]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (reglages) onMode?.(mode, ouvert || null, reglages) }, [mode, ouvert, reglages]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!reglages || ouvert === undefined || reglages.absent) return null
 
   const changerMode = async (m) => {
@@ -166,6 +167,50 @@ export function ReglageCircuit({ commerce = [] }) {
           )}
         </div>
       ) : <p className="text-ui-sm text-gray-700">Par défaut : {MODES[g.default_mode || 'direct'].label}</p>}
+      {d.valider && <ValidationReservee g={g} setG={setG} commerce={commerce} />}
+    </div>
+  )
+}
+
+// Validation réservée (0458) : documents dont seules les personnes désignées confirment la version ; les autres
+// envoient une demande. Réglable par une personne désignée (ou par qui valide tant que personne ne l'est).
+function ValidationReservee({ g, setG, commerce }) {
+  const { profile, userRole } = useAuthStore()
+  const [gens, setGens] = useState(null)
+  const [val, setVal] = useState(g.validateurs || [])
+  const [docs, setDocs] = useState(g.docs_reserves || [])
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { supabase.rpc('relecteurs_possibles').then(({ data, error }) => setGens(error ? [] : data || [])) }, [])
+  const actuels = g.validateurs || []
+  const peutRegler = userRole === 'superadmin' || actuels.length === 0 || actuels.includes(profile?.id)
+  if (!peutRegler) return null
+  const avec = (ids) => ids.every((id) => docs.includes(id))
+  const basculer = (ids, on) => setDocs(on ? [...new Set([...docs, ...ids])] : docs.filter((x) => !ids.includes(x)))
+  const change = JSON.stringify([...val].sort()) !== JSON.stringify([...actuels].sort()) || JSON.stringify([...docs].sort()) !== JSON.stringify([...(g.docs_reserves || [])].sort())
+  const enregistrer = async () => {
+    setBusy(true)
+    try { setG(await enregistrerReservation({ validateurs: val, docs })); toast.success(val.length && docs.length ? 'Validation réservée enregistrée' : 'Validation ouverte à toute personne qui valide') } catch (e) { toast.error(e.message) }
+    setBusy(false)
+  }
+  return (
+    <div className="border-t border-gray-100 pt-3 mt-1 space-y-2">
+      <p className="font-semibold text-ui">Validation réservée</p>
+      <p className="text-ui-sm text-gray-500">Pour les documents cochés, seules les personnes choisies confirment une version. Les autres envoient une demande de confirmation ; la version n'entre en vigueur qu'après.</p>
+      <div className="flex flex-col gap-1">
+        {commerce.length > 0 && <label className="flex items-center gap-2 min-h-[36px] text-ui"><input type="checkbox" className="w-4 h-4" checked={avec(commerce)} onChange={(e) => basculer(commerce, e.target.checked)} />Conditions générales et commerciales, formation comprise ({commerce.length} documents)</label>}
+      </div>
+      <p className="label">Personnes qui confirment</p>
+      {!gens ? <Loader2 className="w-4 h-4 animate-spin text-gray-400" /> : (
+        <div className="flex flex-col gap-1">
+          {gens.map((p) => (
+            <label key={p.id} className="flex items-center gap-2 min-h-[36px] text-ui">
+              <input type="checkbox" className="w-4 h-4" checked={val.includes(p.id)} onChange={(e) => setVal(e.target.checked ? [...val, p.id] : val.filter((x) => x !== p.id))} />
+              <span>{p.nom}<span className="text-gray-500">{p.fonction ? ` · ${p.fonction}` : ''}</span></span>
+            </label>
+          ))}
+        </div>
+      )}
+      <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !change} onClick={enregistrer}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Enregistrer</button>
     </div>
   )
 }
