@@ -25,6 +25,7 @@ import {
   chargerSeries, enregistrerSerie,
 } from '../lib/stockData'
 import { useAdapte } from '../../../core/branding/adapte'
+import { deposerPhoto, deposerFiche, lienSigne } from '../../commercial/lib/photosDevis'
 
 const frDate = (d) => (d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 
@@ -111,6 +112,51 @@ function MonStock() {
 }
 
 // ─── Articles ───
+// Photo et fiche technique de l'article (0445), reprises dans les devis : photo imprimable sous les lignes, fiche
+// jointe aux devis de vente. Fichiers dans le stockage privé « documents », sous articles/.
+function FichiersArticle({ v, setV }) {
+  const [apercu, setApercu] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  const dossier = `articles/${v.id || 'nouveau'}`
+  useEffect(() => {
+    let actif = true
+    if (v.photo_path) lienSigne(v.photo_path).then((u) => { if (actif) setApercu(u) })
+    else setApercu(null)
+    return () => { actif = false }
+  }, [v.photo_path])
+  const deposer = (fn, champ) => async (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    setEnvoi(true)
+    try { const path = await fn(f, dossier); setV((x) => ({ ...x, [champ]: path })); toast.success('Fichier ajouté : enregistrez l\'article') } catch (err) { toast.error(err.message) }
+    setEnvoi(false)
+  }
+  const ouvrirFiche = async () => {
+    const w = window.open('', '_blank')
+    const u = await lienSigne(v.fiche_technique_path)
+    if (!u) { if (w) w.close(); toast.error('Fiche introuvable'); return }
+    if (w) w.location.href = u
+  }
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Champ label="Photo de l'article" aide="Proposée sur les lignes de devis">
+        <div className="flex items-center gap-2">
+          {apercu && <img src={apercu} alt="" className="w-12 h-12 object-cover rounded border border-gray-200" />}
+          <input type="file" accept="image/*" className="input" disabled={envoi} onChange={deposer(deposerPhoto, 'photo_path')} aria-label="Photo de l'article" />
+          {v.photo_path && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setV((x) => ({ ...x, photo_path: null }))}>Retirer</button>}
+        </div>
+      </Champ>
+      <Champ label="Fiche technique (PDF)" aide="Jointe aux devis de vente de cet article">
+        <div className="flex items-center gap-2">
+          <input type="file" accept="application/pdf" className="input" disabled={envoi} onChange={deposer(deposerFiche, 'fiche_technique_path')} aria-label="Fiche technique de l'article" />
+          {v.fiche_technique_path && <><button type="button" className="btn btn-ghost btn-sm" onClick={ouvrirFiche}>Voir</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setV((x) => ({ ...x, fiche_technique_path: null }))}>Retirer</button></>}
+        </div>
+      </Champ>
+    </div>
+  )
+}
+
 function ArticleSheet({ article, categories, fournisseurs, voirPrix, onClose, onSaved }) {
   const [v, setV] = useState(() => ({ label: '', reference: '', supplier_reference: '', category_id: '', unit: 'unité', sale_price_ht: '', supplier_id: '', barcode: '', serialized: false, consumable: true, ppe: false, ppe_renew_months: '', ...(article || {}), achat: article?.achat ?? '' }))
   const [busy, setBusy] = useState(false)
@@ -144,7 +190,9 @@ function ArticleSheet({ article, categories, fournisseurs, voirPrix, onClose, on
           <Champ label="Prix de vente HT" aide="Repris dans les devis et les factures"><input className="input" inputMode="decimal" value={v.sale_price_ht ?? ''} onChange={m('sale_price_ht')} /></Champ>
           {voirPrix && <Champ label="Prix d'achat HT" aide="Visible seulement avec le droit « Voir les prix d'achat »"><input className="input" inputMode="decimal" value={v.achat ?? ''} onChange={m('achat')} /></Champ>}
           <Champ label="Code-barres ou QR"><input className="input" value={v.barcode || ''} onChange={m('barcode')} /></Champ>
+          <Champ label="Dont éco-participation HT" aide="Comprise dans le prix de vente, reprise sur le devis"><input className="input" inputMode="decimal" value={v.eco_ht ?? ''} onChange={m('eco_ht')} /></Champ>
         </div>
+        <FichiersArticle v={v} setV={setV} />
         {article?.id && (
           <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { try { await archiverArticle(article.id, !article.is_active); toast.success(article.is_active ? 'Article archivé' : 'Article réactivé'); onSaved() } catch (err) { toast.error(err.message) } }}>
             {article.is_active ? 'Archiver l\'article (il ne se propose plus)' : 'Réactiver l\'article'}

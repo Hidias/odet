@@ -107,6 +107,31 @@ export function renderCommercialDoc(doc, Lsource, p) {
     },
   })
 
+  // Photos des lignes cochées « photo dans le PDF » (0445) : vignettes sous les lignes, avec la désignation
+  if (p.photos && p.photos.length) {
+    const cols = 3
+    const gapP = 4
+    const wP = (f.W - gapP * (cols - 1)) / cols
+    const hP = wP * 0.66
+    setF(doc, 'bold'); doc.setFontSize(7); doc.setTextColor(...t.accent)
+    f.ensure(hP + 14)
+    doc.text('PHOTOS', M, f.y + 2, { charSpace: 0.4 })
+    f.y += 5
+    p.photos.forEach((ph, i) => {
+      const col = i % cols
+      if (col === 0 && i > 0) f.y += hP + 9
+      if (col === 0) f.ensure(hP + 9)
+      const x = M + col * (wP + gapP)
+      doc.setDrawColor(...t.line); doc.setLineWidth(0.2)
+      doc.rect(x, f.y, wP, hP)
+      try { drawImageFitted(doc, ph.dataUrl, x + 0.5, f.y + 0.5, wP - 1, hP - 1, String(ph.dataUrl).startsWith('data:image/jpeg') ? 'JPEG' : 'PNG') } catch { /* image illisible : cadre vide */ }
+      setF(doc, 'normal'); doc.setFontSize(7); doc.setTextColor(...t.muted)
+      doc.text(doc.splitTextToSize(String(ph.title || ''), wP)[0] || '', x, f.y + hP + 4)
+    })
+    f.y += hP + 10
+    doc.setTextColor(...t.text)
+  }
+
   // Bas de document sur deux colonnes : règlement (+ récapitulatif TVA) à gauche, totaux à droite
   const pw = doc.internal.pageSize.getWidth()
   const totW = 80

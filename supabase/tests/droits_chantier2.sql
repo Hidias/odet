@@ -6624,6 +6624,37 @@ begin
     end;
   end if;
 
+  -- Photos des articles dans les devis (0445)
+  if to_regprocedure('public.devis_articles()') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 2;
+    declare a_id uuid; a_com jsonb; a_tech jsonb;
+    begin
+      insert into public.stock_items (label, sale_price_ht, photo_path, eco_ht) values ('ESSAI 0445 BAES', 42, 'articles/x/photo.jpg', 0.5) returning id into a_id;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_com := public.devis_articles();
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      a_tech := public.devis_articles();
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if exists (select 1 from jsonb_array_elements(a_com) e where (e ->> 'id')::uuid = a_id and e ->> 'photo_path' = 'articles/x/photo.jpg' and (e ->> 'eco_ht')::numeric = 0.5)
+         and not exists (select 1 from jsonb_array_elements(a_com) e, jsonb_object_keys(e) k where k ilike '%purchase%') then
+        v_lines := v_lines || 'OK      com   0445 : articles proposés dans les devis avec photo et éco-participation, sans prix d''achat'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   com   0445 : articles du devis'::text; end if;
+      if jsonb_array_length(a_tech) = 0 then v_lines := v_lines || 'OK      tech  0445 : aucun article de devis pour le technicien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0445 : articles de devis visibles du technicien'::text; end if;
+      delete from public.stock_items where id = a_id;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 2; v_lines := v_lines || ('ÉCHEC   base  0445 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';
