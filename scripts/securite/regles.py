@@ -1426,6 +1426,11 @@ tdx('0418', 'client_prices', sel=f"company_id in {societes('commercial.devis.voi
     ins=f"company_id in {societes('clients.fiches.modifier')}", upd=f"company_id in {societes('clients.fiches.modifier')}",
     dele=f"company_id in {societes('clients.fiches.modifier')}")
 
+# Pièces de l'entreprise jointes aux devis (0443) : lues par qui voit les devis, tenues par qui modifie l'organisme.
+tdx('0443', 'company_papers', sel=f"company_id in {societes('commercial.devis.voir')}",
+    ins=f"company_id in {societes('parametres.organisme.modifier')}", upd=f"company_id in {societes('parametres.organisme.modifier')}",
+    dele=f"company_id in {societes('parametres.organisme.modifier')}")
+
 # Inscriptions en ligne (0420) : déposées par la page publique (fonction de la base seulement), lues et effacées par
 # qui gère les inscriptions ; confirmées ou refusées par les fonctions de la base.
 tdx('0420', 'online_registrations', sel=f"company_id in {societes('formation.inscriptions.gerer')}",

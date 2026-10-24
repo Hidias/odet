@@ -4,7 +4,7 @@
 // sinon le modèle de l'outil.
 
 import { supabase } from '../../../core/supabase'
-import { loadTemplates, isRich, fromTemplate, visibleSections, frDate } from './model'
+import { loadTemplates, isRich, fromTemplate, visibleSections, frDate, pourDestinataire } from './model'
 
 const cache = new Map()
 const TTL = 30000
@@ -59,7 +59,7 @@ export function cgvCancellationText(content) {
  * par exemple les conditions générales de vente jointes aux devis.
  * Renvoie { base64, filename, version } ou null si la génération échoue.
  */
-export async function publishedDocPDF(docId) {
+export async function publishedDocPDF(docId, { audience } = {}) {
   try {
     const [{ buildRichDocPDF }, { loadPdfOrg }, { loadTemplateContext }, { docCode }] = await Promise.all([
       import('./richDocPDF'),
@@ -76,9 +76,10 @@ export async function publishedDocPDF(docId) {
     ])
     const tpl = tpls[docId]
     if (!pub || !tpl) return null
-    const r = buildRichDocPDF(ORG, { tpl, code: docCode(tpl.code), content: pub.content, ctx, history: hist })
+    const content = audience ? pourDestinataire(pub.content, audience) : pub.content
+    const r = buildRichDocPDF(ORG, { tpl, code: docCode(tpl.code), content, ctx, history: hist })
     const dataUri = r.doc.output('datauristring')
-    return { base64: dataUri.split(',')[1], filename: r.filename, version: pub.version, source: pub.source }
+    return { base64: dataUri.split(',')[1], filename: r.filename, version: pub.version, source: pub.source, validated_at: pub.validated_at, docId, audience: audience || null }
   } catch (e) {
     console.error('publishedDocPDF', docId, e)
     return null

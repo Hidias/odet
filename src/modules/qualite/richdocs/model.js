@@ -19,12 +19,15 @@ export const FAMILIES = [
   { id: 'checklists', name: 'Check-lists' },
   { id: 'soustraitance', name: 'Sous-traitance' },
   { id: 'fiches', name: 'Fiches modèles' },
+  { id: 'commerce', name: 'Conditions commerciales' },
 ]
 
 let templatesPromise = null
 /** Modèles par défaut (chargés à la demande : fichier volumineux) */
 export function loadTemplates() {
-  if (!templatesPromise) templatesPromise = import('./templates').then((m) => m.default)
+  // Documents qualité et conditions commerciales (0443), un seul catalogue de modèles
+  if (!templatesPromise) templatesPromise = Promise.all([import('./templates'), import('./templatesCommerce')])
+    .then(([q, c]) => ({ ...q.default, ...c.default }))
   return templatesPromise
 }
 
@@ -89,10 +92,27 @@ export function blockTexts(b) {
   return []
 }
 
-/** Sections publiées selon les options (articles « particuliers » des CGV) */
+/**
+ * Sections publiées selon les options et le destinataire (conditions générales) :
+ *   - « particuliers » : articles réservés aux consommateurs (rétractation, garanties légales, médiation) ;
+ *   - « professionnels » : articles réservés aux professionnels (pénalités de retard et indemnité de 40 €…).
+ * Sans destinataire (lecture dans Qualité) : comme avant, articles « particuliers » si l'option est cochée.
+ * content.options.audience = 'pro' | 'particulier' : variante remise à ce destinataire (devis, signature en ligne).
+ */
 export function visibleSections(content) {
-  return (content.sections || []).filter((s) => !s.cond || (s.cond === 'particuliers' && content.options?.particuliers))
+  const audience = content.options?.audience
+  return (content.sections || []).filter((s) => {
+    if (!s.cond) return true
+    if (s.cond === 'particuliers') return audience ? audience === 'particulier' : !!content.options?.particuliers
+    if (s.cond === 'professionnels') return audience !== 'particulier'
+    return false
+  })
 }
+
+/** Variante d'un document pour un destinataire (professionnel ou particulier) */
+export const pourDestinataire = (content, audience) => (content
+  ? { ...content, options: { ...(content.options || {}), audience: audience === 'particulier' ? 'particulier' : 'pro' } }
+  : content)
 
 /** Passages à compléter entre crochets ([date], [nom du médiateur]...) */
 export function bracketGaps(content) {

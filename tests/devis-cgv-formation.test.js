@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { devisDeFormation } from '../src/modules/commercial/lib/metierDevis'
+import { devisDeFormation, documentsAJoindre } from '../src/modules/commercial/lib/metierDevis'
 
 describe('CGV de formation seulement avec un devis de formation', () => {
   it('devis de BAES ou d’extincteurs : pas de formation', () => {
@@ -12,9 +12,10 @@ describe('CGV de formation seulement avec un devis de formation', () => {
     expect(devisDeFormation({}, [{ code: 'BAES' }, { course_id: 'c1' }])).toBe(true)
     expect(devisDeFormation({ session_id: 's1' }, [])).toBe(true)
   })
-  it('l’envoi ne joint les CGV de formation que pour un devis de formation', () => {
+  it('l’envoi joint les conditions du métier, jamais celles de la formation pour un devis de matériel', () => {
     const src = readFileSync('src/modules/commercial/pages/Quotes.jsx', 'utf8')
-    expect(src).toMatch(/devisDeFormation\(quote, loadedItems\) \? await publishedDocPDF\('cgv'\) : null/)
-    expect(src.match(/publishedDocPDF\('cgv'\)/g)).toHaveLength(1)
+    expect(src).toMatch(/for \(const d of documentsAJoindre\(quote, loadedItems\)\)/)
+    expect(src).not.toMatch(/publishedDocPDF\('cgv'\)/)
+    expect(documentsAJoindre({}, [{ code: 'BAES', nature: 'bien' }]).map((d) => d.doc)).not.toContain('cgv')
   })
 })
