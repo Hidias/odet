@@ -368,7 +368,14 @@ export default function Quotes() {
       const { data: signe } = await supabase.rpc('devis_est_signe', { p_quote: quote.id })
       if (signe) {
         if (quote.status === 'replaced') { toast.error('Ce devis est remplacé par une version plus récente : modifiez la dernière version.'); return }
-        if (quote.status === 'invoiced') { toast.error('Devis signé et facturé : un changement passe par un avoir et une nouvelle facture.'); return }
+        // Avenant (0446) : l'écart seul, chiffré et signé, sans refaire le devis
+        const av = await confirmer({
+          title: 'Devis signé par le client',
+          message: `Le devis ${quote.reference} est signé : il ne se modifie plus. Pour un écart (appareils en plus ou en moins, travaux supplémentaires), faites un avenant : il ne porte que l'écart chiffré et se signe comme un devis.`,
+          confirmLabel: 'Faire un avenant', cancelLabel: quote.status === 'invoiced' ? 'Annuler' : 'Autre choix',
+        })
+        if (av) return faireAvenant(quote)
+        if (quote.status === 'invoiced') { toast.error('Devis signé et facturé : un changement passe par un avenant, ou par un avoir et une nouvelle facture.'); return }
         const ok = await confirmer({
           title: 'Devis signé par le client',
           message: `Le devis ${quote.reference} est signé : il ne se modifie plus. Créer une nouvelle version (${String(quote.reference || '').replace(/-V\d+$/, '')}-V${(quote.version || 1) + 1}) à modifier puis faire signer ? Le devis signé reste valable tant que la nouvelle version n'est pas acceptée.`,
@@ -397,6 +404,19 @@ export default function Quotes() {
     })
     setItems(loadedItems)
     setMode('edit')
+  }
+
+  // Avenant au devis signé (0446) : motif demandé, numéro et rattachement posés par la base
+  async function faireAvenant(quote) {
+    const motif = await demander(`Motif de l'avenant au devis ${quote.reference} (écart constaté, modification demandée par le client) :`, { title: 'Avenant', placeholder: 'Ex : 2 blocs supplémentaires constatés le jour de la pose' })
+    if (motif == null) return
+    const { data: idA, error } = await supabase.rpc('devis_avenant', { p_quote: quote.id, p_motif: motif })
+    if (error || !idA) { toast.error(error?.message || 'Avenant impossible'); return }
+    const { data: a } = await supabase.from('quotes').select('*').eq('id', idA).maybeSingle()
+    if (!a) { toast.error('Avenant introuvable'); return }
+    toast.success(`Avenant ${a.reference} préparé : saisissez l'écart (quantité négative pour un retrait), puis envoyez-le.`)
+    loadAll()
+    return openEdit(a)
   }
 
   async function openView(quote) {
@@ -1501,7 +1521,7 @@ export default function Quotes() {
             </button>
             <div className="min-w-0">
               <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900"><span className="sm:hidden block text-ui-sm font-medium text-gray-500">Devis</span><span className="hidden sm:inline">Devis </span><span className="whitespace-nowrap">{q.reference}</span></h1>
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900"><span className="sm:hidden block text-ui-sm font-medium text-gray-500">{q.amendment_of ? 'Avenant' : 'Devis'}</span><span className="hidden sm:inline">{q.amendment_of ? 'Avenant ' : 'Devis '}</span><span className="whitespace-nowrap">{q.reference}</span></h1>
                 <BadgeTest tbl="quotes" id={q.id} />
                 <span className={`px-2.5 py-1 rounded text-ui-sm font-medium ${st.class}`}>{st.icon} {st.label}</span>
               </div>
@@ -1510,6 +1530,12 @@ export default function Quotes() {
                 {q.created_by && ` · par ${q.created_by}`}
               </p>
               {(q.version || 1) > 1 && <p className="text-ui-sm text-gray-500">Version {q.version}, remplace le devis signé précédent{q.status === 'accepted' ? ' (acceptée)' : ' : à faire signer'}.</p>}
+              {q.amendment_of && <p className="text-ui-sm text-gray-500">Avenant n° {q.amendment_number} au devis {quotes.find((x) => x.id === q.amendment_of)?.reference || ''}{q.amendment_reason ? ` : ${q.amendment_reason}` : ''}</p>}
+              {!q.amendment_of && quotes.some((x) => x.amendment_of === q.id) && (
+                <p className="text-ui-sm text-gray-500">Avenants : {quotes.filter((x) => x.amendment_of === q.id).sort((a, b) => (a.amendment_number || 0) - (b.amendment_number || 0)).map((x) => (
+                  <button key={x.id} type="button" className="underline mr-2" onClick={() => openView(x)}>{x.reference} ({(STATUS_CONFIG[x.status] || STATUS_CONFIG.draft).label.toLowerCase()})</button>
+                ))}</p>
+              )}
               {q.status === 'replaced' && <p className="text-ui-sm text-[rgb(var(--c-warning))]">Remplacé par une version plus récente{q.replaced_at ? ` le ${format(new Date(q.replaced_at), 'dd/MM/yyyy', { locale: fr })}` : ''} : ce devis signé reste archivé tel quel.</p>}
             </div>
           </div>
@@ -1569,6 +1595,12 @@ export default function Quotes() {
                     <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'refused') }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
                       <X size={15} /> Marquer refusé
+                    </button>
+                  )}
+                  {['accepted', 'partial', 'invoiced'].includes(q.status) && (
+                    <button onClick={() => { setActionMenuId(null); faireAvenant(q.amendment_of ? (quotes.find((x) => x.id === q.amendment_of) || q) : q) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
+                      <Plus size={15} /> Faire un avenant
                     </button>
                   )}
                   {(q.status === 'accepted' || q.status === 'partial') && (

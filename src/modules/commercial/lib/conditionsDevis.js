@@ -42,7 +42,7 @@ export async function devisAvecConditions(devisBase64, conds) {
   return enBase64(await doc.save({ useObjectStreams: false }))
 }
 
-export const libelleDevisPublie = (quote, conds) => `Devis ${quote?.reference || ''}${conds?.length ? ' et conditions générales' : ''}`.trim()
+export const libelleDevisPublie = (quote, conds) => `${quote?.amendment_of ? 'Avenant' : 'Devis'} ${quote?.reference || ''}${conds?.length ? ' et conditions générales' : ''}`.trim()
 
 /**
  * Prépare le PDF remis au client : devis + conditions générales validées. Avant l'acceptation, la liste des

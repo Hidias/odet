@@ -5,8 +5,9 @@
 import { supabase } from '../../../core/supabase'
 import { metiersPourPieces, documentsAJoindre, pieceValable } from './metierDevis'
 
-const remplir = (texte, valeurs) => String(texte || '').replace(/\{(\w+)\}/g, (_, k) => (valeurs[k] ?? '').toString()).trim()
-const euros = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(Number(n) || 0)
+export const remplir = (texte, valeurs) => String(texte || '').replace(/\{(\w+)\}/g, (_, k) => (valeurs[k] ?? '').toString()).trim()
+// Espaces insécables remplacés : la police du PDF ne les connaît pas
+const euros = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(Number(n) || 0).replace(/[\u00a0\u202f]/g, ' ')
 const frDate = (d) => (d ? String(d).slice(0, 10).split('-').reverse().join('/') : '')
 
 export const INFOS_DISTANCE = ['Photos', 'Nombre d\'appareils', 'Plans', 'Mesures', 'Descriptif écrit']
@@ -24,7 +25,7 @@ const tauxReduit = (it) => [10, 5.5].includes(Number(String(it.tva_rate ?? '').r
  *   signature : textes près du cadre de signature (acceptation des conditions générales, attestation du client pour
  *     le taux réduit de TVA) ; legal : mentions du bas ; avertissements : ce qui manque (écran seulement).
  */
-export function mentionsDevis({ quote, items, client, textes, pieces = [], jour = new Date().toISOString().slice(0, 10) }) {
+export function mentionsDevis({ quote, items, client, textes, pieces = [], jour = new Date().toISOString().slice(0, 10), avenant = null }) {
   const t = textes && typeof textes === 'object' ? textes : {}
   const q = quote || {}
   const lignes = items || []
@@ -41,6 +42,13 @@ export function mentionsDevis({ quote, items, client, textes, pieces = [], jour 
   // Particulier, travaux à taux réduit : attestation du client portée sur le devis signé
   if (particulier && (a('installation') || a('depannage') || a('maintenance')) && lignes.some(tauxReduit)) ajout(signature, 'tva_reduite')
 
+  // Avenant (0446) : rattachement au devis signé et montants (devis, avenants acceptés, écart, nouveau total)
+  if (q.amendment_of && avenant) {
+    ajout(legal, 'avenant', {
+      devis: avenant.reference || '', signe_le: frDate(avenant.signe_le) || '-', montant_devis: euros(avenant.montant_devis),
+      avenants: euros(avenant.avenants), ecart: euros(avenant.ecart), nouveau_total: euros((Number(avenant.montant_devis) || 0) + (Number(avenant.avenants) || 0) + (Number(avenant.ecart) || 0)),
+    })
+  }
   if (q.a_distance) {
     const infos = (Array.isArray(q.a_distance_infos) ? q.a_distance_infos : []).filter(Boolean)
     ajout(legal, 'distance', { date: frDate(q.a_distance_le || q.quote_date), infos: infos.length ? infos.join(', ').toLowerCase() : 'informations transmises' })
