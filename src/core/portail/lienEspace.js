@@ -11,11 +11,12 @@ import { setF } from '../pdf/layout'
 export async function lienEspaceClient(clientId) {
   if (!clientId) return null
   try {
-    const { data, error } = await supabase.from('client_portal_access').select('token, access_code, is_active').eq('client_id', clientId).maybeSingle()
+    const { data, error } = await supabase.from('client_portal_access').select('token, access_code, is_active, code_apart').eq('client_id', clientId).maybeSingle()
     if (error || !data || !data.is_active || !data.token) return null
     const url = `${publicBaseUrl()}/#/entreprise/${data.token}`
     const qr = await QRCode.toDataURL(url, { width: 220, margin: 1 })
-    return { url, code: data.access_code || '', qr }
+    // Code envoyé à part (0449) : jamais imprimé, l'encadré renvoie à l'e-mail séparé
+    return { url, code: data.code_apart ? '' : (data.access_code || ''), codeApart: !!data.code_apart, qr }
   } catch {
     return null
   }
@@ -59,6 +60,9 @@ export function dessinerEncadreEnLigne(doc, theme, x, y, w, lien, compact = fals
   if (lien.code) {
     setF(doc, 'bold'); doc.setFontSize(compact ? 8.5 : 9); doc.setTextColor(...theme.text)
     doc.text(`Code d'accès : ${lien.code}`, x + 5, yy + 1)
+  } else if (lien.codeApart) {
+    setF(doc, 'normal'); doc.setFontSize(compact ? 7.8 : 8.5); doc.setTextColor(...theme.text)
+    doc.text('Code d\'accès : envoyé par e-mail séparé', x + 5, yy + 1)
   }
   try {
     doc.setFillColor(255, 255, 255); doc.rect(x + w - qrS - 6, y + (h - qrS) / 2 - 1, qrS + 2, qrS + 2, 'F')

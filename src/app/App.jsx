@@ -100,6 +100,7 @@ const TraineePortal = lazy(importSur(() => import('../modules/portail/pages/Trai
 const PublicReclamation = lazy(importSur(() => import('../modules/portail/pages/Reclamation')))
 const CalendrierPublic = lazy(importSur(() => import('../modules/portail/pages/CalendrierPublic')))
 const ClientPortal = lazy(importSur(() => import('../modules/portail/pages/ClientPortal')))
+const EspaceClientConnexion = lazy(importSur(() => import('../modules/portail/pages/EspaceClientConnexion')))
 
 function PageLoader() {
   return (
@@ -266,6 +267,8 @@ export default function App() {
 
           <Route path="/portail/:token" element={<TraineePortal />} />
           <Route path="/entreprise/:token" element={<ClientPortal />} />
+          {/* Connexion dédiée à l'espace client (compte personnel, 0449) */}
+          <Route path="/espace-client" element={<EspaceClientConnexion />} />
 
           {/* ─── Espace entreprise avec compte (rôle entreprise, lot 2) ─── */}
           <Route path="/mon-entreprise" element={

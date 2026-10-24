@@ -85,9 +85,9 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
                   const depot = depotDe ? depotDe(d) : null
                   const deposable = !sig && onDeposer && d.kind === 'devis' && (!depot || depot.status === 'refuse')
                   return (
-                    <li key={d.id} className="flex items-center gap-2">
-                      <button type="button" onClick={() => ouvrir(d)} disabled={!!busy} className="flex-1 min-w-0 py-2 flex items-center gap-3 text-left text-sm hover:text-primary-800 disabled:opacity-50">
-                        <span className="min-w-0 flex-1"><span className="block text-gray-800 truncate">{d.label}</span>
+                    <li key={d.id} className="flex flex-wrap items-center gap-x-2">
+                      <button type="button" onClick={() => ouvrir(d)} disabled={!!busy} className="flex-1 min-w-[12rem] py-2 flex items-center gap-3 text-left text-sm hover:text-primary-800 disabled:opacity-50">
+                        <span className="min-w-0 flex-1"><span className="block text-gray-800 break-words">{d.label}</span>
                           <span className="block text-xs text-gray-400">{sig
                             ? <span className="text-[rgb(var(--c-success))] inline-flex items-center gap-1"><BadgeCheck className="w-3.5 h-3.5" aria-hidden="true" />Signé le {quand(sig.signed_at)}, avec sa preuve</span>
                             : depot?.status === 'recu' ? <span className="text-accent-700 inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" aria-hidden="true" />Signé et déposé le {quand(depot.deposited_at)}, en cours de validation</span>
