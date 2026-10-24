@@ -4,7 +4,8 @@
 // d'organisme en dur ici. Les couleurs viennent de ORG.theme (marque de l'instance).
 
 import { APP_VERSION } from '../version'
-import { ligneNda } from '../org/orgUtils'
+import { ligneNda, ligneIdentiteLegale } from '../org/orgUtils'
+export { ligneIdentiteLegale }
 
 export const PAGE_MARGIN = 15
 
@@ -70,16 +71,18 @@ export function drawHeaderBand(doc, ORG, { ref = null, docLabel = '' } = {}) {
     doc.text(ORG.name || '', M, 20)
   }
   setF(doc, 'bold'); doc.setFontSize(8.5); doc.setTextColor(...t.primary)
-  doc.text((ORG.nameFull || ORG.name || '').toUpperCase(), pw - M, 12, { align: 'right' })
+  // Nom commercial en tête ; l'identité légale (forme, capital, RCS) est en pied de page (24/10)
+  doc.text((ORG.name || ORG.legal_name || '').toUpperCase(), pw - M, 12, { align: 'right' })
   setF(doc, 'normal'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
   // Adresse principale = site d'exploitation (0049) ; le siège en mention, en dernière ligne
   const lignesId = [
     ORG.adressePrincipale || ORG.address || '',
     [ORG.phone, ORG.email].filter(Boolean).join('   '),
     [ORG.siret ? `SIRET ${ORG.siret}` : '', ligneNda(ORG)].filter(Boolean).join('   '),
+    ORG.qualiopiMention || null,
     ORG.siegeMention || null,
   ].filter((l) => l !== null)
-  const pas = lignesId.length > 3 ? 3.3 : 4
+  const pas = lignesId.length > 4 ? 2.9 : lignesId.length > 3 ? 3.3 : 4
   lignesId.forEach((l, i) => doc.text(l, pw - M, 16.5 + i * pas, { align: 'right' }))
   doc.setDrawColor(...t.highlight); doc.setLineWidth(0.6)
   doc.line(M, 30, pw - M, 30)
@@ -118,7 +121,7 @@ export function drawFooter(doc, ORG, docCode, pageNum = null, totalPages = null)
   doc.setDrawColor(...t.line); doc.setLineWidth(0.3)
   doc.line(M, ph - 16, pw - M, ph - 16)
   setF(doc, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
-  const l1 = [ORG.nameFull || ORG.name, ORG.adressePrincipale || ORG.addressFull, ORG.siegeMention].filter(Boolean).join('  ·  ')
+  const l1 = ligneIdentiteLegale(ORG)
   const l2 = [ORG.siret ? `SIRET ${ORG.siret}` : '', ORG.naf ? `NAF ${ORG.naf}` : '', ORG.tva ? `TVA ${ORG.tva}` : '', ligneNda(ORG, { complet: true })].filter(Boolean).join('  ·  ')
   doc.text(l1, M, ph - 11.5)
   doc.text(l2, M, ph - 8)

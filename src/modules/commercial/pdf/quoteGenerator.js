@@ -6,7 +6,7 @@ import { mentionFinancement } from '../lib/financementDevis'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
-import { renderCommercialDoc, itemRow, fmtEuro, fmtRate, issuerLines, recipientLines, companyLegalLine, bankRows } from './commercialLayout'
+import { renderCommercialDoc, itemRow, fmtEuro, fmtRate, issuerLines, recipientLines, bankRows } from './commercialLayout'
 import { devisDeFormation } from '../lib/metierDevis'
 import { mentionsDevis, chargerMentionsDevis, formulaireRetractation } from '../lib/mentionsDevis'
 import { photosDuDevis } from '../lib/photosDevis'
@@ -103,7 +103,7 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     // Mentions de TVA des réglages de l'organisme (franchise, exonération de la formation, autoliquidation)
     ...mentionsTvaDevis(items, quote, regime, formation),
     mentionFinancement(quote),
-    companyLegalLine(L),
+    // Identité légale (forme, capital, RCS) : une seule fois, en pied de page (24/10)
   ].filter(Boolean)
 
   // Devis à signer : encadré « Signer en ligne » si le client a un accès à son espace (pas sur un bon de commande

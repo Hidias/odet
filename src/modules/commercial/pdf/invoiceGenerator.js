@@ -6,7 +6,7 @@ import { LiberationSans_Regular } from '../../../core/pdf/fonts/LiberationSans-R
 import { LiberationSans_Bold } from '../../../core/pdf/fonts/LiberationSans-Bold.js'
 import { buildORG } from '../../../core/org/orgUtils'
 import { computeDocumentTotals, round2 } from '../../../core/billing/totals'
-import { renderCommercialDoc, itemRow, fmtMoney, fmtEuro, fmtRate, issuerLines, recipientLines, companyLegalLine, bankRows } from './commercialLayout'
+import { renderCommercialDoc, itemRow, fmtMoney, fmtEuro, fmtRate, issuerLines, recipientLines, bankRows } from './commercialLayout'
 
 // Facture et avoir sur la mise en page commune des documents.
 // Polices Liberation Sans intégrées et logo aplati sur fond blanc : le PDF reste valide PDF/A-3b
@@ -168,7 +168,7 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
   if (Array.isArray(invoice.legal_mentions)) invoice.legal_mentions.forEach(function (m) { if (m) legal.push(String(m)) })
   else legal.push(tvaOn ? "TVA exigible d'après les encaissements (article 269, 2-c du CGI)." : "TVA non applicable, article 261-4-4° du CGI.")
   if (invoice.nature_operation) legal.push('Nature de l\'opération : ' + ({ services: 'prestations de services', biens: 'livraisons de biens', mixte: 'livraisons de biens et prestations de services' }[invoice.nature_operation] || invoice.nature_operation) + '.')
-  legal.push(companyLegalLine(L))
+  // Identité légale (forme, capital, RCS) : une seule fois, en pied de page (24/10)
 
   var subtitle = null
   if (invoice.parent_reference) subtitle = (isCredit ? 'Avoir sur la facture ' : 'Document parent : ') + invoice.parent_reference

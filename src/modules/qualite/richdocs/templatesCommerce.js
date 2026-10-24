@@ -94,7 +94,7 @@ const CGV_MAINTENANCE = {
   ],
   sections: numeroter([
     { id: 'objet', title: 'Objet et champ d\'application', blocks: [
-      p('Les présentes conditions s\'appliquent aux prestations de maintenance préventive, de vérification périodique, d\'intervention ponctuelle et de dépannage réalisées par {{org.nom}}, {{org.raison_sociale}}, SIRET {{org.siret}}, sur les équipements de sécurité du client : extincteurs, éclairage de sécurité, systèmes d\'alarme et de détection, désenfumage, robinets d\'incendie armés, matériel de premiers secours et équipements listés au contrat.'),
+      p('Les présentes conditions s\'appliquent aux prestations de maintenance préventive, de vérification périodique, d\'intervention ponctuelle et de dépannage réalisées par {{org.nom}} sur les équipements de sécurité du client : extincteurs, éclairage de sécurité, systèmes d\'alarme et de détection, désenfumage, robinets d\'incendie armés, matériel de premiers secours et équipements listés au contrat.'),
       p('L\'acceptation du devis ou du contrat vaut acceptation des présentes conditions, qui prévalent sur tout autre document du client sauf accord écrit contraire.'),
     ] },
     { id: 'documents', title: 'Documents contractuels', blocks: [
@@ -184,7 +184,7 @@ const CGV_VENTE = {
   scope: 'Jointes aux devis de vente de matériel (extincteurs, éclairage de sécurité, signalétique, premiers secours)',
   sections: numeroter([
     { id: 'objet', title: 'Objet et champ d\'application', blocks: [
-      p('Les présentes conditions s\'appliquent aux ventes de matériel de sécurité par {{org.nom}}, {{org.raison_sociale}}, SIRET {{org.siret}} : extincteurs, blocs d\'éclairage de sécurité, détecteurs, signalétique, matériel de premiers secours et autres équipements. Lorsque la vente comprend une pose, les conditions générales d\'installation et de travaux s\'appliquent aussi.'),
+      p('Les présentes conditions s\'appliquent aux ventes de matériel de sécurité par {{org.nom}} : extincteurs, blocs d\'éclairage de sécurité, détecteurs, signalétique, matériel de premiers secours et autres équipements. Lorsque la vente comprend une pose, les conditions générales d\'installation et de travaux s\'appliquent aussi.'),
       p('L\'acceptation du devis vaut acceptation des présentes conditions, qui prévalent sur tout autre document du client sauf accord écrit contraire.'),
     ] },
     { id: 'commande', title: 'Commande', blocks: [
@@ -247,7 +247,7 @@ const CGV_INSTALLATION = {
   scope: 'Jointes aux devis d\'installation et de travaux (alarme, éclairage de sécurité, désenfumage, électricité, ventilation, sûreté)',
   sections: numeroter([
     { id: 'objet', title: 'Objet et champ d\'application', blocks: [
-      p('Les présentes conditions s\'appliquent aux travaux d\'installation et de mise en service réalisés par {{org.nom}}, {{org.raison_sociale}}, SIRET {{org.siret}} : systèmes d\'alarme et de détection incendie, éclairage de sécurité, désenfumage, vidéoprotection, contrôle d\'accès, travaux d\'électricité et de ventilation.'),
+      p('Les présentes conditions s\'appliquent aux travaux d\'installation et de mise en service réalisés par {{org.nom}} : systèmes d\'alarme et de détection incendie, éclairage de sécurité, désenfumage, vidéoprotection, contrôle d\'accès, travaux d\'électricité et de ventilation.'),
       p('L\'acceptation du devis vaut acceptation des présentes conditions, qui prévalent sur tout autre document du client sauf accord écrit contraire.'),
     ] },
     { id: 'devis', title: 'Devis et informations du client', blocks: [

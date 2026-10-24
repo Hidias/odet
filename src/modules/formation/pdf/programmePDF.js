@@ -8,7 +8,7 @@
 
 import jsPDF from 'jspdf'
 import { setF, drawLogoFitted } from '../../../core/pdf/layout'
-import { ligneNda } from '../../../core/org/orgUtils'
+import { ligneNda, ligneIdentiteLegale } from '../../../core/org/orgUtils'
 
 const A4 = { w: 210, h: 297 }
 const SIDE_W = 64
@@ -125,10 +125,10 @@ export function buildProgrammePDF(course, ORG, contexte = {}, cible = null) {
   const tarif = strip(c.price_mention) || TARIF_DEFAUT
   const refProg = referenceProgramme(c)
   const pied = [
-    `${(ORG?.nameFull || ORG?.name || '').toUpperCase()}${(ORG?.adressePrincipale || ORG?.address) ? ` – ${ORG.adressePrincipale || ORG.address}` : ''}`,
-    ORG?.siegeMention || null,
+    `${(ORG?.name || ORG?.legal_name || '').toUpperCase()}${(ORG?.adressePrincipale || ORG?.address) ? ` – ${ORG.adressePrincipale || ORG.address}` : ''}`,
     [ORG?.phone ? `Tél : ${ORG.phone}` : null, ORG?.email ? `Mail : ${ORG.email}` : null].filter(Boolean).join(' – '),
     [ORG?.siret ? `SIRET : ${ORG.siret}` : null, ligneNda(ORG, { complet: true }) || null].filter(Boolean).join(' – '),
+    ORG ? ligneIdentiteLegale(ORG) : null,
   ].filter(Boolean)
 
   // eS, eM : espace ajouté (mm) par unité d'écart, colonne de gauche et colonne principale
@@ -332,7 +332,7 @@ export function buildCataloguePDF(courses, ORG, contextePour = () => ({})) {
   setF(doc, 'bold'); doc.setFontSize(26); doc.setTextColor(255, 255, 255)
   doc.text('Catalogue des formations', 15, 52)
   setF(doc, 'normal'); doc.setFontSize(11); doc.setTextColor(...t.highlight)
-  doc.text(ORG?.nameFull || ORG?.name || '', 15, 61)
+  doc.text(ORG?.name || ORG?.legal_name || '', 15, 61)
   let y = 86
   setF(doc, 'bold'); doc.setFontSize(9); doc.setTextColor(...t.muted)
   doc.text('FORMATION', 15, y); doc.text('DURÉE', 140, y); doc.text('RÉFÉRENCE', 165, y)
@@ -348,8 +348,8 @@ export function buildCataloguePDF(courses, ORG, contextePour = () => ({})) {
     doc.text([referenceProgramme(c), c.program_version ? `v${c.program_version}` : null].filter(Boolean).join(' · '), 165, y)
     y += titre.length * 4.6 + 3
   }
-  const pied = [ORG?.nameFull || ORG?.name, ORG?.adressePrincipale || ORG?.address || null, ORG?.siegeMention || null,
-    [ORG?.phone, ORG?.email].filter(Boolean).join(' – '), ORG?.siret ? `SIRET : ${ORG.siret}` : null, ligneNda(ORG, { complet: true }) || null].filter(Boolean)
+  const pied = [ORG?.name || ORG?.legal_name, ORG?.adressePrincipale || ORG?.address || null,
+    [ORG?.phone, ORG?.email].filter(Boolean).join(' – '), ORG?.siret ? `SIRET : ${ORG.siret}` : null, ligneNda(ORG, { complet: true }) || null, ORG ? ligneIdentiteLegale(ORG) : null].filter(Boolean)
   setF(doc, 'normal'); doc.setFontSize(8); doc.setTextColor(...t.muted)
   pied.forEach((l, i) => doc.text(l, A4.w / 2, A4.h - 30 + i * 4, { align: 'center' }))
   for (const c of liste) {

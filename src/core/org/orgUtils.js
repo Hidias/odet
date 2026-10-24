@@ -104,7 +104,14 @@ export function buildORG(o) {
     // Identité
     name,
     legal_name: legalName,
-    nameFull: legalWithForm ? `${legalWithForm}${qualiopi ? ' - Organisme de formation certifié Qualiopi' : ''}` : '',
+    // Raison sociale et forme juridique : pour les blocs des parties d'un contrat (convention, bon de commande).
+    // Partout ailleurs, le nom commercial (name). Pilotage de H du 24/10 : la forme juridique n'est écrite que là
+    // où elle est utile, l'identité légale complète une seule fois, en pied de page.
+    nameFull: legalWithForm || '',
+    // Identité légale complète (Code de commerce, art. R123-237 et R123-238) : en pied de page des documents
+    identiteLegale: identiteLegale(legalName, s),
+    // Mention à part, sur les seuls documents de formation (retirée par orgHorsFormation)
+    qualiopiMention: qualiopi ? 'Organisme de formation certifié Qualiopi' : '',
     forme_juridique: s.forme_juridique || '',
     capital_social: s.capital_social || '',
     qualiopi_certified: qualiopi,
@@ -257,11 +264,29 @@ export function orgHorsFormation(ORG) {
   if (!ORG) return ORG
   const suffixe = ' - Organisme de formation certifié Qualiopi'
   const nameFull = ORG.nameFull && ORG.nameFull.endsWith(suffixe) ? ORG.nameFull.slice(0, -suffixe.length) : ORG.nameFull
-  return { ...ORG, nameFull, nda: '', ndaFull: '', horsFormation: true }
+  return { ...ORG, nameFull, qualiopiMention: '', nda: '', ndaFull: '', horsFormation: true }
 }
 
 // Ligne d'identification à imprimer sur un document de formation (en-tête, pied de page, parties d'une convention) :
 // « NDA 11 22 33333 44 » quand le numéro est attribué, la mention obligatoire sinon, rien pour un document hors formation.
+/** « GLD Sécurité, SARL au capital de 10 000 € · RCS Quimper 830 695 649 » (rien d'inventé : seulement ce qui est saisi) */
+export function identiteLegale(legalName, s = {}) {
+  const nom = String(legalName || s.legal_name || s.name || '').trim()
+  if (!nom) return ''
+  const forme = String(s.forme_juridique || '').trim()
+  const avecForme = forme && !nom.toLowerCase().includes(forme.toLowerCase()) ? `${nom}, ${forme}` : nom
+  const capital = String(s.capital_social || '').trim()
+  const premiere = capital ? `${avecForme} au capital de ${capital}${/€|eur/i.test(capital) ? '' : ' €'}` : avecForme
+  const rcs = String(s.rcs || '').trim()
+  return [premiere, rcs ? (/^rcs\b/i.test(rcs) ? rcs : `RCS ${rcs}`) : ''].filter(Boolean).join(' · ')
+}
+
+/** Première ligne du pied de page : identité légale complète et siège (une seule fois par document, 24/10) */
+export function ligneIdentiteLegale(ORG) {
+  const siege = ORG.address ? `Siège social : ${ORG.address}` : (ORG.addressFull || '')
+  return [ORG.identiteLegale || ORG.nameFull || ORG.legal_name || ORG.name, siege].filter(Boolean).join('  ·  ')
+}
+
 export function ligneNda(ORG, { complet = false } = {}) {
   if (!ORG || ORG.horsFormation || !ORG.nda) return ''
   if (ORG.ndaAttribue === false || /en cours/.test(ORG.nda)) return "Déclaration d'activité en cours d'enregistrement"
