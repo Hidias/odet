@@ -67,6 +67,7 @@ const ReunionDetail = lazy(importSur(() => import('../core/reunions/ReunionDetai
 const Apports = lazy(importSur(() => import('../core/apports/Apports')))
 const Invoices = lazy(importSur(() => import('../modules/commercial/pages/Invoices')))
 const QualiteEditables = lazy(importSur(() => import('../modules/qualite/pages/QualiteEditables')))
+const Relecture = lazy(importSur(() => import('../modules/qualite/pages/Relecture')))
 const Completude = lazy(importSur(() => import('../modules/qualite/pages/Completude')))
 const BPF = lazy(importSur(() => import('../modules/qualite/pages/BPF')))
 const Certification = lazy(importSur(() => import('../modules/certification/pages/Certification')))
@@ -283,6 +284,12 @@ export default function App() {
               <EspaceExterne />
             </ExterneRoute>
           } />
+          {/* Émargement sur le téléphone du formateur externe (0453) : même page que le formateur salarié */}
+          <Route path="/mon-espace/signature/:sessionId" element={
+            <ExterneRoute>
+              <SignatureFormateur externe />
+            </ExterneRoute>
+          } />
 
           {/* ─── Route Espace Comptable (comptable + admins) ─── */}
           <Route path="/comptable" element={
@@ -346,6 +353,8 @@ export default function App() {
             <Route path="documents" element={<Documents />} />
             <Route path="documents-vierges" element={<DocumentsVierges />} />
             <Route path="qualite" element={<QualiteEditables />} />
+            <Route path="relectures" element={<Relecture />} />
+            <Route path="relectures/:id" element={<Relecture />} />
             <Route path="qualite/completude" element={<Completude />} />
             <Route path="tests-positionnement" element={<TestsPositionnement />} />
             <Route path="non-conformites" element={<NonConformites />} />

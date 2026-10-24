@@ -6968,6 +6968,219 @@ begin
     end;
   end if;
 
+  -- Espace formateur, émargement (0453)
+  if to_regclass('public.trainer_halfday_signatures') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare ef_t1 uuid; ef_t2 uuid; ef_s1 uuid; ef_s2 uuid; ef_tr uuid; ef_u uuid := gen_random_uuid();
+            ef_sig text := 'data:image/png;base64,' || repeat('A', 200);
+            ef_d json; ef_a json; ef_b jsonb; ef_c jsonb; ef_e jsonb; ef_x json; ef_l jsonb;
+    begin
+      insert into public.trainers (first_name, last_name) values ('Essai', 'Externe 0453') returning id into ef_t1;
+      insert into public.trainers (first_name, last_name) values ('Autre', 'Formateur 0453') returning id into ef_t2;
+      insert into public.sessions (client_id, trainer_id, start_date, end_date, start_time, end_time, attendance_token)
+      values (v_client, ef_t1, public.paris_today(), public.paris_today(), '00:00', '23:59', md5(gen_random_uuid()::text)) returning id into ef_s1;
+      insert into public.sessions (client_id, trainer_id, start_date, end_date, start_time, end_time, attendance_token)
+      values (v_client, ef_t2, public.paris_today(), public.paris_today(), '00:00', '23:59', md5(gen_random_uuid()::text)) returning id into ef_s2;
+      insert into public.trainees (first_name, last_name, client_id) values ('Essai', 'Émargement', v_client) returning id into ef_tr;
+      insert into public.session_trainees (session_id, trainee_id) values (ef_s1, ef_tr), (ef_s2, ef_tr);
+      insert into auth.users (id, email, aud, role) values (ef_u, 'ext.0453@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active, trainer_id) values (ef_u, 'ext.0453@test.invalid', 'formateur_externe', true, ef_t1)
+      on conflict (id) do update set role = excluded.role, trainer_id = excluded.trainer_id, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      perform set_config('request.jwt.claims', json_build_object('sub', ef_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      ef_d := public.get_trainer_sign_data(ef_s1);
+      ef_a := public.trainer_sign_halfday(ef_s1, ef_tr, public.paris_today(), 'morning', ef_sig);
+      ef_x := public.trainer_sign_halfday(ef_s2, ef_tr, public.paris_today(), 'morning', ef_sig);
+      ef_b := public.formateur_signer(ef_s1, public.paris_today(), 'morning', ef_sig);
+      ef_c := public.formateur_signer(ef_s1, public.paris_today(), 'morning', ef_sig);
+      ef_e := public.formateur_signer(ef_s2, public.paris_today(), 'morning', ef_sig);
+      ef_l := public.formateur_signatures(ef_s1);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if (ef_d->>'ok')::boolean and (ef_a->>'ok')::boolean and not (ef_x->>'ok')::boolean then
+        v_lines := v_lines || 'OK      ext   0453 : le formateur externe fait signer ses stagiaires, pas ceux d''une autre session'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ext   0453 : feuille ' || coalesce(ef_d::text, '?') || ' / ' || coalesce(ef_a::text, '?') || ' / ' || coalesce(ef_x::text, '?')); end if;
+      if (ef_b->>'ok')::boolean and not (ef_c->>'ok')::boolean and not (ef_e->>'ok')::boolean and jsonb_array_length(ef_l->'signes') = 1 then
+        v_lines := v_lines || 'OK      ext   0453 : signature du formateur par demi-journée, une seule fois, seulement sur ses sessions'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ext   0453 : signature formateur ' || coalesce(ef_b::text, '?') || ' / ' || coalesce(ef_c::text, '?') || ' / ' || coalesce(ef_e::text, '?')); end if;
+      if (select count(*) from public.trainer_halfday_signatures where session_id = ef_s1 and trainer_id = ef_t1) = 1
+         and (select company_id from public.trainer_halfday_signatures where session_id = ef_s1) = (select company_id from public.sessions where id = ef_s1) then
+        v_lines := v_lines || 'OK      base  0453 : signature rangée dans la société de la session'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0453 : société de la signature'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0453 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
+  -- Notes de frais du formateur (0454)
+  if to_regclass('public.trainer_expenses') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare nf_t uuid; nf_t2 uuid; nf_s uuid; nf_u uuid := gen_random_uuid(); nf_co uuid; nf_id uuid; nf_id2 uuid;
+            nf_e1 boolean := false; nf_e2 boolean := false; nf_e3 boolean := false; nf_e4 boolean := false; nf_e5 boolean := false;
+            nf_e6 boolean := false; nf_e7 boolean := false; nf_l jsonb; nf_r record;
+    begin
+      insert into public.trainers (first_name, last_name) values ('Essai', 'Frais 0454') returning id, company_id into nf_t, nf_co;
+      insert into public.trainers (first_name, last_name) values ('Autre', 'Frais 0454') returning id into nf_t2;
+      insert into public.sessions (client_id, trainer_id, start_date, end_date, attendance_token)
+      values (v_client, nf_t, current_date, current_date, md5(gen_random_uuid()::text)) returning id into nf_s;
+      insert into auth.users (id, email, aud, role) values (nf_u, 'ext.0454@test.invalid', 'authenticated', 'authenticated');
+      alter table public.profiles disable trigger profiles_protect_role;
+      insert into public.profiles (id, email, role, is_active, trainer_id) values (nf_u, 'ext.0454@test.invalid', 'formateur_externe', true, nf_t)
+      on conflict (id) do update set role = excluded.role, trainer_id = excluded.trainer_id, is_active = true;
+      alter table public.profiles enable trigger profiles_protect_role;
+      perform set_config('request.jwt.claims', json_build_object('sub', nf_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.ext_frais_ajouter(current_date, 'repas', 18.5, null, nf_s, 'Midi', null); exception when sqlstate '22023' then nf_e1 := true; end;
+      begin perform public.ext_frais_ajouter(current_date, 'repas', 18.5, null, nf_s, 'Midi', nf_co::text || '/' || nf_t2::text || '/x.jpg'); exception when sqlstate '42501' then nf_e2 := true; end;
+      begin perform public.ext_frais_ajouter(current_date, 'kilometres', 30, null, nf_s, null, null); exception when sqlstate '22023' then nf_e3 := true; end;
+      nf_id := public.ext_frais_ajouter(current_date, 'repas', 18.5, null, nf_s, 'Midi', nf_co::text || '/' || nf_t::text || '/ticket.jpg');
+      nf_id2 := public.ext_frais_ajouter(current_date, 'kilometres', 42.3, 120, nf_s, 'Aller-retour', null);
+      begin insert into storage.objects (bucket_id, name) values ('frais', nf_co::text || '/' || nf_t2::text || '/autre.jpg'); exception when insufficient_privilege then nf_e4 := true; end;
+      insert into storage.objects (bucket_id, name) values ('frais', nf_co::text || '/' || nf_t::text || '/ticket.jpg');
+      nf_l := public.ext_frais();
+      execute 'reset role';
+      if nf_e1 and nf_e2 and nf_e3 and nf_e4 and jsonb_array_length(nf_l->'frais') = 2
+         and exists (select 1 from public.notifications n where n.type = 'frais_formateur' and n.metadata->>'expense_id' = nf_id::text) then
+        v_lines := v_lines || 'OK      ext   0454 : note de frais avec ticket ou kilomètres, dans son dossier seulement ; l''organisme est prévenu'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   ext   0454 : déclaration ' || nf_e1 || nf_e2 || nf_e3 || nf_e4 || ' ' || coalesce(nf_l::text, '?')); end if;
+      -- Décision par la direction
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin update public.trainer_expenses set status = 'refusee' where id = nf_id2; exception when sqlstate '23514' then nf_e5 := true; end;
+      begin update public.trainer_expenses set amount_ttc = 99 where id = nf_id; exception when sqlstate '42501' then nf_e6 := true; end;
+      update public.trainer_expenses set status = 'validee' where id = nf_id;
+      update public.trainer_expenses set status = 'remboursee' where id = nf_id;
+      update public.trainer_expenses set status = 'refusee', decision_note = 'Sans rapport avec la session' where id = nf_id2;
+      execute 'reset role';
+      select status, paid_on, decided_at into nf_r from public.trainer_expenses where id = nf_id;
+      if nf_e5 and nf_e6 and nf_r.status = 'remboursee' and nf_r.paid_on is not null and nf_r.decided_at is not null then
+        v_lines := v_lines || 'OK      dir   0454 : décision dans l''ordre, refus avec motif, montant déclaré non modifiable'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0454 : décision ' || nf_e5 || nf_e6 || ' ' || coalesce(nf_r.status, '?')); end if;
+      -- Le formateur n'annule pas une note traitée ; il ne lit aucune table
+      perform set_config('request.jwt.claims', json_build_object('sub', nf_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.ext_frais_annuler(nf_id); exception when sqlstate '22023' then nf_e7 := true; end;
+      nf_l := public.ext_frais();
+      execute 'reset role';
+      if nf_e7 and (select count(*) from jsonb_array_elements(nf_l->'frais') f where f->>'status' = 'refusee' and f->>'decision_note' is not null) = 1 then
+        v_lines := v_lines || 'OK      ext   0454 : le formateur voit la décision et son motif, n''annule pas une note traitée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ext   0454 : suivi par le formateur'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', nf_u, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      if not exists (select 1 from public.trainer_expenses) then
+        execute 'reset role';
+        v_lines := v_lines || 'OK      ext   0454 : aucune note lisible en direct par le formateur externe'::text;
+      else execute 'reset role'; v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ext   0454 : table lisible'::text; end if;
+      perform set_config('request.jwt.claims', '', true);
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0454 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
+  -- Circuit de validation des documents (0455)
+  if to_regclass('public.doc_reviews') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 5;
+    declare cd_co uuid; cd_r uuid; cd_q uuid; cd_m uuid; cd_c uuid; cd_e1 boolean := false; cd_e2 boolean := false; cd_e3 boolean := false;
+            cd_e4 boolean := false; cd_e5 boolean := false; cd_vu boolean; cd_st text; cd_rec record; cd_doc text := 'essai-0455-' || left(md5(gen_random_uuid()::text), 6);
+            cd_sec jsonb := '[{"id": "duree", "title": "Durée", "blocks": [{"t": "p", "text": "Un an."}]}]'::jsonb;
+    begin
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      cd_co := app.current_company();
+      perform public.doc_review_regler(null, jsonb_build_object(cd_doc, 'complet', cd_doc || '-x', 'interne'));
+      perform public.doc_review_regler(null, jsonb_build_object(cd_doc || '-x', null));
+      cd_vu := (select per_doc ? cd_doc and not per_doc ? (cd_doc || '-x') and app.doc_review_mode(cd_co, cd_doc) = 'complet' from public.doc_review_settings where company_id = cd_co);
+      if not coalesce(cd_vu, false) then raise exception 'réglage du circuit'; end if;
+      -- Sans circuit : validation refusée ; un document resté « direct » se valide comme avant
+      begin insert into public.quality_doc_versions (doc_id, version, content, motif) values (cd_doc, 1, jsonb_build_object('sections', cd_sec), 'Essai');
+      exception when sqlstate '23514' then cd_e1 := true; end;
+      insert into public.quality_doc_versions (doc_id, version, content, motif) values (cd_doc || '-direct', 1, jsonb_build_object('sections', cd_sec), 'Essai direct');
+      insert into public.doc_reviews (doc_id, doc_name, content, mode, message) values (cd_doc, 'Document d''essai', jsonb_build_object('sections', cd_sec), 'complet', 'À relire')
+      returning id into cd_r;
+      insert into public.doc_review_participants (review_id, profile_id) values (cd_r, u_com);
+      insert into public.doc_review_items (review_id, section_id, kind, text, choices) values (cd_r, 'duree', 'question', 'Durée du contrat ?', array['3 ans', '5 ans'])
+      returning id into cd_q;
+      execute 'reset role';
+      -- Relecteur de l'équipe : lit le circuit, propose, répond ; ne conduit pas le circuit
+      perform set_config('request.jwt.claims', json_build_object('sub', u_com, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      cd_vu := exists (select 1 from public.doc_reviews where id = cd_r);
+      insert into public.doc_review_items (review_id, section_id, kind, proposed) values (cd_r, 'duree', 'modification', '{"title": "Durée", "blocks": [{"t": "p", "text": "Trois ans."}]}'::jsonb)
+      returning id into cd_m;
+      insert into public.doc_review_items (review_id, parent_id, kind, choice) values (cd_r, cd_q, 'reponse', '5 ans');
+      begin insert into public.doc_review_items (review_id, parent_id, kind, choice) values (cd_r, cd_q, 'reponse', '7 ans'); exception when sqlstate '22023' then cd_e2 := true; end;
+      begin perform public.doc_review_decider(cd_m, 'acceptee'); exception when insufficient_privilege then cd_e3 := true; end;
+      update public.doc_reviews set status = 'arbitrage' where id = cd_r;
+      update public.doc_review_participants set done_at = now() where review_id = cd_r and profile_id = u_com;
+      execute 'reset role';
+      select status into cd_st from public.doc_reviews where id = cd_r;
+      if cd_e1 and cd_vu and cd_e2 and cd_e3 and cd_st = 'relecture'
+         and exists (select 1 from public.doc_review_participants where review_id = cd_r and done_at is not null)
+         and exists (select 1 from public.doc_review_items where id = cd_m and base->>'id' = 'duree')
+         and exists (select 1 from public.notifications where type = 'document_relecture' and metadata->>'review_id' = cd_r::text) then
+        v_lines := v_lines || 'OK      com   0455 : relecteur invité, propose et répond ; ne tranche pas, ne conduit pas le circuit ; validation directe refusée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   com   0455 : relecture ' || cd_e1 || cd_vu || cd_e2 || cd_e3 || ' ' || coalesce(cd_st, '?')); end if;
+      -- Direction : arbitrage, expert, retour, validation
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      update public.doc_reviews set status = 'arbitrage' where id = cd_r;
+      begin update public.doc_reviews set status = 'expert' where id = cd_r; exception when sqlstate '23514' then cd_e4 := true; end;
+      perform public.doc_review_decider(cd_m, 'acceptee');
+      perform public.doc_review_decider(cd_q, 'close', null, '5 ans');
+      begin insert into public.quality_doc_versions (doc_id, version, content, motif)
+        values (cd_doc, 1, (select content from public.doc_reviews where id = cd_r), 'Sans expert');
+      exception when sqlstate '23514' then cd_e5 := true; end;
+      update public.doc_reviews set status = 'expert', expert_label = 'Avocat' where id = cd_r;
+      insert into public.doc_review_items (review_id, section_id, kind, text, author_quality, author_label) values (cd_r, 'duree', 'commentaire', 'Clause conforme.', 'expert', 'Me Essai (fichier relu)')
+      returning id into cd_c;
+      update public.doc_reviews set status = 'arbitrage' where id = cd_r;
+      perform public.doc_review_decider(cd_c, 'close');
+      insert into public.quality_doc_versions (doc_id, version, content, motif) values (cd_doc, 1, (select content from public.doc_reviews where id = cd_r), 'Relu');
+      execute 'reset role';
+      select dr.status, dr.validated_version, dr.round, dr.content->'sections'->0->'blocks'->0->>'text' as texte,
+             (select choice from public.doc_review_items where id = cd_q) as choix,
+             (select count(*) from public.doc_review_items where parent_id = cd_q and status = 'close') as rep_closes
+        into cd_rec from public.doc_reviews dr where dr.id = cd_r;
+      if cd_e4 and cd_rec.texte = 'Trois ans.' and cd_rec.choix = '5 ans' and cd_rec.rep_closes = 1 then
+        v_lines := v_lines || 'OK      dir   0455 : arbitrage : modification acceptée dans le texte, question close sur un choix ; rien ne part à l''expert tant que c''est ouvert'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0455 : arbitrage ' || cd_e4 || ' ' || coalesce(cd_rec.texte, '?')); end if;
+      if cd_e5 then v_lines := v_lines || 'OK      dir   0455 : mode « complet » : pas de version sans le retour de l''expert'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0455 : version validée sans expert'::text; end if;
+      if cd_rec.status = 'validee' and cd_rec.validated_version = 1 then
+        v_lines := v_lines || 'OK      dir   0455 : version validée depuis le circuit arbitré, circuit clos'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0455 : validation ' || coalesce(cd_rec.status, '?')); end if;
+      -- Circuit clos : plus rien ne bouge ; texte différent de l'arbitrage refusé (nouveau circuit)
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      cd_e1 := false; cd_e2 := false;
+      begin update public.doc_reviews set status = 'relecture' where id = cd_r; exception when sqlstate '23514' then cd_e1 := true; end;
+      insert into public.doc_reviews (doc_id, doc_name, content, mode) values (cd_doc, 'Document d''essai', jsonb_build_object('sections', cd_sec), 'interne') returning id into cd_r;
+      update public.doc_reviews set status = 'arbitrage' where id = cd_r;
+      begin insert into public.quality_doc_versions (doc_id, version, content, motif) values (cd_doc, 2, '{"sections": []}'::jsonb, 'Autre texte');
+      exception when sqlstate '23514' then cd_e2 := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if cd_e1 and cd_e2 then v_lines := v_lines || 'OK      dir   0455 : circuit clos figé ; la version validée est exactement le texte arbitré'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0455 : clos ' || cd_e1 || cd_e2); end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 5; v_lines := v_lines || ('ÉCHEC   base  0455 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

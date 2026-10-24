@@ -15,6 +15,7 @@ import { donneesDecharge, nomFichierDecharge } from '../../prevention/lib/dechar
 import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
+import { signaturesFormateur } from '../lib/emargementControle'
 
 // ════════════════════════════════════════════════════════════
 // MiniSignaturePad - Mini canvas signature inline pour formateur
@@ -403,7 +404,9 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
         digitalSignatures: digitalSigs || [],
         proxies: proxies || [],
         absents: absentTraineeIds(),
-        trainerSignatureBase64: signatureB64
+        trainerSignatureBase64: signatureB64,
+        trainerHalfdays: await signaturesFormateur(session.id),
+        trainerId: trainer?.id,
       }
     })
 
@@ -665,7 +668,9 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
                 digitalSignatures: digitalSigs || [],
                 proxies: proxies || [],
                 absents: absentTraineeIds(),
-                trainerSignatureBase64: freshTrainerSig // valeur garantie fraîche
+                trainerSignatureBase64: freshTrainerSig, // valeur garantie fraîche
+                trainerHalfdays: await signaturesFormateur(session.id),
+                trainerId: trainer?.id,
               }
             })
             if (emargement) {

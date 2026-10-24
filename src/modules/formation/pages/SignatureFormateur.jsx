@@ -55,12 +55,15 @@ const writeQueue = (items) => {
   try { localStorage.setItem(QUEUE_KEY, JSON.stringify(items)) } catch { /* stockage plein */ }
 }
 
-export default function SignatureFormateur() {
+export default function SignatureFormateur({ externe = false }) {
   const { sessionId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  // Garde de la signature par le formateur (branche ecrans/gardes)
-  const d = useDroits({ signer: ['formation.sessions.modifier_siennes', 'formation.suivi.gerer'] })
+  // Garde de la signature par le formateur (branche ecrans/gardes) ; le formateur externe (0453) signe ses sessions,
+  // la base le vérifie à chaque envoi
+  const droits = useDroits({ signer: ['formation.sessions.modifier_siennes', 'formation.suivi.gerer'] })
+  const d = { ...droits, signer: externe || droits.signer }
+  const retour = externe ? '/mon-espace' : `/sessions/${sessionId}`
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -73,6 +76,8 @@ export default function SignatureFormateur() {
   const [syncing, setSyncing] = useState(false)
   const [proxy, setProxy] = useState(null)        // assistant « ne peut pas signer »
   const [showHelp, setShowHelp] = useState(false)
+  const [moi, setMoi] = useState(null)            // signatures du formateur connecté (0453), null si pas formateur
+  const [signeMoi, setSigneMoi] = useState(false) // pad de la signature du formateur
   const slotRef = useRef(null)
 
   const trainerName = currentUserName() || user?.email || 'Formateur'
@@ -105,6 +110,9 @@ export default function SignatureFormateur() {
         setSlot(choisi)
       }
     }
+    // Signature du formateur par demi-journée (0453) : absente avant la migration ou pour un compte non formateur
+    const { data: f } = await supabase.rpc('formateur_signatures', { p_session_id: sessionId })
+    setMoi(f?.ok ? f : null)
     setLoading(false)
   }, [sessionId])
 
@@ -135,6 +143,14 @@ export default function SignatureFormateur() {
 
   // ─── Envoi d'une signature (ou mise en attente) ────────────
   const sendEntry = async (entry) => {
+    if (entry.kind === 'formateur') {
+      const { data: res, error: err } = await supabase.rpc('formateur_signer', {
+        p_session_id: entry.session_id, p_date: entry.date, p_period: entry.period,
+        p_signature: entry.signature, p_signed_at: entry.signed_at,
+      })
+      if (err) throw err
+      return res
+    }
     if (entry.kind === 'proxy') {
       const { data: res, error: err } = await supabase.rpc('trainer_proxy_sign', {
         p_session_id: entry.session_id,
@@ -223,6 +239,23 @@ export default function SignatureFormateur() {
 
   const prochain = (apres) => signables.find(t => t.trainee_id !== apres?.trainee_id) || null
 
+  // Signature du formateur pour la demi-journée choisie (0453)
+  const moiStatut = !moi || !slot ? null
+    : queue.some(q => q.kind === 'formateur' && q.date === slot.date && q.period === slot.period) ? 'attente'
+    : (moi.signes || []).find(h => String(h.date).slice(0, 10) === slot.date && h.period === slot.period) ? 'signe' : 'vide'
+  const moiHeure = () => fmtHeure((moi?.signes || []).find(h => String(h.date).slice(0, 10) === slot?.date && h.period === slot?.period)?.signed_at)
+  const onMoiSigned = async (image) => {
+    setSigneMoi(false)
+    const entry = {
+      kind: 'formateur', session_id: sessionId, trainee_id: null, trainee_label: 'Votre signature',
+      date: slot.date, period: slot.period, signature: image, signed_at: new Date().toISOString(),
+    }
+    const res = await enregistrer(entry)
+    if (!res.ok) { toast.error(res.error); return }
+    toast.success(res.differe ? 'Signature gardée sur le téléphone, envoi au retour du réseau' : 'Votre signature est enregistrée')
+    await load(true)
+  }
+
   // ─── Validation d'une signature stagiaire ──────────────────
   const onSigned = async (image) => {
     const t = signing
@@ -293,8 +326,8 @@ export default function SignatureFormateur() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
         <AlertCircle className="w-10 h-10 text-[rgb(var(--c-danger))] mb-3" />
         <p className="text-gray-800 font-medium mb-4">{error}</p>
-        <button onClick={() => navigate(`/sessions/${sessionId}`)} className="btn btn-primary">
-          Retour à la session
+        <button onClick={() => navigate(retour)} className="btn btn-primary">
+          {externe ? 'Retour à mon espace' : 'Retour à la session'}
         </button>
       </div>
     )
@@ -308,6 +341,19 @@ export default function SignatureFormateur() {
         subtitle={`${periodLabel(slot.period)} du ${fmtDate(slot.date)} - ${data.session.course || 'Formation'}`}
         onValidate={onSigned}
         onCancel={() => setSigning(null)}
+      />
+    )
+  }
+
+  // Pad du formateur pour sa propre signature (0453)
+  if (signeMoi && slot) {
+    return (
+      <FullscreenSignaturePad
+        title={moi?.trainer ? `${moi.trainer.first_name} ${(moi.trainer.last_name || '').toUpperCase()}` : trainerName}
+        subtitle={`Votre signature de formateur - ${periodLabel(slot.period)} du ${fmtDate(slot.date)}`}
+        confirmLabel="Je signe"
+        onValidate={onMoiSigned}
+        onCancel={() => setSigneMoi(false)}
       />
     )
   }
@@ -343,7 +389,7 @@ export default function SignatureFormateur() {
       {/* En-tête */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate(`/sessions/${sessionId}`)} className="p-2 -ml-2 rounded-ui-sm text-gray-500 hover:bg-gray-100">
+          <button onClick={() => navigate(retour)} aria-label="Retour" className="p-2 -ml-2 rounded-ui-sm text-gray-500 hover:bg-gray-100">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="min-w-0 flex-1">
@@ -410,6 +456,25 @@ export default function SignatureFormateur() {
         </p>
         <p className="text-ui font-semibold text-gray-700">{nbSignes}/{nbAttendus} signés</p>
       </div>
+
+      {/* Signature du formateur pour cette demi-journée (0453) */}
+      {moi && slot && (
+        <div className={`mx-3 mb-3 rounded-ui-lg border p-4 flex items-center gap-3 ${moiStatut === 'vide' ? 'bg-white border-primary-200' : 'bg-[rgb(var(--c-success-bg))] border-[rgb(var(--c-success)/0.3)]'}`}>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900">Votre signature de formateur</p>
+            <p className="text-ui mt-0.5">
+              {moiStatut === 'signe' ? <span className="text-[rgb(var(--c-success))] flex items-center gap-1"><Check className="w-4 h-4" /> Signée à {moiHeure()}</span>
+                : moiStatut === 'attente' ? <span className="text-[rgb(var(--c-info))] flex items-center gap-1"><UploadCloud className="w-4 h-4" /> Signée, envoi en attente</span>
+                : <span className="text-gray-500">À signer pour cette demi-journée</span>}
+            </p>
+          </div>
+          {moiStatut === 'vide' && (
+            <button onClick={() => setSigneMoi(true)} className="px-4 py-3 rounded-ui bg-primary-600 text-white font-semibold flex items-center gap-1.5">
+              <PenLine className="w-4 h-4" /> Signer
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Liste des stagiaires */}
       <div className="px-3 space-y-2">
@@ -618,6 +683,7 @@ export default function SignatureFormateur() {
               <li>Le stagiaire suivant est proposé automatiquement.</li>
               <li>Une demi-journée déjà signée est verrouillée : c'est normal.</li>
               <li>Sans réseau, tout est gardé sur le téléphone et part tout seul au retour du réseau. Ne fermez pas la page avant.</li>
+              <li>Signez vous aussi chaque demi-journée (cadre « Votre signature de formateur ») : elle figure sur la feuille d'émargement.</li>
             </ol>
             <p className="font-semibold text-gray-900 mt-4 mb-1 text-ui">Un stagiaire ne peut pas signer</p>
             <ol className="text-ui text-gray-600 space-y-2 list-decimal list-inside">
