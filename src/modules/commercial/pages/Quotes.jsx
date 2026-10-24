@@ -34,6 +34,7 @@ import { preparerDevisPublie } from '../lib/conditionsDevis'
 import { devisDeFormation, METIERS, libelleMetier, metierDevis, metierDeduit, metierLigne, objetsProposes, documentsAJoindre, piecesEntrepriseAJoindre, pieceValable } from '../lib/metierDevis'
 import AcompteDevis from '../components/AcompteDevis'
 import MentionsDevisForm from '../components/MentionsDevisForm'
+import PhotoLigneDevis from '../components/PhotoLigneDevis'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import SignatureObjetEnLigne from '../../../core/signature/SignatureObjetEnLigne'
@@ -250,6 +251,11 @@ export default function Quotes() {
   // Régime de TVA de l'organisme (franchise, exonération de la formation) : taux des nouvelles lignes et mentions
   const [regime, setRegime] = useState(null)
   useEffect(() => { chargerRegimeTva().then(setRegime) }, [])
+  // Articles du catalogue proposés dans les devis (0445) : sans prix d'achat, avec photo et fiche technique
+  const [articles, setArticles] = useState([])
+  useEffect(() => {
+    supabase.rpc('devis_articles').then(({ data, error }) => setArticles(error ? [] : (Array.isArray(data) ? data : [])), () => setArticles([]))
+  }, [])
   // Objets proposés par métier (0443, Paramètres › Facturation) ; texte libre toujours possible
   const [objetsDevis, setObjetsDevis] = useState(null)
   useEffect(() => {
@@ -488,6 +494,8 @@ export default function Quotes() {
         nature: it.nature === 'bien' ? 'bien' : 'service', vat_regime: it.vat_regime || 'normal',
         // Métier de la ligne (0443) : celui choisi, sinon déduit (formation du catalogue, bien = vente)
         metier: metierLigne(it) || null,
+        // Article du catalogue et photo de la ligne (0445)
+        stock_item_id: it.stock_item_id || null, photo_path: it.photo_path || null, show_photo: !!(it.show_photo && it.photo_path),
         // Éco-participation unitaire comprise dans le prix (0444)
         eco_ht: Number.isFinite(parseFloat(String(it.eco_ht ?? '').replace(',', '.'))) && parseFloat(String(it.eco_ht).replace(',', '.')) > 0 ? parseFloat(String(it.eco_ht).replace(',', '.')) : null
       }))
@@ -694,6 +702,16 @@ export default function Quotes() {
           courseTitle: `${d.label}${audience === 'particulier' ? ', version particuliers' : ''}${valide ? ` (version ${pdf.version})` : ' (version non validée : à faire valider avant envoi)'}`,
           enabled: valide,
         })
+      }
+      // Fiches techniques des articles vendus (0445), une fois chacune
+      const fiches = new Map()
+      for (const it of loadedItems) {
+        const a = it.stock_item_id ? articles.find((x) => x.id === it.stock_item_id) : null
+        if (a?.fiche_technique_path && !fiches.has(a.id)) fiches.set(a.id, a)
+      }
+      for (const a of fiches.values()) {
+        programAttachments.push({ filename: `Fiche technique ${a.reference || a.label}.pdf`.replace(/[\\/:*?"<>|]+/g, '-'), storagePath: a.fiche_technique_path, type: 'piece', kind: 'fiche',
+          courseTitle: `Fiche technique : ${a.label}`, enabled: true })
       }
       // Pièces de l'entreprise (attestations d'assurance) : jointes si elles sont valables à la date du jour
       const kinds = piecesEntrepriseAJoindre(quote, loadedItems)
@@ -1061,6 +1079,14 @@ export default function Quotes() {
       ...emptyItem, code: mat.code, description_title: mat.description_title,
       description_detail: mat.description_detail, unit_price_ht: prixFrais(tarifs, mat.code, mat.unit_price_ht).prix,
       unit: mat.unit, position: items.length, nature: mat.nature || 'bien'
+    }])
+  }
+  // Article du catalogue (0445) : prix de vente, éco-participation et photo de l'article ; métier vente
+  function addFromArticle(a) {
+    setItems([...items, {
+      ...emptyItem, code: a.reference || '', description_title: a.label, description_detail: '',
+      unit_price_ht: Number(a.sale_price_ht) || 0, unit: a.unit || 'unité', position: items.length,
+      nature: 'bien', metier: 'vente', stock_item_id: a.id, eco_ht: a.eco_ht ?? '', photo_path: a.photo_path || null, show_photo: false,
     }])
   }
   async function handleClientChange(clientId) {
@@ -1989,6 +2015,9 @@ export default function Quotes() {
                             className="w-16 px-1 py-0.5 border border-gray-200 rounded text-ui-sm" aria-label="Éco-participation unitaire HT" placeholder="0" /> € HT
                         </label>
                       )}
+                      {/* Photo de la ligne (0445) : celle de l'article ou une photo propre au devis, imprimée si cochée */}
+                      <PhotoLigneDevis item={item} dossier={`devis/${currentQuote.id || 'brouillon'}`}
+                        onChange={(patch) => setItems((prev) => prev.map((x, i) => (i === idx ? { ...x, ...patch } : x)))} />
                     </div>
                     {/* Row 3: Qté + Unité + PU HT + TVA% + Total = tout sur une ligne */}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -2035,8 +2064,11 @@ export default function Quotes() {
                   buttonClassName="text-ui px-3 py-1.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm hover:bg-[rgb(var(--c-warning-bg))] transition-colors flex items-center gap-1"
                   searchPlaceholder="Rechercher du matériel ou des frais..."
                   emptyText="Aucune ligne"
-                  items={predefinedMaterials.map((mat, i) => ({ key: i, label: mat.description_title, hint: [mat.code, mat.description_detail, money(mat.unit_price_ht)].filter(Boolean).join(' · '), mat }))}
-                  onPick={it => addFromMaterial(it.mat)}
+                  items={[
+                    ...articles.map((a) => ({ key: `art-${a.id}`, label: a.label, hint: [a.categorie, a.reference, a.sale_price_ht != null ? money(a.sale_price_ht) : 'Prix à définir', a.photo_path ? 'photo' : null].filter(Boolean).join(' · '), article: a })),
+                    ...predefinedMaterials.map((mat, i) => ({ key: i, label: mat.description_title, hint: [mat.code, mat.description_detail, money(mat.unit_price_ht)].filter(Boolean).join(' · '), mat })),
+                  ]}
+                  onPick={it => (it.article ? addFromArticle(it.article) : addFromMaterial(it.mat))}
                 >
                   <Plus size={14} /> Matériel et frais
                 </PickerMenu>
@@ -2235,7 +2267,7 @@ export default function Quotes() {
                         {att.courseTitle && <p className="text-ui-sm text-gray-400 truncate">{att.courseTitle}</p>}
                       </div>
                       <span className="text-ui-sm text-gray-400 flex-shrink-0">
-                        {att.kind === 'cgv' ? 'CGV' : att.kind === 'garantie' ? 'Garantie' : att.kind === 'perimetre' ? 'Périmètre' : att.type === 'piece' ? 'Assurance' : att.type === 'program' ? 'Programme' : 'Manuel'}
+                        {att.kind === 'cgv' ? 'CGV' : att.kind === 'garantie' ? 'Garantie' : att.kind === 'perimetre' ? 'Périmètre' : att.kind === 'fiche' ? 'Fiche technique' : att.type === 'piece' ? 'Assurance' : att.type === 'program' ? 'Programme' : 'Manuel'}
                       </span>
                       <button
                         onClick={() => setSendAttachments(prev => prev.map((a, i) => i === idx ? { ...a, enabled: !a.enabled } : a))}

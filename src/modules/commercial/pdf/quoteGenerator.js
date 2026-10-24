@@ -9,6 +9,7 @@ import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { renderCommercialDoc, itemRow, fmtEuro, fmtRate, issuerLines, recipientLines, companyLegalLine, bankRows } from './commercialLayout'
 import { devisDeFormation } from '../lib/metierDevis'
 import { mentionsDevis, chargerMentionsDevis, formulaireRetractation } from '../lib/mentionsDevis'
+import { photosDuDevis } from '../lib/photosDevis'
 
 // Devis et bon de commande partiel sur la mise en page commune des documents.
 // Identité de l'organisme : uniquement depuis organization_settings (options.orgSettings).
@@ -122,6 +123,8 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     },
     payment,
     legal,
+    // Photos des lignes cochées « dans le PDF » (0445)
+    photos: options.photos || (typeof document !== 'undefined' ? await photosDuDevis(items) : []),
   })
   // Particulier, contrat conclu hors établissement ou à distance : formulaire type de rétractation joint (0444)
   if (!partial && particulier && quote.hors_etablissement) {
