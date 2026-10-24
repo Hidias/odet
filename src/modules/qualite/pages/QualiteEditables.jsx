@@ -389,7 +389,7 @@ export default function QualiteEditables() {
     setGenerating(false)
   }
 
-  // Dossier pour l'avocat (24/10) : points à valider par métier, les quatre jeux de conditions, mentions des devis
+  // Dossier pour l'expert (24/10) : points à valider par métier, les quatre jeux de conditions, mentions des devis
   const dossierAvocat = async () => {
     setGenerating(true)
     try {
@@ -402,7 +402,7 @@ export default function QualiteEditables() {
       const blob = await dossierAvocatDocx({ docs, mentions: bs?.mentions_devis || {} })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `Dossier avocat conditions commerciales ${new Date().toISOString().slice(0, 10)}.docx`
+      a.download = `Dossier expert conditions commerciales ${new Date().toISOString().slice(0, 10)}.docx`
       document.body.appendChild(a); a.click(); a.remove()
       setTimeout(() => URL.revokeObjectURL(a.href), 2000)
     } catch (e) { console.error(e); toast.error('Dossier impossible') }
@@ -938,7 +938,7 @@ export default function QualiteEditables() {
                   </button>
                   {isExp && cat.id === 'commerce' && (
                     <div className="border-t px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-gray-50">
-                      <p className="text-ui-sm text-gray-600">Joints aux devis selon leur métier. Les projets de clauses sont marqués « À valider » ; le dossier de relecture les liste pour le relecteur (avocat, juriste, expert-comptable).</p>
+                      <p className="text-ui-sm text-gray-600">Joints aux devis selon leur métier. Les projets de clauses sont marqués « À valider » ; le dossier de relecture les liste pour l'expert qui les relit.</p>
                       <div className="flex flex-wrap gap-2">
                         <button type="button" onClick={() => setDossierPdf(true)} disabled={!templates} className="btn btn-sm btn-primary flex items-center gap-1"><Download className="w-4 h-4" /> Dossier de relecture (PDF)</button>
                         <button type="button" onClick={dossierAvocat} disabled={generating} className="btn btn-sm btn-secondary flex items-center gap-1"><Download className="w-4 h-4" /> Version Word</button>

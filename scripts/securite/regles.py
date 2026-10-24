@@ -1383,6 +1383,9 @@ tdx('0455', 'doc_review_participants', sel=f"(company_id in {_DV} or review_id i
     upd=f"(profile_id = (select auth.uid()) or company_id in {_DG})", dele=f"company_id in {_DG}")
 tdx('0455', 'doc_review_items', sel=f"(company_id in {_DV} or review_id in (select app.mes_relectures()))",
     ins=f"(company_id in {_DG} or review_id in (select app.mes_relectures()))", upd=f"(author_id = (select auth.uid()) or company_id in {_DVAL})")
+# Experts invités (0457) : invitations (lien et code compris) lues et tenues par qui gère les documents ; l'expert
+# n'a pas de compte : il passe par les fonctions expert_* (lien et code), jamais par la table.
+tdx('0457', 'doc_review_experts', sel=f"company_id in {_DG}", ins=f"company_id in {_DG}", upd=f"company_id in {_DG}")
 # Avis de passage (0451) : lus par qui voit les visites et par leur auteur ; écrits par qui gère les visites ou par le
 # technicien pour sa visite.
 tdx('0451', 'itv_visit_notices', sel=f"(company_id in {societes('interventions.visites.voir')} or created_by = (select auth.uid()))",

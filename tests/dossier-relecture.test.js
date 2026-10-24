@@ -38,7 +38,7 @@ describe('dossier de relecture en PDF', () => {
   it('fabrique les PDF (page pour le relecteur en tête) et les fichiers Word', async () => {
     const ORG = buildORG({ name: 'Société Essai', legal_name: 'Société Essai SAS', city: 'Quimper', postal_code: '29000', address: '1 rue A' })
     const plan = planDossier({ prestations: ['maintenance'], particuliers: true, mixtes: [['maintenance', 'vente']] }, () => true)
-    const fichiers = await fabriquerDossier({ plan, templates, ORG, ctx: null, relecteur: 'Me Essai, avocat', consigne: 'Merci', echeance: '2026-11-15' })
+    const fichiers = await fabriquerDossier({ plan, templates, ORG, ctx: null, relecteur: 'Essai EXPERT', consigne: 'Merci', echeance: '2026-11-15' })
     const pdfs = fichiers.filter((f) => f.nom.endsWith('.pdf'))
     expect(pdfs.map((f) => f.nom)).toEqual(['01 Maintenance et verification.pdf', '02 Maintenance et verification (particuliers).pdf', '03 Mixte Maintenance et verification + Vente de materiel.pdf', '04 Mixte Maintenance et verification + Vente de materiel (particuliers).pdf'])
     expect(fichiers.filter((f) => f.nom.startsWith('Word/')).length).toBe(4)

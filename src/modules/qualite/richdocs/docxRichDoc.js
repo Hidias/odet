@@ -1,12 +1,12 @@
 // Export Word et réimport des documents qualité au nouveau modèle (pilotage de H du 24/10 : conditions générales
-// relues par l'avocat). Aucun service extérieur : le fichier .docx est construit et relu dans le navigateur (jszip).
+// relues par l'expert). Aucun service extérieur : le fichier .docx est construit et relu dans le navigateur (jszip).
 //
 // Export : un titre, puis une section par article (titre en « Titre 2 »), les articles réservés aux particuliers ou
 // aux professionnels marqués [particuliers] / [professionnels] dans leur titre, les listes en puces, les tableaux en
-// tableaux Word, les encadrés « À valider par l'avocat ». Les champs entre accolades ({{org.nom}}…) restent tels
+// tableaux Word, les encadrés « À valider par l'expert ». Les champs entre accolades ({{org.nom}}…) restent tels
 // quels : l'outil les remplit à l'impression.
 // Réimport : le fichier relu (modifications suivies acceptées, commentaires ignorés) redevient un contenu au même
-// modèle ; la comparaison section par section montre ce que l'avocat a changé avant de l'enregistrer en brouillon.
+// modèle ; la comparaison section par section montre ce que l'expert a changé avant de l'enregistrer en brouillon.
 
 import JSZip from 'jszip'
 
@@ -77,7 +77,7 @@ export async function fichierDocx(corps) {
   return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
 }
 
-/** Document qualité en Word, prêt pour l'avocat */
+/** Document qualité en Word, prêt pour l'expert */
 export function exportDocx({ tpl, content, code }) {
   return fichierDocx(documentXml({
     titre: `${tpl.name}${code ? ` (${code})` : ''}`,
@@ -156,7 +156,7 @@ export async function importDocx(buf, actuelles = []) {
       }
       if (!t) continue
       if (/^(Heading|Titre)3$/i.test(st)) ajoute({ t: 'h', text: t })
-      else if (/^Note$/i.test(st) || /^À valider par l'avocat/i.test(t)) ajoute({ t: 'note', text: t })
+      else if (/^Note$/i.test(st) || /^À valider par l'(avocat|expert)/i.test(t)) ajoute({ t: 'note', text: t })
       else if (/^Quote$|^Citation$/i.test(st)) ajoute({ t: 'quote', paras: [t] })
       else if (/^[•·▪-]\s/.test(t)) ajoute({ t: 'ul', items: [t.replace(/^[•·▪-]\s+/, '')] })
       else if (/^☐\s/.test(t)) ajoute({ t: 'check', items: [t.replace(/^☐\s+/, '')] })
@@ -223,7 +223,7 @@ export function comparerSections(avant, apres) {
   return out
 }
 
-// ── Dossier pour l'avocat ──
+// ── Dossier pour l'expert ──
 // Points à faire valider par métier (pilotage de H du 24/10), repris en tête du dossier
 export const POINTS_AVOCAT = [
   { titre: 'Maintenance et vérification', points: ['Durée du contrat et reconduction tacite, avec l\'information obligatoire du particulier (articles L215-1 et suivants du Code de la consommation)', 'Résiliation', 'Révision du prix (indice, formule, information du client)', 'Accès au site et obligations du client', 'Responsabilité limitée aux appareils vérifiés, au jour de la visite', 'Non-conformités signalées et charge de la mise en conformité'] },
@@ -233,7 +233,7 @@ export const POINTS_AVOCAT = [
   { titre: 'Tous les devis', points: ['Clause du devis établi à distance (informations du client, vérification, écart)', 'Avenant : écart chiffré soumis à l\'accord du client avant exécution, signé en ligne', 'Mention « L\'acceptation du devis vaut acceptation des conditions générales jointes » et case à cocher en signature en ligne', 'Taux réduit de TVA : attestation du client sur le devis (à valider aussi par l\'expert-comptable)'] },
 ]
 
-/** Dossier Word pour l'avocat : points à valider, chaque jeu de conditions, mentions des devis */
+/** Dossier Word pour l'expert : points à valider, chaque jeu de conditions, mentions des devis */
 const LIBELLES_MENTIONS = {
   cgv: 'Acceptation des conditions générales (près de la signature)', distance: 'Devis établi à distance', materiel: 'Prix du matériel',
   acompte: 'Acompte à la commande', delai: 'Délai de livraison ou d\'intervention', eco: 'Éco-participation',
@@ -244,7 +244,7 @@ const LIBELLES_MENTIONS = {
 export function dossierAvocatDocx({ docs = [], mentions = {}, libellesMentions = LIBELLES_MENTIONS }) {
   const parts = [
     para('Dossier de relecture des conditions commerciales', 'Heading1'),
-    para(`Préparé le ${new Date().toLocaleDateString('fr-FR')}. Chaque document peut être relu ici, ou séparément (export Word depuis Qualité › Documents) puis réimporté dans l'outil, qui montre les changements avant de les enregistrer. Les passages marqués « À valider par l'avocat » sont des projets.`, 'Note'),
+    para(`Préparé le ${new Date().toLocaleDateString('fr-FR')}. Chaque document peut être relu ici, ou séparément (export Word depuis Qualité › Documents) puis réimporté dans l'outil, qui montre les changements avant de les enregistrer. Les passages marqués « À valider par l'expert » sont des projets.`, 'Note'),
     para('Points à valider, par métier', 'Heading1'),
     ...POINTS_AVOCAT.flatMap((g) => [para(g.titre, 'Heading2'), ...g.points.map((x) => para(`• ${x}`))]),
   ]

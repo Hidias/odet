@@ -1,5 +1,5 @@
 // Dossier de relecture en PDF (24/10, demande de H : un PDF par type de prestation, et un PDF mixte quand une
-// prestation combine plusieurs métiers). Chaque PDF commence par une page pour le relecteur (avocat, juriste,
+// prestation combine plusieurs métiers). Chaque PDF commence par une page pour l'expert (avocat, juriste,
 // expert-comptable…) : ce qu'on attend de lui, les points à valider, les passages à compléter, les questions
 // tranchées ; puis les documents avec la mise en page remise aux clients, dans la variante demandée (professionnels
 // ou particuliers). Le texte relu est celui en cours de circuit, sinon le brouillon, sinon le modèle.
@@ -34,7 +34,7 @@ export function pointsAValider(content, ctx = null) {
   const out = []
   visibleSections(content || { sections: [] }).forEach((s) => (s.blocks || []).forEach((b) => {
     if (b.t === 'note' && RE_A_VALIDER.test(String(b.text || '').trim())) {
-      out.push({ article: s.title || '', texte: strip(fillText(String(b.text).replace(/^À valider( par l'avocat)?\s*:\s*/i, ''), ctx)) })
+      out.push({ article: s.title || '', texte: strip(fillText(String(b.text).replace(/^À valider( par l'(avocat|expert))?\s*:\s*/i, ''), ctx)) })
     }
   }))
   return out

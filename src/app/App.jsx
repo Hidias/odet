@@ -68,6 +68,7 @@ const Apports = lazy(importSur(() => import('../core/apports/Apports')))
 const Invoices = lazy(importSur(() => import('../modules/commercial/pages/Invoices')))
 const QualiteEditables = lazy(importSur(() => import('../modules/qualite/pages/QualiteEditables')))
 const Relecture = lazy(importSur(() => import('../modules/qualite/pages/Relecture')))
+const RelectureExpert = lazy(importSur(() => import('../modules/qualite/pages/RelectureExpert')))
 const Completude = lazy(importSur(() => import('../modules/qualite/pages/Completude')))
 const BPF = lazy(importSur(() => import('../modules/qualite/pages/BPF')))
 const Certification = lazy(importSur(() => import('../modules/certification/pages/Certification')))
@@ -268,6 +269,8 @@ export default function App() {
 
           <Route path="/portail/:token" element={<TraineePortal />} />
           <Route path="/entreprise/:token" element={<ClientPortal />} />
+          {/* Relecture d'un document par l'expert de l'entreprise (0457) : lien et code, sans compte */}
+          <Route path="/relecture-expert/:token" element={<RelectureExpert />} />
           {/* Connexion dédiée à l'espace client (compte personnel, 0449) */}
           <Route path="/espace-client" element={<EspaceClientConnexion />} />
 

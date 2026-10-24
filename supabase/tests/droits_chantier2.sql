@@ -7208,6 +7208,66 @@ begin
     end;
   end if;
 
+  -- Espace de l'expert (0457)
+  if to_regclass('public.doc_review_experts') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 4;
+    declare ex_r uuid; ex_tok text; ex_code text; ex_j jsonb; ex_k jsonb; ex_m jsonb; ex_c jsonb; ex_t jsonb; ex_st text; ex_n int; ex_vu boolean;
+            ex_doc text := 'essai-0457-' || left(md5(gen_random_uuid()::text), 6);
+            ex_sec jsonb := '[{"id": "a", "title": "Durée", "blocks": [{"t": "p", "text": "Trois ans."}]}]'::jsonb;
+    begin
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.doc_review_regler(null, jsonb_build_object(ex_doc, 'complet'));
+      insert into public.doc_reviews (doc_id, doc_name, content, mode) values (ex_doc, 'Essai expert', jsonb_build_object('sections', ex_sec), 'complet') returning id into ex_r;
+      update public.doc_reviews set status = 'arbitrage' where id = ex_r;
+      update public.doc_reviews set status = 'expert' where id = ex_r;
+      insert into public.doc_review_experts (review_id, name, quality, email) values (ex_r, 'Me Essai', 'avocat', 'avocat.essai@test.invalid') returning token, access_code into ex_tok, ex_code;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+      execute 'set local role anon';
+      ex_k := public.expert_ouvrir(ex_tok, '000000x');
+      ex_j := public.expert_ouvrir(ex_tok, ex_code);
+      ex_m := public.expert_deposer(ex_tok, ex_code, 'a', 'modification', null, '{"title": "Durée", "blocks": [{"t": "p", "text": "Cinq ans."}]}'::jsonb);
+      ex_c := public.expert_deposer(ex_tok, ex_code, 'a', 'commentaire', 'À revoir', null);
+      perform public.expert_retirer(ex_tok, ex_code, (ex_c->>'id')::uuid);
+      ex_vu := false;
+      begin perform 1 from public.doc_review_experts limit 1; exception when insufficient_privilege then ex_vu := true; end;
+      ex_t := public.expert_terminer(ex_tok, ex_code, 'Bon pour moi, sous réserve de la durée.');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      select status into ex_st from public.doc_reviews where id = ex_r;
+      select count(*) into ex_n from public.doc_review_items where review_id = ex_r and author_quality = 'expert' and status <> 'retiree';
+      if ex_k ? 'error' and (select failed_attempts from public.doc_review_experts where token = ex_tok) = 0 and ex_j->'review'->>'doc_name' = 'Essai expert' then
+        v_lines := v_lines || 'OK      anon  0457 : expert : mauvais code refusé (essai compté), bon code : document ouvert'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0457 : ouverture ' || coalesce(ex_k::text, '?') || ' / ' || coalesce(ex_j::text, '?')); end if;
+      if (ex_m->>'ok')::boolean and ex_vu and ex_n = 2 then
+        v_lines := v_lines || 'OK      anon  0457 : expert : propose, commente, retire son avis ; aucune table lisible'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0457 : avis ' || coalesce(ex_m::text, '?') || ' ' || ex_vu || ' ' || ex_n); end if;
+      if (ex_t->>'ok')::boolean and ex_st = 'arbitrage' and (select expert_returned_at is not null from public.doc_reviews where id = ex_r) then
+        v_lines := v_lines || 'OK      anon  0457 : fin de relecture de l''expert : circuit passé à l''arbitrage tout seul'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0457 : fin ' || coalesce(ex_t::text, '?') || ' ' || coalesce(ex_st, '?')); end if;
+      -- Après la fin : plus d'avis ; un compte connecté ne se fait pas passer pour l'expert
+      perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+      execute 'set local role anon';
+      ex_m := public.expert_deposer(ex_tok, ex_code, 'a', 'commentaire', 'Encore', null);
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.doc_review_items (review_id, kind, text, expert_id) values (ex_r, 'commentaire', 'Faux expert', (select id from public.doc_review_experts where token = ex_tok));
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if ex_m ? 'error' and exists (select 1 from public.doc_review_items where review_id = ex_r and text = 'Faux expert' and expert_id is null) then
+        v_lines := v_lines || 'OK      dir   0457 : avis de l''expert fermés après sa fin ; aucun avis attribué à l''expert par un compte'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0457 : après la fin ' || coalesce(ex_m::text, '?')); end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 4; v_lines := v_lines || ('ÉCHEC   base  0457 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

@@ -1,5 +1,6 @@
 import { getAdminClient, requireRight, clientDeLAppelant, MANAGERS } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
+import { getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, boutonHTML } from './_lib/mailer.js'
 
 // Comptes formateur externe et stagiaire (lot 2, 0047). Aucun email n'est envoyé par l'application.
 //  - inviter (organisme) : { kind: 'formateur' | 'stagiaire', id, email } ; crée le compte relié à la fiche
@@ -8,6 +9,9 @@ import { withErrorLog } from './_lib/errors.js'
 //  - creer_stagiaire (public, depuis le portail) : { token, trainee_id, ticket, email, password } ; le ticket du portail
 //    (code de la convocation vérifié par la base) prouve que la personne est ce stagiaire ; compte créé avec le mot de
 //    passe choisi, relié à sa fiche. Refusé si la fiche a déjà un compte ou si l'adresse est déjà utilisée.
+//  - expert_envoyer (droit « Gérer les documents qualité », 0457) : { expert_id, quoi: 'lien' | 'code' } ; envoie à
+//    l'expert invité son lien de relecture ou son code, dans deux e-mails séparés (jamais ensemble), depuis la boîte de
+//    la personne connectée, en copie cachée de l'organisme.
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const KINDS = {
@@ -70,6 +74,8 @@ async function handler(req, res) {
     return res.status(200).json({ ok: true })
   }
 
+  if (b.action === 'expert_envoyer') return envoyerExpert(req, res, b)
+
   const k = KINDS[b.kind]
   if (!k) return res.status(400).json({ error: 'Type de compte inconnu' })
   const ctx = await requireRight(req, res, k.right, MANAGERS)
@@ -108,6 +114,51 @@ async function handler(req, res) {
   }
 
   return res.status(400).json({ error: 'Action inconnue' })
+}
+
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+// Lien ou code de l'espace de l'expert (0457), deux e-mails séparés
+async function envoyerExpert(req, res, b) {
+  const ctx = await requireRight(req, res, ['qualite.documents.gerer', 'qualite.documents.valider'], MANAGERS)
+  if (!ctx) return
+  const { admin, user } = ctx
+  const quoi = b.quoi === 'code' ? 'code' : b.quoi === 'lien' ? 'lien' : null
+  if (!quoi) return res.status(400).json({ error: 'Lien ou code ?' })
+  const appelant = clientDeLAppelant(req)
+  if (!appelant) return res.status(401).json({ error: 'Connexion requise' })
+  // L'appelant doit voir l'invitation (règles de la base)
+  const { data: ex } = await appelant.from('doc_review_experts').select('id, review_id, name, email, token, access_code, revoked_at, expires_at, done_at').eq('id', String(b.expert_id || '')).maybeSingle()
+  if (!ex) return res.status(403).json({ error: 'Invitation introuvable' })
+  if (ex.revoked_at || new Date(ex.expires_at) < new Date() || ex.done_at) return res.status(400).json({ error: 'Invitation retirée, échue ou terminée' })
+  if (!EMAIL.test(ex.email || '')) return res.status(400).json({ error: 'Adresse e-mail de l\'expert manquante' })
+  const { data: rv } = await appelant.from('doc_reviews').select('doc_name, due_on, status').eq('id', ex.review_id).maybeSingle()
+  if (!rv || rv.status !== 'expert') return res.status(400).json({ error: 'Le document n\'est pas à l\'étape « chez l\'expert »' })
+
+  const mailer = await getMailer(admin, user.id, { envoiReel: true })
+  if (mailer.error) return res.status(400).json({ error: 'Configurez d\'abord votre e-mail dans Paramètres' })
+  const org = await getOrg(admin)
+  const sender = await getSender(admin, mailer.emailConfig.email)
+  const lienExpert = org.app_url ? `${org.app_url}/#/relecture-expert/${ex.token}` : ''
+  if (quoi === 'lien' && !lienExpert) return res.status(500).json({ error: 'Adresse de l\'application inconnue (APP_URL)' })
+  const nomOrg = org.name || ''
+  const echeance = rv.due_on ? ` Nous serions heureux d'avoir votre retour avant le ${new Date(rv.due_on).toLocaleDateString('fr-FR')}.` : ''
+  const sujet = quoi === 'lien' ? `Relecture : ${rv.doc_name} (${nomOrg})` : `Votre code de relecture (${nomOrg})`
+  const texte = quoi === 'lien'
+    ? `Bonjour,\n\nNous vous remercions d'accepter de relire notre document « ${rv.doc_name} ». Vous pouvez le consulter, valider chaque article, proposer une rédaction ou commenter, à cette adresse : ${lienExpert}${echeance}\n\nPour votre sécurité, le code d'accès vous est envoyé dans un e-mail séparé.\n\nBien cordialement,`
+    : `Bonjour,\n\nVoici votre code d'accès pour la relecture de « ${rv.doc_name} » : ${ex.access_code}\n\nLe lien vous est envoyé dans un autre e-mail.\n\nBien cordialement,`
+  let html = esc(texte).replace(/\n/g, '<br>')
+  if (quoi === 'lien') html = html.replace(esc(lienExpert), `<a href="${esc(lienExpert)}">${esc(lienExpert)}</a>`) + boutonHTML(lienExpert, 'Ouvrir le document', org.brand_accent || '#C8102E')
+  else html = html.replace(esc(ex.access_code), `<strong style="font-size:18px;letter-spacing:3px">${esc(ex.access_code)}</strong>`)
+  html += buildSignatureHTML(sender, org)
+  await sendWithRetry(mailer.transporter, {
+    from: `"${sender.name} - ${nomOrg}" <${mailer.emailConfig.email}>`, to: ex.email, bcc: org.email_bcc || undefined,
+    subject: sujet, text: texte, html,
+  }, 3)
+  try { mailer.transporter.close() } catch { /* ignore */ }
+  const maintenant = new Date().toISOString()
+  await admin.from('doc_review_experts').update(quoi === 'lien' ? { link_sent_at: maintenant } : { code_sent_at: maintenant }).eq('id', ex.id)
+  return res.status(200).json({ ok: true, envoye_a: ex.email, le: maintenant })
 }
 
 export default withErrorLog(handler, 'comptes-externes')
