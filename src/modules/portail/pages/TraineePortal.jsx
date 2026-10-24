@@ -12,6 +12,7 @@ import { fr } from 'date-fns/locale'
 import TraineeDocuments from '../../formation/components/TraineeDocuments'
 import CompteStagiairePortail from '../components/CompteStagiairePortail'
 import RessentiJour from '../components/RessentiJour'
+import ModulesFormation from '../components/ModulesFormation'
 import { EcranVitrine, CodeCases } from '../components/Vitrine'
 import QuizFlashJeu from '../components/QuizFlashJeu'
 import { estPanneReseau, garder, enAttente, envoyerEnAttente } from '../lib/fileSignatures'
@@ -1237,6 +1238,9 @@ export default function TraineePortal() {
 
                 {/* Ressenti au fil de la formation (0414) */}
                 {inDates && <RessentiJour token={token} traineeId={selectedTrainee.id} ticket={portalTicket} />}
+
+                {/* Formation mixte : modules en ligne avant la session (0452) */}
+                <ModulesFormation token={token} traineeId={selectedTrainee.id} ticket={portalTicket} Carte={HubCard} />
 
                 {positioningQuestions.length > 0 && (
                   <HubCard icon={ClipboardCheck} title="Test de positionnement" tone={positioningTestCompleted ? 'done' : 'accent'}

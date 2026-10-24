@@ -1361,6 +1361,12 @@ tdx('0399', 'training_documents_issued', sel=_AVIS_VOIR, ins=_AVIS_GER, upd=None
 # Journal de l'espace client (0401) : lu par qui voit les fiches clients ; écrit seulement par les fonctions des
 # portails (aucune règle d'écriture), jamais modifié ni effacé : il sert de preuve de mise à disposition.
 tdx('0401', 'portal_events', sel=f"company_id in {societes('clients.fiches.voir')}")
+# Formation mixte (0452) : modules lus avec le catalogue ou les sessions, tenus par qui gère le catalogue ; suivi lu
+# avec les sessions, écrit seulement par les fonctions du portail.
+tdx('0452', 'course_modules', sel=f"(company_id in {societes('formation.catalogue.voir')} or company_id in {societes('formation.sessions.voir')})",
+    ins=f"company_id in {societes('formation.catalogue.gerer')}", upd=f"company_id in {societes('formation.catalogue.gerer')}",
+    dele=f"company_id in {societes('formation.catalogue.gerer')}")
+tdx('0452', 'course_module_progress', sel=f"company_id in {societes('formation.sessions.voir')}")
 # Avis de passage (0451) : lus par qui voit les visites et par leur auteur ; écrits par qui gère les visites ou par le
 # technicien pour sa visite.
 tdx('0451', 'itv_visit_notices', sel=f"(company_id in {societes('interventions.visites.voir')} or created_by = (select auth.uid()))",
