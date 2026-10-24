@@ -7,6 +7,7 @@ import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { renderCommercialDoc, itemRow, fmtEuro, fmtRate, issuerLines, recipientLines, companyLegalLine, bankRows } from './commercialLayout'
+import { devisDeFormation } from '../lib/metierDevis'
 
 // Devis et bon de commande partiel sur la mise en page commune des documents.
 // Identité de l'organisme : uniquement depuis organization_settings (options.orgSettings).
@@ -69,7 +70,7 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   // Acheteur public (décision de H, 21/10) : intérêts moratoires du code de la commande publique (réglages de facturation)
   const publicClient = client && client.client_type === 'public'
   const penalitesPublic = [regime.mentions.penalitesPublic, regime.mentions.indemnitePublic].filter(Boolean).join(' ')
-  const formation = (items || []).some(it => !!it.course_id) || !!quote.session_id
+  const formation = devisDeFormation(quote, items)
   const legal = [
     particulier ? null : publicClient && penalitesPublic ? penalitesPublic : "En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
     // Mentions de TVA des réglages de l'organisme (franchise, exonération de la formation, autoliquidation)

@@ -30,6 +30,7 @@ import { useRelanceIA } from '../lib/useRelanceIA'
 import { useCapacites } from '../../../core/capacites'
 import { modeleEnvoiDevis } from '../../../core/emails/modeles'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
+import { devisDeFormation } from '../lib/metierDevis'
 import AcompteDevis from '../components/AcompteDevis'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import { lienEspaceClient } from '../../../core/portail/lienEspace'
@@ -647,8 +648,9 @@ export default function Quotes() {
           }
         }
       }
-      // Conditions générales de vente : document qualité « CGV » dans sa version publiée (Qualité > Documents)
-      const cgv = await publishedDocPDF('cgv')
+      // Conditions générales de vente de la formation (document qualité « CGV », version publiée) : seulement pour
+      // un devis de formation. Un devis d'extincteurs ou de BAES ne reçoit aucun document de formation.
+      const cgv = devisDeFormation(quote, loadedItems) ? await publishedDocPDF('cgv') : null
       if (cgv) {
         programAttachments.push({
           filename: cgv.filename,
