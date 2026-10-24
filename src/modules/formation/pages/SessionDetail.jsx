@@ -51,6 +51,7 @@ import SessionGroupes from '../components/SessionGroupes'
 import PiloteSession from '../../pilote/PiloteSession'
 import BilanAttentes from '../components/BilanAttentes'
 import RessentiSession from '../components/RessentiSession'
+import { SuiviModules } from '../components/ModulesEnLigne'
 import AvisEntrepriseSession from '../components/AvisEntrepriseSession'
 import SeuilMaintien from '../components/SeuilMaintien'
 import CodesPortail from '../components/CodesPortail'
@@ -3830,6 +3831,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {session?.id && <BilanAttentes sessionId={session.id} />}
           {/* Ressenti au fil de la formation (0414) */}
           {session?.id && <RessentiSession sessionId={session.id} inscrits={sessionTrainees} />}
+          {/* Formation mixte : modules en ligne suivis avant la session (0452) */}
+          {session?.id && <SuiviModules session={session} inscrits={sessionTrainees} />}
           {/* Satisfaction de l'entreprise (0415) */}
           {session?.id && <AvisEntrepriseSession sessionId={session.id} />}
           {/* Évaluations à chaud - qualité complet */}

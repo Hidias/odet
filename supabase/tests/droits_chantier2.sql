@@ -6927,6 +6927,47 @@ begin
     end;
   end if;
 
+  -- Formation mixte : modules en ligne avant la session (0452)
+  if to_regclass('public.course_modules') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare fm_course uuid; fm_m uuid; fm_s uuid; fm_t uuid; fm_tok text := md5(gen_random_uuid()::text); fm_tic text := md5(gen_random_uuid()::text);
+            fm_l jsonb; fm_r1 jsonb; fm_r2 jsonb; fm_r3 jsonb; fm_ok boolean := false;
+    begin
+      insert into public.courses (title) values ('Formation essai 0452') returning id into fm_course;
+      insert into public.course_modules (course_id, position, title, kind, body, duration_minutes, questions, pass_percent)
+      values (fm_course, 1, 'Les classes de feu', 'texte', 'A, B, C…', 10,
+        '[{"q": "Un feu de papier est de classe…", "choix": ["A", "B", "C"], "bonne": 0}, {"q": "Un feu d''huile de friture…", "choix": ["B", "F"], "bonne": 1}]'::jsonb, 100)
+      returning id into fm_m;
+      begin insert into public.course_modules (course_id, title, questions) values (fm_course, 'Incomplet', '[{"q": "Seule", "choix": ["A"], "bonne": 0}]'::jsonb);
+      exception when sqlstate '23514' then fm_ok := true; end;
+      insert into public.sessions (course_id, client_id, start_date, end_date, attendance_token) values (fm_course, v_client, current_date + 7, current_date + 7, fm_tok) returning id into fm_s;
+      insert into public.trainees (first_name, last_name, client_id) values ('Essai', 'Mixte', v_client) returning id into fm_t;
+      insert into public.session_trainees (session_id, trainee_id) values (fm_s, fm_t);
+      update public.session_trainees set portal_ticket = fm_tic, portal_ticket_expires_at = now() + interval '1 hour' where session_id = fm_s and trainee_id = fm_t;
+      execute 'set local role anon';
+      fm_l := public.portal_modules(fm_tok, fm_t, fm_tic);
+      perform public.portal_module_suivre(fm_tok, fm_t, fm_tic, fm_m, 'ouvrir');
+      fm_r1 := public.portal_module_suivre(fm_tok, fm_t, fm_tic, fm_m, 'temps', 900);
+      fm_r2 := public.portal_module_suivre(fm_tok, fm_t, fm_tic, fm_m, 'terminer', 0, '[0, 0]'::jsonb);
+      fm_r3 := public.portal_module_suivre(fm_tok, fm_t, fm_tic, fm_m, 'terminer', 0, '[0, 1]'::jsonb);
+      execute 'reset role';
+      if jsonb_array_length(fm_l) = 1 and not (fm_l->0->'questions'->0 ? 'bonne') and fm_ok then
+        v_lines := v_lines || 'OK      anon  0452 : modules de la formation sur le portail, sans les bonnes réponses ; question incomplète refusée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0452 : modules ' || coalesce(fm_l::text, '?')); end if;
+      if (fm_r1->>'seconds')::int = 120 then v_lines := v_lines || 'OK      anon  0452 : temps passé par tranches plafonnées'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0452 : temps ' || coalesce(fm_r1::text, '?')); end if;
+      if not (fm_r2->>'reussi')::boolean and (fm_r2->>'score')::int = 50 and (fm_r3->>'reussi')::boolean and (fm_r3->>'attempts')::int = 2 then
+        v_lines := v_lines || 'OK      anon  0452 : réponses corrigées par la base, module validé au seuil'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0452 : validation ' || coalesce(fm_r3::text, '?')); end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0452 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

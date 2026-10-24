@@ -8,6 +8,7 @@ import CourseDocumentsList from '../components/CourseDocumentsList'
 import CourseSequencesModal from '../../suivi/components/CourseSequencesModal'
 import { countSequencesByCourse, canEditCatalog } from '../../suivi/lib/sfData'
 import { useDroits } from '../../../core/rights/useDroit'
+import { ModulesEnLigne } from '../components/ModulesEnLigne'
 
 import { confirmer } from '../../../ui/Confirm'
 import { programmeModifie, versionSuivante, effectifTexte, DELAI_ACCES_DEFAUT, TARIF_DEFAUT } from '../pdf/programmePDF'
@@ -1262,6 +1263,9 @@ export default function Courses() {
               <p className="text-ui-sm text-gray-500 mt-1">Facultatif : sans fichier déposé, le programme est généré par l&apos;outil à partir de la fiche.{form.program_url && !fichierDeLInstance(form.program_url) ? ' Le fichier venu de l\'ancien outil est ignoré.' : ''}</p>
             </div>
             
+            {/* Formation mixte : modules en ligne (0452) */}
+            {selectedCourse?.id && <ModulesEnLigne courseId={selectedCourse.id} peutGerer={!!d.gerer} />}
+
             <div className="flex justify-end gap-3 p-4 border-t">
               <button onClick={() => setShowForm(false)} className="btn btn-secondary">Annuler</button>
               <button onClick={handleSave} className="btn btn-primary">
