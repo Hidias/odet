@@ -61,11 +61,11 @@ export async function preparerDevisPiste(lead) {
       })
       ;(courses || []).slice(1).forEach((o) => lines.push({ course_id: o.id, code: o.code || null, description_title: `Variante : ${o.title}`, description_detail: 'À garder ou retirer', quantity: 0, unit: 'groupe', unit_price_ht: Number(o.price_ht || 0), tva_rate: 20 }))
     } else {
-      lines.push({ description_title: rule?.label || 'Formation sécurité incendie', description_detail: n > 0 ? `${n} salarié${n > 1 ? 's' : ''} du site` : 'Un groupe', quantity: 1, unit: 'groupe', unit_price_ht: 0, tva_rate: 20 })
+      lines.push({ description_title: rule?.label || 'Formation sécurité incendie', description_detail: n > 0 ? `${n} salarié${n > 1 ? 's' : ''} du site` : 'Un groupe', quantity: 1, unit: 'groupe', unit_price_ht: 0, tva_rate: 20, metier: 'formation' })
     }
     object = `Formation ${rule?.label ? rule.label.toLowerCase() : 'sécurité incendie'}`
   } else {
-    lines.push({ description_title: 'Contrat de maintenance du matériel de sécurité incendie', description_detail: 'Vérification annuelle des extincteurs et du matériel : nombre d\'appareils à préciser après inventaire', quantity: 1, unit: 'an', unit_price_ht: 0, tva_rate: 20 })
+    lines.push({ description_title: 'Contrat de maintenance du matériel de sécurité incendie', description_detail: 'Vérification annuelle des extincteurs et du matériel : nombre d\'appareils à préciser après inventaire', quantity: 1, unit: 'an', unit_price_ht: 0, tva_rate: 20, metier: 'maintenance' })
     object = 'Maintenance du matériel de sécurité incendie'
   }
 

@@ -14,6 +14,7 @@ import { missingOrgFields, ORG_REQUIRED } from '../org/orgUtils'
 import EmailSettings from './EmailSettings'
 import NumerotationFactures from './facturation/NumerotationFactures'
 import MentionsFactures from './facturation/MentionsFactures'
+import ReglagesDevis from './facturation/ReglagesDevis'
 import TransmissionComptable from './facturation/TransmissionComptable'
 import DroitsPersonnes from './droits/DroitsPersonnes'
 import ProfilsDroits from './droits/ProfilsDroits'
@@ -393,6 +394,7 @@ export default function Settings() {
               </div>
               <NumerotationFactures />
               <MentionsFactures />
+              <ReglagesDevis />
               <TransmissionComptable />
               <h2 className="section-title">Emails et exercice</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -87,9 +87,11 @@ function drawBlock(f, b, ctx) {
 }
 
 /** Écrit les sections d'un document (contenu au nouveau modèle) dans un flux de layout.js déjà ouvert */
-export function writeRichDoc(f, content, ctx, { titles = true } = {}) {
-  visibleSections(content).forEach((s) => {
-    if (s.title && titles) f.section(s.title)
+export function writeRichDoc(f, content, ctx, { titles = true, numeroter = false } = {}) {
+  // numeroter : articles numérotés à la suite parmi les sections visibles (variante professionnels ou particuliers
+  // d'une condition générale, sans trou de numéro)
+  visibleSections(content).forEach((s, i) => {
+    if (s.title && titles) f.section(numeroter ? `Article ${i + 1}. ${s.title}` : s.title)
     s.blocks.forEach((b) => drawBlock(f, b, ctx))
   })
 }
@@ -107,10 +109,11 @@ export function buildRichDocPDF(ORG, { tpl, code, content, ctx, history = [] }) 
     : null
   const f = startDocument(doc, ORG, {
     ref: `${code}-V${version}`,
-    docLabel: 'Système qualité',
+    docLabel: tpl.family === 'commerce' ? 'Conditions commerciales' : 'Système qualité',
     code: `${tpl.code}-V${version}`,
     title: tpl.name.replace(/^[PD]\d\d /, ''),
-    subtitle: [ind, validated ? null : `Projet, version ${version} non validée`].filter(Boolean).join('  ·  ') || null,
+    subtitle: [ind, content.options?.audience === 'particulier' ? 'Version pour les particuliers' : null,
+      validated ? null : `Projet, version ${version} non validée`].filter(Boolean).join('  ·  ') || null,
   })
   const last = history[0] || null
   const pilote = tpl.pilote ? tpl.pilote.replace(/^le |^la /, '') : 'Direction'
@@ -122,7 +125,7 @@ export function buildRichDocPDF(ORG, { tpl, code, content, ctx, history = [] }) 
     [cell('Modification'), { content: validated && last ? (last.motif || '-') : (content.motif || 'Projet en cours'), colSpan: 3 }],
   ], { styles: { fontSize: 8, valign: 'top' }, columnStyles: { 0: { cellWidth: 32 }, 2: { cellWidth: 30 } }, alternateRowStyles: {} })
 
-  writeRichDoc(f, content, ctx)
+  writeRichDoc(f, content, ctx, { numeroter: !!tpl.numeroter })
 
   if (history.length) {
     f.section('Historique des versions')

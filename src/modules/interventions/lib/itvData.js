@@ -417,7 +417,7 @@ export async function createReplacementQuote(visit, items, equipmentById, settin
   const tva = Number(settings?.tva_rate ?? 20)
   const lines = items.filter((i) => i.result === 'a_remplacer').map((i) => {
     const e = equipmentById[i.equipment_id] || {}
-    return { description_title: `Remplacement : ${e.itv_equipment_types?.name || 'appareil'}`, description_detail: [e.label_code, e.location, i.defect].filter(Boolean).join(' - '), quantity: 1, unit: 'unité', unit_price_ht: 0, tva_rate: tva }
+    return { description_title: `Remplacement : ${e.itv_equipment_types?.name || 'appareil'}`, description_detail: [e.label_code, e.location, i.defect].filter(Boolean).join(' - '), quantity: 1, unit: 'unité', unit_price_ht: 0, tva_rate: tva, nature: 'bien', metier: 'vente' }
   })
   if (!lines.length) throw new Error('Aucun appareil à remplacer sur cette visite.')
   const contact = await loadPrimaryContact(visit.client_id)
@@ -425,7 +425,7 @@ export async function createReplacementQuote(visit, items, equipmentById, settin
   const q = must(await supabase.from('quotes').insert({
     reference: await nextRef('quotes', 'DEV'), client_id: visit.client_id, contact_id: contact?.id || null,
     quote_date: todayIso(), validity_date: d.toISOString().slice(0, 10), payment_deadline: null,
-    object: `Remplacement de matériel de sécurité, suite à la visite ${visit.reference || ''}`.trim(), status: 'draft',
+    object: `Remplacement de matériel de sécurité, suite à la visite ${visit.reference || ''}`.trim(), status: 'draft', metier: 'vente',
     tva_rate: tva, tva_applicable: true, total_ht: 0, total_tva: 0, total_ttc: 0, created_by: await currentUserName(),
   }).select().single())
   must(await supabase.from('quote_items').insert(lines.map((l, i) => ({ ...l, quote_id: q.id, position: i, total_ht: 0 }))))

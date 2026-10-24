@@ -6550,6 +6550,44 @@ begin
     end;
   end if;
 
+  -- Métier du devis et pièces de l'entreprise (0443)
+  if to_regclass('public.company_papers') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 3;
+    declare p_ok boolean; p_ok2 boolean; p_n int; p_tech int; p_id uuid;
+    begin
+      p_ok := false; p_ok2 := false;
+      begin insert into public.quotes (reference, client_id, metier) values ('ESSAI-0443-X', v_client, 'peinture'); exception when check_violation then p_ok := true; end;
+      begin insert into public.billing_settings (company_id, objets_devis) values (gen_random_uuid(), '[]'::jsonb); exception when check_violation or foreign_key_violation then p_ok2 := true; end;
+      if p_ok and p_ok2 and (select jsonb_typeof(objets_devis -> 'maintenance') = 'array' from public.billing_settings limit 1) then
+        v_lines := v_lines || 'OK      base  0443 : métier du devis contrôlé, objets proposés par métier'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0443 : métier ou objets du devis'::text; end if;
+      -- Qui configure l'organisme (super administrateur ici) dépose une attestation ; le technicien ne la lit pas
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into public.company_papers (kind, label, insurer, valid_until) values ('decennale', 'Attestation décennale 2026', 'Assureur essai', current_date + 200) returning id into p_id;
+      select count(*) into p_n from public.company_papers where id = p_id;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', json_build_object('sub', u_tech, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into p_tech from public.company_papers where id = p_id;
+      p_ok := false;
+      begin insert into public.company_papers (kind, label) values ('rc_pro', 'Faux'); exception when insufficient_privilege then p_ok := true; end;
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if p_n = 1 then v_lines := v_lines || 'OK      sa    0443 : attestation d''assurance déposée et relue'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0443 : attestation non déposée'::text; end if;
+      if p_tech = 0 and p_ok then v_lines := v_lines || 'OK      tech  0443 : pièces de l''entreprise ni lues ni déposées par le technicien'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   tech  0443 : pièces de l''entreprise accessibles au technicien'::text; end if;
+      delete from public.company_papers where id = p_id;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 3; v_lines := v_lines || ('ÉCHEC   base  0443 : erreur ' || sqlerrm)::text;
+    end;
+  end if;
+
   -- Mise en service (chantier A, 0261 à 0264) : registre, bandeau et nouveautés, suivi des retours, lignes réelles
   if to_regclass('public.platform_notices') is not null then
     execute 'reset role';

@@ -276,12 +276,12 @@ export default function RichDocEditor({ tpl, saved, ctx, onClose, onSaved }) {
         <KV k="Prochaine revue" v={content.next_review ? frDate(content.next_review) : '-'} />
         {tpl.scope && <p className="text-ui-sm text-gray-500 pt-2">{tpl.scope}</p>}
       </section>
-      {tpl.id === 'cgv' && (
+      {(tpl.sections || []).some((s) => s.cond === 'particuliers') && (
         <section>
           <h2 className="font-semibold text-ui mb-1">Options</h2>
           <label className="flex items-start gap-2 text-ui-sm min-h-[40px]">
             <input type="checkbox" className="w-4 h-4 mt-0.5" disabled={!canEdit} checked={!!content.options?.particuliers} onChange={(e) => setContent((c) => ({ ...c, options: { ...(c.options || {}), particuliers: e.target.checked } }))} />
-            <span>Vente aux particuliers : affiche le contrat, la rétractation et la médiation de la consommation. Renseignez le médiateur avant de valider.</span>
+            <span>Clients particuliers : affiche ici les articles qui leur sont réservés (rétractation, garanties légales, médiation de la consommation). Sur un devis, la bonne variante est jointe toute seule selon le client. Renseignez le médiateur avant de valider.</span>
           </label>
         </section>
       )}

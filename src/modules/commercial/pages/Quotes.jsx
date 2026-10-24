@@ -30,7 +30,7 @@ import { useRelanceIA } from '../lib/useRelanceIA'
 import { useCapacites } from '../../../core/capacites'
 import { modeleEnvoiDevis } from '../../../core/emails/modeles'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
-import { devisDeFormation } from '../lib/metierDevis'
+import { devisDeFormation, METIERS, libelleMetier, metierDevis, metierDeduit, metierLigne, objetsProposes, documentsAJoindre, piecesEntrepriseAJoindre, pieceValable } from '../lib/metierDevis'
 import AcompteDevis from '../components/AcompteDevis'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import { lienEspaceClient } from '../../../core/portail/lienEspace'
@@ -228,12 +228,14 @@ export default function Quotes() {
     created_by: currentUserName(), signature_base64: null,
     // Financement prévu (0397)
     funding_type: '', funding_client_id: '', funding_name: '', funding_agreement_ref: '',
-    funding_agreement_date: '', funding_subrogation: false, funding_amount_ht: ''
+    funding_agreement_date: '', funding_subrogation: false, funding_amount_ht: '',
+    // Métier du devis (0443) : vide = déduit des lignes
+    metier: ''
   }
 
   const emptyItem = {
     code: '', description_title: '', description_detail: '',
-    quantity: 1, unit: 'unité', unit_price_ht: 0, tva_rate: 20, course_id: '', nature: 'service', vat_regime: 'normal'
+    quantity: 1, unit: 'unité', unit_price_ht: 0, tva_rate: 20, course_id: '', nature: 'service', vat_regime: 'normal', metier: ''
   }
 
   // Lignes prêtes à l'emploi (bouton « Matériel et frais ») : liste commune (lib/fraisCatalogue)
@@ -243,6 +245,12 @@ export default function Quotes() {
   // Régime de TVA de l'organisme (franchise, exonération de la formation) : taux des nouvelles lignes et mentions
   const [regime, setRegime] = useState(null)
   useEffect(() => { chargerRegimeTva().then(setRegime) }, [])
+  // Objets proposés par métier (0443, Paramètres › Facturation) ; texte libre toujours possible
+  const [objetsDevis, setObjetsDevis] = useState(null)
+  useEffect(() => {
+    supabase.from('billing_settings').select('objets_devis').limit(1).maybeSingle()
+      .then(({ data }) => setObjetsDevis(data?.objets_devis || null), () => setObjetsDevis(null))
+  }, [])
   // Tarifs du client du devis (0418) : repris à l'ajout d'une ligne, badge « tarif client » sur la ligne
   const [tarifs, setTarifs] = useState([])
   useEffect(() => {
@@ -443,6 +451,7 @@ export default function Quotes() {
       notes: currentQuote.notes || '', created_by: currentQuote.created_by,
       signature_base64: currentQuote.signature_base64 || null,
       ...champsFinancement(currentQuote),
+      metier: currentQuote.metier || null,
       updated_at: new Date().toISOString()
     }
     try {
@@ -464,7 +473,9 @@ export default function Quotes() {
         unit_price_ht: parseFloat(it.unit_price_ht) || 0, tva_rate: parseRate(it.tva_rate),
         total_ht: calcItemTotal(it), course_id: it.course_id || null,
         // Nature et régime de TVA de la ligne (0363), repris sur la facture
-        nature: it.nature === 'bien' ? 'bien' : 'service', vat_regime: it.vat_regime || 'normal'
+        nature: it.nature === 'bien' ? 'bien' : 'service', vat_regime: it.vat_regime || 'normal',
+        // Métier de la ligne (0443) : celui choisi, sinon déduit (formation du catalogue, bien = vente)
+        metier: metierLigne(it) || null
       }))
       if (itemsToInsert.length > 0) {
         const { error: itemsError } = await supabase.from('quote_items').insert(itemsToInsert)
@@ -648,18 +659,36 @@ export default function Quotes() {
           }
         }
       }
-      // Conditions générales de vente de la formation (document qualité « CGV », version publiée) : seulement pour
-      // un devis de formation. Un devis d'extincteurs ou de BAES ne reçoit aucun document de formation.
-      const cgv = devisDeFormation(quote, loadedItems) ? await publishedDocPDF('cgv') : null
-      if (cgv) {
+      // Pièces choisies selon le métier du devis (0443) : conditions générales du métier (formation, maintenance,
+      // vente, installation), dans la variante du client (professionnel ou particulier), garanties et périmètre ;
+      // version publiée de chaque document qualité. Une version non validée est proposée décochée. Un devis
+      // d'extincteurs ou de BAES ne reçoit aucun document de formation.
+      const audience = clientData?.client_type === 'particulier' ? 'particulier' : 'pro'
+      for (const d of documentsAJoindre(quote, loadedItems)) {
+        const pdf = await publishedDocPDF(d.doc, { audience })
+        if (!pdf) continue
+        const valide = pdf.source === 'valide'
         programAttachments.push({
-          filename: cgv.filename,
-          base64: cgv.base64,
-          type: 'manual',
-          kind: 'cgv',
-          courseTitle: cgv.source === 'valide' ? 'Conditions générales de vente' : 'Conditions générales de vente (version non validée)',
-          enabled: cgv.source === 'valide',
+          filename: pdf.filename, base64: pdf.base64, type: 'manual', kind: d.kind, doc: d.doc,
+          version: pdf.version || null, audience,
+          courseTitle: `${d.label}${audience === 'particulier' ? ', version particuliers' : ''}${valide ? ` (version ${pdf.version})` : ' (version non validée : à faire valider avant envoi)'}`,
+          enabled: valide,
         })
+      }
+      // Pièces de l'entreprise (attestations d'assurance) : jointes si elles sont valables à la date du jour
+      const kinds = piecesEntrepriseAJoindre(quote, loadedItems)
+      if (kinds.length) {
+        const { data: papers } = await supabase.from('company_papers').select('*').in('kind', kinds).order('valid_until', { ascending: false })
+        for (const k of kinds) {
+          const pc = (papers || []).find((x) => x.kind === k && x.file_path && pieceValable(x))
+          const libelle = k === 'decennale' ? 'Attestation d\'assurance décennale' : 'Attestation d\'assurance responsabilité civile professionnelle'
+          if (pc) {
+            programAttachments.push({ filename: pc.file_name || `${libelle}.pdf`, storagePath: pc.file_path, type: 'piece', kind: k,
+              courseTitle: `${libelle}${pc.valid_until ? `, valable jusqu'au ${format(new Date(pc.valid_until), 'dd/MM/yyyy')}` : ''}`, enabled: true })
+          } else {
+            toast(`${libelle} : aucune attestation valable dans Paramètres › Facturation. Ajoutez-la ou joignez le fichier à la main.`, { duration: 8000 })
+          }
+        }
       }
       setSendAttachments(programAttachments)
     } catch (err) {
@@ -894,7 +923,7 @@ export default function Quotes() {
     if (!sendWizard) return
     const { quote, items, contact } = sendWizard
     const programmes = sendAttachments.filter(a => a.type === 'program' && a.enabled).map(p => p.courseTitle)
-    const formation = !!quote.session_id || (items || []).some(i => i.course_id)
+    const formation = devisDeFormation(quote, items)
     const contactName = contact ? [contact.civilite, contact.last_name || contact.name].filter(Boolean).join(' ') : ''
     const m = modeleEnvoiDevis({ quote, contactName, org: orgName(), programmes, formation })
     setSendEmail(prev => ({ ...prev, subject: m.subject, body: m.body }))
@@ -948,6 +977,12 @@ export default function Quotes() {
         .map(att => ({ filename: att.filename, url: att.url }))
       // Stockage privé (audit du 19/10) : le serveur lit le programme par un lien signé de 10 minutes
       for (const u of programUrls) u.url = (await readableUrl(u.url, 600)) || u.url
+      // Pièces de l'entreprise (0443, stockage privé « documents ») : lien signé de 10 minutes
+      for (const att of sendAttachments.filter(a => a.type === 'piece' && a.enabled && a.storagePath)) {
+        const { data: signe } = await supabase.storage.from('documents').createSignedUrl(att.storagePath, 600)
+        if (!signe?.signedUrl) throw new Error(`${att.courseTitle || att.filename} : fichier introuvable`)
+        programUrls.push({ filename: att.filename, url: signe.signedUrl })
+      }
       const manualAttachments = sendAttachments
         .filter(att => (att.type === 'manual' || (att.type === 'program' && !att.url)) && att.enabled && att.base64)
         .map(att => ({ filename: att.filename, base64: att.base64 }))
@@ -998,7 +1033,7 @@ export default function Quotes() {
     setItems([...items, {
       ...emptyItem, code: course.code || '', description_title: course.title,
       description_detail: course.description || '', unit_price_ht: prixFormation(tarifs, course).prix,
-      course_id: course.id, position: items.length, ...tvaLigne(true, regime || undefined)
+      course_id: course.id, position: items.length, metier: 'formation', ...tvaLigne(true, regime || undefined)
     }])
   }
   function addFromMaterial(mat) {
@@ -1762,12 +1797,27 @@ export default function Quotes() {
             {/* Objet + Réf */}
             <div className="bg-white rounded-ui border border-gray-200 p-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-ui font-medium text-gray-700 mb-1">Objet du devis</label>
-                  <input type="text" value={currentQuote.object}
+                {/* Métier du devis (0443) : déduit des lignes, modifiable ; il choisit les pièces jointes et les mentions */}
+                <div>
+                  <label htmlFor="devis-metier" className="block text-ui font-medium text-gray-700 mb-1">Métier du devis</label>
+                  <select id="devis-metier" value={currentQuote.metier || ''}
+                    onChange={(e) => setCurrentQuote(prev => ({ ...prev, metier: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500">
+                    <option value="">{metierDeduit(items, currentQuote) ? `Selon les lignes : ${libelleMetier(metierDeduit(items, currentQuote))}` : 'Selon les lignes (à préciser)'}</option>
+                    {METIERS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                    <option value="mixte">Mixte (pièces de chaque métier)</option>
+                  </select>
+                  <p className="text-ui-sm text-gray-500 mt-1">Choisit les conditions générales et les pièces jointes à l'envoi.</p>
+                </div>
+                <div>
+                  <label htmlFor="devis-objet" className="block text-ui font-medium text-gray-700 mb-1">Objet du devis</label>
+                  <input id="devis-objet" type="text" value={currentQuote.object} list="devis-objets-proposes"
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, object: e.target.value }))}
-                    placeholder="Ex : Formation SST en intra"
+                    placeholder="Choisir dans la liste ou écrire librement"
                     className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500" />
+                  <datalist id="devis-objets-proposes">
+                    {objetsProposes(objetsDevis, metierDevis(currentQuote, items)).map((o) => <option key={o} value={o} />)}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-ui font-medium text-gray-700 mb-1">Réf. client</label>
@@ -1899,6 +1949,15 @@ export default function Quotes() {
                       <select value={item.vat_regime || 'normal'} onChange={(e) => { const v = e.target.value; const n = [...items]; n[idx] = { ...n[idx], vat_regime: v, tva_rate: v === 'normal' ? (n[idx].tva_rate || 20) : 0 }; setItems(n) }} className="border border-gray-200 rounded px-1 py-0.5 text-ui-sm text-gray-600" aria-label="Régime de TVA de la ligne">
                         {regimesPermis(item, clients.find((c) => c.id === currentQuote.client_id), regime || undefined).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                       </select>
+                      {/* Métier de la ligne (0443) : formation pour une formation du catalogue, à préciser sur une ligne libre */}
+                      {item.course_id ? (
+                        <span className="px-1 py-0.5 text-ui-sm text-gray-500">Formation</span>
+                      ) : (
+                        <select value={item.metier || ''} onChange={(e) => updateItem(idx, 'metier', e.target.value)} className="border border-gray-200 rounded px-1 py-0.5 text-ui-sm text-gray-600" aria-label="Métier de la ligne">
+                          <option value="">{metierLigne({ ...item, metier: '' }) ? `Métier : ${libelleMetier(metierLigne({ ...item, metier: '' }))}` : 'Métier : à préciser'}</option>
+                          {METIERS.filter((m) => m.id !== 'formation').map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                        </select>
+                      )}
                     </div>
                     {/* Row 3: Qté + Unité + PU HT + TVA% + Total = tout sur une ligne */}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -2145,7 +2204,7 @@ export default function Quotes() {
                         {att.courseTitle && <p className="text-ui-sm text-gray-400 truncate">{att.courseTitle}</p>}
                       </div>
                       <span className="text-ui-sm text-gray-400 flex-shrink-0">
-                        {att.kind === 'cgv' ? 'CGV' : att.type === 'program' ? 'Programme' : 'Manuel'}
+                        {att.kind === 'cgv' ? 'CGV' : att.kind === 'garantie' ? 'Garantie' : att.kind === 'perimetre' ? 'Périmètre' : att.type === 'piece' ? 'Assurance' : att.type === 'program' ? 'Programme' : 'Manuel'}
                       </span>
                       <button
                         onClick={() => setSendAttachments(prev => prev.map((a, i) => i === idx ? { ...a, enabled: !a.enabled } : a))}
@@ -2169,7 +2228,7 @@ export default function Quotes() {
                   ))}
 
                   {sendAttachments.length === 0 && (
-                    <p className="text-ui-sm text-gray-400 mt-1">Aucun programme détecté. Ajoutez des fichiers manuellement si besoin.</p>
+                    <p className="text-ui-sm text-gray-400 mt-1">Aucune pièce proposée pour ce métier. Ajoutez des fichiers si besoin.</p>
                   )}
                 </div>
               </div>

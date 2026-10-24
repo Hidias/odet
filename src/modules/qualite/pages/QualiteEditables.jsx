@@ -874,6 +874,8 @@ export default function QualiteEditables() {
           { id: 'pilotage', name: 'Pilotage', icon: BarChart3, color: 'teal', legacy: QUALITY_DOCS.pilotage.docs },
           { id: 'soustraitance', name: 'Sous-traitance', icon: Users2, color: 'gray', legacy: QUALITY_DOCS.soustraitance.docs },
           { id: 'fiches', name: 'Fiches modèles', icon: FileText, color: 'gray', legacy: [] },
+          // Conditions commerciales hors formation (0443) : jointes aux devis selon leur métier
+          { id: 'commerce', name: 'Conditions commerciales', icon: FileText, color: 'blue', legacy: [] },
         ]
         const q = search.trim().toLowerCase()
         const richList = Object.values(templates || {}).sort((x, y) => x.num.localeCompare(y.num))
