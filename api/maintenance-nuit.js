@@ -33,6 +33,11 @@ async function handler(req, res) {
   const { data: rel, error: relErr } = await admin.rpc('scheduled_actions_generate')
   if (!relErr) relances = rel
   else if (relErr.code !== 'PGRST202') { erreurs.relances = relErr.code || 'erreur'; console.error('[maintenance-nuit] relances', relErr.code || 'erreur') }
+  // Contrats de maintenance (0460) : reconduction tacite, fin de préavis, information du particulier ; rien n'est envoyé
+  let contrats = null
+  const { data: ctr, error: ctrErr } = await admin.rpc('contrats_relances_generer')
+  if (!ctrErr) contrats = ctr
+  else if (ctrErr.code !== 'PGRST202') { erreurs.contrats = ctrErr.code || 'erreur'; console.error('[maintenance-nuit] contrats', ctrErr.code || 'erreur') }
   // Étapes des sessions préparées pour validation (fonction 13, 0160) : rien n'est envoyé ; module inactif = rien
   let pilote = null
   const { data: pil, error: pilErr } = await admin.rpc('pilote_generate')
@@ -52,7 +57,7 @@ async function handler(req, res) {
   await purgerJournalTaches()
   const nbErreurs = Object.keys(erreurs).length
   // 500 si une étape a échoué : le journal des tâches la note « erreur » et le suivi des erreurs la reçoit
-  return res.status(nbErreurs ? 500 : 200).json({ ok: !nbErreurs, resultat: data, relances, pilote, purges, point, ...(nbErreurs ? { error: `Étapes en erreur : ${Object.entries(erreurs).map(([k, v]) => `${k} (${v})`).join(', ')}` } : {}) })
+  return res.status(nbErreurs ? 500 : 200).json({ ok: !nbErreurs, resultat: data, relances, contrats, pilote, purges, point, ...(nbErreurs ? { error: `Étapes en erreur : ${Object.entries(erreurs).map(([k, v]) => `${k} (${v})`).join(', ')}` } : {}) })
 }
 
 export default withErrorLog(withJobLog(handler, 'maintenance-nuit'), 'maintenance-nuit')

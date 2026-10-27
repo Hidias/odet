@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf'
+import { phraseConditions } from '../../interventions/lib/contrat'
 import { calcTotals } from '../lib/quoteTotals'
 import { chargerRegimeTva, regimeTva, mentionsTvaDevis } from '../../../core/billing/regimeTva'
 import { lienEspaceClient } from '../../../core/portail/lienEspace'
@@ -98,6 +99,8 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   const avenant = options.avenant !== undefined ? options.avenant : await infoAvenant(quote, items)
   const mm = mentionsDevis({ quote, items, client, textes: md.textes, pieces: md.pieces, avenant })
   const legal = [
+    // Contrat de maintenance proposé (0460) : le client signe ces conditions avec le devis
+    quote.contrat ? phraseConditions(quote.contrat) : null,
     particulier ? null : publicClient && penalitesPublic ? penalitesPublic : "En cas de retard de paiement, des pénalités sont exigibles au taux de la Banque centrale européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).",
     ...(partial ? [] : mm.legal),
     // Mentions de TVA des réglages de l'organisme (franchise, exonération de la formation, autoliquidation)
