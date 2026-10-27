@@ -486,7 +486,10 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       if (emailType === 'before') {
         // ── CONVENTION ──
         addLog('Convention...')
-        const convention = await generatePDF('convention', session, {
+        // Convention déjà signée en ligne : jointe avec la signature du client dans son cadre (27/10)
+        const { data: sigConv } = await supabase.from('document_signatures').select('*').eq('session_id', session.id).eq('document_type', 'convention')
+          .eq('signer_type', 'client').eq('status', 'valid').order('signed_at', { ascending: false }).limit(1)
+        const convention = await generatePDF('convention', { ...session, signature_client: sigConv?.[0] || null }, {
           trainees: traineesWithResult,
           trainer,
           costs: sessionCosts || []
