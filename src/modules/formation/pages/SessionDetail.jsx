@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { downloadDocument, downloadAllDocuments, generatePDF, generateAllPDF, setOrganization } from '../pdf/pdfGenerator'
+import { documentAvecPreuve } from '../../../core/signature/preuve'
+import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { missingOrgFields } from '../../../core/org/orgUtils'
 import { computePresenceHours, formatHours } from '../lib/presence'
 import { 
@@ -115,6 +117,14 @@ async function fetchTrainerSignatureBase64(trainerId) {
     console.warn('Erreur chargement signature formateur:', e)
     return null
   }
+}
+
+
+// Dernière signature en ligne valide de la convention par le client (0402), ou null
+async function signatureEnLigneConvention(sessionId) {
+  const { data } = await supabase.from('document_signatures').select('*').eq('session_id', sessionId).eq('document_type', 'convention')
+    .eq('signer_type', 'client').eq('status', 'valid').order('signed_at', { ascending: false }).limit(1)
+  return data?.[0] || null
 }
 
 export default function SessionDetail() {
@@ -1456,8 +1466,17 @@ export default function SessionDetail() {
         throw error
       }
       
+      // Signée en ligne (27/10, retour de H : « la signature du client ne ressort pas ») : le fichier rangé est celui
+      // présenté au client, sans tracé ; la signature est reportée dans son cadre et la page de preuve ajoutée
+      const sig = await signatureEnLigneConvention(session.id)
+      let fichier = data
+      if (sig) {
+        const ORG = await loadPdfOrg(true)
+        const b64 = await documentAvecPreuve(await data.arrayBuffer(), ORG, { ...sig, consentement: sig.metadata?.consentement, canal: sig.metadata?.canal }, { titre: 'Convention de formation', reference: session.reference, code: 'CONV' })
+        fichier = new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: 'application/pdf' })
+      }
       // Créer un lien de téléchargement
-      const url = URL.createObjectURL(data)
+      const url = URL.createObjectURL(fichier)
       const a = document.createElement('a')
       a.href = url
       a.download = `Convention_Signee_${session.reference}.pdf`
@@ -2168,7 +2187,7 @@ export default function SessionDetail() {
       })) || []
 
       // 1. Convention (non signée toujours)
-      const convention = await generatePDF('convention', session, { trainees: traineesWithResult, trainer, costs: sessionCosts })
+      const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
       if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
 
       // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
@@ -2301,7 +2320,7 @@ export default function SessionDetail() {
         } catch { /* fallback */ }
       }
       if (!zip.file(`Convention_${ref}.pdf`)) {
-        const convention = await generatePDF('convention', session, { trainees: traineesWithResult, trainer, costs: sessionCosts })
+        const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
         if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
       }
 
@@ -2575,6 +2594,8 @@ export default function SessionDetail() {
     
     // Ajouter les coûts pour la convention
     const costs = docType === 'convention' ? sessionCosts : []
+    // Convention signée en ligne : régénérée avec la signature du client dans son cadre (27/10)
+    const sessionDoc = docType === 'convention' ? { ...session, signature_client: await signatureEnLigneConvention(session.id) } : session
     
     // Ajouter l'infoSheet pour la fiche de renseignements
     const options = { trainees: traineesWithResult, trainee: enrichedTrainee, trainer, questions, costs }
@@ -2603,7 +2624,7 @@ export default function SessionDetail() {
       }
     }
 
-    downloadDocument(docType, session, options)
+    downloadDocument(docType, sessionDoc, options)
     toast.success('Document généré')
 
     // Convocation téléchargée : notée remise seulement si on le confirme (sinon à l'envoi par e-mail, 21/10)
