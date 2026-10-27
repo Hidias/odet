@@ -5,6 +5,7 @@ import { fr } from 'date-fns/locale'
 import QRCode from 'qrcode'
 import { lienEspaceClient, dessinerEncadreEnLigne, hauteurEncadreEnLigne } from '../../../core/portail/lienEspace'
 import { chargerRegimeTva, regimeTva } from '../../../core/billing/regimeTva'
+import { mot, leMot } from '../../../core/genre'
 import { buildORG, publicBaseUrl, prepareOrgForPDF, formatSiret, ligneNda, phraseNda } from '../../../core/org/orgUtils'
 import {
   PAGE_MARGIN, drawHeaderBand, drawRunningHeader, drawFooter, numberPages, drawDocTitle, drawSectionTitle,
@@ -72,7 +73,7 @@ async function ensureQualityTexts() {
     // Portail (sans accès aux paramètres) : identité prise dans ORG
     let ctx = ctxLoaded
     if (!ctx?.org?.nom) {
-      ctx = buildTemplateContext({ org: { name: ORG.name, legal_name: ORG.legal_name || ORG.name, address: ORG.street || ORG.address, postal_code: ORG.postal_code, city: ORG.city, phone: ORG.phone, email: ORG.email, siret: ORG.siret, nda: ORG.nda, nda_region: ORG.nda_region, dirigeant_name: ORG.dirigeant, dirigeant_title: ORG.dirigeant_title, lieu_signature: ORG.lieu_signature, tribunal_competent: ORG.tribunal_competent } })
+      ctx = buildTemplateContext({ org: { name: ORG.name, legal_name: ORG.legal_name || ORG.name, address: ORG.street || ORG.address, postal_code: ORG.postal_code, city: ORG.city, phone: ORG.phone, email: ORG.email, siret: ORG.siret, nda: ORG.nda, nda_region: ORG.nda_region, dirigeant_name: ORG.dirigeant, dirigeant_title: ORG.dirigeant_title, dirigeant_gender: ORG.dirigeant_gender, lieu_signature: ORG.lieu_signature, tribunal_competent: ORG.tribunal_competent } })
     }
     QT = { reglement, livret, cgv, ctx }
   } catch (err) { console.warn('Documents qualité indisponibles :', err.message) }
@@ -270,7 +271,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     ['Effectif', `${trainees.length} participant${trainees.length > 1 ? 's' : ''}`],
     ['Public', course.target_audience || 'Tout public'],
     ['Prérequis', course.prerequisites || 'Aucun'],
-    ['Formateur', trainer ? `${trainer.first_name} ${trainer.last_name}${P && (trainer.qualifications || trainer.certifications) ? ` (${trainer.qualifications || trainer.certifications})` : ''}` : ORG.dirigeant],
+    [mot('formateur', trainer ? trainer.gender : ORG.dirigeant_gender, { majuscule: true }), trainer ? `${trainer.first_name} ${trainer.last_name}${P && (trainer.qualifications || trainer.certifications) ? ` (${trainer.qualifications || trainer.certifications})` : ''}` : ORG.dirigeant],
   ]
   if (P) rows.push(['Évaluation', course.evaluation_methods || 'Évaluation des acquis en fin de formation'])
   if (session?.funding_type && session.funding_type !== 'none') {
@@ -485,7 +486,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     doc.text(hint, x + 4, y + boxH - 3)
     doc.setTextColor(...t.text)
   }
-  sigCol(M, "Pour l'organisme de formation", ORG.dirigeant, ORG.dirigeant_title || 'Dirigeant')
+  sigCol(M, "Pour l'organisme de formation", ORG.dirigeant, ORG.dirigeant_title || mot('dirigeant', ORG.dirigeant_gender, { majuscule: true }))
   sigCol(M + colW + gap, P ? 'Le stagiaire' : 'Pour le bénéficiaire', sigC?.signer_name || signatory.name || client.name || '', sigC ? sigC.signer_role : signatory.role,
     sigC ? `Signé en ligne le ${new Date(sigC.signed_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}, preuve en dernière page` : 'Signature et cachet')
   if (ORG.stamp_base64) drawImageFitted(doc, ORG.stamp_base64, M + 6, y + 12, 44, 19, 'JPEG')
@@ -602,6 +603,8 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
   const rowH = isBlank ? 10 : Math.min(hasAnySignatureImage ? 22 : 18, Math.max(9, Math.floor(available / nRows)))
 
   const trainerName = trainer ? `${trainer.first_name} ${trainer.last_name}` : ORG.dirigeant
+  // Accords de la feuille (S19) : genre du formateur, à défaut celui du signataire qui anime
+  const genreFormateur = trainer ? trainer.gender : ORG.dirigeant_gender
   const trainerNameUpper = trainer ? `${(trainer.last_name || '').toUpperCase()} ${trainer.first_name || ''}` : ORG.dirigeant
 
   const drawPageHeader = (pageNum) => {
@@ -612,7 +615,7 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
     doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...t.primary)
     doc.text("Feuille d'émargement", M + 5, y)
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...t.text)
-    doc.text(`Formateur : ${isBlank ? '' : trainerName}`, M + 5, y + 7)
+    doc.text(`${isBlank ? 'Formateur' : mot('formateur', genreFormateur, { majuscule: true })} : ${isBlank ? '' : trainerName}`, M + 5, y + 7)
     if (isBlank) { doc.setDrawColor(...t.line); doc.setLineWidth(0.25); doc.line(M + 25, y + 7.5, M + 70, y + 7.5) }
 
     const infoX1 = M + 78, infoX2 = M + 178
@@ -782,11 +785,11 @@ function generateEmargement(session, trainees = [], trainer = null, isBlank = fa
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...t.muted)
     if (!isBlank) {
       doc.setFillColor(...t.accent); doc.roundedRect(M, y - 2.6, 3, 3, 0.6, 0.6, 'F')
-      doc.text('Présence validée par le formateur, sans signature', M + 5, y)
+      doc.text(`Présence validée par ${leMot('formateur', genreFormateur)}, sans signature`, M + 5, y)
       doc.text('ABSENT : participant absent sur la demi-journée      (n) : signature recueillie par un tiers, voir annexe', M + 75, y)
-      doc.text('Chaque participant signe à chaque demi-journée. Le formateur contresigne la feuille.', pw - M, y, { align: 'right' })
+      doc.text(`Chaque participant signe à chaque demi-journée. ${leMot('formateur', genreFormateur, { majuscule: true })} contresigne la feuille.`, pw - M, y, { align: 'right' })
     } else {
-      doc.text('Chaque participant signe à chaque demi-journée. Le formateur contresigne la feuille.', M, y)
+      doc.text(`Chaque participant signe à chaque demi-journée. ${leMot('formateur', genreFormateur, { majuscule: true })} contresigne la feuille.`, M, y)
     }
     doc.setTextColor(...t.text)
 
@@ -948,7 +951,7 @@ function generateCertificatContent(doc, session, trainee, trainer, { defaultAcqu
   const isNotAcquired = result === 'not_acquired'
 
   const nda = phraseNda(ORG) ? `, ${phraseNda(ORG)}` : ''
-  f.para(`Je soussigné, ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}, représentant légal du dispensateur de l'action concourant au développement des compétences ${ORG.nameFull || ORG.name}${nda}, atteste que :`, { size: 10, after: 4 })
+  f.para(`Je ${mot('soussigne', ORG.dirigeant_gender)}, ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}, représentant légal du dispensateur de l'action concourant au développement des compétences ${ORG.nameFull || ORG.name}${nda}, atteste que :`, { size: 10, after: 4 })
 
   f.cards([{ label: 'Bénéficiaire', lines: [fullNameOf(trainee), client.name ? `${salarieLabel(trainee)} l'entreprise ${client.name}` : ''].filter(Boolean) }])
 

@@ -8,6 +8,7 @@ import {
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '../core/store'
+import { accorder } from '../core/genre'
 import { RouteErrorBoundary } from '../core/errors/ErrorBoundary'
 import PostIt from '../core/feedback/PostIt'
 import OutilsVoix from '../core/branding/OutilsVoix'
@@ -25,6 +26,14 @@ import AlertesTelephone from '../core/push/AlertesTelephone'
 import { ScanModal } from '../modules/interventions/components/ui'
 import { SelecteurSociete, ChoixSociete, BandeauVueGroupe } from '../core/company/SelecteurSociete'
 
+// Intitulé du rôle accordé au genre de la personne (S19) : repris de sa fiche du personnel ou formateur
+const ROLE_LABELS_GENRE = {
+  superadmin: ['Super administrateur', 'Super administratrice'],
+  admin: ['Administrateur', 'Administratrice'],
+  formateur: ['Formateur', 'Formatrice'],
+  commercial: ['Commercial', 'Commerciale'],
+  technicien: ['Technicien', 'Technicienne'],
+}
 const ROLE_LABELS = {
   superadmin: 'Super administrateur',
   admin: 'Administrateur',
@@ -34,6 +43,10 @@ const ROLE_LABELS = {
   commercial: 'Commercial',
   comptable: 'Comptable',
   lecture: 'Lecture seule',
+}
+const libelleRole = (role, genre) => {
+  const f = ROLE_LABELS_GENRE[role]
+  return f ? accorder(genre, f[0], f[1]) : (ROLE_LABELS[role] || role)
 }
 
 const NOTIF_ICONS = {
@@ -79,6 +92,22 @@ function ChargementPage() {
 
 export default function Layout() {
   const { user, profile, userRole, modules, logout, fieldOnly, rights, can } = useAuthStore()
+  // Genre de la personne connectée : fiche du personnel reliée, sinon fiche formateur (S19)
+  const [genreProfil, setGenreProfil] = useState(null)
+  useEffect(() => {
+    if (!profile?.id) return
+    let actif = true
+    ;(async () => {
+      const { data: p } = await supabase.from('hr_people').select('gender').eq('profile_id', profile.id).maybeSingle()
+      let g = p?.gender || null
+      if (!g && profile.trainer_id) {
+        const { data: t } = await supabase.from('trainers').select('gender').eq('id', profile.trainer_id).maybeSingle()
+        g = t?.gender || null
+      }
+      if (actif) setGenreProfil(g)
+    })().catch(() => {})
+    return () => { actif = false }
+  }, [profile?.id, profile?.trainer_id])
   const { branding } = useBranding()
   const { prefs, update } = useUiPrefs()
   const navigate = useNavigate()
@@ -340,7 +369,7 @@ export default function Layout() {
       </div>
       <div className="min-w-0 flex-1 leading-tight">
         <div className={`text-ui font-medium truncate ${navText}`}>{profile?.display_name || user?.email}</div>
-        <div className={`text-ui-sm truncate ${navMuted}`}>{fieldOnly ? 'Technicien' : (ROLE_LABELS[userRole] || userRole)}</div>
+        <div className={`text-ui-sm truncate ${navMuted}`}>{libelleRole(fieldOnly ? 'technicien' : userRole, genreProfil)}</div>
       </div>
       <button type="button" onClick={handleLogout} aria-label="Se déconnecter" className={`p-2 rounded-ui-sm ${navMuted} ${navHover}`}>
         <LogOut className="w-4 h-4" />
@@ -633,7 +662,7 @@ export default function Layout() {
                   <div className="px-3 py-3 border-b border-gray-100">
                     <div className="text-ui font-semibold text-gray-900 truncate">{profile?.display_name || user?.email}</div>
                     <div className="text-ui-sm text-gray-500 truncate">{user?.email}</div>
-                    <div className="mt-1"><span className="badge badge-neutral">{fieldOnly ? 'Technicien' : (ROLE_LABELS[userRole] || userRole)}</span></div>
+                    <div className="mt-1"><span className="badge badge-neutral">{libelleRole(fieldOnly ? 'technicien' : userRole, genreProfil)}</span></div>
                   </div>
                   <div className="py-1">
                     {piedMenu.map((item) => (

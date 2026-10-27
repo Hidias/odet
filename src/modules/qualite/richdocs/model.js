@@ -185,6 +185,7 @@ export function insertableFields(ctx) {
     ['{{org.nom}}', "Nom de l'organisme"], ['{{org.adresse_site}}', 'Adresse du site (mise en avant)'], ['{{org.siege}}', 'Siège social (adresse légale)'],
     ['{{org.telephone}}', 'Téléphone'], ['{{org.email}}', 'Email'], ['{{org.nda}}', "Déclaration d'activité"],
     ['{{org.siret}}', 'SIRET'], ['{{org.dirigeant}}', 'Dirigeant'], ['{{org.dirigeant_qualite}}', 'Qualité du dirigeant'],
+    ['{{org.soussigne}}', '« soussigné » ou « soussignée » selon le signataire'],
     ['{{org.lieu_signature}}', 'Lieu de signature'], ['{{org.tribunal}}', 'Tribunal compétent'],
     ...roles.flatMap((code) => [[`{{role.${code}}}`, `Rôle : ${ctx.role[code].label || code}`], [`{{role.${code}.email}}`, `Email : ${ctx.role[code].label || code}`]]),
   ]

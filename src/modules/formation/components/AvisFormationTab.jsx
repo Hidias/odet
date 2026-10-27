@@ -3,6 +3,7 @@
 // L'employeur délivre ensuite le titre ou l'autorisation (l'outil le fait pour ses propres salariés dans Personnel).
 
 import { useCallback, useEffect, useState } from 'react'
+import { leMot } from '../../../core/genre'
 import toast from 'react-hot-toast'
 import { FileDown, Loader2, Save } from 'lucide-react'
 import jsPDF from 'jspdf'
@@ -24,7 +25,7 @@ export const RESULTATS_AVIS = {
 const frDate = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
 
 /** PDF : une page par stagiaire, pour l'employeur */
-export async function genererAvisPDF({ session, kind, lignes, trainerName }) {
+export async function genererAvisPDF({ session, kind, lignes, trainerName, trainerGender }) {
   const ORG = await loadPdfOrg(true)
   const k = KINDS_AVIS[kind]
   const doc = new jsPDF({ compress: true })
@@ -43,7 +44,7 @@ export async function genererAvisPDF({ session, kind, lignes, trainerName }) {
     else f.fields([{ label: 'Engins et conditions', value: l.scope || '-', w: 4 }])
     if (l.observations) f.para(`Observations : ${l.observations}`)
     f.note(`Cet avis ne vaut pas ${k.titre} : l'employeur le délivre au salarié après s'être assuré de son aptitude médicale${kind === 'autorisation_conduite' ? ' et de sa connaissance des lieux et des instructions' : ''}, en s'appuyant sur cet avis.`)
-    f.signatures([{ label: 'Le formateur', name: trainerName || l.trainer_name || '' }])
+    f.signatures([{ label: leMot('formateur', trainerGender, { majuscule: true }), name: trainerName || l.trainer_name || '' }])
     f.finish()
   })
   return doc.output('blob')
@@ -91,7 +92,7 @@ export default function AvisFormationTab({ session, sessionTrainees, trainer }) 
     if (!lignes.length) return toast.error('Aucun avis enregistré')
     setBusy('pdf')
     try {
-      const blob = await genererAvisPDF({ session, kind, lignes, trainerName })
+      const blob = await genererAvisPDF({ session, kind, lignes, trainerName, trainerGender: trainer?.gender })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
       a.download = `Avis-apres-formation-${session?.reference || 'session'}.pdf`

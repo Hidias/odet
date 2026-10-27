@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import jsPDF from 'jspdf'
+import { mot } from '../../../core/genre'
 import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
 
 import 'jspdf-autotable'
@@ -137,8 +138,8 @@ function generateDecharge(d = {}) {
   f.fields([{ label: 'Entreprise', value: d.entreprise || '', w: 2 }, { label: 'Poste', value: d.poste || '', w: 1 }])
   f.fields([{ label: 'Formation suivie', value: d.formation || '', w: 2 }, { label: 'Dates', value: d.dates || '', w: 1 }])
   f.section('Déclaration')
-  f.para(`Je soussigné(e), stagiaire désigné(e) ci-dessus, ne communique pas mon numéro de sécurité sociale (NIR) à ${nom()} pour la déclaration de cette formation dans mon passeport de prévention.`)
-  f.para('Je suis informé(e) que :')
+  f.para(`Je ${mot('soussigne', d.genre)}, stagiaire ${mot('designe', d.genre)} ci-dessus, ne communique pas mon numéro de sécurité sociale (NIR) à ${nom()} pour la déclaration de cette formation dans mon passeport de prévention.`)
+  f.para(`Je suis ${mot('informe', d.genre)} que :`)
   f.bullets([
     `le passeport de prévention recense les formations en santé et sécurité au travail (loi du 2 août 2021, décret n° 2025-748 du 1er août 2025) et que mon numéro de sécurité sociale sert uniquement à y inscrire cette formation ;`,
     `sans ce numéro, ${nom()} ne peut pas déclarer cette formation dans mon passeport de prévention ;`,
@@ -172,8 +173,8 @@ function generateAutorisation(d = {}) {
   f.fields([{ label: 'Entreprise', value: d.entreprise || '', w: 2 }, { label: 'Poste', value: d.poste || '', w: 1 }])
   f.fields([{ label: 'Formation suivie', value: d.formation || '', w: 2 }, { label: 'Dates', value: d.dates || '', w: 1 }])
   f.section('Autorisation')
-  f.para(`Je soussigné(e), stagiaire désigné(e) ci-dessus, ne retrouve pas mon numéro de sécurité sociale (NIR). J'autorise mon employeur, ${d.entreprise || 'désigné ci-dessus'}, à le transmettre à ${nom()}.`)
-  f.para('Je suis informé(e) que :')
+  f.para(`Je ${mot('soussigne', d.genre)}, stagiaire ${mot('designe', d.genre)} ci-dessus, ne retrouve pas mon numéro de sécurité sociale (NIR). J'autorise mon employeur, ${d.entreprise || 'désigné ci-dessus'}, à le transmettre à ${nom()}.`)
+  f.para(`Je suis ${mot('informe', d.genre)} que :`)
   f.bullets([
     `ce numéro sert uniquement à inscrire cette formation dans mon passeport de prévention (loi du 2 août 2021, décret n° 2025-748 du 1er août 2025) ;`,
     `mon employeur le saisit dans son espace sécurisé chez ${nom()} : il est vérifié, rangé à part et n'est jamais transmis par e-mail ;`,

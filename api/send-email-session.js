@@ -2,6 +2,7 @@
 // Envoyer les documents de session (avant/après formation) par email
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML, finirParCordialement } from './_lib/mailer.js'
+import { mot } from '../src/core/genre.js'
 import { requireRight, OFFICE_WRITE, isSafeStoragePath } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
@@ -148,7 +149,7 @@ async function handler(req, res) {
     if (emailType === 'before' && convocationsStagiaires.length) {
       const ids = convocationsStagiaires.map((c) => c.traineeId)
       const { data: inscrits } = await supabase.from('session_trainees')
-        .select('trainee_id, trainees(first_name, last_name, email)')
+        .select('trainee_id, trainees(first_name, last_name, email, gender)')
         .eq('session_id', sessionId).in('trainee_id', ids)
       const { data: ses } = await supabase.from('sessions')
         .select('reference, start_date, end_date, start_time, location_name, location_city, courses(title)').eq('id', sessionId).single()
@@ -162,7 +163,7 @@ async function handler(req, res) {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) continue
         const piece = mailAttachments.find((m) => m.filename === attachmentPaths.find((a) => a.path === c.path)?.filename)
         if (!piece) { stagiaires.echecs.push(mail); continue }
-        const texte = `Bonjour ${t.first_name || ''},\n\nVous êtes inscrit(e) à la formation « ${titre} »${quand ? ` ${quand}` : ''}${ses?.start_time ? ` à partir de ${String(ses.start_time).slice(0, 5).replace(':', ' h ')}` : ''}${lieu ? `, ${lieu}` : ''}.\n\nVotre convocation est jointe à ce message. Elle contient un QR code et un lien vers votre espace stagiaire : vous pourrez y compléter vos informations, indiquer vos attentes et faire un court test de positionnement avant la formation.\n\nPour toute question, répondez simplement à ce message.`
+        const texte = `Bonjour ${t.first_name || ''},\n\nVous êtes ${mot('inscrit', t.gender)} à la formation « ${titre} »${quand ? ` ${quand}` : ''}${ses?.start_time ? ` à partir de ${String(ses.start_time).slice(0, 5).replace(':', ' h ')}` : ''}${lieu ? `, ${lieu}` : ''}.\n\nVotre convocation est jointe à ce message. Elle contient un QR code et un lien vers votre espace stagiaire : vous pourrez y compléter vos informations, indiquer vos attentes et faire un court test de positionnement avant la formation.\n\nPour toute question, répondez simplement à ce message.`
         try {
           await sendWithRetry(transporter, {
             from: `"${sender.name}" <${emailConfig.email}>`,
