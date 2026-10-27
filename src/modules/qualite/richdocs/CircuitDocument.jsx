@@ -105,12 +105,12 @@ export default function CircuitDocument({ tpl, avantLancement, onMode }) {
         <label className="block mb-2">
           <span className="sr-only">Circuit de ce document</span>
           <select className="select w-full" value={propre} disabled={busy || !!ouvert} onChange={(e) => changerMode(e.target.value)}>
-            <option value="">Comme le réglage général ({MODES[reglages.default_mode || 'direct'].label.toLowerCase()})</option>
+            <option value="">Réglage général</option>
             {Object.entries(MODES).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
           </select>
         </label>
       ) : <p className="text-ui-sm text-gray-700 mb-1">{MODES[mode].label}</p>}
-      <p className="text-ui-sm text-gray-500 mb-2">{MODES[mode].aide}</p>
+      <p className="text-ui-sm text-gray-500 mb-2">{d.valider && !propre && <span className="text-gray-700">{MODES[mode].label}. </span>}{MODES[mode].aide}</p>
       {ouvert ? (
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip status={ETATS[ouvert.status]} />
@@ -124,15 +124,21 @@ export default function CircuitDocument({ tpl, avantLancement, onMode }) {
   )
 }
 
+/** Circuit commun à une liste de documents ('' si leurs circuits diffèrent) */
+export function modeCommun(reglages, ids = []) {
+  const modes = [...new Set(ids.map((id) => modeDuDocument(reglages, id)))]
+  return modes.length === 1 ? modes[0] : ''
+}
+
 /** Réglage général du circuit (Processus qualité, Documents) ; « commerce » : ids des conditions commerciales */
 export function ReglageCircuit({ commerce = [] }) {
   const d = useDroits({ valider: 'qualite.documents.valider' })
   const [g, setG] = useState(null)
   const [enCours, setEnCours] = useState(0)
   const [busy, setBusy] = useState(false)
-  const [pour, setPour] = useState('complet')
+  const [pour, setPour] = useState('')
   useEffect(() => {
-    chargerReglages().then(setG).catch(() => setG(null))
+    chargerReglages().then((r) => { setG(r); setPour(modeCommun(r, commerce)) }).catch(() => setG(null))
     supabase.from('doc_reviews').select('id', { count: 'exact', head: true }).in('status', ['relecture', 'arbitrage', 'expert'])
       .then(({ count }) => setEnCours(count || 0))
   }, [])
@@ -143,6 +149,7 @@ export function ReglageCircuit({ commerce = [] }) {
     setBusy(false)
   }
   const nbCommerce = commerce.filter((id) => g.per_doc?.[id]).length
+  const actuel = modeCommun(g, commerce)
   return (
     <div className="card p-4 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -160,8 +167,8 @@ export function ReglageCircuit({ commerce = [] }) {
           {commerce.length > 0 && (
             <div className="block"><span className="label">Conditions commerciales ({nbCommerce ? `${nbCommerce} réglée${nbCommerce > 1 ? 's' : ''}` : 'comme le défaut'})</span>
               <div className="flex gap-2">
-                <select className="select flex-1" value={pour} onChange={(e) => setPour(e.target.value)}>{Object.entries(MODES).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}</select>
-                <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => enregistrer({ perDoc: Object.fromEntries(commerce.map((id) => [id, pour])) }, 'Circuit appliqué aux conditions commerciales')}>Appliquer</button>
+                <select className="select flex-1" value={pour} onChange={(e) => setPour(e.target.value)}>{actuel === '' && <option value="">Réglages différents</option>}{Object.entries(MODES).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}</select>
+                <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !pour || pour === actuel} onClick={() => enregistrer({ perDoc: Object.fromEntries(commerce.map((id) => [id, pour])) }, 'Circuit appliqué aux conditions commerciales')}>Appliquer</button>
               </div>
             </div>
           )}
