@@ -4,6 +4,7 @@
 // Aucune valeur d'organisme en dur : tout vient de l'objet L (buildORG + logo préchargé).
 
 import { startDocument, setF, numberPages, PAGE_MARGIN, drawImageFitted, drawKeyValues } from '../../../core/pdf/layout'
+import { nomContact } from '../../../core/genre.js'
 import { dessinerEncadreEnLigne, hauteurEncadreEnLigne } from '../../../core/portail/lienEspace'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { marquerZoneSignature } from '../../../core/signature/zone'
@@ -267,8 +268,8 @@ export function issuerLines(L, contact) {
 export function recipientLines(client, contact, withContact) {
   const lines = [client?.name || '']
   if (withContact && contact) {
-    const cn = contact.name || ((contact.first_name || '') + ' ' + (contact.last_name || '')).trim()
-    if (cn) lines.push("À l'attention de " + (contact.civilite ? contact.civilite + ' ' : '') + cn)
+    const cn = nomContact(contact)
+    if (cn) lines.push("À l'attention de " + cn)
   }
   if (client?.address) lines.push(client.address)
   const cl = [client?.postal_code, (client?.city || '').toUpperCase()].filter(Boolean).join(' ')

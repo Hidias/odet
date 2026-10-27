@@ -1,4 +1,5 @@
 import { requireRight, SALES } from './_lib/auth.js'
+import { nomContact } from '../src/core/genre.js'
 import { loadOrgProfile, orgIdentityBlock, senderFromProfile } from './_lib/orgProfile.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/generate-quote-email.js
@@ -33,7 +34,7 @@ async function handler(req, res) {
     ).join('\n')
 
     const contactName = contact
-      ? [(contact.civilite || ''), (contact.first_name || ''), (contact.last_name || '')].filter(Boolean).join(' ')
+      ? nomContact(contact, { courte: false })
       : ''
 
     const org = await loadOrgProfile(req.admin)

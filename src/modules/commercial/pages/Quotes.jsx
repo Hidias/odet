@@ -1,4 +1,5 @@
 import { toneStyle } from '../../../ui/StatusBadge'
+import { nomContact } from '../../../core/genre'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
@@ -982,7 +983,7 @@ export default function Quotes() {
     const { quote, items, contact } = sendWizard
     const programmes = sendAttachments.filter(a => a.type === 'program' && a.enabled).map(p => p.courseTitle)
     const formation = devisDeFormation(quote, items)
-    const contactName = contact ? [contact.civilite, contact.last_name || contact.name].filter(Boolean).join(' ') : ''
+    const contactName = contact ? nomContact(contact, { courte: false, nomDeFamille: true }) : ''
     const m = modeleEnvoiDevis({ quote, contactName, org: orgName(), programmes, formation })
     setSendEmail(prev => ({ ...prev, subject: m.subject, body: m.body }))
   }
@@ -1857,7 +1858,7 @@ export default function Quotes() {
                     <option value="">- Aucun -</option>
                     {contacts.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.civilite ? c.civilite + ' ' : ''}{c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim()} {c.role ? `(${c.role})` : ''}
+                        {nomContact(c)} {c.role ? `(${c.role})` : ''}
                       </option>
                     ))}
                   </select>

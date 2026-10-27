@@ -1,4 +1,5 @@
 import { toneStyle } from '../../../ui/StatusBadge'
+import { formuleAppel } from '../../../core/genre'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch, callApi } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -88,6 +89,9 @@ const emptyItem = () => ({code:'',description_title:'',description_detail:'',qua
 // ─── Templates email selon rang de relance ───
 function getEmailTemplate(inv, relanceNumber, org = {}) {
   const ref = inv.reference || ''
+  // Formule d'appel : « Madame Le Meur, » quand la civilité du contact est connue (S19)
+  const ct = inv.client_contacts
+  const appel = formuleAppel({ genre: ct?.civilite, nom: ct?.last_name || ct?.name })
   const ttc = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2 }).format(parseFloat(inv.total_ttc) || 0) + ' €'
 
   // Avoir : un seul modèle (pas de relance)
@@ -101,7 +105,7 @@ function getEmailTemplate(inv, relanceNumber, org = {}) {
       : `Ce montant vient en déduction des sommes dues au titre de cette facture.`
     return {
       subject: `Avoir N° ${ref} - ${orgName()}`,
-      body: `Madame, Monsieur,
+      body: `${appel}
 
 Veuillez trouver ci-joint notre avoir N° ${ref} d'un montant de ${ttc} TTC, émis en régularisation de la facture N° ${parentRef}.
 
@@ -126,7 +130,7 @@ Restant à votre disposition pour tout renseignement complémentaire,`
   if (relanceNumber === 1) {
     return {
       subject: `Facture N° ${ref} - ${orgName()}`,
-      body: `Madame, Monsieur,
+      body: `${appel}
 
 Veuillez trouver ci-joint notre facture N° ${ref} d'un montant de ${ttc} TTC au titre de : ${objet}.
 
@@ -137,7 +141,7 @@ Restant à votre disposition pour tout renseignement complémentaire,`
   } else if (relanceNumber === 2) {
     return {
       subject: `Relance - Facture N° ${ref} - ${orgName()}`,
-      body: `Madame, Monsieur,
+      body: `${appel}
 
 Sauf erreur de notre part, la facture N° ${ref} d'un montant de ${ttc} TTC, dont l'échéance était fixée au ${dueDate}, n'a pas encore été réglée.
 
@@ -148,7 +152,7 @@ Restant à votre disposition,`
   } else if (relanceNumber === 3) {
     return {
       subject: `2ème relance - Facture N° ${ref} - ${orgName()}`,
-      body: `Madame, Monsieur,
+      body: `${appel}
 
 Nous revenons vers vous concernant la facture N° ${ref} d'un montant de ${ttc} TTC, échue le ${dueDate}, qui demeure à ce jour impayée malgré notre première relance.
 
@@ -160,7 +164,7 @@ Dans l'attente de votre règlement,`
     const nRelance = relanceNumber - 1
     return {
       subject: `URGENT - ${nRelance}ème relance - Facture N° ${ref} impayée`,
-      body: `Madame, Monsieur,
+      body: `${appel}
 
 En l'absence de règlement de la facture N° ${ref} d'un montant de ${ttc} TTC échue le ${dueDate}, et malgré nos ${nRelance - 1} précédentes relances restées sans suite, nous nous voyons contraints de vous adresser cette mise en demeure de payer.
 

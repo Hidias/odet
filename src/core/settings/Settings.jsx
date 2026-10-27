@@ -1,5 +1,6 @@
 import { getCurrentCompanyId } from '../company/companyContext'
 import { useState, useEffect, useMemo } from 'react'
+import { CHOIX_CIVILITE_GENRE } from '../genre'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
@@ -58,7 +59,7 @@ const ORG_FIELDS = [
   'name', 'legal_name', 'forme_juridique', 'capital_social', 'siret', 'siren', 'naf', 'tva_intra', 'tva_applicable', 'rcs', 'tribunal_competent',
   'nda', 'nda_region', 'qualiopi_certified', 'qualiopi_since', 'qualiopi_organisme', 'activity_kind', 'caces_activity', 'date_creation',
   'address', 'postal_code', 'city', 'phone', 'email', 'website', 'lieu_signature', 'region', 'zone_departements',
-  'dirigeant_name', 'dirigeant_title', 'dirigeant_signature_url', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
+  'dirigeant_name', 'dirigeant_title', 'dirigeant_gender', 'dirigeant_signature_url', 'referent_handicap_email', 'referent_handicap_phone', 'google_review_url',
   'app_name', 'app_short_name', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'logo_base64', 'stamp_base64', 'icon_192_url', 'icon_512_url', 'favicon_url',
   'doc_prefix',
   'bank_name', 'iban', 'bic', 'bank_overdraft', 'email_bcc', 'email_default_sender', 'email_sync_ignored', 'exercice_start_month', 'demo_mode',
@@ -263,7 +264,7 @@ export default function Settings() {
               <EtablissementsInstance />
               <h2 className="section-title">Signataire</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Nom du dirigeant ou signataire"><input className="input" value={form.dirigeant_name || ''} onChange={(e) => set('dirigeant_name', e.target.value)} /></Field>
+                <Field label="Nom du dirigeant ou signataire"><div className="flex gap-2"><select aria-label="Civilité du signataire" className="input w-36 shrink-0" value={form.dirigeant_gender || ''} onChange={(e) => set('dirigeant_gender', e.target.value || null)}>{CHOIX_CIVILITE_GENRE.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select><input className="input flex-1 min-w-0" value={form.dirigeant_name || ''} onChange={(e) => set('dirigeant_name', e.target.value)} /></div></Field>
                 <Field label="Fonction"><input className="input" value={form.dirigeant_title || ''} onChange={(e) => set('dirigeant_title', e.target.value)} placeholder="Gérant" /></Field>
                 <Field label="Signature manuscrite (image)" hint="PNG sur fond transparent de préférence" className="md:col-span-2">
                   <div className="flex items-center gap-4">

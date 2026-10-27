@@ -67,7 +67,7 @@ export default function EnvoiAccesEspace({ acces, contacts = [], peutGerer, onCh
       )}
       {appareils.length > 0 && (
         <details className="text-ui-sm">
-          <summary className="cursor-pointer text-gray-600 flex items-center gap-1.5"><Smartphone className="w-3.5 h-3.5" />{appareils.length} appareil{appareils.length > 1 ? 's' : ''} ont ouvert l'espace</summary>
+          <summary className="cursor-pointer text-gray-600 flex items-center gap-1.5"><Smartphone className="w-3.5 h-3.5" />{appareils.length > 1 ? `${appareils.length} appareils ont ouvert l'espace` : `${appareils.length} appareil a ouvert l'espace`}</summary>
           <ul className="mt-1 divide-y divide-gray-100">
             {appareils.map((a) => <li key={a.id} className="py-1 flex flex-wrap gap-x-2"><span>{libelle(a.user_agent)}</span><span className="text-gray-400">{a.access_id ? 'lien et code' : 'compte'}</span><span className="text-gray-500 ml-auto">{quand(a.last_seen_at)}</span></li>)}
           </ul>

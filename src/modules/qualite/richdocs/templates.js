@@ -5195,7 +5195,7 @@ const TEMPLATES = {
       "paras": [
        "**{{org.nom}}**, {{org.adresse}}, {{org.code_postal}} {{org.ville}}, SIRET {{org.siret}}, déclaration d'activité n° {{org.nda}}",
        "**Lettre de désignation : [intitulé du rôle]**",
-       "Je soussigné(e) {{org.dirigeant}}, {{org.dirigeant_qualite}} de {{org.nom}}, désigne **[nom de la personne]** en qualité de **[intitulé du rôle]** à compter du [date].",
+       "Je {{org.soussigne}} {{org.dirigeant}}, {{org.dirigeant_qualite}} de {{org.nom}}, désigne **[nom de la personne]** en qualité de **[intitulé du rôle]** à compter du [date].",
        "Suppléant : **[nom du suppléant]**, qui exerce la mission en cas d'absence, d'empêchement ou de conflit d'intérêts.",
        "La mission, les moyens et les engagements sont décrits dans la fiche de mission jointe, qui fait partie de la présente désignation. Les coordonnées du référent sont publiées [lieux de publication]. La désignation est revue chaque année en revue de direction et prend fin par écrit.",
        "Fait à {{org.lieu_signature}}, le [date]. Signature du dirigeant. Signature de la personne désignée, précédée de la mention « Mission acceptée »."
@@ -5203,7 +5203,7 @@ const TEMPLATES = {
      },
      {
       "t": "p",
-      "text": "Si le dirigeant se désigne lui-même, la phrase devient : « Je soussigné(e) {{org.dirigeant}}, {{org.dirigeant_qualite}}, assure la fonction de… », une seule signature."
+      "text": "Si le dirigeant se désigne lui-même, la phrase devient : « Je {{org.soussigne}} {{org.dirigeant}}, {{org.dirigeant_qualite}}, assure la fonction de… », une seule signature."
      }
     ]
    },

@@ -156,6 +156,7 @@ export function buildORG(o) {
     // Représentant légal
     dirigeant: s.dirigeant_name || '',
     dirigeant_title: s.dirigeant_title || '',
+    dirigeant_gender: s.dirigeant_gender || null,
     dirigeant_signature_url: s.dirigeant_signature_url || null,
     dirigeant_signature_base64: s.dirigeant_signature_base64 || null,
     // Référent handicap

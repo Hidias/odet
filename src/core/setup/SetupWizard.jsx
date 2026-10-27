@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { CHOIX_CIVILITE_GENRE } from '../genre'
 import toast from 'react-hot-toast'
 import {
   Building2, MapPin, Palette, Layers, Users, CheckCircle, ChevronRight, ChevronLeft, Loader2, Upload, Trash2, Sparkles, Mail, Plus, X,
@@ -27,7 +28,7 @@ const STEPS = [
 const FIELDS = [
   'name', 'app_name', 'app_short_name', 'activity_kind', 'legal_name', 'forme_juridique', 'siret', 'naf', 'tva_intra', 'tva_applicable',
   'nda', 'nda_region', 'qualiopi_certified', 'address', 'postal_code', 'city', 'lieu_signature', 'phone', 'email', 'website',
-  'dirigeant_name', 'dirigeant_title', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'doc_prefix',
+  'dirigeant_name', 'dirigeant_title', 'dirigeant_gender', 'brand_primary', 'brand_accent', 'brand_highlight', 'brand_nav', 'font_pair', 'logo_url', 'logo_on_dark_url', 'doc_prefix',
 ]
 
 export default function SetupWizard() {
@@ -280,7 +281,7 @@ export default function SetupWizard() {
                 <Field label="Téléphone" className="md:col-span-2"><input className="input" value={form.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
                 <Field label="Email de contact" className="md:col-span-2"><input className="input" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} /></Field>
                 <Field label="Site web" className="md:col-span-2"><input className="input" value={form.website} onChange={(e) => set('website', e.target.value)} placeholder="https://" /></Field>
-                <Field label="Nom du signataire" hint="Dirigeant ou responsable habilité" className="md:col-span-3"><input className="input" value={form.dirigeant_name} onChange={(e) => set('dirigeant_name', e.target.value)} /></Field>
+                <Field label="Nom du signataire" hint="Dirigeant ou responsable habilité" className="md:col-span-3"><div className="flex gap-2"><select aria-label="Civilité du signataire" className="input w-36 shrink-0" value={form.dirigeant_gender || ''} onChange={(e) => set('dirigeant_gender', e.target.value || null)}>{CHOIX_CIVILITE_GENRE.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select><input className="input flex-1 min-w-0" value={form.dirigeant_name || ''} onChange={(e) => set('dirigeant_name', e.target.value)} /></div></Field>
                 <Field label="Fonction du signataire" className="md:col-span-3"><input className="input" value={form.dirigeant_title} onChange={(e) => set('dirigeant_title', e.target.value)} placeholder="Gérant" /></Field>
               </div>
             </>

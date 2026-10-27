@@ -12,6 +12,7 @@
 // Aucune valeur d'un organisme particulier n'est écrite ici.
 
 import { supabase } from '../supabase'
+import { mot } from '../genre'
 
 export const TEMPLATE_FIELDS = [
   ['{{org.nom}}', "Nom affiché de l'organisme"],
@@ -28,6 +29,7 @@ export const TEMPLATE_FIELDS = [
   ['{{org.region}}', "Région d'intervention"],
   ['{{org.dirigeant}}', 'Dirigeant'],
   ['{{org.dirigeant_qualite}}', 'Qualité du dirigeant'],
+  ['{{org.soussigne}}', '« soussigné » ou « soussignée » selon le signataire'],
   ['{{org.lieu_signature}}', 'Lieu de signature'],
   ['{{org.tribunal}}', 'Tribunal compétent'],
   ['{{catalogue}}', 'Liste des formations du catalogue'],
@@ -100,7 +102,9 @@ export function buildTemplateContext({ org = {}, roles = [], courses = [], deput
       region: org.region || org.nda_region || '',
       region_nda: org.nda_region || org.region || '',
       dirigeant: org.dirigeant_name || '',
-      dirigeant_qualite: org.dirigeant_title || 'Dirigeant',
+      dirigeant_qualite: org.dirigeant_title || mot('dirigeant', org.dirigeant_gender, { majuscule: true }),
+      // « Je soussigné » / « Je soussignée » selon le signataire (S19)
+      soussigne: mot('soussigne', org.dirigeant_gender),
       lieu_signature: org.lieu_signature || org.city || '',
       tribunal: org.tribunal_competent || '',
     },

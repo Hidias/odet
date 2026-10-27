@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CHOIX_CIVILITE_GENRE } from '../../../core/genre'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { useDroits } from '../../../core/rights/useDroit'
 import FraisFormateur from '../components/FraisFormateur'
@@ -73,6 +74,7 @@ export default function Trainers() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [confirmDeleteCert, setConfirmDeleteCert] = useState(null)
   const [formData, setFormData] = useState({ 
+    gender: '',
     first_name: '', 
     last_name: '', 
     email: '', 
@@ -139,7 +141,7 @@ export default function Trainers() {
   
   const resetForm = () => { 
     setFormData({ 
-      first_name: '', last_name: '', email: '', phone: '', 
+      gender: '', first_name: '', last_name: '', email: '', phone: '', 
       specialties: '', qualifications: [], certification_number: '', is_internal: true 
     })
     setNewQualification('')
@@ -154,6 +156,7 @@ export default function Trainers() {
   
   const handleEdit = (trainer) => {
     setFormData({
+      gender: trainer.gender || '',
       first_name: trainer.first_name || '',
       last_name: trainer.last_name || '',
       email: trainer.email || '',
@@ -189,6 +192,7 @@ export default function Trainers() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     const payload = { 
+      gender: formData.gender || null,
       first_name: formData.first_name,
       last_name: formData.last_name,
       email: formData.email,
@@ -512,7 +516,8 @@ export default function Trainers() {
                 <button onClick={resetForm}><X className="w-5 h-5" /></button>
               </div>
               <form onSubmit={handleSubmit} className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-[9rem_1fr_1fr] gap-4">
+                  <div className="col-span-2 sm:col-span-1"><label className="label">Civilité</label><select className="input" value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })}>{CHOIX_CIVILITE_GENRE.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
                   <div><label className="label">Prénom *</label><input type="text" value={formData.first_name} onChange={(e) => handleNameChange('first_name', e.target.value)} className="input" required /></div>
                   <div><label className="label">NOM *</label><input type="text" value={formData.last_name} onChange={(e) => handleNameChange('last_name', e.target.value)} className="input uppercase" required /></div>
                 </div>

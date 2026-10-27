@@ -15,6 +15,8 @@ export function donneesDecharge(session = {}, trainee = {}, sig = null) {
     naissance: dateFr(trainee.birth_date),
     entreprise: session.clients?.name || '',
     poste: trainee.job_title || '',
+    // Accords « soussignée », « informée » (S19)
+    genre: trainee.gender || null,
     formation: session.courses?.title || '',
     dates: debut && fin && debut !== fin ? `du ${debut} au ${fin}` : debut,
     signature: sig?.signature_data || null,

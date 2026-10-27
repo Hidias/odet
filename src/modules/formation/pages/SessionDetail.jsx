@@ -277,7 +277,7 @@ export default function SessionDetail() {
   // Modal création nouveau stagiaire
   const [showNewTraineeModal, setShowNewTraineeModal] = useState(false)
   const [newTraineeForm, setNewTraineeForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '', client_id: '', gender: 'male'
+    first_name: '', last_name: '', email: '', phone: '', client_id: '', gender: ''
   })
   
   // Présence partielle : arrivée tardive et/ou départ anticipé (heures locales)
@@ -2847,7 +2847,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         email: newTraineeForm.email || null,
         phone: newTraineeForm.phone || null,
         client_id: newTraineeForm.client_id || session?.client_id || null,
-        gender: newTraineeForm.gender || 'male'
+        gender: newTraineeForm.gender || null
       })
       .select()
       .single()
@@ -2866,7 +2866,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
     if (data) setSession(data)
     
     // Réinitialiser le formulaire
-    setNewTraineeForm({ first_name: '', last_name: '', email: '', phone: '', client_id: '', gender: 'male' })
+    setNewTraineeForm({ first_name: '', last_name: '', email: '', phone: '', client_id: '', gender: '' })
     setShowNewTraineeModal(false)
     toast.success(`${newTrainee.first_name} ${newTrainee.last_name} créé et ajouté à la session`)
   }
@@ -5859,8 +5859,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   value={newTraineeForm.gender}
                   onChange={(e) => setNewTraineeForm(prev => ({ ...prev, gender: e.target.value }))}
                 >
-                  <option value="male">Homme</option>
+                  <option value="">Non renseigné</option>
                   <option value="female">Femme</option>
+                  <option value="male">Homme</option>
                 </select>
               </div>
               <div>

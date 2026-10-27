@@ -34,6 +34,7 @@ import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 
 import { confirmer } from '../../../ui/Confirm'
 import { useCapacites } from '../../../core/capacites'
+import { CHOIX_CIVILITE_CONTACT, civilite as civiliteDe } from '../../../core/genre'
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
@@ -114,7 +115,7 @@ export default function ClientDetail() {
   const [contacts, setContacts] = useState([])
   const [showContactForm, setShowContactForm] = useState(false)
   const [editingContact, setEditingContact] = useState(null)
-  const [contactForm, setContactForm] = useState({ name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false })
+  const [contactForm, setContactForm] = useState({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false })
 
   // Timeline
   const [interactions, setInteractions] = useState([])
@@ -544,12 +545,13 @@ export default function ClientDetail() {
       }
     }
 
+    const fiche = { ...contactForm, civilite: contactForm.civilite || null }
     if (editingContact) {
-      const { error } = await supabase.from('client_contacts').update(contactForm).eq('id', editingContact.id)
+      const { error } = await supabase.from('client_contacts').update(fiche).eq('id', editingContact.id)
       if (error) return toast.error('Erreur: ' + error.message)
       toast.success('Contact modifié')
     } else {
-      const { error } = await supabase.from('client_contacts').insert({ ...contactForm, client_id: id })
+      const { error } = await supabase.from('client_contacts').insert({ ...fiche, client_id: id })
       if (error) return toast.error('Erreur: ' + error.message)
       toast.success('Contact ajouté')
     }
@@ -570,7 +572,7 @@ export default function ClientDetail() {
   }
 
   function openEditContact(c) {
-    setContactForm({ name: c.name, role: c.role || '', email: c.email || '', phone: c.phone || '', is_primary: c.is_primary || false, is_document_contact: c.is_document_contact || false, is_billing: c.is_billing || false })
+    setContactForm({ civilite: c.civilite || '', name: c.name, role: c.role || '', email: c.email || '', phone: c.phone || '', is_primary: c.is_primary || false, is_document_contact: c.is_document_contact || false, is_billing: c.is_billing || false })
     setEditingContact(c)
     setShowContactForm(true)
   }
@@ -578,7 +580,7 @@ export default function ClientDetail() {
   function closeContactForm() {
     setShowContactForm(false)
     setEditingContact(null)
-    setContactForm({ name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false })
+    setContactForm({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false })
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1535,7 +1537,7 @@ export default function ClientDetail() {
                   <div key={c.id} className="group relative flex items-start justify-between p-3 bg-gray-50 rounded-ui-sm hover:bg-gray-100 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="font-medium text-gray-900">{c.name}</p>
+                        <p className="font-medium text-gray-900">{c.civilite ? `${civiliteDe(c.civilite, { courte: true })} ` : ''}{c.name}</p>
                         {c.is_primary && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui-sm rounded font-medium" title="Contact principal">
                             <Star className="w-3 h-3 fill-[rgb(var(--c-warning))]" /> Principal
@@ -1576,7 +1578,7 @@ export default function ClientDetail() {
                 )}
 
                 {d.modifier && (
-                  <button onClick={() => { setEditingContact(null); setContactForm({ name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false }); setShowContactForm(true) }}
+                  <button onClick={() => { setEditingContact(null); setContactForm({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false }); setShowContactForm(true) }}
                     className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-primary-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
                     <Plus className="w-4 h-4" /> Ajouter un contact
                   </button>
@@ -2019,10 +2021,19 @@ export default function ClientDetail() {
               <button onClick={closeContactForm} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-3">
-              <div>
-                <label className="text-ui-sm font-medium text-gray-500 mb-1 block">Nom complet *</label>
-                <input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Mme Dupont, M. Martin..." autoFocus />
+              <div className="grid grid-cols-[8rem_1fr] gap-3">
+                <div>
+                  <label className="text-ui-sm font-medium text-gray-500 mb-1 block">Civilité</label>
+                  <select value={contactForm.civilite || ''} onChange={e => setContactForm(f => ({ ...f, civilite: e.target.value }))}
+                    className="w-full px-2 py-2 border rounded-ui-sm text-ui bg-white">
+                    {CHOIX_CIVILITE_CONTACT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-ui-sm font-medium text-gray-500 mb-1 block">Nom complet *</label>
+                  <input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Prénom Nom" autoFocus />
+                </div>
               </div>
               <div>
                 <label className="text-ui-sm font-medium text-gray-500 mb-1 block">Fonction / Rôle</label>

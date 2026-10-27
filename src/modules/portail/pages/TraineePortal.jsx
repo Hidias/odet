@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { mot } from '../../../core/genre'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
 import { useBranding, brandLogo } from '../../../core/branding/BrandingProvider'
@@ -1199,7 +1200,7 @@ export default function TraineePortal() {
                   <AlertCircle className="w-10 h-10 text-gray-400" />
                 </div>
                 <h2 className="font-display text-xl font-bold text-gray-900 mb-2">Accès indisponible</h2>
-                <p className="text-gray-500">Vous êtes noté absent sur cette formation.<br />Adressez-vous à votre formateur.</p>
+                <p className="text-gray-500">Vous êtes {mot('note', selectedTrainee?.gender || infoForm.gender)} {mot('absent', selectedTrainee?.gender || infoForm.gender)} sur cette formation.<br />Adressez-vous à votre formateur.</p>
                 <button onClick={quitter} className="mt-6 px-5 py-2.5 rounded-ui bg-gray-100 text-gray-700 font-medium">Retour</button>
               </div>
             )}

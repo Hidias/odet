@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { CHOIX_CIVILITE_CONTACT } from '../../../core/genre'
 import { Link } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
@@ -1517,11 +1518,12 @@ export default function Clients() {
 // Composant pour ajouter un contact
 function ContactForm({ onAdd, onEdit, contact = null, buttonLabel = '+ Ajouter' }) {
   const [show, setShow] = useState(false)
-  const [form, setForm] = useState({ name: '', role: '', email: '', phone: '', is_primary: false })
+  const [form, setForm] = useState({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false })
   
   const openForm = () => {
     if (contact) {
       setForm({
+        civilite: contact.civilite || '',
         name: contact.name || '',
         role: contact.role || '',
         email: contact.email || '',
@@ -1529,19 +1531,20 @@ function ContactForm({ onAdd, onEdit, contact = null, buttonLabel = '+ Ajouter' 
         is_primary: contact.is_primary || false
       })
     } else {
-      setForm({ name: '', role: '', email: '', phone: '', is_primary: false })
+      setForm({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false })
     }
     setShow(true)
   }
   
   const handleSubmit = () => {
     if (!form.name) return toast.error('Nom requis')
+    const fiche = { ...form, civilite: form.civilite || null }
     if (contact && onEdit) {
-      onEdit(contact.id, form)
+      onEdit(contact.id, fiche)
     } else {
-      onAdd(form)
+      onAdd(fiche)
     }
-    setForm({ name: '', role: '', email: '', phone: '', is_primary: false })
+    setForm({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false })
     setShow(false)
   }
   
@@ -1553,7 +1556,12 @@ function ContactForm({ onAdd, onEdit, contact = null, buttonLabel = '+ Ajouter' 
       <div className="relative bg-white rounded-ui-sm shadow-md p-4 w-80">
         <h4 className="font-medium mb-3">{contact ? 'Modifier' : 'Nouveau'} contact</h4>
         <div className="space-y-2">
-          <input type="text" placeholder="Nom *" className="input text-ui" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+          <div className="grid grid-cols-[7rem_1fr] gap-2">
+            <select aria-label="Civilité" className="input text-ui" value={form.civilite} onChange={e => setForm({...form, civilite: e.target.value})}>
+              {CHOIX_CIVILITE_CONTACT.map(([v, l]) => <option key={v} value={v}>{v ? l : 'Civilité'}</option>)}
+            </select>
+            <input type="text" placeholder="Prénom Nom *" className="input text-ui" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+          </div>
           <input type="text" placeholder="Fonction" className="input text-ui" value={form.role} onChange={e => setForm({...form, role: e.target.value})} />
           <input type="email" placeholder="Email" className="input text-ui" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
           <input type="tel" placeholder="Téléphone" className="input text-ui" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
