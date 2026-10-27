@@ -32,7 +32,9 @@ import { useCapacites } from '../../../core/capacites'
 import { modeleEnvoiDevis } from '../../../core/emails/modeles'
 import { publishedDocPDF } from '../../qualite/richdocs/published'
 import { preparerDevisPublie } from '../lib/conditionsDevis'
-import { devisDeFormation, METIERS, libelleMetier, metierDevis, metierDeduit, metierLigne, objetsProposes, documentsAJoindre, piecesEntrepriseAJoindre, pieceValable } from '../lib/metierDevis'
+import ContratDevisForm, { useReglagesContrat } from '../components/ContratDevisForm'
+import { conditionsDevis, devisAvecContrat } from '../../interventions/lib/contrat'
+import { devisDeFormation, METIERS, libelleMetier, metierDevis, metierDeduit, metierLigne, metiersDesLignes, objetsProposes, documentsAJoindre, piecesEntrepriseAJoindre, pieceValable } from '../lib/metierDevis'
 import AcompteDevis from '../components/AcompteDevis'
 import MentionsDevisForm from '../components/MentionsDevisForm'
 import PhotoLigneDevis from '../components/PhotoLigneDevis'
@@ -237,7 +239,9 @@ export default function Quotes() {
     metier: '',
     // Conditions du devis (0444)
     a_distance: false, a_distance_le: null, a_distance_infos: [], hors_etablissement: false,
-    delai_execution: '', acompte_pct: '', dechets: ''
+    delai_execution: '', acompte_pct: '', dechets: '',
+    // Contrat de maintenance proposé (0460)
+    contrat: null
   }
 
   const emptyItem = {
@@ -259,6 +263,7 @@ export default function Quotes() {
   }, [])
   // Objets proposés par métier (0443, Paramètres › Facturation) ; texte libre toujours possible
   const [objetsDevis, setObjetsDevis] = useState(null)
+  const reglagesContrat = useReglagesContrat()
   useEffect(() => {
     supabase.from('billing_settings').select('objets_devis').limit(1).maybeSingle()
       .then(({ data }) => setObjetsDevis(data?.objets_devis || null), () => setObjetsDevis(null))
@@ -491,6 +496,8 @@ export default function Quotes() {
       delai_execution: (currentQuote.delai_execution || '').trim() || null,
       acompte_pct: Number.isFinite(parseFloat(currentQuote.acompte_pct)) && parseFloat(currentQuote.acompte_pct) > 0 ? Math.min(100, parseFloat(currentQuote.acompte_pct)) : null,
       dechets: (currentQuote.dechets || '').trim() || null,
+      // Conditions du contrat de maintenance (0460) : seulement si le devis en propose un
+      contrat: devisAvecContrat(currentQuote, items, metierDevis, metiersDesLignes) ? conditionsDevis(currentQuote.contrat, reglagesContrat || {}, clients.find((c) => c.id === currentQuote.client_id)) : null,
       updated_at: new Date().toISOString()
     }
     try {
@@ -1916,6 +1923,11 @@ export default function Quotes() {
               </div>
             </div>
 
+
+            {/* Contrat de maintenance proposé (0460) */}
+            <ContratDevisForm quote={currentQuote} setQuote={setCurrentQuote} items={items} setItems={setItems} emptyItem={emptyItem}
+              client={clients.find((c) => c.id === currentQuote.client_id)} reglages={reglagesContrat}
+              verrouille={['accepted', 'partial', 'refused', 'expired'].includes(currentQuote.status)} />
 
             {/* Devis à distance, particulier démarché, délai, acompte, déchets (0444) */}
             <MentionsDevisForm quote={currentQuote} setQuote={setCurrentQuote} items={items}

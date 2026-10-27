@@ -56,7 +56,9 @@ async function publier(req, res) {
     if (deja) {
       // Devis modifié depuis sa mise à disposition et pas encore signé : nouvelle version (l'ancienne est retirée)
       // Avis de passage (0451) : chaque nouvel avis remplace le précédent
-      const modifie = kind === 'avis_passage' || (type === 'quote' && obj.updated_at && new Date(obj.updated_at) > new Date(deja.published_at))
+      // Contrat de maintenance (0460) : tant qu'il n'est pas signé, chaque nouveau PDF (conditions corrigées, contrat
+      // signé à la main déposé) remplace le précédent
+      const modifie = kind === 'avis_passage' || type === 'itv_contract' || (type === 'quote' && obj.updated_at && new Date(obj.updated_at) > new Date(deja.published_at))
       if (!modifie) return res.status(200).json({ id: deja.id, deja: true })
       const { data: sig } = await admin.from('document_signatures').select('id').eq('status', 'valid').eq('metadata->>document_id', deja.id).limit(1)
       if (sig?.length) return res.status(200).json({ id: deja.id, deja: true, signe: true })
