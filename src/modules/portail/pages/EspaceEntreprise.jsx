@@ -693,7 +693,7 @@ function ContratsEspace({ donnees, onChange }) {
       {resilier && (
         <Carte>
           <div className="font-medium text-gray-900">Résilier le contrat {resilier.label}</div>
-          <p className="text-sm text-gray-600 mt-1">Votre demande est enregistrée tout de suite et un accusé de réception s'affiche. Votre prestataire vous confirme ensuite la date d'effet. Seules les prestations déjà réalisées restent dues.</p>
+          <p className="text-sm text-gray-600 mt-1">Votre demande est enregistrée tout de suite et un accusé de réception s'affiche. Votre prestataire vous confirme ensuite la date d'effet : jusqu'à cette date, le contrat continue et ses échéances restent dues ; aucune indemnité de résiliation ne vous est demandée.</p>
           <textarea className="input w-full min-h-[64px] mt-2" placeholder="Motif (facultatif)" value={motif} onChange={(e) => setMotif(e.target.value)} aria-label="Motif" />
           <div className="flex gap-2 justify-end mt-2">
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => setResilier(null)}>Annuler</button>

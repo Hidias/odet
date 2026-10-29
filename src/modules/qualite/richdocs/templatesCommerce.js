@@ -119,7 +119,7 @@ const CGV_MAINTENANCE = {
       p('Lorsque le client professionnel met fin au contrat avant son terme en dehors des cas ci-dessus, il doit le prix des visites restant à effectuer jusqu\'au terme de la période en cours, majoré de **[120 € TTC]** de frais de résiliation.'),
     ] },
     { id: 'resiliation-particuliers', title: 'Résiliation (particuliers)', cond: 'particuliers', blocks: [
-      p('Le client particulier qui met fin au contrat ne doit que les prestations déjà réalisées ; aucune indemnité de résiliation ne lui est demandée. Il peut résilier par écrit ou en ligne depuis son espace client, et reçoit un accusé de réception.'),
+      p('Le client particulier peut résilier par écrit ou en ligne depuis son espace client, et reçoit un accusé de réception. La résiliation prend effet à la date que le prestataire lui confirme, dans le respect des articles L215-1 et L215-1-1 du Code de la consommation ; jusqu\'à cette date, les prestations et échéances du contrat restent dues. Aucune indemnité de résiliation ne lui est demandée.'),
     ] },
     { id: 'prix', title: 'Prix et révision', blocks: [
       p('Le prix annuel est indiqué au devis ou au contrat, hors taxes. Il comprend les opérations décrites dans le périmètre des prestations pour les équipements listés. Les pièces, recharges, remplacements et opérations non comprises font l\'objet d\'un devis préalable, sauf urgence liée à la sécurité acceptée par le client.'),
