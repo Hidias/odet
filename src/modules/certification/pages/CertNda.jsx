@@ -164,7 +164,7 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
         </Step>
         <Step done={hasNda} current={['depose', 'complet'].includes(form.nda_status) && !hasNda} title="Réponse de la DREETS"
           aside={answerBy && !hasNda ? <DueBadge date={answerBy} /> : null}>
-          <span>Deux mois après un dossier complet. Sans réponse dans ce délai, la déclaration est enregistrée (R6351-6). Des pièces peuvent être demandées sous 10 jours ouvrés ; réponse sous 12 jours ouvrés.</span>
+          <span>Récépissé et numéro sous deux mois après un dossier complet. En attendant le récépissé ou un refus, l'organisme est réputé déclaré (R6351-6).</span>
           {canWrite && !hasNda && (
             <div className="pt-1 sm:w-1/2"><DateField label="Dossier complet le (accusé de réception)" value={form.nda_complete_at} onChange={(v) => { setForm({ ...form, nda_complete_at: v }); save({ nda_complete_at: v, ...(v ? { nda_status: 'complet' } : {}) }) }} /></div>
           )}
