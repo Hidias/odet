@@ -117,8 +117,17 @@ export default function BPF() {
     if (!calcul) return
     setBusy(true)
     try {
+      // Libellés officiels des spécialités (F-4) : relus s'ils ne sont pas encore arrivés (relecture de #261)
+      let specs = specialites
+      if (!specs.length) {
+        const { data, error } = await supabase.from('bpf_specialites').select('code, libelle')
+        if (error || !data?.length) { toast.error(`Spécialités non chargées${error ? ` : ${error.message}` : ''}`); return }
+        specs = data
+        setSpecialites(data)
+      }
+      const libelle = (code) => specs.find((s) => s.code === code)?.libelle || ''
       const { buildBpfPDF } = await import('../pdf/bpfPDF')
-      const { doc, filename } = await buildBpfPDF({ calcul, retenues, saisies, ecarts, declaration, nonEnregistre, libelleSpec })
+      const { doc, filename } = await buildBpfPDF({ calcul, retenues, saisies, ecarts, declaration, nonEnregistre, libelleSpec: libelle })
       doc.save(filename)
     } catch (e) {
       toast.error(`PDF non généré : ${e.message}`)
