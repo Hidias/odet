@@ -382,6 +382,7 @@ begin
   -- B-2 : formation à distance pendant l'exercice
   v_lignes := v_lignes || jsonb_build_object('B-2', exists (
     select 1 from public.sessions s where s.company_id = v_cie and coalesce(s.is_remote, false)
+      and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
       and coalesce(s.end_date, s.start_date) between v_debut and v_fin));
 
   return jsonb_build_object(
