@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Calculator, Save, CheckCircle, RotateCcw, Unlock } from 'lucide-react'
+import { Calculator, Save, CheckCircle, RotateCcw, Unlock, FileDown } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { PageHeader, Banner } from '../../../ui'
 import { confirmer } from '../../../ui/Confirm'
@@ -102,6 +102,21 @@ export default function BPF() {
     if (error) { toast.error(error.message); return }
     setDeclaration(data)
     toast.success('BPF enregistré et noté comme déposé')
+  }
+
+  // Document de travail PDF (lot 1c) : valeurs retenues affichées, à reporter sur Mon Activité Formation
+  const exporterPdf = async () => {
+    if (!calcul) return
+    setBusy(true)
+    try {
+      const { buildBpfPDF } = await import('../pdf/bpfPDF')
+      const { doc, filename } = await buildBpfPDF({ calcul, retenues, saisies, ecarts, declaration, libelleSpec })
+      doc.save(filename)
+    } catch (e) {
+      toast.error(`PDF non généré : ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
   }
 
   // Réouverture d'un BPF déposé par erreur : seule la date de dépôt est retirée (la base refuse tout autre changement)
@@ -208,6 +223,7 @@ export default function BPF() {
             </select>
             <button type="button" className="btn btn-secondary" onClick={calculer} disabled={busy || depose}><Calculator className="w-4 h-4" />{calcul ? 'Recalculer' : 'Calculer'}</button>
             <button type="button" className="btn btn-primary" onClick={enregistrer} disabled={busy || !calcul || depose}><Save className="w-4 h-4" />Enregistrer</button>
+            <button type="button" className="btn btn-secondary" onClick={exporterPdf} disabled={busy || !calcul}><FileDown className="w-4 h-4" />PDF</button>
           </div>
         )} />
 
