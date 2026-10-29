@@ -153,7 +153,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
       <button type="button" className="btn btn-ghost btn-icon" onClick={() => (step === 'cloture' ? setStep('controle') : navigate(-1))} aria-label="Retour"><ChevronLeft className="w-5 h-5" /></button>
       <div className="flex-1 min-w-0">
         <h1 className="font-display font-semibold text-lg truncate">{visit.clients?.name}</h1>
-        <div className="text-ui-sm text-gray-500 truncate">{[visit.sites?.name, visit.sites?.city, visit.reference].filter(Boolean).join(', ')}</div>
+        <div className="text-ui-sm text-gray-500 truncate">{[visit.kind === 'inventaire' ? 'Inventaire' : null, visit.sites?.name, visit.sites?.city, visit.reference].filter(Boolean).join(', ')}</div>
       </div>
       {step === 'controle' && started && !readOnly ? <ScanButton className="btn btn-primary btn-icon" label="" onCode={onScan} /> : <VisitBadge status={visit.status} />}
     </div>

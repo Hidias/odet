@@ -17,10 +17,13 @@ export async function buildRapportPDF({ visit, items, parts, equipmentById, sett
   const ORG = orgHorsFormation(org || await loadPdfOrg())
   const doc = new jsPDF({ compress: true })
   const day = (visit.started_at || visit.finished_at || visit.planned_on || '').slice(0, 10)
+  // Visite d'inventaire (0463) : procès-verbal d'inventaire du parc, signé par le client
+  const inventaire = visit.kind === 'inventaire'
+  const titre = inventaire ? 'Procès-verbal d\'inventaire' : (settings?.report_title || 'Rapport d\'intervention')
   const f = startDocument(doc, ORG, {
-    ref: visit.reference, docLabel: settings?.report_title || 'Rapport d\'intervention', code: 'ITV',
-    title: settings?.report_title || 'Rapport d\'intervention',
-    subtitle: `Vérification du matériel de sécurité du ${frShort(day)}`,
+    ref: visit.reference, docLabel: titre, code: 'ITV',
+    title: titre,
+    subtitle: inventaire ? `Inventaire du matériel de sécurité du ${frShort(day)}` : `Vérification du matériel de sécurité du ${frShort(day)}`,
   })
 
   const site = visit.sites || {}
@@ -106,5 +109,5 @@ export async function buildRapportPDF({ visit, items, parts, equipmentById, sett
   f.finish()
   numberPages(doc, ORG)
   const safe = String(visit.clients?.name || 'client').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').slice(0, 40)
-  return { doc, filename: `Rapport_${visit.reference || 'intervention'}_${safe}.pdf` }
+  return { doc, filename: `${inventaire ? 'PV_inventaire' : 'Rapport'}_${visit.reference || 'intervention'}_${safe}.pdf` }
 }

@@ -36,11 +36,15 @@ export default function RegistreVue({ charger, mode, orgPourPdf, clientId, compa
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
   const [exercices, setExercices] = useState([])
+  const [parcDecl, setParcDecl] = useState(null)
 
   const load = async (s = site) => {
     try { setR(await charger(s)); setErreur(null) } catch (e) { setErreur(e.message || 'Registre indisponible') }
   }
   useEffect(() => { load(site) }, [site])
+  // Espace entreprise (0463) : le client déclare son matériel, l'organisme le confirme à la visite d'inventaire
+  const chargerDecl = () => supabase.rpc('ent_parc_declarations').then(({ data, error }) => setParcDecl(error ? null : data), () => setParcDecl(null))
+  useEffect(() => { if (mode === 'entreprise') chargerDecl() }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (mode !== 'entreprise') supabase.from('obligation_rules').select('id, label').eq('kind', 'exercice').eq('is_active', true).order('label').then(({ data }) => setExercices(data || []))
   }, [mode])
@@ -74,6 +78,18 @@ export default function RegistreVue({ charger, mode, orgPourPdf, clientId, compa
     toast.success('Exercice enregistré')
     setForm(null)
     load()
+  }
+
+  const declarer = async () => {
+    const n = Number(form.quantity)
+    if (!form.type_id || !(n >= 1 && n <= 500)) return toast.error('Type de matériel et nombre (1 à 500) requis')
+    setBusy(true)
+    const { error } = await supabase.rpc('ent_parc_declarer', { p_site: form.site || site || null, p_type: form.type_id, p_quantity: n, p_location: form.location || null, p_brand: form.brand || null, p_year: form.year ? Number(form.year) : null, p_notes: form.notes || null })
+    setBusy(false)
+    if (error) return toast.error(error.message)
+    toast.success('Matériel déclaré : il sera confirmé lors de la visite d\'inventaire')
+    setForm(null)
+    chargerDecl()
   }
 
   const deposer = async () => {
@@ -143,6 +159,40 @@ export default function RegistreVue({ charger, mode, orgPourPdf, clientId, compa
                         <span className="text-gray-500 shrink-0">{v.conformes}/{v.appareils} conformes{v.a_remplacer ? `, ${v.a_remplacer} à remplacer` : ''}</span>
                       </div>
                     ))}
+                  {mode === 'entreprise' && parcDecl && (
+                    <>
+                      {(parcDecl.declarations || []).map((d) => (
+                        <div key={d.id} className="flex items-start justify-between gap-2">
+                          <span className="text-gray-800">{d.quantity} × {d.type}{d.site ? ` · ${d.site}` : ''}{d.location ? ` · ${d.location}` : ''}</span>
+                          <span className="text-xs text-gray-400 shrink-0">{d.status === 'declaree' ? 'à confirmer' : d.status === 'reprise' ? 'confirmé' : 'non retenu'}</span>
+                        </div>
+                      ))}
+                      {!form && (parcDecl.types || []).length > 0 && <button type="button" className="btn btn-sm btn-secondary" onClick={() => setForm({ type: 'parc', type_id: parcDecl.types[0].id, quantity: '1', site: site || r.sites?.[0]?.id || '' })}><Plus className="w-4 h-4" /> Déclarer mon matériel</button>}
+                      {form?.type === 'parc' && (
+                        <div className="space-y-2 bg-gray-50 rounded-ui-sm p-2">
+                          <p className="text-xs text-gray-500">Indiquez ce que vous pensez avoir : le technicien le confirme sur place lors de l'inventaire.</p>
+                          <select className="input w-full" value={form.type_id} onChange={(e) => setForm((f) => ({ ...f, type_id: e.target.value }))} aria-label="Type de matériel">
+                            {parcDecl.types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                          </select>
+                          {(r.sites || []).length > 1 && (
+                            <select className="input w-full" value={form.site} onChange={(e) => setForm((f) => ({ ...f, site: e.target.value }))} aria-label="Site">
+                              {r.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                          )}
+                          <div className="grid grid-cols-2 gap-2">
+                            <input className="input" inputMode="numeric" placeholder="Nombre" value={form.quantity} onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value.replace(/\D/g, '') }))} aria-label="Nombre" />
+                            <input className="input" inputMode="numeric" placeholder="Année (si connue)" value={form.year || ''} onChange={(e) => setForm((f) => ({ ...f, year: e.target.value.replace(/\D/g, '').slice(0, 4) }))} aria-label="Année de fabrication" />
+                          </div>
+                          <input className="input w-full" placeholder="Emplacement (atelier, accueil…)" value={form.location || ''} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} aria-label="Emplacement" />
+                          <input className="input w-full" placeholder="Marque (si connue)" value={form.brand || ''} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} aria-label="Marque" />
+                          <div className="flex gap-2 justify-end">
+                            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setForm(null)}>Annuler</button>
+                            <button type="button" className="btn btn-sm btn-primary" onClick={declarer} disabled={busy}>{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Déclarer</button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </>
               )}
 

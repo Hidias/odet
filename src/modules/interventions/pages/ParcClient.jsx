@@ -1,9 +1,11 @@
 // Parc d'un client : sites (table sites existante), appareils, contrat, visites, étiquettes et registre.
+// 0463 : visite d'inventaire par site ; matériel déclaré par le client depuis son espace, repris au parc ou écarté.
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Loader2, Plus, Printer, BookOpen, MapPin, Pencil, Play, CalendarPlus, ExternalLink } from 'lucide-react'
+import { Loader2, Plus, Printer, BookOpen, MapPin, Pencil, Play, CalendarPlus, ExternalLink, ClipboardList } from 'lucide-react'
+import { supabase } from '../../../core/supabase'
 import {
   loadClient, loadSites, loadEquipmentForClient, loadContracts, loadVisits, createDefaultSite, saveSite, createVisit,
   loadVisitItems,
@@ -32,9 +34,12 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
   const [editSite, setEditSite] = useState(null)
   const [editContract, setEditContract] = useState(null)
   const [busy, setBusy] = useState(null)
+  const [declarations, setDeclarations] = useState([])
 
   const load = async () => {
-    const [c, s, e, ct, v] = await Promise.all([loadClient(clientId), loadSites(clientId), loadEquipmentForClient(clientId), loadContracts(clientId), loadVisits({ clientId })])
+    const [c, s, e, ct, v, d] = await Promise.all([loadClient(clientId), loadSites(clientId), loadEquipmentForClient(clientId), loadContracts(clientId), loadVisits({ clientId }),
+      supabase.from('itv_parc_declarations').select('*').eq('client_id', clientId).eq('status', 'declaree').order('created_at').then((r) => r.data || [], () => [])])
+    setDeclarations(d || [])
     setClient(c); setSites((s || []).filter((x) => x.is_active !== false)); setEquipment(e || []); setContracts(ct || [])
     setVisits((v || []).sort((a, b) => String(b.planned_on || b.due_on || '').localeCompare(String(a.planned_on || a.due_on || ''))))
   }
@@ -77,6 +82,34 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
       const v = await createVisit({ client_id: client.id, site_id: site.id, planned_on: todayIso(), technician_id: profile?.id || null, status: 'planifiee' })
       navigate(`/interventions/visite/${v.id}`)
     } catch (e) { toast.error(e.message) }
+  }
+  const inventaire = async (site) => {
+    try {
+      const open = visits.find((v) => v.site_id === site.id && v.kind === 'inventaire' && ['a_planifier', 'planifiee', 'en_cours'].includes(v.status))
+      if (open) { navigate(`/interventions/visite/${open.id}`); return }
+      const v = await createVisit({ client_id: client.id, site_id: site.id, kind: 'inventaire', planned_on: todayIso(), technician_id: profile?.id || null, status: 'planifiee' })
+      navigate(`/interventions/visite/${v.id}`)
+    } catch (e) { toast.error(e.message) }
+  }
+  const traiter = async (d, statut) => {
+    setBusy(`decl-${d.id}`)
+    try {
+      if (statut === 'reprise') {
+        const { data: codes, error } = await supabase.rpc('itv_next_label', { p_count: d.quantity })
+        if (error) throw error
+        const siteId = d.site_id || sites[0]?.id
+        if (!siteId) throw new Error('Créez d\'abord un site')
+        const { error: e2 } = await supabase.from('itv_equipment').insert(codes.map((code) => ({
+          client_id: client.id, site_id: siteId, type_id: d.type_id, label_code: code, location: d.location, brand: d.brand,
+          manufactured_year: d.manufactured_year, status: 'en_service', notes: 'Déclaré par le client, à confirmer à la visite d\'inventaire',
+        })))
+        if (e2) throw e2
+      }
+      const { error: e3 } = await supabase.rpc('parc_declaration_traiter', { p_declaration: d.id, p_status: statut })
+      if (e3) throw e3
+      toast.success(statut === 'reprise' ? `${d.quantity} appareil${d.quantity > 1 ? 's' : ''} ajouté${d.quantity > 1 ? 's' : ''} au parc` : 'Déclaration écartée')
+      await load()
+    } catch (e) { toast.error(e.message) } finally { setBusy(null) }
   }
   const toPlan = async (site) => {
     try {
@@ -146,11 +179,29 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => registre(s)} disabled={busy === `reg-${s.id}`}><BookOpen className="w-4 h-4" />Registre</button>
               {canWrite && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditSite(s)}><Pencil className="w-4 h-4" />Modifier</button>}
               {isManager && <button type="button" className="btn btn-ghost btn-sm" onClick={() => toPlan(s)}><CalendarPlus className="w-4 h-4" />À planifier</button>}
+              {(isTechnician || isManager) && <button type="button" className="btn btn-ghost btn-sm" onClick={() => inventaire(s)}><ClipboardList className="w-4 h-4" />Visite d'inventaire</button>}
               {(isTechnician || isManager) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => visitNow(s)}><Play className="w-4 h-4" />Visite maintenant</button>}
             </div>
           )
         })}
       </section>
+
+      {declarations.length > 0 && (
+        <section className="card space-y-2">
+          <h3 className="section-title">Matériel déclaré par le client</h3>
+          <p className="muted text-ui-sm">Saisi par le client dans son espace. À confirmer sur place : reprenez-le au parc (les étiquettes sont créées) ou écartez-le.</p>
+          {declarations.map((d) => (
+            <div key={d.id} className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2">
+              <div className="flex-1 min-w-[200px]">
+                <div className="font-semibold">{d.quantity} × {types.find((t) => t.id === d.type_id)?.name || 'Appareil'}</div>
+                <div className="text-ui-sm text-gray-500">{[sites.find((x) => x.id === d.site_id)?.name, d.location, d.brand, d.manufactured_year, d.notes].filter(Boolean).join(' · ') || 'Sans précision'}</div>
+              </div>
+              {canWrite && <button type="button" className="btn btn-primary btn-sm" disabled={busy === `decl-${d.id}`} onClick={() => traiter(d, 'reprise')}>Reprendre au parc</button>}
+              {canWrite && <button type="button" className="btn btn-ghost btn-sm" disabled={busy === `decl-${d.id}`} onClick={() => traiter(d, 'ecartee')}>Écarter</button>}
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* Parc */}
       <section className="space-y-2">
@@ -199,7 +250,7 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
           <Link key={v.id} to={`/interventions/visite/${v.id}`} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-b-0 no-underline text-gray-900">
             <div className="flex-1 min-w-0">
               <div className="text-ui font-medium">{v.planned_on ? frShort(v.planned_on) : `Échéance ${frShort(v.due_on)}`}, {v.sites?.name}</div>
-              <div className="text-ui-sm text-gray-500">{[v.reference, v.itv_contracts ? 'contrat' : null].filter(Boolean).join(', ')}</div>
+              <div className="text-ui-sm text-gray-500">{[v.reference, v.kind === 'inventaire' ? 'inventaire' : null, v.itv_contracts ? 'contrat' : null].filter(Boolean).join(', ')}</div>
             </div>
             <VisitBadge status={v.status} />
           </Link>

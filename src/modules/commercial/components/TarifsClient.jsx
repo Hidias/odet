@@ -16,15 +16,17 @@ const TYPES = [
   ['remise_pieces', 'Remise sur toutes les pièces'],
   ['deplacement', 'Frais (déplacement, matériel)'],
   ['visite', 'Forfait de visite hors contrat'],
+  ['equipement', 'Appareil sous contrat (par an)'],
 ]
 const euros = (n) => (n == null || n === '' ? '' : `${Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`)
-const vide = { kind: 'formation', course_id: '', part_id: '', code: '', prix_ht: '', prix_inter_ht: '', remise_pct: '', pour_le_groupe: false, valid_until: '', notes: '' }
+const vide = { kind: 'formation', course_id: '', part_id: '', equipment_type_id: '', code: '', prix_ht: '', prix_inter_ht: '', remise_pct: '', pour_le_groupe: false, valid_until: '', notes: '' }
 const nombre = (v) => (v === '' || v == null ? null : Number(String(v).replace(',', '.')))
 
 export default function TarifsClient({ client, peutModifier }) {
   const [tarifs, setTarifs] = useState(null)
   const [courses, setCourses] = useState([])
   const [parts, setParts] = useState([])
+  const [typesApp, setTypesApp] = useState([])
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -37,14 +39,16 @@ export default function TarifsClient({ client, peutModifier }) {
     charger()
     supabase.from('courses').select('id, title, code, price_ht').order('title').then(({ data }) => setCourses(data || []))
     supabase.from('itv_parts').select('id, name, price_ht').eq('is_active', true).order('name').then(({ data, error }) => setParts(error ? [] : data || []))
+    supabase.from('itv_equipment_types').select('id, name').eq('is_active', true).order('name').then(({ data, error }) => setTypesApp(error ? [] : data || []))
   }, [client?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const nomDe = useMemo(() => (t) => {
     if (t.kind === 'formation') return courses.find((c) => c.id === t.course_id)?.title || 'Formation'
     if (t.kind === 'piece') return parts.find((p) => p.id === t.part_id)?.name || 'Pièce'
     if (t.kind === 'deplacement') return FRAIS_CATALOGUE.find((f) => f.code === t.code)?.description_title || t.code
+    if (t.kind === 'equipement') return `${typesApp.find((x) => x.id === t.equipment_type_id)?.name || 'Appareil'}, par an`
     return TYPES.find(([k]) => k === t.kind)?.[1] || t.kind
-  }, [courses, parts])
+  }, [courses, parts, typesApp])
 
   // Avant la migration 0418 (table absente) ou sans droit de lecture : rien
   if (tarifs === null) return null
@@ -63,8 +67,9 @@ export default function TarifsClient({ client, peutModifier }) {
       client_id: client.id, kind: f.kind,
       course_id: f.kind === 'formation' ? f.course_id || null : null,
       part_id: f.kind === 'piece' ? f.part_id || null : null,
+      equipment_type_id: f.kind === 'equipement' ? f.equipment_type_id || null : null,
       code: f.kind === 'deplacement' ? f.code || null : null,
-      prix_ht: ['formation', 'piece', 'deplacement', 'visite'].includes(f.kind) ? nombre(f.prix_ht) : null,
+      prix_ht: ['formation', 'piece', 'deplacement', 'visite', 'equipement'].includes(f.kind) ? nombre(f.prix_ht) : null,
       prix_inter_ht: f.kind === 'formation' ? nombre(f.prix_inter_ht) : null,
       remise_pct: f.kind === 'remise_pieces' ? nombre(f.remise_pct) : null,
       pour_le_groupe: !!f.pour_le_groupe, valid_until: f.valid_until || null, notes: f.notes?.trim() || null,
@@ -73,6 +78,7 @@ export default function TarifsClient({ client, peutModifier }) {
     if (f.kind === 'piece' && (!ligne.part_id || ligne.prix_ht == null)) return toast.error('Choisissez la pièce et son prix')
     if (f.kind === 'deplacement' && (!ligne.code || ligne.prix_ht == null)) return toast.error('Choisissez le frais et son prix')
     if (f.kind === 'visite' && ligne.prix_ht == null) return toast.error('Indiquez le prix du forfait')
+    if (f.kind === 'equipement' && (!ligne.equipment_type_id || ligne.prix_ht == null)) return toast.error('Choisissez le type d\'appareil et son prix par an')
     if (f.kind === 'remise_pieces' && (ligne.remise_pct == null || ligne.remise_pct < 0 || ligne.remise_pct > 100)) return toast.error('Remise entre 0 et 100 %')
     setBusy(true)
     const { error } = f.id
@@ -123,7 +129,7 @@ export default function TarifsClient({ client, peutModifier }) {
             </div>
             {peutModifier && (
               <>
-                <button type="button" className="text-ui-sm text-accent-700 hover:underline" onClick={() => setForm({ ...vide, ...t, prix_ht: t.prix_ht ?? '', prix_inter_ht: t.prix_inter_ht ?? '', remise_pct: t.remise_pct ?? '', valid_until: t.valid_until || '', notes: t.notes || '', course_id: t.course_id || '', part_id: t.part_id || '', code: t.code || '' })}>Modifier</button>
+                <button type="button" className="text-ui-sm text-accent-700 hover:underline" onClick={() => setForm({ ...vide, ...t, prix_ht: t.prix_ht ?? '', prix_inter_ht: t.prix_inter_ht ?? '', remise_pct: t.remise_pct ?? '', valid_until: t.valid_until || '', notes: t.notes || '', course_id: t.course_id || '', part_id: t.part_id || '', equipment_type_id: t.equipment_type_id || '', code: t.code || '' })}>Modifier</button>
                 <button type="button" className="p-1 text-gray-400 hover:text-[rgb(var(--c-danger))]" aria-label={`Retirer le tarif ${nomDe(t)}`} onClick={() => supprimer(t)}><Trash2 className="w-4 h-4" /></button>
               </>
             )}
@@ -166,7 +172,16 @@ export default function TarifsClient({ client, peutModifier }) {
                 </select>
               </>
             )}
-            {['piece', 'deplacement', 'visite'].includes(form.kind) && (
+            {form.kind === 'equipement' && (
+              <>
+                <label className="block text-ui-sm text-gray-600" htmlFor="tarif-type-app">Type d'appareil</label>
+                <select id="tarif-type-app" className="select" value={form.equipment_type_id} disabled={!!form.id} onChange={(e) => setForm({ ...form, equipment_type_id: e.target.value })}>
+                  <option value="">Choisir</option>
+                  {typesApp.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                </select>
+              </>
+            )}
+            {['piece', 'deplacement', 'visite', 'equipement'].includes(form.kind) && (
               <div><label className="block text-ui-sm text-gray-600" htmlFor="tarif-prix">Prix HT</label><input id="tarif-prix" className="input" inputMode="decimal" value={form.prix_ht} onChange={(e) => setForm({ ...form, prix_ht: e.target.value })} /></div>
             )}
             {form.kind === 'remise_pieces' && (
