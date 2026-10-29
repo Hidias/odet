@@ -1,0 +1,46 @@
+# Verrou de fusion : une PR vers main ne se fusionne qu'avec l'étiquette « feu-vert », posée après la relecture
+# automatique et, s'il y a une migration, après sa mise en base (décision de H du 29/10/2026, après trois fusions
+# anticipées le même jour). La règle « Feu vert obligatoire » du dépôt exige ce contrôle sur main.
+# Tout nouveau commit poussé sur la PR retire l'étiquette : le feu vert porte sur une version précise.
+name: Feu vert
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  feu-vert:
+    name: feu-vert
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Retirer le feu vert après un nouveau commit
+        if: github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'feu-vert')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh api -X DELETE "repos/$REPO/issues/$PR/labels/feu-vert" || true
+          echo "Nouveau commit : le feu vert est à redonner."
+          exit 1
+      - name: Feu vert présent
+        if: github.event.action != 'synchronize'
+        env:
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          if echo "$LABELS" | grep -q '"feu-vert"'; then
+            echo "Feu vert donné : fusion possible."
+          else
+            echo "Pas encore de feu vert : attendre la relecture (et la mise en base s'il y a une migration)."
+            exit 1
+          fi
+      - name: Nouveau commit sans feu vert
+        if: github.event.action == 'synchronize' && !contains(github.event.pull_request.labels.*.name, 'feu-vert')
+        run: |
+          echo "Pas encore de feu vert."
+          exit 1
