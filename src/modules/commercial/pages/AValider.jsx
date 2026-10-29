@@ -146,6 +146,7 @@ export default function AValider() {
           <div className="text-ui-sm text-gray-600">
             {ouvert.clients?.name && <Link to={`/clients/${ouvert.client_id}`} className="text-accent-700 hover:underline" onClick={() => setOuvert(null)}>{ouvert.clients.name}</Link>}
             {ouvert.payload?.lien && <Link to={ouvert.payload.lien} className="text-accent-700 hover:underline ml-3" onClick={() => setOuvert(null)}>{ouvert.session_id ? 'Ouvrir la session' : 'Ouvrir'}</Link>}
+            {ouvert.payload?.note && <p className="text-[rgb(var(--c-warning))] mt-1">{ouvert.payload.note}</p>}
             {ouvert.blocked_reason && <p className="text-[rgb(var(--c-warning))] mt-1">Bloquée : {ouvert.blocked_reason}. Complétez la session : l'étape se débloque à la prochaine préparation (chaque nuit).</p>}
             {ouvert.target_table === 'subcontractors' && <Link to="/sous-traitants" className="text-accent-700 hover:underline" onClick={() => setOuvert(null)}>Voir les sous-traitants</Link>}
           </div>
