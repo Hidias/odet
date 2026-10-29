@@ -100,6 +100,7 @@ export default function Contrats({ types }) {
                   <div className="text-ui-sm text-gray-500">{c.label}{c.reference ? ` (${c.reference})` : ''}. Visites en {(c.visit_months || []).map(monthLabel).join(' et ') || '?'}. {Number(c.annual_price_ht || 0).toLocaleString('fr-FR')} € HT par an.</div>
                   {c.duration_years && <div className="text-ui-sm text-gray-500">{phraseConditions(condsDe(c))}{c.term_on ? ` Échéance le ${dateFr(c.term_on)}${limite ? `, refus possible jusqu'au ${dateFr(limite)}` : ''}.` : ''}</div>}
                   {c.emergency_hours && <SuiviUrgences contract={c} />}
+                  {c.termination_requested_at && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Résiliation demandée en ligne le {dateFr(c.termination_requested_at)} (accusé {c.termination_receipt}) : date d'effet à confirmer au client.</div>}
                   <div className="text-ui-sm">{c.signed_at ? <span className="text-[rgb(var(--c-success))]">Signé le {dateFr(c.signed_at)}{c.signed_name ? ` par ${c.signed_name}` : ''}{c.signed_on_paper ? ' (papier)' : ''}</span> : c.status === 'actif' ? <span className="text-gray-500">Contrat pas encore signé</span> : null}</div>
                 </div>
                 <span className={`badge ${badge}`}>{libelle}</span>

@@ -101,8 +101,8 @@ const CGV_MAINTENANCE = {
       p('Le contrat se compose, par ordre de priorité : des avenants signés, du devis ou du contrat signé et de la liste des équipements couverts, du périmètre des prestations, puis des présentes conditions.'),
     ] },
     { id: 'duree', title: 'Durée et reconduction', blocks: [
-      p('Le contrat est conclu pour une durée de **[durée du contrat]** à compter de sa date d\'effet. À son terme, il est reconduit tacitement par périodes d\'un an, sauf dénonciation par l\'une des parties, par lettre recommandée avec avis de réception ou par écrit électronique avec accusé de réception, au moins **[3] mois** avant son échéance.'),
-      note('durée initiale, préavis de dénonciation, et forme de la dénonciation (pour un particulier, la résiliation par voie électronique doit rester possible, article L215-1-1).'),
+      p('Le contrat est conclu pour la durée indiquée au contrat (un, trois ou cinq ans) à compter de sa date d\'effet. Lorsque le contrat le prévoit, il est reconduit tacitement à son terme par périodes de la durée indiquée au contrat, sauf dénonciation par l\'une des parties, par lettre recommandée avec avis de réception ou par écrit électronique avec accusé de réception, au moins avant le préavis indiqué au contrat (par défaut **[3] mois**) avant son échéance. Sans reconduction prévue, il prend fin à son terme.'),
+      note('durées proposées, préavis de dénonciation, et forme de la dénonciation (pour un particulier, la résiliation par voie électronique doit rester possible, article L215-1-1).'),
     ] },
     { id: 'reconduction-particuliers', title: 'Information sur la reconduction (particuliers)', cond: 'particuliers', blocks: [
       p('Conformément à l\'article L215-1 du Code de la consommation, nous vous informons par écrit, au plus tôt trois mois et au plus tard un mois avant le terme de la période autorisant le rejet de la reconduction, de la possibilité de ne pas reconduire le contrat. À défaut, vous pouvez mettre fin gratuitement au contrat à tout moment à compter de la date de reconduction ; les avances versées pour la période postérieure à la résiliation sont remboursées dans un délai de trente jours.'),
@@ -112,19 +112,36 @@ const CGV_MAINTENANCE = {
     { id: 'resiliation', title: 'Résiliation', blocks: [
       p('En cas de manquement grave de l\'une des parties à ses obligations, notamment le défaut de paiement des prestations et fournitures, non réparé dans les trente jours d\'une mise en demeure écrite, l\'autre partie peut résilier le contrat de plein droit. Les prestations réalisées jusqu\'à la résiliation restent dues.'),
       p('Le contrat prend fin également lorsque les équipements couverts disparaissent (cession, destruction, retrait définitif du site), à la date où le client en informe le prestataire.'),
-      p('Lorsque le client met fin au contrat avant son terme en dehors de ces cas, il doit **[indemnité de résiliation anticipée]**.'),
-      note('cas de résiliation ; sort des sommes payées d\'avance ; montant de l\'indemnité de résiliation anticipée (clause pénale que le juge peut réduire si elle est manifestement excessive, article 1231-5 du Code civil ; risque de clause abusive envers un particulier) ; résiliation en cas de procédure collective du client (encadrée par le Code de commerce).'),
+      p('Lorsqu\'une facture reste impayée après une mise en demeure restée sans effet, le prestataire peut suspendre les visites jusqu\'au règlement, après en avoir informé le client par écrit.'),
+      note('cas de résiliation ; sort des sommes payées d\'avance ; montant de l\'indemnité de résiliation anticipée des professionnels (clause pénale que le juge peut réduire si elle est manifestement excessive, article 1231-5 du Code civil), écartée pour les particuliers (risque de clause abusive) ; suspension des visites en cas d\'impayé (exception d\'inexécution, article 1219 du Code civil) ; résiliation en cas de procédure collective du client (encadrée par le Code de commerce).'),
+    ] },
+    { id: 'resiliation-anticipee', title: 'Résiliation anticipée (professionnels)', cond: 'professionnels', blocks: [
+      p('Lorsque le client professionnel met fin au contrat avant son terme en dehors des cas ci-dessus, il doit le prix des visites restant à effectuer jusqu\'au terme de la période en cours, majoré de **[120 € TTC]** de frais de résiliation.'),
+    ] },
+    { id: 'resiliation-particuliers', title: 'Résiliation (particuliers)', cond: 'particuliers', blocks: [
+      p('Le client particulier qui met fin au contrat ne doit que les prestations déjà réalisées ; aucune indemnité de résiliation ne lui est demandée. Il peut résilier par écrit ou en ligne depuis son espace client, et reçoit un accusé de réception.'),
     ] },
     { id: 'prix', title: 'Prix et révision', blocks: [
       p('Le prix annuel est indiqué au devis ou au contrat, hors taxes. Il comprend les opérations décrites dans le périmètre des prestations pour les équipements listés. Les pièces, recharges, remplacements et opérations non comprises font l\'objet d\'un devis préalable, sauf urgence liée à la sécurité acceptée par le client.'),
       p('Le prix est révisé à chaque date anniversaire selon la formule P = P0 × (I / I0), où I0 est la dernière valeur connue de l\'indice [indice de révision] à la date du contrat et I sa dernière valeur connue à la date de révision. Le nouveau prix est communiqué au client au moins un mois avant son application.'),
       p('Les opérations hors forfait (recharges, requalifications, échanges standard, pièces détachées, maintenances quinquennales et décennales) sont facturées au tarif en vigueur remis avec le contrat, révisé dans les mêmes conditions.'),
-      note('choix de l\'indice de révision (par exemple un indice du coût du travail dans les services aux entreprises publié par l\'INSEE), plafond éventuel, faculté de résiliation du client en cas de hausse ; frais de dossier ou de traitement des factures : à confirmer avant de les facturer.'),
+      p('Aucun frais de dossier, de facture ou de suivi n\'est facturé. Seule la reprise du matériel remplacé, à la demande du client, est facturée **[8 € HT]** par appareil.'),
+      note('choix de l\'indice de révision (intitulé exact de la série INSEE à relever à la source), plafond éventuel, faculté de résiliation du client en cas de hausse ; montant de la reprise du matériel.'),
     ] },
     { id: 'execution', title: 'Exécution des prestations', blocks: [
       p('Les visites ont lieu selon la périodicité prévue au contrat, à deux mois près, aux jours et heures ouvrés, à une date convenue à l\'avance ; un avis de passage est adressé au client. Le client donne accès aux locaux et aux équipements, désigne un interlocuteur, signale tout équipement ajouté, déplacé ou retiré, et communique les consignes de sécurité de son site. Lorsque la réglementation l\'exige, un plan de prévention est établi avant l\'intervention (articles R4512-6 et suivants du Code du travail).'),
+      p('Le client s\'engage en outre à :'),
+      ul(
+        'désigner un interlocuteur et son suppléant, joignables pendant les interventions ;',
+        'donner accès aux locaux, aux équipements, et le cas échéant aux codes, mots de passe et logiciels nécessaires à leur maintenance ;',
+        'sauvegarder les paramètres et enregistrements de ses systèmes avant toute intervention, lorsqu\'il en a la maîtrise ;',
+        'fournir à ses frais, si le contrat prévoit une maintenance à distance, l\'accès réseau nécessaire ;',
+        'ne pas déplacer, modifier ni faire modifier les équipements couverts sans l\'accord écrit du prestataire.',
+      ),
+      p('Une panne imputable au client (mauvaise utilisation, choc, modification non autorisée, coupure d\'alimentation, défaut de son réseau) donne lieu à une intervention facturée au tarif en vigueur.'),
+      p('Pour les systèmes de vidéoprotection, le technicien n\'accède aux images et aux enregistrements que dans la mesure nécessaire à la maintenance, en présence ou avec l\'accord du client, sans en conserver de copie.'),
       p('Une visite qui ne peut pas avoir lieu du fait du client (absence, accès impossible, équipements inaccessibles) est reprogrammée ; le déplacement inutile est facturé [montant] € HT.'),
-      note('facturation du déplacement inutile.'),
+      note('obligations du client ; facturation du déplacement inutile ; accès aux images de vidéoprotection (données personnelles des personnes filmées).'),
     ] },
     { id: 'rapport', title: 'Rapport et non-conformités', blocks: [
       p('Après chaque visite, un rapport est remis au client. Il indique les équipements vérifiés, les opérations réalisées, leur résultat et les anomalies constatées. Les non-conformités et les équipements à remplacer sont signalés par écrit, avec, le cas échéant, un devis.'),
@@ -132,16 +149,16 @@ const CGV_MAINTENANCE = {
       note('portée du signalement des non-conformités et transfert de la charge de la mise en conformité.'),
     ] },
     { id: 'modification-parc', title: 'Modification des équipements couverts', blocks: [
-      p('Les équipements ajoutés, remplacés ou retirés sur le site entrent dans le contrat ou en sortent à la date de l\'intervention qui les constate, sans avenant. Ils figurent au rapport de cette intervention et sont facturés au tarif en vigueur à partir de la période suivante.'),
+      p('Les équipements ajoutés, remplacés ou retirés sur le site figurent au rapport de l\'intervention qui les constate. Lorsque le prix du contrat en est modifié, un avenant indiquant le nouveau prix est soumis au client ; il s\'applique à partir de sa signature. Sans avenant signé, le prix et la liste des équipements couverts restent inchangés.'),
     ] },
     { id: 'exclusivite', title: 'Interventions d\'un tiers', cond: 'professionnels', blocks: [
       p('Pendant la durée du contrat, le client ne fait intervenir aucun tiers sur les équipements couverts sans l\'accord écrit du prestataire. À défaut, le prestataire n\'est plus responsable des équipements sur lesquels un tiers est intervenu, et la garantie de ses propres interventions cesse pour eux.'),
       note('portée de l\'exclusivité et effet sur la garantie.'),
     ] },
     { id: 'sinistre', title: 'Sinistre', blocks: [
-      p('Si un équipement couvert ne fonctionne pas lors d\'un début d\'incendie ou d\'un accident ayant eu des conséquences dommageables, le client en avertit le prestataire dans les 24 heures, par lettre recommandée avec avis de réception ou par écrit électronique avec accusé de réception. L\'équipement en cause est conservé en l\'état, sans aucune intervention, pour permettre son expertise ; si nécessaire, il est placé sous scellés par un commissaire de justice et confié à un laboratoire d\'essai indépendant.'),
+      p('Si un équipement couvert ne fonctionne pas lors d\'un début d\'incendie ou d\'un accident ayant eu des conséquences dommageables, le client en avertit le prestataire dès que possible et au plus tard dans les **[5] jours ouvrés** (**[2] jours ouvrés** en cas de vol, avec la copie du dépôt de plainte), par lettre recommandée avec avis de réception ou par écrit électronique avec accusé de réception. L\'équipement en cause est conservé en l\'état, sans aucune intervention, pour permettre son expertise ; si nécessaire, il est placé sous scellés par un commissaire de justice et confié à un laboratoire d\'essai indépendant.'),
       p('La responsabilité du prestataire ne peut être recherchée que si le client a respecté les obligations mises à sa charge par le contrat. L\'existence du contrat n\'emporte aucune présomption de responsabilité du prestataire : la preuve d\'une faute de sa part incombe au client.'),
-      note('délai de déclaration, conservation et expertise de l\'équipement, charge de la preuve (opposabilité à un particulier).'),
+      note('délai de déclaration (24 heures retenues dans le carnet, 5 et 2 jours ouvrés observés dans d\'autres contrats du métier), conservation et expertise de l\'équipement, charge de la preuve (opposabilité à un particulier).'),
     ] },
     { id: 'cession', title: 'Cession du site ou des équipements', blocks: [
       p('En cas de cession du site, du fonds ou des équipements couverts, le client en informe le prestataire dans les **[8] jours** et lui communique les coordonnées du repreneur. Le contrat peut être transféré au repreneur avec son accord ; à défaut, il prend fin dans les conditions prévues pour la disparition des équipements.'),
@@ -156,14 +173,23 @@ const CGV_MAINTENANCE = {
       p('Le prestataire est assuré en responsabilité civile professionnelle auprès de [assureur], contrat n° [numéro]. L\'attestation est remise sur demande.'),
     ] },
     { id: 'facturation', title: 'Facturation et paiement', blocks: [
-      p('Le prix annuel est facturé [à la signature, puis à chaque date anniversaire / à chaque visite]. Les interventions hors contrat sont facturées à leur réalisation. Les factures sont payables à l\'échéance indiquée, par virement.'),
+      p('Le prix annuel est facturé selon la périodicité indiquée au contrat : mensuelle, trimestrielle, annuelle ou à chaque visite, en début ou en fin de période. La première période est facturée au prorata du temps couru. Les interventions hors contrat sont facturées à leur réalisation.'),
+      p('Les factures sont payables à l\'échéance indiquée, par virement, ou par prélèvement SEPA lorsque le client a signé un mandat ; chaque prélèvement est alors notifié au moins **[14] jours** avant son exécution.'),
+      p('Pour un client public, les factures sont déposées sur Chorus Pro avec le numéro d\'engagement de l\'exercice et réglées par mandat administratif ; le prélèvement ne s\'applique pas.'),
+      note('délai de notification préalable du prélèvement (14 jours par défaut du recueil SEPA, réductible par accord), type de prélèvement (CORE ou interentreprises), frais en cas de rejet.'),
     ] },
     PAIEMENT_PRO,
     PAIEMENT_PART,
     { id: 'depannage', title: 'Interventions ponctuelles et dépannage', blocks: [
-      p('Sur demande du client, le prestataire intervient pour une réparation ou un dépannage. Sauf urgence liée à la sécurité, un devis est établi avant l\'intervention. Le déplacement et la main-d\'œuvre sont facturés au tarif en vigueur, les pièces en sus.'),
+      p('Sur demande du client, le prestataire intervient pour une réparation ou un dépannage, du [lundi au vendredi, de 8 h à 18 h]. Sauf urgence liée à la sécurité, un devis est établi avant l\'intervention. Le déplacement et la main-d\'œuvre sont facturés au tarif en vigueur, les pièces en sus, sauf ce que le contrat déclare compris.'),
+      p('Lorsque le contrat indique un délai d\'intervention pour un dépannage urgent, le technicien arrive sur le site dans ce délai à compter de la demande. Une astreinte en dehors des horaires peut être prévue au contrat, en option.'),
+      note('horaires de dépannage, portée du délai d\'intervention (obligation de moyens ou de résultat), astreinte.'),
     ] },
     RETRACTATION('Le droit de rétractation ne s\'applique pas aux travaux d\'entretien ou de réparation à réaliser en urgence à votre domicile et expressément sollicités par vous, dans la limite des pièces de rechange et travaux strictement nécessaires pour répondre à l\'urgence (article L221-28, 8°).'),
+    { id: 'retractation-petits-pros', title: 'Droit de rétractation (petits professionnels)', cond: 'professionnels', blocks: [
+      p('Le client professionnel qui emploie cinq salariés au plus, lorsque le contrat est conclu hors établissement et que son objet n\'entre pas dans le champ de son activité principale, bénéficie des mêmes règles que le consommateur pour l\'information préalable et le droit de rétractation de 14 jours (article L221-3 du Code de la consommation). Le formulaire de rétractation lui est remis avec le devis.'),
+      note('application de l\'article L221-3 (effectif, champ de l\'activité principale, preuve) et remise du formulaire.'),
+    ] },
     FORCE_MAJEURE,
     DONNEES,
     RECLAMATIONS,
