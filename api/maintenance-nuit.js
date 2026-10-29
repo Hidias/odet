@@ -51,6 +51,10 @@ async function handler(req, res) {
   const { data: fid, error: fidErr } = await admin.rpc('pilotage_rappels_generer')
   if (!fidErr && impayes) impayes = { ...impayes, fidelisation: fid }
   else if (fidErr && fidErr.code !== 'PGRST202') { erreurs.fidelisation = fidErr.code || 'erreur'; console.error('[maintenance-nuit] fidelisation', fidErr.code || 'erreur') }
+  // Prévisionnel (0474) : photo des trois scénarios le 1er du mois, alerte si le réalisé reste sous le pessimiste
+  const { data: prv, error: prvErr } = await admin.rpc('previsionnel_nuit')
+  if (!prvErr && impayes) impayes = { ...impayes, previsionnel: prv }
+  else if (prvErr && prvErr.code !== 'PGRST202') { erreurs.previsionnel = prvErr.code || 'erreur'; console.error('[maintenance-nuit] previsionnel', prvErr.code || 'erreur') }
   // Étapes des sessions préparées pour validation (fonction 13, 0160) : rien n'est envoyé ; module inactif = rien
   let pilote = null
   const { data: pil, error: pilErr } = await admin.rpc('pilote_generate')
