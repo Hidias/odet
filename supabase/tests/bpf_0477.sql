@@ -37,6 +37,9 @@ begin
   -- S4 : formation non classée, entreprise, 1 stagiaire apprenti, confiée à un organisme prestataire (F-2)
   insert into public.sessions (reference, start_date, end_date, course_id, client_id, company_id)
   values ('S4-0477', '2027-09-01', '2027-09-01', v_c3, v_ent, v_cie) returning id into v_s4;
+  -- Session à distance annulée : ne coche pas B-2 (relecture #254)
+  insert into public.sessions (reference, start_date, end_date, course_id, client_id, is_remote, status, company_id)
+  values ('ANN-0477', '2027-04-01', '2027-04-01', v_c2, v_ent, true, 'cancelled', v_cie);
   -- Hors exercice
   insert into public.sessions (reference, start_date, end_date, course_id, client_id, company_id)
   values ('HORS-0477', '2026-12-30', '2026-12-31', v_c1, v_ent, v_cie) returning id into v_hors;
@@ -118,6 +121,7 @@ begin
   -- E : interne 1 personne, S1 14 h + S3 7 h = 21 ; externe 1 personne 7 h
   if (l->'E-1'->>'personnes')::int <> 1 or (l->'E-1'->>'heures')::numeric <> 21 then raise exception 'E-1 : %', l->'E-1'; end if;
   if (l->'E-2'->>'personnes')::int <> 1 or (l->'E-2'->>'heures')::numeric <> 7 then raise exception 'E-2 : %', l->'E-2'; end if;
+  if (l->>'B-2')::boolean then raise exception 'B-2 coché par une session annulée'; end if;
   -- Heures prévues signalées : S2, S3, S4
   if (v_r->'detail'->>'heures_prevues')::int <> 3 then raise exception 'heures prévues : %', v_r->'detail'->>'heures_prevues'; end if;
 
