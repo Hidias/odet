@@ -47,6 +47,10 @@ async function handler(req, res) {
   const { data: imp, error: impErr } = await admin.rpc('impayes_generer')
   if (!impErr) impayes = imp
   else if (impErr.code !== 'PGRST202') { erreurs.impayes = impErr.code || 'erreur'; console.error('[maintenance-nuit] impayes', impErr.code || 'erreur') }
+  // Fidélisation (0472) : bilans annuels en octobre, contacts des clients publics en janvier ; rien n'est envoyé
+  const { data: fid, error: fidErr } = await admin.rpc('pilotage_rappels_generer')
+  if (!fidErr && impayes) impayes = { ...impayes, fidelisation: fid }
+  else if (fidErr && fidErr.code !== 'PGRST202') { erreurs.fidelisation = fidErr.code || 'erreur'; console.error('[maintenance-nuit] fidelisation', fidErr.code || 'erreur') }
   // Étapes des sessions préparées pour validation (fonction 13, 0160) : rien n'est envoyé ; module inactif = rien
   let pilote = null
   const { data: pil, error: pilErr } = await admin.rpc('pilote_generate')
