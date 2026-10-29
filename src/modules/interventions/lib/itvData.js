@@ -7,6 +7,7 @@ import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { profileName } from '../../../core/org/currentOrg'
 import { DEFAULT_OPERATION_LABELS, todayIso } from './schedule'
 import { computeDocumentTotals, lineTotal } from '../../../core/billing/totals'
+import { NATURES } from './natures'
 import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
@@ -374,6 +375,11 @@ export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1, ta
   // Inventaire initial (0463) : une ligne au prix réglé, déduite de la 1re échéance si le contrat suit dans le délai
   if (visit.kind === 'inventaire') {
     lines.push({ code: CODE_INVENTAIRE, description_title: 'Inventaire initial du parc', description_detail: `${visit.reference || ''} du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}\nDéduit de la première échéance si le contrat de maintenance est signé dans le délai prévu`, quantity: 1, unit: 'forfait', unit_price_ht: Number(settings?.prix_inventaire || 0), tva_rate: tva })
+  } else if (visit.kind && visit.kind !== 'verification') {
+    // Autres natures (0465) : aucun prix de main-d'œuvre au catalogue, la ligne est à compléter (sauf dépannage compris)
+    const nature = NATURES[visit.kind] || NATURES.verification
+    const compriseDepannage = contrat && visit.kind === 'depannage' && compris.depannage === true
+    lines.push({ description_title: nature.label, description_detail: [`${visit.reference || ''} du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}`, visit.urgent ? 'Intervention urgente' : null, compriseDepannage ? 'Main-d\'œuvre comprise au contrat' : 'Main-d\'œuvre : prix à compléter'].filter(Boolean).join('\n'), quantity: 1, unit: 'forfait', unit_price_ht: 0, tva_rate: tva })
   } else if (parEcheancier) {
     lines.push({ description_title: contrat.label || 'Contrat de maintenance', description_detail: `Visite du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}\nComprise au contrat, facturée par l'échéancier`, quantity: 1, unit: 'forfait', unit_price_ht: 0, tva_rate: tva })
   } else if (visit.itv_contracts) {
@@ -429,7 +435,7 @@ export async function createInvoiceDraft(visit, parts, settings) {
     // Aucun numéro avant l'émission : la base remplace cette référence provisoire (0362) et numérote à l'émission (0361)
     reference: 'BROUILLON-' + Math.random().toString(36).slice(2, 12).toUpperCase(), type: 'invoice', client_id: visit.client_id, contact_id: contact?.id || null,
     invoice_date: todayIso(), service_start_date: (visit.started_at || visit.planned_on || '').slice(0, 10) || null, service_end_date: (visit.started_at || visit.planned_on || '').slice(0, 10) || null,
-    object: `${visit.kind === 'inventaire' ? 'Inventaire initial du parc' : 'Vérification du matériel de sécurité'}, visite ${visit.reference || ''}`.trim(), status: 'draft', is_formation_pro: false, tva_applicable: true,
+    object: `${visit.kind === 'inventaire' ? 'Inventaire initial du parc' : visit.kind && visit.kind !== 'verification' ? (NATURES[visit.kind]?.label || 'Intervention') : 'Vérification du matériel de sécurité'}, ${visit.kind && visit.kind !== 'verification' ? 'intervention' : 'visite'} ${visit.reference || ''}`.trim(), status: 'draft', is_formation_pro: false, tva_applicable: true,
     total_ht: t.ht, total_discount: 0, total_net_ht: t.ht, total_tva: t.tva, total_ttc: t.ttc, amount_paid: 0, amount_due: t.ttc,
     created_by: await currentUserName(),
   }).select().single())
