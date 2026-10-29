@@ -171,7 +171,7 @@ comment on column public.bpf_declarations.saisies is 'Saisies par code officiel 
 -- Réglages › Sociétés (companies.fiscal_year_start_month), premier jour du mois.
 -- Hypothèses de lecture de la notice, rendues avec le résultat pour être vues : un stagiaire suivi dans deux
 -- actions compte deux fois ; heures suivies = heures des documents émis, sinon durée prévue (signalée).
-create or replace function public.bpf_calculer(p_company uuid, p_annee integer)
+create or replace function public.bpf_calculer(p_annee integer, p_company uuid default null)
 returns jsonb
 language plpgsql
 volatile
@@ -179,6 +179,7 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_cie uuid := coalesce(p_company, app.current_company());
   v_mois integer;
   v_debut date;
   v_fin date;
@@ -190,13 +191,14 @@ declare
   r record;
 begin
   -- Chiffre d'affaires et charges : réservé à ceux qui gèrent les registres qualité, dans cette société
+  if v_cie is null then raise exception 'Choisissez une société : le BPF se fait société par société'; end if;
   perform app.require_right('qualite.registres.gerer');
-  if not app.is_superadmin() and not app.a_le_droit_dans(p_company, 'qualite.registres.gerer') then
+  if not app.is_superadmin() and not app.a_le_droit_dans(v_cie, 'qualite.registres.gerer') then
     raise exception 'Accès refusé' using errcode = '42501';
   end if;
   if p_annee is null or p_annee < 2000 or p_annee > 2100 then raise exception 'Année invalide'; end if;
 
-  select fiscal_year_start_month into v_mois from public.companies where id = p_company;
+  select fiscal_year_start_month into v_mois from public.companies where id = v_cie;
   if v_mois is null then raise exception 'Société inconnue'; end if;
   if v_mois = 1 then
     v_debut := make_date(p_annee, 1, 1);
@@ -248,7 +250,7 @@ begin
       else 'employeur (par défaut)'
     end as motif
   ) x
-  where i.company_id = p_company
+  where i.company_id = v_cie
     and i.status not in ('draft', 'cancelled')
     and i.invoice_date between v_debut and v_fin;
 
@@ -289,7 +291,7 @@ begin
     order by case d.kind when 'attestation' then 1 when 'certificat' then 2 else 3 end, d.version desc
     limit 1
   ) h on true
-  where s.company_id = p_company
+  where s.company_id = v_cie
     and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
     and coalesce(s.end_date, s.start_date) between v_debut and v_fin;
 
@@ -346,7 +348,7 @@ begin
     from pg_temp.bpf_part p
     where not p.sous_traitance_recue and exists (
       select 1 from public.subcontract_orders o join public.subcontractors su on su.id = o.subcontractor_id
-      where o.session_id = p.session_id and o.company_id = p_company and su.kind = 'organisme'
+      where o.session_id = p.session_id and o.company_id = v_cie and su.kind = 'organisme'
         and o.status not in ('brouillon', 'annule'))));
 
   -- G : actions confiées par un autre organisme
@@ -361,7 +363,7 @@ begin
       left join public.courses co on co.id = s.course_id
       join lateral (select s.trainer_id as id union select x.trainer_id from public.session_trainers x where x.session_id = s.id) tr on tr.id is not null
       join public.trainers t on t.id = tr.id
-      where s.company_id = p_company and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
+      where s.company_id = v_cie and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
         and coalesce(s.end_date, s.start_date) between v_debut and v_fin
     )
     select jsonb_build_object('personnes', count(distinct tid), 'heures', coalesce(round(sum(h)), 0)) from sess where interne));
@@ -372,18 +374,19 @@ begin
       left join public.courses co on co.id = s.course_id
       join lateral (select s.trainer_id as id union select x.trainer_id from public.session_trainers x where x.session_id = s.id) tr on tr.id is not null
       join public.trainers t on t.id = tr.id
-      where s.company_id = p_company and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
+      where s.company_id = v_cie and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
         and coalesce(s.end_date, s.start_date) between v_debut and v_fin
     )
     select jsonb_build_object('personnes', count(distinct tid), 'heures', coalesce(round(sum(h)), 0)) from sess where not interne));
 
   -- B-2 : formation à distance pendant l'exercice
   v_lignes := v_lignes || jsonb_build_object('B-2', exists (
-    select 1 from public.sessions s where s.company_id = p_company and coalesce(s.is_remote, false)
+    select 1 from public.sessions s where s.company_id = v_cie and coalesce(s.is_remote, false)
       and coalesce(s.end_date, s.start_date) between v_debut and v_fin));
 
   return jsonb_build_object(
     'cerfa', '10443*17',
+    'societe', v_cie,
     'exercice', jsonb_build_object('debut', v_debut, 'fin', v_fin),
     'calcule_le', now(),
     'lignes', v_lignes,
@@ -403,8 +406,8 @@ begin
   );
 end
 $$;
-revoke all on function public.bpf_calculer(uuid, integer) from public, anon;
-grant execute on function public.bpf_calculer(uuid, integer) to authenticated;
+revoke all on function public.bpf_calculer(integer, uuid) from public, anon;
+grant execute on function public.bpf_calculer(integer, uuid) to authenticated;
 
 -- Registre des migrations (la Console compare ce registre aux fichiers ; relecture de #254). 0459 à 0475 ont été
 -- appliquées par l'outil Supabase sans s'y inscrire (constaté le 29/10 : présentes dans la liste des migrations de

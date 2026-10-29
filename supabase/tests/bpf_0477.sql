@@ -86,7 +86,7 @@ begin
 
   perform set_config('request.jwt.claim.sub', v_sa::text, true);
   execute 'set local role authenticated';
-  v_r := public.bpf_calculer(v_cie, 2027);
+  v_r := public.bpf_calculer(2027, v_cie);
   execute 'reset role';
   l := v_r->'lignes';
 
@@ -125,7 +125,7 @@ begin
   update public.companies set fiscal_year_start_month = 7 where id = v_cie;
   perform set_config('request.jwt.claim.sub', v_sa::text, true);
   execute 'set local role authenticated';
-  v_r := public.bpf_calculer(v_cie, 2027);
+  v_r := public.bpf_calculer(2027, v_cie);
   execute 'reset role';
   if v_r->'exercice'->>'debut' <> '2026-07-01' or v_r->'exercice'->>'fin' <> '2027-06-30' then raise exception 'exercice décalé : %', v_r->'exercice'; end if;
   -- F6 (31/12/2026) entre, F4 (01/07/2027) sort : 900 + 300 + 500 + 200 + 777
@@ -137,12 +137,12 @@ begin
   perform set_config('request.jwt.claim.sub', v_fo::text, true);
   execute 'set local role authenticated';
   begin
-    v_r := public.bpf_calculer(v_cie, 2027);
+    v_r := public.bpf_calculer(2027, v_cie);
   exception when insufficient_privilege then v_ok := true;
   end;
   execute 'reset role';
   if not v_ok then raise exception 'formateur accepté'; end if;
-  if has_function_privilege('anon', 'public.bpf_calculer(uuid, integer)', 'execute') then raise exception 'anon peut appeler'; end if;
+  if has_function_privilege('anon', 'public.bpf_calculer(integer, uuid)', 'execute') then raise exception 'anon peut appeler'; end if;
 
   -- Une déclaration par société et par année
   insert into public.bpf_declarations (year, company_id) values (2027, v_cie);
