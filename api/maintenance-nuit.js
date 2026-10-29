@@ -40,8 +40,13 @@ async function handler(req, res) {
   // Révisions de prix préparées 30 jours avant l'anniversaire (0462)
   const { data: rev, error: revErr } = await admin.rpc('contrats_revisions_generer')
   if (!revErr && contrats) contrats = { ...contrats, revisions: rev }
-  else if (revErr && revErr.code !== 'PGRST202') { erreurs.revisions = revErr.code || 'erreur'; console.error('[maintenance-nuit] revisions', revErr.code || 'erreur') }
-  else if (ctrErr.code !== 'PGRST202') { erreurs.contrats = ctrErr.code || 'erreur'; console.error('[maintenance-nuit] contrats', ctrErr.code || 'erreur') }
+  if (revErr && revErr.code !== 'PGRST202') { erreurs.revisions = revErr.code || 'erreur'; console.error('[maintenance-nuit] revisions', revErr.code || 'erreur') }
+  if (ctrErr && ctrErr.code !== 'PGRST202') { erreurs.contrats = ctrErr.code || 'erreur'; console.error('[maintenance-nuit] contrats', ctrErr.code || 'erreur') }
+  // Impayés (0469) : relances graduées et mise en demeure préparées, avant le pilote (mêmes clés, celles-ci priment)
+  let impayes = null
+  const { data: imp, error: impErr } = await admin.rpc('impayes_generer')
+  if (!impErr) impayes = imp
+  else if (impErr.code !== 'PGRST202') { erreurs.impayes = impErr.code || 'erreur'; console.error('[maintenance-nuit] impayes', impErr.code || 'erreur') }
   // Étapes des sessions préparées pour validation (fonction 13, 0160) : rien n'est envoyé ; module inactif = rien
   let pilote = null
   const { data: pil, error: pilErr } = await admin.rpc('pilote_generate')
@@ -61,7 +66,7 @@ async function handler(req, res) {
   await purgerJournalTaches()
   const nbErreurs = Object.keys(erreurs).length
   // 500 si une étape a échoué : le journal des tâches la note « erreur » et le suivi des erreurs la reçoit
-  return res.status(nbErreurs ? 500 : 200).json({ ok: !nbErreurs, resultat: data, relances, contrats, pilote, purges, point, ...(nbErreurs ? { error: `Étapes en erreur : ${Object.entries(erreurs).map(([k, v]) => `${k} (${v})`).join(', ')}` } : {}) })
+  return res.status(nbErreurs ? 500 : 200).json({ ok: !nbErreurs, resultat: data, relances, contrats, impayes, pilote, purges, point, ...(nbErreurs ? { error: `Étapes en erreur : ${Object.entries(erreurs).map(([k, v]) => `${k} (${v})`).join(', ')}` } : {}) })
 }
 
 export default withErrorLog(withJobLog(handler, 'maintenance-nuit'), 'maintenance-nuit')

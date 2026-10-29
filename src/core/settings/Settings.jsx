@@ -17,6 +17,7 @@ import NumerotationFactures from './facturation/NumerotationFactures'
 import MentionsFactures from './facturation/MentionsFactures'
 import ReglagesDevis from './facturation/ReglagesDevis'
 import ReglagesContrats from './facturation/ReglagesContrats'
+import ReglagesImpayes from './facturation/ReglagesImpayes'
 import TransmissionComptable from './facturation/TransmissionComptable'
 import DroitsPersonnes from './droits/DroitsPersonnes'
 import ProfilsDroits from './droits/ProfilsDroits'
@@ -398,6 +399,7 @@ export default function Settings() {
               <MentionsFactures />
               <ReglagesDevis />
               <ReglagesContrats />
+              <ReglagesImpayes />
               <TransmissionComptable />
               <h2 className="section-title">Emails et exercice</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
