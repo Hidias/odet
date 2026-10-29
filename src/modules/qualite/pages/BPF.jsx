@@ -9,35 +9,47 @@ import { Calculator, Save, CheckCircle, RotateCcw } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { PageHeader, Banner } from '../../../ui'
 import { confirmer } from '../../../ui/Confirm'
-import { LIGNES_BPF, CADRES_BPF, valeursRetenues, controlesBpf } from '../../formation/lib/bpf'
+import { LIGNES_BPF, CADRES_BPF, valeursRetenues, controlesBpf, dernierExerciceClos } from '../../formation/lib/bpf'
 
-const ANNEE_DEFAUT = new Date().getFullYear() - 1 // le BPF porte sur le dernier exercice clos
 const fmtDate = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
 const fmtNombre = (n) => Number(n || 0).toLocaleString('fr-FR')
 
 export default function BPF() {
-  const [annee, setAnnee] = useState(ANNEE_DEFAUT)
+  // Société courante et son mois de début d'exercice (Réglages › Sociétés) ; null en vue groupe
+  const [societe, setSociete] = useState(undefined)
+  const [annee, setAnnee] = useState(() => dernierExerciceClos(1))
   const [declaration, setDeclaration] = useState(null)
   const [calcul, setCalcul] = useState(null)
   const [saisies, setSaisies] = useState({})
   const [specialites, setSpecialites] = useState([])
   const [busy, setBusy] = useState(false)
+  const anneeDefaut = dernierExerciceClos(societe?.fiscal_year_start_month)
 
   useEffect(() => {
     supabase.from('bpf_specialites').select('code, libelle').then(({ data }) => setSpecialites(data || []))
+    ;(async () => {
+      const { data: ctx } = await supabase.rpc('my_company_context')
+      const id = ctx?.vue_groupe ? null : ctx?.current
+      if (!id) { setSociete(null); return }
+      const { data, error } = await supabase.from('companies').select('id, fiscal_year_start_month').eq('id', id).maybeSingle()
+      if (error) toast.error(`Société non chargée : ${error.message}`)
+      setSociete(data || null)
+      if (data) setAnnee(dernierExerciceClos(data.fiscal_year_start_month))
+    })()
   }, [])
 
-  // Déclaration enregistrée de l'année (la base ne montre que celles de la société courante)
+  // Déclaration enregistrée de l'exercice, pour la société courante seulement (un compte peut en lire plusieurs)
   useEffect(() => {
     let annule = false
     setCalcul(null); setDeclaration(null); setSaisies({})
-    supabase.from('bpf_declarations').select('*').eq('year', annee).maybeSingle().then(({ data, error }) => {
+    if (!societe?.id) return undefined
+    supabase.from('bpf_declarations').select('*').eq('company_id', societe.id).eq('year', annee).maybeSingle().then(({ data, error }) => {
       if (annule) return
       if (error) { toast.error(`BPF non chargé : ${error.message}`); return }
       if (data) { setDeclaration(data); setCalcul(data.calcul || null); setSaisies(data.saisies || {}) }
     })
     return () => { annule = true }
-  }, [annee])
+  }, [annee, societe?.id])
 
   const retenues = useMemo(() => valeursRetenues(calcul?.lignes || {}, saisies), [calcul, saisies])
   const f4 = calcul?.lignes?.['F-4'] || {}
@@ -54,31 +66,47 @@ export default function BPF() {
     toast.success('Calcul à jour')
   }
 
+  // Ligne enregistrée : toujours les chiffres affichés à l'écran (calcul et saisies du moment)
+  const ligneDeclaration = () => ({
+    company_id: calcul.societe, year: annee, cerfa_version: calcul.cerfa || '10443*17', calcul, saisies,
+    exercice_start: calcul.exercice?.debut || null, exercice_end: calcul.exercice?.fin || null,
+    calculated_at: calcul.calcule_le || new Date().toISOString(), ca_total: retenues.C || 0,
+    stagiaires_total: retenues['F-1']?.stagiaires || 0, heures_stagiaires_total: retenues['F-1']?.heures || 0,
+  })
+
   const enregistrer = async () => {
     if (!calcul) return
     setBusy(true)
-    const ligne = {
-      company_id: calcul.societe, year: annee, cerfa_version: calcul.cerfa || '10443*17', calcul, saisies,
-      exercice_start: calcul.exercice?.debut || null, exercice_end: calcul.exercice?.fin || null,
-      calculated_at: calcul.calcule_le || new Date().toISOString(), ca_total: retenues.C || 0,
-      stagiaires_total: retenues['F-1']?.stagiaires || 0, heures_stagiaires_total: retenues['F-1']?.heures || 0,
-    }
-    const { data, error } = await supabase.from('bpf_declarations').upsert(ligne, { onConflict: 'company_id,year' }).select().single()
+    const { data, error } = await supabase.from('bpf_declarations').upsert(ligneDeclaration(), { onConflict: 'company_id,year' }).select().single()
     setBusy(false)
     if (error) { toast.error(`Non enregistré : ${error.message}`); return }
     setDeclaration(data)
     toast.success('BPF enregistré')
   }
 
+  // Le dépôt enregistre en même temps les chiffres affichés : rien de périmé ne reste figé
   const marquerDepose = async () => {
-    if (!declaration?.id) return
+    if (!declaration?.id || !calcul) return
     if (ecarts.length && !await confirmer(`Contrôles non satisfaits :\n${ecarts.join('\n')}\n\nNoter quand même le BPF comme déposé ?`)) return
-    if (!await confirmer('Noter le BPF comme déposé sur Mon Activité Formation ? Il ne sera plus modifiable ici.')) return
-    const { data, error } = await supabase.from('bpf_declarations').update({ submitted_at: new Date().toISOString(), status: 'submitted' }).eq('id', declaration.id).select().single()
+    if (!await confirmer('Noter le BPF comme déposé sur Mon Activité Formation, avec les chiffres affichés ? Il ne sera plus modifiable ici.')) return
+    setBusy(true)
+    const { data, error } = await supabase.from('bpf_declarations')
+      .update({ ...ligneDeclaration(), submitted_at: new Date().toISOString(), status: 'submitted' })
+      .eq('id', declaration.id).select().single()
+    setBusy(false)
     if (error) { toast.error(error.message); return }
     setDeclaration(data)
-    toast.success('BPF noté comme déposé')
+    toast.success('BPF enregistré et noté comme déposé')
   }
+
+  // Cadre B-2 : calcul (session à distance non annulée dans l'exercice), réponse modifiable
+  const b2Calcul = !!calcul?.lignes?.['B-2']
+  const b2 = typeof saisies['B-2'] === 'boolean' ? saisies['B-2'] : b2Calcul
+  const changerB2 = (v) => setSaisies((s) => {
+    const n = { ...s }
+    if (v === b2Calcul) delete n['B-2']; else n['B-2'] = v
+    return n
+  })
 
   const saisir = (code, champ, v) => setSaisies((s) => {
     const n = { ...s }
@@ -159,7 +187,7 @@ export default function BPF() {
         actions={(
           <div className="flex flex-wrap gap-2">
             <select className="select" value={annee} onChange={(e) => setAnnee(Number(e.target.value))} aria-label="Exercice">
-              {Array.from({ length: 6 }, (_, i) => ANNEE_DEFAUT + 1 - i).map((a) => <option key={a} value={a}>Exercice {a}</option>)}
+              {Array.from({ length: 6 }, (_, i) => anneeDefaut + 1 - i).map((a) => <option key={a} value={a}>Exercice {a}</option>)}
             </select>
             <button type="button" className="btn btn-secondary" onClick={calculer} disabled={busy || depose}><Calculator className="w-4 h-4" />{calcul ? 'Recalculer' : 'Calculer'}</button>
             <button type="button" className="btn btn-primary" onClick={enregistrer} disabled={busy || !calcul || depose}><Save className="w-4 h-4" />Enregistrer</button>
@@ -167,7 +195,8 @@ export default function BPF() {
         )} />
 
       {depose && <Banner tone="success" title="BPF déposé">Noté comme déposé le {fmtDate(declaration.submitted_at)}. Il n&apos;est plus modifiable ici.</Banner>}
-      {!calcul && <Banner tone="info" title="Aucun calcul pour cet exercice">Lancez le calcul : il lit vos factures et vos sessions de l&apos;exercice, réglé dans Réglages › Sociétés (mois de début).</Banner>}
+      {societe === null && <Banner tone="warning" title="Choisissez une société">Le BPF se déclare société par société : sélectionnez-en une (pas la vue groupe).</Banner>}
+      {societe && !calcul && <Banner tone="info" title="Aucun calcul pour cet exercice">Lancez le calcul : il lit vos factures et vos sessions de l&apos;exercice, réglé dans Réglages › Sociétés (mois de début).</Banner>}
 
       {calcul && (
         <>
@@ -183,6 +212,16 @@ export default function BPF() {
           )}
           {ecarts.length > 0 && <Banner tone="warning" title="Contrôles de la notice">{ecarts.map((e) => <p key={e}>{e}</p>)}</Banner>}
           {ecarts.length === 0 && <Banner tone="success">Contrôles de la notice satisfaits (totaux F-1, F-3 et F-4 identiques).</Banner>}
+
+          <section className="card">
+            <h3 className="font-semibold mb-2">B-2. Formation à distance</h3>
+            <label className="flex items-center gap-2 text-ui">
+              <input type="checkbox" className="w-4 h-4" checked={b2} disabled={depose} onChange={(e) => changerB2(e.target.checked)} />
+              Actions de formation à distance (e-learning, classes virtuelles) pendant l&apos;exercice
+              {typeof saisies['B-2'] === 'boolean' && <span className="text-ui-sm text-[rgb(var(--c-warning))]">saisi</span>}
+            </label>
+            <p className="text-ui-sm text-gray-500 mt-1">Calcul : {b2Calcul ? 'oui' : 'non'}, d&apos;après les sessions à distance non annulées de l&apos;exercice.</p>
+          </section>
 
           {CADRES_BPF.map((c) => <div key={c.cadre}>{cadreBpf(c.cadre, c.titre)}</div>)}
 
