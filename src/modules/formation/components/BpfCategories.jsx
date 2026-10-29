@@ -1,7 +1,7 @@
 // Catégorie des stagiaires pour le BPF (cadre F-1 du Cerfa 10443*17, 0477) : déduite du client par défaut
 // (entreprise : salarié, particulier : à ses frais, public : autre) ; à préciser seulement quand elle diffère
 // (apprenti, demandeur d'emploi…). Le calcul du BPF reprend la valeur saisie.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
 
@@ -23,6 +23,12 @@ export function categorieDeduite(clientType) {
 export default function BpfCategories({ session, peutModifier }) {
   const inscrits = (session?.session_trainees || []).filter((st) => !st.absent)
   const [valeurs, setValeurs] = useState(() => Object.fromEntries(inscrits.map((st) => [st.id, st.bpf_categorie || ''])))
+  // Session rechargée (stagiaire ajouté, catégorie changée ailleurs) : valeurs remises à jour depuis la base
+  const empreinte = inscrits.map((st) => `${st.id}:${st.bpf_categorie || ''}`).join('|')
+  useEffect(() => {
+    setValeurs(Object.fromEntries(inscrits.map((st) => [st.id, st.bpf_categorie || ''])))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empreinte])
   if (!inscrits.length || session?.session_type === 'subcontract') return null
   const deduite = categorieDeduite(session?.clients?.client_type)
   const libelle = (v) => CATEGORIES_F1.find((c) => c.value === v)?.label || ''
