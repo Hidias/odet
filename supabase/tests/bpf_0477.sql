@@ -8,7 +8,7 @@ declare
   v_s1 uuid; v_s2 uuid; v_s3 uuid; v_s4 uuid; v_hors uuid;
   t1 uuid; t2 uuid; t3 uuid; t4 uuid; t5 uuid;
   v_sa uuid := gen_random_uuid(); v_fo uuid := gen_random_uuid();
-  v_r jsonb; l jsonb; v_ok boolean;
+  v_r jsonb; l jsonb; v_ok boolean; v_g uuid;
 begin
   select id into v_cie from public.companies order by position limit 1;
   update public.companies set fiscal_year_start_month = 1 where id = v_cie;
@@ -65,6 +65,10 @@ begin
     ('F4-0477', 'invoice', v_ent, null, v_cie, 'sent', 2000, 2000, '2027-07-01', false),
     ('F5-0477', 'invoice', v_ent, v_s1, v_cie, 'draft', 999, 999, '2027-03-06', true),
     ('F6-0477', 'invoice', v_ent, v_hors, v_cie, 'paid', 777, 777, '2026-12-31', true);
+  -- Groupe payé par France Travail, facture en subrogation, session sans financement : C-7, pas C-2-h (relecture #254)
+  insert into public.session_groups (session_id, client_id, kind, payer_kind, company_id) values (v_s2, v_part, 'particulier', 'france_travail', v_cie) returning id into v_g;
+  insert into public.invoices (reference, type, client_id, session_id, session_group_id, is_subrogation, company_id, status, total_ht, total_net_ht, invoice_date, is_formation_pro)
+  values ('F7-0477', 'invoice', v_part, v_s2, v_g, true, v_cie, 'sent', 200, 200, '2027-05-15', true);
   alter table public.invoices enable trigger user;
 
   -- Comptes : super administrateur, puis formateur sans droit sur les registres qualité
@@ -87,13 +91,14 @@ begin
   l := v_r->'lignes';
 
   if v_r->'exercice'->>'debut' <> '2027-01-01' or v_r->'exercice'->>'fin' <> '2027-12-31' then raise exception 'exercice : %', v_r->'exercice'; end if;
-  -- C : 1000 - 100 = 900 en C-2-h (OPCO) ; 300 en C-9 ; 500 en C-10 ; total 1700 ; CA total 3700 -> 46 %
+  -- C : 1000 - 100 = 900 en C-2-h (OPCO) ; 300 en C-9 ; 500 en C-10 ; 200 en C-7 ; total 1900 ; CA 3900 -> 49 %
   if (l->>'C-2-h')::numeric <> 900 then raise exception 'C-2-h : %', l->>'C-2-h'; end if;
   if (l->>'C-2')::numeric <> 900 then raise exception 'C-2 : %', l->>'C-2'; end if;
   if (l->>'C-9')::numeric <> 300 then raise exception 'C-9 : %', l->>'C-9'; end if;
   if (l->>'C-10')::numeric <> 500 then raise exception 'C-10 : %', l->>'C-10'; end if;
-  if (l->>'C')::numeric <> 1700 then raise exception 'C : %', l->>'C'; end if;
-  if (v_r->>'part_ca')::int <> 46 then raise exception 'part : %', v_r->>'part_ca'; end if;
+  if (l->>'C-7')::numeric <> 200 then raise exception 'C-7 : %', l->>'C-7'; end if;
+  if (l->>'C')::numeric <> 1900 then raise exception 'C : %', l->>'C'; end if;
+  if (v_r->>'part_ca')::int <> 49 then raise exception 'part : %', v_r->>'part_ca'; end if;
   -- F-1 (hors S3) : a = 2 stagiaires 24,5 h -> 25 ; d = 1 / 7 ; b = 1 / 7 ; total 4 stagiaires, 38,5 h -> 39
   if (l->'F-1-a'->>'stagiaires')::int <> 2 or (l->'F-1-a'->>'heures')::numeric <> 25 then raise exception 'F-1-a : %', l->'F-1-a'; end if;
   if (l->'F-1-d'->>'stagiaires')::int <> 1 or (l->'F-1-d'->>'heures')::numeric <> 7 then raise exception 'F-1-d : %', l->'F-1-d'; end if;
@@ -123,8 +128,8 @@ begin
   v_r := public.bpf_calculer(v_cie, 2027);
   execute 'reset role';
   if v_r->'exercice'->>'debut' <> '2026-07-01' or v_r->'exercice'->>'fin' <> '2027-06-30' then raise exception 'exercice décalé : %', v_r->'exercice'; end if;
-  -- F6 (31/12/2026) entre, F4 (01/07/2027) sort
-  if (v_r->'lignes'->>'C')::numeric <> 2477 then raise exception 'C décalé : %', v_r->'lignes'->>'C'; end if;
+  -- F6 (31/12/2026) entre, F4 (01/07/2027) sort : 900 + 300 + 500 + 200 + 777
+  if (v_r->'lignes'->>'C')::numeric <> 2677 then raise exception 'C décalé : %', v_r->'lignes'->>'C'; end if;
   update public.companies set fiscal_year_start_month = 1 where id = v_cie;
 
   -- Un formateur sans droit est refusé ; personne d'anonyme
@@ -152,6 +157,7 @@ begin
   execute 'set local role authenticated';
   if exists (select 1 from public.bpf_declarations where year = 2027) then raise exception 'formateur lit le BPF'; end if;
   execute 'reset role';
+  if not exists (select 1 from public.schema_migrations where version = '0477_bpf_donnees') then raise exception 'registre'; end if;
   if (select count(*) from public.bpf_specialites) <> 92 then raise exception 'spécialités : %', (select count(*) from public.bpf_specialites); end if;
 
   raise warning 'ESSAI 0477 : OK';
