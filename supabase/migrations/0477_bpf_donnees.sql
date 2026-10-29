@@ -293,7 +293,7 @@ begin
   ) h on true
   where s.company_id = v_cie
     and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
-    and coalesce(s.end_date, s.start_date) between v_debut and v_fin;
+    and coalesce(s.end_date, s.start_date) between v_debut and least(v_fin, current_date);
 
   -- F-1 : type de stagiaires
   for r in select categorie, count(*) as nb, round(sum(heures)) as h from pg_temp.bpf_part where not sous_traitance_recue group by categorie loop
@@ -364,7 +364,7 @@ begin
       join lateral (select s.trainer_id as id union select x.trainer_id from public.session_trainers x where x.session_id = s.id) tr on tr.id is not null
       join public.trainers t on t.id = tr.id
       where s.company_id = v_cie and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
-        and coalesce(s.end_date, s.start_date) between v_debut and v_fin
+        and coalesce(s.end_date, s.start_date) between v_debut and least(v_fin, current_date)
     )
     select jsonb_build_object('personnes', count(distinct tid), 'heures', coalesce(round(sum(h)), 0)) from sess where interne));
   v_lignes := v_lignes || jsonb_build_object('E-2', (
@@ -375,7 +375,7 @@ begin
       join lateral (select s.trainer_id as id union select x.trainer_id from public.session_trainers x where x.session_id = s.id) tr on tr.id is not null
       join public.trainers t on t.id = tr.id
       where s.company_id = v_cie and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
-        and coalesce(s.end_date, s.start_date) between v_debut and v_fin
+        and coalesce(s.end_date, s.start_date) between v_debut and least(v_fin, current_date)
     )
     select jsonb_build_object('personnes', count(distinct tid), 'heures', coalesce(round(sum(h)), 0)) from sess where not interne));
 
@@ -383,7 +383,7 @@ begin
   v_lignes := v_lignes || jsonb_build_object('B-2', exists (
     select 1 from public.sessions s where s.company_id = v_cie and coalesce(s.is_remote, false)
       and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
-      and coalesce(s.end_date, s.start_date) between v_debut and v_fin));
+      and coalesce(s.end_date, s.start_date) between v_debut and least(v_fin, current_date)));
 
   return jsonb_build_object(
     'cerfa', '10443*17',
@@ -403,7 +403,8 @@ begin
     'hypotheses', jsonb_build_array(
       'Un stagiaire suivi dans deux actions compte deux fois (lecture de la notice, à confirmer auprès de la DREETS).',
       'Heures suivies : celles des documents émis ; sinon la durée prévue de la formation, signalée.',
-      'Formateurs : heures = durée de la formation pour chaque session animée ; formateur rattaché à un prestataire = personne extérieure (E-2).')
+      'Formateurs : heures = durée de la formation pour chaque session animée ; formateur rattaché à un prestataire = personne extérieure (E-2).',
+      'Sessions comptées : terminées à la date du calcul et non annulées, quel que soit leur statut (une session faite dont le statut n''a pas été mis à jour reste comptée).')
   );
 end
 $$;
