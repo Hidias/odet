@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { lignesCadre } from '../src/modules/qualite/pdf/bpfPDF'
+import { lignesCadre, etatDeclaration } from '../src/modules/qualite/pdf/bpfPDF'
 import { valeursRetenues } from '../src/modules/formation/lib/bpf'
 
 describe('BPF : document de travail PDF', () => {
@@ -24,5 +24,14 @@ describe('BPF : document de travail PDF', () => {
     expect(ligne('F-1-a').slice(2)).toEqual(['3', '30', 'saisi'])
     expect(ligne('F-1-c').slice(2)).toEqual(['1', '7', 'calcul'])
     expect(ligne('F-1').slice(2)).toEqual(['4', '37', 'total'])
+  })
+})
+
+describe('BPF : état indiqué sur le PDF', () => {
+  it('modifié après enregistrement : jamais présenté comme enregistré', () => {
+    expect(etatDeclaration(null)).toBe('Non enregistré')
+    expect(etatDeclaration({ id: 'x' })).toBe('Enregistré, non déposé')
+    expect(etatDeclaration({ id: 'x' }, true)).toMatch(/non enregistrés/)
+    expect(etatDeclaration({ id: 'x', submitted_at: '2027-04-10' }, true)).toMatch(/^Noté comme déposé/)
   })
 })

@@ -20,6 +20,13 @@ function estSaisi(saisies, code, champ) {
   return champ == null ? typeof s === 'number' : s[champ] != null
 }
 
+/** État affiché : les chiffres modifiés depuis le dernier enregistrement ne passent jamais pour enregistrés */
+export function etatDeclaration(declaration, nonEnregistre = false) {
+  if (declaration?.submitted_at) return `Noté comme déposé le ${date(declaration.submitted_at)}`
+  if (!declaration?.id) return 'Non enregistré'
+  return nonEnregistre ? 'Modifié depuis le dernier enregistrement : chiffres non enregistrés' : 'Enregistré, non déposé'
+}
+
 /** Lignes d'un cadre prêtes pour le tableau : [code, libellé, valeurs..., origine] */
 export function lignesCadre(cadre, retenues, saisies) {
   const lignes = LIGNES_BPF.filter((l) => l.cadre === cadre)
@@ -36,7 +43,7 @@ export function lignesCadre(cadre, retenues, saisies) {
   }
 }
 
-export async function buildBpfPDF({ calcul, retenues, saisies = {}, ecarts = [], declaration = null, libelleSpec = () => '' }) {
+export async function buildBpfPDF({ calcul, retenues, saisies = {}, ecarts = [], declaration = null, nonEnregistre = false, libelleSpec = () => '' }) {
   const ORG = await loadPdfOrg(true)
   const doc = new jsPDF({ compress: true })
   const ex = calcul?.exercice || {}
@@ -48,7 +55,7 @@ export async function buildBpfPDF({ calcul, retenues, saisies = {}, ecarts = [],
 
   f.kv([
     ['Calculé le', calcul?.calcule_le ? new Date(calcul.calcule_le).toLocaleString('fr-FR') : null],
-    ['État', declaration?.submitted_at ? `Noté comme déposé le ${date(declaration.submitted_at)}` : (declaration?.id ? 'Enregistré, non déposé' : 'Non enregistré')],
+    ['État', etatDeclaration(declaration, nonEnregistre)],
     ['Saisies', Object.keys(saisies || {}).length ? `${Object.keys(saisies).length} ligne(s) saisie(s), prioritaires sur le calcul` : 'Aucune : toutes les valeurs viennent du calcul'],
     ['Part du CA formation', calcul?.part_ca == null ? 'Sans objet' : `${calcul.part_ca} %`],
   ].filter((r) => r[1]), { labelW: 40 })

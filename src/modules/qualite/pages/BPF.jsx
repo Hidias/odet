@@ -104,13 +104,21 @@ export default function BPF() {
     toast.success('BPF enregistré et noté comme déposé')
   }
 
+  // Chiffres à l'écran différents de ceux enregistrés (recalcul ou saisie depuis le dernier enregistrement).
+  // Comparaison à clés triées : la base (jsonb) ne garde pas l'ordre des clés.
+  const stable = (v) => (v && typeof v === 'object' && !Array.isArray(v)
+    ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`
+    : JSON.stringify(v ?? null))
+  const nonEnregistre = !!declaration?.id && !!calcul && (
+    (declaration.calcul?.calcule_le || null) !== (calcul.calcule_le || null) || stable(declaration.saisies || {}) !== stable(saisies || {}))
+
   // Document de travail PDF (lot 1c) : valeurs retenues affichées, à reporter sur Mon Activité Formation
   const exporterPdf = async () => {
     if (!calcul) return
     setBusy(true)
     try {
       const { buildBpfPDF } = await import('../pdf/bpfPDF')
-      const { doc, filename } = await buildBpfPDF({ calcul, retenues, saisies, ecarts, declaration, libelleSpec })
+      const { doc, filename } = await buildBpfPDF({ calcul, retenues, saisies, ecarts, declaration, nonEnregistre, libelleSpec })
       doc.save(filename)
     } catch (e) {
       toast.error(`PDF non généré : ${e.message}`)
