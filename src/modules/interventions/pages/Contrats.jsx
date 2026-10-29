@@ -143,11 +143,13 @@ function PrixParc({ contract, onChange }) {
     if (!(await confirmer(`Prix annuel du contrat : ${eur(r.total)} HT au lieu de ${eur(r.prix_actuel)} HT ?`))) return
     setBusy(true)
     const { error } = await supabase.from('itv_contracts').update({ annual_price_ht: r.total }).eq('id', contract.id)
-    if (!error) await supabase.rpc('contrat_echeancier_generer', { p_contract: contract.id })
+    const { error: errEch } = error ? { error: null } : await supabase.rpc('contrat_echeancier_generer', { p_contract: contract.id })
     setBusy(false)
     if (error) return toast.error(error.message)
-    toast.success('Prix du contrat mis à jour, échéancier recalculé')
     onChange?.()
+    // Prix enregistré mais échéancier non recalculé : le dire, les échéances à venir gardent l'ancien montant
+    if (errEch) return toast.error(`Prix enregistré, mais l'échéancier n'a pas été recalculé (${errEch.message}). Ouvrez le contrat et enregistrez-le pour le recalculer.`, { duration: 10000 })
+    toast.success('Prix du contrat mis à jour, échéancier recalculé')
   }
   const avenant = async () => {
     setBusy(true)
