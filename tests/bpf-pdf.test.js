@@ -18,10 +18,10 @@ describe('BPF : document de travail PDF', () => {
     expect(ligne('C')[3]).toBe('total')
   })
 
-  it('stagiaires et heures : saisie partielle marquée, total F-1', () => {
+  it('stagiaires et heures : saisie partielle marquée champ par champ, total F-1', () => {
     const { corps } = lignesCadre('F-1', retenues, saisies)
     const ligne = (code) => corps.find((l) => l[0] === code)
-    expect(ligne('F-1-a').slice(2)).toEqual(['3', '30', 'saisi'])
+    expect(ligne('F-1-a').slice(2)).toEqual(['3', '30', 'heures saisies'])
     expect(ligne('F-1-c').slice(2)).toEqual(['1', '7', 'calcul'])
     expect(ligne('F-1').slice(2)).toEqual(['4', '37', 'total'])
   })
@@ -33,5 +33,13 @@ describe('BPF : état indiqué sur le PDF', () => {
     expect(etatDeclaration({ id: 'x' })).toBe('Enregistré, non déposé')
     expect(etatDeclaration({ id: 'x' }, true)).toMatch(/non enregistrés/)
     expect(etatDeclaration({ id: 'x', submitted_at: '2027-04-10' }, true)).toMatch(/^Noté comme déposé/)
+  })
+})
+
+describe('BPF : origine d\'une ligne entièrement saisie', () => {
+  it('stagiaires et heures saisis', () => {
+    const saisies = { 'F-1-a': { stagiaires: 2, heures: 14 } }
+    const { corps } = lignesCadre('F-1', valeursRetenues({ 'F-1-a': { stagiaires: 3, heures: 32 } }, saisies), saisies)
+    expect(corps.find((l) => l[0] === 'F-1-a').slice(2)).toEqual(['2', '14', 'saisi'])
   })
 })

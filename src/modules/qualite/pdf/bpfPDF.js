@@ -35,9 +35,11 @@ export function lignesCadre(cadre, retenues, saisies) {
     type,
     corps: lignes.map((l) => {
       const v = retenues[l.code]
-      const origine = l.total ? 'total' : (type === 'montant' ? estSaisi(saisies, l.code) : Object.keys(v || {}).some((k) => estSaisi(saisies, l.code, k))) ? 'saisi' : 'calcul'
-      if (type === 'montant') return [l.code, l.label, euros(v), origine]
+      if (type === 'montant') return [l.code, l.label, euros(v), l.total ? 'total' : estSaisi(saisies, l.code) ? 'saisi' : 'calcul']
       const k = type === 'ph' ? 'personnes' : 'stagiaires'
+      // Origine champ par champ : une ligne à moitié saisie le dit (relecture de #261)
+      const saisis = [k, 'heures'].filter((c) => estSaisi(saisies, l.code, c))
+      const origine = l.total ? 'total' : saisis.length === 2 ? 'saisi' : saisis.length === 1 ? `${saisis[0]} saisi${saisis[0] === 'heures' ? 'es' : 's'}` : 'calcul'
       return [l.code, l.label, nombre(v?.[k]), nombre(v?.heures), origine]
     }),
   }
@@ -84,14 +86,16 @@ export async function buildBpfPDF({ calcul, retenues, saisies = {}, ecarts = [],
       })
     } else {
       f.table(['Ligne', 'Libellé', type === 'ph' ? 'Personnes' : 'Stagiaires', 'Heures', 'Origine'], corps, {
-        columnStyles: { 0: { cellWidth: 18 }, 2: { cellWidth: 22, halign: 'right' }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 18 } },
+        columnStyles: { 0: { cellWidth: 18 }, 2: { cellWidth: 22, halign: 'right' }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 28 } },
       })
     }
   }
 
   f.section('Contrôles de la notice')
   if (ecarts.length) f.bullets(ecarts)
-  else f.para('Satisfaits : totaux F-1, F-3 et F-4 identiques, part du chiffre d\'affaires renseignée.')
+  else f.para((retenues?.C || 0) > 0
+    ? 'Satisfaits : totaux F-1, F-3 et F-4 identiques, part du chiffre d\'affaires renseignée.'
+    : 'Satisfaits : totaux F-1, F-3 et F-4 identiques. Part du chiffre d\'affaires sans objet (aucun produit de formation).')
 
   const points = []
   const d = calcul?.detail || {}
