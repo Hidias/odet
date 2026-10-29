@@ -7,6 +7,7 @@ import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { RESULT_LABEL, REPLACE_REASON_LABEL, summarize, frShort, frMonthYear } from '../lib/schedule'
 import { photoDataUrl } from '../lib/itvData'
+import { natureDe, estVerification, delaiUrgence } from '../lib/natures'
 
 const hour = (ts) => (ts ? new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).replace(':', 'h') : '')
 
@@ -17,13 +18,17 @@ export async function buildRapportPDF({ visit, items, parts, equipmentById, sett
   const ORG = orgHorsFormation(org || await loadPdfOrg())
   const doc = new jsPDF({ compress: true })
   const day = (visit.started_at || visit.finished_at || visit.planned_on || '').slice(0, 10)
-  // Visite d'inventaire (0463) : procès-verbal d'inventaire du parc, signé par le client
+  // Visite d'inventaire (0463) : procès-verbal d'inventaire. Autres natures (0465) : bon propre à la nature ;
+  // le rapport de vérification reste réservé aux vérifications.
   const inventaire = visit.kind === 'inventaire'
-  const titre = inventaire ? 'Procès-verbal d\'inventaire' : (settings?.report_title || 'Rapport d\'intervention')
+  const nature = natureDe(visit)
+  const titre = nature.bon || settings?.report_title || 'Rapport d\'intervention'
   const f = startDocument(doc, ORG, {
     ref: visit.reference, docLabel: titre, code: 'ITV',
     title: titre,
-    subtitle: inventaire ? `Inventaire du matériel de sécurité du ${frShort(day)}` : `Vérification du matériel de sécurité du ${frShort(day)}`,
+    subtitle: inventaire ? `Inventaire du matériel de sécurité du ${frShort(day)}`
+      : estVerification(visit) ? `Vérification du matériel de sécurité du ${frShort(day)}`
+        : `${nature.label} du ${frShort(day)}${visit.urgent ? ', intervention urgente' : ''}`,
   })
 
   const site = visit.sites || {}
@@ -77,8 +82,11 @@ export async function buildRapportPDF({ visit, items, parts, equipmentById, sett
   }
 
   const obs = [...(visit.site_observations || [])]
+  // Délai promis d'un dépannage urgent (0465) ; les notes de l'intervention restent internes, hors du bon
+  const delai = delaiUrgence(visit)
+  if (delai) f.para(`Intervention urgente demandée le ${new Date(visit.requested_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Paris' })}, arrivée promise avant le ${delai.avant.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Paris' })}${delai.respecte === true ? ' : délai tenu.' : delai.respecte === false ? ' : délai dépassé.' : '.'}`, { size: 9 })
   if (obs.length || visit.observations) {
-    f.section('Observations')
+    f.section(natureDe(visit).travaux || 'Observations')
     if (obs.length) f.bullets(obs)
     if (visit.observations) f.para(visit.observations)
   }
@@ -109,5 +117,5 @@ export async function buildRapportPDF({ visit, items, parts, equipmentById, sett
   f.finish()
   numberPages(doc, ORG)
   const safe = String(visit.clients?.name || 'client').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').slice(0, 40)
-  return { doc, filename: `${inventaire ? 'PV_inventaire' : 'Rapport'}_${visit.reference || 'intervention'}_${safe}.pdf` }
+  return { doc, filename: `${inventaire ? 'PV_inventaire' : estVerification(visit) ? 'Rapport' : 'Bon'}_${visit.reference || 'intervention'}_${safe}.pdf` }
 }

@@ -17,6 +17,7 @@ import {
 import { RESULTS, suggestedOperation, summarize, frShort, REPLACE_REASONS, PERIODIC_OPERATIONS, replaceMissing, replaceBlockers } from '../lib/schedule'
 import { ResultBadge, VisitBadge, ScanButton, Sheet, Kpi } from '../components/ui'
 import { buildRapportPDF } from '../pdf/rapportPDF'
+import { natureDe, estVerification, controleTousAppareils, delaiUrgence } from '../lib/natures'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import PontVisite from '../components/PontVisite'
 import { AvisPassage, SignatureADistance } from '../components/AvisEtSignature'
@@ -86,7 +87,8 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
       const done = await loadDoneOperations(equipment.map((e) => e.id))
       const year = new Date().getFullYear()
       const withOps = equipment.map((e) => ({ ...e, suggested: suggestedOperation(typesById[e.type_id], e, year, done[e.id] || []) }))
-      const its = await startVisit(visit, withOps)
+      // Dépannage, installation, livraison… (0465) : seuls les appareils scannés ou ajoutés sont suivis
+      const its = await startVisit(visit, controleTousAppareils(visit) ? withOps : [])
       setItems(its)
       const nv = await loadVisit(id)
       setVisit((x) => ({ ...nv, signer_name: nv.signer_name || x?.signer_name || null }))
@@ -148,12 +150,14 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
 
   if (!visit) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
 
+  const delai = delaiUrgence(visit)
   const header = (
     <div className="flex items-center gap-2">
       <button type="button" className="btn btn-ghost btn-icon" onClick={() => (step === 'cloture' ? setStep('controle') : navigate(-1))} aria-label="Retour"><ChevronLeft className="w-5 h-5" /></button>
       <div className="flex-1 min-w-0">
         <h1 className="font-display font-semibold text-lg truncate">{visit.clients?.name}</h1>
-        <div className="text-ui-sm text-gray-500 truncate">{[visit.kind === 'inventaire' ? 'Inventaire' : null, visit.sites?.name, visit.sites?.city, visit.reference].filter(Boolean).join(', ')}</div>
+        <div className="text-ui-sm text-gray-500 truncate">{[visit.kind && visit.kind !== 'verification' ? natureDe(visit).label : null, visit.sites?.name, visit.sites?.city, visit.reference].filter(Boolean).join(', ')}</div>
+        {delai && <div className={`text-ui-sm ${delai.retard ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-warning))]'}`}>Urgent : arrivée promise avant le {delai.avant.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{delai.respecte === true ? ', délai tenu' : delai.retard ? ', délai dépassé' : ''}</div>}
       </div>
       {step === 'controle' && started && !readOnly ? <ScanButton className="btn btn-primary btn-icon" label="" onCode={onScan} /> : <VisitBadge status={visit.status} />}
     </div>
@@ -207,7 +211,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
         await closeVisit(visit.id)
         await load()
         setStep('termine')
-        toast.success('Visite terminée, échéances mises à jour')
+        toast.success(estVerification(visit) ? 'Visite terminée, échéances mises à jour' : `${natureDe(visit).label} : intervention terminée`)
       } catch (e) { toast.error(e.message) } finally { setBusy(false) }
     }
     return (
@@ -291,7 +295,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
               <span>{o}</span>
             </label>
           ))}
-          <label className="label" htmlFor="itv-obs">{adapte.facile ? 'Autre chose à dire ?' : 'Autres observations'}</label>
+          <label className="label" htmlFor="itv-obs">{natureDe(visit).travaux || (adapte.facile ? 'Autre chose à dire ?' : 'Autres observations')}</label>
           <textarea id="itv-obs" className="textarea" rows={3} value={visit.observations || ''} onChange={(e) => setVisit((v) => ({ ...v, observations: e.target.value }))}
             onBlur={() => updateVisit(visit.id, { observations: visit.observations || null }).catch(() => {})} />
         </section>
@@ -571,7 +575,7 @@ function VisitDone({ visit, items, parts, equipmentById, settings, technician, i
         <Kpi value={s.a_remplacer} label="à remplacer" tone="warning" />
         <Kpi value={s.remplace} label="remplacés" tone="info" />
       </div>
-      <button type="button" className="btn btn-primary w-full" style={{ height: 50 }} onClick={download} disabled={!!busy}>{busy === 'pdf' ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}Rapport PDF</button>
+      <button type="button" className="btn btn-primary w-full" style={{ height: 50 }} onClick={download} disabled={!!busy}>{busy === 'pdf' ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}{natureDe(visit).bon || 'Rapport'} (PDF)</button>
       <button type="button" className="btn btn-secondary w-full" onClick={share} disabled={!!busy}><Share2 className="w-4 h-4" />{facile ? 'Envoyer le rapport' : 'Envoyer le rapport (email, messagerie)'}</button>
       {isManager && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

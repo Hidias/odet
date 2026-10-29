@@ -99,6 +99,7 @@ export default function Contrats({ types }) {
                   <Link to={`/interventions/parc/${c.client_id}`} className="font-semibold">{c.clients?.name}</Link>
                   <div className="text-ui-sm text-gray-500">{c.label}{c.reference ? ` (${c.reference})` : ''}. Visites en {(c.visit_months || []).map(monthLabel).join(' et ') || '?'}. {Number(c.annual_price_ht || 0).toLocaleString('fr-FR')} € HT par an.</div>
                   {c.duration_years && <div className="text-ui-sm text-gray-500">{phraseConditions(condsDe(c))}{c.term_on ? ` Échéance le ${dateFr(c.term_on)}${limite ? `, refus possible jusqu'au ${dateFr(limite)}` : ''}.` : ''}</div>}
+                  {c.emergency_hours && <SuiviUrgences contract={c} />}
                   <div className="text-ui-sm">{c.signed_at ? <span className="text-[rgb(var(--c-success))]">Signé le {dateFr(c.signed_at)}{c.signed_name ? ` par ${c.signed_name}` : ''}{c.signed_on_paper ? ' (papier)' : ''}</span> : c.status === 'actif' ? <span className="text-gray-500">Contrat pas encore signé</span> : null}</div>
                 </div>
                 <span className={`badge ${badge}`}>{libelle}</span>
@@ -122,6 +123,17 @@ export default function Contrats({ types }) {
       {edit && <ContractForm contract={edit} types={types} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load() }} />}
       {papier && <SignePapier contract={papier} onClose={() => setPapier(null)} onSaved={() => { setPapier(null); load() }} />}
     </div>
+  )
+}
+
+// Dépannages urgents (0465) : délai promis au contrat, tenu ou non sur les 12 derniers mois
+function SuiviUrgences({ contract }) {
+  const [r, setR] = useState(null)
+  useEffect(() => { supabase.rpc('contrat_urgences', { p_contract: contract.id }).then(({ data }) => setR(data || null), () => setR(null)) }, [contract.id])
+  if (!r) return null
+  return (
+    <div className="text-ui-sm text-gray-500">Dépannage urgent sous {r.delai_h} h.{r.urgences ? ` Sur 12 mois : ${r.urgences} urgence${r.urgences > 1 ? 's' : ''}, ${r.respectees} dans le délai` : ' Aucune urgence sur 12 mois'}
+      {r.en_retard > 0 && <span className="text-[rgb(var(--c-danger))]">, {r.en_retard} hors délai</span>}{r.en_attente > 0 ? `, ${r.en_attente} en attente` : ''}{r.urgences ? '.' : ''}</div>
   )
 }
 
@@ -323,6 +335,7 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
     notice_months: contract.notice_months ?? 3, billing_period: contract.billing_period || 'annuel',
     billing_term: contract.billing_term || '', includes: contract.includes || {}, purchase_order_ref: contract.purchase_order_ref || '',
     index_label: contract.index_label || '', index_series: contract.index_series || '', index_base_value: contract.index_base_value ?? '', index_base_month: contract.index_base_month || '',
+    emergency_hours: contract.emergency_hours ?? '',
   }))
   // Client public (0461) : terme échu par défaut, engagement de l'exercice, bon de commande
   const [clientType, setClientType] = useState(null)
@@ -350,7 +363,8 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         duration_years: Number(f.duration_years), renewal_years: Number(f.renewal_years), notice_months: Number(f.notice_months),
         billing_term: f.billing_term || null, purchase_order_ref: (f.purchase_order_ref || '').trim() || null,
         index_label: f.index_label.trim() || null, index_series: f.index_series.trim() || null,
-        index_base_value: f.index_base_value === '' ? null : Number(String(f.index_base_value).replace(',', '.')), index_base_month: f.index_base_month || null }
+        index_base_value: f.index_base_value === '' ? null : Number(String(f.index_base_value).replace(',', '.')), index_base_month: f.index_base_month || null,
+        emergency_hours: f.emergency_hours === '' || f.emergency_hours == null ? null : Math.max(1, Math.min(720, Number(f.emergency_hours) || 0)) || null }
       // Contrat saisi à la main ou actif sans échéance : échéance calculée comme à la validation (contrat_valider)
       if (row.status === 'actif' && !signe && (!contract.id || !contract.term_on || ['start_on', 'duration_years', 'tacit_renewal'].some((k) => row[k] !== contract[k]))) {
         row.term_on = echeanceInitiale(row.start_on, row.duration_years)
@@ -438,13 +452,14 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
               <option value="echoir">En début de période</option><option value="echu">Après la période</option>
             </select></div>
           <fieldset><legend className="label">Compris au contrat (0 € sur la visite)</legend>
-            <div className="flex flex-wrap gap-3 pt-1">{[['pieces', 'Pièces'], ['recharges', 'Recharges'], ['deplacement', 'Déplacement']].map(([k, l]) => (
+            <div className="flex flex-wrap gap-3 pt-1">{[['pieces', 'Pièces'], ['recharges', 'Recharges'], ['deplacement', 'Déplacement'], ['depannage', 'Main-d\'œuvre de dépannage']].map(([k, l]) => (
               <label key={k} className="flex items-center gap-2 text-ui"><input type="checkbox" checked={f.includes?.[k] === true} onChange={(e) => setF({ ...f, includes: { ...(f.includes || {}), [k]: e.target.checked } })} />{l}</label>
             ))}</div>
           </fieldset>
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label className="label" htmlFor="ct-urg">Dépannage urgent : arrivée promise sous (heures)</label><input id="ct-urg" className="input" type="number" min={1} max={720} value={f.emergency_hours} onChange={(e) => setF({ ...f, emergency_hours: e.target.value })} placeholder="Vide : aucun engagement" /></div>
         <div><label className="label" htmlFor="ct-bc">N° de bon de commande</label><input id="ct-bc" className="input" maxLength={60} value={f.purchase_order_ref} onChange={(e) => setF({ ...f, purchase_order_ref: e.target.value })} placeholder="Repris sur chaque facture" /></div>
         {publicClient && <div><label className="label" htmlFor="ct-eng">N° d'engagement {engagement.year}</label><input id="ct-eng" className="input" maxLength={60} value={engagement.number} onChange={(e) => setEngagement({ ...engagement, number: e.target.value })} placeholder="Obligatoire pour émettre sur Chorus Pro" /></div>}
       </div>

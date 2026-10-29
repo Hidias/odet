@@ -46,6 +46,7 @@ export async function buildContratPDF({ contract, client, sites = [], types = []
     ['Sites couverts', couverts.length ? couverts.map((s) => [s.name, s.city].filter(Boolean).join(', ')).join(' ; ') : 'Tous les sites du client'],
     ['Matériel couvert', typesCouverts.length ? typesCouverts.map((t) => t.name).join(', ') : 'Tout le matériel de sécurité inscrit au parc'],
     ['Visites', `${(contract.visit_months || []).map(monthLabel).join(', ') || 'à convenir'} (avis de passage avant chaque visite)`],
+    ...(contract.emergency_hours ? [['Dépannage urgent', `arrivée sur site sous ${contract.emergency_hours} heures après la demande`]] : []),
     ...(quoteRef ? [['Devis d\'origine', quoteRef]] : []),
   ], { labelW: 40 })
 

@@ -4,7 +4,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Loader2, Plus, Printer, BookOpen, MapPin, Pencil, Play, CalendarPlus, ExternalLink, ClipboardList } from 'lucide-react'
+import { Loader2, Plus, Printer, BookOpen, MapPin, Pencil, Play, CalendarPlus, ExternalLink, ClipboardList, Wrench } from 'lucide-react'
+import { NATURES, NATURES_CREATION, natureDe, delaiUrgence } from '../lib/natures'
 import { supabase } from '../../../core/supabase'
 import {
   loadClient, loadSites, loadEquipmentForClient, loadContracts, loadVisits, createDefaultSite, saveSite, createVisit,
@@ -35,6 +36,7 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
   const [editContract, setEditContract] = useState(null)
   const [busy, setBusy] = useState(null)
   const [declarations, setDeclarations] = useState([])
+  const [nouvelle, setNouvelle] = useState(null)
 
   const load = async () => {
     const [c, s, e, ct, v, d] = await Promise.all([loadClient(clientId), loadSites(clientId), loadEquipmentForClient(clientId), loadContracts(clientId), loadVisits({ clientId }),
@@ -180,6 +182,7 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
               {canWrite && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditSite(s)}><Pencil className="w-4 h-4" />Modifier</button>}
               {isManager && <button type="button" className="btn btn-ghost btn-sm" onClick={() => toPlan(s)}><CalendarPlus className="w-4 h-4" />À planifier</button>}
               {(isTechnician || isManager) && <button type="button" className="btn btn-ghost btn-sm" onClick={() => inventaire(s)}><ClipboardList className="w-4 h-4" />Visite d'inventaire</button>}
+              {(isTechnician || isManager) && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNouvelle(s)}><Wrench className="w-4 h-4" />Intervention</button>}
               {(isTechnician || isManager) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => visitNow(s)}><Play className="w-4 h-4" />Visite maintenant</button>}
             </div>
           )
@@ -250,7 +253,7 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
           <Link key={v.id} to={`/interventions/visite/${v.id}`} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-b-0 no-underline text-gray-900">
             <div className="flex-1 min-w-0">
               <div className="text-ui font-medium">{v.planned_on ? frShort(v.planned_on) : `Échéance ${frShort(v.due_on)}`}, {v.sites?.name}</div>
-              <div className="text-ui-sm text-gray-500">{[v.reference, v.kind === 'inventaire' ? 'inventaire' : null, v.itv_contracts ? 'contrat' : null].filter(Boolean).join(', ')}</div>
+              <div className="text-ui-sm text-gray-500">{[v.reference, v.kind && v.kind !== 'verification' ? natureDe(v).label.toLowerCase() : null, v.urgent ? 'urgent' : null, v.itv_contracts ? 'contrat' : null].filter(Boolean).join(', ')}{delaiUrgence(v)?.retard ? <span className="text-[rgb(var(--c-danger))]"> · délai promis dépassé</span> : null}</div>
             </div>
             <VisitBadge status={v.status} />
           </Link>
@@ -258,9 +261,51 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
       </section>
 
       {editEq && <EquipmentForm equipment={editEq.id ? editEq : null} clientId={client.id} siteId={siteFilter || sites[0]?.id} types={types} onClose={() => setEditEq(null)} onSaved={() => { setEditEq(null); load() }} />}
+      {nouvelle && <NouvelleIntervention site={nouvelle} client={client} contracts={contracts} profile={profile} isManager={isManager} onClose={() => setNouvelle(null)} onCreated={(v, ouvrir) => { setNouvelle(null); if (ouvrir) navigate(`/interventions/visite/${v.id}`); else load() }} />}
       {editSite && <SiteForm site={editSite} onClose={() => setEditSite(null)} onSaved={() => { setEditSite(null); load() }} />}
       {editContract && <ContractForm contract={editContract} sites={sites} types={types} onClose={() => setEditContract(null)} onSaved={() => { setEditContract(null); load() }} />}
     </div>
+  )
+}
+
+// Nouvelle intervention (0465) : nature, urgence (délai promis par le contrat), date ; ouverte tout de suite ou planifiée
+function NouvelleIntervention({ site, client, contracts, profile, isManager, onClose, onCreated }) {
+  const contrat = contracts.find((c) => c.status === 'actif' && (!(c.site_ids || []).length || c.site_ids.includes(site.id)))
+  const [f, setF] = useState({ kind: 'depannage', urgent: false, planned_on: todayIso(), notes: '' })
+  const [busy, setBusy] = useState(false)
+  const creer = async (ouvrir) => {
+    setBusy(true)
+    try {
+      const v = await createVisit({
+        client_id: client.id, site_id: site.id, kind: f.kind, contract_id: contrat?.id || null,
+        urgent: f.kind === 'depannage' && f.urgent, requested_at: f.kind === 'depannage' && f.urgent ? new Date().toISOString() : null,
+        planned_on: f.planned_on || null, due_on: f.planned_on || todayIso(), notes: f.notes.trim() || null,
+        technician_id: ouvrir ? profile?.id || null : null, status: ouvrir || f.planned_on ? 'planifiee' : 'a_planifier',
+      })
+      toast.success(`${NATURES[f.kind].label} créé${['livraison', 'installation', 'mise_en_service', 'verification'].includes(f.kind) ? 'e' : ''}${v.deadline_at ? `, arrivée promise avant le ${new Date(v.deadline_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}`)
+      onCreated(v, ouvrir)
+    } catch (e) { toast.error(e.message) } finally { setBusy(false) }
+  }
+  return (
+    <Sheet title={`Intervention, ${site.name}`} onClose={onClose} footer={<>
+      <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
+      {isManager && <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => creer(false)}>Planifier</button>}
+      <button type="button" className="btn btn-primary" disabled={busy} onClick={() => creer(true)}>Commencer maintenant</button>
+    </>}>
+      <div className="space-y-3">
+        <div><label className="label" htmlFor="ni-nature">Nature</label>
+          <select id="ni-nature" className="select" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>
+            {NATURES_CREATION.map((k) => <option key={k} value={k}>{NATURES[k].label}</option>)}
+          </select></div>
+        {f.kind === 'depannage' && (
+          <label className="flex items-center gap-2"><input type="checkbox" className="w-5 h-5" checked={f.urgent} onChange={(e) => setF({ ...f, urgent: e.target.checked })} />
+            <span>Urgent{contrat?.emergency_hours ? ` (délai promis au contrat : ${contrat.emergency_hours} h)` : ' (aucun délai promis au contrat)'}</span></label>
+        )}
+        <div><label className="label" htmlFor="ni-date">Date prévue</label><input id="ni-date" type="date" className="input" value={f.planned_on} onChange={(e) => setF({ ...f, planned_on: e.target.value })} /></div>
+        <div><label className="label" htmlFor="ni-notes">Demande du client (note interne)</label><textarea id="ni-notes" className="textarea" rows={3} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
+        {contrat && <p className="muted text-ui-sm">Rattachée au contrat {contrat.label || ''}{contrat.reference ? ` (${contrat.reference})` : ''}.</p>}
+      </div>
+    </Sheet>
   )
 }
 
