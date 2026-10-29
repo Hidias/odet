@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Calculator, Save, CheckCircle, RotateCcw, Unlock } from 'lucide-react'
+import { Calculator, Save, CheckCircle, RotateCcw, Unlock, FileDown } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { PageHeader, Banner } from '../../../ui'
 import { confirmer } from '../../../ui/Confirm'
@@ -102,6 +102,38 @@ export default function BPF() {
     if (error) { toast.error(error.message); return }
     setDeclaration(data)
     toast.success('BPF enregistré et noté comme déposé')
+  }
+
+  // Chiffres à l'écran différents de ceux enregistrés (recalcul ou saisie depuis le dernier enregistrement).
+  // Comparaison à clés triées : la base (jsonb) ne garde pas l'ordre des clés.
+  const stable = (v) => (v && typeof v === 'object' && !Array.isArray(v)
+    ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`
+    : JSON.stringify(v ?? null))
+  const nonEnregistre = !!declaration?.id && !!calcul && (
+    (declaration.calcul?.calcule_le || null) !== (calcul.calcule_le || null) || stable(declaration.saisies || {}) !== stable(saisies || {}))
+
+  // Document de travail PDF (lot 1c) : valeurs retenues affichées, à reporter sur Mon Activité Formation
+  const exporterPdf = async () => {
+    if (!calcul) return
+    setBusy(true)
+    try {
+      // Libellés officiels des spécialités (F-4) : relus s'ils ne sont pas encore arrivés (relecture de #261)
+      let specs = specialites
+      if (!specs.length) {
+        const { data, error } = await supabase.from('bpf_specialites').select('code, libelle')
+        if (error || !data?.length) { toast.error(`Spécialités non chargées${error ? ` : ${error.message}` : ''}`); return }
+        specs = data
+        setSpecialites(data)
+      }
+      const libelle = (code) => specs.find((s) => s.code === code)?.libelle || ''
+      const { buildBpfPDF } = await import('../pdf/bpfPDF')
+      const { doc, filename } = await buildBpfPDF({ calcul, retenues, saisies, ecarts, declaration, nonEnregistre, libelleSpec: libelle })
+      doc.save(filename)
+    } catch (e) {
+      toast.error(`PDF non généré : ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
   }
 
   // Réouverture d'un BPF déposé par erreur : seule la date de dépôt est retirée (la base refuse tout autre changement)
@@ -208,6 +240,7 @@ export default function BPF() {
             </select>
             <button type="button" className="btn btn-secondary" onClick={calculer} disabled={busy || depose}><Calculator className="w-4 h-4" />{calcul ? 'Recalculer' : 'Calculer'}</button>
             <button type="button" className="btn btn-primary" onClick={enregistrer} disabled={busy || !calcul || depose}><Save className="w-4 h-4" />Enregistrer</button>
+            <button type="button" className="btn btn-secondary" onClick={exporterPdf} disabled={busy || !calcul}><FileDown className="w-4 h-4" />PDF</button>
           </div>
         )} />
 
