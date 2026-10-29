@@ -167,7 +167,7 @@ export async function saveContract(c) {
 export const generateContractVisits = async (contractId, year) => must(await supabase.rpc('itv_generate_contract_visits', { p_contract: contractId, p_year: year }))
 
 // ─── Visites ───
-const VISIT_COLS = '*, clients(id, name, city), sites(id, name, address, postal_code, city, latitude, longitude, access_notes), itv_contracts(id, label, annual_price_ht, visit_months, site_ids)'
+const VISIT_COLS = '*, clients(id, name, city), sites(id, name, address, postal_code, city, latitude, longitude, access_notes), itv_contracts(id, label, annual_price_ht, visit_months, site_ids, billing_period, includes)'
 export async function loadVisits({ from = null, to = null, technicianId = null, status = null, clientId = null, siteId = null } = {}) {
   return mustAll(() => {
     let q = supabase.from('itv_visits').select(VISIT_COLS)
@@ -363,11 +363,17 @@ async function currentUserName() {
  * entier à chaque visite), ou forfait de visite hors contrat, puis pièces fournies.
  * nbVisitesAn : nombre de visites prévues par an par le contrat (mois de visite × sites couverts).
  */
-export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1, tarifs = []) {
+export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1, tarifs = [], categories = {}) {
   const tva = Number(settings?.tva_rate ?? 20)
   const lines = []
   const day = (visit.started_at || visit.planned_on || '').slice(0, 10)
-  if (visit.itv_contracts) {
+  const contrat = visit.itv_contracts
+  // Contrat facturé par échéancier (0461) : la visite ne refacture rien du forfait (pas de double facturation)
+  const parEcheancier = contrat && ['mensuel', 'trimestriel', 'annuel'].includes(contrat.billing_period)
+  const compris = contrat?.includes || {}
+  if (parEcheancier) {
+    lines.push({ description_title: contrat.label || 'Contrat de maintenance', description_detail: `Visite du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}\nComprise au contrat, facturée par l'échéancier`, quantity: 1, unit: 'forfait', unit_price_ht: 0, tva_rate: tva })
+  } else if (visit.itv_contracts) {
     const annuel = Number(visit.itv_contracts.annual_price_ht || 0)
     const n = Math.max(1, Number(nbVisitesAn) || 1)
     const part = Math.round((annuel / n) * 100) / 100
@@ -377,7 +383,13 @@ export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1, ta
     lines.push({ description_title: 'Visite de vérification du matériel de sécurité', description_detail: `${visit.reference || ''} du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}`, quantity: 1, unit: 'forfait', unit_price_ht: prixVisite(tarifs, settings?.visit_fee_ht).prix, tva_rate: tva })
   }
   // Pièces fournies : livraisons de biens (nature de l'opération, 0363) ; forfaits : prestations de services
-  for (const p of parts || []) lines.push({ description_title: p.label, description_detail: '', quantity: Number(p.quantity || 1), unit: 'unité', unit_price_ht: Number(p.unit_price_ht || 0), tva_rate: tva, nature: 'bien' })
+  // Ce que le contrat comprend (pièces, recharges, déplacement, 0461) : ligne gardée à 0 €, le client voit ce qu'il a reçu
+  const cle = { piece: 'pieces', recharge: 'recharges', deplacement: 'deplacement' }
+  for (const p of parts || []) {
+    const cat = categories[p.part_id] || 'piece'
+    const inclus = contrat && compris[cle[cat]] === true
+    lines.push({ description_title: p.label, description_detail: inclus ? 'Compris au contrat' : '', quantity: Number(p.quantity || 1), unit: 'unité', unit_price_ht: inclus ? 0 : Number(p.unit_price_ht || 0), tva_rate: tva, nature: cat === 'deplacement' ? 'service' : 'bien' })
+  }
   return lines
 }
 
@@ -396,7 +408,10 @@ async function visitesParAn(contract, clientId) {
 export async function createInvoiceDraft(visit, parts, settings) {
   // Forfait de visite hors contrat au tarif du client (0418) ; les pièces gardent le prix posé sur la visite
   const tarifs = await chargerTarifs(visit.client_id)
-  const lines = invoiceLinesForVisit(visit, parts, settings, await visitesParAn(visit.itv_contracts, visit.client_id), tarifs)
+  const ids = [...new Set((parts || []).map((p) => p.part_id).filter(Boolean))]
+  const { data: cats } = ids.length ? await supabase.from('itv_parts').select('id, category').in('id', ids) : { data: [] }
+  const categories = Object.fromEntries((cats || []).map((c) => [c.id, c.category]))
+  const lines = invoiceLinesForVisit(visit, parts, settings, await visitesParAn(visit.itv_contracts, visit.client_id), tarifs, categories)
   const t = totals(lines, settings?.tva_rate ?? 20)
   const contact = await loadPrimaryContact(visit.client_id)
   const inv = must(await supabase.from('invoices').insert({

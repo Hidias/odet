@@ -139,8 +139,9 @@ function TypeForm({ type, onClose, onSaved }) {
 }
 
 // ─── Pièces ───
+const CATEGORIES_PIECE = [['piece', 'Pièce'], ['recharge', 'Recharge'], ['deplacement', 'Déplacement']]
 function PartsSection({ parts, setParts, types }) {
-  const [draft, setDraft] = useState({ name: '', unit: 'unité', price_ht: '' })
+  const [draft, setDraft] = useState({ name: '', unit: 'unité', price_ht: '', category: 'piece' })
   const refresh = async () => setParts(await loadParts())
   const upd = async (p, patch) => {
     setParts((l) => l.map((x) => (x.id === p.id ? { ...x, ...patch } : x)))
@@ -148,18 +149,19 @@ function PartsSection({ parts, setParts, types }) {
   }
   const add = async () => {
     if (!draft.name.trim()) return
-    try { await savePart({ name: draft.name.trim(), unit: draft.unit || 'unité', price_ht: Number(String(draft.price_ht).replace(',', '.')) || 0 }); setDraft({ name: '', unit: 'unité', price_ht: '' }); refresh() } catch (e) { toast.error(e.message) }
+    try { await savePart({ name: draft.name.trim(), unit: draft.unit || 'unité', price_ht: Number(String(draft.price_ht).replace(',', '.')) || 0, category: draft.category || 'piece' }); setDraft({ name: '', unit: 'unité', price_ht: '', category: 'piece' }); refresh() } catch (e) { toast.error(e.message) }
   }
   return (
     <section className="space-y-3">
-      <p className="muted text-ui-sm">Pièces proposées au technicien à la clôture. Le prix sert à la facture préparée depuis la visite.</p>
+      <p className="muted text-ui-sm">Pièces proposées au technicien à la clôture. Le prix sert à la facture préparée depuis la visite ; le type dit si un contrat qui « comprend » les pièces, les recharges ou le déplacement la facture à 0 €.</p>
       <div className="card card-flush overflow-x-auto">
         <table className="w-full">
-          <thead><tr><th>Pièce</th><th style={{ width: 110 }}>Unité</th><th style={{ width: 120 }}>Prix HT</th><th style={{ width: 80 }}>Utilisée</th></tr></thead>
+          <thead><tr><th>Pièce</th><th style={{ width: 130 }}>Type</th><th style={{ width: 110 }}>Unité</th><th style={{ width: 120 }}>Prix HT</th><th style={{ width: 80 }}>Utilisée</th></tr></thead>
           <tbody>
             {parts.map((p) => (
               <tr key={p.id}>
                 <td><input className="input" aria-label="Nom de la pièce" defaultValue={p.name} onBlur={(e) => e.target.value !== p.name && upd(p, { name: e.target.value })} /></td>
+                <td><select className="select" aria-label="Type" value={p.category || 'piece'} onChange={(e) => upd(p, { category: e.target.value })}>{CATEGORIES_PIECE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></td>
                 <td><input className="input" aria-label="Unité" defaultValue={p.unit} onBlur={(e) => e.target.value !== p.unit && upd(p, { unit: e.target.value })} /></td>
                 <td><input className="input" aria-label="Prix HT" inputMode="decimal" defaultValue={p.price_ht} onBlur={(e) => { const v = Number(e.target.value.replace(',', '.')) || 0; if (v !== Number(p.price_ht)) upd(p, { price_ht: v }) }} /></td>
                 <td className="text-center"><input type="checkbox" aria-label="Pièce utilisée" checked={p.is_active} onChange={(e) => upd(p, { is_active: e.target.checked })} /></td>
@@ -167,6 +169,7 @@ function PartsSection({ parts, setParts, types }) {
             ))}
             <tr>
               <td><input className="input" placeholder="Nouvelle pièce" aria-label="Nouvelle pièce" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></td>
+              <td><select className="select" aria-label="Type" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>{CATEGORIES_PIECE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></td>
               <td><input className="input" aria-label="Unité" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} /></td>
               <td><input className="input" aria-label="Prix HT" inputMode="decimal" value={draft.price_ht} onChange={(e) => setDraft({ ...draft, price_ht: e.target.value })} /></td>
               <td className="text-center"><button type="button" className="btn btn-primary btn-sm" onClick={add} aria-label="Ajouter la pièce"><Plus className="w-4 h-4" /></button></td>
