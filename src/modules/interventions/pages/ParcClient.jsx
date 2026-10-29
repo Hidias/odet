@@ -2,9 +2,9 @@
 // 0463 : visite d'inventaire par site ; matériel déclaré par le client depuis son espace, repris au parc ou écarté.
 
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Loader2, Plus, Printer, BookOpen, MapPin, Pencil, Play, CalendarPlus, ExternalLink, ClipboardList, Wrench } from 'lucide-react'
+import { Loader2, Plus, Printer, BookOpen, MapPin, Pencil, Play, CalendarPlus, ExternalLink, ClipboardList, Wrench, FileBarChart } from 'lucide-react'
 import { NATURES, NATURES_CREATION, natureDe, delaiUrgence } from '../lib/natures'
 import { supabase } from '../../../core/supabase'
 import {
@@ -37,6 +37,7 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
   const [busy, setBusy] = useState(null)
   const [declarations, setDeclarations] = useState([])
   const [nouvelle, setNouvelle] = useState(null)
+  const [params, setParams] = useSearchParams()
 
   const load = async () => {
     const [c, s, e, ct, v, d] = await Promise.all([loadClient(clientId), loadSites(clientId), loadEquipmentForClient(clientId), loadContracts(clientId), loadVisits({ clientId }),
@@ -53,6 +54,9 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
     .sort((a, b) => String(a.sites?.name || '').localeCompare(String(b.sites?.name || ''), 'fr', { numeric: true }) || String(a.location || '').localeCompare(String(b.location || ''), 'fr', { numeric: true })),
   [equipment, siteFilter, typeFilter])
 
+  useEffect(() => {
+    if (client && params.get('bilan') === '1' && isManager) { setParams({}, { replace: true }); bilan() }
+  }, [client]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!client) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
 
   const late = equipment.filter((e) => dueState(e.next_check_on) === 'late').length
@@ -84,6 +88,26 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
       const v = await createVisit({ client_id: client.id, site_id: site.id, planned_on: todayIso(), technician_id: profile?.id || null, status: 'planifiee' })
       navigate(`/interventions/visite/${v.id}`)
     } catch (e) { toast.error(e.message) }
+  }
+  // Bilan annuel (0472) : visites des 12 derniers mois, à venir, budget ; ouvert aussi depuis le rappel d'octobre (?bilan=1)
+  const bilan = async () => {
+    setBusy('bilan')
+    try {
+      const { donneesBilan, buildBilanPDF } = await import('../pdf/bilanPDF')
+      const depuis = new Date(); depuis.setFullYear(depuis.getFullYear() - 1)
+      const faites = visits.filter((v) => v.status === 'terminee' && (v.started_at || v.planned_on || '') >= depuis.toISOString().slice(0, 10))
+      const avecItems = await Promise.all(faites.map(async (v) => ({ ...v, items: await loadVisitItems(v.id) })))
+      const ids = contracts.filter((c) => c.status === 'actif').map((c) => c.id)
+      const [{ data: articles }, { data: echeances }] = await Promise.all([
+        supabase.from('stock_items').select('equipment_type_id, sale_price_ht').eq('is_active', true).not('equipment_type_id', 'is', null),
+        ids.length ? supabase.from('itv_contract_installments').select('due_on, amount_ht, status').in('contract_id', ids) : Promise.resolve({ data: [] }),
+      ])
+      const prixType = {}
+      for (const a of articles || []) if (a.sale_price_ht != null && prixType[a.equipment_type_id] == null) prixType[a.equipment_type_id] = Number(a.sale_price_ht)
+      const data = donneesBilan({ equipment, visits: avecItems, types, prixType, echeances: echeances || [] })
+      const { doc, filename } = await buildBilanPDF({ client, contract: contracts.find((c) => c.status === 'actif') || null, data })
+      doc.save(filename)
+    } catch (e) { toast.error(e.message) } finally { setBusy(null) }
   }
   const inventaire = async (site) => {
     try {
@@ -129,7 +153,10 @@ export default function ParcClient({ settings, types, isManager, canWrite, isTec
           <h2 className="font-display font-semibold text-xl">{client.name}</h2>
           <div className="muted text-ui-sm">{[client.address, client.postal_code, client.city].filter(Boolean).join(' ')}</div>
         </div>
-        {!fieldOnly && <Link to={`/clients/${client.id}`} className="btn btn-ghost btn-sm"><ExternalLink className="w-4 h-4" />Fiche client</Link>}
+        <div className="flex gap-2">
+          {isManager && <button type="button" className="btn btn-secondary btn-sm" onClick={bilan} disabled={busy === 'bilan'}>{busy === 'bilan' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileBarChart className="w-4 h-4" />}Bilan annuel</button>}
+          {!fieldOnly && <Link to={`/clients/${client.id}`} className="btn btn-ghost btn-sm"><ExternalLink className="w-4 h-4" />Fiche client</Link>}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

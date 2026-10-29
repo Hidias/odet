@@ -10,18 +10,18 @@ import { Field } from '../shared'
 
 export default function ReglagesContrats() {
   const [r, setR] = useState(null)
-  const [f, setF] = useState({ 1: '', 3: '', 5: '', preavis: 3, reconduction: 1, inventaire: '', deduction: 30 })
+  const [f, setF] = useState({ 1: '', 3: '', 5: '', preavis: 3, reconduction: 1, inventaire: '', deduction: 30, cout_horaire: '' })
   const [types, setTypes] = useState([])
   const [prix, setPrix] = useState({})
   const [occupe, setOccupe] = useState(false)
   useEffect(() => {
-    supabase.from('billing_settings').select('company_id, contrat_frais_etablissement, contrat_preavis_mois, contrat_reconduction_ans, contrat_prix_inventaire, contrat_deduction_jours').limit(1).maybeSingle()
+    supabase.from('billing_settings').select('company_id, contrat_frais_etablissement, contrat_preavis_mois, contrat_reconduction_ans, contrat_prix_inventaire, contrat_deduction_jours, cout_horaire_intervention').limit(1).maybeSingle()
       .then(({ data, error }) => {
         if (error || !data) return
         setR(data)
         const fe = data.contrat_frais_etablissement || {}
         setF({ 1: fe['1'] ?? '', 3: fe['3'] ?? '', 5: fe['5'] ?? '', preavis: data.contrat_preavis_mois ?? 3, reconduction: data.contrat_reconduction_ans ?? 1,
-          inventaire: data.contrat_prix_inventaire ?? '', deduction: data.contrat_deduction_jours ?? 30 })
+          inventaire: data.contrat_prix_inventaire ?? '', deduction: data.contrat_deduction_jours ?? 30, cout_horaire: data.cout_horaire_intervention ?? '' })
         supabase.from('itv_equipment_types').select('id, name, family').eq('is_active', true).order('family').order('name').then(({ data: t }) => setTypes(t || []), () => {})
         supabase.from('itv_type_prices').select('type_id, price_ht').eq('company_id', data.company_id)
           .then(({ data: p }) => setPrix(Object.fromEntries((p || []).map((x) => [x.type_id, String(x.price_ht)]))), () => {})
@@ -38,7 +38,8 @@ export default function ReglagesContrats() {
       contrat_frais_etablissement: frais, contrat_preavis_mois: Math.max(0, Math.min(12, Number(f.preavis) || 0)),
       contrat_reconduction_ans: [1, 3, 5].includes(Number(f.reconduction)) ? Number(f.reconduction) : 1,
       contrat_prix_inventaire: String(f.inventaire).trim() === '' ? null : montantOuZero(f.inventaire),
-      contrat_deduction_jours: Math.max(0, Math.min(365, Number(f.deduction) || 0)), updated_at: new Date().toISOString(),
+      contrat_deduction_jours: Math.max(0, Math.min(365, Number(f.deduction) || 0)),
+      cout_horaire_intervention: String(f.cout_horaire).trim() === '' ? null : montantOuZero(f.cout_horaire), updated_at: new Date().toISOString(),
     }).eq('company_id', r.company_id)
     if (error) { setOccupe(false); return toast.error(error.message) }
     const aGarder = types.filter((t) => String(prix[t.id] ?? '').trim() !== '' && montantOuZero(prix[t.id]) !== null)
@@ -72,6 +73,7 @@ export default function ReglagesContrats() {
       <p className="text-ui-sm text-gray-500 mb-3">Visite d'inventaire facturée à ce prix (laisser vide : la facture d'inventaire ne se prépare pas). Si le contrat est signé dans le délai après l'inventaire, la première échéance le déduit.</p>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Field label="Prix de l'inventaire (€ HT)"><input className="input" inputMode="decimal" value={f.inventaire} onChange={(e) => setF({ ...f, inventaire: e.target.value })} /></Field>
+        <Field label="Coût horaire d'un technicien (€)" hint="Coût chargé, pour la rentabilité des contrats"><input className="input" inputMode="decimal" value={f.cout_horaire} onChange={(e) => setF({ ...f, cout_horaire: e.target.value })} /></Field>
         <Field label="Déduit si contrat signé sous (jours)"><input className="input" type="number" min={0} max={365} value={f.deduction} onChange={(e) => setF({ ...f, deduction: e.target.value })} /></Field>
       </div>
       {types.length > 0 && (

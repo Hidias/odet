@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Loader2, Plus, CalendarPlus, Pencil, CheckCircle, FileText, Send, Upload, Receipt, Calculator } from 'lucide-react'
+import { Loader2, Plus, CalendarPlus, Pencil, CheckCircle, FileText, Send, Upload, Receipt, Calculator, TrendingUp } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { callApi } from '../../../core/api'
 import { versBase64 } from '../../../core/portail/documentsClient'
@@ -39,6 +39,7 @@ export default function Contrats({ types }) {
   const [papier, setPapier] = useState(null)
   const [ouvert, setOuvert] = useState(null)
   const [prixParc, setPrixParc] = useState(null)
+  const [pilotage, setPilotage] = useState(false)
   const [params] = useSearchParams()
   const year = new Date().getFullYear()
 
@@ -86,8 +87,10 @@ export default function Contrats({ types }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <p className="muted text-ui-sm flex-1">{actifs.length} contrats actifs, {total.toLocaleString('fr-FR')} € HT par an.{aValider ? ` ${aValider} à valider.` : ''}</p>
+        <button type="button" className="btn btn-secondary" aria-expanded={pilotage} onClick={() => setPilotage(!pilotage)}><TrendingUp className="w-4 h-4" />Rentabilité</button>
         <button type="button" className="btn btn-primary" onClick={() => setEdit({})}><Plus className="w-4 h-4" />Nouveau contrat</button>
       </div>
+      {pilotage && <PilotageContrats />}
       {contracts.length === 0 ? <Empty title="Aucun contrat">Un contrat est préparé tout seul quand un devis de maintenance est signé. Il fixe les mois de visite : les visites de l'année s'ajoutent à la liste « À planifier » en un clic.</Empty> : (
         <div className="card card-flush">
           {liste.map((c) => {
@@ -123,6 +126,62 @@ export default function Contrats({ types }) {
       <p className="muted text-ui-sm">La facture d'une visite sous contrat se prépare depuis la visite terminée, dans les Factures existantes.</p>
       {edit && <ContractForm contract={edit} types={types} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load() }} />}
       {papier && <SignePapier contract={papier} onClose={() => setPapier(null)} onSaved={() => { setPapier(null); load() }} />}
+    </div>
+  )
+}
+
+// Rentabilité par contrat (0472) : facturé, temps passé, pièces au prix d'achat, main-d'œuvre au coût horaire
+function PilotageContrats() {
+  const an = new Date().getFullYear()
+  const [periode, setPeriode] = useState({ du: `${an}-01-01`, au: `${an}-12-31` })
+  const [r, setR] = useState(null)
+  useEffect(() => {
+    setR(null)
+    supabase.rpc('contrats_pilotage', { p_from: periode.du, p_to: periode.au }).then(({ data, error }) => setR(error ? { erreur: error.message } : data), () => setR({ erreur: 'Calcul impossible' }))
+  }, [periode])
+  if (!r) return <p className="text-ui-sm text-gray-500">Calcul…</p>
+  if (r.erreur) return <p className="text-ui-sm text-gray-500">{r.erreur}</p>
+  const tot = r.contrats.reduce((t, c) => ({ ca: t.ca + Number(c.ca || 0), heures: t.heures + Number(c.heures || 0), pieces: t.pieces + Number(c.pieces || 0), mo: t.mo + Number(c.main_oeuvre || 0) }), { ca: 0, heures: 0, pieces: 0, mo: 0 })
+  const sansTemps = r.contrats.reduce((n, c) => n + Number(c.visites_sans_temps || 0), 0)
+  const sansPrix = r.contrats.reduce((n, c) => n + Number(c.pieces_sans_prix || 0), 0)
+  const h = (n) => `${Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} h`
+  const maintien = r.maintien?.debut ? Math.round((r.maintien.toujours / r.maintien.debut) * 100) : null
+  return (
+    <div className="card space-y-2">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-ui-sm text-gray-500">Du<input type="date" className="input" value={periode.du} onChange={(e) => e.target.value && setPeriode({ ...periode, du: e.target.value })} /></label>
+        <label className="text-ui-sm text-gray-500">au<input type="date" className="input" value={periode.au} onChange={(e) => e.target.value && setPeriode({ ...periode, au: e.target.value })} /></label>
+        {maintien !== null && <p className="text-ui-sm text-gray-600 ml-auto">Contrats maintenus sur la période : {r.maintien.toujours} sur {r.maintien.debut} ({maintien} %)</p>}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-ui-sm">
+          <thead><tr><th className="text-left">Client</th><th className="text-right">Facturé HT</th><th className="text-right">Visites</th><th className="text-right">Temps</th><th className="text-right">Pièces (achat)</th><th className="text-right">Main-d'œuvre</th><th className="text-right">Marge</th></tr></thead>
+          <tbody>
+            {r.contrats.map((c) => (
+              <tr key={c.id}>
+                <td><Link to={`/interventions/parc/${c.client_id}`}>{c.client}</Link><div className="text-gray-400">{c.label}{c.status !== 'actif' ? ` · ${c.status}` : ''}</div></td>
+                <td className="text-right">{eur(c.ca)}</td>
+                <td className="text-right">{c.visites}</td>
+                <td className="text-right">{h(c.heures)}</td>
+                <td className="text-right">{c.pieces == null ? 'non visible' : eur(c.pieces)}</td>
+                <td className="text-right">{c.main_oeuvre == null ? 'à régler' : eur(c.main_oeuvre)}</td>
+                <td className={`text-right ${c.marge != null && c.marge < 0 ? 'text-[rgb(var(--c-danger))]' : ''}`}>{c.marge == null ? '' : eur(c.marge)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot><tr><td className="font-semibold">Total</td><td className="text-right font-semibold">{eur(tot.ca)}</td><td /><td className="text-right font-semibold">{h(tot.heures)}</td>
+            <td className="text-right font-semibold">{r.prix_achat ? eur(tot.pieces) : ''}</td><td className="text-right font-semibold">{r.cout_horaire != null ? eur(tot.mo) : ''}</td>
+            <td className="text-right font-semibold">{r.prix_achat && r.cout_horaire != null ? eur(tot.ca - tot.mo - tot.pieces) : ''}</td></tr></tfoot>
+        </table>
+      </div>
+      <ul className="text-ui-sm text-gray-500 list-disc pl-5">
+        <li>Facturé : factures émises de la période (échéances et interventions rattachées au contrat).</li>
+        {r.cout_horaire == null && <li>Main-d'œuvre non chiffrée : saisissez le coût horaire d'un technicien dans Réglages › Facturation › Contrats.</li>}
+        {!r.prix_achat && <li>Pièces : le coût d'achat n'est visible qu'avec le droit « Voir les prix d'achat ».</li>}
+        {sansPrix > 0 && <li>{sansPrix} pièce{sansPrix > 1 ? 's' : ''} sans prix d'achat : coût compté à 0.</li>}
+        {sansTemps > 0 && <li>{sansTemps} visite{sansTemps > 1 ? 's' : ''} sans heure d'arrivée ou de départ : temps non compté.</li>}
+        <li>Déplacements : non mesurés (aucun kilométrage enregistré), ils ne sont pas dans la marge.</li>
+      </ul>
     </div>
   )
 }
