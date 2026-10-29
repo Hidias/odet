@@ -655,6 +655,56 @@ function Demandes({ compte, onChange }) {
   )
 }
 
+// Contrats de maintenance (0471) : échéance, reconduction ; un particulier peut résilier en ligne, avec accusé de réception
+function ContratsEspace({ donnees, onChange }) {
+  const [resilier, setResilier] = useState(null)
+  const [motif, setMotif] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [recu, setRecu] = useState(null)
+  const liste = donnees.contrats || []
+  const envoyer = async () => {
+    setBusy(true)
+    const { data, error } = await supabase.rpc('ent_contrat_resilier', { p_contract: resilier.id, p_motif: motif || null })
+    setBusy(false)
+    if (error) return toast.error(error.message)
+    setRecu({ ...data, label: resilier.label }); setResilier(null); setMotif('')
+    onChange()
+  }
+  const horo = (t) => new Date(t).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })
+  if (!liste.length) return <p className="text-sm text-gray-500">Aucun contrat de maintenance en cours.</p>
+  return (
+    <div className="space-y-2">
+      {recu && (
+        <Carte className="border-[rgb(var(--c-success))]">
+          <div className="font-medium text-gray-900">Accusé de réception de votre demande de résiliation</div>
+          <p className="text-sm text-gray-700 mt-1">Contrat : {recu.label}. Demande reçue le {horo(recu.at)}, numéro {recu.receipt}. Votre prestataire vous confirme la date d'effet. Conservez ce numéro.</p>
+        </Carte>
+      )}
+      {liste.map((k) => (
+        <Carte key={k.id}>
+          <div className="font-medium text-gray-900">{k.label}{k.reference ? <span className="text-gray-400"> · {k.reference}</span> : null}</div>
+          <div className="text-sm text-gray-600">Depuis le {fmtDate(k.start_on)}{k.term_on ? `, échéance le ${fmtDate(k.term_on)}` : ''}{k.tacit_renewal ? `, reconduit tacitement${k.limite_refus ? ` sauf refus avant le ${fmtDate(k.limite_refus)}` : ''}` : ''}.</div>
+          {k.termination_requested_at
+            ? <p className="text-sm text-[rgb(var(--c-warning))] mt-1">Résiliation demandée le {horo(k.termination_requested_at)} (accusé {k.termination_receipt}) : votre prestataire vous confirme la date d'effet.</p>
+            : donnees.particulier && <button type="button" className="btn btn-sm btn-secondary mt-2" onClick={() => setResilier(k)}>Résilier ce contrat</button>}
+        </Carte>
+      ))}
+      {!donnees.particulier && <p className="text-xs text-gray-400">Pour mettre fin à un contrat, écrivez à votre prestataire en respectant le préavis indiqué au contrat.</p>}
+      {resilier && (
+        <Carte>
+          <div className="font-medium text-gray-900">Résilier le contrat {resilier.label}</div>
+          <p className="text-sm text-gray-600 mt-1">Votre demande est enregistrée tout de suite et un accusé de réception s'affiche. Votre prestataire vous confirme ensuite la date d'effet : jusqu'à cette date, le contrat continue et ses échéances restent dues ; aucune indemnité de résiliation ne vous est demandée.</p>
+          <textarea className="input w-full min-h-[64px] mt-2" placeholder="Motif (facultatif)" value={motif} onChange={(e) => setMotif(e.target.value)} aria-label="Motif" />
+          <div className="flex gap-2 justify-end mt-2">
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setResilier(null)}>Annuler</button>
+            <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={envoyer}>{busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Confirmer la résiliation</button>
+          </div>
+        </Carte>
+      )}
+    </div>
+  )
+}
+
 function Plus_({ compte, org, salaries }) {
   const [vue, setVue] = useState('documents')
   // Signature des devis et contrats mis à disposition (0406)
@@ -676,12 +726,14 @@ function Plus_({ compte, org, salaries }) {
   const [catalogue, setCatalogue] = useState(null)
   const [factures, setFactures] = useState(null)
   const [actus, setActus] = useState(null)
+  const [contrats, setContrats] = useState(null)
   useEffect(() => {
+    if (vue === 'contrats' && !contrats) supabase.rpc('ent_contrats').then(({ data }) => setContrats(data || { contrats: [] }))
     if (vue === 'catalogue' && !catalogue) supabase.rpc('ent_catalogue').then(({ data }) => setCatalogue(data || { formations: [], sessions_inter: [] }))
     if (vue === 'factures' && !factures) supabase.rpc('ent_factures').then(({ data }) => setFactures(data || []))
     if (vue === 'actus' && !actus) supabase.rpc('ent_actus').then(({ data }) => setActus(data || []))
   }, [vue])
-  const VUES = [['documents', 'Documents', FolderOpen], ['catalogue', 'Catalogue', BookOpen], ...(salaries ? [['salaries', 'Salariés', Users]] : []), ...(compte?.can_see_invoices ? [['factures', 'Factures', Receipt]] : []), ['actus', 'Actualités', Megaphone]]
+  const VUES = [['documents', 'Documents', FolderOpen], ['contrats', 'Contrats', FileSignature], ['catalogue', 'Catalogue', BookOpen], ...(salaries ? [['salaries', 'Salariés', Users]] : []), ...(compte?.can_see_invoices ? [['factures', 'Factures', Receipt]] : []), ['actus', 'Actualités', Megaphone]]
   const chargement = <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
   return (
     <div className="space-y-4">
@@ -728,6 +780,7 @@ function Plus_({ compte, org, salaries }) {
           )}
         </>
       )}
+      {vue === 'contrats' && (!contrats ? chargement : <ContratsEspace donnees={contrats} onChange={() => supabase.rpc('ent_contrats').then(({ data }) => setContrats(data || { contrats: [] }))} />)}
       {vue === 'catalogue' && (!catalogue ? chargement : (
         <div className="space-y-4">
           {catalogue.sessions_inter.length > 0 && (
