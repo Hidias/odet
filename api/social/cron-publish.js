@@ -27,6 +27,10 @@ async function handler(req, res) {
   // Préversion : aucune publication programmée n'est envoyée
   if (isTestEnvironment()) return res.status(200).json({ message: 'Préversion : publication désactivée', count: 0 })
 
+  // Module Réseaux sociaux coupé : rien à publier, aucune lecture des publications (toutes les 5 minutes)
+  const { data: mod } = await supabase.from('org_modules').select('enabled').eq('key', 'social').maybeSingle()
+  if (mod && !mod.enabled) return res.status(200).json({ message: 'Module Réseaux sociaux inactif', count: 0 })
+
   try {
     const now = new Date().toISOString()
     console.log(`[cron-publish] Checking scheduled posts at ${now}`)
