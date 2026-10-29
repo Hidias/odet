@@ -24,6 +24,13 @@ alter table public.courses drop column if exists nsf_code;
 alter table public.courses drop column if exists bpf_fiche;
 alter table public.courses drop column if exists bpf_rncp_niveau;
 alter table public.courses drop column if exists bpf_objectif;
+-- Règles d'avant 0477 (générées par 0373 : lire avec « voir les registres », créer avec « signaler »)
+drop policy if exists bpf_declarations_lire on public.bpf_declarations;
+create policy bpf_declarations_lire on public.bpf_declarations for select to authenticated
+  using ((((select app.module_on('qualite')) and (select app.a_le_droit('qualite.registres.voir'))) or (select app.is_superadmin())));
+drop policy if exists bpf_declarations_creer on public.bpf_declarations;
+create policy bpf_declarations_creer on public.bpf_declarations for insert to authenticated
+  with check (((select app.module_on('qualite')) and (select app.a_le_droit('qualite.registres.signaler'))));
 drop table if exists public.bpf_specialites;
 delete from app.tables_avant_societes where table_name = 'bpf_specialites';
 delete from public.schema_migrations where version = '0477_bpf_donnees';
