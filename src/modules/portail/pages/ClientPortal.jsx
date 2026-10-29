@@ -8,7 +8,7 @@ import { useBranding } from '../../../core/branding/BrandingProvider'
 import { Halos, Marque, Avatar, PersonnaliserEspace, salutation } from '../components/Vitrine'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
-import { appliquerEmis } from '../../formation/lib/documentsEmis'
+import { appliquerEmis, seulementEmis } from '../../formation/lib/documentsEmis'
 import { noterLien, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
 import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON } from '../components/SignerConvention'
 import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
@@ -327,6 +327,11 @@ export default function ClientPortal() {
       } else if (kind === 'certificats') {
         const emis = await documentsEmis()
         out = await generateAllPDF('certificat', session, appliquerEmis(emis, s.id, 'certificat', trainees).filter(t => t.result), { trainer })
+      } else if (kind === 'fins_formation') {
+        // Attestations de fin de formation (0476) : seulement les versions émises, jamais recalculées
+        const emis = await documentsEmis()
+        const liste = seulementEmis(appliquerEmis(emis, s.id, 'fin_formation', trainees))
+        out = liste.length ? await generateAllPDF('fin_formation', session, liste, { trainer }) : null
       }
       if (!out) { setError('Aucun document à générer pour cette session'); return }
       remettre(out)
@@ -511,6 +516,7 @@ export default function ClientPortal() {
               <DocButton s={s} kind="emargement" icon={ClipboardList} label="Feuille d'émargement" disabled={nb === 0} />
               <DocButton s={s} kind="attestations" icon={BadgeCheck} label="Attestations de présence" disabled={!finished || nb === 0} />
               <DocButton s={s} kind="certificats" icon={Award} label="Certificats de réalisation" disabled={!finished || nbResults === 0} />
+              <DocButton s={s} kind="fins_formation" icon={Award} label="Attestations de fin de formation" disabled={!finished || nbResults === 0} />
             </div>
             {!finished && <p className="mt-2 text-xs text-gray-400">Attestations et certificats disponibles à l'issue de la formation.</p>}
           </div>

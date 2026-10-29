@@ -11,7 +11,7 @@ describe('documents émis', () => {
   })
   it('contenu comparé : heures, résultat, absences', () => {
     const a = contenuDocument(session, 'certificat', { id: 't1', result: 'acquired' })
-    expect(a).toEqual({ hours: 7, result: 'acquired', absences: [] })
+    expect(a).toEqual({ hours: 7, result: 'acquired', absences: [], objectives: null })
     expect(memeContenu(a, { hours: '7', result: 'acquired', absences: [] })).toBe(true)
     expect(memeContenu(a, { hours: 3.5, result: 'acquired', absences: [] })).toBe(false)
     expect(memeContenu(contenuDocument(session, 'attestation', { id: 't1', result: 'acquired' }), { hours: 7, result: null, absences: [] })).toBe(true)

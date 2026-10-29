@@ -10,6 +10,7 @@ export const LIBELLES_DOCUMENT = {
   emargement: "Feuille d'émargement",
   attestations: 'Attestations de présence',
   certificats: 'Certificats de réalisation',
+  fins_formation: 'Attestations de fin de formation',
   facture: 'Facture',
   devis: 'Devis',
   rapport: "Rapport d'intervention",

@@ -15,6 +15,7 @@ import { BandeauAccueil, PersonnaliserEspace } from '../components/Vitrine'
 import { useMonProfil } from '../lib/monProfil'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
+import { appliquerEmis, seulementEmis } from '../../formation/lib/documentsEmis'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 
 // Espaces des comptes formateur externe et stagiaire (lot 2, 0047). Les données passent par les fonctions ext_* et
@@ -137,7 +138,13 @@ function EspaceStagiaire({ logout }) {
     setBusy(`${s.id}:${kind}`)
     try {
       const session = { ...s, clients: s.clients || null, courses: s.courses || {}, trainers: s.trainers || null }
-      const me = [{ ...moi, result: s.result || null, access_code: s.access_code }]
+      // Version émise (0399, 0476) : le stagiaire reçoit le document tel qu'il lui a été remis ; l'attestation de fin
+      // de formation n'existe qu'émise. Sans réponse du serveur, l'attestation et le certificat sont calculés comme avant.
+      const { data: emis, error: errEmis } = await supabase.rpc('stg_documents_emis')
+      if (errEmis && kind === 'fin_formation') throw errEmis
+      let me = appliquerEmis(errEmis ? [] : emis, s.id, kind, [{ ...moi, result: s.result || null, access_code: s.access_code }])
+      if (kind === 'fin_formation') me = seulementEmis(me)
+      if (!me.length) { toast.error('Document pas encore délivré par votre organisme'); return }
       const out = await generateAllPDF(kind, session, me, { trainer: s.trainers || null })
       if (!out) { toast.error('Document indisponible'); return }
       saveBase64(out.base64, out.filename)
@@ -164,6 +171,11 @@ function EspaceStagiaire({ logout }) {
         {finie && s.result && (
           <button type="button" onClick={() => doc(s, 'certificat')} disabled={!!busy || !orgPret} className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 disabled:opacity-40">
             {busy === `${s.id}:certificat` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Award className="w-4 h-4" />}Certificat de réalisation<Download className="w-3.5 h-3.5 ml-auto text-gray-400" />
+          </button>
+        )}
+        {finie && s.result && !s.absent && (
+          <button type="button" onClick={() => doc(s, 'fin_formation')} disabled={!!busy || !orgPret} className="flex items-center gap-2 px-3 py-2 rounded-ui border border-gray-200 bg-white text-sm text-gray-700 hover:border-primary-300 disabled:opacity-40">
+            {busy === `${s.id}:fin_formation` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Award className="w-4 h-4" />}Attestation de fin de formation<Download className="w-3.5 h-3.5 ml-auto text-gray-400" />
           </button>
         )}
         {fichierDeLInstance(s.courses?.program_url) && (

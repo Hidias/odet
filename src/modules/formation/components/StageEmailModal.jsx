@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import { X, Send, Loader, CheckCircle, AlertCircle, Mail, FileText, Upload, Trash2, Eye, ChevronLeft, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { preparerDocuments } from '../lib/documentsEmis'
+import { preparerDocuments, preparerFinFormationEnvoi } from '../lib/documentsEmis'
 import { generatePDF } from '../pdf/pdfGenerator'
 import { readableUrl } from '../../../core/storageUtils'
 import { useCapacites } from '../../../core/capacites'
@@ -267,6 +267,19 @@ export default function StageEmailModal({ session, onClose }) {
       const path = `${basePath}/${slugify(filename)}`
       await uploadBase64(cert.base64, path)
       uploads.push({ path, filename })
+    }
+
+    // Attestation de fin de formation (0476), seulement si elle est complète
+    const fin = await preparerFinFormationEnvoi(session, [trainee])
+    if (!fin.liste) throw new Error('Correction d\'une attestation de fin de formation émise sans motif : envoi arrêté')
+    if (fin.liste.length) {
+      const pdf = await generatePDF('fin_formation', session, { trainee: fin.liste[0], trainer })
+      if (pdf) {
+        const filename = `Attestation_fin_${ref}_${trainee.last_name}.pdf`
+        const path = `${basePath}/${slugify(filename)}`
+        await uploadBase64(pdf.base64, path)
+        uploads.push({ path, filename })
+      }
     }
 
     const [pourAtt] = (await preparerDocuments(session, 'attestation', [trainee])) || []

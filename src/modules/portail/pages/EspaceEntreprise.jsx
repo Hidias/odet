@@ -19,7 +19,7 @@ import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pd
 import { pdfOrgFrom } from '../../../core/pdf/pdfOrg'
 import RegistreVue from '../../registre/components/RegistreVue'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
-import { appliquerEmis } from '../../formation/lib/documentsEmis'
+import { appliquerEmis, seulementEmis } from '../../formation/lib/documentsEmis'
 import { noterCompte, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
 import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON } from '../components/SignerConvention'
 import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
@@ -360,6 +360,11 @@ function Formations() {
       } else if (kind === 'certificats') {
         const { data: emis } = await supabase.rpc('ent_documents_emis')
         out = await generateAllPDF('certificat', session, appliquerEmis(emis, s.id, 'certificat', trainees).filter((t) => t.result), { trainer })
+      } else if (kind === 'fins_formation') {
+        // Attestations de fin de formation (0476) : seulement les versions émises, jamais recalculées
+        const { data: emis } = await supabase.rpc('ent_documents_emis')
+        const liste = seulementEmis(appliquerEmis(emis, s.id, 'fin_formation', trainees))
+        out = liste.length ? await generateAllPDF('fin_formation', session, liste, { trainer }) : null
       }
       if (!out) { toast.error('Aucun document pour cette session'); return }
       remettre(out)
@@ -449,6 +454,7 @@ function Formations() {
           <Doc s={s} kind="emargement" icon={ClipboardList} label="Émargement" disabled={nb === 0} />
           <Doc s={s} kind="attestations" icon={BadgeCheck} label="Attestations" disabled={!finie || nb === 0} />
           <Doc s={s} kind="certificats" icon={Award} label="Certificats" disabled={!finie || !(s.session_trainees || []).some((st) => st.result)} />
+          <Doc s={s} kind="fins_formation" icon={Award} label="Fin de formation" disabled={!finie || !(s.session_trainees || []).some((st) => st.result)} />
         </div>
       </Carte>
     )

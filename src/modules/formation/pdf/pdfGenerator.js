@@ -18,6 +18,7 @@ import { loadPublishedDoc, versionLabel, cgvCancellationText } from '../../quali
 import { writeRichDoc } from '../../qualite/richdocs/richDocPDF'
 import { loadTemplateContext, buildTemplateContext, fillTemplate } from '../../../core/org/templateContext'
 import { formatHours, heuresDuDocument } from '../lib/presence'
+import { libelleAcquis } from '../lib/finFormation'
 import { ajouterPagePreuve } from '../../../core/signature/preuve'
 import { marquerZoneSignature } from '../../../core/signature/zone'
 import { buildProgrammePDF, buildCataloguePDF } from './programmePDF'
@@ -28,7 +29,7 @@ const DOC_CODES = {
   certificat: 'CERT', emargement: 'EMARG', programme: 'PROG',
   evaluation: 'EVAL', evaluationFroid: 'EVALF', reglement: 'RI',
   livret: 'LIVRET', analyseBesoin: 'BESOIN', evaluationFormateur: 'EVFORM',
-  positionnement: 'POS',
+  positionnement: 'POS', fin_formation: 'AFF',
 }
 
 // Masque le NSS pour impression : garde sexe + année + mois (5 premiers chiffres), masque le reste
@@ -945,7 +946,7 @@ function generateCertificatContent(doc, session, trainee, trainer, { defaultAcqu
   const course = session?.courses || {}
   const client = session?.clients || {}
   const ref = session?.reference || ''
-  const f = startDocument(doc, ORG, { ref, docLabel: 'Certificat de réalisation', code: DOC_CODES.certificat, title: 'Certificat de réalisation', subtitle: 'Article L.6353-1 du Code du travail' })
+  const f = startDocument(doc, ORG, { ref, docLabel: 'Certificat de réalisation', code: DOC_CODES.certificat, title: 'Certificat de réalisation' })
   const result = trainee?.result || (defaultAcquired ? 'acquired' : null)
   const isAcquired = result === 'acquired'
   const isNotAcquired = result === 'not_acquired'
@@ -1004,6 +1005,71 @@ function generateCertificatContent(doc, session, trainee, trainer, { defaultAcqu
   f.body(9)
   doc.text(`Fait à ${ORG.lieu_signature || ORG.city || ''}, le ${formatDate(trainee?.document_emis?.issued_on || session?.end_date || new Date())}.`, f.M, f.y + 5)
   f.signatures([{ label: 'Le dispensateur de formation', name: `${ORG.dirigeant || ''}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}`, hint: 'Cachet et signature', stamp: ORG.stamp_base64, image: ORG.dirigeant_signature_base64 }], { height: 26 })
+  f.finish()
+}
+
+// ── Attestation de fin de formation (S12-1a, 0476) ──
+// Remise au stagiaire : objectifs, nature et durée de l'action, résultat de l'évaluation des acquis objectif par
+// objectif. Distincte du certificat de réalisation. Aucune référence légale imprimée (ancien alinéa de L6353-1
+// abrogé au 01/01/2019, vérifié sur Légifrance le 29/10/2026).
+function generateFinFormation(session, trainee, trainer = null) {
+  const doc = new jsPDF({ compress: true })
+  generateFinFormationContent(doc, session, trainee, trainer)
+  return doc
+}
+
+function generateFinFormationContent(doc, session, trainee, trainer) {
+  const course = session?.courses || {}
+  const client = session?.clients || {}
+  const ref = session?.reference || ''
+  const f = startDocument(doc, ORG, { ref, docLabel: 'Attestation de fin de formation', code: DOC_CODES.fin_formation, title: 'Attestation de fin de formation' })
+  const result = trainee?.result || null
+  const isAcquired = result === 'acquired'
+  const isNotAcquired = result === 'not_acquired'
+
+  const nda = phraseNda(ORG) ? `, ${phraseNda(ORG)}` : ''
+  f.para(`Je ${mot('soussigne', ORG.dirigeant_gender)}, ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}, représentant légal de l'organisme de formation ${ORG.nameFull || ORG.name}${nda}, atteste que :`, { size: 10, after: 4 })
+
+  f.cards([{ label: 'Stagiaire', lines: [fullNameOf(trainee), client.name ? `${salarieLabel(trainee)} l'entreprise ${client.name}` : ''].filter(Boolean) }])
+
+  f.para("a suivi l'action de formation suivante :", { size: 10, after: 3 })
+  f.kv([
+    ['Intitulé', course.title || ''],
+    ['Nature', 'Action de formation'],
+    ['Dates', session?.start_date === session?.end_date || !session?.end_date ? `Le ${formatDate(session?.start_date)}` : `Du ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`],
+    ['Durée prévue', courseHoursText(course)],
+    ...(trainee?.heures_realisees != null ? [['Durée suivie', formatHours(trainee.heures_realisees)]] : []),
+    ['Lieu', session?.is_remote ? 'À distance' : (getLocation(session) || '')],
+    ['Formateur', trainerName(trainer)],
+  ])
+  f.space(3)
+
+  f.label("Objectifs et résultat de l'évaluation des acquis")
+  const fontOfDoc = (d) => d.__odetFont || 'helvetica'
+  const objectifs = trainee?.objectifs_resultats || []
+  f.table(['Objectif', 'Résultat'], objectifs.map((o) => [o.texte, libelleAcquis(o.acquis)]), {
+    // Resserré pour tenir sur une page avec une dizaine d'objectifs et le cadre de signature
+    styles: { fontSize: objectifs.length > 6 ? 7.8 : 8.5, cellPadding: objectifs.length > 6 ? 1.2 : 2, overflow: 'linebreak', valign: 'middle', textColor: ORG.theme.text, lineColor: ORG.theme.line, lineWidth: 0.2, font: fontOfDoc(doc) },
+    columnStyles: { 1: { cellWidth: 30, halign: 'center' } },
+    didParseCell: (d) => {
+      if (d.section !== 'body' || d.column.index !== 1) return
+      const o = objectifs[d.row.index]
+      if (o?.acquis === true) d.cell.styles.textColor = OK_COLOR
+      if (o?.acquis === false) d.cell.styles.textColor = KO_COLOR
+    },
+  })
+
+  f.label('Résultat global')
+  f.checks([
+    { label: 'Acquis : les objectifs de la formation ont été atteints', checked: isAcquired, color: isAcquired ? OK_COLOR : null },
+    { label: "Non acquis : les objectifs de la formation n'ont pas été tous atteints", checked: isNotAcquired, color: isNotAcquired ? KO_COLOR : null },
+  ])
+
+  if (trainee?.document_emis?.remplace) f.note(mentionRemplace('fin_formation', trainee.document_emis), { after: 2 })
+  f.ensure(26 + 4)
+  f.body(9)
+  doc.text(`Fait à ${ORG.lieu_signature || ORG.city || ''}, le ${formatDate(trainee?.document_emis?.issued_on || session?.end_date || new Date())}.`, f.M, f.y + 5)
+  f.signatures([{ label: "L'organisme de formation", name: `${ORG.dirigeant || ''}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}`, hint: 'Cachet et signature', stamp: ORG.stamp_base64, image: ORG.dirigeant_signature_base64 }], { height: 26 })
   f.finish()
 }
 
@@ -1407,6 +1473,7 @@ export async function downloadDocument(docType, session, options = {}) {
     case 'convention': doc = generateConvention(session, trainees, trainer, costs, null, await enLigneDe(session, options)); filename = `Convention_${ref}.pdf`; break
     case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null, await enLigneDe(session, options)); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
     case 'certificat': doc = generateCertificat(session, trainee, trainer); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'fin_formation': doc = generateFinFormation(session, trainee, trainer); filename = `Attestation_fin_${ref}_${trainee?.last_name || ''}.pdf`; break
     case 'emargement': doc = generateEmargement(session, trainees, trainer, isBlank, attendanceData); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
     case 'convocation': {
       doc = new jsPDF({ compress: true })
@@ -1488,6 +1555,7 @@ export async function downloadAllDocuments(docType, session, trainees, options =
     // Générer le contenu selon le type de document
     switch (docType) {
       case 'certificat': generateCertificatContent(doc, session, trainee, trainer); break
+      case 'fin_formation': generateFinFormationContent(doc, session, trainee, trainer); break
       case 'convocation': generateConvocationContent(doc, session, trainee, trainer, qrCodeDataURL); break
       case 'attestation': generateAttestationContent(doc, session, trainee, trainer); break
       case 'evaluation': generateEvaluationContent(doc, session, trainee, evaluationsData[trainee.id] || null); break
@@ -1512,6 +1580,7 @@ export async function downloadAllDocuments(docType, session, trainees, options =
   // Nom du fichier selon le type
   const docNames = {
     certificat: 'Certificats',
+    fin_formation: 'Attestations_fin_formation',
     convocation: 'Convocations', 
     attestation: 'Attestations',
     evaluation: 'Evaluations',
@@ -1534,6 +1603,7 @@ export async function generatePDF(docType, session, options = {}) {
     case 'convention': doc = generateConvention(session, trainees, trainer, costs, null, await enLigneDe(session, options)); filename = `Convention_${ref}.pdf`; break
     case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null, await enLigneDe(session, options)); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
     case 'certificat': doc = generateCertificat(session, trainee, trainer); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'fin_formation': doc = generateFinFormation(session, trainee, trainer); filename = `Attestation_fin_${ref}_${trainee?.last_name || ''}.pdf`; break
     case 'emargement': doc = generateEmargement(session, trainees, trainer, isBlank, attendanceData); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
     case 'convocation': {
       doc = new jsPDF({ compress: true })
@@ -1608,6 +1678,7 @@ export async function generateAllPDF(docType, session, trainees, options = {}) {
     
     switch (docType) {
       case 'certificat': generateCertificatContent(doc, session, trainee, trainer); break
+      case 'fin_formation': generateFinFormationContent(doc, session, trainee, trainer); break
       case 'convocation': generateConvocationContent(doc, session, trainee, trainer, qrCodeDataURL); break
       case 'attestation': generateAttestationContent(doc, session, trainee, trainer); break
       case 'evaluation': generateEvaluationContent(doc, session, trainee, evaluationsData[trainee.id] || null); break
@@ -1618,6 +1689,7 @@ export async function generateAllPDF(docType, session, trainees, options = {}) {
   
   const docNames = {
     certificat: 'Certificats',
+    fin_formation: 'Attestations_fin_formation',
     convocation: 'Convocations', 
     attestation: 'Attestations',
     evaluation: 'Evaluations',
@@ -1863,7 +1935,7 @@ function dessinerConvocation(doc, session, trainee, trainer, qrCodeDataURL = nul
 
 // « Annule et remplace » d'une version corrigée (0399)
 function mentionRemplace(kind, emis) {
-  const nom = kind === 'certificat' ? 'le certificat de réalisation' : "l'attestation de présence"
+  const nom = kind === 'certificat' ? 'le certificat de réalisation' : kind === 'fin_formation' ? "l'attestation de fin de formation" : "l'attestation de présence"
   return `Version ${emis.version} : ce document annule et remplace ${nom} du ${formatDate(emis.remplace.issued_on)} (version ${emis.remplace.version}).`
 }
 
