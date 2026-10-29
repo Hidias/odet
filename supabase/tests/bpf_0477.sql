@@ -40,6 +40,10 @@ begin
   -- Session à distance annulée : ne coche pas B-2 (relecture #254)
   insert into public.sessions (reference, start_date, end_date, course_id, client_id, is_remote, status, company_id)
   values ('ANN-0477', '2025-04-01', '2025-04-01', v_c2, v_ent, true, 'cancelled', v_cie);
+  -- Session inter sans client (stagiaire rattaché par un groupe) : comptée en F-1 (relecture indépendante)
+  insert into public.sessions (reference, start_date, end_date, course_id, session_type, company_id)
+  values ('INT-0477', '2025-10-01', '2025-10-01', v_c2, 'inter', v_cie) returning id into v_hors;
+  insert into public.session_trainees (session_id, trainee_id) values (v_hors, t4);
   -- Session future (après la date du calcul) : jamais comptée (relecture #254)
   insert into public.sessions (reference, start_date, end_date, course_id, client_id, trainer_id, company_id)
   values ('FUT-0477', current_date + 30, current_date + 30, v_c1, v_ent, v_tin, v_cie);
@@ -86,6 +90,12 @@ begin
   end if;
   update public.profiles set role = 'superadmin', is_active = true where id = v_sa;
   update public.profiles set role = 'formateur', is_active = true where id = v_fo;
+  -- Le super administrateur lit une société par l'accès de support (ouvert ici) ; le formateur en est membre
+  alter table public.companies disable trigger companies_guard;
+  update public.companies set support_access_mode = 'permanent' where id = v_cie;
+  alter table public.companies enable trigger companies_guard;
+  insert into public.company_members (company_id, profile_id, role, is_default, is_active) values (v_cie, v_fo, 'formateur', true, true)
+  on conflict do nothing;
   if exists (select 1 from pg_trigger where tgname = 'profiles_protect_role') then
     execute 'alter table public.profiles enable trigger profiles_protect_role';
   end if;
@@ -105,17 +115,17 @@ begin
   if (l->>'C-7')::numeric <> 200 then raise exception 'C-7 : %', l->>'C-7'; end if;
   if (l->>'C')::numeric <> 1900 then raise exception 'C : %', l->>'C'; end if;
   if (v_r->>'part_ca')::int <> 49 then raise exception 'part : %', v_r->>'part_ca'; end if;
-  -- F-1 (hors S3) : a = 2 stagiaires 24,5 h -> 25 ; d = 1 / 7 ; b = 1 / 7 ; total 4 stagiaires, 38,5 h -> 39
-  if (l->'F-1-a'->>'stagiaires')::int <> 2 or (l->'F-1-a'->>'heures')::numeric <> 25 then raise exception 'F-1-a : %', l->'F-1-a'; end if;
+  -- F-1 (hors S3) : a = 2 stagiaires 24,5 h + inter sans client 7 h -> 3 / 32 ; d = 1 / 7 ; b = 1 / 7 ; total 5 stagiaires, 46 h
+  if (l->'F-1-a'->>'stagiaires')::int <> 3 or (l->'F-1-a'->>'heures')::numeric <> 32 then raise exception 'F-1-a : %', l->'F-1-a'; end if;
   if (l->'F-1-d'->>'stagiaires')::int <> 1 or (l->'F-1-d'->>'heures')::numeric <> 7 then raise exception 'F-1-d : %', l->'F-1-d'; end if;
   if (l->'F-1-b'->>'stagiaires')::int <> 1 then raise exception 'F-1-b : %', l->'F-1-b'; end if;
-  if (l->'F-1'->>'stagiaires')::int <> 4 or (l->'F-1'->>'heures')::numeric <> 39 then raise exception 'F-1 : %', l->'F-1'; end if;
+  if (l->'F-1'->>'stagiaires')::int <> 5 or (l->'F-1'->>'heures')::numeric <> 46 then raise exception 'F-1 : %', l->'F-1'; end if;
   -- F-2 : S4 confiée à un organisme
   if (l->'F-2'->>'stagiaires')::int <> 1 or (l->'F-2'->>'heures')::numeric <> 7 then raise exception 'F-2 : %', l->'F-2'; end if;
   -- F-3 : RS 2 / 25 ; autre 1 / 7 ; non classée listée, pas comptée
   if (l->'F-3-b'->>'stagiaires')::int <> 2 then raise exception 'F-3-b : %', l->'F-3-b'; end if;
-  if (l->'F-3-d'->>'stagiaires')::int <> 1 then raise exception 'F-3-d : %', l->'F-3-d'; end if;
-  if (l->'F-3'->>'stagiaires')::int <> 3 then raise exception 'F-3 : %', l->'F-3'; end if;
+  if (l->'F-3-d'->>'stagiaires')::int <> 2 then raise exception 'F-3-d : %', l->'F-3-d'; end if;
+  if (l->'F-3'->>'stagiaires')::int <> 4 then raise exception 'F-3 : %', l->'F-3'; end if;
   if not (v_r->'a_classer'->'objectif') ? 'Non classée 0477' then raise exception 'à classer : %', v_r->'a_classer'; end if;
   -- F-4 : 344 en tête (25 h), 255 ensuite (7 h)
   if l->'F-4'->'principales'->0->>'code' <> '344' then raise exception 'F-4 : %', l->'F-4'; end if;
@@ -126,7 +136,7 @@ begin
   if (l->'E-2'->>'personnes')::int <> 1 or (l->'E-2'->>'heures')::numeric <> 7 then raise exception 'E-2 : %', l->'E-2'; end if;
   if (l->>'B-2')::boolean then raise exception 'B-2 coché par une session annulée'; end if;
   -- Heures prévues signalées : S2, S3, S4
-  if (v_r->'detail'->>'heures_prevues')::int <> 3 then raise exception 'heures prévues : %', v_r->'detail'->>'heures_prevues'; end if;
+  if (v_r->'detail'->>'heures_prevues')::int <> 4 then raise exception 'heures prévues : %', v_r->'detail'->>'heures_prevues'; end if;
 
   -- Exercice décalé : début en juillet -> du 01/07/2024 au 30/06/2025
   update public.companies set fiscal_year_start_month = 7 where id = v_cie;
@@ -138,6 +148,23 @@ begin
   -- F6 (31/12/2024) entre, F4 (01/07/2025) sort : 900 + 300 + 500 + 200 + 777
   if (v_r->'lignes'->>'C')::numeric <> 2677 then raise exception 'C décalé : %', v_r->'lignes'->>'C'; end if;
   update public.companies set fiscal_year_start_month = 1 where id = v_cie;
+
+  -- Accès de support fermé : le super administrateur est refusé (relecture indépendante)
+  alter table public.companies disable trigger companies_guard;
+  update public.companies set support_access_mode = 'none' where id = v_cie;
+  alter table public.companies enable trigger companies_guard;
+  v_ok := false;
+  perform set_config('request.jwt.claim.sub', v_sa::text, true);
+  execute 'set local role authenticated';
+  begin
+    v_r := public.bpf_calculer(2025, v_cie);
+  exception when insufficient_privilege then v_ok := true;
+  end;
+  execute 'reset role';
+  if not v_ok then raise exception 'super administrateur accepté sans accès de support'; end if;
+  alter table public.companies disable trigger companies_guard;
+  update public.companies set support_access_mode = 'permanent' where id = v_cie;
+  alter table public.companies enable trigger companies_guard;
 
   -- Un formateur sans droit est refusé ; personne d'anonyme
   v_ok := false;

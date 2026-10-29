@@ -193,7 +193,8 @@ begin
   -- Chiffre d'affaires et charges : réservé à ceux qui gèrent les registres qualité, dans cette société
   if v_cie is null then raise exception 'Choisissez une société : le BPF se fait société par société'; end if;
   perform app.require_right('qualite.registres.gerer');
-  if not app.is_superadmin() and not app.a_le_droit_dans(v_cie, 'qualite.registres.gerer') then
+  -- Pas d'exception pour le super administrateur : a_le_droit_dans passe par les sociétés visibles (accès de support)
+  if not app.a_le_droit_dans(v_cie, 'qualite.registres.gerer') then
     raise exception 'Accès refusé' using errcode = '42501';
   end if;
   if p_annee is null or p_annee < 2000 or p_annee > 2100 then raise exception 'Année invalide'; end if;
@@ -276,7 +277,7 @@ begin
   truncate pg_temp.bpf_part;
   insert into pg_temp.bpf_part
   select s.id, s.reference, st.trainee_id,
-         (s.session_type = 'subcontract' or c.client_type = 'organisme_formation'),
+         (coalesce(s.session_type = 'subcontract', false) or coalesce(c.client_type = 'organisme_formation', false)),
          coalesce(st.bpf_categorie, case when c.client_type = 'particulier' then 'd' when c.client_type = 'public' then 'e' else 'a' end),
          coalesce(h.hours, co.duration_hours, 0),
          case when h.hours is not null then 'document émis' else 'durée prévue' end,
