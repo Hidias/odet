@@ -327,10 +327,10 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
   // détaillé est remis avec la convention ou le contrat
   const contenu = String(course.content || course.program || '').split('\n').map(s => s.replace(/^[-•*\s]+/, '').trim()).filter(Boolean).slice(0, 20)
   const blocsContenu = contenu.length ? [{ p: 'Contenu de la formation :' }, { list: contenu }] : []
-  // Numéro de déclaration d'activité, sous la forme demandée sur les conventions et contrats : « Enregistré sous le
-  // numéro … auprès du préfet de la région … » (la mention « en cours » figure dans les parties tant qu'il n'est pas attribué)
+  // Numéro de déclaration d'activité, sous la forme de l'article R6351-6 (vérifié le 29/10/2026) : « déclaration
+  // d'activité enregistrée sous le numéro … auprès du préfet de région de … » (« en cours » dans les parties sinon)
   const numeroOfficiel = ligneNda(ORG) && !/en cours/.test(ligneNda(ORG))
-    ? [{ p: `L'Organisme de formation est enregistré sous le numéro ${ORG.ndaFull || ORG.nda}. Cet enregistrement ne vaut pas agrément de l'État.` }] : []
+    ? [{ p: `Déclaration d'activité de l'Organisme de formation enregistrée sous le numéro ${ORG.ndaFull || ORG.nda}. Cet enregistrement ne vaut pas agrément de l'État.` }] : []
   // Session inter : réserve de maintien de l'organisme (0419, saisie une fois dans les paramètres)
   const maintien = session?.session_type === 'inter' && ORG.mention_maintien
     ? [{ title: 'Maintien de la session', blocks: [{ p: ORG.mention_maintien }] }] : []
@@ -954,17 +954,19 @@ function generateCertificatContent(doc, session, trainee, trainer, { defaultAcqu
   const nda = phraseNda(ORG) ? `, ${phraseNda(ORG)}` : ''
   f.para(`Je ${mot('soussigne', ORG.dirigeant_gender)}, ${ORG.dirigeant}${ORG.dirigeant_title ? ', ' + ORG.dirigeant_title : ''}, représentant légal du dispensateur de l'action concourant au développement des compétences ${ORG.nameFull || ORG.name}${nda}, atteste que :`, { size: 10, after: 4 })
 
-  f.cards([{ label: 'Bénéficiaire', lines: [fullNameOf(trainee), client.name ? `${salarieLabel(trainee)} l'entreprise ${client.name}` : ''].filter(Boolean) }])
+  // Rubriques du modèle du ministère du Travail (DREETS, vérifié le 29/10/2026) : bénéficiaire et entreprise, intitulé,
+  // nature, dates, durée totale en heures réalisées ; le résultat de l'action s'y ajoute (décision de H du 29/10)
+  const civilite = trainee?.gender === 'female' ? 'Mme ' : trainee?.gender === 'male' ? 'M. ' : ''
+  f.cards([{ label: 'Bénéficiaire', lines: [`${civilite}${fullNameOf(trainee)}`, client.name ? `${salarieLabel(trainee)} l'entreprise ${client.name}` : ''].filter(Boolean) }])
 
+  // Heures réalisées : établies depuis l'émargement (0398), sinon d'après la présence notée
+  const st = (session?.session_trainees || []).find(x => x.trainee_id === trainee?.id) || {}
+  const realisees = trainee?.heures_realisees != null ? trainee.heures_realisees : heuresDuDocument(session, course, st, trainee || {})
   f.para("a suivi l'action de formation suivante :", { size: 10, after: 3 })
   f.kv([
     ['Intitulé', course.title || ''],
-    ['Dates', session?.start_date === session?.end_date || !session?.end_date ? `Le ${formatDate(session?.start_date)}` : `Du ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`],
-    ['Durée', courseHoursText(course)],
-    // Durée réellement suivie (D6353-4), quand l'écran l'a établie à partir de l'émargement (0398)
-    ...(trainee?.heures_realisees != null ? [['Durée suivie', formatHours(trainee.heures_realisees)]] : []),
-    ['Lieu', getLocation(session) || ''],
-    ['Formateur', trainerName(trainer)],
+    ['Dates', session?.start_date === session?.end_date || !session?.end_date ? `Du ${formatDate(session?.start_date)} au ${formatDate(session?.start_date)}` : `Du ${formatDate(session?.start_date)} au ${formatDate(session?.end_date)}`],
+    ['Durée totale', `${formatHours(realisees)} réalisées`],
   ])
   f.space(3)
 

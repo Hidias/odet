@@ -143,7 +143,7 @@ export function buildORG(o) {
     mention_maintien: s.mention_maintien || '',
     nda: ndaFormatted || (s.name ? 'en cours d\'enregistrement' : ''),
     // NDA pas encore attribué : mention explicite plutôt qu'un champ vide (un organisme peut former avant l'enregistrement)
-    ndaFull: ndaFormatted ? `${ndaFormatted}${s.nda_region ? ` auprès du préfet de la région ${s.nda_region}` : ''}` : (s.name ? 'en cours d\'enregistrement' : ''),
+    ndaFull: ndaFormatted ? `${ndaFormatted}${s.nda_region ? ` auprès du préfet de région de ${s.nda_region}` : ''}` : (s.name ? 'en cours d\'enregistrement' : ''),
     // Vrai quand le numéro est attribué. Sinon les documents de formation portent la mention obligatoire
     // « Déclaration d'activité en cours d'enregistrement » (décision de H du 19/10 à 23h20), via ligneNda().
     ndaAttribue: !!ndaFormatted,
@@ -294,9 +294,10 @@ export function ligneNda(ORG, { complet = false } = {}) {
   return `NDA ${complet ? (ORG.ndaFull || ORG.nda) : ORG.nda}`
 }
 
-// Même chose dans une phrase : « , déclaration d'activité n° … » ou « , déclaration d'activité en cours d'enregistrement »
+// Même chose dans une phrase, sous la forme de l'article R6351-6 (vérifié le 29/10/2026) : « déclaration d'activité
+// enregistrée sous le numéro … auprès du préfet de région de … », ou « déclaration d'activité en cours d'enregistrement »
 export function phraseNda(ORG) {
   if (!ORG || ORG.horsFormation || !ORG.nda) return ''
   if (ORG.ndaAttribue === false || /en cours/.test(ORG.nda)) return "déclaration d'activité en cours d'enregistrement"
-  return `déclaration d'activité n° ${ORG.ndaFull || ORG.nda}`
+  return `déclaration d'activité enregistrée sous le numéro ${ORG.ndaFull || ORG.nda}`
 }

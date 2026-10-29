@@ -2168,7 +2168,7 @@ const TEMPLATES = {
       "t": "ul",
       "items": [
        "Référentiel national qualité : ind. 9 (information sur les conditions de déroulement), 10 (adaptation), 12 (engagement), 17 (moyens humains et techniques), 18 (coordination des intervenants), 19 (ressources pédagogiques).",
-       "Code du travail : convention ou contrat de formation (L6353-1 et suivants), feuilles d'émargement, attestation de fin de formation (L6353-1), règlement intérieur (L6352-3 et suivants).",
+       "Code du travail : convention ou contrat de formation (L6353-1 et suivants), feuilles d'émargement, attestation de fin de formation, règlement intérieur (L6352-3 et suivants).",
        "Procédures P01, P03, P08, P10, P15."
       ]
      }
@@ -5463,7 +5463,7 @@ const TEMPLATES = {
     "blocks": [
      {
       "t": "p",
-      "text": "**1. Qui sommes-nous.** {{org.nom}}, organisme de formation enregistré sous le numéro {{org.nda}} auprès du préfet de la région {{org.region_nda}}. Cet enregistrement ne vaut pas agrément de l'État. Domaines de formation : {{catalogue}}. Certification qualité au titre des actions de formation, si elle est détenue (mention reprise des Paramètres, Certification)."
+      "text": "**1. Qui sommes-nous.** {{org.nom}}, organisme de formation enregistré sous le numéro {{org.nda}} auprès du préfet de région de {{org.region_nda}}. Cet enregistrement ne vaut pas agrément de l'État. Domaines de formation : {{catalogue}}. Certification qualité au titre des actions de formation, si elle est détenue (mention reprise des Paramètres, Certification)."
      },
      {
       "t": "p",
@@ -5541,7 +5541,7 @@ const TEMPLATES = {
      },
      {
       "t": "p",
-      "text": "Lorsque la formation se déroule dans une entreprise dotée d'un règlement intérieur, les mesures d'hygiène et de sécurité applicables sont celles de ce règlement (R6352-1)."
+      "text": "Lorsque la formation se déroule dans une entreprise dotée d'un règlement intérieur, les mesures de santé et de sécurité applicables sont celles de ce règlement (R6352-1)."
      }
     ]
    },
@@ -5695,7 +5695,7 @@ const TEMPLATES = {
     "blocks": [
      {
       "t": "p",
-      "text": "Les présentes conditions s'appliquent à toutes les prestations de formation de {{org.nom}}, déclaration d'activité n° {{org.nda}} auprès du préfet de la région {{org.region_nda}} (cet enregistrement ne vaut pas agrément de l'État). Toute commande vaut acceptation des présentes conditions, qui prévalent sur tout autre document du client sauf accord écrit contraire."
+      "text": "Les présentes conditions s'appliquent à toutes les prestations de formation de {{org.nom}}, déclaration d'activité enregistrée sous le numéro {{org.nda}} auprès du préfet de région de {{org.region_nda}} (cet enregistrement ne vaut pas agrément de l'État). Toute commande vaut acceptation des présentes conditions, qui prévalent sur tout autre document du client sauf accord écrit contraire."
      }
     ]
    },
