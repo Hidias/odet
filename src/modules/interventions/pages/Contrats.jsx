@@ -372,7 +372,7 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         if (!contract.validated_at) row.validated_at = new Date().toISOString()
       }
       // Contrat signé : ses conditions ne se modifient plus (avenant) ; seuls les visites, sites, notes et statut changent
-      if (signe) for (const k of ['annual_price_ht', 'duration_years', 'tacit_renewal', 'renewal_years', 'notice_months', 'billing_period', 'start_on', 'client_id', 'index_base_value', 'index_series']) delete row[k]
+      if (signe) for (const k of ['annual_price_ht', 'duration_years', 'tacit_renewal', 'renewal_years', 'notice_months', 'billing_period', 'start_on', 'client_id', 'index_base_value', 'index_series', 'emergency_hours', 'includes']) delete row[k]
       const saved = await saveContract(row)
       // Engagement de l'exercice (client public) : une saisie par an, reprise sur chaque facture de l'année
       if (publicClient && engagement.number.trim()) {
@@ -393,7 +393,7 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
     <Sheet title={contract.id ? (contract.status === 'a_valider' ? 'Contrat à valider' : 'Modifier le contrat') : 'Nouveau contrat de maintenance'} onClose={onClose} wide
       footer={<><button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button><button type="button" className="btn btn-primary" onClick={save} disabled={busy}>Enregistrer</button></>}>
       {contract.status === 'a_valider' && <p className="text-ui-sm text-gray-600">Préparé depuis le devis signé : vérifiez les mois de visite et les sites, enregistrez, puis « Valider » dans la liste.</p>}
-      {signe && <p className="text-ui-sm text-gray-600">Contrat signé le {dateFr(contract.signed_at)} : prix, durée, reconduction, préavis et facturation ne changent plus que par un avenant.</p>}
+      {signe && <p className="text-ui-sm text-gray-600">Contrat signé le {dateFr(contract.signed_at)} : prix, durée, reconduction, préavis, facturation, ce qui est compris et délai de dépannage ne changent plus que par un avenant.</p>}
       {!contract.client_id && (
         <div><label className="label" htmlFor="ct-client">Client</label>
           <SearchSelect id="ct-client" value={f.client_id} onChange={(v) => setF({ ...f, client_id: v, site_ids: [] })}
@@ -453,13 +453,13 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
             </select></div>
           <fieldset><legend className="label">Compris au contrat (0 € sur la visite)</legend>
             <div className="flex flex-wrap gap-3 pt-1">{[['pieces', 'Pièces'], ['recharges', 'Recharges'], ['deplacement', 'Déplacement'], ['depannage', 'Main-d\'œuvre de dépannage']].map(([k, l]) => (
-              <label key={k} className="flex items-center gap-2 text-ui"><input type="checkbox" checked={f.includes?.[k] === true} onChange={(e) => setF({ ...f, includes: { ...(f.includes || {}), [k]: e.target.checked } })} />{l}</label>
+              <label key={k} className="flex items-center gap-2 text-ui"><input type="checkbox" disabled={signe} checked={f.includes?.[k] === true} onChange={(e) => setF({ ...f, includes: { ...(f.includes || {}), [k]: e.target.checked } })} />{l}</label>
             ))}</div>
           </fieldset>
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div><label className="label" htmlFor="ct-urg">Dépannage urgent : arrivée promise sous (heures)</label><input id="ct-urg" className="input" type="number" min={1} max={720} value={f.emergency_hours} onChange={(e) => setF({ ...f, emergency_hours: e.target.value })} placeholder="Vide : aucun engagement" /></div>
+        <div><label className="label" htmlFor="ct-urg">Dépannage urgent : arrivée promise sous (heures)</label><input id="ct-urg" className="input" type="number" min={1} max={720} disabled={signe} value={f.emergency_hours} onChange={(e) => setF({ ...f, emergency_hours: e.target.value })} placeholder="Vide : aucun engagement" /></div>
         <div><label className="label" htmlFor="ct-bc">N° de bon de commande</label><input id="ct-bc" className="input" maxLength={60} value={f.purchase_order_ref} onChange={(e) => setF({ ...f, purchase_order_ref: e.target.value })} placeholder="Repris sur chaque facture" /></div>
         {publicClient && <div><label className="label" htmlFor="ct-eng">N° d'engagement {engagement.year}</label><input id="ct-eng" className="input" maxLength={60} value={engagement.number} onChange={(e) => setEngagement({ ...engagement, number: e.target.value })} placeholder="Obligatoire pour émettre sur Chorus Pro" /></div>}
       </div>

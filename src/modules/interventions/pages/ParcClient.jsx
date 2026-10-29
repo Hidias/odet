@@ -290,7 +290,7 @@ function NouvelleIntervention({ site, client, contracts, profile, isManager, onC
     <Sheet title={`Intervention, ${site.name}`} onClose={onClose} footer={<>
       <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
       {isManager && <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => creer(false)}>Planifier</button>}
-      <button type="button" className="btn btn-primary" disabled={busy} onClick={() => creer(true)}>Commencer maintenant</button>
+      <button type="button" className="btn btn-primary" disabled={busy} onClick={() => creer(true)}>Ouvrir l'intervention</button>
     </>}>
       <div className="space-y-3">
         <div><label className="label" htmlFor="ni-nature">Nature</label>
@@ -303,6 +303,7 @@ function NouvelleIntervention({ site, client, contracts, profile, isManager, onC
         )}
         <div><label className="label" htmlFor="ni-date">Date prévue</label><input id="ni-date" type="date" className="input" value={f.planned_on} onChange={(e) => setF({ ...f, planned_on: e.target.value })} /></div>
         <div><label className="label" htmlFor="ni-notes">Demande du client (note interne)</label><textarea id="ni-notes" className="textarea" rows={3} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
+        <p className="muted text-ui-sm">L'heure d'arrivée (et donc le délai tenu) se note quand le technicien démarre l'intervention sur place.</p>
         {contrat && <p className="muted text-ui-sm">Rattachée au contrat {contrat.label || ''}{contrat.reference ? ` (${contrat.reference})` : ''}.</p>}
       </div>
     </Sheet>
