@@ -29,8 +29,10 @@ export function donneesBilan({ equipment = [], visits = [], types = [], prixType
   const remplaces = recentes.reduce((n, v) => n + (v.items || []).filter((i) => i.result === 'remplace').length, 0)
   const actifs = equipment.filter((e) => e.status !== 'retire')
   const aVerifier = {}
+  // Échéance déjà passée : comptée à part (« en retard »), jamais parmi les vérifications à venir
+  const enRetard = actifs.filter((e) => e.next_check_on && e.next_check_on < iso(today)).length
   for (const e of actifs) {
-    if (!e.next_check_on || e.next_check_on > iso(fin)) continue
+    if (!e.next_check_on || e.next_check_on < iso(today) || e.next_check_on > iso(fin)) continue
     const m = e.next_check_on.slice(0, 7)
     aVerifier[m] = (aVerifier[m] || 0) + 1
   }
@@ -46,7 +48,7 @@ export function donneesBilan({ equipment = [], visits = [], types = [], prixType
   const contrat = echeances.filter((e) => e.status !== 'annulee' && e.due_on >= iso(today) && e.due_on <= iso(fin)).reduce((s, e) => s + Number(e.amount_ht || 0), 0)
   const remplacement = fdv.reduce((s, x) => s + (x.total || 0), 0)
   return {
-    visites: parVisite, remplaces, appareils: actifs.length,
+    visites: parVisite, remplaces, appareils: actifs.length, enRetard,
     aVerifier: Object.entries(aVerifier).sort(([a], [b]) => a.localeCompare(b)).map(([mois, nb]) => ({ mois, nb })),
     finsDeVie: fdv, anneeProchaine,
     budget: { contrat: Math.round(contrat * 100) / 100, remplacement: Math.round(remplacement * 100) / 100, nonEstimes: fdv.filter((x) => x.total == null).reduce((n, x) => n + x.nb, 0) },
@@ -70,6 +72,7 @@ export async function buildBilanPDF({ client, contract, data, org = null }) {
   if (data.remplaces) f.para(`${data.remplaces} appareil${data.remplaces > 1 ? 's' : ''} remplacé${data.remplaces > 1 ? 's' : ''} pendant les visites.`, { size: 8.5 })
 
   f.section('Vérifications à venir')
+  if (data.enRetard) f.para(`${data.enRetard} appareil${data.enRetard > 1 ? 's ont' : ' a'} dépassé la date de vérification : à prévoir dès que possible.`)
   if (data.aVerifier.length) f.table(['Mois', 'Appareils à vérifier'], data.aVerifier.map((x) => [moisDe(x.mois), String(x.nb)]), { columnStyles: { 1: { halign: 'right', cellWidth: 40 } } })
   else f.para('Aucune vérification prévue dans les douze prochains mois.')
 
