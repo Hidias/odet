@@ -37,6 +37,10 @@ async function handler(req, res) {
   let contrats = null
   const { data: ctr, error: ctrErr } = await admin.rpc('contrats_relances_generer')
   if (!ctrErr) contrats = ctr
+  // Révisions de prix préparées 30 jours avant l'anniversaire (0462)
+  const { data: rev, error: revErr } = await admin.rpc('contrats_revisions_generer')
+  if (!revErr && contrats) contrats = { ...contrats, revisions: rev }
+  else if (revErr && revErr.code !== 'PGRST202') { erreurs.revisions = revErr.code || 'erreur'; console.error('[maintenance-nuit] revisions', revErr.code || 'erreur') }
   else if (ctrErr.code !== 'PGRST202') { erreurs.contrats = ctrErr.code || 'erreur'; console.error('[maintenance-nuit] contrats', ctrErr.code || 'erreur') }
   // Étapes des sessions préparées pour validation (fonction 13, 0160) : rien n'est envoyé ; module inactif = rien
   let pilote = null

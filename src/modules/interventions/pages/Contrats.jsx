@@ -14,6 +14,7 @@ import { loadContracts, saveContract, generateContractVisits, loadClientsLight, 
 import { MONTHS, monthLabel, frShort } from '../lib/schedule'
 import { DUREES, PERIODICITES, phraseConditions, dateFr, limiteRefus, echeanceInitiale, STATUTS_CONTRAT } from '../lib/contrat'
 import { buildContratPDF, MESSAGE_CGV_MANQUANTE } from '../pdf/contratPDF'
+import { buildRevisionPDF } from '../pdf/revisionPDF'
 import { Sheet, Empty } from '../components/ui'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 
@@ -106,9 +107,9 @@ export default function Contrats({ types }) {
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => apercu(c)} disabled={busy === c.id}><FileText className="w-4 h-4" />PDF</button>
                 {c.status === 'actif' && !c.signed_at && <button type="button" className="btn btn-ghost btn-sm" onClick={() => envoyer(c)} disabled={busy === c.id}><Send className="w-4 h-4" />À signer</button>}
                 {c.status === 'actif' && !c.signed_at && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPapier(c)}><Upload className="w-4 h-4" />Signé à la main</button>}
-                {c.status === 'actif' && ['mensuel', 'trimestriel', 'annuel'].includes(c.billing_period) && <button type="button" className="btn btn-ghost btn-sm" aria-expanded={ouvert === c.id} onClick={() => setOuvert(ouvert === c.id ? null : c.id)}><Receipt className="w-4 h-4" />Échéancier</button>}
+                {c.status === 'actif' && (['mensuel', 'trimestriel', 'annuel'].includes(c.billing_period) || c.index_base_value) && <button type="button" className="btn btn-ghost btn-sm" aria-expanded={ouvert === c.id} onClick={() => setOuvert(ouvert === c.id ? null : c.id)}><Receipt className="w-4 h-4" />Échéancier</button>}
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdit(c)}><Pencil className="w-4 h-4" />Modifier</button>
-                {ouvert === c.id && <div className="basis-full"><EcheancierContrat contract={c} /></div>}
+                {ouvert === c.id && <div className="basis-full"><RevisionsContrat contract={c} onChange={load} /><EcheancierContrat contract={c} /></div>}
               </div>
             )
           })}
@@ -117,6 +118,54 @@ export default function Contrats({ types }) {
       <p className="muted text-ui-sm">La facture d'une visite sous contrat se prépare depuis la visite terminée, dans les Factures existantes.</p>
       {edit && <ContractForm contract={edit} types={types} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load() }} />}
       {papier && <SignePapier contract={papier} onClose={() => setPapier(null)} onSaved={() => { setPapier(null); load() }} />}
+    </div>
+  )
+}
+
+// Révisions annuelles du prix (0462) : valeur de l'indice saisie, prix calculé, validé ou écarté, courrier au client
+function RevisionsContrat({ contract, onChange }) {
+  const [lignes, setLignes] = useState([])
+  const [saisie, setSaisie] = useState({})
+  const [busy, setBusy] = useState(false)
+  const charger = () => supabase.from('itv_contract_revisions').select('*').eq('contract_id', contract.id).order('anniversary', { ascending: false })
+    .then(({ data }) => setLignes(data || []), () => setLignes([]))
+  useEffect(() => { charger() }, [contract.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!lignes.length) return null
+  const decider = async (r, valider) => {
+    const v = Number(String(saisie[r.id]?.valeur || '').replace(',', '.'))
+    if (valider && !(v > 0)) { toast.error('Saisissez la nouvelle valeur de l\'indice'); return }
+    setBusy(true)
+    const { data, error } = await supabase.rpc('contrat_revision_decider', { p_revision: r.id, p_valeur: valider ? v : null, p_mois: saisie[r.id]?.mois || null, p_valider: valider, p_note: null })
+    setBusy(false)
+    if (error) return toast.error(error.message)
+    toast.success(valider ? `Nouveau prix : ${Number(data.prix).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} € HT` : 'Révision écartée')
+    charger(); onChange?.()
+  }
+  const courrier = async (r) => {
+    const [{ data: client }, { data: k }] = await Promise.all([
+      supabase.from('clients').select('name, address, postal_code, city').eq('id', contract.client_id).single(),
+      supabase.from('itv_contracts').select('*').eq('id', contract.id).single(),
+    ])
+    const { base64, filename } = await buildRevisionPDF({ contract: k, client, revision: r })
+    const a = document.createElement('a'); a.href = `data:application/pdf;base64,${base64}`; a.download = filename
+    document.body.appendChild(a); a.click(); a.remove()
+  }
+  return (
+    <div className="mt-2 space-y-2">
+      {lignes.map((r) => (
+        <div key={r.id} className="rounded-ui-sm border border-gray-200 p-2 text-ui-sm flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[200px]"><span className="font-semibold">Révision au {dateFr(r.anniversary)}</span> · prix actuel {Number(r.price_before).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} € HT
+            {r.status === 'validee' && <span> · nouveau prix {Number(r.price_after).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} € HT (indice {r.new_value})</span>}
+            {r.status === 'ecartee' && <span> · écartée</span>}</div>
+          {r.status === 'a_saisir' && <>
+            <label className="block"><span className="text-gray-500">Nouvelle valeur (I)</span><input className="input w-28" inputMode="decimal" value={saisie[r.id]?.valeur || ''} onChange={(e) => setSaisie({ ...saisie, [r.id]: { ...saisie[r.id], valeur: e.target.value } })} /></label>
+            <label className="block"><span className="text-gray-500">Mois de l'indice</span><input type="month" className="input w-40" onChange={(e) => setSaisie({ ...saisie, [r.id]: { ...saisie[r.id], mois: e.target.value ? `${e.target.value}-01` : null } })} /></label>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => decider(r, true)}>Valider</button>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => decider(r, false)}>Écarter</button>
+          </>}
+          {r.status === 'validee' && <button type="button" className="btn btn-secondary btn-sm" onClick={() => courrier(r).catch((e) => toast.error(e.message))}><FileText className="w-4 h-4" />Courrier au client</button>}
+        </div>
+      ))}
     </div>
   )
 }
@@ -207,6 +256,7 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
     duration_years: contract.duration_years || 1, tacit_renewal: contract.id ? !!contract.tacit_renewal : true, renewal_years: contract.renewal_years || 1,
     notice_months: contract.notice_months ?? 3, billing_period: contract.billing_period || 'annuel',
     billing_term: contract.billing_term || '', includes: contract.includes || {}, purchase_order_ref: contract.purchase_order_ref || '',
+    index_label: contract.index_label || '', index_series: contract.index_series || '', index_base_value: contract.index_base_value ?? '', index_base_month: contract.index_base_month || '',
   }))
   // Client public (0461) : terme échu par défaut, engagement de l'exercice, bon de commande
   const [clientType, setClientType] = useState(null)
@@ -232,7 +282,9 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
       const row = { ...(contract.id ? { id: contract.id } : {}), ...f, end_on: f.end_on || null, annual_price_ht: Number(f.annual_price_ht || 0), reference: f.reference || null, notes: f.notes || null,
         site_ids: f.site_ids.length ? f.site_ids : null, type_ids: f.type_ids.length ? f.type_ids : null,
         duration_years: Number(f.duration_years), renewal_years: Number(f.renewal_years), notice_months: Number(f.notice_months),
-        billing_term: f.billing_term || null, purchase_order_ref: (f.purchase_order_ref || '').trim() || null }
+        billing_term: f.billing_term || null, purchase_order_ref: (f.purchase_order_ref || '').trim() || null,
+        index_label: f.index_label.trim() || null, index_series: f.index_series.trim() || null,
+        index_base_value: f.index_base_value === '' ? null : Number(String(f.index_base_value).replace(',', '.')), index_base_month: f.index_base_month || null }
       // Contrat saisi à la main ou actif sans échéance : échéance calculée comme à la validation (contrat_valider)
       if (row.status === 'actif' && !signe && (!contract.id || !contract.term_on || ['start_on', 'duration_years', 'tacit_renewal'].some((k) => row[k] !== contract[k]))) {
         row.term_on = echeanceInitiale(row.start_on, row.duration_years)
@@ -240,7 +292,7 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         if (!contract.validated_at) row.validated_at = new Date().toISOString()
       }
       // Contrat signé : ses conditions ne se modifient plus (avenant) ; seuls les visites, sites, notes et statut changent
-      if (signe) for (const k of ['annual_price_ht', 'duration_years', 'tacit_renewal', 'renewal_years', 'notice_months', 'billing_period', 'start_on', 'client_id']) delete row[k]
+      if (signe) for (const k of ['annual_price_ht', 'duration_years', 'tacit_renewal', 'renewal_years', 'notice_months', 'billing_period', 'start_on', 'client_id', 'index_base_value', 'index_series']) delete row[k]
       const saved = await saveContract(row)
       // Engagement de l'exercice (client public) : une saisie par an, reprise sur chaque facture de l'année
       if (publicClient && engagement.number.trim()) {
@@ -330,6 +382,15 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         <div><label className="label" htmlFor="ct-bc">N° de bon de commande</label><input id="ct-bc" className="input" maxLength={60} value={f.purchase_order_ref} onChange={(e) => setF({ ...f, purchase_order_ref: e.target.value })} placeholder="Repris sur chaque facture" /></div>
         {publicClient && <div><label className="label" htmlFor="ct-eng">N° d'engagement {engagement.year}</label><input id="ct-eng" className="input" maxLength={60} value={engagement.number} onChange={(e) => setEngagement({ ...engagement, number: e.target.value })} placeholder="Obligatoire pour émettre sur Chorus Pro" /></div>}
       </div>
+      <fieldset>
+        <legend className="label">Révision annuelle du prix (P = P0 × I / I0)</legend>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div className="sm:col-span-2"><label className="text-ui-sm text-gray-500" htmlFor="ct-ind">Indice</label><input id="ct-ind" className="input" maxLength={200} value={f.index_label} onChange={(e) => setF({ ...f, index_label: e.target.value })} placeholder="Ex. : ICHTrev-TS, activité à préciser (insee.fr)" /></div>
+          <div><label className="text-ui-sm text-gray-500" htmlFor="ct-ser">Identifiant de série</label><input id="ct-ser" className="input" maxLength={40} disabled={signe} value={f.index_series} onChange={(e) => setF({ ...f, index_series: e.target.value })} /></div>
+          <div><label className="text-ui-sm text-gray-500" htmlFor="ct-i0">Valeur de référence (I0)</label><input id="ct-i0" className="input" inputMode="decimal" disabled={signe} value={f.index_base_value} onChange={(e) => setF({ ...f, index_base_value: e.target.value })} /></div>
+        </div>
+        <p className="text-ui-sm text-gray-500 mt-1">Sans valeur de référence, aucune révision n'est proposée. Valeurs officielles : insee.fr.</p>
+      </fieldset>
       <div><label className="label" htmlFor="ct-notes">Notes</label><textarea id="ct-notes" className="textarea" rows={2} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
       {contract.start_on && <p className="muted text-ui-sm">En vigueur depuis le {frShort(contract.start_on)}.</p>}
     </Sheet>
