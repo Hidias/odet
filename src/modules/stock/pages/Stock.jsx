@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Search, Package, ArrowDownToLine, ArrowUpFromLine, Undo2, AlertTriangle, Truck, MapPin, History, ShoppingCart, Trash2, Check, X, Send, PackageCheck, Mail, ClipboardCheck, Hash } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
+import { supabase } from '../../../core/supabase'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
 import { Sheet } from '../../../ui/Sheet'
@@ -160,6 +161,8 @@ function FichiersArticle({ v, setV }) {
 function ArticleSheet({ article, categories, fournisseurs, voirPrix, onClose, onSaved }) {
   const [v, setV] = useState(() => ({ label: '', reference: '', supplier_reference: '', category_id: '', unit: 'unité', sale_price_ht: '', supplier_id: '', barcode: '', serialized: false, consumable: true, ppe: false, ppe_renew_months: '', ...(article || {}), achat: article?.achat ?? '' }))
   const [busy, setBusy] = useState(false)
+  const [typesApp, setTypesApp] = useState([])
+  useEffect(() => { supabase.from('itv_equipment_types').select('id, name').eq('is_active', true).order('name').then(({ data, error }) => setTypesApp(error ? [] : data || []), () => {}) }, [])
   const m = (k) => (e) => setV({ ...v, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value })
   const enregistrer = async (e) => {
     e.preventDefault()
@@ -191,6 +194,16 @@ function ArticleSheet({ article, categories, fournisseurs, voirPrix, onClose, on
           {voirPrix && <Champ label="Prix d'achat HT" aide="Visible seulement avec le droit « Voir les prix d'achat »"><input className="input" inputMode="decimal" value={v.achat ?? ''} onChange={m('achat')} /></Champ>}
           <Champ label="Code-barres ou QR"><input className="input" value={v.barcode || ''} onChange={m('barcode')} /></Champ>
           <Champ label="Dont éco-participation HT" aide="Comprise dans le prix de vente, reprise sur le devis"><input className="input" inputMode="decimal" value={v.eco_ht ?? ''} onChange={m('eco_ht')} /></Champ>
+          {typesApp.length > 0 && (
+            <Champ label="Devient au parc du client" aide="À la livraison, chaque unité vendue entre au parc comme cet appareil">
+              <select className="select" value={v.equipment_type_id || ''} onChange={m('equipment_type_id')}><option value="">Rien (consommable, accessoire)</option>{typesApp.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+            </Champ>
+          )}
+          {v.equipment_type_id && (
+            <Champ label="Garantie (mois)" aide="Fin de garantie notée sur chaque appareil livré ; vide si non connue">
+              <input className="input" inputMode="numeric" value={v.warranty_months ?? ''} onChange={(e) => setV({ ...v, warranty_months: e.target.value.replace(/\D/g, '').slice(0, 3) })} />
+            </Champ>
+          )}
         </div>
         <FichiersArticle v={v} setV={setV} />
         {article?.id && (
