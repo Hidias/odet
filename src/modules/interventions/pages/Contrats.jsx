@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Loader2, Plus, CalendarPlus, Pencil, CheckCircle, FileText, Send, Upload, Receipt } from 'lucide-react'
+import { Loader2, Plus, CalendarPlus, Pencil, CheckCircle, FileText, Send, Upload, Receipt, Calculator } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { callApi } from '../../../core/api'
 import { versBase64 } from '../../../core/portail/documentsClient'
@@ -38,6 +38,7 @@ export default function Contrats({ types }) {
   const [busy, setBusy] = useState(null)
   const [papier, setPapier] = useState(null)
   const [ouvert, setOuvert] = useState(null)
+  const [prixParc, setPrixParc] = useState(null)
   const [params] = useSearchParams()
   const year = new Date().getFullYear()
 
@@ -108,7 +109,9 @@ export default function Contrats({ types }) {
                 {c.status === 'actif' && !c.signed_at && <button type="button" className="btn btn-ghost btn-sm" onClick={() => envoyer(c)} disabled={busy === c.id}><Send className="w-4 h-4" />À signer</button>}
                 {c.status === 'actif' && !c.signed_at && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPapier(c)}><Upload className="w-4 h-4" />Signé à la main</button>}
                 {c.status === 'actif' && (['mensuel', 'trimestriel', 'annuel'].includes(c.billing_period) || c.index_base_value) && <button type="button" className="btn btn-ghost btn-sm" aria-expanded={ouvert === c.id} onClick={() => setOuvert(ouvert === c.id ? null : c.id)}><Receipt className="w-4 h-4" />Échéancier</button>}
+                {['a_valider', 'actif'].includes(c.status) && <button type="button" className="btn btn-ghost btn-sm" aria-expanded={prixParc === c.id} onClick={() => setPrixParc(prixParc === c.id ? null : c.id)}><Calculator className="w-4 h-4" />Prix d'après le parc</button>}
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdit(c)}><Pencil className="w-4 h-4" />Modifier</button>
+                {prixParc === c.id && <div className="basis-full"><PrixParc contract={c} onChange={load} /></div>}
                 {ouvert === c.id && <div className="basis-full"><RevisionsContrat contract={c} onChange={load} /><EcheancierContrat contract={c} /></div>}
               </div>
             )
@@ -118,6 +121,67 @@ export default function Contrats({ types }) {
       <p className="muted text-ui-sm">La facture d'une visite sous contrat se prépare depuis la visite terminée, dans les Factures existantes.</p>
       {edit && <ContractForm contract={edit} types={types} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load() }} />}
       {papier && <SignePapier contract={papier} onClose={() => setPapier(null)} onSaved={() => { setPapier(null); load() }} />}
+    </div>
+  )
+}
+
+// Prix d'après le parc (0463) : appareils couverts par type × prix par appareil et par an (tarif du client, sinon prix
+// de la société). Contrat non signé : le prix s'applique en un clic. Contrat signé : l'avenant se prépare depuis le devis.
+const eur = (n) => `${Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+function PrixParc({ contract, onChange }) {
+  const [r, setR] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const navigate = useNavigate()
+  useEffect(() => {
+    supabase.rpc('contrat_prix_parc', { p_contract: contract.id }).then(({ data, error }) => setR(error ? { erreur: error.message } : data), () => setR({ erreur: 'Calcul impossible' }))
+  }, [contract.id])
+  if (!r) return <p className="text-ui-sm text-gray-500 py-2">Calcul…</p>
+  if (r.erreur) return <p className="text-ui-sm text-gray-500 py-2">{r.erreur}</p>
+  if (!r.appareils) return <p className="text-ui-sm text-gray-500 py-2">Aucun appareil couvert au parc : faites l'inventaire (fiche du client, « Visite d'inventaire »), le prix se calcule ensuite.</p>
+  const ecart = Math.round((Number(r.total) - Number(r.prix_actuel || 0)) * 100) / 100
+  const appliquer = async () => {
+    if (!(await confirmer(`Prix annuel du contrat : ${eur(r.total)} HT au lieu de ${eur(r.prix_actuel)} HT ?`))) return
+    setBusy(true)
+    const { error } = await supabase.from('itv_contracts').update({ annual_price_ht: r.total }).eq('id', contract.id)
+    if (!error) await supabase.rpc('contrat_echeancier_generer', { p_contract: contract.id })
+    setBusy(false)
+    if (error) return toast.error(error.message)
+    toast.success('Prix du contrat mis à jour, échéancier recalculé')
+    onChange?.()
+  }
+  const avenant = async () => {
+    setBusy(true)
+    const motif = `Parc constaté : ${r.appareils} appareil${r.appareils > 1 ? 's' : ''} couvert${r.appareils > 1 ? 's' : ''}, ${eur(r.total)} HT par an d'après les tarifs, contre ${eur(r.prix_actuel)} HT au contrat.`
+    const { data, error } = await supabase.rpc('devis_avenant', { p_quote: contract.quote_id, p_motif: motif })
+    setBusy(false)
+    if (error || !data) return toast.error(error?.message || 'Avenant impossible')
+    toast.success(`Avenant préparé : saisissez l'écart de ${eur(ecart)} HT, puis envoyez-le.`)
+    navigate(`/devis?open=${data}`)
+  }
+  return (
+    <div className="mt-2 rounded-ui-sm border border-gray-200 overflow-x-auto">
+      <table className="w-full text-ui-sm">
+        <thead><tr><th className="text-left">Matériel</th><th className="text-right">Nombre</th><th className="text-right">Prix par an</th><th className="text-right">Total HT</th></tr></thead>
+        <tbody>
+          {r.lignes.map((l) => (
+            <tr key={l.type_id}>
+              <td>{l.type}{l.source === 'client' && <span className="badge badge-blue ml-1">tarif client</span>}</td>
+              <td className="text-right">{l.nb}</td>
+              <td className="text-right">{l.prix == null ? <span className="text-[rgb(var(--c-danger))]">sans prix</span> : eur(l.prix)}</td>
+              <td className="text-right">{l.total == null ? '' : eur(l.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot><tr><td className="font-semibold">Total</td><td className="text-right font-semibold">{r.appareils}</td><td /><td className="text-right font-semibold">{eur(r.total)}</td></tr></tfoot>
+      </table>
+      <div className="px-2 py-2 text-ui-sm space-y-1">
+        {r.manquants.length > 0 && <p className="text-[rgb(var(--c-warning))]">Sans prix : {r.manquants.join(', ')}. Réglez-les dans Réglages › Facturation › Contrats (ou un tarif propre au client) avant d'appliquer.</p>}
+        <p className="text-gray-600">Prix actuel du contrat : {eur(r.prix_actuel)} HT par an{ecart ? ` (écart ${ecart > 0 ? '+' : ''}${eur(ecart)})` : ', identique'}.</p>
+        {ecart !== 0 && !r.signe && <button type="button" className="btn btn-primary btn-sm" disabled={busy || r.manquants.length > 0} onClick={appliquer}>Appliquer ce prix</button>}
+        {ecart !== 0 && r.signe && (contract.quote_id
+          ? <button type="button" className="btn btn-primary btn-sm" disabled={busy || r.manquants.length > 0} onClick={avenant}>Préparer l'avenant</button>
+          : <p className="text-gray-500">Contrat signé sans devis d'origine : le nouveau prix passe par un nouveau devis signé par le client.</p>)}
+      </div>
     </div>
   )
 }

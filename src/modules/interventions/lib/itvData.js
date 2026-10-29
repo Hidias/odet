@@ -371,7 +371,10 @@ export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1, ta
   // Contrat facturé par échéancier (0461) : la visite ne refacture rien du forfait (pas de double facturation)
   const parEcheancier = contrat && ['mensuel', 'trimestriel', 'annuel'].includes(contrat.billing_period)
   const compris = contrat?.includes || {}
-  if (parEcheancier) {
+  // Inventaire initial (0463) : une ligne au prix réglé, déduite de la 1re échéance si le contrat suit dans le délai
+  if (visit.kind === 'inventaire') {
+    lines.push({ code: CODE_INVENTAIRE, description_title: 'Inventaire initial du parc', description_detail: `${visit.reference || ''} du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}\nDéduit de la première échéance si le contrat de maintenance est signé dans le délai prévu`, quantity: 1, unit: 'forfait', unit_price_ht: Number(settings?.prix_inventaire || 0), tva_rate: tva })
+  } else if (parEcheancier) {
     lines.push({ description_title: contrat.label || 'Contrat de maintenance', description_detail: `Visite du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}\nComprise au contrat, facturée par l'échéancier`, quantity: 1, unit: 'forfait', unit_price_ht: 0, tva_rate: tva })
   } else if (visit.itv_contracts) {
     const annuel = Number(visit.itv_contracts.annual_price_ht || 0)
@@ -405,7 +408,15 @@ async function visitesParAn(contract, clientId) {
   return mois * sites
 }
 
+export const CODE_INVENTAIRE = 'INVENTAIRE'
+export const MESSAGE_PRIX_INVENTAIRE = "Prix de l'inventaire non réglé : Réglages › Facturation › Contrats de maintenance."
+
 export async function createInvoiceDraft(visit, parts, settings) {
+  if (visit.kind === 'inventaire') {
+    const { data: b } = await supabase.from('billing_settings').select('contrat_prix_inventaire').limit(1).maybeSingle()
+    if (b?.contrat_prix_inventaire == null) throw new Error(MESSAGE_PRIX_INVENTAIRE)
+    settings = { ...settings, prix_inventaire: Number(b.contrat_prix_inventaire) }
+  }
   // Forfait de visite hors contrat au tarif du client (0418) ; les pièces gardent le prix posé sur la visite
   const tarifs = await chargerTarifs(visit.client_id)
   const ids = [...new Set((parts || []).map((p) => p.part_id).filter(Boolean))]
@@ -418,7 +429,7 @@ export async function createInvoiceDraft(visit, parts, settings) {
     // Aucun numéro avant l'émission : la base remplace cette référence provisoire (0362) et numérote à l'émission (0361)
     reference: 'BROUILLON-' + Math.random().toString(36).slice(2, 12).toUpperCase(), type: 'invoice', client_id: visit.client_id, contact_id: contact?.id || null,
     invoice_date: todayIso(), service_start_date: (visit.started_at || visit.planned_on || '').slice(0, 10) || null, service_end_date: (visit.started_at || visit.planned_on || '').slice(0, 10) || null,
-    object: `Vérification du matériel de sécurité, visite ${visit.reference || ''}`.trim(), status: 'draft', is_formation_pro: false, tva_applicable: true,
+    object: `${visit.kind === 'inventaire' ? 'Inventaire initial du parc' : 'Vérification du matériel de sécurité'}, visite ${visit.reference || ''}`.trim(), status: 'draft', is_formation_pro: false, tva_applicable: true,
     total_ht: t.ht, total_discount: 0, total_net_ht: t.ht, total_tva: t.tva, total_ttc: t.ttc, amount_paid: 0, amount_due: t.ttc,
     created_by: await currentUserName(),
   }).select().single())
