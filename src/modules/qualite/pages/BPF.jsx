@@ -2,10 +2,10 @@
 // Le calcul se fait en base (bpf_calculer, 0477), société par société, sur l'exercice réglé dans Réglages › Sociétés.
 // Ici : lecture du calcul, saisies là où la base ne sait pas (cadre D, certains dispositifs), contrôles de la notice,
 // enregistrement de la déclaration. Une saisie l'emporte sur le calcul ; un recalcul ne l'efface jamais.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Calculator, Save, CheckCircle, RotateCcw } from 'lucide-react'
+import { Calculator, Save, CheckCircle, RotateCcw, Unlock } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { PageHeader, Banner } from '../../../ui'
 import { confirmer } from '../../../ui/Confirm'
@@ -57,10 +57,15 @@ export default function BPF() {
   const libelleSpec = (code) => specialites.find((s) => s.code === code)?.libelle || ''
   const depose = !!declaration?.submitted_at
 
+  // Exercice affiché au moment de la réponse : un calcul lancé pour une autre année est ignoré
+  const anneeAffichee = useRef(annee)
+  anneeAffichee.current = annee
   const calculer = async () => {
+    const pour = annee
     setBusy(true)
-    const { data, error } = await supabase.rpc('bpf_calculer', { p_annee: annee })
+    const { data, error } = await supabase.rpc('bpf_calculer', { p_annee: pour })
     setBusy(false)
+    if (anneeAffichee.current !== pour) return
     if (error) { toast.error(error.message); return }
     setCalcul(data)
     toast.success('Calcul à jour')
@@ -68,7 +73,7 @@ export default function BPF() {
 
   // Ligne enregistrée : toujours les chiffres affichés à l'écran (calcul et saisies du moment)
   const ligneDeclaration = () => ({
-    company_id: calcul.societe, year: annee, cerfa_version: calcul.cerfa || '10443*17', calcul, saisies,
+    company_id: calcul.societe, year: calcul.annee ?? annee, cerfa_version: calcul.cerfa || '10443*17', calcul, saisies,
     exercice_start: calcul.exercice?.debut || null, exercice_end: calcul.exercice?.fin || null,
     calculated_at: calcul.calcule_le || new Date().toISOString(), ca_total: retenues.C || 0,
     stagiaires_total: retenues['F-1']?.stagiaires || 0, heures_stagiaires_total: retenues['F-1']?.heures || 0,
@@ -97,6 +102,18 @@ export default function BPF() {
     if (error) { toast.error(error.message); return }
     setDeclaration(data)
     toast.success('BPF enregistré et noté comme déposé')
+  }
+
+  // Réouverture d'un BPF déposé par erreur : seule la date de dépôt est retirée (la base refuse tout autre changement)
+  const rouvrir = async () => {
+    if (!declaration?.id) return
+    if (!await confirmer('Rouvrir ce BPF ? Il redevient modifiable ; pensez à le noter de nouveau comme déposé une fois corrigé.')) return
+    setBusy(true)
+    const { data, error } = await supabase.from('bpf_declarations').update({ submitted_at: null, status: 'draft' }).eq('id', declaration.id).select().single()
+    setBusy(false)
+    if (error) { toast.error(error.message); return }
+    setDeclaration(data)
+    toast.success('BPF rouvert')
   }
 
   // Cadre B-2 : calcul (session à distance non annulée dans l'exercice), réponse modifiable
@@ -194,7 +211,8 @@ export default function BPF() {
           </div>
         )} />
 
-      {depose && <Banner tone="success" title="BPF déposé">Noté comme déposé le {fmtDate(declaration.submitted_at)}. Il n&apos;est plus modifiable ici.</Banner>}
+      {depose && <Banner tone="success" title="BPF déposé">Noté comme déposé le {fmtDate(declaration.submitted_at)}. Il n&apos;est plus modifiable ici.
+        <button type="button" className="btn btn-ghost btn-sm mt-2" onClick={rouvrir} disabled={busy}><Unlock className="w-4 h-4" />Rouvrir</button></Banner>}
       {societe === null && <Banner tone="warning" title="Choisissez une société">Le BPF se déclare société par société : sélectionnez-en une (pas la vue groupe).</Banner>}
       {societe && !calcul && <Banner tone="info" title="Aucun calcul pour cet exercice">Lancez le calcul : il lit vos factures et vos sessions de l&apos;exercice, réglé dans Réglages › Sociétés (mois de début).</Banner>}
 
@@ -205,6 +223,16 @@ export default function BPF() {
               {calcul.a_classer.objectif?.length > 0 && <p>Objectif manquant : {calcul.a_classer.objectif.join(', ')}.</p>}
               {calcul.a_classer.specialite?.length > 0 && <p>Spécialité manquante : {calcul.a_classer.specialite.join(', ')}.</p>}
               <p className="mt-1"><Link to="/formations" className="underline">Compléter les fiches formation</Link>, puis recalculer.</p>
+            </Banner>
+          )}
+          {calcul.detail?.factures_a_verifier?.length > 0 && (
+            <Banner tone="warning" title="Factures à vérifier">
+              Facturées à l&apos;entreprise sans subrogation alors qu&apos;une prise en charge OPCO est prévue : rangées en C-1 (employeur). Vérifiez qui a payé : {calcul.detail.factures_a_verifier.join(', ')}. Si l&apos;OPCO a payé, saisissez le montant en C-2-h et retirez-le de C-1.
+            </Banner>
+          )}
+          {calcul.detail?.heures_inconnues?.length > 0 && (
+            <Banner tone="warning" title="Sous-traitance reçue sans durée">
+              Stagiaires comptés en G sans heures (formation hors catalogue) : {calcul.detail.heures_inconnues.join(', ')}. Saisissez les heures du cadre G.
             </Banner>
           )}
           {calcul.detail?.heures_prevues > 0 && (

@@ -1,5 +1,6 @@
 import { setCurrentProfile, setTeamCache, profileName, setSocieteCache, ROLES_HORS_EQUIPE } from './org/currentOrg'
 import { create } from 'zustand'
+import toast from 'react-hot-toast'
 import { supabase, ADMIN_EMAILS } from './supabase'
 import { buildStorageFileName } from './storageUtils'
 import { fetchAll, fetchAllIn } from './fetchAll'
@@ -747,7 +748,11 @@ export const useDataStore = create((set, get) => ({
         .select('id, trainee_id, registration_date, result, remediation_proposal, result_forced_reason, result_forced_at, presence_complete, early_departure, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, access_code, convocation_sent_at, absent, absent_reason, bpf_categorie')
         .eq('session_id', id)
       
-      if (stError) console.error('Error loading session_trainees:', stError)
+      // Une liste vide sans message ferait croire à une session sans stagiaire (relecture de 0477) : erreur affichée
+      if (stError) {
+        console.error('Error loading session_trainees:', stError)
+        toast.error(`Stagiaires de la session non chargés : ${stError.message}`, { id: 'session-trainees-erreur' })
+      }
       data.session_trainees = sessionTrainees || []
       
       // Charger les infos complètes des stagiaires
