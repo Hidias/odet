@@ -31,6 +31,7 @@ import SignatureEnLigne from '../components/SignatureEnLigne'
 import { avecHeuresRealisees, signaturesFormateur } from '../lib/emargementControle'
 import { figerDocuments } from '../lib/documentsEmis'
 import { avecObjectifs, blocageFinFormation, nonEvalues } from '../lib/finFormation'
+import BpfCategories from '../components/BpfCategories'
 import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
 import FormativeSummary, { useFormativeSummary } from '../../suivi/components/FormativeSummary'
 import DateTimePickerModal from '../../../ui/DateTimePickerModal'
@@ -4949,6 +4950,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           )}
         </div>
       )}
+      {activeTab === 'funding' && <BpfCategories session={session} peutModifier={d.modifier} />}
 
       {/* TAB: Documents */}
       {activeTab === 'documents' && (

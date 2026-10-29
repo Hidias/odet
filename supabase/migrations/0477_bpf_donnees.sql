@@ -171,7 +171,7 @@ comment on column public.bpf_declarations.saisies is 'Saisies par code officiel 
 -- Réglages › Sociétés (companies.fiscal_year_start_month), premier jour du mois.
 -- Hypothèses de lecture de la notice, rendues avec le résultat pour être vues : un stagiaire suivi dans deux
 -- actions compte deux fois ; heures suivies = heures des documents émis, sinon durée prévue (signalée).
-create or replace function public.bpf_calculer(p_company uuid, p_annee integer)
+create or replace function public.bpf_calculer(p_annee integer, p_company uuid default null)
 returns jsonb
 language plpgsql
 volatile
@@ -179,6 +179,7 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_cie uuid := coalesce(p_company, app.current_company());
   v_mois integer;
   v_debut date;
   v_fin date;
@@ -190,13 +191,15 @@ declare
   r record;
 begin
   -- Chiffre d'affaires et charges : réservé à ceux qui gèrent les registres qualité, dans cette société
+  if v_cie is null then raise exception 'Choisissez une société : le BPF se fait société par société'; end if;
   perform app.require_right('qualite.registres.gerer');
-  if not app.is_superadmin() and not app.a_le_droit_dans(p_company, 'qualite.registres.gerer') then
+  -- Pas d'exception pour le super administrateur : a_le_droit_dans passe par les sociétés visibles (accès de support)
+  if not app.a_le_droit_dans(v_cie, 'qualite.registres.gerer') then
     raise exception 'Accès refusé' using errcode = '42501';
   end if;
   if p_annee is null or p_annee < 2000 or p_annee > 2100 then raise exception 'Année invalide'; end if;
 
-  select fiscal_year_start_month into v_mois from public.companies where id = p_company;
+  select fiscal_year_start_month into v_mois from public.companies where id = v_cie;
   if v_mois is null then raise exception 'Société inconnue'; end if;
   if v_mois = 1 then
     v_debut := make_date(p_annee, 1, 1);
@@ -218,9 +221,14 @@ begin
   left join public.clients cb on cb.id = i.billing_client_id
   left join public.sessions s on s.id = i.session_id
   left join public.quotes q on q.id = i.quote_id
+  left join public.session_groups g on g.id = i.session_group_id
   cross join lateral (
+    -- Payeur réel d'abord (groupe d'une session inter : 0044), puis financement de la session ou du devis ; la
+    -- subrogation seule ne dit pas qui paie (OPCO ou France Travail) et n'est pas utilisée (relecture de #254)
     select case
-      when c.client_type = 'particulier' then 'C-9'
+      when g.payer_kind = 'france_travail' then 'C-7'
+      when g.payer_kind = 'particulier' or (g.payer_kind is null and c.client_type = 'particulier') then 'C-9'
+      when g.payer_kind = 'opco' then 'C-2-h'
       when c.client_type = 'organisme_formation' or s.session_type = 'subcontract' then 'C-10'
       when coalesce(s.funding_type, '') = 'cpf' or q.funding_type = 'cpf' then 'C-2-e'
       when s.funding_type = 'ptp' then 'C-2-d'
@@ -228,22 +236,22 @@ begin
       when s.funding_type = 'region' or q.funding_type = 'region' then 'C-6'
       when s.funding_type = 'france_travail' or q.funding_type = 'france_travail' then 'C-7'
       when s.funding_type = 'fne' then 'C-5'
-      when s.funding_type = 'opco' or q.funding_type = 'opco' or coalesce(i.is_subrogation, false)
-           or cb.client_type = 'opco' or c.client_type = 'opco' then 'C-2-h'
+      when s.funding_type = 'opco' or q.funding_type = 'opco' or cb.client_type = 'opco' or c.client_type = 'opco' then 'C-2-h'
       when c.client_type = 'public' then 'C-3'
       else 'C-1'
     end as ligne,
     case
+      when g.payer_kind in ('france_travail', 'particulier', 'opco') then 'payeur du groupe : ' || g.payer_kind
       when c.client_type = 'particulier' then 'client particulier'
       when c.client_type = 'organisme_formation' or s.session_type = 'subcontract' then 'pour le compte d''un autre organisme'
       when coalesce(s.funding_type, '') in ('cpf', 'ptp', 'faf', 'region', 'france_travail', 'fne', 'opco') then 'financement de la session : ' || s.funding_type
       when q.funding_type is not null then 'financement prévu au devis : ' || q.funding_type
-      when coalesce(i.is_subrogation, false) or cb.client_type = 'opco' or c.client_type = 'opco' then 'facturé à l''OPCO'
+      when cb.client_type = 'opco' or c.client_type = 'opco' then 'facturé à l''OPCO'
       when c.client_type = 'public' then 'client public (agents)'
       else 'employeur (par défaut)'
     end as motif
   ) x
-  where i.company_id = p_company
+  where i.company_id = v_cie
     and i.status not in ('draft', 'cancelled')
     and i.invoice_date between v_debut and v_fin;
 
@@ -269,7 +277,7 @@ begin
   truncate pg_temp.bpf_part;
   insert into pg_temp.bpf_part
   select s.id, s.reference, st.trainee_id,
-         (s.session_type = 'subcontract' or c.client_type = 'organisme_formation'),
+         (coalesce(s.session_type = 'subcontract', false) or coalesce(c.client_type = 'organisme_formation', false)),
          coalesce(st.bpf_categorie, case when c.client_type = 'particulier' then 'd' when c.client_type = 'public' then 'e' else 'a' end),
          coalesce(h.hours, co.duration_hours, 0),
          case when h.hours is not null then 'document émis' else 'durée prévue' end,
@@ -284,9 +292,9 @@ begin
     order by case d.kind when 'attestation' then 1 when 'certificat' then 2 else 3 end, d.version desc
     limit 1
   ) h on true
-  where s.company_id = p_company
+  where s.company_id = v_cie
     and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
-    and coalesce(s.end_date, s.start_date) between v_debut and v_fin;
+    and coalesce(s.end_date, s.start_date) between v_debut and least(v_fin, current_date);
 
   -- F-1 : type de stagiaires
   for r in select categorie, count(*) as nb, round(sum(heures)) as h from pg_temp.bpf_part where not sous_traitance_recue group by categorie loop
@@ -341,7 +349,7 @@ begin
     from pg_temp.bpf_part p
     where not p.sous_traitance_recue and exists (
       select 1 from public.subcontract_orders o join public.subcontractors su on su.id = o.subcontractor_id
-      where o.session_id = p.session_id and o.company_id = p_company and su.kind = 'organisme'
+      where o.session_id = p.session_id and o.company_id = v_cie and su.kind = 'organisme'
         and o.status not in ('brouillon', 'annule'))));
 
   -- G : actions confiées par un autre organisme
@@ -356,8 +364,8 @@ begin
       left join public.courses co on co.id = s.course_id
       join lateral (select s.trainer_id as id union select x.trainer_id from public.session_trainers x where x.session_id = s.id) tr on tr.id is not null
       join public.trainers t on t.id = tr.id
-      where s.company_id = p_company and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
-        and coalesce(s.end_date, s.start_date) between v_debut and v_fin
+      where s.company_id = v_cie and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
+        and coalesce(s.end_date, s.start_date) between v_debut and least(v_fin, current_date)
     )
     select jsonb_build_object('personnes', count(distinct tid), 'heures', coalesce(round(sum(h)), 0)) from sess where interne));
   v_lignes := v_lignes || jsonb_build_object('E-2', (
@@ -367,18 +375,20 @@ begin
       left join public.courses co on co.id = s.course_id
       join lateral (select s.trainer_id as id union select x.trainer_id from public.session_trainers x where x.session_id = s.id) tr on tr.id is not null
       join public.trainers t on t.id = tr.id
-      where s.company_id = p_company and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
-        and coalesce(s.end_date, s.start_date) between v_debut and v_fin
+      where s.company_id = v_cie and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
+        and coalesce(s.end_date, s.start_date) between v_debut and least(v_fin, current_date)
     )
     select jsonb_build_object('personnes', count(distinct tid), 'heures', coalesce(round(sum(h)), 0)) from sess where not interne));
 
   -- B-2 : formation à distance pendant l'exercice
   v_lignes := v_lignes || jsonb_build_object('B-2', exists (
-    select 1 from public.sessions s where s.company_id = p_company and coalesce(s.is_remote, false)
-      and coalesce(s.end_date, s.start_date) between v_debut and v_fin));
+    select 1 from public.sessions s where s.company_id = v_cie and coalesce(s.is_remote, false)
+      and coalesce(s.status, '') not in ('cancelled', 'canceled', 'annule', 'annulee')
+      and coalesce(s.end_date, s.start_date) between v_debut and least(v_fin, current_date)));
 
   return jsonb_build_object(
     'cerfa', '10443*17',
+    'societe', v_cie,
     'exercice', jsonb_build_object('debut', v_debut, 'fin', v_fin),
     'calcule_le', now(),
     'lignes', v_lignes,
@@ -394,9 +404,22 @@ begin
     'hypotheses', jsonb_build_array(
       'Un stagiaire suivi dans deux actions compte deux fois (lecture de la notice, à confirmer auprès de la DREETS).',
       'Heures suivies : celles des documents émis ; sinon la durée prévue de la formation, signalée.',
-      'Formateurs : heures = durée de la formation pour chaque session animée ; formateur rattaché à un prestataire = personne extérieure (E-2).')
+      'Formateurs : heures = durée de la formation pour chaque session animée ; formateur rattaché à un prestataire = personne extérieure (E-2).',
+      'Sessions comptées : terminées à la date du calcul et non annulées, quel que soit leur statut (une session faite dont le statut n''a pas été mis à jour reste comptée).')
   );
 end
 $$;
-revoke all on function public.bpf_calculer(uuid, integer) from public, anon;
-grant execute on function public.bpf_calculer(uuid, integer) to authenticated;
+revoke all on function public.bpf_calculer(integer, uuid) from public, anon;
+grant execute on function public.bpf_calculer(integer, uuid) to authenticated;
+
+-- Registre des migrations (la Console compare ce registre aux fichiers ; relecture de #254). 0459 à 0475 ont été
+-- appliquées par l'outil Supabase sans s'y inscrire (constaté le 29/10 : présentes dans la liste des migrations de
+-- Supabase, absentes du registre) ; elles y sont inscrites ici, sans être rejouées. 0468 est rapatriée dans le dépôt
+-- à part (empreintes des fonctions identiques à la production).
+insert into public.schema_migrations (version)
+select v from unnest(array['0459_genre_personnes', '0460_contrats_cycle', '0461_contrats_echeancier', '0462_contrats_revision',
+  '0463_contrats_inventaire', '0464_inventaire_cloture', '0465_interventions_types', '0466_contrat_fige_urgence',
+  '0467_vente_materiel', '0468_vente_relecture', '0469_impayes', '0470_impayes_relecture', '0471_contrat_resiliation_en_ligne',
+  '0472_contrats_pilotage', '0473_pilotage_droits', '0474_previsionnel_scenarios', '0475_previsionnel_alerte',
+  '0477_bpf_donnees']) v
+on conflict (version) do nothing;

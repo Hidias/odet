@@ -7,7 +7,7 @@ begin
     raise exception 'Retour arrière 0477 refusé : plusieurs déclarations pour une même année';
   end if;
 end $$;
-drop function if exists public.bpf_calculer(uuid, integer);
+drop function if exists public.bpf_calculer(integer, uuid);
 drop index if exists public.bpf_declarations_societe_annee;
 alter table public.bpf_declarations add constraint bpf_declarations_year_key unique (year);
 alter table public.bpf_declarations drop constraint if exists bpf_declarations_saisies_check;
@@ -26,3 +26,4 @@ alter table public.courses drop column if exists bpf_rncp_niveau;
 alter table public.courses drop column if exists bpf_objectif;
 drop table if exists public.bpf_specialites;
 delete from app.tables_avant_societes where table_name = 'bpf_specialites';
+delete from public.schema_migrations where version = '0477_bpf_donnees';
