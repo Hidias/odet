@@ -19,12 +19,15 @@ import { currentUserName } from '../../../core/org/currentOrg'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerCompletude, piecesManquantes, libellesManquants, PIECES } from '../lib/completude'
 import CompletudeFiche, { champsManquants } from '../components/CompletudeFiche'
+import BpfFormation from '../components/BpfFormation'
 
 // Champs du programme (fiche formation, migration 0048)
 const PROGRAMME_VIDE = {
   evaluation_methods: '', min_participants: '', max_participants: '', access_delay: '', validity_kind: 'recyclage',
   validity_text: '', deliverables: '', trainer_profile: '', price_mention: '', modalities: '', program_ref: '', motif_maj: '',
   pictogram: '',
+  // BPF (0477) : objectif F-3 et spécialité F-4
+  bpf_objectif: '', bpf_rncp_niveau: '', bpf_fiche: '', nsf_code: '',
 }
 // Thèmes du matériel
 const EQUIPMENT_THEMES = {
@@ -397,6 +400,10 @@ export default function Courses() {
         price_mention: course.price_mention || '',
         modalities: course.modalities || '',
         program_ref: course.program_ref || '',
+        bpf_objectif: course.bpf_objectif || '',
+        bpf_rncp_niveau: course.bpf_rncp_niveau || '',
+        bpf_fiche: course.bpf_fiche || '',
+        nsf_code: course.nsf_code || '',
         motif_maj: '',
         pictogram: course.pictogram || '',
       })
@@ -475,6 +482,10 @@ export default function Courses() {
       modalities: form.modalities || null,
       program_ref: form.program_ref ? form.program_ref.toUpperCase() : null,
       pictogram: form.pictogram || null,
+      bpf_objectif: form.bpf_objectif || null,
+      bpf_rncp_niveau: form.bpf_objectif === 'rncp' && form.bpf_rncp_niveau ? parseInt(form.bpf_rncp_niveau, 10) : null,
+      bpf_fiche: ['rncp', 'rncp_cqp', 'rs'].includes(form.bpf_objectif) && form.bpf_fiche?.trim() ? form.bpf_fiche.trim() : null,
+      nsf_code: form.nsf_code || null,
     }
     // Propositions restantes : seulement pour les champs encore vides ; l'alerte est vue, elle disparaît (0434)
     if (selectedCourse?.propositions) {
@@ -989,6 +1000,8 @@ export default function Courses() {
                 </div>
               </div>
               
+              <BpfFormation form={form} setForm={setForm} />
+
               {/* Matériel stagiaires */}
               <div>
                 <label className="label">Matériel requis (stagiaires)</label>

@@ -378,10 +378,14 @@ t('budget_transactions', module=FIN_MOD, sel=f"({BUD()} and {private_ok})",
 # Qualité (registres coupés avec le module ; documents qualité toujours lisibles)
 for n in ['non_conformites', 'non_conformities', 'reclamations', 'quality_alerts', 'veille_qualiopi',
           'veille_sources', 'processes', 'process_categories', 'process_connections', 'process_responsibles',
-          'process_steps', 'process_versions', 'audits_internes', 'rgpd_traitements', 'bpf_declarations',
+          'process_steps', 'process_versions', 'audits_internes', 'rgpd_traitements',
           'qualiopi_indicators']:
     t(n, module='qualite', sel=D('qualite.registres.voir', STAFF), ins=D('qualite.registres.signaler', EDIT),
       upd=D('qualite.registres.gerer', MGR), dele=D('qualite.registres.gerer', MGR))
+# BPF : chiffre d'affaires et charges, réservé à ceux qui gèrent les registres (0477, 29/10) ; la page BPF exigeait
+# déjà ce droit, la table restait lisible par tous ceux qui voient les registres (formateur, commercial, lecture)
+t('bpf_declarations', module='qualite', sel=D('qualite.registres.gerer', MGR), ins=D('qualite.registres.gerer', MGR),
+  upd=D('qualite.registres.gerer', MGR), dele=D('qualite.registres.gerer', MGR))
 # Registre PSH (handicap, donnée de santé) : direction et référent handicap seulement (ajout du chantier F, 17/10)
 # Règle propre (app.can_see_disability) gardée telle quelle dans les deux écritures.
 HANDI = "(select app.can_see_disability())"
