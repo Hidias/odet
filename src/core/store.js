@@ -744,7 +744,7 @@ export const useDataStore = create((set, get) => ({
       // Charger les stagiaires avec presence_complete et early_departure
       const { data: sessionTrainees, error: stError } = await supabase
         .from('session_trainees')
-        .select('id, trainee_id, registration_date, result, remediation_proposal, result_forced_reason, result_forced_at, presence_complete, early_departure, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, access_code, convocation_sent_at, absent, absent_reason')
+        .select('id, trainee_id, registration_date, result, remediation_proposal, result_forced_reason, result_forced_at, presence_complete, early_departure, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, access_code, convocation_sent_at, absent, absent_reason, bpf_categorie')
         .eq('session_id', id)
       
       if (stError) console.error('Error loading session_trainees:', stError)

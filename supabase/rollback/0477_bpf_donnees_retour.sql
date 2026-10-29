@@ -26,3 +26,4 @@ alter table public.courses drop column if exists bpf_rncp_niveau;
 alter table public.courses drop column if exists bpf_objectif;
 drop table if exists public.bpf_specialites;
 delete from app.tables_avant_societes where table_name = 'bpf_specialites';
+delete from public.schema_migrations where version = '0477_bpf_donnees';

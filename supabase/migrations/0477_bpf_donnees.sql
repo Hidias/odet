@@ -218,9 +218,14 @@ begin
   left join public.clients cb on cb.id = i.billing_client_id
   left join public.sessions s on s.id = i.session_id
   left join public.quotes q on q.id = i.quote_id
+  left join public.session_groups g on g.id = i.session_group_id
   cross join lateral (
+    -- Payeur réel d'abord (groupe d'une session inter : 0044), puis financement de la session ou du devis ; la
+    -- subrogation seule ne dit pas qui paie (OPCO ou France Travail) et n'est pas utilisée (relecture de #254)
     select case
-      when c.client_type = 'particulier' then 'C-9'
+      when g.payer_kind = 'france_travail' then 'C-7'
+      when g.payer_kind = 'particulier' or (g.payer_kind is null and c.client_type = 'particulier') then 'C-9'
+      when g.payer_kind = 'opco' then 'C-2-h'
       when c.client_type = 'organisme_formation' or s.session_type = 'subcontract' then 'C-10'
       when coalesce(s.funding_type, '') = 'cpf' or q.funding_type = 'cpf' then 'C-2-e'
       when s.funding_type = 'ptp' then 'C-2-d'
@@ -228,17 +233,17 @@ begin
       when s.funding_type = 'region' or q.funding_type = 'region' then 'C-6'
       when s.funding_type = 'france_travail' or q.funding_type = 'france_travail' then 'C-7'
       when s.funding_type = 'fne' then 'C-5'
-      when s.funding_type = 'opco' or q.funding_type = 'opco' or coalesce(i.is_subrogation, false)
-           or cb.client_type = 'opco' or c.client_type = 'opco' then 'C-2-h'
+      when s.funding_type = 'opco' or q.funding_type = 'opco' or cb.client_type = 'opco' or c.client_type = 'opco' then 'C-2-h'
       when c.client_type = 'public' then 'C-3'
       else 'C-1'
     end as ligne,
     case
+      when g.payer_kind in ('france_travail', 'particulier', 'opco') then 'payeur du groupe : ' || g.payer_kind
       when c.client_type = 'particulier' then 'client particulier'
       when c.client_type = 'organisme_formation' or s.session_type = 'subcontract' then 'pour le compte d''un autre organisme'
       when coalesce(s.funding_type, '') in ('cpf', 'ptp', 'faf', 'region', 'france_travail', 'fne', 'opco') then 'financement de la session : ' || s.funding_type
       when q.funding_type is not null then 'financement prévu au devis : ' || q.funding_type
-      when coalesce(i.is_subrogation, false) or cb.client_type = 'opco' or c.client_type = 'opco' then 'facturé à l''OPCO'
+      when cb.client_type = 'opco' or c.client_type = 'opco' then 'facturé à l''OPCO'
       when c.client_type = 'public' then 'client public (agents)'
       else 'employeur (par défaut)'
     end as motif
@@ -400,3 +405,15 @@ end
 $$;
 revoke all on function public.bpf_calculer(uuid, integer) from public, anon;
 grant execute on function public.bpf_calculer(uuid, integer) to authenticated;
+
+-- Registre des migrations (la Console compare ce registre aux fichiers ; relecture de #254). 0459 à 0475 ont été
+-- appliquées par l'outil Supabase sans s'y inscrire (constaté le 29/10 : présentes dans la liste des migrations de
+-- Supabase, absentes du registre) ; elles y sont inscrites ici, sans être rejouées. 0468 est rapatriée dans le dépôt
+-- à part (empreintes des fonctions identiques à la production).
+insert into public.schema_migrations (version)
+select v from unnest(array['0459_genre_personnes', '0460_contrats_cycle', '0461_contrats_echeancier', '0462_contrats_revision',
+  '0463_contrats_inventaire', '0464_inventaire_cloture', '0465_interventions_types', '0466_contrat_fige_urgence',
+  '0467_vente_materiel', '0468_vente_relecture', '0469_impayes', '0470_impayes_relecture', '0471_contrat_resiliation_en_ligne',
+  '0472_contrats_pilotage', '0473_pilotage_droits', '0474_previsionnel_scenarios', '0475_previsionnel_alerte',
+  '0477_bpf_donnees']) v
+on conflict (version) do nothing;

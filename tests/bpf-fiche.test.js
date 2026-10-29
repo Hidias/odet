@@ -17,3 +17,14 @@ describe('BPF : fiche formation', () => {
     expect(OBJECTIFS_BPF.map((o) => o.value)).toEqual(['rncp', 'rncp_cqp', 'rs', 'cqp', 'autre', 'bilan', 'vae'])
   })
 })
+
+import { categorieDeduite, CATEGORIES_F1 } from '../src/modules/formation/components/BpfCategories'
+describe('BPF : catégorie du stagiaire (F-1)', () => {
+  it('déduite du client comme le calcul en base', () => {
+    expect(categorieDeduite('entreprise')).toBe('a')
+    expect(categorieDeduite('particulier')).toBe('d')
+    expect(categorieDeduite('public')).toBe('e')
+    expect(categorieDeduite(undefined)).toBe('a')
+    expect(CATEGORIES_F1.map((c) => c.value)).toEqual(['a', 'b', 'c', 'd', 'e'])
+  })
+})
