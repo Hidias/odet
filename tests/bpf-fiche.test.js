@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { specialiteSuggeree, manquesBpf, OBJECTIFS_BPF } from '../src/modules/formation/lib/bpf'
+import { specialiteSuggeree, manquesBpf, OBJECTIFS_BPF, dernierExerciceClos } from '../src/modules/formation/lib/bpf'
 
 describe('BPF : fiche formation', () => {
   it('spécialité proposée seulement quand l\'intitulé est clair', () => {
@@ -54,5 +54,20 @@ describe('BPF : valeurs retenues et contrôles', () => {
   it('chaque code est unique', () => {
     const codes = LIGNES_BPF.map((l) => l.code)
     expect(new Set(codes).size).toBe(codes.length)
+  })
+})
+
+describe('dernierExerciceClos', () => {
+  it('exercice civil : année précédente', () => {
+    expect(dernierExerciceClos(1, new Date(2026, 9, 29))).toBe(2025)
+    expect(dernierExerciceClos(null, new Date(2026, 0, 5))).toBe(2025)
+  })
+  it('début en octobre : exercice 2026 (01/10/2025 au 30/09/2026) clos dès octobre 2026', () => {
+    expect(dernierExerciceClos(10, new Date(2026, 9, 1))).toBe(2026)
+    expect(dernierExerciceClos(10, new Date(2026, 8, 30))).toBe(2025)
+  })
+  it('début en juillet', () => {
+    expect(dernierExerciceClos(7, new Date(2026, 6, 1))).toBe(2026)
+    expect(dernierExerciceClos(7, new Date(2026, 5, 30))).toBe(2025)
   })
 })

@@ -122,6 +122,18 @@ export function valeursRetenues(calculLignes = {}, saisies = {}) {
   return out
 }
 
+/**
+ * Dernier exercice clos à une date, nommé comme dans bpf_calculer : l'exercice « A » se termine dans l'année A.
+ * Début en janvier : exercice civil. Début en octobre : l'exercice 2026 va du 01/10/2025 au 30/09/2026.
+ */
+export function dernierExerciceClos(moisDebut, aujourdhui = new Date()) {
+  const m = Number(moisDebut) || 1
+  const annee = aujourdhui.getFullYear()
+  if (m === 1) return annee - 1
+  // L'exercice de l'année en cours se termine le dernier jour du mois m - 1 : clos dès le mois m
+  return aujourdhui.getMonth() + 1 >= m ? annee : annee - 1
+}
+
 /** Contrôles de la notice : totaux F-1 = F-3 = F-4, montants positifs, part du CA au moins 1 % s'il y a de l'activité */
 export function controlesBpf(retenues, f4Total, partCa) {
   const ecarts = []
