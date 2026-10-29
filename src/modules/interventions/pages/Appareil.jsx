@@ -72,6 +72,8 @@ export default function Appareil({ settings, types, canWrite, profile }) {
         {row('Emplacement', eq.location)}
         {row('Marque, année', [eq.brand, eq.manufactured_year].filter(Boolean).join(', '))}
         {eq.serial_number && row('Numéro de série', eq.serial_number)}
+        {eq.installed_on && row('Posé le', frShort(eq.installed_on))}
+        {eq.warranty_until && row('Garantie', `jusqu'au ${frShort(eq.warranty_until)}${eq.warranty_until < new Date().toISOString().slice(0, 10) ? ', terminée' : ''}`)}
         {Object.entries(eq.details || {}).filter(([, v]) => v).map(([k, v]) => row(k, String(v)))}
         {row('Dernière vérification', eq.last_check_on ? frShort(eq.last_check_on) : 'Jamais')}
         {row('Prochaine vérification', eq.next_check_on ? frShort(eq.next_check_on) : 'À définir', true)}

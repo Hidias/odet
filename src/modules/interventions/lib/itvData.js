@@ -418,6 +418,8 @@ export const CODE_INVENTAIRE = 'INVENTAIRE'
 export const MESSAGE_PRIX_INVENTAIRE = "Prix de l'inventaire non réglé : Réglages › Facturation › Contrats de maintenance."
 
 export async function createInvoiceDraft(visit, parts, settings) {
+  // Livraison d'un devis signé (0467) : la vente se facture depuis le devis, jamais une seconde fois ici
+  if (visit.kind === 'livraison' && visit.quote_id) throw new Error('Livraison d\'un devis signé : la facture se prépare depuis le devis (Devis › Facturer).')
   if (visit.kind === 'inventaire') {
     const { data: b } = await supabase.from('billing_settings').select('contrat_prix_inventaire').limit(1).maybeSingle()
     if (b?.contrat_prix_inventaire == null) throw new Error(MESSAGE_PRIX_INVENTAIRE)

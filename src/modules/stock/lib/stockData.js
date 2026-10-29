@@ -51,6 +51,9 @@ export async function enregistrerArticle(a, prixAchat = undefined) {
   reste.sale_price_ht = reste.sale_price_ht === '' || reste.sale_price_ht == null ? null : Number(String(reste.sale_price_ht).replace(',', '.'))
   // Éco-participation unitaire (0445) : vide = aucune
   if ('eco_ht' in reste) reste.eco_ht = reste.eco_ht === '' || reste.eco_ht == null ? null : Number(String(reste.eco_ht).replace(',', '.'))
+  // Vente de matériel (0467) : type d'appareil créé au parc à la livraison, garantie en mois (vide : non renseignée)
+  if ('equipment_type_id' in reste) reste.equipment_type_id = reste.equipment_type_id || null
+  if ('warranty_months' in reste) reste.warranty_months = reste.warranty_months === '' || reste.warranty_months == null ? null : Number(reste.warranty_months)
   if ('ppe_renew_months' in reste) reste.ppe_renew_months = reste.ppe && reste.ppe_renew_months !== '' && reste.ppe_renew_months != null ? Number(reste.ppe_renew_months) : null
   const ligne = id ? must(await supabase.from('stock_items').update(reste).eq('id', id).select('id').single())
     : must(await supabase.from('stock_items').insert(reste).select('id').single())
