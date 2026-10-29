@@ -5,6 +5,7 @@ import { PageHeader } from '../../../ui/PageHeader'
 import { Banner } from '../../../ui/Banner'
 import { EmptyState, Spinner } from '../../../ui/EmptyState'
 import { chargerPrevisionnel, parMois, totaux, euros, libMois, exporterCsv, NATURES } from '../lib/previsionnel'
+import ScenariosPrevisionnel from '../components/ScenariosPrevisionnel'
 
 // Prévisionnel récurrent (fonction 12, 0150) : chiffre d'affaires attendu sur 12 mois à partir des échéances connues
 // (recyclages, vérifications hors contrat, renouvellements de contrats), avec la part déjà devisée et planifiée.
@@ -77,6 +78,7 @@ export default function Previsionnel() {
         </div>
       )}
       <p className="text-ui-sm text-gray-500">Les propositions de recyclage, de renouvellement de contrat et de visite sont préparées chaque nuit dans <Link to="/a-valider" className="underline">Relances à valider</Link>.</p>
+      <ScenariosPrevisionnel />
     </div>
   )
 }
