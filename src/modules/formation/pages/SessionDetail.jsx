@@ -30,6 +30,7 @@ import RegularisationEmargements from '../components/RegularisationEmargements'
 import SignatureEnLigne from '../components/SignatureEnLigne'
 import { avecHeuresRealisees, signaturesFormateur } from '../lib/emargementControle'
 import { figerDocuments } from '../lib/documentsEmis'
+import { avecObjectifs, blocageFinFormation, nonEvalues } from '../lib/finFormation'
 import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
 import FormativeSummary, { useFormativeSummary } from '../../suivi/components/FormativeSummary'
 import DateTimePickerModal from '../../../ui/DateTimePickerModal'
@@ -77,6 +78,7 @@ const docTypes = [
   { id: 'emargement', name: 'Émargement', icon: FileText, forAll: true, qualiopi: 11 },
   { id: 'attestation', name: 'Attestation', icon: FileText, forEach: true },
   { id: 'certificat', name: 'Certificat', icon: CheckCircle, forEach: true, qualiopi: 11 },
+  { id: 'fin_formation', name: 'Fin de formation', icon: CheckCircle, forEach: true, qualiopi: 11 },
   { id: 'evaluation', name: 'Éval. à chaud', icon: ClipboardCheck, forEach: true, qualiopi: 30 },
   { id: 'evaluationFroid', name: 'Éval. à froid', icon: ClipboardCheck, forEach: true, qualiopi: 30 },
   { id: 'positionnement', name: 'Test positionnement', icon: FileText, forEach: true, qualiopi: 8 },
@@ -1623,6 +1625,21 @@ export default function SessionDetail() {
     return figerDocuments(session, kind, r.liste)
   }
 
+  // Attestation de fin de formation (0476) : objectifs et résultat de chacun depuis l'onglet Suivi ; on écarte ceux
+  // qui ne peuvent pas en avoir (absent, sans résultat, formation sans objectifs) et on signale les objectifs non
+  // évalués avant d'émettre, puisque le document est ensuite figé
+  const preparerFinFormation = async (liste) => {
+    const absents = getAbsentTraineeIds()
+    const avec = avecObjectifs(liste, session?.courses, objectivesData)
+    const bloques = avec.map(t => ({ t, motif: blocageFinFormation(t, { absent: absents.includes(t.id) }) })).filter(x => x.motif)
+    const ok = avec.filter(t => !bloques.some(b => b.t.id === t.id))
+    if (!ok.length) { toast.error(bloques[0]?.motif || 'Aucune attestation de fin de formation à générer'); return null }
+    if (bloques.length) toast(`${bloques.length} stagiaire${bloques.length > 1 ? 's' : ''} sans attestation de fin de formation : ${bloques[0].motif.toLowerCase()}`, { icon: '⚠️', duration: 7000 })
+    const aEvaluer = ok.filter(t => nonEvalues(t) > 0)
+    if (aEvaluer.length && !await confirmer(`Objectifs pas encore évalués pour ${aEvaluer.map(t => `${t.first_name || ''} ${(t.last_name || '').toUpperCase()}`.trim()).join(', ')} (onglet Suivi).\n\nIls figureront « Non évalué » sur un document qui sera figé. Générer quand même ?`)) return null
+    return preparerHeures(ok, 'fin_formation')
+  }
+
   // Nombre de demi-journées signées par un stagiaire
   const getSignedCount = (traineeId) => {
     const list = getHalfDaysList()
@@ -2421,6 +2438,18 @@ export default function SessionDetail() {
       const certificats = evalues?.length ? await generateAllPDF('certificat', session, evalues, { trainer }) : null
       if (certificats) zip.file(`Certificats_${ref}.pdf`, certificats.base64, { base64: true })
 
+      // 9 bis. Attestations de fin de formation (0476) : mêmes stagiaires, objectifs de l'onglet Suivi, figées
+      const pourFin = avecObjectifs(traineesWithResult.filter(t => t.result && !absentsIds.includes(t.id)).map(avecH), session?.courses, objectivesData)
+        .filter(t => !blocageFinFormation(t))
+      // Objectifs pas encore évalués : pas d'attestation figée dans le dossier, elle se génère après l'onglet Suivi
+      const incomplets = pourFin.filter(t => nonEvalues(t) > 0).length
+      if (incomplets) toast(`${incomplets} attestation${incomplets > 1 ? 's' : ''} de fin de formation hors du dossier : objectifs non évalués (onglet Suivi)`, { icon: '⚠️', duration: 7000 })
+      const complets = pourFin.filter(t => nonEvalues(t) === 0)
+      const fins = complets.length ? await figerDocuments(session, 'fin_formation', complets) : []
+      if (!fins) toast('Attestations de fin de formation non incluses : correction sans motif', { icon: '⚠️' })
+      const finsPdf = fins?.length ? await generateAllPDF('fin_formation', session, fins, { trainer }) : null
+      if (finsPdf) zip.file(`Attestations_fin_formation_${ref}.pdf`, finsPdf.base64, { base64: true })
+
       // 10. Attestations de présence (pas pour un stagiaire absent sur toute la session)
       const presents = await figerDocuments(session, 'attestation', traineesWithResult.filter(t => !absentsIds.includes(t.id)).map(avecH))
       if (!presents) toast('Attestations non incluses : correction sans motif', { icon: '⚠️' })
@@ -2515,7 +2544,7 @@ export default function SessionDetail() {
 
   const handleDownload = async (docType, trainee = null) => {
     // Jamais un document avec une identité d'organisme incomplète
-    const kind = { convention: 'convention', convocation: 'convocation', attestation: 'attestation', certificat: 'attestation' }[docType] || 'base'
+    const kind = { convention: 'convention', convocation: 'convocation', attestation: 'attestation', certificat: 'attestation', fin_formation: 'attestation' }[docType] || 'base'
     const missing = missingOrgFields(organization, kind)
     if (missing.length > 0) {
       toast.error(`Paramètres de l'organisme incomplets : ${missing.join(', ')}. Complétez-les dans Paramètres.`, { duration: 7000 })
@@ -2528,6 +2557,16 @@ export default function SessionDetail() {
       access_code: st.access_code
     })) || []
     
+    // Attestation de fin de formation d'un stagiaire (0476)
+    if (docType === 'fin_formation' && trainee) {
+      const stData = session.session_trainees?.find(st => st.trainee_id === trainee.id)
+      const [pret] = (await preparerFinFormation([{ ...trainee, result: stData?.result || traineeResults[trainee.id] || null }])) || []
+      if (!pret) return
+      downloadDocument(docType, session, { trainee: pret, trainer })
+      toast.success('Attestation de fin de formation générée')
+      return
+    }
+
     // Si on télécharge un certificat pour un stagiaire spécifique
     if (docType === 'certificat' && trainee) {
       const stData = session.session_trainees?.find(st => st.trainee_id === trainee.id)
@@ -2651,6 +2690,10 @@ export default function SessionDetail() {
       if (sansResultat) toast(`${sansResultat} stagiaire${sansResultat > 1 ? 's' : ''} sans résultat saisi : pas de certificat pour ${sansResultat > 1 ? 'eux' : 'lui'}`, { icon: '⚠️' })
     }
     if (!liste.length) { toast.error('Aucun document à générer'); return }
+    if (docType === 'fin_formation') {
+      liste = await preparerFinFormation(liste)
+      if (!liste) return
+    }
     if (docType === 'certificat' || docType === 'attestation') {
       liste = await preparerHeures(liste, docType)
       if (!liste) return

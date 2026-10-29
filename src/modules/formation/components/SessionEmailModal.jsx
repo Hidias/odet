@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import { X, FileText, Send, Loader, CheckCircle, AlertCircle, Upload, Trash2, Eye, Edit3, History, Mail, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { preparerDocuments } from '../lib/documentsEmis'
+import { preparerDocuments, preparerFinFormationEnvoi } from '../lib/documentsEmis'
 import { generatePDF, generateAllPDF, setOrganization } from '../pdf/pdfGenerator'
 import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionEntreprisePDF } from '../pdf/satisfactionEntreprisePDF'
@@ -596,6 +596,16 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         if (certificats) {
           files.push({ id: 'certificats', name: certificats.filename, base64: certificats.base64, size: certificats.size })
           addLog('Certificats générés')
+        }
+
+        // ── ATTESTATIONS DE FIN DE FORMATION (0476) ──
+        const fins = await preparerFinFormationEnvoi(session, traineesWithResult)
+        if (!fins.liste) throw new Error('Correction d\'une attestation de fin de formation émise sans motif : envoi arrêté')
+        if (fins.ecartes) addLog(`${fins.ecartes} attestation(s) de fin de formation non jointe(s) : absent, résultat ou objectifs non évalués`)
+        const finsPdf = fins.liste.length ? await generateAllPDF('fin_formation', session, fins.liste, { trainer }) : null
+        if (finsPdf) {
+          files.push({ id: 'fins_formation', name: finsPdf.filename, base64: finsPdf.base64, size: finsPdf.size })
+          addLog('Attestations de fin de formation générées')
         }
 
         // ── ATTESTATIONS ──
