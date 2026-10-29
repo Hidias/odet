@@ -234,15 +234,19 @@ begin
   returning id into v_inv;
 
   -- Une ligne par site couvert, montant réparti selon le nombre d'appareils ; un seul site : une seule ligne
+  -- Sites retenus : ceux couverts ; s'il y a du matériel, seulement les sites qui en ont (le site créé d'office avec
+  -- la fiche client, sans appareil, ne donne pas de ligne à 0 €)
+  select count(*) into v_total_app from public.itv_equipment q
+  where q.client_id = k.client_id and q.status <> 'retire' and (k.site_ids is null or cardinality(k.site_ids) = 0 or q.site_id = any(k.site_ids))
+    and (k.type_ids is null or cardinality(k.type_ids) = 0 or q.type_id = any(k.type_ids));
   select count(*) into v_n from public.sites st
-  where st.client_id = k.client_id and st.is_active and (k.site_ids is null or cardinality(k.site_ids) = 0 or st.id = any(k.site_ids));
+  where st.client_id = k.client_id and st.is_active and (k.site_ids is null or cardinality(k.site_ids) = 0 or st.id = any(k.site_ids))
+    and (coalesce(v_total_app, 0) = 0 or exists (select 1 from public.itv_equipment q where q.site_id = st.id and q.status <> 'retire'
+      and (k.type_ids is null or cardinality(k.type_ids) = 0 or q.type_id = any(k.type_ids))));
   if v_n <= 1 then
     insert into public.invoice_items (invoice_id, company_id, position, description_title, description_detail, quantity, unit, unit_price_ht, tva_rate, total_ht, nature, vat_regime)
     values (v_inv, k.company_id, 0, v_label, 'Échéance ' || v_periode, 1, 'forfait', e.amount_ht, v_tva, e.amount_ht, 'service', 'normal');
   else
-    select count(*) into v_total_app from public.itv_equipment q
-    where q.client_id = k.client_id and q.status <> 'retire' and (k.site_ids is null or cardinality(k.site_ids) = 0 or q.site_id = any(k.site_ids))
-      and (k.type_ids is null or cardinality(k.type_ids) = 0 or q.type_id = any(k.type_ids));
     v_reste := e.amount_ht;
     for s in
       select st.id, st.name, st.city,
@@ -250,6 +254,8 @@ begin
                and (k.type_ids is null or cardinality(k.type_ids) = 0 or q.type_id = any(k.type_ids))) as nb
       from public.sites st
       where st.client_id = k.client_id and st.is_active and (k.site_ids is null or cardinality(k.site_ids) = 0 or st.id = any(k.site_ids))
+        and (coalesce(v_total_app, 0) = 0 or exists (select 1 from public.itv_equipment q where q.site_id = st.id and q.status <> 'retire'
+          and (k.type_ids is null or cardinality(k.type_ids) = 0 or q.type_id = any(k.type_ids))))
       order by st.name
     loop
       v_pos := v_pos + 1;

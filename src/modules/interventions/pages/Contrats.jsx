@@ -3,9 +3,9 @@
 // préavis et facturation ; contrat PDF envoyé à signer dans l'espace client, ou contrat signé à la main déposé.
 
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Loader2, Plus, CalendarPlus, Pencil, CheckCircle, FileText, Send, Upload } from 'lucide-react'
+import { Loader2, Plus, CalendarPlus, Pencil, CheckCircle, FileText, Send, Upload, Receipt } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { callApi } from '../../../core/api'
 import { versBase64 } from '../../../core/portail/documentsClient'
@@ -36,6 +36,7 @@ export default function Contrats({ types }) {
   const [edit, setEdit] = useState(null)
   const [busy, setBusy] = useState(null)
   const [papier, setPapier] = useState(null)
+  const [ouvert, setOuvert] = useState(null)
   const [params] = useSearchParams()
   const year = new Date().getFullYear()
 
@@ -105,7 +106,9 @@ export default function Contrats({ types }) {
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => apercu(c)} disabled={busy === c.id}><FileText className="w-4 h-4" />PDF</button>
                 {c.status === 'actif' && !c.signed_at && <button type="button" className="btn btn-ghost btn-sm" onClick={() => envoyer(c)} disabled={busy === c.id}><Send className="w-4 h-4" />À signer</button>}
                 {c.status === 'actif' && !c.signed_at && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPapier(c)}><Upload className="w-4 h-4" />Signé à la main</button>}
+                {c.status === 'actif' && ['mensuel', 'trimestriel', 'annuel'].includes(c.billing_period) && <button type="button" className="btn btn-ghost btn-sm" aria-expanded={ouvert === c.id} onClick={() => setOuvert(ouvert === c.id ? null : c.id)}><Receipt className="w-4 h-4" />Échéancier</button>}
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdit(c)}><Pencil className="w-4 h-4" />Modifier</button>
+                {ouvert === c.id && <div className="basis-full"><EcheancierContrat contract={c} /></div>}
               </div>
             )
           })}
@@ -114,6 +117,48 @@ export default function Contrats({ types }) {
       <p className="muted text-ui-sm">La facture d'une visite sous contrat se prépare depuis la visite terminée, dans les Factures existantes.</p>
       {edit && <ContractForm contract={edit} types={types} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load() }} />}
       {papier && <SignePapier contract={papier} onClose={() => setPapier(null)} onSaved={() => { setPapier(null); load() }} />}
+    </div>
+  )
+}
+
+// Échéancier du contrat (0461) : une facture brouillon par échéance, préparée la nuit à la date d'échéance ou ici
+function EcheancierContrat({ contract }) {
+  const [lignes, setLignes] = useState(null)
+  const [busy, setBusy] = useState(null)
+  const navigate = useNavigate()
+  const charger = () => supabase.from('itv_contract_installments').select('id, period_start, period_end, due_on, amount_ht, status, invoice_id, invoices(reference, status)')
+    .eq('contract_id', contract.id).order('period_start').then(({ data }) => setLignes(data || []), () => setLignes([]))
+  useEffect(() => { charger() }, [contract.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const preparer = async (e) => {
+    setBusy(e.id)
+    const { data, error } = await supabase.rpc('contrat_echeance_facturer', { p_installment: e.id })
+    setBusy(null)
+    if (error) return toast.error(error.message)
+    toast.success('Facture préparée en brouillon')
+    navigate(`/factures?open=${data}`)
+  }
+  if (!lignes) return <p className="text-ui-sm text-gray-500 py-2">Chargement…</p>
+  if (!lignes.length) return <p className="text-ui-sm text-gray-500 py-2">Aucune échéance : enregistrez le contrat (prix, durée, facturation) pour la calculer.</p>
+  const total = lignes.filter((e) => e.status !== 'annulee').reduce((t, e) => t + Number(e.amount_ht || 0), 0)
+  return (
+    <div className="mt-2 rounded-ui-sm border border-gray-200 overflow-x-auto">
+      <table className="w-full text-ui-sm">
+        <thead><tr><th className="text-left">Période</th><th className="text-left">Facture le</th><th className="text-right">Montant HT</th><th className="text-left">Facture</th></tr></thead>
+        <tbody>
+          {lignes.map((e) => (
+            <tr key={e.id}>
+              <td>{dateFr(e.period_start)} au {dateFr(e.period_end)}</td>
+              <td>{dateFr(e.due_on)}</td>
+              <td className="text-right">{Number(e.amount_ht).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</td>
+              <td>{e.invoice_id
+                ? <Link to={`/factures?open=${e.invoice_id}`} className="text-primary-600 hover:underline">{e.invoices?.status === 'draft' ? 'Brouillon à émettre' : e.invoices?.reference || 'Facture'}</Link>
+                : e.status === 'a_facturer' ? <button type="button" className="btn btn-ghost btn-sm" disabled={busy === e.id} onClick={() => preparer(e)}>Préparer maintenant</button> : 'Annulée'}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot><tr><td colSpan={2} className="font-semibold">Total</td><td className="text-right font-semibold">{total.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</td><td /></tr></tfoot>
+      </table>
+      <p className="text-ui-sm text-gray-500 px-2 py-1">Chaque facture est préparée en brouillon la nuit de son échéance et signalée dans « Relances à valider » : rien n'est émis ni envoyé seul.</p>
     </div>
   )
 }
@@ -161,7 +206,19 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
     type_ids: contract.type_ids || [], status: contract.status || 'actif', notes: contract.notes || '',
     duration_years: contract.duration_years || 1, tacit_renewal: contract.id ? !!contract.tacit_renewal : true, renewal_years: contract.renewal_years || 1,
     notice_months: contract.notice_months ?? 3, billing_period: contract.billing_period || 'annuel',
+    billing_term: contract.billing_term || '', includes: contract.includes || {}, purchase_order_ref: contract.purchase_order_ref || '',
   }))
+  // Client public (0461) : terme échu par défaut, engagement de l'exercice, bon de commande
+  const [clientType, setClientType] = useState(null)
+  const [engagement, setEngagement] = useState({ year: new Date().getFullYear(), number: '', id: null })
+  useEffect(() => {
+    if (!f.client_id) return
+    supabase.from('clients').select('client_type').eq('id', f.client_id).maybeSingle().then(({ data }) => setClientType(data?.client_type || null))
+    const y = new Date().getFullYear()
+    supabase.from('client_engagements').select('id, number').eq('client_id', f.client_id).eq('year', y).maybeSingle()
+      .then(({ data }) => setEngagement({ year: y, number: data?.number || '', id: data?.id || null }), () => {})
+  }, [f.client_id])
+  const publicClient = clientType === 'public'
   useEffect(() => { if (!contract.client_id) loadClientsLight().then(setClients) }, [contract.client_id])
   useEffect(() => { if (f.client_id && !sitesIn) loadSites(f.client_id).then((s) => setSites(s || [])) }, [f.client_id, sitesIn])
 
@@ -174,7 +231,8 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
     try {
       const row = { ...(contract.id ? { id: contract.id } : {}), ...f, end_on: f.end_on || null, annual_price_ht: Number(f.annual_price_ht || 0), reference: f.reference || null, notes: f.notes || null,
         site_ids: f.site_ids.length ? f.site_ids : null, type_ids: f.type_ids.length ? f.type_ids : null,
-        duration_years: Number(f.duration_years), renewal_years: Number(f.renewal_years), notice_months: Number(f.notice_months) }
+        duration_years: Number(f.duration_years), renewal_years: Number(f.renewal_years), notice_months: Number(f.notice_months),
+        billing_term: f.billing_term || null, purchase_order_ref: (f.purchase_order_ref || '').trim() || null }
       // Contrat saisi à la main ou actif sans échéance : échéance calculée comme à la validation (contrat_valider)
       if (row.status === 'actif' && !signe && (!contract.id || !contract.term_on || ['start_on', 'duration_years', 'tacit_renewal'].some((k) => row[k] !== contract[k]))) {
         row.term_on = echeanceInitiale(row.start_on, row.duration_years)
@@ -183,7 +241,17 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
       }
       // Contrat signé : ses conditions ne se modifient plus (avenant) ; seuls les visites, sites, notes et statut changent
       if (signe) for (const k of ['annual_price_ht', 'duration_years', 'tacit_renewal', 'renewal_years', 'notice_months', 'billing_period', 'start_on', 'client_id']) delete row[k]
-      await saveContract(row)
+      const saved = await saveContract(row)
+      // Engagement de l'exercice (client public) : une saisie par an, reprise sur chaque facture de l'année
+      if (publicClient && engagement.number.trim()) {
+        const { error: eg } = await supabase.from('client_engagements').upsert({ client_id: f.client_id, year: engagement.year, number: engagement.number.trim() }, { onConflict: 'client_id,year' })
+        if (eg) toast.error(`Engagement non enregistré : ${eg.message}`)
+      }
+      // Échéancier recalculé (échéances déjà facturées inchangées)
+      if ((saved?.status || row.status) === 'actif') {
+        const { error: ee } = await supabase.rpc('contrat_echeancier_generer', { p_contract: saved?.id || contract.id })
+        if (ee) toast.error(`Échéancier : ${ee.message}`)
+      }
       toast.success('Contrat enregistré'); onSaved()
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
@@ -244,6 +312,24 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         <legend className="label">Matériel couvert (aucun coché : tout)</legend>
         <div className="flex flex-wrap gap-3">{types.filter((t) => t.is_active).map((t) => <label key={t.id} className="flex items-center gap-2 text-ui"><input type="checkbox" checked={f.type_ids.includes(t.id)} onChange={() => toggle('type_ids', t.id)} />{t.name}</label>)}</div>
       </fieldset>
+      {f.billing_period !== 'visite' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div><label className="label" htmlFor="ct-terme">Facture émise</label>
+            <select id="ct-terme" className="select" value={f.billing_term} onChange={(e) => setF({ ...f, billing_term: e.target.value })}>
+              <option value="">{publicClient ? 'Après la période (client public)' : 'En début de période'}</option>
+              <option value="echoir">En début de période</option><option value="echu">Après la période</option>
+            </select></div>
+          <fieldset><legend className="label">Compris au contrat (0 € sur la visite)</legend>
+            <div className="flex flex-wrap gap-3 pt-1">{[['pieces', 'Pièces'], ['recharges', 'Recharges'], ['deplacement', 'Déplacement']].map(([k, l]) => (
+              <label key={k} className="flex items-center gap-2 text-ui"><input type="checkbox" checked={f.includes?.[k] === true} onChange={(e) => setF({ ...f, includes: { ...(f.includes || {}), [k]: e.target.checked } })} />{l}</label>
+            ))}</div>
+          </fieldset>
+        </div>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label className="label" htmlFor="ct-bc">N° de bon de commande</label><input id="ct-bc" className="input" maxLength={60} value={f.purchase_order_ref} onChange={(e) => setF({ ...f, purchase_order_ref: e.target.value })} placeholder="Repris sur chaque facture" /></div>
+        {publicClient && <div><label className="label" htmlFor="ct-eng">N° d'engagement {engagement.year}</label><input id="ct-eng" className="input" maxLength={60} value={engagement.number} onChange={(e) => setEngagement({ ...engagement, number: e.target.value })} placeholder="Obligatoire pour émettre sur Chorus Pro" /></div>}
+      </div>
       <div><label className="label" htmlFor="ct-notes">Notes</label><textarea id="ct-notes" className="textarea" rows={2} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
       {contract.start_on && <p className="muted text-ui-sm">En vigueur depuis le {frShort(contract.start_on)}.</p>}
     </Sheet>
