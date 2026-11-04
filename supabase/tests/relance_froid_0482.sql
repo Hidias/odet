@@ -126,6 +126,7 @@ begin
       values ('SES-0482-DEUX', v_cli, v_today - 70, v_today - 70, 'jeton-0482d', v_cie, 'completed') returning id into v_se2;
       insert into public.trainees (first_name, last_name, client_id, company_id) values ('X', 'Un', v_cli, v_cie) returning id into v_tx;
       insert into public.trainees (first_name, last_name, client_id, company_id) values ('Y', 'Deux', v_cli, v_cie) returning id into v_ty;
+      insert into public.session_trainees (session_id, trainee_id) values (v_se2, v_tx), (v_se2, v_ty);
       insert into public.froid_envois (company_id, session_id, trainee_id, client_id, cible, rang, du_le, destinataire)
       values (v_cie, v_se2, v_tx, v_cli, 'contact', 0, v_today, 'deux@exemple.fr') returning id into v_c1;
       insert into public.froid_envois (company_id, session_id, trainee_id, client_id, cible, rang, du_le, destinataire)
@@ -142,6 +143,7 @@ begin
       declare v_c3 uuid; v_tz uuid; begin
         update public.froid_envois set statut = 'envoye', envoye_le = now() where id in (v_c1, v_c2);
         insert into public.trainees (first_name, last_name, client_id, company_id) values ('Z', 'Trois', v_cli, v_cie) returning id into v_tz;
+        insert into public.session_trainees (session_id, trainee_id) values (v_se2, v_tz);
         insert into public.froid_envois (company_id, session_id, trainee_id, client_id, cible, rang, du_le, destinataire)
         values (v_cie, v_se2, v_tz, v_cli, 'contact', 0, v_today, 'deux@exemple.fr') returning id into v_c3;
         v_r := public.froid_envois_reserver(array[v_c1, v_c3]);
@@ -176,6 +178,29 @@ begin
     insert into public.session_trainees (session_id, trainee_id) values (v_se5, v_a);
     perform app.froid_preparer_corps(array[v_cie], v_today);
     if exists (select 1 from public.froid_envois where session_id = v_se5) then raise exception '8 octies. session d''un autre organisme préparée'; end if;
+  end;
+
+  -- 8 nonies. Ligne préparée, puis session repassée « confirmée » ou stagiaire noté absent : refusée et écartée à l'envoi
+  declare v_se6 uuid; v_l1 uuid; v_l2 uuid; v_tb uuid; begin
+    insert into public.sessions (reference, client_id, start_date, end_date, attendance_token, company_id, status)
+    values ('SES-0482-CHG', v_cli, v_today - 70, v_today - 70, 'jeton-0482g', v_cie, 'completed') returning id into v_se6;
+    insert into public.trainees (first_name, last_name, email, client_id, company_id) values ('Ben', 'Absent', 'ben@exemple.fr', v_cli, v_cie) returning id into v_tb;
+    insert into public.session_trainees (session_id, trainee_id) values (v_se6, v_tb);
+    insert into public.froid_envois (company_id, session_id, trainee_id, client_id, cible, rang, du_le, destinataire)
+    values (v_cie, v_se6, v_tb, v_cli, 'stagiaire', 0, v_today, 'ben@exemple.fr') returning id into v_l1;
+    update public.session_trainees set absent = true where session_id = v_se6 and trainee_id = v_tb;
+    perform set_config('request.jwt.claims', v_gest, true);
+    v_r := public.froid_envois_reserver(array[v_l1]);
+    if jsonb_array_length(v_r -> 'envois') <> 0 or (select statut from public.froid_envois where id = v_l1) <> 'ignore' then
+      raise exception '8 nonies. stagiaire absent envoyé : %', v_r; end if;
+    perform set_config('request.jwt.claims', '', true);
+    update public.session_trainees set absent = false where session_id = v_se6 and trainee_id = v_tb;
+    update public.froid_envois set statut = 'prepare', motif = null where id = v_l1;
+    update public.sessions set status = 'confirmed' where id = v_se6;
+    perform set_config('request.jwt.claims', v_gest, true);
+    v_r := public.froid_envois_reserver(array[v_l1]);
+    if jsonb_array_length(v_r -> 'envois') <> 0 then raise exception '8 nonies. session repassée confirmée envoyée : %', v_r; end if;
+    perform set_config('request.jwt.claims', '', true);
   end;
 
   -- 8 septies. Employeur : session ancienne où seul l'employeur reste à interroger, proposée à l'inclusion ;

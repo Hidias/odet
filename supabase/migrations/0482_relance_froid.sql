@@ -536,6 +536,16 @@ begin
     if e.statut <> 'prepare' then
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Déjà traité'); continue;
     end if;
+    -- La session et la personne sont-elles toujours concernées ? (session terminée, ni sous-traitance ni autre organisme,
+    -- stagiaire inscrit et présent) ; sinon la ligne est écartée
+    if not exists (select 1 from public.sessions se left join public.clients oc on oc.id = se.client_id
+                    where se.id = e.session_id and se.status = 'completed' and coalesce(se.session_type, 'intra') <> 'subcontract'
+                      and coalesce(oc.client_type, '') <> 'organisme_formation')
+       or (e.trainee_id is not null and not exists (select 1 from public.session_trainees st
+                    where st.session_id = e.session_id and st.trainee_id = e.trainee_id and not coalesce(st.absent, false))) then
+      update public.froid_envois set statut = 'ignore', motif = 'Session ou stagiaire plus concerné' where id = e.id;
+      v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Session ou stagiaire plus concerné'); continue;
+    end if;
     if not app.froid_email_valide(e.destinataire) then
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Adresse invalide'); continue;
     end if;
