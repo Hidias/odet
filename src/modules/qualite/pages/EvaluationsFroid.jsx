@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
 import { callApi } from '../../../core/api'
 import { useDroits } from '../../../core/rights/useDroit'
-import { libelleEnvoi, filtrerEnvois, grouperParSession } from '../lib/froid'
+import { libelleEnvoi, filtrerEnvois, grouperParSession, cochable } from '../lib/froid'
 import ReglagesFroid from '../components/ReglagesFroid'
 
 const dateFr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
@@ -104,7 +104,7 @@ export default function EvaluationsFroid() {
       {reglages && <ReglagesFroid reglages={donnees.reglages} onEnregistre={charger} />}
 
       <div className="flex flex-wrap items-center gap-2">
-        {[['prepare', 'À envoyer'], ['envoye', 'Envoyés'], ['ignore', 'Écartés'], ['erreur', 'En erreur'], ['tous', 'Tous']].map(([k, l]) => (
+        {[['prepare', 'À envoyer'], ['envoye', 'Envoyés'], ['ignore', 'Écartés'], ['erreur', 'À reprendre'], ['tous', 'Tous']].map(([k, l]) => (
           <button key={k} type="button" onClick={() => { setVue(k); setCoches(new Set()) }} className={`btn btn-sm ${vue === k ? 'btn-primary' : 'btn-secondary'}`}>{l}</button>
         ))}
         <select className="input text-ui w-auto" value={anciennete} onChange={(e) => setAnciennete(e.target.value)} aria-label="Ancienneté de la session">
@@ -132,6 +132,7 @@ export default function EvaluationsFroid() {
         <div className="card flex flex-wrap items-center gap-2">
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCoches(new Set(liste.map((e) => e.id)))}>Tout cocher</button>
           <button type="button" className="btn btn-secondary btn-sm" disabled={!ids.length} onClick={remettre}>Remettre à envoyer</button>
+          <span className="text-ui-sm text-gray-500 w-full">Envoi interrompu : vérifiez d'abord dans la boîte d'envoi que le mail n'est pas parti.</span>
         </div>
       )}
 
@@ -163,12 +164,12 @@ export default function EvaluationsFroid() {
               <tbody>
                 {g.lignes.map((e) => (
                   <tr key={e.id} className="border-b last:border-0">
-                    <td className="py-2">{(e.statut === 'prepare' || e.statut === 'erreur') && d.envoyer && <input type="checkbox" className="w-4 h-4" checked={coches.has(e.id)} onChange={() => basculer(e.id)} aria-label={`Choisir ${e.destinataire_nom || ''}`} />}</td>
+                    <td className="py-2">{cochable(e) && d.envoyer && <input type="checkbox" className="w-4 h-4" checked={coches.has(e.id)} onChange={() => basculer(e.id)} aria-label={`Choisir ${e.destinataire_nom || ''}`} />}</td>
                     <td className="py-2">{e.cible === 'employeur' ? 'Employeur' : e.destinataire_nom || (e.cible === 'contact' ? 'Stagiaire sans adresse' : '')}</td>
                     <td className="py-2">{e.entreprise || ''}</td>
                     <td className="py-2">{libelleEnvoi(e)}</td>
                     <td className="py-2 break-all">{e.destinataire || <span className="text-gray-400">aucune</span>}</td>
-                    <td className="py-2">{STATUTS[e.statut] || e.statut}{e.envoye_le ? ` le ${dateFr(e.envoye_le)}` : ''}{e.motif ? <div className="text-ui-sm text-gray-500">{e.motif}</div> : null}</td>
+                    <td className="py-2">{e.statut === 'en_cours' && e.interrompu ? 'Interrompu' : (STATUTS[e.statut] || e.statut)}{e.envoye_le ? ` le ${dateFr(e.envoye_le)}` : ''}{e.motif ? <div className="text-ui-sm text-gray-500">{e.motif}</div> : null}</td>
                   </tr>
                 ))}
               </tbody>

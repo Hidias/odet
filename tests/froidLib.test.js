@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filtrerEnvois, grouperParSession, libelleEnvoi, nouvelleQuestion, reponsesCompletes, QUESTIONS_BASE } from '../src/modules/qualite/lib/froid.js'
+import { cochable, filtrerEnvois, grouperParSession, libelleEnvoi, nouvelleQuestion, reponsesCompletes, QUESTIONS_BASE } from '../src/modules/qualite/lib/froid.js'
 
 const auj = new Date('2026-11-04T12:00:00')
 const e = (o) => ({ id: Math.random().toString(36), session_id: 's1', statut: 'prepare', fin: '2026-09-01', rang: 0, cible: 'stagiaire', ...o })
@@ -11,6 +11,17 @@ describe('page des évaluations à froid (0482)', () => {
     expect(filtrerEnvois(l, { vue: 'envoye' }, auj)).toHaveLength(1)
     expect(filtrerEnvois(l, { vue: 'tous', anciennete: 'plus' }, auj)).toHaveLength(1)
     expect(filtrerEnvois(l, { vue: 'tous', anciennete: '90' }, auj)).toHaveLength(3)
+  })
+  it('envoi interrompu : à reprendre et cochable ; envoi en cours récent : ni repris ni cochable', () => {
+    const l = [
+      { id: 1, statut: 'en_cours', interrompu: false },
+      { id: 2, statut: 'en_cours', interrompu: true },
+      { id: 3, statut: 'erreur' },
+      { id: 4, statut: 'prepare' },
+    ]
+    expect(filtrerEnvois(l, { vue: 'prepare' }).map((e) => e.id)).toEqual([1, 4])
+    expect(filtrerEnvois(l, { vue: 'erreur' }).map((e) => e.id)).toEqual([2, 3])
+    expect(l.map(cochable)).toEqual([false, true, true, true])
   })
   it('groupe par session et nomme les envois', () => {
     const g = grouperParSession([e({ session_id: 'a' }), e({ session_id: 'b' }), e({ session_id: 'a' })])

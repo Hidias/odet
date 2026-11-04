@@ -14,9 +14,22 @@ export function joursDepuis(fin, aujourdhui = new Date()) {
   return Math.floor((aujourdhui - f) / 86400000)
 }
 
+// Vue « à reprendre » : envois en erreur et envois interrompus (en cours depuis plus de 15 minutes, calculé par la base).
+// Un envoi en cours récent reste dans « à envoyer », sans case à cocher : il ne peut pas être repris.
+export function vueDeLEnvoi(e) {
+  if (e.statut === 'erreur' || (e.statut === 'en_cours' && e.interrompu)) return 'erreur'
+  if (e.statut === 'en_cours') return 'prepare'
+  return e.statut
+}
+
+// Ligne qu'on peut cocher : à envoyer, en erreur ou interrompue
+export function cochable(e) {
+  return e.statut === 'prepare' || e.statut === 'erreur' || (e.statut === 'en_cours' && !!e.interrompu)
+}
+
 export function filtrerEnvois(envois, { vue = 'prepare', anciennete = 'tout' } = {}, aujourdhui = new Date()) {
   return (envois || []).filter((e) => {
-    if (vue !== 'tous' && e.statut !== vue && !(vue === 'prepare' && e.statut === 'en_cours')) return false
+    if (vue !== 'tous' && vueDeLEnvoi(e) !== vue) return false
     if (anciennete === 'tout') return true
     const j = joursDepuis(e.fin, aujourdhui)
     if (j == null) return false

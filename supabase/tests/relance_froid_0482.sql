@@ -113,6 +113,13 @@ begin
     update public.froid_envois set statut = 'prepare' where id in (v_e1, v_e2);
     v_r := public.froid_envois_reserver(array[v_e1, v_e2]);
     if jsonb_array_length(v_r -> 'envois') <> 1 or (v_r -> 'refus' -> 0 ->> 'raison') not like 'Adresse déjà écrite%' then raise exception '8 ter. contact écrit deux fois le même jour : %', v_r; end if;
+    -- 8 quater. Réservation récente : ni remise à envoyer ni « interrompue », même préparée il y a longtemps
+    update public.froid_envois set prepare_le = now() - interval '2 days' where id in (v_e1, v_e2);
+    if public.froid_remettre(array[v_e1, v_e2]) <> 0 then raise exception '8 quater. réservation récente remise à envoyer'; end if;
+    if (select reserve_le from public.froid_envois where statut = 'en_cours' and id in (v_e1, v_e2)) is null then raise exception '8 quater. heure de réservation absente'; end if;
+    -- Interrompue depuis plus de 15 minutes : reprise possible
+    update public.froid_envois set reserve_le = now() - interval '20 minutes' where statut = 'en_cours' and id in (v_e1, v_e2);
+    if public.froid_remettre(array[v_e1, v_e2]) <> 1 then raise exception '8 quater. envoi interrompu non repris'; end if;
   end;
   perform set_config('request.jwt.claims', '', true);
 

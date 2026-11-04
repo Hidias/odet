@@ -140,6 +140,7 @@ create table if not exists public.froid_envois (
   motif text,
   prepare_le timestamptz not null default now(),
   envoye_le timestamptz,
+  reserve_le timestamptz,
   envoye_par uuid,
   boite text,
   message_id text,
@@ -391,6 +392,7 @@ as $$
         'id', e.id, 'company_id', e.company_id, 'session_id', e.session_id, 'trainee_id', e.trainee_id, 'client_id', e.client_id,
         'cible', e.cible, 'rang', e.rang, 'du_le', e.du_le, 'statut', e.statut, 'destinataire', e.destinataire,
         'destinataire_nom', e.destinataire_nom, 'motif', e.motif, 'envoye_le', e.envoye_le, 'boite', e.boite,
+        'interrompu', e.statut = 'en_cours' and coalesce(e.reserve_le, e.prepare_le) < now() - interval '15 minutes',
         'session_ref', se.reference, 'formation', co.title, 'fin', coalesce(se.end_date, se.start_date), 'debut', se.start_date,
         'entreprise', cl.name) order by coalesce(se.end_date, se.start_date) desc, se.reference, e.cible, e.destinataire_nom)
       from public.froid_envois e join public.sessions se on se.id = e.session_id
@@ -485,6 +487,12 @@ declare v jsonb := '[]'::jsonb; e record; v_refus jsonb := '[]'::jsonb;
 begin
   if (select auth.uid()) is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
   if cardinality(p_ids) > 200 then raise exception 'Au plus 200 envois à la fois' using errcode = '22023'; end if;
+  -- Une réservation à la fois par adresse : deux personnes qui envoient en même temps à la même adresse passent
+  -- l'une après l'autre, la seconde voit la première « en cours » et attend le lendemain.
+  -- Verrous pris dans l'ordre des adresses, pour que deux réservations ne s'attendent jamais l'une l'autre.
+  perform pg_advisory_xact_lock(hashtextextended('froid_envoi:' || a.adresse, 0))
+     from (select distinct lower(x.destinataire) as adresse from public.froid_envois x
+            where x.id = any (p_ids) and x.destinataire is not null order by 1) a;
   for e in
     select x.* from public.froid_envois x where x.id = any (p_ids) order by x.session_id, x.destinataire for update
   loop
@@ -511,7 +519,7 @@ begin
       update public.froid_envois set statut = 'ignore', motif = 'Réponse reçue' where id = e.id;
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Réponse déjà reçue'); continue;
     end if;
-    update public.froid_envois set statut = 'en_cours', envoye_par = (select auth.uid()) where id = e.id;
+    update public.froid_envois set statut = 'en_cours', envoye_par = (select auth.uid()), reserve_le = now() where id = e.id;
     v := v || (select jsonb_build_object(
         'id', e.id, 'company_id', e.company_id, 'session_id', e.session_id, 'cible', e.cible, 'rang', e.rang,
         'destinataire', e.destinataire, 'destinataire_nom', e.destinataire_nom,
@@ -556,7 +564,8 @@ $$;
 revoke all on function public.froid_envoi_terminer(uuid, boolean, text, text, text) from public, anon;
 grant execute on function public.froid_envoi_terminer(uuid, boolean, text, text, text) to authenticated;
 
--- Remettre « à envoyer » un envoi resté en cours ou en erreur (après vérification de la boîte d'envoi)
+-- Remettre « à envoyer » un envoi en erreur, ou resté en cours plus de 15 minutes après sa réservation (envoi interrompu),
+-- après vérification de la boîte d'envoi
 create or replace function public.froid_remettre(p_ids uuid[])
 returns int
 language plpgsql
@@ -566,7 +575,7 @@ as $$
 declare v int;
 begin
   update public.froid_envois e set statut = 'prepare', motif = null, envoye_par = null
-   where e.id = any (p_ids) and (e.statut = 'erreur' or (e.statut = 'en_cours' and e.prepare_le < now() - interval '15 minutes'))
+   where e.id = any (p_ids) and (e.statut = 'erreur' or (e.statut = 'en_cours' and coalesce(e.reserve_le, e.prepare_le) < now() - interval '15 minutes'))
      and e.company_id in (select app.societes_avec_droit('formation.convocations.envoyer'));
   get diagnostics v = row_count;
   return v;
