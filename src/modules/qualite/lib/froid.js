@@ -72,3 +72,20 @@ export function nouvelleQuestion(questions) {
   while (cles.has(`q_${n}`)) n += 1
   return { cle: `q_${n}`, libelle: '', type: 'oui_non' }
 }
+
+// Envoi par lots : au plus `max` mails par appel (temps limite du serveur), sans couper un mail groupé
+// (contact et employeur d'une même session à la même adresse partent ensemble). Même regroupement que le serveur.
+export const MAILS_PAR_LOT = 15
+export function decouperEnLots(envois, max = MAILS_PAR_LOT) {
+  const mails = []
+  const groupes = new Map()
+  for (const e of envois || []) {
+    if (e.cible === 'stagiaire') { mails.push([e.id]); continue }
+    const cle = `${e.session_id}|${String(e.destinataire || '').toLowerCase()}`
+    if (!groupes.has(cle)) { groupes.set(cle, []); mails.push(groupes.get(cle)) }
+    groupes.get(cle).push(e.id)
+  }
+  const lots = []
+  for (let i = 0; i < mails.length; i += max) lots.push(mails.slice(i, i + max).flat())
+  return lots
+}

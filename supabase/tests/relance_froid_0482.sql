@@ -138,9 +138,35 @@ begin
       update public.froid_envois set statut = 'prepare', reserve_le = null, envoye_par = null where id in (v_c1, v_c2);
       v_r := public.froid_envois_reserver(array[v_c1, v_c2]);
       if jsonb_array_length(v_r -> 'envois') <> 2 then raise exception '8 quinquies. lignes choisies ensemble refusées : %', v_r; end if;
+      -- une ligne déjà envoyée glissée dans la sélection ne sert pas d'excuse à une autre ligne de la session
+      declare v_c3 uuid; v_tz uuid; begin
+        update public.froid_envois set statut = 'envoye', envoye_le = now() where id in (v_c1, v_c2);
+        insert into public.trainees (first_name, last_name, client_id, company_id) values ('Z', 'Trois', v_cli, v_cie) returning id into v_tz;
+        insert into public.froid_envois (company_id, session_id, trainee_id, client_id, cible, rang, du_le, destinataire)
+        values (v_cie, v_se2, v_tz, v_cli, 'contact', 0, v_today, 'deux@exemple.fr') returning id into v_c3;
+        v_r := public.froid_envois_reserver(array[v_c1, v_c3]);
+        if jsonb_array_length(v_r -> 'envois') <> 0 then raise exception '8 quinquies. ligne envoyée utilisée comme excuse : %', v_r; end if;
+      end;
     end;
   end;
   perform set_config('request.jwt.claims', '', true);
+
+  -- 8 sexies. Sans adresse à la préparation, puis adresse ajoutée : la ligne mise de côté est reprise
+  perform set_config('request.jwt.claims', '', true);
+  declare v_cli2 uuid; v_se3 uuid; v_tn uuid; begin
+    insert into public.clients (name, client_type, company_id) values ('Client sans contact', 'entreprise', v_cie) returning id into v_cli2;
+    insert into public.sessions (reference, client_id, start_date, end_date, attendance_token, company_id, status)
+    values ('SES-0482-SANS', v_cli2, v_today - 61, v_today - 61, 'jeton-0482s', v_cie, 'completed') returning id into v_se3;
+    insert into public.trainees (first_name, last_name, client_id, company_id) values ('Nina', 'Sansmail', v_cli2, v_cie) returning id into v_tn;
+    insert into public.session_trainees (session_id, trainee_id) values (v_se3, v_tn);
+    perform app.froid_preparer_corps(array[v_cie], v_today);
+    if (select statut from public.froid_envois where session_id = v_se3 and trainee_id = v_tn) <> 'ignore' then raise exception '8 sexies. sans adresse non mis de côté'; end if;
+    update public.trainees set email = 'nina@exemple.fr' where id = v_tn;
+    perform app.froid_preparer_corps(array[v_cie], v_today + 1);
+    if not exists (select 1 from public.froid_envois where session_id = v_se3 and trainee_id = v_tn and rang = 0 and statut = 'prepare' and destinataire = 'nina@exemple.fr') then
+      raise exception '8 sexies. adresse ajoutée, ligne non reprise'; end if;
+    if (select count(*) from public.froid_envois where session_id = v_se3 and trainee_id = v_tn) <> 1 then raise exception '8 sexies. ligne en double'; end if;
+  end;
 
   -- 9. Portail : ticket exigé, questionnaire ouvert au délai, réponse figée, ligne préparée écartée
   update public.session_trainees set portal_ticket = 'ticket-0482', portal_ticket_expires_at = now() + interval '1 hour'

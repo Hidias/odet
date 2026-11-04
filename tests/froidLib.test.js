@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cochable, filtrerEnvois, grouperParSession, libelleEnvoi, nouvelleQuestion, reponsesCompletes, QUESTIONS_BASE } from '../src/modules/qualite/lib/froid.js'
+import { cochable, decouperEnLots, filtrerEnvois, grouperParSession, libelleEnvoi, nouvelleQuestion, reponsesCompletes, QUESTIONS_BASE } from '../src/modules/qualite/lib/froid.js'
 
 const auj = new Date('2026-11-04T12:00:00')
 const e = (o) => ({ id: Math.random().toString(36), session_id: 's1', statut: 'prepare', fin: '2026-09-01', rang: 0, cible: 'stagiaire', ...o })
@@ -22,6 +22,18 @@ describe('page des évaluations à froid (0482)', () => {
     expect(filtrerEnvois(l, { vue: 'prepare' }).map((e) => e.id)).toEqual([1, 4])
     expect(filtrerEnvois(l, { vue: 'erreur' }).map((e) => e.id)).toEqual([2, 3])
     expect(l.map(cochable)).toEqual([false, true, true, true])
+  })
+  it('envoi par lots de 15 mails au plus, sans couper un mail groupé', () => {
+    const l = []
+    for (let i = 0; i < 14; i += 1) l.push({ id: `s${i}`, cible: 'stagiaire', session_id: 'A', destinataire: `p${i}@x.fr` })
+    l.push({ id: 'c1', cible: 'contact', session_id: 'A', destinataire: 'Suivi@x.fr' })
+    l.push({ id: 'e1', cible: 'employeur', session_id: 'A', destinataire: 'suivi@x.fr' })
+    l.push({ id: 's99', cible: 'stagiaire', session_id: 'A', destinataire: 'z@x.fr' })
+    const lots = decouperEnLots(l)
+    expect(lots).toHaveLength(2)
+    expect(lots[0]).toContain('c1')
+    expect(lots[0]).toContain('e1')
+    expect(lots[1]).toEqual(['s99'])
   })
   it('groupe par session et nomme les envois', () => {
     const g = grouperParSession([e({ session_id: 'a' }), e({ session_id: 'b' }), e({ session_id: 'a' })])

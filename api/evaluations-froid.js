@@ -100,6 +100,8 @@ export function grouper(envois) {
   return out
 }
 
+const MAILS_PAR_APPEL = 15
+
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
   const ctx = await requireRight(req, res, ['formation.convocations.envoyer'], OFFICE_WRITE)
@@ -147,7 +149,13 @@ async function handler(req, res) {
     return res.status(200).json({ ok: true, test: mailer.emailConfig.email })
   }
 
-  // Envoi réel : réservation par la base au nom de l'appelant
+  // Envoi réel : au plus 15 mails par appel, pour rester sous le temps limite du serveur (la page envoie par lots)
+  {
+    const { data: lignes, error } = await appelant.from('froid_envois').select('id, session_id, cible, destinataire').in('id', ids)
+    if (error) return res.status(400).json({ error: error.message })
+    if (grouper(lignes || []).length > MAILS_PAR_APPEL) return res.status(400).json({ error: `Au plus ${MAILS_PAR_APPEL} mails à la fois` })
+  }
+  // Réservation par la base au nom de l'appelant
   const { data: reserve, error: rErr } = await appelant.rpc('froid_envois_reserver', { p_ids: ids })
   if (rErr) return res.status(403).json({ error: rErr.message })
   const envois = reserve?.envois || []

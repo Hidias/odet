@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
 import { callApi } from '../../../core/api'
 import { useDroits } from '../../../core/rights/useDroit'
-import { libelleEnvoi, filtrerEnvois, grouperParSession, cochable } from '../lib/froid'
+import { libelleEnvoi, filtrerEnvois, grouperParSession, cochable, decouperEnLots } from '../lib/froid'
 import ReglagesFroid from '../components/ReglagesFroid'
 
 const dateFr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
@@ -59,8 +59,16 @@ export default function EvaluationsFroid() {
   const envoyer = async () => {
     setEnCours(true)
     try {
-      const r = await callApi('/api/evaluations-froid', { ids })
-      const refus = (r.refus || []).length
+      // Par lots de 15 mails au plus : chaque appel reste sous le temps limite du serveur
+      const choisis = (donnees?.envois || []).filter((e) => coches.has(e.id))
+      const r = { envoyes: 0, erreurs: 0, refus: [] }
+      for (const lot of decouperEnLots(choisis)) {
+        const x = await callApi('/api/evaluations-froid', { ids: lot })
+        r.envoyes += x.envoyes || 0
+        r.erreurs += x.erreurs || 0
+        r.refus.push(...(x.refus || []))
+      }
+      const refus = r.refus.length
       toast.success(`${r.envoyes} mail(s) envoyé(s)${r.erreurs ? `, ${r.erreurs} en erreur` : ''}${refus ? `, ${refus} non envoyé(s) (voir le motif)` : ''}`)
       if (refus) toast((r.refus || []).slice(0, 3).map((x) => x.raison).join(' ; '))
     } catch (e) { toast.error(e.message) }

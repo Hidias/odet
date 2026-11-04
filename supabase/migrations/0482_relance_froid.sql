@@ -236,7 +236,7 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
-declare v_n0 int := 0; v_nr int := 0; v_ign int := 0; v_k int; s record; t record; c record; r public.froid_reglages; v_dest record;
+declare v_n0 int := 0; v_nr int := 0; v_ign int := 0; v_k int; s record; t record; c record; r public.froid_reglages; v_dest record; v_sans uuid;
 begin
   for s in
     select se.id, se.company_id, se.client_id, coalesce(se.end_date, se.start_date) as fin, se.froid_inclure, co.froid_delai_jours
@@ -271,6 +271,27 @@ begin
         values (s.company_id, s.id, t.trainee_id, t.client_id, 'stagiaire', 0, t.sent_at::date, 'envoye', nullif(btrim(t.email), ''),
                 concat_ws(' ', t.first_name, t.last_name), 'Envoi noté à la main', t.sent_at)
         on conflict do nothing;
+      end if;
+      -- Ligne mise de côté faute d'adresse : reprise dès qu'une adresse existe (stagiaire ou contact de l'entreprise)
+      select e.id into v_sans from public.froid_envois e
+       where e.session_id = s.id and e.trainee_id = t.trainee_id and e.statut = 'ignore' and e.motif = 'Aucune adresse valide, ni pour le stagiaire ni pour son entreprise'
+       order by e.rang desc limit 1;
+      if v_sans is not null then
+        if not t.refus and app.froid_email_valide(t.email) then
+          update public.froid_envois set statut = 'prepare', cible = 'stagiaire', destinataire = btrim(t.email),
+                 destinataire_nom = concat_ws(' ', t.first_name, t.last_name), motif = null, du_le = p_today, prepare_le = now()
+           where id = v_sans;
+          v_n0 := v_n0 + 1;
+        else
+          select * into v_dest from app.froid_contact(coalesce(t.client_id, s.client_id));
+          if v_dest.email is not null then
+            update public.froid_envois set statut = 'prepare', cible = 'contact', destinataire = v_dest.email, destinataire_nom = v_dest.nom,
+                   motif = 'Stagiaire sans adresse valide : demande au contact de l''entreprise', du_le = p_today, prepare_le = now()
+             where id = v_sans;
+            v_n0 := v_n0 + 1;
+          end if;
+        end if;
+        continue;
       end if;
       -- Rang suivant à préparer
       select coalesce(max(e.rang) + 1, 0) into v_k from public.froid_envois e where e.session_id = s.id and e.trainee_id = t.trainee_id;
@@ -512,7 +533,8 @@ begin
     -- Seule exception : contact et employeur d'une même session choisis ensemble, qui partent dans un seul mail.
     -- Choisis en deux fois, la seconde attend le lendemain ; une autre session aussi.
     if exists (select 1 from public.froid_envois y where lower(y.destinataire) = lower(e.destinataire) and y.id <> e.id
-        and not (e.cible <> 'stagiaire' and y.cible <> 'stagiaire' and y.session_id = e.session_id and y.id = any (p_ids))
+        and not (e.cible <> 'stagiaire' and y.cible <> 'stagiaire' and y.session_id = e.session_id and y.id = any (p_ids)
+                 and (y.statut = 'prepare' or (y.statut = 'en_cours' and y.reserve_le = now() and y.envoye_par = (select auth.uid()))))
         and (y.statut = 'en_cours' or (y.statut = 'envoye' and y.envoye_le > now() - interval '1 day'))) then
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Adresse déjà écrite depuis moins d''un jour'); continue;
     end if;
