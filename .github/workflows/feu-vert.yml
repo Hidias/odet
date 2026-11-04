@@ -10,8 +10,10 @@
 # (pas à pas : docs/verrou-de-fusion.md).
 name: Feu vert
 
+# pull_request_target : le circuit lancé est toujours celui de main, jamais celui de la PR (une PR ne peut pas
+# modifier le contrôle qui la juge). Les fichiers de la PR sont seulement lus (aucun code de la PR n'est exécuté).
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [opened, reopened, synchronize, labeled, unlabeled]
 
@@ -57,7 +59,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Migrations de la PR
         id: liste
         env:
@@ -74,6 +78,7 @@ jobs:
           manque=0
           while read -r f; do
             v="$(basename "$f" .sql)"
+            [[ "$v" =~ ^[0-9]{4}_[a-z0-9_]+$ ]] || { echo "::error::Nom de migration inattendu : $v"; manque=1; continue; }
             # Inscription au registre : une instruction « insert into public.schema_migrations » et le nom du fichier
             # (forme simple « values ('NNNN_nom') » ou forme sur plusieurs lignes, comme 0477)
             # Commentaires SQL retirés : une ligne d'inscription mise en commentaire ne compte pas

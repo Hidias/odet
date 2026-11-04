@@ -10,6 +10,8 @@ Le circuit `.github/workflows/feu-vert.yml` lance deux contrôles sur chaque PR 
 | `feu-vert` | l'étiquette « feu-vert » est posée | pas d'étiquette, ou nouveau commit poussé depuis (l'étiquette est alors retirée d'office) |
 | `migrations-en-base` | la PR n'a pas de migration, ou chaque migration de la PR figure au registre de production | une migration ne s'inscrit pas au registre, ou n'est pas encore appliquée en production, ou le secret `SUPABASE_DB_URL` manque |
 
+Les deux contrôles tournent avec le circuit de main (`pull_request_target`) : une PR ne peut pas modifier le contrôle qui la juge ; les fichiers de la PR sont seulement lus. Conséquence : la PR qui installe le verrou n'est pas contrôlée elle-même, les contrôles apparaissent à partir de la PR suivante.
+
 Le second contrôle ne fait qu'une lecture (`select` sur `public.schema_migrations`, transaction en lecture seule).
 Chaque migration s'inscrit elle-même au registre par sa dernière ligne :
 `insert into public.schema_migrations (version) values ('NNNN_nom') on conflict (version) do nothing;`
@@ -29,7 +31,7 @@ Sans cette règle, les contrôles s'affichent en rouge mais le bouton de fusion 
 4. **Bypass list** : laisser vide (personne en dérogation).
 5. **Target branches** : **Add target**, puis **Include default branch** (main).
 6. Cocher **Require status checks to pass**, puis **Add checks** et ajouter `feu-vert` et `migrations-en-base`
-   (ils apparaissent dans la liste dès qu'une PR les a lancés une fois, par exemple la PR qui installe ce verrou).
+   (ils apparaissent dans la liste dès qu'une PR les a lancés une fois : après la fusion du verrou, sur la PR suivante).
 7. Laisser cochée **Block force pushes**. Ne rien cocher d'autre.
 8. **Create**.
 
