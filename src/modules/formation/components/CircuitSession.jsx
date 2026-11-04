@@ -4,6 +4,8 @@ import toast from 'react-hot-toast'
 import { CalendarCheck, Send, Users, Loader2, X, Plus, Trash2, AlertTriangle, CheckCircle2, Clock, Check, Ban } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { currentUserEmail } from '../../../core/org/currentOrg'
+import { confirmer as confirmerAlerte } from '../../../ui/Confirm'
+import { alerteConventionSignee } from '../lib/conventionSignee'
 
 // Circuit devis signé → session → participants → convention → convocations (0430, décisions de H du 21/10) :
 //  - session préparée depuis un devis signé : une fenêtre de contrôle (0437, 22/10) fait vérifier dates, horaires,
@@ -59,6 +61,8 @@ export default function CircuitSession({ session, peutModifier, onChange, onEnvo
   const enAttente = attente.filter((a) => a.statut === 'attente')
 
   const decider = async (a, accepte) => {
+    const alerte = accepte ? alerteConventionSignee(session, 'ajout') : null
+    if (alerte && !(await confirmerAlerte(alerte))) return
     setOccupe(a.id)
     try {
       const { error } = await supabase.rpc('participant_attente_decider', { p_session: session.id, p_trainee: a.trainee_id, p_accepte: accepte })

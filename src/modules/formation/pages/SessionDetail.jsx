@@ -2047,8 +2047,8 @@ export default function SessionDetail() {
   }
   
   // Convention signée par le client (0435, décision de H du 22/10) : changer ce qu'elle engage (dates, horaires, lieu,
-  // prix, formation, formateur) reste possible mais demande un avenant ou une nouvelle signature ; les participants,
-  // eux, se gèrent sans alerte
+  // prix, formation, formateur) reste possible mais demande un avenant ou une nouvelle signature. Participants : depuis
+  // le 04/11 (demande de H), ajouter ou retirer un stagiaire demande aussi une confirmation (lib/conventionSignee)
   const CHAMPS_CONVENTION = {
     start_date: 'les dates', end_date: 'les dates', start_time: 'les horaires', end_time: 'les horaires',
     location_name: 'le lieu', location_address: 'le lieu', location_postal_code: 'le lieu', location_city: 'le lieu', is_remote: 'le lieu',
@@ -2152,6 +2152,7 @@ export default function SessionDetail() {
   const handleRemoveTrainee = async (traineeId) => {
     const alerteRetrait = alerteConventionSignee(session, 'retrait')
     if (alerteRetrait && !await confirmer(alerteRetrait)) return
+    const dejaConfirme = !!alerteRetrait
     try {
       // Vérifier si le stagiaire a des données associées
       const [infoResult, attendResult, evalResult] = await Promise.all([
@@ -2166,8 +2167,8 @@ export default function SessionDetail() {
         // Double confirmation pour stagiaire avec données
         if (!await confirmer(' Ce stagiaire a déjà des données enregistrées (fiche, émargements ou évaluation).\n\nÊtes-vous sûr de vouloir le retirer ?')) return
         if (!await confirmer(' ATTENTION : Cette action supprimera TOUTES ses données pour cette session.\n\nConfirmer la suppression définitive ?')) return
-      } else {
-        // Simple confirmation
+      } else if (!dejaConfirme) {
+        // Simple confirmation (inutile si l'alerte de convention signée vient d'être acceptée)
         if (!await confirmer('Retirer ce stagiaire de la session ?')) return
       }
       
@@ -2182,7 +2183,7 @@ export default function SessionDetail() {
     } catch (err) {
       console.error('Erreur vérification données:', err)
       // Fallback : simple confirmation
-      if (!await confirmer('Retirer ce stagiaire de la session ?')) return
+      if (!dejaConfirme && !await confirmer('Retirer ce stagiaire de la session ?')) return
       const { error } = await removeTraineeFromSession(id, traineeId)
       if (error) {
         toast.error('Erreur lors du retrait')
