@@ -1,5 +1,5 @@
 // api/send-email-rdv.js
-// Envoie un email de compte-rendu via SMTP IONOS avec retry
+// Envoie un email de compte-rendu via le SMTP de l'expéditeur, avec nouvel essai
 // Les PJ sont récupérées depuis Supabase Storage (pas en JSON body → évite la limite 4.5MB Vercel)
 
 import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, wrapEmailHTML, finirParCordialement } from './_lib/mailer.js'

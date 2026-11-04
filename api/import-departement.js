@@ -3,8 +3,6 @@
  * API ENDPOINT - IMPORT UN DÉPARTEMENT
  * ============================================================================
  * 
- * À METTRE : afm-app-main/api/import-departement.js
- * 
  * Cet endpoint importe les prospects d'UN SEUL département
  * Peut être appelé 9 fois (1 fois par département)
  * Durée : 3-5 minutes par département
