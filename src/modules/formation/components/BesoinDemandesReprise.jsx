@@ -15,7 +15,7 @@ export default function BesoinDemandesReprise({ session, onReprise }) {
   useEffect(() => {
     if (!session?.client_id) return
     supabase.from('client_requests').select('id, kind, session_id, created_at, payload, courses(title)')
-      .eq('client_id', session.client_id).eq('kind', 'demande_intra').is('session_id', null)
+      .eq('client_id', session.client_id).eq('kind', 'demande_intra').is('session_id', null).in('status', ['nouvelle', 'en_cours'])
       .order('created_at', { ascending: false }).limit(20)
       .then(({ data }) => setDemandes((data || []).filter(demandeAvecBesoin)))
   }, [session?.client_id])

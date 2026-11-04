@@ -5,12 +5,13 @@
 --     ent_besoin_enregistrer (0486) l'utilise désormais : mêmes règles, mêmes messages.
 --  2. ent_demander : une demande « Formation intra » peut porter le besoin (payload.besoin), contrôlé et rangé
 --     normalisé. Facultatif : la demande part aussi sans.
---  3. À la création d'une session intra, si le client a exactement une demande intra ouverte avec un besoin, pas
---     encore reliée à une session, et pour la même formation (ou sans formation choisie), le besoin est recopié dans
---     l'analyse de la session (envoyé par l'entreprise à la date de la demande, à valider par l'organisme) et la
---     demande est reliée à la session (client_requests.session_id). Plusieurs demandes possibles : rien n'est
---     recopié, l'organisme choisit dans la fiche de session (besoin_reprendre_demande). Une erreur de copie ne
---     bloque jamais la création de la session.
+--  3. À la création d'une session intra non annulée, si le client a exactement une demande intra ouverte (nouvelle
+--     ou en cours) de moins de 6 mois, avec un besoin, pas encore reliée à une session et pour la même formation, le
+--     besoin est recopié dans l'analyse de la session (envoyé par l'entreprise à la date de la demande, date
+--     d'analyse au jour de la copie, à valider par l'organisme) et la demande est reliée à la session
+--     (client_requests.session_id). Sinon (demande sans formation, plusieurs demandes) : rien n'est recopié,
+--     l'organisme choisit dans la fiche de session (besoin_reprendre_demande, demandes ouvertes seulement). Une
+--     erreur de copie ne bloque jamais la création de la session.
 -- Rien ne part par e-mail. Additive. Idempotente. Retour arrière : supabase/rollback/0487_besoin_demande_intra_retour.sql
 
 -- ── 1. Contrôle unique des réponses ──
@@ -281,6 +282,9 @@ begin
      or jsonb_typeof(r.payload -> 'besoin') is distinct from 'object' then
     raise exception 'Demande sans besoin pour ce client' using errcode = '22023';
   end if;
+  if r.status not in ('nouvelle', 'en_cours') then
+    raise exception 'Demande déjà traitée ou refusée' using errcode = '22023';
+  end if;
   if r.session_id is not null and r.session_id <> s.id then
     raise exception 'Demande déjà reliée à une autre session' using errcode = '22023';
   end if;
@@ -299,7 +303,7 @@ begin
     n ->> 'level', coalesce((n ->> 'particularities_non_french')::boolean, false), n ->> 'preferred_schedule',
     (n ->> 'company_equipment')::boolean, n ->> 'company_equipment_details', (n ->> 'ppe_provided')::boolean,
     n ->> 'other_constraints', (n ->> 'psh_adaptation')::boolean, n ->> 'psh_contact',
-    (r.created_at at time zone 'Europe/Paris')::date, r.created_at,
+    public.paris_today(), r.created_at,
     (select a.profile_id from public.client_accounts a where a.id = r.account_id));
   update public.client_requests set session_id = s.id where id = r.id;
   if not found then raise exception 'Demande non modifiable' using errcode = '42501'; end if;
@@ -335,12 +339,13 @@ set search_path = ''
 as $$
 declare v_ids uuid[];
 begin
-  if new.client_id is null or coalesce(new.session_type, 'intra') <> 'intra' then return null; end if;
+  if new.client_id is null or coalesce(new.session_type, 'intra') <> 'intra'
+     or coalesce(new.status, '') in ('cancelled', 'annulee', 'annule') or new.course_id is null then return null; end if;
   select array_agg(r.id) into v_ids from public.client_requests r
   where r.kind = 'demande_intra' and r.client_id = new.client_id and r.company_id = new.company_id
     and r.session_id is null and r.status in ('nouvelle', 'en_cours')
     and jsonb_typeof(r.payload -> 'besoin') = 'object'
-    and (r.course_id is null or r.course_id = new.course_id);
+    and r.course_id = new.course_id and r.created_at > now() - interval '6 months';
   if cardinality(v_ids) = 1 then
     begin
       perform app.besoin_copier(new.id, v_ids[1]);

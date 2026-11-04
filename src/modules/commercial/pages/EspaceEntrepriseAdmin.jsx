@@ -167,7 +167,9 @@ export default function EspaceEntrepriseAdmin() {
                   <div key={k} className="contents"><dt className="text-gray-600">{k}</dt><dd className="text-gray-900 whitespace-pre-line break-words">{v}</dd></div>
                 ))}
               </dl>
-              <p className="text-ui-sm text-gray-600 mt-2">{ouverte.sessions?.reference ? `Recopié dans l'analyse du besoin de la session ${ouverte.sessions.reference}, à relire et valider.` : 'À la création de la session intra de ce client, ces réponses deviennent son analyse du besoin, à relire et valider.'}</p>
+              <p className="text-ui-sm text-gray-600 mt-2">{ouverte.sessions?.reference ? `Recopié dans l'analyse du besoin de la session ${ouverte.sessions.reference}, à relire et valider.`
+                  : ['nouvelle', 'en_cours'].includes(ouverte.status) ? 'Quand la session intra de ce client sera créée, ces réponses pourront devenir son analyse du besoin : recopiées seules si la formation correspond et si c\'est la seule demande ouverte, sinon reprises depuis la fiche de session.'
+                  : 'Demande close : ces réponses ne seront pas reprises.'}</p>
             </div>
           )}
           <div>
