@@ -70,6 +70,7 @@ const QualiteEditables = lazy(importSur(() => import('../modules/qualite/pages/Q
 const Relecture = lazy(importSur(() => import('../modules/qualite/pages/Relecture')))
 const RelectureExpert = lazy(importSur(() => import('../modules/qualite/pages/RelectureExpert')))
 const Completude = lazy(importSur(() => import('../modules/qualite/pages/Completude')))
+const EvaluationsFroid = lazy(importSur(() => import('../modules/qualite/pages/EvaluationsFroid')))
 const BPF = lazy(importSur(() => import('../modules/qualite/pages/BPF')))
 const Certification = lazy(importSur(() => import('../modules/certification/pages/Certification')))
 const Interventions = lazy(importSur(() => import('../modules/interventions/pages/Interventions')))
@@ -359,6 +360,7 @@ export default function App() {
             <Route path="relectures" element={<Relecture />} />
             <Route path="relectures/:id" element={<Relecture />} />
             <Route path="qualite/completude" element={<Completude />} />
+            <Route path="qualite/evaluations-froid" element={<EvaluationsFroid />} />
             <Route path="tests-positionnement" element={<TestsPositionnement />} />
             <Route path="non-conformites" element={<NonConformites />} />
             <Route path="registre-psh" element={<RegistrePSH />} />

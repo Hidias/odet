@@ -60,6 +60,11 @@ async function handler(req, res) {
   const { data: pil, error: pilErr } = await admin.rpc('pilote_generate')
   if (!pilErr) pilote = pil
   else if (pilErr.code !== 'PGRST202') { erreurs.pilote = pilErr.code || 'erreur'; console.error('[maintenance-nuit] pilote', pilErr.code || 'erreur') }
+  // Évaluations à froid (0482) : premiers envois et relances dus, préparés pour la page des non-répondants ; rien n'est envoyé
+  const { data: frd, error: frdErr } = await admin.rpc('froid_preparer')
+  if (!frdErr && pilote) pilote = { ...pilote, evaluations_froid: frd }
+  else if (!frdErr) pilote = { evaluations_froid: frd }
+  else if (frdErr.code !== 'PGRST202') { erreurs.evaluations_froid = frdErr.code || 'erreur'; console.error('[maintenance-nuit] evaluations_froid', frdErr.code || 'erreur') }
   // Purges RGPD proposées pour validation (chantier F, 0344) : rien n'est supprimé sans une personne
   let purges = null
   const { data: pur, error: purErr } = await admin.rpc('rgpd_purges_generer')
