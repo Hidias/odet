@@ -9,6 +9,7 @@ import { fr } from 'date-fns/locale'
 import { supabase } from '../../../core/supabase'
 import { startDocument, numberPages } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { etatConvention, libelleConvention, CONVENTION } from './etatConvention'
 
 const jj = (d) => (d ? format(new Date(`${String(d).slice(0, 10)}T12:00:00`), 'dd/MM/yyyy') : '')
 // Espaces fines insécables remplacées : la police du PDF ne les affiche pas
@@ -48,10 +49,12 @@ export function moyenneChaud(evals) {
 }
 
 // Pièces attendues absentes, d'après la session et les fichiers du ZIP
-export function piecesManquantes(session, fichiers, { nbInscrits, nbEvals }) {
+export function piecesManquantes(session, fichiers, { nbInscrits, nbEvals, groupes = [] }) {
   const a = (re) => fichiers.some((f) => re.test(f))
   const manque = []
-  if (!session.convention_signed) manque.push('Convention signée par l\'entreprise')
+  // Même lecture que partout (etatConvention) : inter signée groupe par groupe, sous-traitance sans objet
+  const etat = etatConvention(session, groupes)
+  if (etat !== CONVENTION.SIGNEE && etat !== CONVENTION.SANS_OBJET) manque.push('Convention signée par l\'entreprise')
   if (!a(/^Emargement_/)) manque.push('Feuille d\'émargement')
   if (nbInscrits > 0 && nbEvals < nbInscrits) manque.push(`Évaluations à chaud : ${nbEvals} sur ${nbInscrits}`)
   if (!a(/^Certificats_/)) manque.push('Certificats de réalisation (résultats à saisir)')
@@ -62,12 +65,15 @@ export function piecesManquantes(session, fichiers, { nbInscrits, nbEvals }) {
 export async function sommaireDossier(session, fichiers) {
   const ORG = await loadPdfOrg()
   const sid = session.id
-  const [ev, re, av, fa] = await Promise.all([
+  const [ev, re, av, fa, gr] = await Promise.all([
     supabase.from('trainee_evaluations').select('*').eq('session_id', sid),
     supabase.from('session_ressentis').select('note').eq('session_id', sid),
     supabase.from('client_satisfactions').select('note_globale, recommande, clients(name)').eq('session_id', sid),
     supabase.from('invoices').select('reference, type, invoice_date, total_ttc, amount_paid, status').eq('session_id', sid).order('invoice_date'),
+    supabase.from('session_groups').select('id, session_id, doc_status, status').eq('session_id', sid),
   ])
+  const groupes = gr.error ? [] : gr.data || []
+  const etatConv = etatConvention(session, groupes)
   const evals = ev.error ? [] : ev.data || []
   const envoyees = evals.filter((e) => e.questionnaire_submitted || e.submitted_at)
   const inscrits = session.session_trainees || []
@@ -88,7 +94,7 @@ export async function sommaireDossier(session, fichiers) {
     ['Entreprise', session.clients?.name || '-'],
     ['Formateur', session.trainers ? `${session.trainers.first_name || ''} ${session.trainers.last_name || ''}`.trim() : '-'],
     ['Financement', [session.funding_type && session.funding_type !== 'none' ? session.funding_type : null, session.funding_details].filter(Boolean).join(', ') || '-'],
-    ['Convention', session.convention_signed ? `Signée${session.convention_signed_date ? ` le ${jj(session.convention_signed_date)}` : ''}` : 'Non signée'],
+    ['Convention', etatConv === CONVENTION.SIGNEE && session.convention_signed && session.convention_signed_date ? `Signée le ${jj(session.convention_signed_date)}` : libelleConvention(etatConv)],
   ], { labelW: 32 })
 
   f.section(`Stagiaires (${inscrits.length})`)
@@ -103,7 +109,7 @@ export async function sommaireDossier(session, fichiers) {
   f.section('Pièces du dossier')
   const pieces = fichiers.filter((n) => !n.endsWith('/')).sort()
   f.table(['Pièce', 'Fichier'], pieces.map((n) => [libellePiece(n), n]), { columnStyles: { 0: { cellWidth: 62, fontStyle: 'bold' } } })
-  const manque = piecesManquantes(session, pieces, { nbInscrits: inscrits.filter((st) => !st.absent).length, nbEvals: envoyees.length })
+  const manque = piecesManquantes(session, pieces, { nbInscrits: inscrits.filter((st) => !st.absent).length, nbEvals: envoyees.length, groupes })
   if (manque.length) {
     f.para('Pièces manquantes ou incomplètes', { style: 'bold', size: 9, after: 1 })
     f.bullets(manque)

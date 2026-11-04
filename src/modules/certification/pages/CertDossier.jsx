@@ -54,10 +54,13 @@ export default function CertDossier({ referential: refData, evaluated }) {
       }
       if (opt.sample > 0) {
         const { data } = await supabase.from('sessions')
-          .select('id, reference, start_date, end_date, convention_signed, convention_signed_file_url, courses(title), clients(name), session_trainees(id)')
+          .select('id, reference, start_date, end_date, session_type, convention_sent, convention_signed, convention_signed_file_url, courses(title), clients(name), session_trainees(id)')
           .eq('status', 'completed').order('end_date', { ascending: false }).limit(opt.sample)
         const sessions = data || []
-        zip.file('Echantillon_sessions.pdf', buildSamplePDF(ORG, { sessions }).output('blob'))
+        // Conventions des sessions inter, groupe par groupe (même lecture que l'accueil, etatConvention)
+        const ids = sessions.map((s) => s.id)
+        const { data: groupes } = ids.length ? await supabase.from('session_groups').select('id, session_id, doc_status, status').in('session_id', ids) : { data: [] }
+        zip.file('Echantillon_sessions.pdf', buildSamplePDF(ORG, { sessions, groupes: groupes || [] }).output('blob'))
         for (const s of sessions) {
           if (!s.convention_signed_file_url) continue
           try { zip.file(`echantillon/${safe(s.reference)}_convention_signee.pdf`, await downloadBlob(s.convention_signed_file_url, 'signed-conventions')) } catch { /* convention non lisible : ignorée */ }

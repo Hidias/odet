@@ -28,6 +28,16 @@ export function etatConvention(session, groupes = []) {
 }
 
 export const conventionEnvoyee = (session, groupes) => etatConvention(session, groupes) !== CONVENTION.A_ENVOYER
+export const conventionSigneeEtat = (session, groupes) => etatConvention(session, groupes) === CONVENTION.SIGNEE
+
+// Libellé d'un état dans les documents (dossier de session, échantillon d'audit)
+const LIBELLES = {
+  [CONVENTION.SIGNEE]: 'Signée',
+  [CONVENTION.ENVOYEE]: 'Envoyée, non signée',
+  [CONVENTION.A_ENVOYER]: 'Non envoyée',
+  [CONVENTION.SANS_OBJET]: 'Sans objet (sous-traitance)',
+}
+export const libelleConvention = (etat) => LIBELLES[etat] || LIBELLES[CONVENTION.A_ENVOYER]
 
 // Regroupe des lignes `session_groups` par session
 export function groupesParSession(groupes = []) {

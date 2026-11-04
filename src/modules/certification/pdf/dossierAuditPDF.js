@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { startDocument, numberPages } from '../../../core/pdf/layout'
 import { STATUS_LABEL } from '../lib/proofs'
+import { etatConvention, libelleConvention, groupesParSession } from '../../formation/lib/etatConvention'
 
 export function buildCriterionPDF(ORG, { criterion, indicators, referential, includeNa = true, proofFileName = () => '' }) {
   const doc = new jsPDF({ compress: true })
@@ -49,7 +50,8 @@ export function buildCriterionPDF(ORG, { criterion, indicators, referential, inc
   return doc
 }
 
-export function buildSamplePDF(ORG, { sessions = [] }) {
+export function buildSamplePDF(ORG, { sessions = [], groupes = [] }) {
+  const parSession = groupesParSession(groupes)
   const doc = new jsPDF({ compress: true })
   const f = startDocument(doc, ORG, {
     docLabel: 'Dossier d\'audit Qualiopi', code: 'AUDIT-ECH',
@@ -58,7 +60,7 @@ export function buildSamplePDF(ORG, { sessions = [] }) {
   if (!sessions.length) f.para('Aucune session terminée.')
   else f.table(['Session', 'Formation', 'Dates', 'Client', 'Stagiaires', 'Convention'], sessions.map((s) => [
     s.reference || '', s.courses?.title || '', [s.start_date, s.end_date].filter(Boolean).map((d) => format(new Date(`${d}T12:00:00`), 'dd/MM/yyyy')).filter((v, k, a) => a.indexOf(v) === k).join(' au '),
-    s.clients?.name || '-', String(s.session_trainees?.length || 0), s.convention_signed ? 'Signée' : 'Non signée',
+    s.clients?.name || '-', String(s.session_trainees?.length || 0), libelleConvention(etatConvention(s, parSession.get(s.id) || [])),
   ]), { columnStyles: { 0: { cellWidth: 26, fontStyle: 'bold' }, 4: { cellWidth: 20, halign: 'center' }, 5: { cellWidth: 22 } } })
   f.space(3)
   f.note('Émargements, évaluations et attestations de ces sessions sont consultables dans l\'outil pendant l\'audit.')
