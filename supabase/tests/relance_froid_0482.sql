@@ -191,15 +191,20 @@ begin
     update public.session_trainees set absent = true where session_id = v_se6 and trainee_id = v_tb;
     perform set_config('request.jwt.claims', v_gest, true);
     v_r := public.froid_envois_reserver(array[v_l1]);
-    if jsonb_array_length(v_r -> 'envois') <> 0 or (select statut from public.froid_envois where id = v_l1) <> 'ignore' then
-      raise exception '8 nonies. stagiaire absent envoyé : %', v_r; end if;
+    if jsonb_array_length(v_r -> 'envois') <> 0 or (select statut from public.froid_envois where id = v_l1) <> 'prepare' then
+      raise exception '8 nonies. stagiaire absent envoyé ou ligne perdue : %', v_r; end if;
     perform set_config('request.jwt.claims', '', true);
-    update public.session_trainees set absent = false where session_id = v_se6 and trainee_id = v_tb;
-    update public.froid_envois set statut = 'prepare', motif = null where id = v_l1;
     update public.sessions set status = 'confirmed' where id = v_se6;
+    update public.session_trainees set absent = false where session_id = v_se6 and trainee_id = v_tb;
     perform set_config('request.jwt.claims', v_gest, true);
     v_r := public.froid_envois_reserver(array[v_l1]);
     if jsonb_array_length(v_r -> 'envois') <> 0 then raise exception '8 nonies. session repassée confirmée envoyée : %', v_r; end if;
+    -- situation corrigée (session terminée, stagiaire présent) : la même ligne part, sans intervention en base
+    perform set_config('request.jwt.claims', '', true);
+    update public.sessions set status = 'completed' where id = v_se6;
+    perform set_config('request.jwt.claims', v_gest, true);
+    v_r := public.froid_envois_reserver(array[v_l1]);
+    if jsonb_array_length(v_r -> 'envois') <> 1 then raise exception '8 nonies. ligne non reprise après correction : %', v_r; end if;
     perform set_config('request.jwt.claims', '', true);
   end;
 

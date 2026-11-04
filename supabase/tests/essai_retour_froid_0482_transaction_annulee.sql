@@ -589,16 +589,6 @@ begin
     if e.statut <> 'prepare' then
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Déjà traité'); continue;
     end if;
-    -- La session et la personne sont-elles toujours concernées ? (session terminée, ni sous-traitance ni autre organisme,
-    -- stagiaire inscrit et présent) ; sinon la ligne est écartée
-    if not exists (select 1 from public.sessions se left join public.clients oc on oc.id = se.client_id
-                    where se.id = e.session_id and se.status = 'completed' and coalesce(se.session_type, 'intra') <> 'subcontract'
-                      and coalesce(oc.client_type, '') <> 'organisme_formation')
-       or (e.trainee_id is not null and not exists (select 1 from public.session_trainees st
-                    where st.session_id = e.session_id and st.trainee_id = e.trainee_id and not coalesce(st.absent, false))) then
-      update public.froid_envois set statut = 'ignore', motif = 'Session ou stagiaire plus concerné' where id = e.id;
-      v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Session ou stagiaire plus concerné'); continue;
-    end if;
     if not app.froid_email_valide(e.destinataire) then
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Adresse invalide'); continue;
     end if;
@@ -614,6 +604,19 @@ begin
     if e.cible = 'stagiaire' and exists (select 1 from public.evaluations_cold ec where ec.session_id = e.session_id and ec.trainee_id = e.trainee_id and ec.completed_at is not null) then
       update public.froid_envois set statut = 'ignore', motif = 'Réponse reçue' where id = e.id;
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Réponse déjà reçue'); continue;
+    end if;
+    -- La session et la personne sont-elles toujours concernées ? (session terminée, ni sous-traitance ni autre organisme ;
+    -- stagiaire inscrit et présent ; employeur client de la session ou d'un stagiaire présent). Sinon : refus sans toucher
+    -- à la ligne, qui repart dès que la situation est corrigée (une absence notée par erreur, par exemple).
+    if not exists (select 1 from public.sessions se left join public.clients oc on oc.id = se.client_id
+                    where se.id = e.session_id and se.status = 'completed' and coalesce(se.session_type, 'intra') <> 'subcontract'
+                      and coalesce(oc.client_type, '') <> 'organisme_formation')
+       or (e.trainee_id is not null and not exists (select 1 from public.session_trainees st
+                    where st.session_id = e.session_id and st.trainee_id = e.trainee_id and not coalesce(st.absent, false)))
+       or (e.cible = 'employeur' and not exists (select 1 from public.sessions se where se.id = e.session_id and se.client_id = e.client_id)
+           and not exists (select 1 from public.session_trainees st join public.trainees tr on tr.id = st.trainee_id
+                    where st.session_id = e.session_id and tr.client_id = e.client_id and not coalesce(st.absent, false))) then
+      v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Session ou stagiaire plus concerné (vérifiez la session, l''inscription ou la présence)'); continue;
     end if;
     update public.froid_envois set statut = 'en_cours', envoye_par = (select auth.uid()), reserve_le = now() where id = e.id;
     v := v || (select jsonb_build_object(
