@@ -21,7 +21,9 @@ describe('trace des inscriptions (0485)', () => {
     expect(actionDe(ajout).label).toBe('Ajout')
   })
   it('retrait par suppression de la session ou du stagiaire : aucun faux « aucun émargement »', () => {
-    expect(detailInscription({ action: 'delete', details: { suppression: 'session', convention_signee: null } })).toBe('Session supprimée avec ses inscriptions')
+    expect(detailInscription({ action: 'delete', details: { suppression: 'session', session_reference: 'S1', inscriptions: 8, convention_signee: true, demi_journees_emargees: 16 } }))
+      .toBe('Session S1 supprimée avec 8 inscriptions, convention signée, 16 demi-journées émargées effacées')
+    expect(detailInscription({ action: 'delete', details: { suppression: 'session', session_reference: 'S2', inscriptions: 1 } })).toBe('Session S2 supprimée avec 1 inscription')
     expect(detailInscription({ action: 'delete', details: { suppression: 'stagiaire', session_reference: 'X' } })).toBe('Session X, fiche du stagiaire supprimée')
   })
   it('les autres lignes gardent leur libellé', () => {
@@ -32,5 +34,6 @@ describe('trace des inscriptions (0485)', () => {
     const sql = readFileSync('supabase/migrations/0485_trace_inscriptions.sql', 'utf8').replace(/--.*$/gm, '')
     expect(sql).not.toMatch(/first_name|last_name|email|birth|ssn/)
     expect(sql).toMatch(/after insert or delete on public\.session_trainees/)
+    expect(sql).toMatch(/before delete on public\.sessions/)
   })
 })

@@ -2,4 +2,6 @@
 -- restent (le journal ne se modifie pas).
 drop trigger if exists zz_trace_inscription on public.session_trainees;
 drop function if exists app.trace_inscription();
+drop trigger if exists zz_trace_suppression_session on public.sessions;
+drop function if exists app.trace_suppression_session();
 delete from public.schema_migrations where version = '0485_trace_inscriptions';

@@ -56,7 +56,13 @@ export function actionDe(log) {
 // Ajout ou retrait d'un stagiaire (0485) : session, convention, et ce que le retrait fait perdre de vue
 export function detailInscription(log) {
   const d = log.details || {}
-  if (log.action === 'delete' && d.suppression === 'session') return 'Session supprimée avec ses inscriptions'
+  if (log.action === 'delete' && d.suppression === 'session') {
+    const n = Number(d.inscriptions) || 0
+    const e = Number(d.demi_journees_emargees) || 0
+    return `Session ${d.session_reference || 'sans référence'} supprimée avec ${n} inscription${n > 1 ? 's' : ''}`
+      + (d.convention_signee ? ', convention signée' : '')
+      + (e ? `, ${e} demi-journée${e > 1 ? 's' : ''} émargée${e > 1 ? 's' : ''} effacée${e > 1 ? 's' : ''}` : '')
+  }
   const morceaux = [`Session ${d.session_reference || 'sans référence'}`]
   if (d.convention_signee) morceaux.push('convention signée')
   if (log.action === 'delete' && d.suppression === 'stagiaire') {

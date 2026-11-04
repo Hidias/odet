@@ -26,7 +26,8 @@ begin
 
   -- 2. Retrait après une demi-journée émargée et la fiche remplie : une ligne « delete » qui le dit
   insert into public.attendance_halfdays (session_id, trainee_id, date, morning, afternoon) values (v_ses, v_tr, current_date, true, false);
-  update public.session_trainees set info_sheet_completed = true where session_id = v_ses and trainee_id = v_tr;
+  update public.trainee_info_sheets set filled_at = now() where session_id = v_ses and trainee_id = v_tr;
+  if not found then raise exception '2. fiche créée à l''inscription absente'; end if;
   perform set_config('role', 'authenticated', true);
   delete from public.session_trainees where session_id = v_ses and trainee_id = v_tr;
   perform set_config('role', 'postgres', true);
@@ -58,14 +59,17 @@ begin
   if v_l is null or v_l.details ? 'demi_journees_emargees' or v_l.entity_name is distinct from 'ESSAI-0485' then
     raise exception '5. trace de la suppression du stagiaire : %', to_jsonb(v_l); end if;
 
-  -- 6. Session supprimée directement (cascade) : la trace le dit, sans compter
+  -- 6. Session supprimée directement : une seule ligne, avec la référence, avant la cascade ; aucun retrait un par un
   insert into public.trainees (first_name, last_name, company_id) values ('Prenom0485', 'NOM0485', v_cie) returning id into v_tr;
   insert into public.session_trainees (session_id, trainee_id) values (v_ses, v_tr);
-  insert into public.attendance_halfdays (session_id, trainee_id, date, morning, afternoon) values (v_ses, v_tr, current_date, true, true);
+  insert into public.attendance_halfdays (session_id, trainee_id, date, morning, afternoon) values (v_ses, v_tr, current_date + 2, true, true);
+  select count(*) into v_n from public.audit_logs where entity_type = 'inscription' and entity_id = v_ses and action = 'delete';
   delete from public.sessions where id = v_ses;
-  select * into v_l from public.audit_logs where entity_type = 'inscription' and entity_id = v_ses and action = 'delete'
-    and details ->> 'suppression' = 'session';
-  if v_l is null or v_l.details ? 'demi_journees_emargees' then
+  select count(*) - v_n into v_n from public.audit_logs where entity_type = 'inscription' and entity_id = v_ses and action = 'delete';
+  if v_n <> 1 then raise exception '6. % lignes pour la suppression de la session (1 attendue)', v_n; end if;
+  select * into v_l from public.audit_logs where entity_type = 'inscription' and entity_id = v_ses and details ->> 'suppression' = 'session';
+  if v_l is null or v_l.entity_name is distinct from 'ESSAI-0485' or (v_l.details ->> 'inscriptions')::int <> 1
+     or (v_l.details ->> 'demi_journees_emargees')::int <> 2 then
     raise exception '6. trace de la suppression de la session : %', to_jsonb(v_l); end if;
 
   raise warning 'ESSAI 0485 : OK';
