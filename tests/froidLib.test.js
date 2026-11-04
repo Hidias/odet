@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cochable, decouperEnLots, filtrerEnvois, grouperParSession, libelleEnvoi, nouvelleQuestion, reponsesCompletes, QUESTIONS_BASE } from '../src/modules/qualite/lib/froid.js'
+import { cochable, decouperEnLots, filtrerEnvois, libelleDestinataire, nomPersonne, grouperParSession, libelleEnvoi, nouvelleQuestion, reponsesCompletes, QUESTIONS_BASE } from '../src/modules/qualite/lib/froid.js'
 
 const auj = new Date('2026-11-04T12:00:00')
 const e = (o) => ({ id: Math.random().toString(36), session_id: 's1', statut: 'prepare', fin: '2026-09-01', rang: 0, cible: 'stagiaire', ...o })
@@ -34,6 +34,15 @@ describe('page des évaluations à froid (0482)', () => {
     expect(lots[0]).toContain('c1')
     expect(lots[0]).toContain('e1')
     expect(lots[1]).toEqual(['s99'])
+  })
+  it('personne concernée : le stagiaire, même quand la demande passe par le contact', () => {
+    const contact = { cible: 'contact', trainee_id: 't1', destinataire_nom: 'Julie Contact', destinataire: 'julie@x.fr' }
+    expect(nomPersonne(contact, { t1: 'Aurélie Le Pape' })).toBe('Aurélie Le Pape')
+    expect(nomPersonne(contact, {})).toBe('Stagiaire sans adresse')
+    expect(nomPersonne({ cible: 'employeur' })).toBe('Employeur')
+    expect(nomPersonne({ cible: 'stagiaire', destinataire_nom: 'Anaïs T' })).toBe('Anaïs T')
+    expect(libelleDestinataire(contact)).toBe('Julie Contact (julie@x.fr)')
+    expect(libelleDestinataire({ cible: 'stagiaire', destinataire_nom: 'A', destinataire: 'a@x.fr' })).toBe('a@x.fr')
   })
   it('groupe par session et nomme les envois', () => {
     const g = grouperParSession([e({ session_id: 'a' }), e({ session_id: 'b' }), e({ session_id: 'a' })])

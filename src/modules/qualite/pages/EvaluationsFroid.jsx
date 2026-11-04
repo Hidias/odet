@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
 import { callApi } from '../../../core/api'
 import { useDroits } from '../../../core/rights/useDroit'
-import { libelleEnvoi, filtrerEnvois, grouperParSession, cochable, decouperEnLots } from '../lib/froid'
+import { libelleEnvoi, filtrerEnvois, grouperParSession, cochable, decouperEnLots, nomPersonne, libelleDestinataire } from '../lib/froid'
 import ReglagesFroid from '../components/ReglagesFroid'
 
 const dateFr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
@@ -27,12 +27,19 @@ export default function EvaluationsFroid() {
   const [apercu, setApercu] = useState(null)
   const [enCours, setEnCours] = useState(false)
   const [reglages, setReglages] = useState(false)
+  const [noms, setNoms] = useState({})
 
   const charger = async () => {
     const { data, error } = await supabase.rpc('froid_suivi')
     if (error) { toast.error(error.message); setDonnees({ envois: [], reglages: [], anciennes: [] }); return }
     setDonnees(data || { envois: [], reglages: [], anciennes: [] })
     setCoches(new Set())
+    // Lignes « par le contact de l'entreprise » : nom du stagiaire concerné (le destinataire est le contact)
+    const tids = [...new Set((data?.envois || []).filter((e) => e.cible === 'contact' && e.trainee_id).map((e) => e.trainee_id))]
+    if (tids.length) {
+      const { data: trs } = await supabase.from('trainees').select('id, first_name, last_name').in('id', tids)
+      setNoms(Object.fromEntries((trs || []).map((t) => [t.id, [t.first_name, t.last_name].filter(Boolean).join(' ')])))
+    }
   }
   useEffect(() => { charger() }, [])
 
@@ -167,17 +174,32 @@ export default function EvaluationsFroid() {
             <div className="font-medium">{g.formation || 'Formation'} <span className="text-ui-sm text-gray-500">· {g.session_ref} · terminée le {dateFr(g.fin)}</span></div>
             <a href={`#/sessions/${g.session_id}`} className="text-ui-sm text-primary-700">Ouvrir la session</a>
           </div>
-          <div className="overflow-x-auto">
+          {/* Téléphone : une carte par ligne */}
+          <div className="md:hidden divide-y">
+            {g.lignes.map((e) => (
+              <label key={e.id} className="flex items-start gap-3 py-2">
+                <span className="pt-0.5 w-4">{cochable(e) && d.envoyer && <input type="checkbox" className="w-4 h-4" checked={coches.has(e.id)} onChange={() => basculer(e.id)} aria-label={`Choisir ${nomPersonne(e, noms)}`} />}</span>
+                <span className="min-w-0 flex-1 text-ui">
+                  <span className="font-medium">{nomPersonne(e, noms)}</span>{e.entreprise ? <span className="text-gray-500"> · {e.entreprise}</span> : null}
+                  <span className="block text-ui-sm text-gray-600">{libelleEnvoi(e)}</span>
+                  <span className="block text-ui-sm text-gray-600 break-all">{libelleDestinataire(e) || 'aucune adresse'}</span>
+                  <span className="block text-ui-sm">{e.statut === 'en_cours' && e.interrompu ? 'Interrompu' : (STATUTS[e.statut] || e.statut)}{e.envoye_le ? ` le ${dateFr(e.envoye_le)}` : ''}</span>
+                  {e.motif ? <span className="block text-ui-sm text-gray-500">{e.motif}</span> : null}
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-ui">
               <thead><tr className="border-b text-left text-gray-500"><th className="py-1 w-8"></th><th className="py-1">Personne</th><th className="py-1">Entreprise</th><th className="py-1">Envoi</th><th className="py-1">Destinataire</th><th className="py-1">État</th></tr></thead>
               <tbody>
                 {g.lignes.map((e) => (
                   <tr key={e.id} className="border-b last:border-0">
-                    <td className="py-2">{cochable(e) && d.envoyer && <input type="checkbox" className="w-4 h-4" checked={coches.has(e.id)} onChange={() => basculer(e.id)} aria-label={`Choisir ${e.destinataire_nom || ''}`} />}</td>
-                    <td className="py-2">{e.cible === 'employeur' ? 'Employeur' : e.destinataire_nom || (e.cible === 'contact' ? 'Stagiaire sans adresse' : '')}</td>
+                    <td className="py-2">{cochable(e) && d.envoyer && <input type="checkbox" className="w-4 h-4" checked={coches.has(e.id)} onChange={() => basculer(e.id)} aria-label={`Choisir ${nomPersonne(e, noms)}`} />}</td>
+                    <td className="py-2">{nomPersonne(e, noms)}</td>
                     <td className="py-2">{e.entreprise || ''}</td>
                     <td className="py-2">{libelleEnvoi(e)}</td>
-                    <td className="py-2 break-all">{e.destinataire || <span className="text-gray-400">aucune</span>}</td>
+                    <td className="py-2 break-all">{libelleDestinataire(e) || <span className="text-gray-400">aucune</span>}</td>
                     <td className="py-2">{e.statut === 'en_cours' && e.interrompu ? 'Interrompu' : (STATUTS[e.statut] || e.statut)}{e.envoye_le ? ` le ${dateFr(e.envoye_le)}` : ''}{e.motif ? <div className="text-ui-sm text-gray-500">{e.motif}</div> : null}</td>
                   </tr>
                 ))}
