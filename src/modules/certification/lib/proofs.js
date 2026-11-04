@@ -5,6 +5,7 @@
 
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
+import { conventionSigneeEtat, groupesParSession } from '../../formation/lib/etatConvention'
 
 const filled = (v) => v != null && String(v).trim() !== ''
 
@@ -71,7 +72,15 @@ export async function loadEvidence() {
     count('sst_certifications', (q) => q.eq('candidat_certifie', true)),
     count('sessions', (q) => q.ilike('funding_type', '%opco%')),
     count('audits_internes'),
-    count('sessions', (q) => q.eq('convention_signed', true)),
+    // Conventions signées, lues comme partout (etatConvention) : inter signée groupe par groupe
+    Promise.all([
+      fetchAll(() => supabase.from('sessions').select('id, session_type, convention_sent, convention_signed')),
+      fetchAll(() => supabase.from('session_groups').select('id, session_id, doc_status, status')),
+    ]).then(([s, g]) => {
+      if (s.error) return 0
+      const parSession = groupesParSession(g.error ? [] : g.data || [])
+      return (s.data || []).filter((x) => conventionSigneeEtat(x, parSession.get(x.id) || [])).length
+    }, () => 0),
     // Suivi formatif (module optionnel, migration 0250) : fiches archivées et sessions qui en ont une
     count('formative_sheets'),
     supabase.from('formative_sheets').select('session_id').then(({ data }) => new Set((data || []).map((r) => r.session_id)).size, () => 0),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { etatConvention, conventionEnvoyee, groupesParSession, CONVENTION } from '../src/modules/formation/lib/etatConvention.js'
+import { etatConvention, conventionEnvoyee, groupesParSession, CONVENTION, libelleConvention, conventionSigneeEtat } from '../src/modules/formation/lib/etatConvention.js'
 import { estAVenir, stagiairesPresents, pipelineDevis, tauxConversion } from '../src/modules/dashboard/lib/accueil.js'
 
 describe('état de la convention (A1, A2)', () => {
@@ -84,5 +84,15 @@ describe('accueil (A7, A8, A9)', () => {
   })
   it('aucun devis : taux nul', () => {
     expect(tauxConversion([])).toEqual({ signes: 0, total: 0, taux: 0 })
+  })
+})
+
+describe('libellés de la convention dans les documents', () => {
+  it('un libellé par état', () => {
+    expect(libelleConvention(CONVENTION.SIGNEE)).toBe('Signée')
+    expect(libelleConvention(CONVENTION.ENVOYEE)).toBe('Envoyée, non signée')
+    expect(libelleConvention(CONVENTION.A_ENVOYER)).toBe('Non envoyée')
+    expect(libelleConvention(CONVENTION.SANS_OBJET)).toBe('Sans objet (sous-traitance)')
+    expect(conventionSigneeEtat({ id: 's', session_type: 'inter' }, [{ session_id: 's', doc_status: 'signe' }])).toBe(true)
   })
 })
