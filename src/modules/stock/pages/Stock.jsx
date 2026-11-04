@@ -440,7 +440,7 @@ function Alertes({ peutCommander = false, onCommande = null }) {
         <section key={fid || 'aucun'} className="card space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="section-title flex items-center gap-2 flex-1 min-w-0"><Truck className="w-4 h-4 text-gray-400" aria-hidden="true" />{f}</h2>
-            {peutCommander && fid && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => preparer(fid)}><ShoppingCart className="w-4 h-4" aria-hidden="true" />Préparer la commande</button>}
+            {peutCommander && fid && lignes.some((a) => Number(a.to_order) > 0) && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => preparer(fid)}><ShoppingCart className="w-4 h-4" aria-hidden="true" />Préparer la commande</button>}
           </div>
           {!fid && <p className="text-ui-sm muted">Indiquez le fournisseur principal sur ces articles pour pouvoir les commander.</p>}
           <ul className="divide-y divide-gray-100">
