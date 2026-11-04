@@ -20,6 +20,12 @@ describe('Alerte convention signée', () => {
     expect(alerteConventionSignee({ convention_signed: true }, 'autre')).toBeNull()
     expect(alerteConventionSignee({ convention_signed: true }, 'retrait').message).toMatch(/^La convention de cette session a été signée\. /)
   })
+  it('inscription en ligne (inter) : pas d\'avenant, une convention propre à la nouvelle entreprise', () => {
+    const a = alerteConventionSignee({ convention_signed: true }, 'inscription_inter')
+    expect(a.message).not.toContain('avenant')
+    expect(a.message).toContain('sa propre convention')
+    expect(a.danger).toBe(false)
+  })
   it('sous-traitance : pas d\'alerte', () => {
     expect(alerteConventionSignee({ convention_signed: true, session_type: 'subcontract' }, 'retrait')).toBeNull()
   })

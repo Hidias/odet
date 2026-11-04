@@ -28,7 +28,7 @@ export default function InscriptionsEnLigne({ session, peutModifier, onConfirmee
   const traitees = liste.filter((r) => ['confirmee', 'refusee'].includes(r.status))
 
   const confirmerInscription = async (r) => {
-    const alerte = alerteConventionSignee(session, 'ajout')
+    const alerte = alerteConventionSignee(session, 'inscription_inter')
     if (alerte && !(await confirmer(alerte))) return
     const n = (r.participants || []).length
     if (!(await confirmer({ title: 'Confirmer cette inscription ?', message: `${r.kind === 'entreprise' ? r.company_name : `${r.contact_first_name} ${r.contact_last_name}`} : ${n} participant${n > 1 ? 's' : ''}. Le client, les stagiaires et le groupe sont créés ou retrouvés, sans doublon.`, confirmLabel: 'Confirmer' }))) return

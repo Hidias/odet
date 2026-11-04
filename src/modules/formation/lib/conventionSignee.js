@@ -24,5 +24,14 @@ export function alerteConventionSignee(session, action) {
       danger: false,
     }
   }
+  if (action === 'inscription_inter') {
+    // Session inter : chaque entreprise a sa propre convention ; la nouvelle inscription n'en modifie aucune autre
+    return {
+      title: 'Conventions déjà signées sur cette session',
+      message: `Des conventions ont déjà été signées sur cette session${quand}. Elles ne changent pas : cette nouvelle inscription aura sa propre convention, à faire signer par l'entreprise.\n\nConfirmer l'inscription ?`,
+      confirmLabel: 'Confirmer l\'inscription',
+      danger: false,
+    }
+  }
   return null
 }
