@@ -24,7 +24,7 @@ async function handler(req, res) {
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
-      return res.status(500).json({ error: 'ANTHROPIC_API_KEY non configurée' })
+      return res.status(400).json({ error: "L'assistant de rédaction n'est pas configuré." })
     }
 
     // Construire le contexte
