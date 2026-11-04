@@ -168,6 +168,40 @@ begin
     if (select count(*) from public.froid_envois where session_id = v_se3 and trainee_id = v_tn) <> 1 then raise exception '8 sexies. ligne en double'; end if;
   end;
 
+  -- 8 septies. Employeur : session ancienne où seul l'employeur reste à interroger, proposée à l'inclusion ;
+  --          questionnaire déjà envoyé à l'employeur toujours accessible quand la préparation est coupée
+  declare v_cl3 uuid; v_se4 uuid; v_te uuid; v_u uuid := '00000000-0000-4000-8000-0000000004e2'; v_e uuid; begin
+    insert into public.clients (name, client_type, company_id) values ('Client employeur', 'entreprise', v_cie) returning id into v_cl3;
+    insert into public.sessions (reference, client_id, start_date, end_date, attendance_token, company_id, status)
+    values ('SES-0482-EMP', v_cl3, v_today - 400, v_today - 400, 'jeton-0482e', v_cie, 'completed') returning id into v_se4;
+    insert into public.trainees (first_name, last_name, client_id, company_id) values ('Eve', 'Absente', v_cl3, v_cie) returning id into v_te;
+    insert into public.session_trainees (session_id, trainee_id, absent) values (v_se4, v_te, true);
+    perform set_config('request.jwt.claims', v_gest, true);
+    if not exists (select 1 from jsonb_array_elements(public.froid_suivi() -> 'anciennes') x where (x ->> 'session_id')::uuid = v_se4) then
+      raise exception '8 septies. session ancienne, employeur seul, absente de la liste'; end if;
+    perform set_config('request.jwt.claims', '', true);
+    -- espace entreprise du client
+    insert into auth.users (id, email, aud, role) values (v_u, 'ent.0482@test.invalid', 'authenticated', 'authenticated');
+    alter table public.profiles disable trigger profiles_protect_role;
+    insert into public.profiles (id, email, role, is_active) values (v_u, 'ent.0482@test.invalid', 'entreprise', true)
+    on conflict (id) do update set role = 'entreprise', is_active = true;
+    alter table public.profiles enable trigger profiles_protect_role;
+    insert into public.client_accounts (company_id, profile_id, client_id, email) values (v_cie, v_u, v_cl3, 'ent.0482@test.invalid');
+    insert into public.froid_envois (company_id, session_id, client_id, cible, rang, du_le, statut, destinataire, envoye_le)
+    values (v_cie, v_se4, v_cl3, 'employeur', 0, v_today, 'envoye', 'ent.0482@test.invalid', now());
+    insert into public.froid_reglages (company_id, actif, employeur_actif) values (v_cie, false, false)
+    on conflict (company_id) do update set actif = false, employeur_actif = false;
+    perform set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000004e2","role":"authenticated"}', true);
+    if not exists (select 1 from jsonb_array_elements(public.ent_froid() -> 'sessions') x
+                    where (x ->> 'session_id')::uuid = v_se4 and jsonb_typeof(x -> 'employeur') = 'object') then
+      raise exception '8 septies. questionnaire envoyé à l''employeur caché après arrêt de la préparation'; end if;
+    perform public.ent_froid_repondre(v_se4, '{"e_pratique": true, "e_besoins": true, "e_recommande": true}'::jsonb);
+    perform set_config('request.jwt.claims', '', true);
+    if not exists (select 1 from public.froid_employeur where session_id = v_se4 and client_id = v_cl3 and completed_at is not null) then
+      raise exception '8 septies. réponse de l''employeur non enregistrée'; end if;
+    update public.froid_reglages set actif = true, employeur_actif = true where company_id = v_cie;
+  end;
+
   -- 9. Portail : ticket exigé, questionnaire ouvert au délai, réponse figée, ligne préparée écartée
   update public.session_trainees set portal_ticket = 'ticket-0482', portal_ticket_expires_at = now() + interval '1 hour'
    where session_id = v_se and trainee_id = v_a;
