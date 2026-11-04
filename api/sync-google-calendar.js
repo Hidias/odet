@@ -758,9 +758,8 @@ async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
-    return res.status(500).json({ error: 'GOOGLE_SERVICE_ACCOUNT_KEY non configurée' })
-  }
+  // Compte de service absent : traité plus bas comme un passage sans objet (réponse 200), et non comme une erreur
+  // serveur qui remontait dans la Console (19/10) et rendait le cas « skipped » inatteignable.
 
   const startedAt = Date.now()
   const deadline = startedAt + TIME_BUDGET_MS
