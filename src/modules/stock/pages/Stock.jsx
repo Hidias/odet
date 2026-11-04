@@ -440,7 +440,7 @@ function Alertes({ peutCommander = false, onCommande = null }) {
         <section key={fid || 'aucun'} className="card space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="section-title flex items-center gap-2 flex-1 min-w-0"><Truck className="w-4 h-4 text-gray-400" aria-hidden="true" />{f}</h2>
-            {peutCommander && fid && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => preparer(fid)}><ShoppingCart className="w-4 h-4" aria-hidden="true" />Préparer la commande</button>}
+            {peutCommander && fid && lignes.some((a) => Number(a.to_order) > 0) && <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => preparer(fid)}><ShoppingCart className="w-4 h-4" aria-hidden="true" />Préparer la commande</button>}
           </div>
           {!fid && <p className="text-ui-sm muted">Indiquez le fournisseur principal sur ces articles pour pouvoir les commander.</p>}
           <ul className="divide-y divide-gray-100">
@@ -448,7 +448,9 @@ function Alertes({ peutCommander = false, onCommande = null }) {
               <li key={`${a.item_id}-${a.location_id}`} className="py-2 flex flex-wrap items-center gap-3">
                 <span className="flex-1 min-w-[10rem] text-ui font-semibold">{d.art[a.item_id]?.label}<span className="block text-ui-sm text-gray-500 font-normal">{d.loc[a.location_id]}</span></span>
                 <span className="text-ui-sm text-gray-600">en stock {qte(a.quantity)}, seuil {qte(a.min_qty)}</span>
-                <span className="badge badge-warning">à commander : {qte(a.to_order)}</span>
+                {Number(a.to_order) > 0
+                  ? <span className="badge badge-warning">à commander : {qte(a.to_order)}</span>
+                  : <span className="badge badge-danger">stock négatif sur un emplacement fermé</span>}
               </li>
             ))}
           </ul>
