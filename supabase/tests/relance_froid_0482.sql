@@ -168,6 +168,16 @@ begin
     if (select count(*) from public.froid_envois where session_id = v_se3 and trainee_id = v_tn) <> 1 then raise exception '8 sexies. ligne en double'; end if;
   end;
 
+  -- 8 octies. Session pour le compte d'un autre organisme (client organisme de formation, saisie en intra) : rien n'est préparé
+  declare v_of uuid; v_se5 uuid; begin
+    insert into public.clients (name, client_type, company_id) values ('Autre organisme', 'organisme_formation', v_cie) returning id into v_of;
+    insert into public.sessions (reference, client_id, start_date, end_date, attendance_token, company_id, status, session_type)
+    values ('SES-0482-OF', v_of, v_today - 70, v_today - 70, 'jeton-0482o', v_cie, 'completed', 'intra') returning id into v_se5;
+    insert into public.session_trainees (session_id, trainee_id) values (v_se5, v_a);
+    perform app.froid_preparer_corps(array[v_cie], v_today);
+    if exists (select 1 from public.froid_envois where session_id = v_se5) then raise exception '8 octies. session d''un autre organisme préparée'; end if;
+  end;
+
   -- 8 septies. Employeur : session ancienne où seul l'employeur reste à interroger, proposée à l'inclusion ;
   --          questionnaire déjà envoyé à l'employeur toujours accessible quand la préparation est coupée
   declare v_cl3 uuid; v_se4 uuid; v_te uuid; v_u uuid := '00000000-0000-4000-8000-0000000004e2'; v_e uuid; begin

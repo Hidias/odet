@@ -244,6 +244,7 @@ begin
      where se.company_id = any (p_companies)
        and se.status = 'completed'
        and coalesce(se.session_type, 'intra') <> 'subcontract'
+       and not exists (select 1 from public.clients oc where oc.id = se.client_id and oc.client_type = 'organisme_formation')
        and coalesce(se.end_date, se.start_date) is not null
        and coalesce(se.end_date, se.start_date) < p_today
   loop
@@ -427,6 +428,7 @@ as $$
       from public.sessions se left join public.courses co on co.id = se.course_id
       where se.company_id in (select app.societes_avec_droit('formation.suivi.voir'))
         and se.status = 'completed' and coalesce(se.session_type, 'intra') <> 'subcontract'
+       and not exists (select 1 from public.clients oc where oc.id = se.client_id and oc.client_type = 'organisme_formation')
         and coalesce(se.end_date, se.start_date) < public.paris_today() - (app.froid_reglage(se.company_id)).anciennete_max_jours
         and (exists (select 1 from public.session_trainees st left join public.evaluations_cold ec on ec.session_id = st.session_id and ec.trainee_id = st.trainee_id
                       where st.session_id = se.id and not coalesce(st.absent, false) and ec.completed_at is null)
@@ -715,6 +717,7 @@ begin
         -- questionnaire ouvert par les réglages, ou déjà envoyé à l'employeur (il reste accessible si les réglages changent)
         and ((r.actif
               and se.status = 'completed' and coalesce(se.session_type, 'intra') <> 'subcontract'
+       and not exists (select 1 from public.clients oc where oc.id = se.client_id and oc.client_type = 'organisme_formation')
               and coalesce(se.end_date, se.start_date) + coalesce(co.froid_delai_jours, r.premier_envoi_jours) <= public.paris_today()
               and (coalesce(se.end_date, se.start_date) >= public.paris_today() - r.anciennete_max_jours or se.froid_inclure))
              or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = v.client_id and e.cible = 'employeur' and e.statut = 'envoye'))
