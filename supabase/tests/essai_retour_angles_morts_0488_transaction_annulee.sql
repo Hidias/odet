@@ -60,10 +60,11 @@ create temp table etat_essai_avant as select * from etat_essai;
 --  2. app.devis_a_relancer(devis, jour) : devis à relancer, même règle que le Suivi commercial (devisARelancer et
 --     quoteNextDue dans suiviUtils.js, écrits à l'identique) : devis envoyé ou partiel non perdu, hors veille, échéance
 --     de la cadence atteinte (J+7, J+21 ou 7 jours après la relance, puis tous les 30 jours ; date fixée à la main ou
---     date de réveil en priorité). Le rappel du matin (0416) l'utilise : les relances par mail et la veille comptent.
+--     date de réveil en priorité). Un devis de plus de 45 jours jamais trié part au tri de départ, pas dans les relances. Le rappel du matin (0416) l'utilise : les relances par mail et la veille comptent.
 --  3. Un appel enregistré (pas un rappel planifié) clôt les rappels encore en attente du même client et de la même
---     société, notés plus tôt : le rappel n'apparaît plus « à faire » après qu'on a rappelé (A10). Une note datée dit
---     pourquoi le rappel est clos ; le nouvel appel porte lui-même son éventuel prochain rappel.
+--     société, notés plus tôt (A10), quand l'interlocuteur a été joint (intéressé, tiède, pas intéressé) ou que l'appel
+--     pose lui-même un nouveau rappel. Un appel sans réponse, un barrage ou un faux numéro sans nouveau rappel ne clôt
+--     rien. Un rappel prévu avec un autre interlocuteur nommé reste ouvert. Une note datée dit pourquoi le rappel est clos.
 -- Rien ne part par e-mail. Aucune donnée réelle supprimée. Idempotente. Retour arrière :
 -- supabase/rollback/0488_angles_morts_lot4_retour.sql
 
@@ -143,6 +144,7 @@ as $$
   )
   select (q.status = 'sent' or (q.status = 'partial' and q.lost_reason is null))
      and not (q.followup_state = 'veille' and q.veille_until is not null and q.veille_until > p_jour)
+     and not (q.triaged_at is null and coalesce(q.quote_date, (q.created_at at time zone 'UTC')::date) < p_jour - 45)
      and coalesce(d.due <= p_jour, false)
   from d
 $$;
@@ -214,6 +216,7 @@ set search_path = ''
 as $$
 begin
   if coalesce(new.is_planned, false) or new.client_id is null then return null; end if;
+  if not (coalesce(new.needs_callback, false) or coalesce(new.call_result, '') in ('chaud', 'tiede', 'froid')) then return null; end if;
   update public.prospect_calls p
      set needs_callback = false,
          notes = concat_ws(E'\n', nullif(p.notes, ''),
@@ -223,7 +226,9 @@ begin
      and p.company_id is not distinct from new.company_id
      and p.id <> new.id
      and p.needs_callback
-     and p.called_at <= new.called_at;
+     and p.called_at <= new.called_at
+     and (nullif(trim(p.contact_name), '') is null or nullif(trim(new.contact_name), '') is null
+          or lower(trim(p.contact_name)) = lower(trim(new.contact_name)));
   return null;
 end
 $$;

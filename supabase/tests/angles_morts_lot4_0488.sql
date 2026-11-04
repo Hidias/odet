@@ -63,6 +63,10 @@ begin
   if app.devis_a_relancer(v_q, v_auj) then raise exception '3. accepté compté'; end if;
   v_q.status := 'sent'; v_q.next_followup_date := v_auj + 3;
   if app.devis_a_relancer(v_q, v_auj) then raise exception '3. date fixée à la main ignorée'; end if;
+  v_q.next_followup_date := null; v_q.relance_count := 0; v_q.quote_date := v_auj - 46; v_q.triaged_at := null;
+  if app.devis_a_relancer(v_q, v_auj) then raise exception '3. devis de plus de 45 jours jamais trié compté'; end if;
+  v_q.triaged_at := now();
+  if not app.devis_a_relancer(v_q, v_auj) then raise exception '3. devis ancien trié non compté'; end if;
 
   -- 4. Rappel du matin : le devis envoyé il y a 8 jours compte (next_followup_date vide)
   delete from public.notifications where type = 'rappel_matin' and company_id = v_cie;
@@ -76,13 +80,22 @@ begin
   insert into public.prospect_calls (client_id, called_at, needs_callback, callback_date, is_planned, company_id)
     values (v_cli, now() - interval '1 day', true, v_auj + 5, true, v_cie) returning id into v_d;
   if not (select needs_callback from public.prospect_calls where id = v_a) then raise exception '5. un rappel planifié a clos un rappel'; end if;
-  insert into public.prospect_calls (client_id, called_at, needs_callback, company_id) values (v_cli, now(), false, v_cie) returning id into v_b;
+  -- Sans réponse et sans nouveau rappel : rien n'est clos
+  insert into public.prospect_calls (client_id, called_at, call_result, needs_callback, company_id) values (v_cli, now() - interval '1 hour', 'no_answer', false, v_cie);
+  if not (select needs_callback from public.prospect_calls where id = v_a) then raise exception '5. un appel sans réponse a clos un rappel'; end if;
+  -- Autre interlocuteur nommé : son rappel reste ouvert
+  update public.prospect_calls set contact_name = 'Mme Durand' where id = v_d;
+  insert into public.prospect_calls (client_id, called_at, call_result, contact_name, needs_callback, company_id)
+    values (v_cli, now(), 'tiede', 'M. Martin', false, v_cie) returning id into v_b;
   if (select needs_callback from public.prospect_calls where id = v_a) then raise exception '5. rappel non clos par l''appel suivant'; end if;
-  if (select needs_callback from public.prospect_calls where id = v_d) then raise exception '5. rappel planifié plus tôt non clos'; end if;
+  if not (select needs_callback from public.prospect_calls where id = v_d) then raise exception '5. rappel d''un autre interlocuteur clos'; end if;
+  insert into public.prospect_calls (client_id, called_at, call_result, contact_name, needs_callback, company_id)
+    values (v_cli, now(), 'froid', 'mme durand ', false, v_cie);
+  if (select needs_callback from public.prospect_calls where id = v_d) then raise exception '5. rappel du même interlocuteur non clos'; end if;
   if (select notes from public.prospect_calls where id = v_a) not like 'Rappel clos par l''appel du %' then raise exception '5. note absente'; end if;
   insert into public.prospect_calls (client_id, called_at, needs_callback, callback_date, company_id)
     values (v_cli, now() + interval '1 minute', true, v_auj + 7, v_cie) returning id into v_a;
-  insert into public.prospect_calls (client_id, called_at, needs_callback, company_id) values (v_cli, now() - interval '3 days', false, v_cie);
+  insert into public.prospect_calls (client_id, called_at, call_result, needs_callback, company_id) values (v_cli, now() - interval '3 days', 'chaud', false, v_cie);
   if not (select needs_callback from public.prospect_calls where id = v_a) then raise exception '5. un appel plus ancien a clos un rappel plus récent'; end if;
 end $$;
 rollback;

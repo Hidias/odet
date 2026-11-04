@@ -29,6 +29,12 @@ describe('rappel évaluation à froid (A4)', () => {
     expect(froidARappeler(s, { envoyes, repondus: new Set(), aujourdhui: '2026-11-04' })).toBe(true)
     expect(froidARappeler(s, { envoyes, repondus: new Set([cleStagiaire('s', 'b')]), aujourdhui: '2026-11-04' })).toBe(false)
   })
+  it('mêmes exclusions que la préparation de nuit', () => {
+    const a = { ...vide, aujourdhui: '2026-11-04' }
+    expect(froidARappeler({ ...s, session_type: 'subcontract' }, a)).toBe(false)
+    expect(froidARappeler({ ...s, clients: { client_type: 'organisme_formation' } }, a)).toBe(false)
+    expect(froidARappeler(s, { ...a, reglage: { actif: false } })).toBe(false)
+  })
   it('absents et non formés ignorés, sessions trop anciennes exclues sauf inclusion', () => {
     const t = { ...s, session_trainees: [st('a', { absent: true }), { trainee_id: 'b' }] }
     expect(froidARappeler(t, { ...vide, aujourdhui: '2026-11-04' })).toBe(false)
@@ -55,5 +61,8 @@ describe('devis à relancer (A5), règle écrite aussi en base (app.devis_a_rela
     expect(devisARelancer({ ...q, status: 'partial', lost_reason: 'Prix' }, auj)).toBe(false)
     expect(devisARelancer({ ...q, status: 'accepted' }, auj)).toBe(false)
     expect(devisARelancer({ ...q, next_followup_date: addDays(auj, 3) }, auj)).toBe(false)
+    // Plus de 45 jours sans tri : tri de départ du Suivi, pas une relance
+    expect(devisARelancer({ ...q, quote_date: addDays(auj, -46) }, auj)).toBe(false)
+    expect(devisARelancer({ ...q, quote_date: addDays(auj, -46), triaged_at: '2026-10-01T10:00:00Z' }, auj)).toBe(true)
   })
 })

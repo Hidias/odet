@@ -55,8 +55,10 @@ export function etatBpf(declaration, annee) {
 
 // A4 : rappel « évaluation à froid » aligné sur la relance à froid (0482) : délai réglé par la société ou la formation
 // (60 jours par défaut, comme app.froid_reglage), sessions plus anciennes que le réglage exclues sauf inclusion à la
-// main, et plus rien dès que chaque stagiaire formé a reçu son envoi ou a répondu. Les absents ne comptent pas.
-export const FROID_DEFAUT = { premier_envoi_jours: 60, anciennete_max_jours: 365 }
+// main, et plus rien dès que chaque stagiaire formé a reçu son envoi, a été écarté ou a répondu. Les absents ne comptent
+// pas. Mêmes exclusions que la préparation de nuit (froid_preparer_corps) : sous-traitance, client organisme de
+// formation, circuit désactivé par la société.
+export const FROID_DEFAUT = { actif: true, premier_envoi_jours: 60, anciennete_max_jours: 365 }
 const JOUR_MS = 86400000
 const jourUtc = (v) => { const [y, m, d] = String(v).slice(0, 10).split('-').map(Number); return Date.UTC(y, m - 1, d) }
 export const cleStagiaire = (sessionId, traineeId) => `${sessionId}:${traineeId}`
@@ -65,7 +67,9 @@ export function froidARappeler(s, { reglage, envoyes, repondus, aujourdhui } = {
   if (!s || s.status !== 'completed') return false
   const fin = s.end_date || s.start_date
   if (!fin || !aujourdhui) return false
+  if (s.session_type === 'subcontract' || s.clients?.client_type === 'organisme_formation') return false
   const r = { ...FROID_DEFAUT, ...(reglage || {}) }
+  if (r.actif === false) return false
   const delai = s.courses?.froid_delai_jours ?? r.premier_envoi_jours
   const ecart = Math.round((jourUtc(aujourdhui) - jourUtc(fin)) / JOUR_MS)
   if (ecart < delai) return false

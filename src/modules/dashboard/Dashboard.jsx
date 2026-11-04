@@ -133,6 +133,7 @@ export default function Dashboard() {
     client: 'clients.fiches.modifier',
     stagiaire: 'formation.stagiaires.creer',
     devis: 'commercial.devis.voir',
+    bpf: 'qualite.registres.gerer',
   })
   
   
@@ -206,8 +207,8 @@ export default function Dashboard() {
       // Conventions des sessions inter, groupe par groupe (angle mort A2)
       fetchAll(() => supabase.from('session_groups').select('id, session_id, doc_status, status')),
       // Évaluation à froid (angle mort A4) : réglages, envois faits et réponses reçues (0482)
-      supabase.from('froid_reglages').select('company_id, premier_envoi_jours, anciennete_max_jours'),
-      fetchAll(() => supabase.from('froid_envois').select('session_id, trainee_id').eq('statut', 'envoye').not('trainee_id', 'is', null)),
+      supabase.from('froid_reglages').select('company_id, actif, premier_envoi_jours, anciennete_max_jours'),
+      fetchAll(() => supabase.from('froid_envois').select('session_id, trainee_id').in('statut', ['envoye', 'ignore']).not('trainee_id', 'is', null)),
       fetchAll(() => supabase.from('evaluations_cold').select('session_id, trainee_id').not('completed_at', 'is', null)),
     ])
     
@@ -573,6 +574,8 @@ export default function Dashboard() {
   const [bpf, setBpf] = useState(null)
   useEffect(() => {
     let vivant = true
+    // Déclarations lisibles avec le droit de gérer les registres qualité seulement (0477) : sans lui, aucun état affiché
+    if (!d.bpf) { setBpf({ cle: 'reserve', titre: 'BPF', detail: 'Suivi réservé à la gestion des registres qualité' }); return undefined }
     ;(async () => {
       try {
         const { data: ctx } = await supabase.rpc('my_company_context')
@@ -585,7 +588,7 @@ export default function Dashboard() {
       } catch { if (vivant) setBpf(null) }
     })()
     return () => { vivant = false }
-  }, [])
+  }, [d.bpf])
   const [certSteps, setCertSteps] = useState(null)
   useEffect(() => {
     if (!certOn) { setCertSteps(null); return }
@@ -972,7 +975,7 @@ export default function Dashboard() {
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto"><FileText className="w-5 h-5 text-gray-900" /></div>
             <p className="text-ui font-medium text-gray-700">{bpf?.titre || 'BPF'}</p>
             {bpf?.detail && <p className="text-ui-sm text-gray-500">{bpf.detail}</p>}
-            <Link to="/bpf" className="inline-flex items-center gap-1 text-ui-sm text-accent-700 hover:underline">Ouvrir le BPF <ArrowRight className="w-3 h-3" /></Link>
+            {d.bpf && <Link to="/bpf" className="inline-flex items-center gap-1 text-ui-sm text-accent-700 hover:underline">Ouvrir le BPF <ArrowRight className="w-3 h-3" /></Link>}
             <p className="text-ui-sm text-gray-400">{organization?.nda ? `NDA : ${organization.nda}` : "Déclaration d'activité en cours d'enregistrement"}</p>
           </div>
         )
