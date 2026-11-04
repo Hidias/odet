@@ -89,3 +89,17 @@ export function decouperEnLots(envois, max = MAILS_PAR_LOT) {
   for (let i = 0; i < mails.length; i += max) lots.push(mails.slice(i, i + max).flat())
   return lots
 }
+
+// Personne concernée par la ligne : le stagiaire (même quand la demande passe par le contact de l'entreprise), ou l'employeur.
+// `noms` : nom des stagiaires par identifiant (lignes « contact », dont destinataire_nom est le contact).
+export function nomPersonne(e, noms = {}) {
+  if (e.cible === 'employeur') return 'Employeur'
+  if (e.cible === 'contact') return noms[e.trainee_id] || 'Stagiaire sans adresse'
+  return e.destinataire_nom || ''
+}
+
+// Destinataire lisible : « Nom (adresse) » pour le contact et l'employeur, l'adresse seule pour le stagiaire
+export function libelleDestinataire(e) {
+  if (!e.destinataire) return ''
+  return e.cible !== 'stagiaire' && e.destinataire_nom ? `${e.destinataire_nom} (${e.destinataire})` : e.destinataire
+}
