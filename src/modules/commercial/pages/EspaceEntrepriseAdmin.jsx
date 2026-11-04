@@ -10,6 +10,7 @@ import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
 import { EmptyState, Spinner } from '../../../ui/EmptyState'
 import { confirmer } from '../../../ui/Confirm'
+import { lignesBesoin } from '../../formation/lib/besoinClient'
 
 // Espace entreprise, côté organisme (lot 2, 0046) : demandes reçues des comptes entreprise (inscription à une session
 // inter, demande de formation intra, remplacement, message) et actualités publiées dans les espaces.
@@ -158,6 +159,17 @@ export default function EspaceEntrepriseAdmin() {
           )}
           {ouverte.payload?.periode && <div className="text-ui text-gray-800">Période souhaitée : {ouverte.payload.periode}</div>}
           {ouverte.payload?.effectif && <div className="text-ui text-gray-800">Nombre de personnes : {ouverte.payload.effectif}</div>}
+          {ouverte.payload?.besoin && typeof ouverte.payload.besoin === 'object' && (
+            <div className="rounded-ui-sm bg-gray-50 p-3 text-ui">
+              <div className="font-medium text-gray-900 mb-1">Besoin décrit par le client</div>
+              <dl className="grid grid-cols-1 sm:grid-cols-[13rem_1fr] gap-x-4 gap-y-1">
+                {lignesBesoin(ouverte.payload.besoin).map(([k, v]) => (
+                  <div key={k} className="contents"><dt className="text-gray-600">{k}</dt><dd className="text-gray-900 whitespace-pre-line break-words">{v}</dd></div>
+                ))}
+              </dl>
+              <p className="text-ui-sm text-gray-600 mt-2">{ouverte.sessions?.reference ? `Recopié dans l'analyse du besoin de la session ${ouverte.sessions.reference}, à relire et valider.` : 'À la création de la session intra de ce client, ces réponses deviennent son analyse du besoin, à relire et valider.'}</p>
+            </div>
+          )}
           <div>
             <label className="label" htmlFor="ce-rep">Réponse visible par le client</label>
             <textarea id="ce-rep" className="input min-h-[80px]" value={ouverte.response || ''} disabled={!peutTraiter || !['nouvelle', 'en_cours'].includes(ouverte.status)}

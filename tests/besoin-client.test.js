@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   MOTIFS, PROFILS, NIVEAUX, reponsesVides, depuisReponses, verifierReponses, besoinsARemplir, etatBesoinOrganisme,
+  lignesBesoin, demandeAvecBesoin,
 } from '../src/modules/formation/lib/besoinClient.js'
 
 const bon = () => ({ ...reponsesVides(), context_reasons: ['reglementation'], participants_count: '8', objectives_description: 'Réagir à un départ de feu', psh_adaptation: false })
@@ -47,8 +48,8 @@ describe('analyse du besoin remplie par l\'entreprise (0486)', () => {
     expect(etatBesoinOrganisme({ filled_at: 'x' })).toBe('remplie')
   })
 
-  it('listes identiques à celles de la base', () => {
-    const sql = readFileSync(resolve(__dirname, '../supabase/migrations/0486_besoin_espace_client.sql'), 'utf8')
+  it.each(['0486_besoin_espace_client', '0487_besoin_demande_intra'])('listes identiques à celles de la base (%s)', (m) => {
+    const sql = readFileSync(resolve(__dirname, `../supabase/migrations/${m}.sql`), 'utf8')
     const liste = (debut) => {
       const m = sql.match(new RegExp(`${debut}[^\\n]*?array\\[([^\\]]+)\\]`))
       return m[1].split(',').map((x) => x.trim().replace(/'/g, ''))
@@ -65,5 +66,23 @@ describe('analyse du besoin remplie par l\'entreprise (0486)', () => {
     const sql = readFileSync(resolve(__dirname, '../supabase/migrations/0486_besoin_espace_client.sql'), 'utf8')
     const lecture = sql.slice(sql.indexOf('function public.ent_besoins()'), sql.indexOf('function public.ent_besoin_enregistrer'))
     expect(lecture).not.toMatch(/particularities_psh|org_conclusion/)
+  })
+
+  it('résumé lisible des réponses, sans ligne vide', () => {
+    const l = lignesBesoin({ context_reasons: ['autre', 'reglementation'], context_other: 'Audit', objectives_description: 'Évacuer', participants_count: 6,
+      participants_profiles: ['terrain'], psh_adaptation: true, psh_contact: 'M. Durand', company_equipment: false })
+    expect(Object.fromEntries(l)).toMatchObject({
+      Motifs: 'Autre : Audit, Réglementation, obligation légale', Participants: '6 · Terrain', 'Besoin d\'adaptation': 'Oui, contact : M. Durand',
+      'Matériel de l\'entreprise': 'Non', 'Équipements de protection fournis': 'Non précisé',
+    })
+    expect(l.find(([k]) => k === 'Enjeux')).toBeUndefined()
+    expect(lignesBesoin(null)).toEqual([])
+  })
+
+  it('demande intra avec besoin pas encore reliée', () => {
+    expect(demandeAvecBesoin({ kind: 'demande_intra', payload: { besoin: { participants_count: 3 } } })).toBe(true)
+    expect(demandeAvecBesoin({ kind: 'demande_intra', session_id: 'x', payload: { besoin: {} } })).toBe(false)
+    expect(demandeAvecBesoin({ kind: 'message', payload: { besoin: {} } })).toBe(false)
+    expect(demandeAvecBesoin({ kind: 'demande_intra', payload: {} })).toBe(false)
   })
 })

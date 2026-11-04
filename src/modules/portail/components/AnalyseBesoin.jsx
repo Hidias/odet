@@ -19,25 +19,13 @@ function OuiNon({ name, value, onChange }) {
   )
 }
 
-function Formulaire({ besoin, onFermer, onEnvoye }) {
-  const [r, setR] = useState(() => depuisReponses(besoin.reponses))
-  const [busy, setBusy] = useState(false)
-  const [erreur, setErreur] = useState('')
+// Questions du besoin, partagées entre l'analyse d'une session (0486) et la demande « Formation intra » (0487)
+export function ChampsBesoin({ r, setR, id }) {
   const maj = (k, v) => setR((x) => ({ ...x, [k]: v }))
   const basculer = (k, v) => setR((x) => ({ ...x, [k]: x[k].includes(v) ? x[k].filter((y) => y !== v) : [...x[k], v] }))
   const champ = 'w-full px-3 py-2 border border-gray-300 rounded-ui-sm text-sm'
-  const envoyer = async () => {
-    const msg = verifierReponses(r)
-    if (msg) { setErreur(msg); return }
-    setBusy(true); setErreur('')
-    const { error } = await supabase.rpc('ent_besoin_enregistrer', { p_session: besoin.session_id, p_reponses: r })
-    setBusy(false)
-    if (error) { setErreur(error.message || 'Envoi impossible, réessayez'); return }
-    toast.success('Analyse envoyée à votre organisme')
-    onEnvoye()
-  }
   return (
-    <div className="mt-3 space-y-4 text-sm">
+    <div className="space-y-4 text-sm">
       <fieldset>
         <legend className="font-medium text-gray-900">Pourquoi cette formation ? *</legend>
         <div className="mt-1 space-y-1">
@@ -82,7 +70,7 @@ function Formulaire({ besoin, onFermer, onEnvoye }) {
       </fieldset>
       <fieldset className="rounded-ui-sm bg-gray-50 p-3">
         <legend className="font-medium text-gray-900">Un participant a-t-il besoin d'une adaptation (handicap, santé) ? *</legend>
-        <OuiNon name={`psh-${besoin.session_id}`} value={r.psh_adaptation} onChange={(v) => maj('psh_adaptation', v)} />
+        <OuiNon name={`psh-${id}`} value={r.psh_adaptation} onChange={(v) => maj('psh_adaptation', v)} />
         {r.psh_adaptation && (
           <label className="block mt-2">
             <span className="text-gray-700">Personne à contacter (nom, téléphone ou e-mail) *</span>
@@ -94,14 +82,14 @@ function Formulaire({ besoin, onFermer, onEnvoye }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <span className="font-medium text-gray-900">Matériel de l'entreprise utilisable</span>
-          <OuiNon name={`mat-${besoin.session_id}`} value={r.company_equipment} onChange={(v) => maj('company_equipment', v)} />
+          <OuiNon name={`mat-${id}`} value={r.company_equipment} onChange={(v) => maj('company_equipment', v)} />
           {r.company_equipment && (
             <input className={`${champ} mt-2`} maxLength={LONGUEURS.company_equipment_details} value={r.company_equipment_details} onChange={(e) => maj('company_equipment_details', e.target.value)} placeholder="Lequel ?" aria-label="Matériel disponible" />
           )}
         </div>
         <div>
           <span className="font-medium text-gray-900">Équipements de protection fournis aux participants</span>
-          <OuiNon name={`epi-${besoin.session_id}`} value={r.ppe_provided} onChange={(v) => maj('ppe_provided', v)} />
+          <OuiNon name={`epi-${id}`} value={r.ppe_provided} onChange={(v) => maj('ppe_provided', v)} />
         </div>
       </div>
       <label className="block">
@@ -112,6 +100,27 @@ function Formulaire({ besoin, onFermer, onEnvoye }) {
         <span className="font-medium text-gray-900">Autres contraintes (organisation, accès, sécurité du site)</span>
         <textarea className={`${champ} mt-1`} rows={2} maxLength={LONGUEURS.other_constraints} value={r.other_constraints} onChange={(e) => maj('other_constraints', e.target.value)} />
       </label>
+    </div>
+  )
+}
+
+function Formulaire({ besoin, onFermer, onEnvoye }) {
+  const [r, setR] = useState(() => depuisReponses(besoin.reponses))
+  const [busy, setBusy] = useState(false)
+  const [erreur, setErreur] = useState('')
+  const envoyer = async () => {
+    const msg = verifierReponses(r)
+    if (msg) { setErreur(msg); return }
+    setBusy(true); setErreur('')
+    const { error } = await supabase.rpc('ent_besoin_enregistrer', { p_session: besoin.session_id, p_reponses: r })
+    setBusy(false)
+    if (error) { setErreur(error.message || 'Envoi impossible, réessayez'); return }
+    toast.success('Analyse envoyée à votre organisme')
+    onEnvoye()
+  }
+  return (
+    <div className="mt-3 space-y-4 text-sm">
+      <ChampsBesoin r={r} setR={setR} id={besoin.session_id} />
       {erreur && <p role="alert" className="text-[rgb(var(--c-danger))]">{erreur}</p>}
       <div className="flex flex-wrap gap-2 justify-end">
         <button type="button" className="btn btn-secondary" onClick={onFermer} disabled={busy}>Annuler</button>

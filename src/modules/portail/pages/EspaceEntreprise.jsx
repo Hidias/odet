@@ -31,8 +31,8 @@ import CertificatsEntree from '../components/CertificatsEntree'
 import NumerosDemandes from '../components/NumerosDemandes'
 import DeposerSigne from '../components/DeposerSigne'
 import FroidEspace from '../components/FroidEspace'
-import AnalyseBesoin from '../components/AnalyseBesoin'
-import { besoinsARemplir } from '../../formation/lib/besoinClient'
+import AnalyseBesoin, { ChampsBesoin } from '../components/AnalyseBesoin'
+import { besoinsARemplir, reponsesVides, verifierReponses } from '../../formation/lib/besoinClient'
 import RecapSession from '../components/RecapSession'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
@@ -575,10 +575,13 @@ function Demandes({ compte, onChange }) {
     if (f.kind === 'inscription_inter' && (!f.session || stagiaires.length === 0)) return toast.error('Choisissez la session et indiquez au moins un salarié')
     if (f.kind === 'remplacement' && !f.session) return toast.error('Choisissez la session')
     if (f.kind === 'message' && !f.message?.trim()) return toast.error('Écrivez votre message')
+    // Besoin décrit dès la demande intra (0487) : mêmes contrôles que l'analyse du besoin
+    const avecBesoin = f.kind === 'demande_intra' && f.avecBesoin
+    if (avecBesoin) { const m = verifierReponses(f.besoin); if (m) return toast.error(m) }
     setBusy(true)
     const { error } = await supabase.rpc('ent_demander', {
       p_kind: f.kind, p_message: f.message || null, p_session: f.session || null, p_course: f.course || null,
-      p_payload: { stagiaires, periode: f.periode || null, effectif: f.effectif || null },
+      p_payload: { stagiaires, periode: f.periode || null, effectif: f.effectif || null, ...(avecBesoin ? { besoin: f.besoin } : {}) },
     })
     setBusy(false)
     if (error) return toast.error(error.message)
@@ -594,7 +597,7 @@ function Demandes({ compte, onChange }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
         {compte?.can_register && <button type="button" className="btn btn-secondary justify-center" onClick={() => setForm({ kind: 'inscription_inter', session: '', stagiaires: [{ prenom: '', nom: '', fonction: '', email: '' }], message: '' })}>Inscrire</button>}
-        <button type="button" className="btn btn-secondary justify-center" onClick={() => setForm({ kind: 'demande_intra', course: '', periode: '', effectif: '', message: '' })}>Formation intra</button>
+        <button type="button" className="btn btn-secondary justify-center" onClick={() => setForm({ kind: 'demande_intra', course: '', periode: '', effectif: '', message: '', avecBesoin: false, besoin: reponsesVides() })}>Formation intra</button>
         <button type="button" className="btn btn-secondary justify-center" onClick={() => setForm({ kind: 'remplacement', session: '', message: '' })}>Remplacement</button>
         <button type="button" className="btn btn-secondary justify-center" onClick={() => setForm({ kind: 'message', message: '' })}>Message</button>
       </div>
@@ -633,6 +636,14 @@ function Demandes({ compte, onChange }) {
                 <input className="input" placeholder="Période souhaitée" value={form.periode} onChange={(e) => setForm((f) => ({ ...f, periode: e.target.value }))} aria-label="Période souhaitée" />
                 <input className="input" inputMode="numeric" placeholder="Nombre de personnes" value={form.effectif} onChange={(e) => setForm((f) => ({ ...f, effectif: e.target.value.replace(/\D/g, '') }))} aria-label="Nombre de personnes" />
               </div>
+              <label className="flex items-start gap-2 text-sm text-gray-800">
+                <input type="checkbox" className="mt-0.5" checked={form.avecBesoin}
+                  onChange={(e) => setForm((f) => ({ ...f, avecBesoin: e.target.checked, besoin: { ...f.besoin, participants_count: f.besoin.participants_count || f.effectif || '' } }))} />
+                <span>Décrire votre besoin maintenant (recommandé) : vous n'aurez pas à le refaire quand la formation sera programmée.</span>
+              </label>
+              {form.avecBesoin && (
+                <ChampsBesoin r={form.besoin} id="demande" setR={(fn) => setForm((f) => ({ ...f, besoin: typeof fn === 'function' ? fn(f.besoin) : fn }))} />
+              )}
             </>
           )}
           {form.kind === 'remplacement' && (
