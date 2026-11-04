@@ -159,7 +159,7 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
                   {STATUS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </label>
-              <DateField label="Déposée le" value={form.nda_filed_at} onChange={(v) => { setForm({ ...form, nda_filed_at: v }); save({ nda_filed_at: v, ...(v && form.nda_status === 'preparation' ? { nda_status: 'depose' } : {}) }) }} />
+              <DateField label="Déposée le" value={form.nda_filed_at} onChange={(v) => { setForm({ ...form, nda_filed_at: v, ...(v && ['preparation', 'refuse'].includes(form.nda_status) ? { nda_status: 'depose' } : {}) }); save({ nda_filed_at: v, ...(v && ['preparation', 'refuse'].includes(form.nda_status) ? { nda_status: 'depose' } : {}) }) }} />
             </div>
           )}
         </Step>
