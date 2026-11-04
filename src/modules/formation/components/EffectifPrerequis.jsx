@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { AlertTriangle, CheckCircle2, FileText, Upload, Receipt } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
-import { etatEffectif, statutCertificat, finValiditeInterne, decouperGroupes } from '../lib/effectifPrerequis'
+import { etatEffectif, statutDate, dateFinImpossible, finValiditeInterne, decouperGroupes } from '../lib/effectifPrerequis'
+import { confirmer } from '../../../ui/Confirm'
 import { joursAvant } from './SeuilMaintien'
 
 // Effectif imposé et certificat exigé à l'entrée (0479, CGV formation, fin de l'article 8, décision de H du 04/11).
@@ -11,12 +12,14 @@ import { joursAvant } from './SeuilMaintien'
 // une formation sans ces réglages. L'outil n'envoie rien : il signale, propose et prépare la facture.
 
 const fmt = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
+// Deux statuts séparés (04/11) : la date (alerte dès la saisie) et la preuve (copie ou certificat délivré ici)
 const BADGES = {
   valide: { t: 'Valide', c: 'bg-green-50 text-green-800' },
   tolere: { t: 'Expiré, toléré', c: 'bg-amber-50 text-amber-800' },
   refuse: { t: 'Refusé : formation initiale', c: 'bg-red-50 text-red-800' },
-  manquant: { t: 'Justificatif manquant', c: 'bg-gray-100 text-gray-700' },
+  sans_date: { t: 'Date à saisir', c: 'bg-gray-100 text-gray-700' },
 }
+const fmtHeure = (d) => (d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' à ') : '')
 
 export default function EffectifPrerequis({ session, peutModifier, peutFacturer }) {
   const navigate = useNavigate()
@@ -25,6 +28,8 @@ export default function EffectifPrerequis({ session, peutModifier, peutFacturer 
   const [internes, setInternes] = useState({})
   const [busy, setBusy] = useState(null)
   const [demande, setDemande] = useState('')
+  const [brouillons, setBrouillons] = useState({})
+  const [auteurs, setAuteurs] = useState({})
 
   const charger = async () => {
     if (!session?.course_id) return
@@ -33,9 +38,16 @@ export default function EffectifPrerequis({ session, peutModifier, peutFacturer 
     if (error || !co) return setCourse(null) // base pas encore à jour (0479) : rien n'est affiché
     setCourse(co)
     const { data: st } = await supabase.from('session_trainees')
-      .select('id, trainee_id, absent, prerequis_valid_until, prerequis_file_path, trainees(first_name, last_name)')
+      .select('id, trainee_id, absent, prerequis_valid_until, prerequis_file_path, prerequis_checked_at, prerequis_checked_by, trainees(first_name, last_name)')
       .eq('session_id', session.id)
     setLignes(st || [])
+    setBrouillons({})
+    // Qui a modifié en dernier (trace visible sous la ligne)
+    const ids = [...new Set((st || []).map((x) => x.prerequis_checked_by).filter(Boolean))]
+    if (ids.length) {
+      const { data: pr } = await supabase.from('profiles').select('id, first_name, last_name, display_name').in('id', ids)
+      setAuteurs(Object.fromEntries((pr || []).map((x) => [x.id, [x.first_name, x.last_name].filter(Boolean).join(' ') || x.display_name || ''])))
+    }
     if (co.prerequis_certificat_mois != null && st?.length) {
       // Certificats délivrés par l'organisme lui-même : repris sans demander de copie (pas de double saisie)
       const { data: certs } = await supabase.from('sst_certifications')
@@ -67,9 +79,11 @@ export default function EffectifPrerequis({ session, peutModifier, peutFacturer 
     // Certificat délivré ici : repris d'office tant qu'aucune autre date ni copie n'est saisie (pas de double saisie)
     const estInterne = !!interne && !l.prerequis_file_path && (!l.prerequis_valid_until || l.prerequis_valid_until === interne)
     const fin = estInterne ? interne : l.prerequis_valid_until
-    return { l, interne, estInterne, ...statutCertificat({ validUntil: fin, filePath: l.prerequis_file_path, interne: estInterne, debutFormation: session.start_date, toleranceMois: course.prerequis_certificat_mois }) }
+    const preuve = estInterne || !!l.prerequis_file_path
+    return { l, interne, estInterne, preuve, ...statutDate({ validUntil: fin, debutFormation: session.start_date, toleranceMois: course.prerequis_certificat_mois }) }
   }) : []
-  const aRegler = statuts.filter((s) => s.statut === 'manquant' || s.statut === 'refuse')
+  const refuses = statuts.filter((s) => s.statut === 'refuse')
+  const incomplets = statuts.filter((s) => s.statut === 'sans_date' || !s.preuve)
 
   const majLigne = async (id, champs) => {
     setBusy(id)
@@ -77,8 +91,26 @@ export default function EffectifPrerequis({ session, peutModifier, peutFacturer 
     const { error } = await supabase.from('session_trainees')
       .update({ ...champs, prerequis_checked_at: new Date().toISOString(), prerequis_checked_by: u?.user?.id || null }).eq('id', id)
     setBusy(null)
-    if (error) return toast.error('Enregistrement impossible : ' + error.message)
+    if (error) { toast.error('Enregistrement impossible : ' + error.message); return false }
+    toast.success('Enregistré')
     charger()
+    return true
+  }
+  // Date saisie : contrôlée, puis enregistrée à la sortie du champ ; remplacer une date déjà saisie se confirme
+  const validerDate = async (l, valeur) => {
+    const nouvelle = valeur || null
+    if (nouvelle === (l.prerequis_valid_until || null)) return
+    if (nouvelle) {
+      const erreur = dateFinImpossible(nouvelle, new Date().toISOString())
+      if (erreur) { toast.error(erreur); setBrouillons((b) => { const c = { ...b }; delete c[l.id]; return c }); return }
+    }
+    if (l.prerequis_valid_until) {
+      const ok = await confirmer(nouvelle
+        ? `Remplacer la fin de validité du ${fmt(l.prerequis_valid_until)} par le ${fmt(nouvelle)} ?`
+        : `Effacer la fin de validité du ${fmt(l.prerequis_valid_until)} ?`)
+      if (!ok) { setBrouillons((b) => { const c = { ...b }; delete c[l.id]; return c }); return }
+    }
+    majLigne(l.id, { prerequis_valid_until: nouvelle })
   }
   const deposer = async (l, file) => {
     if (!file) return
@@ -127,21 +159,28 @@ export default function EffectifPrerequis({ session, peutModifier, peutFacturer 
       {exige && (
         <div>
           <p className="font-medium text-gray-900 text-ui">Certificat exigé à l'entrée, accepté jusqu'à {course.prerequis_certificat_mois} mois après sa fin de validité</p>
-          {proche && aRegler.length > 0 && (
-            <p className="text-ui-sm text-amber-800 mt-1 flex items-center gap-1"><AlertTriangle className="w-4 h-4" />
-              À J-{j} : {aRegler.length} participant{aRegler.length > 1 ? 's' : ''} sans justificatif valable. Demandez la copie à l'entreprise ; sinon, formation initiale.</p>
+          {refuses.length > 0 && (
+            <p className="text-ui-sm text-red-800 bg-red-50 rounded px-2 py-1 mt-1 flex items-center gap-1"><AlertTriangle className="w-4 h-4 shrink-0" />
+              {refuses.length} participant{refuses.length > 1 ? 's' : ''} refusé{refuses.length > 1 ? 's' : ''} : certificat expiré depuis plus de {course.prerequis_certificat_mois} mois. Proposez la formation initiale au client.</p>
+          )}
+          {proche && incomplets.length > 0 && (
+            <p className="text-ui-sm text-amber-800 mt-1 flex items-center gap-1"><AlertTriangle className="w-4 h-4 shrink-0" />
+              À J-{j} : {incomplets.length} participant{incomplets.length > 1 ? 's' : ''} sans date ou sans copie. Demandez-les à l'entreprise.</p>
           )}
           {presents.length === 0 ? <p className="text-ui-sm text-gray-500 mt-1">Aucun participant inscrit.</p> : (
             <ul className="divide-y divide-gray-100 mt-2">
-              {statuts.map(({ l, interne, estInterne, statut, limite }) => (
+              {statuts.map(({ l, interne, estInterne, preuve, statut, limite }) => (
                 <li key={l.id} className="py-2 flex flex-wrap items-center gap-2 text-ui">
                   <span className="min-w-[10rem] text-gray-900">{l.trainees?.first_name} {(l.trainees?.last_name || '').toUpperCase()}</span>
                   <span className={`px-2 py-0.5 rounded text-ui-sm ${BADGES[statut].c}`}>{BADGES[statut].t}{statut === 'tolere' && limite ? ` (jusqu'au ${fmt(limite)})` : ''}</span>
+                  <span className={`px-2 py-0.5 rounded text-ui-sm ${preuve ? 'bg-green-50 text-green-800' : 'bg-gray-100 text-gray-700'}`}>{estInterne ? 'Délivré ici' : preuve ? 'Copie reçue' : 'Copie à demander'}</span>
                   {peutModifier ? (
                     <>
                       <label className="text-ui-sm text-gray-600 sr-only" htmlFor={`fin-${l.id}`}>Fin de validité</label>
-                      <input id={`fin-${l.id}`} type="date" className="input w-40" value={l.prerequis_valid_until || (estInterne ? interne : '')} disabled={busy === l.id}
-                        onChange={(e) => majLigne(l.id, { prerequis_valid_until: e.target.value || null })} title="Fin de validité du certificat" />
+                      <input id={`fin-${l.id}`} type="date" className="input w-40" disabled={busy === l.id} title="Fin de validité du certificat"
+                        value={brouillons[l.id] ?? (l.prerequis_valid_until || (estInterne ? interne : ''))}
+                        onChange={(e) => setBrouillons((b) => ({ ...b, [l.id]: e.target.value }))}
+                        onBlur={(e) => { if (brouillons[l.id] !== undefined) validerDate(l, e.target.value) }} />
                       {estInterne
                         ? <span className="text-ui-sm text-gray-600">Certificat délivré ici, fin le {fmt(interne)}</span>
                         : l.prerequis_file_path
@@ -158,6 +197,9 @@ export default function EffectifPrerequis({ session, peutModifier, peutFacturer 
                       )}
                     </>
                   ) : (l.prerequis_valid_until && <span className="text-ui-sm text-gray-600">fin de validité le {fmt(l.prerequis_valid_until)}</span>)}
+                  {l.prerequis_checked_at && (
+                    <span className="basis-full text-ui-sm text-gray-500">Modifié le {fmtHeure(l.prerequis_checked_at)}{auteurs[l.prerequis_checked_by] ? ` par ${auteurs[l.prerequis_checked_by]}` : l.prerequis_checked_by ? '' : ' par l\'entreprise'}</span>
+                  )}
                 </li>
               ))}
             </ul>

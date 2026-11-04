@@ -3,6 +3,7 @@ import { BadgeCheck, Upload, Loader2, CheckCircle2 } from 'lucide-react'
 import { callApi } from '../../../core/api'
 import { preparerDepot, enBase64 } from '../../../core/fichiers/compression'
 import { versIso } from './ParticipantsSession'
+import { dateFinImpossible } from '../../formation/lib/effectifPrerequis'
 
 // Certificats exigés à l'entrée (0479, CGV formation, fin de l'article 8, décision de H du 04/11) : pour une formation
 // comme le MAC SST, le client dépose depuis son espace la copie du certificat de chaque participant et sa date de fin
@@ -32,6 +33,8 @@ export default function CertificatsEntree({ auth = {}, className = '' }) {
     const iso = versIso(saisie[cle])
     setErreur((e) => ({ ...e, [cle]: '' }))
     if (!iso) { setErreur((e) => ({ ...e, [cle]: 'Indiquez d\'abord la date de fin de validité (JJ/MM/AAAA).' })); return }
+    const impossible = dateFinImpossible(iso, new Date().toISOString())
+    if (impossible) { setErreur((e) => ({ ...e, [cle]: `${impossible} : vérifiez la date indiquée sur le certificat.` })); return }
     if (!fichier) return
     setOccupe(cle)
     try {

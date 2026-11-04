@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { getAdminClient, requireUser, clientDeLAppelant } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
-import { finValiditeInterne, statutCertificat } from '../src/modules/formation/lib/effectifPrerequis.js'
+import { finValiditeInterne, statutCertificat, dateFinImpossible } from '../src/modules/formation/lib/effectifPrerequis.js'
 
 // Documents mis à disposition dans l'espace client (0404), toutes prestations.
 //  - publier (équipe connectée) : range un PDF remis au client (rapport d'intervention, facture émise, devis, contrat,
@@ -252,6 +252,8 @@ async function deposerCertificat(req, res) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fin || '')) || Number.isNaN(new Date(`${fin}T12:00:00`).getTime())) {
     return res.status(400).json({ error: 'Date de fin de validité invalide' })
   }
+  const impossible = dateFinImpossible(fin, new Date().toISOString())
+  if (impossible) return res.status(400).json({ error: impossible })
   const liste = await sessionsAvecCertificat(a)
   const s = liste.find((x) => x.session_id === sessionId)
   if (!s || !s.participants.some((p) => p.trainee_id === traineeId)) return res.status(403).json({ error: 'Accès refusé' })
@@ -261,9 +263,9 @@ async function deposerCertificat(req, res) {
   const path = `prerequis/${sessionId}/${traineeId}-${sha.slice(0, 16)}.pdf`
   const { error: up } = await a.admin.storage.from('documents').upload(path, buf, { contentType: 'application/pdf', upsert: false })
   if (up && !/exists|duplicate/i.test(up.message || '')) return res.status(500).json({ error: 'Dépôt impossible' })
-  // Contrôle par l'organisme remis à zéro : la copie vient du client
+  // Dépôt du client : daté, sans auteur interne (l'écran affiche « par l'entreprise »)
   const { error } = await a.admin.from('session_trainees')
-    .update({ prerequis_file_path: path, prerequis_valid_until: fin, prerequis_checked_at: null, prerequis_checked_by: null })
+    .update({ prerequis_file_path: path, prerequis_valid_until: fin, prerequis_checked_at: new Date().toISOString(), prerequis_checked_by: null })
     .eq('session_id', sessionId).eq('trainee_id', traineeId)
   if (error) return res.status(500).json({ error: 'Enregistrement impossible' })
   const { data: cl } = await a.admin.from('clients').select('company_id, name').eq('id', a.clientId).maybeSingle()
