@@ -262,6 +262,10 @@ begin
   returning id into v_eq;
 
   insert into public.audit_logs (action, entity_type) values ('view', 'system');
+  -- Une facture (brouillon : aucun numéro consommé) et un prospect, pour que les tests de lecture ne dépendent pas des
+  -- données réelles (base de production vide après la purge du 04/11) ; annulés avec le reste.
+  insert into public.invoices (client_id, object) values (v_client, 'Essai droits');
+  insert into public.prospection_massive (siren, name) values ('000000000', 'Essai prospect');
   select id into v_inv from public.invoices where status <> 'draft' limit 1;
   select count(*) into n_budget from public.budget_categories;
   select count(*) into n_pm from public.prospection_massive;
