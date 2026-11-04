@@ -17,7 +17,8 @@ describe('publication dans l\'espace client (B4, B5, B6, B12)', () => {
   })
   it('groupe déjà noté envoyé : le clic ne remplace pas', () => {
     const c = confirmationSignatureGroupe({ kind: 'entreprise', doc_status: 'envoye' })
-    expect(c.message).toContain("S'elle")
+    expect(c.message).toContain('Si elle est déjà')
+    expect(confirmationSignatureGroupe({ kind: 'particulier', doc_status: 'envoye' }).message).toContain("S'il est déjà")
   })
   it('contrat d\'un particulier', () => {
     const c = confirmationSignatureGroupe({ kind: 'particulier' })
@@ -54,6 +55,7 @@ describe('dernières alertes (B13, B14, B15)', () => {
     expect(d.message).toContain('DEV-2')
     expect(confirmationSuppressionDevis(null).message).toContain('Le devis et ses lignes')
     expect(confirmationSuppressionDevis({ status: 'sent' }).message).toContain('y restera visible')
+    expect(confirmationSuppressionDevis({ status: 'refused' }).message).toContain('y restera visible')
     expect(confirmationSuppressionDevis({ status: 'draft' }).message).not.toContain('espace du client')
     expect(confirmationRetraitPreuve({ label: 'Charte', file_path: 'a.pdf' }).message).toContain('et son fichier')
     expect(confirmationRetraitPreuve({ label: 'Lien' }).message).toContain('« Lien » sera supprimée définitivement')

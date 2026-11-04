@@ -16,7 +16,7 @@ export function confirmationSignatureGroupe(groupe) {
   if (groupe?.doc_status === 'envoye') {
     return {
       title: particulier ? 'Contrat déjà noté envoyé' : 'Convention déjà notée envoyée',
-      message: `${maj(doc)} est noté${e} « envoyé${e} ». S'${il} est déjà dans l'espace${qui}, ce clic ne ${pron} remplace pas : le client garde la première version, même si le groupe a changé depuis. Sinon, ${il} y est publié${e} maintenant. ${AUCUN_MAIL}`,
+      message: `${maj(doc)} est noté${e} « envoyé${e} ». ${particulier ? "S'il" : 'Si elle'} est déjà dans l'espace${qui}, ce clic ne ${pron} remplace pas : le client garde la première version, même si le groupe a changé depuis. Sinon, ${il} y est publié${e} maintenant. ${AUCUN_MAIL}`,
       confirmLabel: 'Continuer',
     }
   }
@@ -74,7 +74,8 @@ export function confirmationEnvoiComptable({ nombre, quoi, email }) {
 
 // B14 : suppressions définitives
 export function confirmationSuppressionDevis(devis) {
-  const remis = ['sent', 'accepted', 'partial'].includes(devis?.status)
+  // Tout devis sorti du brouillon a pu être publié (envoyé puis refusé, par exemple)
+  const remis = !!devis?.status && devis.status !== 'draft'
   return {
     title: 'Supprimer ce devis ?',
     message: `Le devis ${devis?.reference || ''} et ses lignes seront supprimés définitivement : rien ne pourra être récupéré.${remis ? " S'il a été publié dans l'espace du client, ce PDF y restera visible." : ''} Pour garder une trace, passez-le plutôt en « Refusé ».`.replace(/\s+/g, ' ').trim(),
