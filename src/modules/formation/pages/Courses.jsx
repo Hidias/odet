@@ -26,6 +26,8 @@ const PROGRAMME_VIDE = {
   evaluation_methods: '', min_participants: '', max_participants: '', access_delay: '', validity_kind: 'recyclage',
   validity_text: '', deliverables: '', trainer_profile: '', price_mention: '', modalities: '', program_ref: '', motif_maj: '',
   pictogram: '',
+  // Effectif imposé et certificat exigé à l'entrée (0479)
+  effectif_strict: false, prerequis_certificat_mois: '',
   // BPF (0477) : objectif F-3 et spécialité F-4
   bpf_objectif: '', bpf_rncp_niveau: '', bpf_fiche: '', nsf_code: '',
 }
@@ -392,6 +394,8 @@ export default function Courses() {
         evaluation_methods: course.evaluation_methods || '',
         min_participants: course.min_participants ?? '',
         max_participants: course.max_participants ?? '',
+        effectif_strict: !!course.effectif_strict,
+        prerequis_certificat_mois: course.prerequis_certificat_mois ?? '',
         access_delay: course.access_delay || '',
         validity_kind: course.validity_kind || 'recyclage',
         validity_text: course.validity_text || '',
@@ -473,6 +477,8 @@ export default function Courses() {
       evaluation_methods: form.evaluation_methods || null,
       min_participants: form.min_participants === '' ? null : parseInt(form.min_participants, 10),
       max_participants: form.max_participants === '' ? null : parseInt(form.max_participants, 10),
+      effectif_strict: !!form.effectif_strict,
+      prerequis_certificat_mois: form.prerequis_certificat_mois === '' || form.prerequis_certificat_mois == null ? null : parseInt(form.prerequis_certificat_mois, 10),
       access_delay: form.access_delay || null,
       validity_kind: form.validity_text ? (form.validity_kind || 'recyclage') : null,
       validity_text: form.validity_text || null,
@@ -495,6 +501,9 @@ export default function Courses() {
     }
     if (data.min_participants && data.max_participants && data.min_participants > data.max_participants) {
       return toast.error('Effectif : le minimum dépasse le maximum')
+    }
+    if (data.effectif_strict && !data.max_participants) {
+      return toast.error('Effectif imposé : indiquez l\'effectif maximum')
     }
 
     // Programme modifié : nouvelle version datée, avec son motif (preuve de mise à jour pour Qualiopi)
@@ -1157,6 +1166,17 @@ export default function Courses() {
               {(form.min_participants || form.max_participants) ? (
                 <p className="text-ui-sm text-gray-500 -mt-2">Affiché : {effectifTexte(form)}</p>
               ) : null}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="flex items-start gap-2 text-ui text-gray-700">
+                  <input type="checkbox" className="w-4 h-4 mt-0.5 rounded" checked={!!form.effectif_strict} onChange={(e) => setForm({ ...form, effectif_strict: e.target.checked })} />
+                  <span>Effectif imposé par un référentiel<span className="block text-ui-sm text-gray-500">Le maximum ne se dépasse jamais : au-delà, une seconde session est proposée (ex. SST, 4 à 10 par formateur).</span></span>
+                </label>
+                <div>
+                  <label className="label" htmlFor="prerequis-mois">Certificat exigé à l'entrée : tolérance après expiration (mois)</label>
+                  <input id="prerequis-mois" type="number" min="0" max="24" className="input" placeholder="Aucun certificat exigé" value={form.prerequis_certificat_mois} onChange={(e) => setForm({ ...form, prerequis_certificat_mois: e.target.value })} />
+                  <p className="text-ui-sm text-gray-500 mt-1">Ex. MAC SST : 6. Chaque participant présente la copie de son certificat et sa date de fin de validité.</p>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Modalités</label>

@@ -58,6 +58,7 @@ import RessentiSession from '../components/RessentiSession'
 import { SuiviModules } from '../components/ModulesEnLigne'
 import AvisEntrepriseSession from '../components/AvisEntrepriseSession'
 import SeuilMaintien from '../components/SeuilMaintien'
+import EffectifPrerequis from '../components/EffectifPrerequis'
 import CodesPortail from '../components/CodesPortail'
 import QuizFlashSession from '../components/QuizFlashSession'
 import { sommaireDossier } from '../lib/sommaireDossier'
@@ -2088,7 +2089,8 @@ export default function SessionDetail() {
   const handleAddTrainee = async (traineeId) => {
     const { error } = await addTraineeToSession(id, traineeId)
     if (error) {
-      toast.error('Erreur lors de l\'ajout')
+      // Effectif imposé (0479) : le message de la base dit quoi faire
+      toast.error(error.code === '23514' ? error.message : 'Erreur lors de l\'ajout')
       console.error(error)
     } else {
       toast.success('Stagiaire ajouté')
@@ -2923,8 +2925,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       return
     }
     
-    // Ajouter le stagiaire à la session
-    await addTraineeToSession(session.id, newTrainee.id)
+    // Ajouter le stagiaire à la session (effectif imposé, 0479 : la fiche stagiaire reste créée, l'ajout est refusé)
+    const { error: errAjout } = await addTraineeToSession(session.id, newTrainee.id)
+    if (errAjout) toast.error(errAjout.code === '23514' ? errAjout.message : 'Stagiaire créé, mais pas ajouté à la session')
     
     // Recharger la session
     const { data } = await getSession(id)
@@ -3391,6 +3394,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
       {/* Seuil de maintien (inter, J-10) */}
       <SeuilMaintien session={session} peutModifier={d.modifier} />
+      <EffectifPrerequis session={session} peutModifier={d.modifier} peutFacturer={!!d.factures} />
 
       {/* Tabs */}
       <Tabs value={activeTab} onChange={setActiveTab} visible={5} tabs={[
