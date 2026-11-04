@@ -167,7 +167,7 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
           aside={answerBy && !hasNda ? <DueBadge date={answerBy} /> : null}>
           <span>Récépissé et numéro sous deux mois après un dossier complet. En attendant le récépissé ou un refus, l'organisme est réputé déclaré (R6351-6).</span>
           {canWrite && !hasNda && (
-            <div className="pt-1 sm:w-1/2"><DateField label="Dossier complet le (accusé de réception)" value={form.nda_complete_at} onChange={(v) => { setForm({ ...form, nda_complete_at: v }); save({ nda_complete_at: v, ...(v ? { nda_status: 'complet' } : {}) }) }} /></div>
+            <div className="pt-1 sm:w-1/2"><DateField label="Dossier complet le (accusé de réception)" value={form.nda_complete_at} onChange={(v) => { const st = v && ['preparation', 'depose', 'refuse'].includes(form.nda_status) ? { nda_status: 'complet' } : {}; setForm({ ...form, nda_complete_at: v, ...st }); save({ nda_complete_at: v, ...st }) }} /></div>
           )}
           {incoherencesNda(form).map((a) => <p key={a} className="text-ui-sm text-[rgb(var(--c-warning))]">{a}</p>)}
         </Step>
