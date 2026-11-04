@@ -27,6 +27,7 @@ import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import AvisEntreprise from '../components/AvisEntreprise'
 import ParticipantsSession from '../components/ParticipantsSession'
+import CertificatsEntree from '../components/CertificatsEntree'
 import NumerosDemandes from '../components/NumerosDemandes'
 import DeposerSigne from '../components/DeposerSigne'
 import RecapSession from '../components/RecapSession'
@@ -463,6 +464,7 @@ function Formations() {
   return (
     <div className="space-y-5">
       <NumerosDemandes charger={chargerDemandesNir} transmettre={transmettreNir} />
+      {upcoming.length > 0 && <CertificatsEntree />}
       {upcoming.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">À venir ou en cours</h2><div className="space-y-3">{upcoming.map((s) => <Session key={`${s.id}${s.group_id || ''}`} s={s} finie={false} />)}</div></section>}
       {aSigner && (
         <SignerConvention session={aSigner} signataire={{ name: aSigner.signatory_name, role: aSigner.signatory_role }}

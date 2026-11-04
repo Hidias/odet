@@ -15,6 +15,7 @@ import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import ParticipantsSession from '../components/ParticipantsSession'
+import CertificatsEntree from '../components/CertificatsEntree'
 import DeposerSigne from '../components/DeposerSigne'
 import RecapSession from '../components/RecapSession'
 import NumerosDemandes from '../components/NumerosDemandes'
@@ -591,6 +592,7 @@ export default function ClientPortal() {
         {info && <p role="status" className="vitrine-monte mb-4 rounded-ui bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] text-sm px-3 py-2 flex items-center gap-2"><BadgeCheck className="w-4 h-4" aria-hidden="true" />{info}</p>}
 
         <NumerosDemandes charger={chargerDemandesNir} transmettre={transmettreNir} />
+        {upcoming.length > 0 && <CertificatsEntree auth={{ token, code }} className="mb-8" />}
         {upcoming.length > 0 && (
           <section className="mb-8">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">À venir ou en cours</h2>
