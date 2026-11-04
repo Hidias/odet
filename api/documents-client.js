@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { getAdminClient, requireUser, clientDeLAppelant } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
+import { finValiditeInterne, statutCertificat, dateFinImpossible } from '../src/modules/formation/lib/effectifPrerequis.js'
 
 // Documents mis à disposition dans l'espace client (0404), toutes prestations.
 //  - publier (équipe connectée) : range un PDF remis au client (rapport d'intervention, facture émise, devis, contrat,
@@ -214,12 +215,25 @@ async function sessionsAvecCertificat(a) {
   const { data: st } = await a.admin.from('session_trainees')
     .select('session_id, trainee_id, absent, prerequis_valid_until, prerequis_file_path, trainees(first_name, last_name)')
     .in('session_id', exigees.map((x) => x.id))
+  // Certificats délivrés par l'organisme lui-même : aucune copie à demander au client
+  const tids = [...new Set((st || []).map((p) => p.trainee_id))]
+  const { data: certs } = tids.length
+    ? await a.admin.from('sst_certifications').select('trainee_id, date_certification').in('trainee_id', tids)
+      .eq('candidat_certifie', true).not('date_certification', 'is', null).order('date_certification', { ascending: false })
+    : { data: [] }
+  const internes = new Map()
+  ;(certs || []).forEach((c) => { if (!internes.has(c.trainee_id)) internes.set(c.trainee_id, finValiditeInterne(c.date_certification)) })
+  // Accepté seulement s'il reste dans la tolérance au premier jour de la formation
+  const interneOk = (tid, x) => {
+    const fin = internes.get(tid)
+    return !!fin && ['valide', 'tolere'].includes(statutCertificat({ validUntil: fin, interne: true, debutFormation: x.start_date, toleranceMois: x.courses.prerequis_certificat_mois }).statut)
+  }
   return exigees.map((x) => ({
     session_id: x.id, reference: x.reference, start_date: x.start_date, course_title: x.courses.title,
     tolerance_mois: x.courses.prerequis_certificat_mois,
     participants: (st || []).filter((p) => p.session_id === x.id && !p.absent && visibles.get(x.id)?.has(p.trainee_id)).map((p) => ({
       trainee_id: p.trainee_id, prenom: p.trainees?.first_name || '', nom: p.trainees?.last_name || '',
-      valid_until: p.prerequis_valid_until, depose: !!p.prerequis_file_path,
+      valid_until: p.prerequis_valid_until, depose: !!p.prerequis_file_path, interne: interneOk(p.trainee_id, x),
     })),
   })).filter((x) => x.participants.length)
 }
@@ -238,6 +252,8 @@ async function deposerCertificat(req, res) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fin || '')) || Number.isNaN(new Date(`${fin}T12:00:00`).getTime())) {
     return res.status(400).json({ error: 'Date de fin de validité invalide' })
   }
+  const impossible = dateFinImpossible(fin, new Date().toISOString())
+  if (impossible) return res.status(400).json({ error: impossible })
   const liste = await sessionsAvecCertificat(a)
   const s = liste.find((x) => x.session_id === sessionId)
   if (!s || !s.participants.some((p) => p.trainee_id === traineeId)) return res.status(403).json({ error: 'Accès refusé' })
@@ -247,9 +263,9 @@ async function deposerCertificat(req, res) {
   const path = `prerequis/${sessionId}/${traineeId}-${sha.slice(0, 16)}.pdf`
   const { error: up } = await a.admin.storage.from('documents').upload(path, buf, { contentType: 'application/pdf', upsert: false })
   if (up && !/exists|duplicate/i.test(up.message || '')) return res.status(500).json({ error: 'Dépôt impossible' })
-  // Contrôle par l'organisme remis à zéro : la copie vient du client
+  // Dépôt du client : daté, sans auteur interne (l'écran affiche « par l'entreprise »)
   const { error } = await a.admin.from('session_trainees')
-    .update({ prerequis_file_path: path, prerequis_valid_until: fin, prerequis_checked_at: null, prerequis_checked_by: null })
+    .update({ prerequis_file_path: path, prerequis_valid_until: fin, prerequis_checked_at: new Date().toISOString(), prerequis_checked_by: null })
     .eq('session_id', sessionId).eq('trainee_id', traineeId)
   if (error) return res.status(500).json({ error: 'Enregistrement impossible' })
   const { data: cl } = await a.admin.from('clients').select('company_id, name').eq('id', a.clientId).maybeSingle()

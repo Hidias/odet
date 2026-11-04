@@ -3,6 +3,7 @@ import { BadgeCheck, Upload, Loader2, CheckCircle2 } from 'lucide-react'
 import { callApi } from '../../../core/api'
 import { preparerDepot, enBase64 } from '../../../core/fichiers/compression'
 import { versIso } from './ParticipantsSession'
+import { dateFinImpossible } from '../../formation/lib/effectifPrerequis'
 
 // Certificats exigés à l'entrée (0479, CGV formation, fin de l'article 8, décision de H du 04/11) : pour une formation
 // comme le MAC SST, le client dépose depuis son espace la copie du certificat de chaque participant et sa date de fin
@@ -32,6 +33,8 @@ export default function CertificatsEntree({ auth = {}, className = '' }) {
     const iso = versIso(saisie[cle])
     setErreur((e) => ({ ...e, [cle]: '' }))
     if (!iso) { setErreur((e) => ({ ...e, [cle]: 'Indiquez d\'abord la date de fin de validité (JJ/MM/AAAA).' })); return }
+    const impossible = dateFinImpossible(iso, new Date().toISOString())
+    if (impossible) { setErreur((e) => ({ ...e, [cle]: `${impossible} : vérifiez la date indiquée sur le certificat.` })); return }
     if (!fichier) return
     setOccupe(cle)
     try {
@@ -61,7 +64,9 @@ export default function CertificatsEntree({ auth = {}, className = '' }) {
               return (
                 <li key={cle} className="py-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="text-sm text-gray-900 sm:min-w-[11rem]">{p.prenom} {(p.nom || '').toUpperCase()}</span>
-                  {p.depose ? (
+                  {p.interne && !p.depose ? (
+                    <span className="text-sm text-gray-600 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" aria-hidden="true" />Certificat délivré par votre organisme : rien à fournir</span>
+                  ) : p.depose ? (
                     <span className="text-sm text-[rgb(var(--c-success))] flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" aria-hidden="true" />Déposé{p.valid_until ? `, fin de validité le ${fmt(p.valid_until)}` : ''}</span>
                   ) : (
                     <div className="flex flex-wrap items-center gap-2">

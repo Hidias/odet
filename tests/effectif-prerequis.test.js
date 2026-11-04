@@ -1,6 +1,6 @@
 // Effectif imposé et prérequis de certificat (0479, CGV formation article 8).
 import { describe, it, expect } from 'vitest'
-import { decouperGroupes, etatEffectif, ajouterMois, statutCertificat, finValiditeInterne, montantDedommagement } from '../src/modules/formation/lib/effectifPrerequis.js'
+import { decouperGroupes, etatEffectif, ajouterMois, statutCertificat, statutDate, dateFinImpossible, finValiditeInterne, montantDedommagement } from '../src/modules/formation/lib/effectifPrerequis.js'
 
 const SST = { effectif_strict: true, min_participants: 4, max_participants: 10 }
 
@@ -49,4 +49,19 @@ describe('Dédommagement proposé', () => {
   it('intra reportée : 50 %', () => expect(montantDedommagement({ cas: 'intra_report', prixSession: 1250.5 })).toBe(625.25))
   it('inter : 100 % des places non honorées', () => expect(montantDedommagement({ cas: 'inter_places', prixPlace: 180, places: 2 })).toBe(360))
   it('cas inconnu : rien', () => expect(montantDedommagement({ cas: 'autre', prixSession: 100 })).toBeNull())
+})
+
+describe('Date seule (alerte dès la saisie, sans copie)', () => {
+  const b = { debutFormation: '2026-11-12', toleranceMois: 6 }
+  it('2000 : refusé', () => expect(statutDate({ ...b, validUntil: '2000-11-04' }).statut).toBe('refuse'))
+  it('11/11/2024 : refusé', () => expect(statutDate({ ...b, validUntil: '2024-11-11' }).statut).toBe('refuse'))
+  it('04/11/2026 : toléré jusqu\'au 04/05/2027', () => expect(statutDate({ ...b, validUntil: '2026-11-04' })).toMatchObject({ statut: 'tolere', limite: '2027-05-04' }))
+  it('sans date', () => expect(statutDate({ ...b, validUntil: null }).statut).toBe('sans_date'))
+})
+
+describe('Date de fin impossible', () => {
+  it('plus de 24 mois après aujourd\'hui : refusée', () => expect(dateFinImpossible('2028-11-05', '2026-11-04')).toMatch(/24 mois/))
+  it('24 mois pile : acceptée', () => expect(dateFinImpossible('2028-11-04', '2026-11-04')).toBeNull())
+  it('date ancienne : acceptée (elle sera « refusée » par le statut)', () => expect(dateFinImpossible('2000-11-04', '2026-11-04')).toBeNull())
+  it('illisible', () => expect(dateFinImpossible('2026-13-40', '2026-11-04')).toBe('Date illisible'))
 })

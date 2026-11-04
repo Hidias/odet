@@ -51,6 +51,26 @@ export function statutCertificat({ validUntil, filePath, interne = false, debutF
   return { statut: 'refuse', fin, limite }
 }
 
+// Statut de la seule date de fin de validité (04/11 : séparé de la copie, l'alerte part dès la saisie).
+// valide, tolere (expiré depuis au plus la tolérance), refuse (au-delà), sans_date.
+export function statutDate({ validUntil, debutFormation, toleranceMois }) {
+  if (!validUntil) return { statut: 'sans_date' }
+  const debut = String(debutFormation || '').slice(0, 10)
+  const fin = String(validUntil).slice(0, 10)
+  if (!debut || fin >= debut) return { statut: 'valide', fin }
+  const limite = ajouterMois(fin, Number(toleranceMois) || 0)
+  return limite >= debut ? { statut: 'tolere', fin, limite } : { statut: 'refuse', fin, limite }
+}
+
+// Date de fin impossible : plus de dureeMois après aujourd'hui (un certificat SST vaut 24 mois), ou illisible.
+export function dateFinImpossible(validUntil, aujourdhui, dureeMois = 24) {
+  const fin = String(validUntil || '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fin) || Number.isNaN(new Date(`${fin}T12:00:00`).getTime())) return 'Date illisible'
+  const jour = String(aujourdhui || new Date().toISOString()).slice(0, 10)
+  if (fin > ajouterMois(jour, dureeMois)) return `Date impossible : un certificat vaut ${dureeMois} mois au plus`
+  return null
+}
+
 // Fin de validité d'un certificat délivré par l'organisme lui-même (même durée pour tous : celle de la formation).
 export function finValiditeInterne(dateCertification, dureeMois = 24) {
   return dateCertification ? ajouterMois(dateCertification, dureeMois) : null
