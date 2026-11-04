@@ -1,5 +1,6 @@
-# Vérification automatique : à chaque envoi sur une branche et à chaque pull request,
-# l'application est construite et les tests sont lancés. Une croix rouge = ne pas fusionner.
+# Vérification automatique : à chaque pull request (un seul passage par commit) et à chaque
+# envoi sur main (contrôle après fusion), l'application est construite et les tests sont lancés.
+# Une croix rouge = ne pas fusionner. Une branche sans pull request n'est pas vérifiée.
 # La règle « la vérification doit être verte pour fusionner dans main » se règle dans
 # Settings > Branches (voir docs/verification-et-preversions.md).
 
@@ -7,7 +8,7 @@ name: Vérification
 
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
 
 permissions:

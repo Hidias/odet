@@ -23,7 +23,7 @@ Variables Vercel (onglet Preview) : `EMAIL_MODE=test`, `EMAIL_TEST_TO`.
 
 ## 3. Vérification automatique
 
-Workflow **Vérification** (`.github/workflows/verification.yml`), à chaque envoi sur une branche et à chaque pull request : `npm ci`, `vite build`, `npm test` (Vitest).
+Workflow **Vérification** (`.github/workflows/verification.yml`), à chaque pull request et à chaque envoi sur main (un seul passage par commit de PR, décision du 04/11/2026) : `npm ci`, `vite build`, `npm test` (Vitest).
 
 Tests (`tests/`) :
 - totaux de facture, d'avoir et de devis, cohérence avec Factur-X ;
