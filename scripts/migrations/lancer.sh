@@ -119,19 +119,24 @@ fi
 publier "3. Application ($APPLICATION)" application
 ecrire "3. Application : **faite**"
 
+# Tests rejoués et retour arrière réel : mêmes délais que les fichiers fabriqués par fabriquer_lot.py (en-tête ENTETE).
+# Sans eux, le délai par défaut de la connexion peut couper le bloc de tests avant la fin (lot phoning_0484, 04/11 :
+# essai vert, rejeu coupé) et le retour arrière peut attendre un verrou sans fin.
+avec_delais() { # avec_delais nom fichier : écrit $TMP/<nom>_delais.sql (en-tête puis fichier) et affiche son chemin
+  { printf '%s\n' "select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '300s', true);"
+    cat "$RACINE/$2"; } > "$TMP/$1_delais.sql"
+  printf '%s' "$TMP/$1_delais.sql"
+}
+
 # 4. Tests rejoués ; retour arrière immédiat s'ils ne sont pas verts
-# Même délai que l'essai de l'étape 1 (en-tête des fichiers fabriqués par fabriquer_lot.py) : sans lui, le délai par
-# défaut de la connexion peut couper le bloc de tests avant la fin (lot phoning_0484, 04/11 : essai vert, rejeu coupé).
-{ printf '%s\n' "select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '300s', true);"
-  cat "$RACINE/$TESTS"; } > "$TMP/tests_avec_delai.sql"
-jouer tests "$TMP/tests_avec_delai.sql"
+jouer tests "$(avec_delais tests "$TESTS")"
 publier "4. Tests rejoués ($TESTS)" tests
 if tests_verts tests; then
   ecrire "4. Tests après application : **verts** ($(bilan_tests tests | awk '{print $1" tests, "$2" échec"}'))"
   exit 0
 fi
 ecrire "4. Tests après application : **ROUGES** ($(bilan_tests tests || echo 'résultat absent')) : retour arrière immédiat"
-if jouer retour "$RETOUR"; then
+if jouer retour "$(avec_delais retour "$RETOUR")"; then
   publier "5. Retour arrière ($RETOUR)" retour
   ecrire "5. Retour arrière : **fait**"
 else
