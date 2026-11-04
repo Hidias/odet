@@ -101,6 +101,8 @@ export function grouper(envois) {
 }
 
 const MAILS_PAR_APPEL = 15
+// Budget de temps : au-delà, les mails restants ne partent pas et passent « à reprendre » (temps limite du serveur : 300 s)
+const BUDGET_MS = 150000
 
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
@@ -169,8 +171,14 @@ async function handler(req, res) {
   const sender = await getSender(admin, mailer.emailConfig.email)
   let envoyes = 0
   let erreurs = 0
+  const debut = Date.now()
   try {
     for (const groupe of grouper(envois)) {
+      if (Date.now() - debut > BUDGET_MS) {
+        for (const e of groupe) await appelant.rpc('froid_envoi_terminer', { p_id: e.id, p_ok: false, p_erreur: 'Non envoyé : messagerie trop lente, à reprendre' })
+        erreurs += 1
+        continue
+      }
       const t = groupe[0].cible === 'stagiaire' ? texteStagiaire(groupe[0], org.name, base) : texteContact(groupe, org.name, base)
       try {
         const info = await sendWithRetry(mailer.transporter, {
