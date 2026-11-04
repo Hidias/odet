@@ -93,7 +93,7 @@ function Formation() {
   )
 }
 
-export default function ReglagesFroid({ reglages, onEnregistre }) {
+export default function ReglagesFroid({ reglages, onEnregistre, catalogue = false }) {
   return (
     <div className="card space-y-4">
       {(reglages || []).map((r) => (
@@ -104,7 +104,7 @@ export default function ReglagesFroid({ reglages, onEnregistre }) {
       ))}
       <div>
         <h2 className="font-semibold mb-2">Par formation</h2>
-        <Formation />
+        {catalogue ? <Formation /> : <p className="text-ui-sm text-gray-500">Le délai et les questions propres à une formation se règlent avec le droit de gérer le catalogue des formations.</p>}
       </div>
     </div>
   )

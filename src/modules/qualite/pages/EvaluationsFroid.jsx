@@ -18,6 +18,7 @@ export default function EvaluationsFroid() {
     gerer: 'formation.suivi.gerer',
     envoyer: 'formation.convocations.envoyer',
     reglages: ['parametres.organisme.modifier', 'plateforme.administrer'],
+    catalogue: 'formation.catalogue.gerer',
   })
   const [donnees, setDonnees] = useState(null)
   const [vue, setVue] = useState('prepare')
@@ -109,7 +110,7 @@ export default function EvaluationsFroid() {
         </div>
       </div>
 
-      {reglages && <ReglagesFroid reglages={donnees.reglages} onEnregistre={charger} />}
+      {reglages && <ReglagesFroid reglages={donnees.reglages} onEnregistre={charger} catalogue={d.catalogue} />}
 
       <div className="flex flex-wrap items-center gap-2">
         {[['prepare', 'À envoyer'], ['envoye', 'Envoyés'], ['ignore', 'Écartés'], ['erreur', 'À reprendre'], ['tous', 'Tous']].map(([k, l]) => (
