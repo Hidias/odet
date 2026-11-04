@@ -52,6 +52,7 @@ import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
 import { FRAIS_CATALOGUE } from '../lib/fraisCatalogue'
 import BadgeTarifClient from '../components/BadgeTarifClient'
+import { isQuoteSleeping, todayStr } from '../../prospection/components/suivi/suiviUtils'
 
 // Statuts d'un devis déjà accepté (contrat et livraison déjà préparés par la base)
 const ACCEPTE = ['accepted', 'partial', 'invoiced']
@@ -1226,8 +1227,10 @@ export default function Quotes() {
   // Devis envoyés > 7j sans réponse
   const quotesRelance = useMemo(() => {
     const now = Date.now()
+    const auj = todayStr()
+    // Devis mis en veille dans le Suivi commercial : ni rappel ni bandeau avant la date de réveil (A6)
     return quotes
-      .filter(q => q.status === 'sent' || q.status === 'pending')
+      .filter(q => (q.status === 'sent' || q.status === 'pending') && !isQuoteSleeping(q, auj))
       .map(q => {
         const sentDate = q.updated_at || q.quote_date || q.created_at
         const days = sentDate ? Math.floor((now - new Date(sentDate).getTime()) / 86400000) : 0

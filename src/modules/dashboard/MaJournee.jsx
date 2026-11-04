@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Sun, KanbanSquare, Inbox, Calendar, MapPin, CreditCard, Receipt, PhoneCall, CheckCircle, FileText, ListTodo } from 'lucide-react'
 import { supabase } from '../../core/supabase'
+import { devisARelancer } from '../prospection/components/suivi/suiviUtils'
 import { useAuthStore } from '../../core/store'
 
 // Accueil « Ma journée » : ce qu'il y a à faire aujourd'hui, une ligne par sujet, un bouton par ligne.
@@ -18,10 +19,11 @@ const jour = (decalageJours = 0) => {
 // depuis que les droits sont calculés une fois par requête (0090, environ 10 ms par lecture).
 const PLAFOND = 500
 const PAR_GROUPE = 4
-async function compter(requete) {
+async function compter(requete, filtre) {
   try {
     const { data, error } = await requete.limit(PLAFOND)
-    return error ? 0 : (data || []).length
+    if (error) return 0
+    return (filtre ? (data || []).filter(filtre) : (data || [])).length
   } catch {
     return 0
   }
@@ -71,7 +73,9 @@ export default function MaJournee() {
       },
       a('commercial') && ok('commercial.devis.voir') && {
         icon: Receipt, to: '/devis', libelle: (n) => `${n} devis à relancer`,
-        q: () => supabase.from('quotes').select('id').eq('status', 'sent').lte('next_followup_date', auj),
+        // Même règle que le Suivi commercial (A5) : cadence de relance, relance par mail et mise en veille comprises
+        q: () => supabase.from('quotes').select('id, status, lost_reason, quote_date, created_at, triaged_at, relance_count, last_relance_date, next_followup_date, followup_state, veille_until').in('status', ['sent', 'partial']),
+        filtre: (q) => devisARelancer(q, auj),
       },
       a('commercial') && ok('facturation.factures.voir') && {
         icon: CreditCard, to: '/factures', libelle: (n) => `${n} facture${n > 1 ? 's' : ''} en retard de paiement`,
@@ -83,7 +87,7 @@ export default function MaJournee() {
       for (let i = 0; i < sujets.length; i += PAR_GROUPE) {
         if (!vivant) return
         const groupe = sujets.slice(i, i + PAR_GROUPE)
-        const n = await Promise.all(groupe.map((s) => compter(s.q())))
+        const n = await Promise.all(groupe.map((s) => compter(s.q(), s.filtre)))
         groupe.forEach((s, j) => r.push({ ...s, n: n[j] }))
       }
       if (vivant) setLignes(r.filter((x) => x.n > 0))

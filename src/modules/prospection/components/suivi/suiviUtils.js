@@ -189,6 +189,15 @@ export function isQuoteSleeping(q, today = todayStr()) {
   return q.followup_state === 'veille' && q.veille_until && q.veille_until > today
 }
 
+// Devis à relancer aujourd'hui (angle mort A5) : même règle partout, Suivi commercial, « Ma journée » et rappel du
+// matin (app.devis_a_relancer, 0488, écrite à l'identique) : devis suivi, hors veille, hors tri de départ (devis de plus
+// de 45 jours jamais trié), échéance de la cadence atteinte.
+export function devisARelancer(q, today = todayStr()) {
+  if (!q || !isQuoteInFollowup(q) || isQuoteSleeping(q, today) || isOldQuote(q, today)) return false
+  const due = quoteNextDue(q)
+  return !!due && due <= today
+}
+
 export function isOldQuote(q, today = todayStr()) {
   if (q.triaged_at) return false
   if (!isQuoteInFollowup(q)) return false

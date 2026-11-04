@@ -1,5 +1,7 @@
 import { apiFetch } from '../../core/api'
-import { estAVenir, stagiairesPresents, pipelineDevis, tauxConversion } from './lib/accueil'
+import { estAVenir, stagiairesPresents, pipelineDevis, tauxConversion, etatBpf, froidARappeler, cleStagiaire } from './lib/accueil'
+import { isQuoteSleeping, todayStr } from '../prospection/components/suivi/suiviUtils'
+import { dernierExerciceClos } from '../formation/lib/bpf'
 import { conventionEnvoyee, groupesParSession } from '../formation/lib/etatConvention'
 import { confirmer } from '../../ui/Confirm'
 import { CONFIRMATION_REINITIALISER_ACCUEIL } from '../../core/portail/alertesPublication'
@@ -131,6 +133,7 @@ export default function Dashboard() {
     client: 'clients.fiches.modifier',
     stagiaire: 'formation.stagiaires.creer',
     devis: 'commercial.devis.voir',
+    bpf: 'qualite.registres.gerer',
   })
   
   
@@ -185,13 +188,14 @@ export default function Dashboard() {
   const loadData = async () => {
     await Promise.all([fetchClients(), fetchCourses(), fetchTrainees(), fetchSessions()])
     
-    const [ncR, alertsR, reclR, rdvR, cbR, quotesR, notifR, traineeEvalsR, sstR, themesR, invoicesR, groupesR] = await Promise.all([
+    const [ncR, alertsR, reclR, rdvR, cbR, quotesR, notifR, traineeEvalsR, sstR, themesR, invoicesR, groupesR, froidReglR, froidEnvR, froidRepR] = await Promise.all([
       supabase.from('non_conformites').select('*').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }),
       supabase.from('quality_alerts').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
       //  reclamations - pas de trainee_id
       supabase.from('reclamations').select('id, reference, subject, description, created_at, session_id, status, date_reception').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
       supabase.from('prospect_rdv').select('*, clients(name)').eq('status', 'a_prendre').order('created_at', { ascending: false }),
-      supabase.from('prospect_calls').select('*, clients(name)').eq('needs_callback', true).gte('callback_date', new Date().toISOString().split('T')[0]).order('callback_date').order('callback_time').limit(20),
+      // A10 : rappels en attente, en retard compris (un nouvel appel au même client clôt les anciens, 0488)
+      supabase.from('prospect_calls').select('*, clients(name)').eq('needs_callback', true).not('callback_date', 'is', null).order('callback_date').order('callback_time').limit(20),
       supabase.from('quotes').select('*, clients!quotes_client_id_fkey(name), quote_items(total_ht, accepted)').order('created_at', { ascending: false }).limit(50),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(20),
       //  TABLE CORRECTE: trainee_evaluations (la vraie table des évals à chaud)
@@ -202,6 +206,10 @@ export default function Dashboard() {
       fetchAll(() => supabase.from('invoices').select('id, reference, type, invoice_date, total_net_ht, total_ttc, status').in('status', ['paid', 'due', 'sent', 'overdue', 'partial', 'credited'])),
       // Conventions des sessions inter, groupe par groupe (angle mort A2)
       fetchAll(() => supabase.from('session_groups').select('id, session_id, doc_status, status')),
+      // Évaluation à froid (angle mort A4) : réglages, envois faits et réponses reçues (0482)
+      supabase.from('froid_reglages').select('company_id, actif, premier_envoi_jours, anciennete_max_jours'),
+      fetchAll(() => supabase.from('froid_envois').select('session_id, trainee_id').in('statut', ['envoye', 'ignore']).not('trainee_id', 'is', null)),
+      fetchAll(() => supabase.from('evaluations_cold').select('session_id, trainee_id').not('completed_at', 'is', null)),
     ])
     
     // Enrich alerts
@@ -259,6 +267,11 @@ export default function Dashboard() {
       invoices: invoicesR.data || [],
       recyclages,
       groupes: groupesR.data || [],
+      froid: {
+        reglages: new Map((froidReglR.data || []).map((r) => [r.company_id, r])),
+        envoyes: new Set((froidEnvR.data || []).map((e) => cleStagiaire(e.session_id, e.trainee_id))),
+        repondus: new Set((froidRepR.data || []).map((e) => cleStagiaire(e.session_id, e.trainee_id))),
+      },
     })
     setLoading(false)
   }
@@ -299,14 +312,13 @@ export default function Dashboard() {
     ).length
   }, 0), [completedSessions])
   
-  // J+90 évaluations à froid
-  const sessionsJ90 = useMemo(() => sessions.filter(s => {
-    if (s.status !== 'completed' || !s.end_date) return false
-    const days = differenceInDays(today, new Date(s.end_date))
-    if (days < 85 || days > 95) return false
-    const formed = (s.session_trainees || []).filter(st => st.presence_complete || st.early_departure || st.result)
-    return formed.length > 0
-  }), [sessions])
+  // Évaluations à froid à envoyer (A4) : délai réglé, envois faits et réponses reçues pris en compte (0482)
+  const sessionsJ90 = useMemo(() => {
+    const f = dashData.froid
+    if (!f) return []
+    const aujourdhui = todayStr()
+    return sessions.filter(s => froidARappeler(s, { reglage: f.reglages.get(s.company_id), envoyes: f.envoyes, repondus: f.repondus, aujourdhui }))
+  }, [sessions, dashData.froid])
   
   //  Émargements incomplets - sessions en cours avec stagiaires sans presence_complete
   const incompleteAttendance = useMemo(() => {
@@ -412,8 +424,9 @@ export default function Dashboard() {
   // Devis envoyés sans réponse > 7j
   const quotesRelance = useMemo(() => {
     const now = Date.now()
+    const auj = todayStr()
     return (dashData.quotes || [])
-      .filter(q => q.status === 'sent' || q.status === 'pending')
+      .filter(q => (q.status === 'sent' || q.status === 'pending') && !isQuoteSleeping(q, auj))
       .map(q => {
         const sentDate = q.updated_at || q.quote_date || q.created_at
         const days = sentDate ? Math.floor((now - new Date(sentDate).getTime()) / 86400000) : 0
@@ -547,7 +560,7 @@ export default function Dashboard() {
   const autoReminders = useMemo(() => {
     const r = []
     sessionsWithoutTrainer.forEach(s => r.push({ type: 'error', icon: XCircle, text: `Sans formateur: ${s.courses?.title || 'Session'} - ${s.start_date ? format(new Date(s.start_date), 'd MMM', { locale: fr }) : '?'}`, link: `/sessions/${s.id}` }))
-    sessionsJ90.forEach(s => r.push({ type: 'warning', icon: Clock, text: `Éval. à froid J+90: ${s.courses?.title}`, link: `/sessions/${s.id}` }))
+    sessionsJ90.forEach(s => r.push({ type: 'warning', icon: Clock, text: `Éval. à froid à envoyer : ${s.courses?.title || s.reference || 'Session'}`, link: `/sessions/${s.id}` }))
     if (dashData.purgeStats?.trainees_to_purge > 0) r.push({ type: 'info', icon: Shield, text: `RGPD: ${dashData.purgeStats.trainees_to_purge} stagiaire(s) à purger`, link: '/stagiaires' })
     documentsMissing.slice(0, 5).forEach(d => r.push({ type: 'warning', icon: FileWarning, text: `${d.type} manquante: ${d.session.courses?.title}`, link: `/sessions/${d.session.id}` }))
     return r
@@ -557,6 +570,26 @@ export default function Dashboard() {
   // et le 22e mois après l'obtention, renouvellement avant la fin de validité. Module actif : échéances
   // calculées par la base (cert_deadlines, tiennent compte d'une surveillance déjà passée).
   const certOn = (modules || []).includes('certification')
+  // BPF (A3) : déclaration du dernier exercice clos de la société courante (en vue groupe : aucune société choisie)
+  const [bpf, setBpf] = useState(null)
+  useEffect(() => {
+    let vivant = true
+    // Déclarations lisibles avec le droit de gérer les registres qualité seulement (0477) : sans lui, aucun état affiché
+    const bpfLisible = d.bpf && (modules || []).includes('qualite')
+    if (!bpfLisible) { setBpf({ cle: 'reserve', titre: 'BPF', detail: 'Suivi réservé à la gestion des registres qualité' }); return undefined }
+    ;(async () => {
+      try {
+        const { data: ctx } = await supabase.rpc('my_company_context')
+        const id = ctx?.vue_groupe ? null : ctx?.current
+        if (!id) { if (vivant) setBpf(etatBpf(null, null)); return }
+        const { data: co } = await supabase.from('companies').select('fiscal_year_start_month').eq('id', id).maybeSingle()
+        const annee = dernierExerciceClos(co?.fiscal_year_start_month)
+        const { data: decl, error } = await supabase.from('bpf_declarations').select('status, submitted_at').eq('company_id', id).eq('year', annee).maybeSingle()
+        if (vivant) setBpf(error ? null : etatBpf(decl, annee))
+      } catch { if (vivant) setBpf(null) }
+    })()
+    return () => { vivant = false }
+  }, [d.bpf, (modules || []).includes('qualite')]) // eslint-disable-line react-hooks/exhaustive-deps
   const [certSteps, setCertSteps] = useState(null)
   useEffect(() => {
     if (!certOn) { setCertSteps(null); return }
@@ -838,10 +871,13 @@ export default function Dashboard() {
         return dashData.callbacksToday.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Aucun rappel</p></div> : (
           <div className="space-y-2 max-h-56 overflow-y-auto">
             {dashData.callbacksToday.slice(0, 8).map(cb => {
-              const isT = cb.callback_date === format(today, 'yyyy-MM-dd')
+              const auj = format(today, 'yyyy-MM-dd')
+              const isT = cb.callback_date === auj
+              const enRetard = cb.callback_date < auj
+              const alerte = isT || enRetard
               return (
-                <div key={cb.id} className={`p-2 rounded-ui-sm border text-ui ${isT ? 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.25)]' : 'bg-white border-gray-100'}`}>
-                  <div className="flex items-center gap-2"><span className={`text-ui-sm font-medium ${isT ? 'text-[rgb(var(--c-warning))]' : 'text-gray-500'}`}>{isT ? "Aujourd'hui" : format(new Date(cb.callback_date), 'EEE d', { locale: fr })} {cb.callback_time}</span></div>
+                <div key={cb.id} className={`p-2 rounded-ui-sm border text-ui ${alerte ? 'bg-[rgb(var(--c-warning-bg))] border-[rgb(var(--c-warning)/0.25)]' : 'bg-white border-gray-100'}`}>
+                  <div className="flex items-center gap-2"><span className={`text-ui-sm font-medium ${alerte ? 'text-[rgb(var(--c-warning))]' : 'text-gray-500'}`}>{isT ? "Aujourd'hui" : `${enRetard ? 'En retard, ' : ''}${format(new Date(`${cb.callback_date}T12:00:00`), 'EEE d MMM', { locale: fr })}`} {cb.callback_time ? String(cb.callback_time).slice(0, 5) : ''}</span></div>
                   <p className="font-medium text-gray-900 truncate">{cb.clients?.name || 'Prospect'}</p>
                   {cb.contact_name && <p className="text-ui-sm text-gray-500">{cb.contact_name}</p>}
                 </div>
@@ -938,7 +974,9 @@ export default function Dashboard() {
         return (
           <div className="text-center py-2 space-y-2">
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto"><FileText className="w-5 h-5 text-gray-900" /></div>
-            <p className="text-ui font-medium text-gray-700">BPF à générer</p>
+            <p className="text-ui font-medium text-gray-700">{bpf?.titre || 'BPF'}</p>
+            {bpf?.detail && <p className="text-ui-sm text-gray-500">{bpf.detail}</p>}
+            {d.bpf && (modules || []).includes('qualite') && <Link to="/bpf" className="inline-flex items-center gap-1 text-ui-sm text-accent-700 hover:underline">Ouvrir le BPF <ArrowRight className="w-3 h-3" /></Link>}
             <p className="text-ui-sm text-gray-400">{organization?.nda ? `NDA : ${organization.nda}` : "Déclaration d'activité en cours d'enregistrement"}</p>
           </div>
         )
