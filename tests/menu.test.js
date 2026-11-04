@@ -62,7 +62,7 @@ describe('menu : groupes de pages', () => {
 
   it('onglets : pages visibles du même groupe, rien hors groupe', () => {
     const sections = visibleSections(['formation', 'qualite', 'certification'], 'superadmin', inconnus)
-    expect(ongletsPour('/qualite/completude', sections).map((i) => i.to)).toEqual(['/qualiopi', '/certification', '/qualite', '/qualite/completude', '/bpf'])
+    expect(ongletsPour('/qualite/completude', sections).map((i) => i.to)).toEqual(['/qualiopi', '/certification', '/qualite', '/qualite/completude', '/qualite/evaluations-froid', '/bpf'])
     expect(ongletsPour('/formations/abc', sections).map((i) => i.to)).toEqual(['/formations', '/tests-positionnement', '/obligations'])
     expect(ongletsPour('/sessions', sections)).toEqual([])
   })
