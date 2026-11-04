@@ -38,7 +38,8 @@ export async function loadEvidence() {
     hotEvals, coldEvals, trainerEvals, satisfactionSent, reclamations, ncs, alertsTreated, programmes, sst, opcoSessions,
     audits, signedConventions, formativeSheets, formativeSessions, formativeOn,
   ] = await Promise.all([
-    count('session_needs_analysis'),
+    // 0486 : une analyse remplie par l'entreprise ne compte qu'une fois validée par l'organisme
+    count('session_needs_analysis', (q) => q.or('client_submitted_at.is.null,org_validated_at.not.is.null')),
     count('positioning_results'),
     count('trainee_positioning_tests'),
     count('trainee_objectives', (q) => q.eq('validated', true)),

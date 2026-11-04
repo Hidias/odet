@@ -60,7 +60,7 @@ function buildDoc(ORG, session, analysisData, blank) {
       ['Participants', a.participants_count ? safe(a.participants_count) : ''],
       ['Profils', (a.participants_profiles || []).map(p => PROFILES[p] || p).join(', ')],
       ['Niveau', LEVELS[a.level] || safe(a.level)],
-      ['Particularités', [a.particularities_psh ? `Situation de handicap : ${safe(a.particularities_psh)}` : '', a.particularities_non_french ? 'Public non francophone' : '', a.particularities_other ? `Autre : ${safe(a.particularities_other)}` : ''].filter(Boolean).join(' ; ') || 'Aucune'],
+      ['Particularités', [a.particularities_psh ? `Situation de handicap : ${safe(a.particularities_psh)}` : '', a.psh_adaptation ? `Besoin d'adaptation signalé (contact : ${safe(a.psh_contact)})` : '', a.particularities_non_french ? 'Public non francophone' : '', a.particularities_other ? `Autre : ${safe(a.particularities_other)}` : ''].filter(Boolean).join(' ; ') || 'Aucune'],
     ], { labelW: 42 })
   } else {
     f.fields([{ label: 'Nombre de participants', value: '', w: 0.8 }, { label: 'Prérequis validés', value: '', w: 0.8 }, { label: 'Niveau', value: '', w: 1 }])
@@ -87,6 +87,16 @@ function buildDoc(ORG, session, analysisData, blank) {
     f.y -= 2
     f.fields([{ label: '', value: '', w: 1 }], { height: 6 })
     f.fields([{ label: 'Horaires souhaités', value: '', w: 1 }, { label: 'Dates souhaitées', value: '', w: 1 }, { label: 'Matériel fourni', value: '', w: 0.8 }, { label: 'EPI fournis', value: '', w: 0.6 }])
+  }
+
+  // Remplie par l'entreprise dans son espace, puis analysée et validée par l'organisme (0486)
+  if (a?.client_submitted_at) {
+    f.section("5. Analyse de l'organisme")
+    f.kv([
+      ["Réponses de l'entreprise", `Envoyées depuis son espace le ${new Date(a.client_submitted_at).toLocaleDateString('fr-FR')}`],
+      ['Validation', a.org_validated_at ? `Validée le ${new Date(a.org_validated_at).toLocaleDateString('fr-FR')}` : 'En attente de validation'],
+    ], { labelW: 42 })
+    f.box("Ce que l'organisme retient et les adaptations prévues", { height: 12, text: a.org_conclusion || null, lined: !a.org_conclusion })
   }
 
   // Signatures

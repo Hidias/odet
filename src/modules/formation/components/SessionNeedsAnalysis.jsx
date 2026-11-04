@@ -8,21 +8,11 @@ import { sanitizeStorageKey } from '../../../core/storageUtils'
 import { useDroits } from '../../../core/rights/useDroit'
 
 import { confirmer } from '../../../ui/Confirm'
-const CONTEXT_REASONS = [
-  { value: 'reglementation', label: 'Réglementation / Obligations légales' },
-  { value: 'accident', label: 'Suite à un accident / incident' },
-  { value: 'renouvellement', label: 'Renouvellement de certificats' },
-  { value: 'nouveaux_embauches', label: 'Nouveaux embauchés' },
-  { value: 'evolution_risques', label: 'Évolution des risques' },
-  { value: 'autre', label: 'Autre (préciser)' }
-]
-
-const PROFILES = [
-  { value: 'administratif', label: 'Administratif' },
-  { value: 'production', label: 'Production' },
-  { value: 'terrain', label: 'Terrain' },
-  { value: 'encadrement', label: 'Encadrement' }
-]
+import { MOTIFS, PROFILS, etatBesoinOrganisme } from '../lib/besoinClient'
+import BesoinClientRelecture from './BesoinClientRelecture'
+// Listes partagées avec l'espace entreprise (0486)
+const CONTEXT_REASONS = MOTIFS
+const PROFILES = PROFILS
 
 export default function SessionNeedsAnalysis({ session, organization }) {
   // Droit d'écriture : préparer la session (ou modifier les siennes)
@@ -389,10 +379,15 @@ export default function SessionNeedsAnalysis({ session, organization }) {
         <div className="flex items-center gap-2">
           <FileCheck className="w-5 h-5 text-[rgb(var(--c-info))]" />
           <h3 className="font-semibold">Analyse du besoin</h3>
-          {analysis ? (
+          {etatBesoinOrganisme(analysis) === 'a_valider' ? (
+            <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-2 py-0.5 rounded flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              À valider
+            </span>
+          ) : analysis ? (
             <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded flex items-center gap-1">
               <CheckCircle className="w-3 h-3" />
-              Complétée
+              {etatBesoinOrganisme(analysis) === 'validee' ? 'Validée' : 'Complétée'}
             </span>
           ) : scanDoc ? (
             <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-0.5 rounded flex items-center gap-1">
@@ -436,7 +431,8 @@ export default function SessionNeedsAnalysis({ session, organization }) {
           </label>
           )}
 
-          {d.preparer && (
+          {/* Analyse validée (0486) : elle se rouvre avant toute modification */}
+          {d.preparer && etatBesoinOrganisme(analysis) !== 'validee' && (
           <button
             onClick={() => setShowForm(!showForm)}
             className="btn btn-sm btn-secondary flex items-center gap-1"
@@ -447,6 +443,9 @@ export default function SessionNeedsAnalysis({ session, organization }) {
           )}
         </div>
       </div>
+
+      {/* Réponses envoyées par l'entreprise depuis son espace (0486) */}
+      <BesoinClientRelecture key={`${analysis?.id}-${analysis?.updated_at}`} analysis={analysis} peutEcrire={d.preparer} onChange={loadAnalysis} />
 
       {/* Scan importé - affichage compact */}
       {scanDoc && !showForm && (
@@ -924,7 +923,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
             </div>
             <div>
               <span className="font-medium">Lieu :</span> {
-                analysis.location_type === 'client' ? 'Chez le client' : 'Dans nos locaux'
+                analysis.location_type === 'client' ? 'Chez le client' : analysis.location_type ? 'Dans nos locaux' : 'Non précisé'
               }
             </div>
             <div>
