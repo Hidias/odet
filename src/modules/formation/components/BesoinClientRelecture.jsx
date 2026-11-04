@@ -34,7 +34,12 @@ export default function BesoinClientRelecture({ analysis, peutEcrire, onChange }
     ecrire({ org_conclusion: conclusion.trim(), org_validated_at: new Date().toISOString() }, 'Analyse du besoin validée')
   }
   const rouvrir = async () => {
-    const ok = await confirmer({ title: 'Rouvrir l\'analyse ?', message: 'L\'entreprise pourra de nouveau modifier ses réponses dans son espace. Votre analyse est conservée ; il faudra valider à nouveau.', confirmLabel: 'Rouvrir' })
+    // Reprise par l'organisme après l'envoi (0486) : l'entreprise reste bloquée, seul l'organisme modifie
+    const reprise = a.filled_at && new Date(a.filled_at) > new Date(a.client_submitted_at)
+    const message = reprise
+      ? 'Vous avez repris cette analyse après l\'envoi de l\'entreprise : vous seul pourrez la modifier. Votre analyse est conservée ; il faudra valider à nouveau.'
+      : 'L\'entreprise pourra de nouveau modifier ses réponses dans son espace. Votre analyse est conservée ; il faudra valider à nouveau.'
+    const ok = await confirmer({ title: 'Rouvrir l\'analyse ?', message, confirmLabel: 'Rouvrir' })
     if (ok) ecrire({ org_validated_at: null }, 'Analyse rouverte')
   }
 

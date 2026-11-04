@@ -132,7 +132,10 @@ begin
   if (select psh_contact from public.session_needs_analysis where session_id = v_intra) <> 'Mme Martin, 02 00 00 00 00' then raise exception '8. correction non enregistrée'; end if;
 
   -- 9. L'organisme reprend l'analyse après l'envoi : l'entreprise ne peut plus écraser ses corrections
-  update public.session_needs_analysis set objectives_description = 'Corrigé par l''organisme', filled_at = now() + interval '1 second' where session_id = v_intra;
+  -- (envoi daté d'une heure plus tôt : dans un même essai, now() ne bouge pas) ; date de l'ordinateur ignorée
+  update public.session_needs_analysis set client_submitted_at = now() - interval '1 hour' where session_id = v_intra;
+  update public.session_needs_analysis set objectives_description = 'Corrigé par l''organisme', filled_at = '2000-01-01' where session_id = v_intra;
+  if (select filled_at from public.session_needs_analysis where session_id = v_intra) <> now() then raise exception '9. date de reprise prise sur l''ordinateur'; end if;
   perform set_config('role', 'authenticated', true);
   if (public.ent_besoins() -> 0 ->> 'modifiable')::boolean then raise exception '9. encore modifiable par l''entreprise'; end if;
   begin perform public.ent_besoin_enregistrer(v_intra, v_bon); v_ok := true; exception when invalid_parameter_value then v_ok := false; end;

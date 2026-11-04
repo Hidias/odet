@@ -108,6 +108,12 @@ begin
     new.client_submitted_by := old.client_submitted_by;
   end if;
 
+  -- Reprise par l'organisme datée par le serveur, jamais par l'horloge de l'ordinateur (comparée à l'envoi de
+  -- l'entreprise) ; à l'insertion, la copie d'une analyse prospect garde sa date
+  if tg_op = 'UPDATE' and new.filled_at is not null and new.filled_at is distinct from old.filled_at then
+    new.filled_at := now();
+  end if;
+
   if new.org_validated_at is null then
     new.org_validated_by := null;
     return new;
