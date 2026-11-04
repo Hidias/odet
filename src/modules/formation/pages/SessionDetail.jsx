@@ -189,6 +189,7 @@ export default function SessionDetail() {
   const [evaluationsData, setEvaluationsData] = useState({})
   const [coldEvaluationsData, setColdEvaluationsData] = useState({})
   const [trainerEval, setTrainerEval] = useState(null)
+  const [froidEnvois, setFroidEnvois] = useState([])
   const [saisieOuverte, setSaisieOuverte] = useState(null)
   const [saisieAvant, setSaisieAvant] = useState(null)
   const [saisieEnCours, setSaisieEnCours] = useState(false)
@@ -863,6 +864,9 @@ export default function SessionDetail() {
     const coldEvalMap = {}
     coldEvals?.forEach(e => { coldEvalMap[e.trainee_id] = e })
     setColdEvaluationsData(coldEvalMap)
+    // Trace des envois et relances à froid (0482)
+    supabase.from('froid_envois').select('trainee_id, cible, rang, statut, envoye_le').eq('session_id', sess.id).eq('statut', 'envoye')
+      .then(({ data }) => setFroidEnvois(data || []))
     
     const { data: tEval } = await fetchTrainerEvaluation(sess.id)
     setTrainerEval(tEval)
@@ -4156,9 +4160,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             )}
           </div>
           
-          {/* Évaluations à froid (90 jours) */}
+          {/* Évaluations à froid (0482 : délai réglé par société et par formation) */}
           <div className="card">
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><Clock className="w-5 h-5 text-gray-800" />Évaluations à froid (90 jours)</h3>
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><Clock className="w-5 h-5 text-gray-800" />Évaluations à froid</h3>
+            <p className="text-ui-sm text-gray-500 mb-1">Envois et relances préparés chaque nuit au délai réglé (Qualité › Évaluations à froid), envoyés après validation ; le stagiaire répond dans son espace.</p>
             <p className="text-ui text-gray-500 mb-4">
               Formation : <strong>{session.courses?.title || 'Non définie'}</strong> - Formateur : <strong>{trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Non assigné'}</strong>
             </p>
@@ -4190,6 +4195,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           <td className="py-3 font-medium">{t.first_name} {t.last_name}</td>
                           <td className="text-center py-3">
                             <input type="checkbox" checked={!!coldEval.sent_at} onChange={(e) => handleColdEnvoi(t.id, e.target.checked)} className="w-5 h-5 text-gray-800 rounded" disabled={recueFroid || !d.suivi} title={recueFroid ? 'Réponse reçue : l\'envoi ne s\'annule plus' : undefined} />
+                            {froidEnvois.filter((x) => x.trainee_id === t.id).sort((a, b) => a.rang - b.rang).map((x) => (
+                              <div key={`${x.cible}-${x.rang}`} className="text-ui-sm text-gray-500 whitespace-nowrap">{x.rang === 0 ? 'Envoyé' : 'Relancé'} le {format(new Date(x.envoye_le), 'dd/MM/yy')}{x.cible === 'contact' ? ' (contact)' : ''}</div>
+                            ))}
                           </td>
                           <td className="text-center py-3">
                             {recueFroid ? <EtatReponse type="froid" row={coldEval} /> : ouvertFroid ? <span className="text-ui-sm text-gray-500">Saisie en cours</span> : null}

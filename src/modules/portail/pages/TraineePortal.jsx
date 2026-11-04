@@ -12,6 +12,7 @@ import { format, parseISO, isToday, eachDayOfInterval } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import TraineeDocuments from '../../formation/components/TraineeDocuments'
 import CompteStagiairePortail from '../components/CompteStagiairePortail'
+import EvaluationFroidPortail from '../components/QuestionnaireFroid'
 import RessentiJour from '../components/RessentiJour'
 import ModulesFormation from '../components/ModulesFormation'
 import { EcranVitrine, CodeCases } from '../components/Vitrine'
@@ -1272,6 +1273,9 @@ export default function TraineePortal() {
                   status={satisfactionDone ? 'Envoyé, merci' : satisfactionAvailable ? 'À compléter' : 'Disponible le dernier jour'}
                   disabled={satisfactionDone || !satisfactionAvailable}
                   onClick={() => setCurrentStep('evaluation')} />
+
+                {/* Évaluation à froid (0482) : ouverte au délai réglé après la formation, réponse figée */}
+                <EvaluationFroidPortail token={token} traineeId={selectedTrainee.id} ticket={portalTicket} Carte={HubCard} />
 
                 <HubCard icon={FileText} title="Documents de formation" subtitle="Programme, supports et livrets" onClick={() => setShowDocuments(true)} />
 

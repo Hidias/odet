@@ -88,6 +88,9 @@
     "api/send-prospect-email.js": {
       "maxDuration": 30
     },
+    "api/evaluations-froid.js": {
+      "maxDuration": 300
+    },
     "api/send-invoices-comptable.js": {
       "maxDuration": 300
     },

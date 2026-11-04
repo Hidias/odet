@@ -137,6 +137,7 @@ export const NAV_SECTIONS = [
       { to: '/certification', right: 'qualite.certification.gerer', icon: ShieldCheck, label: 'Certification', roles: MANAGERS, module: 'certification', groupe: 'qualiopi' },
       { to: '/qualite', right: 'qualite.registres.gerer', icon: FolderCheck, label: 'Processus qualité', roles: MANAGERS, groupe: 'qualiopi' },
       { to: '/qualite/completude', right: 'qualite.completude.suivre', icon: CheckCircle, label: 'Dossiers à compléter', roles: MANAGERS, groupe: 'qualiopi' },
+      { to: '/qualite/evaluations-froid', right: 'formation.suivi.voir', icon: CalendarClock, label: 'Évaluations à froid', roles: MANAGERS, groupe: 'qualiopi' },
       { to: '/bpf', right: 'qualite.registres.gerer', icon: FileText, label: 'BPF (bilan annuel)', roles: MANAGERS, groupe: 'qualiopi' },
       { to: '/indicateurs', right: 'qualite.registres.voir', icon: BarChart3, label: 'Indicateurs', roles: STAFF },
       { to: '/non-conformites', right: 'qualite.registres.gerer', icon: AlertTriangle, label: 'Non-conformités', roles: MANAGERS, groupe: 'registres' },

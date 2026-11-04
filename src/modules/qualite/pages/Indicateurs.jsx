@@ -1187,7 +1187,7 @@ export default function Indicateurs() {
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5 text-gray-800" />
-              Évaluations à froid (90 jours)
+              Évaluations à froid
             </h3>
             
             {!coldStats ? (

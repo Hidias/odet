@@ -3,7 +3,7 @@ import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
 import {
   Home, GraduationCap, Users, MessageSquare, MoreHorizontal, Calendar, MapPin, FileText, FileSignature, ClipboardList,
-  Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, BookOpen, Receipt, Megaphone, ExternalLink, Send, Plus, Trash2, ShieldCheck, FolderOpen, Printer,
+  Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, BookOpen, Receipt, Megaphone, ExternalLink, Send, Plus, Trash2, ShieldCheck, FolderOpen, Printer, Clock,
 } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
 import { fr as frLocale } from 'date-fns/locale'
@@ -30,6 +30,7 @@ import ParticipantsSession from '../components/ParticipantsSession'
 import CertificatsEntree from '../components/CertificatsEntree'
 import NumerosDemandes from '../components/NumerosDemandes'
 import DeposerSigne from '../components/DeposerSigne'
+import FroidEspace from '../components/FroidEspace'
 import RecapSession from '../components/RecapSession'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
@@ -735,13 +736,17 @@ function Plus_({ compte, org, salaries }) {
   const [factures, setFactures] = useState(null)
   const [actus, setActus] = useState(null)
   const [contrats, setContrats] = useState(null)
+  // Évaluations à froid (0482) : onglet visible s'il y a au moins une formation concernée
+  const [froid, setFroid] = useState(null)
+  const chargerFroid = () => supabase.rpc('ent_froid').then(({ data, error }) => setFroid(error ? { sessions: [] } : data || { sessions: [] }))
+  useEffect(() => { chargerFroid() }, [])
   useEffect(() => {
     if (vue === 'contrats' && !contrats) supabase.rpc('ent_contrats').then(({ data }) => setContrats(data || { contrats: [] }))
     if (vue === 'catalogue' && !catalogue) supabase.rpc('ent_catalogue').then(({ data }) => setCatalogue(data || { formations: [], sessions_inter: [] }))
     if (vue === 'factures' && !factures) supabase.rpc('ent_factures').then(({ data }) => setFactures(data || []))
     if (vue === 'actus' && !actus) supabase.rpc('ent_actus').then(({ data }) => setActus(data || []))
   }, [vue])
-  const VUES = [['documents', 'Documents', FolderOpen], ['contrats', 'Contrats', FileSignature], ['catalogue', 'Catalogue', BookOpen], ...(salaries ? [['salaries', 'Salariés', Users]] : []), ...(compte?.can_see_invoices ? [['factures', 'Factures', Receipt]] : []), ['actus', 'Actualités', Megaphone]]
+  const VUES = [['documents', 'Documents', FolderOpen], ['contrats', 'Contrats', FileSignature], ['catalogue', 'Catalogue', BookOpen], ...(salaries ? [['salaries', 'Salariés', Users]] : []), ...(froid?.sessions?.length ? [['froid', 'Évaluations à froid', Clock]] : []), ...(compte?.can_see_invoices ? [['factures', 'Factures', Receipt]] : []), ['actus', 'Actualités', Megaphone]]
   const chargement = <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
   return (
     <div className="space-y-4">
@@ -821,6 +826,7 @@ function Plus_({ compte, org, salaries }) {
           </section>
         </div>
       ))}
+      {vue === 'froid' && <FroidEspace donnees={froid} onChange={chargerFroid} Carte={Carte} />}
       {vue === 'salaries' && <Salaries />}
       {vue === 'factures' && (!factures ? chargement : factures.length === 0 ? <p className="text-sm text-gray-500 text-center py-6">Aucune facture.</p> : (
         <div className="space-y-2">
