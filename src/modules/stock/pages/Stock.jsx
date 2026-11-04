@@ -448,7 +448,9 @@ function Alertes({ peutCommander = false, onCommande = null }) {
               <li key={`${a.item_id}-${a.location_id}`} className="py-2 flex flex-wrap items-center gap-3">
                 <span className="flex-1 min-w-[10rem] text-ui font-semibold">{d.art[a.item_id]?.label}<span className="block text-ui-sm text-gray-500 font-normal">{d.loc[a.location_id]}</span></span>
                 <span className="text-ui-sm text-gray-600">en stock {qte(a.quantity)}, seuil {qte(a.min_qty)}</span>
-                <span className="badge badge-warning">à commander : {qte(a.to_order)}</span>
+                {Number(a.to_order) > 0
+                  ? <span className="badge badge-warning">à commander : {qte(a.to_order)}</span>
+                  : <span className="badge badge-danger">stock négatif sur un emplacement fermé</span>}
               </li>
             ))}
           </ul>

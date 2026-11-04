@@ -47,7 +47,7 @@ begin
 
   -- 4. Négatif sur l'emplacement fermé : toujours signalé, jamais commandé
   insert into public.stock_movements (company_id, kind, item_id, quantity, from_location_id) values (v_cie, 'sortie', v_art, 1, v_ferme);
-  if not exists (select 1 from public.v_stock_alerts where item_id = v_art and location_id = v_ferme and quantity = -1) then
+  if not exists (select 1 from public.v_stock_alerts where item_id = v_art and location_id = v_ferme and quantity = -1 and to_order = 0) then
     raise exception '4. négatif sur emplacement fermé non signalé'; end if;
   v_msg := null;
   begin perform public.stock_commande_depuis_alertes(v_fou, null);

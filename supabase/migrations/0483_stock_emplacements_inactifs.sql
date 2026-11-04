@@ -9,14 +9,15 @@
 --    ne rouvre pas son camion (il est alors renvoyé inactif, comme avant). « Mon stock » réactive l'emplacement de la
 --    personne connectée. Sans demande de création (p_creer = false), rien ne change.
 -- 3. Un stock négatif reste signalé dans les alertes, même sur un emplacement désactivé (anomalie à voir), mais il
---    n'entre jamais dans une commande préparée depuis les alertes.
+--    n'entre jamais dans une commande préparée depuis les alertes (quantité à commander 0).
 -- Au 04/11 en production : aucun seuil, un seul emplacement inactif (sans technicien actif) : aucun effet immédiat.
 -- Additive. Idempotente. Retour arrière : supabase/rollback/0483_stock_emplacements_inactifs_retour.sql
 
 -- ── 1. Alertes : emplacements actifs, plus les négatifs partout ──
 create or replace view public.v_stock_alerts with (security_invoker = true) as
   select t.company_id, t.item_id, t.location_id, t.min_qty, t.target_qty, coalesce(l.quantity, 0) as quantity,
-         greatest(0, coalesce(t.target_qty, t.min_qty) - coalesce(l.quantity, 0)) as to_order
+         case when coalesce(s.is_active, false)
+              then greatest(0, coalesce(t.target_qty, t.min_qty) - coalesce(l.quantity, 0)) else 0 end as to_order
   from public.stock_thresholds t
   left join public.stock_locations s on s.id = t.location_id
   left join public.v_stock_levels l on l.item_id = t.item_id and l.location_id = t.location_id
