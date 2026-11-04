@@ -12,15 +12,16 @@ vi.mock('../api/_lib/errors.js', () => ({
 }))
 vi.mock('../api/_lib/auth.js', () => ({
   requireRight: async () => ({ user: { id: 'u1' }, profile: {}, admin: {} }),
+  requireRole: async () => ({ user: { id: 'u1' }, profile: {}, admin: {} }),
   requireCronOrRole: async () => true,
-  SALES: [], ADMINS: [],
+  SALES: [], ADMINS: [], OFFICE_WRITE: [], FINANCE: [], MANAGERS: [],
 }))
 vi.mock('../api/_lib/orgProfile.js', () => ({
   loadOrgProfile: async () => ({}), orgIdentityBlock: () => '', senderFromProfile: () => ({}),
 }))
 vi.mock('../api/_lib/mailer.js', () => ({ getOrg: async () => ({}), isTestEnvironment: () => false }))
 vi.mock('../api/_lib/team.js', () => ({
-  loadTeam: async () => [{ id: 'p1', first_name: 'Test', gcal_sync_enabled: true }],
+  loadTeam: async () => [{ id: 'p1', first_name: 'Test', gcal_enabled: true, email: 'test@example.fr' }],
   leaders: () => [],
   profileFirstName: (p) => p.first_name || '',
 }))
@@ -56,6 +57,18 @@ describe('clés absentes : pas d\'erreur serveur dans la Console', () => {
     await route({ method: 'GET', query: {} }, res)
     expect(res.statusCode).toBe(200)
     expect(res.body.skipped).toBe(true)
+    expect(res.body.reason).toMatch(/Compte de service/)
+    expect(journal).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'generate-relance-email', 'generate-client-email', 'ai-proxy', 'parse-bank-statement', 'duerp-ai-evaluate',
+  ])('%s sans assistant : 400, rien dans la Console', async (nom) => {
+    const { default: route } = await import(`../api/${nom}.js`)
+    const res = reponse()
+    await route({ method: 'POST', headers: {}, body: { quote: { id: 'q' }, client: { id: 'c' }, brief: 'b' } }, res)
+    expect(res.statusCode).toBe(400)
+    expect(res.body.error).toMatch(/assistant de rédaction/)
     expect(journal).not.toHaveBeenCalled()
   })
 })
