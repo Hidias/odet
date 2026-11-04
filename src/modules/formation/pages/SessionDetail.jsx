@@ -176,7 +176,7 @@ export default function SessionDetail() {
   useEffect(() => {
     if (!session?.id || session.session_type !== 'inter') { setGroupesConvention([]); return }
     let actif = true
-    supabase.from('session_groups').select('id, session_id, doc_status').eq('session_id', session.id)
+    supabase.from('session_groups').select('id, session_id, doc_status, status').eq('session_id', session.id)
       .then(({ data, error }) => { if (actif && !error) setGroupesConvention(data || []) })
     return () => { actif = false }
   }, [session?.id, session?.session_type])
@@ -3262,6 +3262,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <StatusBadge kind="session" status={session.status} />
             {(() => {
               const etat = etatConvention(session, groupesConvention)
+              if (etat === CONVENTION.SANS_OBJET) return null
               const pluriel = session.session_type === 'inter' && groupesConvention.length > 1 ? 's' : ''
               if (etat === CONVENTION.SIGNEE) return <StatusBadge tone="success">{pluriel ? 'Conventions signées' : 'Convention signée'}</StatusBadge>
               if (etat === CONVENTION.ENVOYEE) return <StatusBadge tone="info">{pluriel ? 'Conventions envoyées' : 'Convention envoyée'}</StatusBadge>

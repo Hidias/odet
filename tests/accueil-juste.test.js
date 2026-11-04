@@ -22,6 +22,20 @@ describe('état de la convention (A1, A2)', () => {
     const s = { id: 's', session_type: 'inter' }
     expect(etatConvention(s, [{ session_id: 'autre', doc_status: 'signe' }])).toBe(CONVENTION.A_ENVOYER)
   })
+  it('inter : la signature au niveau de la session prime sur les groupes', () => {
+    const g = [{ session_id: 's', doc_status: 'a_envoyer' }]
+    expect(etatConvention({ id: 's', session_type: 'inter', convention_signed: true }, g)).toBe(CONVENTION.SIGNEE)
+    expect(etatConvention({ id: 's', session_type: 'inter', convention_sent: true }, g)).toBe(CONVENTION.ENVOYEE)
+    expect(etatConvention({ id: 's', session_type: 'inter', convention_sent: true }, [{ session_id: 's', doc_status: 'signe' }])).toBe(CONVENTION.SIGNEE)
+  })
+  it('inter : un groupe annulé ne bloque pas', () => {
+    const s = { id: 's', session_type: 'inter' }
+    expect(etatConvention(s, [{ session_id: 's', doc_status: 'signe' }, { session_id: 's', doc_status: 'a_envoyer', status: 'cancelled' }])).toBe(CONVENTION.SIGNEE)
+  })
+  it('sous-traitance : rien à réclamer', () => {
+    expect(etatConvention({ id: 's', session_type: 'subcontract' })).toBe(CONVENTION.SANS_OBJET)
+    expect(conventionEnvoyee({ id: 's', session_type: 'subcontract' })).toBe(true)
+  })
   it('inter sans groupe : colonnes de la session', () => {
     expect(etatConvention({ id: 's', session_type: 'inter', convention_signed: true }, [])).toBe(CONVENTION.SIGNEE)
   })
@@ -50,17 +64,20 @@ describe('accueil (A7, A8, A9)', () => {
   })
   it('devis partiels et facturés comptés comme signés, remplacés écartés', () => {
     const devis = [
-      { status: 'accepted', total_ht: '100' }, { status: 'partial', total_ht: 50 }, { status: 'invoiced', total_ht: 25 },
+      { status: 'accepted', total_ht: '100' }, { status: 'partial', total_ht: 50, quote_items: [{ total_ht: 20, accepted: true }, { total_ht: 30, accepted: false }] }, { status: 'invoiced', total_ht: 25 },
       { status: 'sent', total_ht: 10 }, { status: 'draft', total_ht: 5 }, { status: 'refused', total_ht: 1 },
       { status: 'replaced', total_ht: 1000 }, { status: 'expired', total_ht: 3 },
     ]
     const p = pipelineDevis(devis)
     expect(p.signed).toHaveLength(3)
-    expect(p.totalSigned).toBe(175)
+    expect(p.totalSigned).toBe(145)
     expect(p.totalSent).toBe(10)
     expect(p.totalDraft).toBe(5)
     expect(p.refused).toHaveLength(1)
     expect(tauxConversion(devis)).toEqual({ signes: 3, total: 7, taux: 43 })
+  })
+  it('devis partiel sans lignes chargées : montant du devis', () => {
+    expect(pipelineDevis([{ status: 'partial', total_ht: 50 }]).totalSigned).toBe(50)
   })
   it('aucun devis : taux nul', () => {
     expect(tauxConversion([])).toEqual({ signes: 0, total: 0, taux: 0 })

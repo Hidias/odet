@@ -51,8 +51,8 @@ export default function Previsionnel() {
         <div className="card space-y-1.5">
           {mois.map((m) => (
             <div key={m.mois}>
-              <button type="button" className="w-full grid grid-cols-[7.5rem_1fr_5.5rem] sm:grid-cols-[10rem_1fr_7rem] items-center gap-2 text-left hover:bg-gray-50 rounded px-1 py-1" onClick={() => setOuvert(ouvert === m.mois ? null : m.mois)} aria-expanded={ouvert === m.mois}>
-                <span className="text-ui-sm text-gray-600 capitalize whitespace-nowrap tabular-nums">{libMois(m.mois)}</span>
+              <button type="button" className="w-full grid grid-cols-[7.5rem_1fr_6.5rem] sm:grid-cols-[10rem_1fr_7rem] items-center gap-2 text-left hover:bg-gray-50 rounded px-1 py-1" onClick={() => setOuvert(ouvert === m.mois ? null : m.mois)} aria-expanded={ouvert === m.mois}>
+                <span className="text-ui-sm text-gray-600 capitalize whitespace-nowrap">{libMois(m.mois)}</span>
                 <span className="relative h-5 bg-gray-100 rounded overflow-hidden" aria-hidden="true">
                   <span className="absolute inset-y-0 left-0 bg-accent-200" style={{ width: `${(m.attendu / max) * 100}%` }} />
                   <span className="absolute inset-y-0 left-0 bg-accent-500" style={{ width: `${(Math.min(m.attendu, m.devise + m.planifie) / max) * 100}%` }} />

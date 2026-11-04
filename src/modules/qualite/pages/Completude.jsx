@@ -156,7 +156,7 @@ export default function Completude() {
       // Conventions des sessions inter, groupe par groupe (angle mort A2) ; signée vaut envoyée (A1)
       const interIds = (sessions || []).filter(s => s.session_type === 'inter').map(s => s.id)
       const { data: groupesInter } = interIds.length
-        ? await fetchAllIn(() => supabase.from('session_groups').select('id, session_id, doc_status'), 'session_id', interIds)
+        ? await fetchAllIn(() => supabase.from('session_groups').select('id, session_id, doc_status, status'), 'session_id', interIds)
         : { data: [] }
       const groupes = groupesParSession(groupesInter)
 

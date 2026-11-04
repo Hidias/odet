@@ -3,21 +3,26 @@
 // `convention_signed` sans toujours poser `convention_sent`.
 // Session inter : chaque groupe (client) a sa propre convention ou son contrat (`session_groups.doc_status`) ;
 // la session est « signée » quand tous les groupes le sont, « envoyée » quand tous sont au moins envoyés.
-// Inter sans groupe : on garde les colonnes de la session (anciennes sessions, aucune donnée perdue).
+// Une convention signée ou envoyée au niveau de la session (scan déposé, signature en ligne de la session) prime
+// sur les groupes : rien de ce qui était « signé » avant ne repasse « en attente ».
+// Inter sans groupe : colonnes de la session (anciennes sessions). Groupes annulés ignorés.
+// Sous-traitance : la convention est celle du donneur d'ordre (comme conventionSignee.js), rien à réclamer.
 
-export const CONVENTION = { SIGNEE: 'signee', ENVOYEE: 'envoyee', A_ENVOYER: 'a_envoyer' }
+export const CONVENTION = { SIGNEE: 'signee', ENVOYEE: 'envoyee', A_ENVOYER: 'a_envoyer', SANS_OBJET: 'sans_objet' }
 
 export function etatConvention(session, groupes = []) {
   if (!session) return CONVENTION.A_ENVOYER
+  if (session.session_type === 'subcontract') return CONVENTION.SANS_OBJET
+  if (session.convention_signed) return CONVENTION.SIGNEE
   if (session.session_type === 'inter') {
-    const siens = (groupes || []).filter((g) => g && (g.session_id === undefined || g.session_id === session.id))
+    const siens = (groupes || []).filter((g) => g && g.status !== 'cancelled' && (g.session_id === undefined || g.session_id === session.id))
     if (siens.length > 0) {
+      if (session.convention_sent && !siens.every((g) => g.doc_status === 'signe')) return CONVENTION.ENVOYEE
       if (siens.every((g) => g.doc_status === 'signe')) return CONVENTION.SIGNEE
       if (siens.every((g) => g.doc_status === 'signe' || g.doc_status === 'envoye')) return CONVENTION.ENVOYEE
       return CONVENTION.A_ENVOYER
     }
   }
-  if (session.convention_signed) return CONVENTION.SIGNEE
   if (session.convention_sent) return CONVENTION.ENVOYEE
   return CONVENTION.A_ENVOYER
 }
