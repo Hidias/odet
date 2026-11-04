@@ -21,7 +21,7 @@ const PAYEURS = { entreprise: 'L\'entreprise', opco: 'Un OPCO', particulier: 'Le
 const DOCS = { a_envoyer: ['neutral', 'À envoyer'], envoye: ['info', 'Envoyé'], signe: ['success', 'Signé'] }
 const fmt = (d) => (d ? new Date(String(d).length === 10 ? `${d}T12:00:00` : d).toLocaleDateString('fr-FR') : '')
 
-export default function SessionGroupes({ session, peutModifier }) {
+export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   const navigate = useNavigate()
   const [groupes, setGroupes] = useState(null)
   const [inscrits, setInscrits] = useState([])
@@ -39,6 +39,7 @@ export default function SessionGroupes({ session, peutModifier }) {
     if (error) { setIndispo(true); setGroupes([]); return }
     setGroupes(g || [])
     setInscrits(st || [])
+    onGroupes?.(g || [])
   }
   useEffect(() => { if (session?.id) load() }, [session?.id])
 

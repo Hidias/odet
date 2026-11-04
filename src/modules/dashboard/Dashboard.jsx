@@ -1,4 +1,6 @@
 import { apiFetch } from '../../core/api'
+import { estAVenir, stagiairesPresents, pipelineDevis, tauxConversion } from './lib/accueil'
+import { conventionEnvoyee, groupesParSession } from '../formation/lib/etatConvention'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore, useDataStore } from '../../core/store'
@@ -143,7 +145,7 @@ export default function Dashboard() {
     //  TABLE CORRECTE: trainee_evaluations (pas evaluations_hot)
     traineeEvaluations: [],
     sstCertifications: [], trainingThemes: [],
-    invoices: [],
+    invoices: [], groupes: [],
   })
 
   // ─── Widget config loading ─────────────────────────────
@@ -181,14 +183,14 @@ export default function Dashboard() {
   const loadData = async () => {
     await Promise.all([fetchClients(), fetchCourses(), fetchTrainees(), fetchSessions()])
     
-    const [ncR, alertsR, reclR, rdvR, cbR, quotesR, notifR, traineeEvalsR, sstR, themesR, invoicesR] = await Promise.all([
+    const [ncR, alertsR, reclR, rdvR, cbR, quotesR, notifR, traineeEvalsR, sstR, themesR, invoicesR, groupesR] = await Promise.all([
       supabase.from('non_conformites').select('*').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }),
       supabase.from('quality_alerts').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
       //  reclamations - pas de trainee_id
       supabase.from('reclamations').select('id, reference, subject, description, created_at, session_id, status, date_reception').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
       supabase.from('prospect_rdv').select('*, clients(name)').eq('status', 'a_prendre').order('created_at', { ascending: false }),
       supabase.from('prospect_calls').select('*, clients(name)').eq('needs_callback', true).gte('callback_date', new Date().toISOString().split('T')[0]).order('callback_date').order('callback_time').limit(20),
-      supabase.from('quotes').select('*, clients!quotes_client_id_fkey(name)').order('created_at', { ascending: false }).limit(50),
+      supabase.from('quotes').select('*, clients!quotes_client_id_fkey(name), quote_items(total_ht, accepted)').order('created_at', { ascending: false }).limit(50),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(20),
       //  TABLE CORRECTE: trainee_evaluations (la vraie table des évals à chaud)
       fetchAll(() => supabase.from('trainee_evaluations').select('session_id, trainee_id, q_org_documents, q_org_accueil, q_org_locaux, q_org_materiel, q_contenu_organisation, q_contenu_supports, q_contenu_duree, q_contenu_programme, q_formateur_pedagogie, q_formateur_expertise, q_formateur_progression, q_formateur_moyens, q_global_adequation, q_global_competences, would_recommend, questionnaire_submitted, submitted_at')),
@@ -196,6 +198,8 @@ export default function Dashboard() {
       supabase.from('training_themes').select('id, code, name, color'),
       // Factures émises (y compris partielles et annulées par avoir) + avoirs validés (déduits)
       fetchAll(() => supabase.from('invoices').select('id, reference, type, invoice_date, total_net_ht, total_ttc, status').in('status', ['paid', 'due', 'sent', 'overdue', 'partial', 'credited'])),
+      // Conventions des sessions inter, groupe par groupe (angle mort A2)
+      fetchAll(() => supabase.from('session_groups').select('id, session_id, doc_status, status')),
     ])
     
     // Enrich alerts
@@ -252,6 +256,7 @@ export default function Dashboard() {
       trainingThemes: themesR.data || [],
       invoices: invoicesR.data || [],
       recyclages,
+      groupes: groupesR.data || [],
     })
     setLoading(false)
   }
@@ -273,15 +278,15 @@ export default function Dashboard() {
   
   const sessionsUpcoming = useMemo(() => sessions.filter(s => {
     const d = new Date(s.start_date)
-    return s.status === 'planned' && isAfter(d, today) && isBefore(d, next7Days)
+    return estAVenir(s) && isAfter(d, today) && isBefore(d, next7Days)
   }).sort((a, b) => new Date(a.start_date) - new Date(b.start_date)), [sessions])
   
   const sessionsUpcoming30 = useMemo(() => sessions.filter(s => {
     const d = new Date(s.start_date)
-    return s.status === 'planned' && isAfter(d, today) && isBefore(d, next30Days)
+    return estAVenir(s) && isAfter(d, today) && isBefore(d, next30Days)
   }).sort((a, b) => new Date(a.start_date) - new Date(b.start_date)), [sessions])
   
-  const sessionsWithoutTrainer = useMemo(() => sessions.filter(s => (s.status === 'planned' || s.status === 'draft') && !s.trainer_id), [sessions])
+  const sessionsWithoutTrainer = useMemo(() => sessions.filter(s => (estAVenir(s) || s.status === 'draft') && !s.trainer_id), [sessions])
   const sessionsInProgress = useMemo(() => sessions.filter(s => s.status === 'in_progress'), [sessions])
   const completedSessions = useMemo(() => sessions.filter(s => s.status === 'completed'), [sessions])
   
@@ -305,7 +310,7 @@ export default function Dashboard() {
   const incompleteAttendance = useMemo(() => {
     return sessions.filter(s => {
       if (s.status !== 'in_progress') return false
-      const sts = s.session_trainees || []
+      const sts = stagiairesPresents(s)
       if (sts.length === 0) return false
       return sts.some(st => st.presence_complete !== true && st.early_departure !== true)
     })
@@ -369,24 +374,25 @@ export default function Dashboard() {
   // Documents manquants
   const documentsMissing = useMemo(() => {
     const issues = []
+    const groupes = groupesParSession(dashData.groupes)
     sessionsUpcoming30.forEach(s => {
-      if (!s.convention_sent) issues.push({ session: s, type: 'Convention' })
+      if (!conventionEnvoyee(s, groupes.get(s.id))) issues.push({ session: s, type: 'Convention' })
     })
     sessionsUpcoming30.forEach(s => {
-      const sts = s.session_trainees || []
+      const sts = stagiairesPresents(s)
       const withoutConvocation = sts.filter(st => !st.convocation_sent_at)
       if (sts.length > 0 && withoutConvocation.length > 0) {
         issues.push({ session: s, type: `Convocation (${withoutConvocation.length})` })
       }
     })
     return issues
-  }, [sessionsUpcoming30])
+  }, [sessionsUpcoming30, dashData.groupes])
   
   // Positionnements via positioning_test_completed
   const positioningPending = useMemo(() => {
     let count = 0
-    sessions.filter(s => s.status === 'planned' || s.status === 'in_progress').forEach(s => {
-      const sts = s.session_trainees || []
+    sessions.filter(s => estAVenir(s) || s.status === 'in_progress').forEach(s => {
+      const sts = stagiairesPresents(s)
       const hasPositioning = s.courses?.positioning_questions && (
         Array.isArray(s.courses.positioning_questions) ? s.courses.positioning_questions.length > 0 : true
       )
@@ -399,18 +405,7 @@ export default function Dashboard() {
   }, [sessions])
   
   // Pipeline devis
-  const quotesPipeline = useMemo(() => {
-    const q = dashData.quotes
-    return {
-      draft: q.filter(x => x.status === 'draft'),
-      sent: q.filter(x => x.status === 'sent' || x.status === 'pending'),
-      signed: q.filter(x => x.status === 'signed' || x.status === 'accepted'),
-      refused: q.filter(x => x.status === 'refused' || x.status === 'rejected'),
-      totalDraft: q.filter(x => x.status === 'draft').reduce((s, x) => s + (parseFloat(x.total_ht) || 0), 0),
-      totalSent: q.filter(x => x.status === 'sent' || x.status === 'pending').reduce((s, x) => s + (parseFloat(x.total_ht) || 0), 0),
-      totalSigned: q.filter(x => x.status === 'signed' || x.status === 'accepted').reduce((s, x) => s + (parseFloat(x.total_ht) || 0), 0),
-    }
-  }, [dashData.quotes])
+  const quotesPipeline = useMemo(() => pipelineDevis(dashData.quotes), [dashData.quotes])
 
   // Devis envoyés sans réponse > 7j
   const quotesRelance = useMemo(() => {
@@ -438,11 +433,8 @@ export default function Dashboard() {
   
   const newClientsThisMonth = useMemo(() => clients.filter(c => c.created_at && new Date(c.created_at) >= thisMonth), [clients])
   
-  const conversionRate = useMemo(() => {
-    const t = dashData.quotes.length
-    const s = dashData.quotes.filter(d => d.status === 'signed' || d.status === 'accepted').length
-    return t > 0 ? Math.round((s / t) * 100) : 0
-  }, [dashData.quotes])
+  const conversion = useMemo(() => tauxConversion(dashData.quotes), [dashData.quotes])
+  const conversionRate = conversion.taux
   
   const topCourses = useMemo(() => {
     const m = {}
@@ -711,8 +703,9 @@ export default function Dashboard() {
       case 'attendance_incomplete':
         return incompleteAttendance.length === 0 ? <div className="text-center py-3"><CheckCircle className="w-6 h-6 text-[rgb(var(--c-success))] mx-auto mb-1" /><p className="text-ui text-gray-500">Tout est à jour</p></div> : (
           <div className="space-y-2 max-h-48 overflow-y-auto">{incompleteAttendance.slice(0, 8).map(s => {
-            const total = (s.session_trainees || []).length
-            const missing = (s.session_trainees || []).filter(st => st.presence_complete !== true && st.early_departure !== true).length
+            const presents = stagiairesPresents(s)
+            const total = presents.length
+            const missing = presents.filter(st => st.presence_complete !== true && st.early_departure !== true).length
             return (
               <Link key={s.id} to={`/sessions/${s.id}`} className="flex items-center justify-between p-2 rounded-ui-sm bg-[rgb(var(--c-danger-bg))] hover:bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.25)] text-ui transition-colors">
                 <span className="truncate font-medium text-gray-800">{s.courses?.title}</span>
@@ -860,7 +853,7 @@ export default function Dashboard() {
         return <div className="text-center py-2"><p className="text-3xl font-bold text-[rgb(var(--c-success))]">{newClientsThisMonth.length}</p><p className="text-ui text-gray-500 mt-1">ce mois</p><p className="text-ui-sm text-gray-400 mt-1">Total: {clients.length}</p></div>
 
       case 'conversion_rate':
-        return <div className="text-center py-2"><p className="text-3xl font-bold text-gray-900">{conversionRate}%</p><p className="text-ui text-gray-500 mt-1">devis → signé</p><p className="text-ui-sm text-gray-400 mt-1">{dashData.quotes.filter(d => d.status === 'signed' || d.status === 'accepted').length}/{dashData.quotes.length}</p></div>
+        return <div className="text-center py-2"><p className="text-3xl font-bold text-gray-900">{conversionRate}%</p><p className="text-ui text-gray-500 mt-1">devis → signé</p><p className="text-ui-sm text-gray-400 mt-1">{conversion.signes}/{conversion.total}</p></div>
 
       case 'top_courses':
         return topCourses.length === 0 ? <p className="text-gray-400 text-ui py-4 text-center">Pas de données</p> : (

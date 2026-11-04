@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { buildCompletudePDF } from '../pdf/completudePDF'
 import SearchSelect from '../../../ui/SearchSelect'
+import { etatConvention, groupesParSession, CONVENTION } from '../../formation/lib/etatConvention'
 
 const PRIORITIES = {
   bloquant: { label: 'Bloquant', color: 'red', icon: '' },
@@ -143,6 +144,7 @@ export default function Completude() {
           status,
           convention_sent,
           convention_signed,
+          session_type,
           funding_type,
           location_name,
           clients(name),
@@ -150,12 +152,20 @@ export default function Completude() {
           trainer_id
         `)
         .eq('status', 'completed'))
-      
+
+      // Conventions des sessions inter, groupe par groupe (angle mort A2) ; signée vaut envoyée (A1)
+      const interIds = (sessions || []).filter(s => s.session_type === 'inter').map(s => s.id)
+      const { data: groupesInter } = interIds.length
+        ? await fetchAllIn(() => supabase.from('session_groups').select('id, session_id, doc_status, status'), 'session_id', interIds)
+        : { data: [] }
+      const groupes = groupesParSession(groupesInter)
+
       sessions?.forEach(s => {
         const clientName = s.clients?.name || 'Client inconnu'
         const courseName = s.courses?.title || 'Formation inconnue'
+        const convention = etatConvention(s, groupes.get(s.id))
         
-        if (!s.convention_sent) {
+        if (convention === CONVENTION.A_ENVOYER) {
           allIssues.push({
             category: 'sessions',
             priority: 'bloquant',
@@ -167,7 +177,7 @@ export default function Completude() {
             since: s.start_date
           })
         }
-        if (s.convention_sent && !s.convention_signed) {
+        if (convention === CONVENTION.ENVOYEE) {
           allIssues.push({
             category: 'sessions',
             priority: 'bloquant',
