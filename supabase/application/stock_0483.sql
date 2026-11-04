@@ -11,19 +11,23 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- 2. Emplacement d'un technicien : s'il existe mais a été désactivé, il est réactivé au lieu d'en créer un second
 --    (sinon erreur de doublon sur stock_locations_tech_uniq quand un technicien réactivé ouvre « Mon stock »), et les
 --    pièces posées pendant une visite sortent d'un emplacement visible (app.stock_camion, utilisée par la clôture).
---    Sans demande de création (p_creer = false), rien ne change : l'emplacement inactif n'est pas renvoyé.
+--    Le camion n'est réactivé que si le technicien et son compte sont actifs : clore la visite d'un technicien parti
+--    ne rouvre pas son camion (il est alors renvoyé inactif, comme avant). « Mon stock » réactive l'emplacement de la
+--    personne connectée. Sans demande de création (p_creer = false), rien ne change.
+-- 3. Un stock négatif reste signalé dans les alertes, même sur un emplacement désactivé (anomalie à voir), mais il
+--    n'entre jamais dans une commande préparée depuis les alertes.
 -- Au 04/11 en production : aucun seuil, un seul emplacement inactif (sans technicien actif) : aucun effet immédiat.
 -- Additive. Idempotente. Retour arrière : supabase/rollback/0483_stock_emplacements_inactifs_retour.sql
 
--- ── 1. Alertes : emplacements actifs seulement ──
+-- ── 1. Alertes : emplacements actifs, plus les négatifs partout ──
 create or replace view public.v_stock_alerts with (security_invoker = true) as
   select t.company_id, t.item_id, t.location_id, t.min_qty, t.target_qty, coalesce(l.quantity, 0) as quantity,
          greatest(0, coalesce(t.target_qty, t.min_qty) - coalesce(l.quantity, 0)) as to_order
   from public.stock_thresholds t
-  join public.stock_locations s on s.id = t.location_id and s.is_active
+  left join public.stock_locations s on s.id = t.location_id
   left join public.v_stock_levels l on l.item_id = t.item_id and l.location_id = t.location_id
-  where coalesce(l.quantity, 0) < t.min_qty or coalesce(l.quantity, 0) < 0;
-comment on view public.v_stock_alerts is 'Articles sous le seuil (ou en négatif) par emplacement actif, quantité à commander';
+  where (coalesce(s.is_active, false) and coalesce(l.quantity, 0) < t.min_qty) or coalesce(l.quantity, 0) < 0;
+comment on view public.v_stock_alerts is 'Articles sous le seuil par emplacement actif, ou en négatif sur tout emplacement, quantité à commander';
 revoke all on public.v_stock_alerts from public, anon;
 grant select on public.v_stock_alerts to authenticated;
 
@@ -94,7 +98,14 @@ begin
     from public.profiles p where p.id = (select auth.uid());
     insert into public.stock_locations (company_id, kind, name, profile_id)
     values (v_co, 'technicien', 'Stock de ' || coalesce(v_nom, 'technicien'), (select auth.uid()))
+    on conflict do nothing
     returning id into v_id;
+    if v_id is null then
+      -- Créé entre-temps par un autre appel (deux écrans ouverts en même temps)
+      select l.id into v_id from public.stock_locations l
+      where l.company_id = v_co and l.kind = 'technicien' and l.profile_id = (select auth.uid()) limit 1;
+      update public.stock_locations set is_active = true, updated_at = now() where id = v_id and not is_active;
+    end if;
   end if;
   return v_id;
 end
@@ -116,7 +127,10 @@ begin
   select l.id, l.is_active into v_id, v_actif from public.stock_locations l
   where l.company_id = p_company and l.kind = 'technicien' and l.profile_id = p_profile
   order by l.is_active desc limit 1;
-  if v_id is not null and not v_actif and p_creer then
+  if v_id is not null and not v_actif and p_creer
+     and exists (select 1 from public.itv_technicians t join public.profiles p on p.id = t.profile_id
+                 where t.profile_id = p_profile and t.is_active and p.is_active
+                   and (t.company_id = p_company or p_company = any (t.company_ids))) then
     update public.stock_locations set is_active = true, updated_at = now() where id = v_id;
   end if;
   if v_id is null and p_creer then
