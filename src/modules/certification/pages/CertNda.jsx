@@ -11,6 +11,7 @@ import {
 } from '../lib/certData'
 import { buildNdaProgrammePDF, buildNdaIntervenantsPDF } from '../pdf/ndaPiecesPDF'
 import SearchSelect from '../../../ui/SearchSelect'
+import { incoherencesNda } from '../../../core/org/rappelNdaEtat'
 
 import { confirmer } from '../../../ui/Confirm'
 const STATUS = [
@@ -168,6 +169,7 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
           {canWrite && !hasNda && (
             <div className="pt-1 sm:w-1/2"><DateField label="Dossier complet le (accusé de réception)" value={form.nda_complete_at} onChange={(v) => { setForm({ ...form, nda_complete_at: v }); save({ nda_complete_at: v, ...(v ? { nda_status: 'complet' } : {}) }) }} /></div>
           )}
+          {incoherencesNda(form).map((a) => <p key={a} className="text-ui-sm text-[rgb(var(--c-warning))]">{a}</p>)}
         </Step>
         <Step done={hasNda} title="Numéro reçu">
           <span>Saisi ici, il apparaît sur les conventions, devis, contrats et factures, avec la région.</span>
