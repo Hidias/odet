@@ -1653,6 +1653,24 @@ export const useDataStore = create((set, get) => ({
     return result
   },
 
+  // ========== RÉPONSES FIGÉES (0481) ==========
+  // Saisie en une fois d'une réponse reçue (chaud, froid, formateur), ou correction par le super administrateur (motif)
+  enregistrerEvaluation: async (type, sessionId, personneId, reponses, motif = null) => {
+    const { data, error } = await supabase.rpc('evaluation_enregistrer', {
+      p_type: type, p_session: sessionId, p_personne: personneId, p_reponses: reponses, p_motif: motif,
+    })
+    return { data, error }
+  },
+  supprimerEvaluation: async (type, sessionId, personneId, motif) => {
+    const { data, error } = await supabase.rpc('evaluation_supprimer', { p_type: type, p_session: sessionId, p_personne: personneId, p_motif: motif })
+    return { data, error }
+  },
+  // Case « Envoyé » de l'évaluation à froid
+  suiviEvaluationFroid: async (sessionId, traineeId, envoye) => {
+    const { data, error } = await supabase.rpc('evaluation_froid_suivi', { p_session: sessionId, p_trainee: traineeId, p_envoye: envoye })
+    return { data, error }
+  },
+
   // ========== CERTIFICATIONS SST ==========
   fetchSSTCertifications: async (sessionId) => {
     const { data, error } = await supabase
