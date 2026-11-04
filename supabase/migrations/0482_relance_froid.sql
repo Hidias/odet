@@ -509,9 +509,10 @@ begin
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Adresse invalide'); continue;
     end if;
     -- Une adresse, un envoi par jour
-    -- (contact et employeur : les lignes d'une même session partent dans un seul mail ; une autre session attend le lendemain)
+    -- Seule exception : contact et employeur d'une même session choisis ensemble, qui partent dans un seul mail.
+    -- Choisis en deux fois, la seconde attend le lendemain ; une autre session aussi.
     if exists (select 1 from public.froid_envois y where lower(y.destinataire) = lower(e.destinataire) and y.id <> e.id
-        and (e.cible = 'stagiaire' or y.session_id <> e.session_id)
+        and not (e.cible <> 'stagiaire' and y.cible <> 'stagiaire' and y.session_id = e.session_id and y.id = any (p_ids))
         and (y.statut = 'en_cours' or (y.statut = 'envoye' and y.envoye_le > now() - interval '1 day'))) then
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Adresse déjà écrite depuis moins d''un jour'); continue;
     end if;

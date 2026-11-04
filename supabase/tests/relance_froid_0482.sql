@@ -120,6 +120,25 @@ begin
     -- Interrompue depuis plus de 15 minutes : reprise possible
     update public.froid_envois set reserve_le = now() - interval '20 minutes' where statut = 'en_cours' and id in (v_e1, v_e2);
     if public.froid_remettre(array[v_e1, v_e2]) <> 1 then raise exception '8 quater. envoi interrompu non repris'; end if;
+    -- 8 quinquies. Même session, même adresse, lignes choisies en deux fois : la seconde attend
+    declare v_c1 uuid; v_c2 uuid; v_tx uuid; v_ty uuid; v_se2 uuid; begin
+      insert into public.sessions (reference, client_id, start_date, end_date, attendance_token, company_id, status)
+      values ('SES-0482-DEUX', v_cli, v_today - 70, v_today - 70, 'jeton-0482d', v_cie, 'completed') returning id into v_se2;
+      insert into public.trainees (first_name, last_name, client_id, company_id) values ('X', 'Un', v_cli, v_cie) returning id into v_tx;
+      insert into public.trainees (first_name, last_name, client_id, company_id) values ('Y', 'Deux', v_cli, v_cie) returning id into v_ty;
+      insert into public.froid_envois (company_id, session_id, trainee_id, client_id, cible, rang, du_le, destinataire)
+      values (v_cie, v_se2, v_tx, v_cli, 'contact', 0, v_today, 'deux@exemple.fr') returning id into v_c1;
+      insert into public.froid_envois (company_id, session_id, trainee_id, client_id, cible, rang, du_le, destinataire)
+      values (v_cie, v_se2, v_ty, v_cli, 'contact', 0, v_today, 'deux@exemple.fr') returning id into v_c2;
+      v_r := public.froid_envois_reserver(array[v_c1]);
+      if jsonb_array_length(v_r -> 'envois') <> 1 then raise exception '8 quinquies. première ligne : %', v_r; end if;
+      v_r := public.froid_envois_reserver(array[v_c2]);
+      if jsonb_array_length(v_r -> 'envois') <> 0 then raise exception '8 quinquies. seconde ligne choisie à part envoyée le même jour : %', v_r; end if;
+      -- choisies ensemble : un seul mail, les deux passent
+      update public.froid_envois set statut = 'prepare', reserve_le = null, envoye_par = null where id in (v_c1, v_c2);
+      v_r := public.froid_envois_reserver(array[v_c1, v_c2]);
+      if jsonb_array_length(v_r -> 'envois') <> 2 then raise exception '8 quinquies. lignes choisies ensemble refusées : %', v_r; end if;
+    end;
   end;
   perform set_config('request.jwt.claims', '', true);
 
