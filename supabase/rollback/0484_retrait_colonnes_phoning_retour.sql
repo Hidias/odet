@@ -6,3 +6,5 @@ alter table public.mailing_campaigns
   add column if not exists phoning_notes jsonb default '[]'::jsonb,
   add column if not exists phoning_active boolean default false,
   add column if not exists phoning_active_until timestamp with time zone;
+
+delete from public.schema_migrations where version = '0484_retrait_colonnes_phoning';

@@ -40,6 +40,8 @@ alter table public.mailing_campaigns
   drop column if exists phoning_active,
   drop column if exists phoning_active_until;
 
+insert into public.schema_migrations (version) values ('0484_retrait_colonnes_phoning') on conflict (version) do nothing;
+
 -- ===== supabase/tests/droits_chantier2.sql =====
 -- supabase/tests/droits_chantier2.sql : tests de droits rejouables (chantier 2, sécurité des accès).
 --
