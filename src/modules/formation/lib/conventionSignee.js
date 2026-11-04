@@ -24,14 +24,48 @@ export function alerteConventionSignee(session, action) {
       danger: false,
     }
   }
-  if (action === 'inscription_inter') {
-    // Session inter : chaque entreprise a sa propre convention ; la nouvelle inscription n'en modifie aucune autre
+  return null
+}
+
+// Confirmation d'une inscription en ligne sur une session inter (une seule fenêtre). Reprend la recherche du client
+// faite par la base (inscription_confirmer, 0421) : entreprise par SIRET, sinon nom et code postal ; particulier par
+// adresse email. Si ce client a déjà un groupe sur la session, les stagiaires y sont ajoutés : une convention (ou un
+// contrat) déjà signé devient inexact. Sinon, un nouveau groupe est créé, avec sa propre convention ou son contrat.
+const norm = (v) => String(v ?? '').trim().toLowerCase()
+
+export function groupeExistantPourInscription(r, groupes) {
+  const avecClient = (groupes || []).filter((g) => g.clients)
+  if (r.kind === 'entreprise') {
+    if (r.siret) {
+      const parSiret = avecClient.find((g) => g.clients.siret && g.clients.siret === r.siret)
+      if (parSiret) return parSiret
+    }
+    return avecClient.find((g) => norm(g.clients.name) === norm(r.company_name) && norm(g.clients.postal_code) === norm(r.postal_code)) || null
+  }
+  const mail = norm(r.contact_email)
+  return avecClient.find((g) => g.clients.client_type === 'particulier' && mail && (norm(g.clients.email) === mail || norm(g.clients.contact_email) === mail)) || null
+}
+
+export function confirmationInscriptionInter(r, groupes) {
+  const n = (r.participants || []).length
+  const qui = r.kind === 'entreprise' ? r.company_name : `${r.contact_first_name} ${r.contact_last_name}`
+  const doc = r.kind === 'entreprise' ? 'convention' : 'contrat'
+  const base = `${qui} : ${n} participant${n > 1 ? 's' : ''}. Le client et les stagiaires sont créés ou retrouvés, sans doublon.`
+  const g = groupeExistantPourInscription(r, groupes)
+  if (g && g.doc_status === 'signe') {
     return {
-      title: 'Conventions déjà signées sur cette session',
-      message: `Des conventions ont déjà été signées sur cette session${quand}. Elles ne changent pas : cette nouvelle inscription aura sa propre convention, à faire signer par l'entreprise.\n\nConfirmer l'inscription ?`,
-      confirmLabel: 'Confirmer l\'inscription',
-      danger: false,
+      title: `${doc === 'convention' ? 'Convention' : 'Contrat'} déjà signé pour ce client`,
+      message: `${base}\n\nCe client a déjà un groupe sur cette session et son ${doc} est signé : les nouveaux stagiaires y seront ajoutés et ce ${doc} deviendra inexact. Il faudra un avenant ou un nouveau ${doc} signé.\n\nConfirmer quand même l'inscription ?`,
+      confirmLabel: 'Confirmer quand même',
+      danger: true,
     }
   }
-  return null
+  return {
+    title: 'Confirmer cette inscription ?',
+    message: g
+      ? `${base} Les stagiaires rejoignent le groupe existant de ce client, dont le ${doc} n'est pas encore signé.`
+      : `${base} Un nouveau groupe est créé, avec son propre ${doc} à faire signer ; les conventions déjà signées des autres clients ne changent pas.`,
+    confirmLabel: 'Confirmer',
+    danger: false,
+  }
 }

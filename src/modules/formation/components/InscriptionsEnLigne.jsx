@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 import { Globe, Check, X, Loader2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { demander, confirmer } from '../../../ui/Confirm'
-import { alerteConventionSignee } from '../lib/conventionSignee'
+import { confirmationInscriptionInter } from '../lib/conventionSignee'
 
 // Inscriptions en ligne d'une session inter (0420) : déposées depuis le calendrier public, « en attente » jusqu'à
 // la confirmation par l'organisme. Confirmer : la base crée ou retrouve le client, les stagiaires et le groupe, sans
@@ -28,10 +28,11 @@ export default function InscriptionsEnLigne({ session, peutModifier, onConfirmee
   const traitees = liste.filter((r) => ['confirmee', 'refusee'].includes(r.status))
 
   const confirmerInscription = async (r) => {
-    const alerte = alerteConventionSignee(session, 'inscription_inter')
-    if (alerte && !(await confirmer(alerte))) return
-    const n = (r.participants || []).length
-    if (!(await confirmer({ title: 'Confirmer cette inscription ?', message: `${r.kind === 'entreprise' ? r.company_name : `${r.contact_first_name} ${r.contact_last_name}`} : ${n} participant${n > 1 ? 's' : ''}. Le client, les stagiaires et le groupe sont créés ou retrouvés, sans doublon.`, confirmLabel: 'Confirmer' }))) return
+    // Une seule fenêtre : elle signale le cas où le client a déjà un groupe dont la convention ou le contrat est signé
+    const { data: groupes } = await supabase.from('session_groups')
+      .select('id, client_id, doc_status, clients:client_id(siret, name, postal_code, email, contact_email, client_type)')
+      .eq('session_id', session.id)
+    if (!(await confirmer(confirmationInscriptionInter(r, groupes || [])))) return
     setBusy(r.id)
     const { error } = await supabase.rpc('inscription_confirmer', { p_id: r.id })
     setBusy(null)
