@@ -3,7 +3,6 @@
  * PROSPECTION MASSIVE
  * ============================================================================
  * 
- * À METTRE : afm-app-main/src/pages/ProspectionMassive.jsx
  * 
  * Interface pour consulter et exporter les prospects de la base
  * de prospection massive sur la zone d'intervention (Paramètres)

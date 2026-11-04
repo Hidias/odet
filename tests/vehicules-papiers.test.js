@@ -10,13 +10,13 @@ const vehicule = {
   commercial_name: 'KANGOO', registration_formula: '2019AB12345', first_registration_on: '2019-03-14', insurer: 'Assureur', insurance_policy: 'P-1',
   green_card_number: 'CV-2', own_damage_covered: true,
 }
-const societe = { legal_name: 'Société Essai', siret: '123 456 789 00012', address: '12 bis rue des Lilas', postal_code: '29900', city: 'Concarneau' }
+const societe = { legal_name: 'Société Essai', siret: '123 456 789 00012', address: '12 bis rue des Lilas', postal_code: '99000', city: 'Ville-Essai' }
 
 describe('Papiers des véhicules', () => {
   it('adresse découpée pour les cases du Cerfa', () => {
     expect(decouperAdresse('12 bis rue des Lilas')).toEqual({ numero: '12', extension: 'bis', type: 'rue', voie: 'des Lilas' })
     expect(decouperAdresse('4, avenue Foch')).toEqual({ numero: '4', extension: '', type: 'avenue', voie: 'Foch' })
-    expect(decouperAdresse('Lieu-dit Kerbleiz').voie).toBe('Lieu-dit Kerbleiz')
+    expect(decouperAdresse('Lieu-dit Le Bourg').voie).toBe('Lieu-dit Le Bourg')
   })
   it('sinistre : à déclarer avant la date limite, en retard après, fait une fois déclaré', () => {
     const s = { kind: 'sinistre', claim_status: 'a_declarer', claim_deadline_on: '2026-10-30' }

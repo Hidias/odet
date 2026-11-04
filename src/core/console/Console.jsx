@@ -10,6 +10,7 @@ import { fetchAll } from '../fetchAll'
 import { callApi } from '../api'
 import { useBranding } from '../branding/BrandingProvider'
 import { APP_VERSION } from '../version'
+import { classerMigrations } from './migrations'
 import { CHANGELOG } from '../changelog'
 import { ModulesSection, Toggle } from '../settings/shared'
 import RetoursConsole from '../feedback/RetoursConsole'
@@ -94,11 +95,8 @@ export default function Console() {
   }
   useEffect(() => { if (isSuperadmin) load() }, [isSuperadmin])
 
-  const pending = useMemo(() => {
-    if (!applied) return []
-    const done = new Set(applied.map((m) => m.version))
-    return BUNDLED_MIGRATIONS.filter((m) => !done.has(m.version))
-  }, [applied])
+  const migrations = useMemo(() => (applied ? classerMigrations(BUNDLED_MIGRATIONS, applied) : null), [applied])
+  const pending = migrations?.aAppliquer || []
 
   const showSql = async (m) => {
     if (!sql[m.version]) {
@@ -206,7 +204,7 @@ export default function Console() {
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-ui">
           <Row k="Base de données" v={supabaseHost || 'non configurée'} />
           <Row k="Configuration" v={branding.setup_completed ? 'terminée' : 'à terminer'} ok={branding.setup_completed} />
-          <Row k="Migrations appliquées" v={applied ? `${applied.length} / ${BUNDLED_MIGRATIONS.length}` : '…'} ok={applied && pending.length === 0} />
+          <Row k="Migrations appliquées" v={migrations ? `${migrations.attendues - pending.length} / ${migrations.attendues}${migrations.ecartees.length ? ` (${migrations.ecartees.length} écartée${migrations.ecartees.length > 1 ? 's' : ''} volontairement)` : ''}` : '…'} ok={applied && pending.length === 0} />
           <Row k="Serveur (API)" v={health ? `${health.deployment ? `déploiement ${health.deployment}` : 'en ligne'}${health.deployed_branch ? `, branche ${health.deployed_branch}` : ''}${health.region ? `, région ${health.region}` : ''}` : healthError ? `indisponible (${healthError})` : '…'} ok={!!health} />
         </dl>
         {health && (
@@ -240,6 +238,17 @@ export default function Console() {
                   <button type="button" onClick={async () => { if (!sql[m.version]) { const c = await MIGRATION_FILES[m.path](); setSql((s) => ({ ...s, [m.version]: c })); copy(c, 'SQL copié') } else copy(sql[m.version], 'SQL copié') }} className="btn btn-secondary btn-sm"><Copy className="w-4 h-4" /> Copier</button>
                 </div>
                 {openSql[m.version] && <pre className="text-[12px] leading-relaxed bg-gray-900 text-gray-100 p-3 overflow-x-auto max-h-80 rounded-b-ui">{sql[m.version] || 'Chargement'}</pre>}
+              </div>
+            ))}
+          </div>
+        )}
+        {migrations?.ecartees.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-ui-sm font-medium text-gray-600">Écartées volontairement (ne pas appliquer)</p>
+            {migrations.ecartees.map((m) => (
+              <div key={m.version} className="rounded-ui border border-gray-200 p-3 text-ui-sm">
+                <code className="font-medium break-all">{m.version}</code>
+                <p className="muted mt-1">{m.raison}</p>
               </div>
             ))}
           </div>

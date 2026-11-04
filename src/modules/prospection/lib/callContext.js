@@ -91,7 +91,7 @@ async function loadLastMailing(source, sourceId) {
   if (!send) return null
   if (send.campaign_id) {
     const { data: camp } = await supabase.from('mailing_campaigns')
-      .select('name, subject, phoning_message').eq('id', send.campaign_id).maybeSingle()
+      .select('name, subject').eq('id', send.campaign_id).maybeSingle()
     return { ...send, mailing_campaigns: camp || null }
   }
   return { ...send, mailing_campaigns: null }

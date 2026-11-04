@@ -5,7 +5,6 @@ import { withErrorLog } from './_lib/errors.js'
  * API - ENRICHISSEMENT ENTREPRISE (API Recherche Entreprises + email patterns)
  * ============================================================================
  * 
- * À METTRE : afm-app-main/api/enrich-entreprise.js
  * 
  * 2 fonctions en 1 :
  *   1. Appelle recherche-entreprises.api.gouv.fr → dirigeant, effectif à jour

@@ -637,8 +637,7 @@ export default function AdminImport() {
             <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-4 mt-6">
               <h3 className="font-semibold text-[rgb(var(--c-info))] mb-2"> Infos</h3>
               <p className="text-ui text-[rgb(var(--c-info))] mb-1"><strong>Import :</strong> 14 tranches d'effectif par département - SCI et auto-entrepreneurs exclus</p>
-              <p className="text-ui text-[rgb(var(--c-info))] mb-1"><strong>Enrichissement :</strong> Tâche automatique à 3h du matin (20 prospects par nuit)</p>
-              <p className="text-ui text-[rgb(var(--c-info))]"><strong>Rapport phoning :</strong> Email hebdo chaque lundi à 8h</p>
+              <p className="text-ui text-[rgb(var(--c-info))]"><strong>Enrichissement :</strong> tâche automatique chaque nuit (10 prospects), seulement si le module Prospection est actif</p>
             </div>
           </>
         )}
