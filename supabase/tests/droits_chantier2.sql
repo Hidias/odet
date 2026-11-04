@@ -5146,7 +5146,10 @@ begin
       if z_ok then v_lines := v_lines || 'OK      anon  0413 : code d''accès exigé quand le stagiaire en a un'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0413 : avis accepté sans code d''accès'::text; end if;
       delete from public.notifications where type = 'attentes_non_satisfaites' and metadata->>'session_id' = z_s::text;
+      -- réponse figée depuis 0481 : nettoyage par la marge de correction prévue
+      perform set_config('app.eval_correction', 'on', true);
       delete from public.trainee_evaluations where session_id = z_s;
+      perform set_config('app.eval_correction', '', true);
       delete from public.trainee_info_sheets where session_id = z_s;
       delete from public.session_trainees where session_id = z_s;
       delete from public.sessions where id = z_s;
