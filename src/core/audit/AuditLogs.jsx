@@ -40,11 +40,46 @@ const ENTITY_CONFIG = {
   module: { label: 'Module', emoji: '' },
   facture: { label: 'Facture', emoji: '' },
   rgpd: { label: 'RGPD', emoji: '' },
+  // Ajout ou retrait d'un stagiaire dans une session (0485)
+  inscription: { label: 'Inscription à une session', emoji: '' },
+}
+
+// Libellé de l'action ; pour une inscription, « Ajout » et « Retrait » plutôt que « Création » et « Suppression »
+export function actionDe(log) {
+  const base = ACTION_CONFIG[log.action] || { label: log.action, color: 'gray' }
+  if (log.entity_type !== 'inscription') return base
+  if (log.action === 'create') return { ...base, label: 'Ajout' }
+  if (log.action === 'delete') return { ...base, label: 'Retrait' }
+  return base
+}
+
+// Ajout ou retrait d'un stagiaire (0485) : session, convention, et ce que le retrait fait perdre de vue
+export function detailInscription(log) {
+  const d = log.details || {}
+  if (log.action === 'delete' && d.suppression === 'session') {
+    const n = Number(d.inscriptions) || 0
+    const e = Number(d.demi_journees_emargees) || 0
+    return `Session ${d.session_reference || 'sans référence'} supprimée avec ${n} inscription${n > 1 ? 's' : ''}`
+      + (d.convention_signee ? ', convention signée' : '')
+      + (e ? `, ${e} demi-journée${e > 1 ? 's' : ''} émargée${e > 1 ? 's' : ''} effacée${e > 1 ? 's' : ''}` : '')
+  }
+  const morceaux = [`Session ${d.session_reference || 'sans référence'}`]
+  if (d.convention_signee) morceaux.push('convention signée')
+  if (log.action === 'delete' && d.suppression === 'stagiaire') {
+    morceaux.push('fiche du stagiaire supprimée')
+  } else if (log.action === 'delete') {
+    const n = Number(d.demi_journees_emargees) || 0
+    morceaux.push(n ? `${n} demi-journée${n > 1 ? 's' : ''} émargée${n > 1 ? 's' : ''}` : 'aucun émargement')
+    if (d.fiche_remplie) morceaux.push('fiche de renseignement remplie')
+    if (d.evaluation_remplie) morceaux.push('évaluation remplie')
+  }
+  return morceaux.join(', ')
 }
 
 // Ligne écrite par la base : table et champs modifiés (jamais les valeurs)
-const detailBase = (log) => {
+export const detailBase = (log) => {
   if (log.source !== 'base' || !log.details) return null
+  if (log.entity_type === 'inscription') return detailInscription(log)
   const champs = Array.isArray(log.details.champs) && log.details.champs.length ? ` : ${log.details.champs.join(', ')}` : ''
   return `${log.details.table || ''}${champs}`
 }
@@ -268,7 +303,7 @@ export default function AuditLogs() {
               </thead>
               <tbody className="divide-y">
                 {filteredLogs.map(log => {
-                  const actionConfig = ACTION_CONFIG[log.action] || { label: log.action, color: 'gray' }
+                  const actionConfig = actionDe(log)
                   const ActionIcon = actionConfig.icon || Eye
                   const entityConfig = ENTITY_CONFIG[log.entity_type] || { label: log.entity_type, emoji: '' }
                   

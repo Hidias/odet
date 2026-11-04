@@ -929,9 +929,8 @@ export const useDataStore = create((set, get) => ({
   },
   
   deleteSession: async (id) => {
-    // Supprimer d'abord les relations
-    await supabase.from('session_trainees').delete().eq('session_id', id)
-    
+    // Les inscriptions partent avec la session (clé étrangère en cascade) : la base trace alors une seule
+    // suppression de session (0485) au lieu d'autant de retraits que de stagiaires.
     const { error } = await supabase.from('sessions').delete().eq('id', id)
     if (!error) {
       set({ sessions: get().sessions.filter(s => s.id !== id) })
