@@ -66,6 +66,7 @@ import CodesPortail from '../components/CodesPortail'
 import QuizFlashSession from '../components/QuizFlashSession'
 import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
+import { etatConvention, CONVENTION } from '../lib/etatConvention'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -170,6 +171,15 @@ export default function SessionDetail() {
   })
   
   const [session, setSession] = useState(null)
+  // Conventions des groupes d'une session inter (angle mort A2) : l'en-tête suit l'état groupe par groupe
+  const [groupesConvention, setGroupesConvention] = useState([])
+  useEffect(() => {
+    if (!session?.id || session.session_type !== 'inter') { setGroupesConvention([]); return }
+    let actif = true
+    supabase.from('session_groups').select('id, session_id, doc_status').eq('session_id', session.id)
+      .then(({ data, error }) => { if (actif && !error) setGroupesConvention(data || []) })
+    return () => { actif = false }
+  }, [session?.id, session?.session_type])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
   const [showAddTrainee, setShowAddTrainee] = useState(false)
@@ -3250,11 +3260,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-ui-sm text-gray-500">
             {session.clients?.name && <span>{session.clients.name}</span>}
             <StatusBadge kind="session" status={session.status} />
-            {session.convention_signed
-              ? <StatusBadge tone="success">Convention signée</StatusBadge>
-              : session.convention_sent
-                ? <StatusBadge tone="info">Convention envoyée</StatusBadge>
-                : <StatusBadge tone="warning">Convention en attente</StatusBadge>}
+            {(() => {
+              const etat = etatConvention(session, groupesConvention)
+              const pluriel = session.session_type === 'inter' && groupesConvention.length > 1 ? 's' : ''
+              if (etat === CONVENTION.SIGNEE) return <StatusBadge tone="success">{pluriel ? 'Conventions signées' : 'Convention signée'}</StatusBadge>
+              if (etat === CONVENTION.ENVOYEE) return <StatusBadge tone="info">{pluriel ? 'Conventions envoyées' : 'Convention envoyée'}</StatusBadge>
+              return <StatusBadge tone="warning">{pluriel ? 'Conventions en attente' : 'Convention en attente'}</StatusBadge>
+            })()}
           </div>
         </div>
         <div className="flex gap-2 flex-wrap lg:justify-end items-center">
@@ -4646,7 +4658,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       
       {/* TAB: Financement multi-financeurs */}
       {activeTab === 'groupes' && session.session_type === 'inter' && (
-        <SessionGroupes session={session} peutModifier={d.modifier} />
+        <SessionGroupes session={session} peutModifier={d.modifier} onGroupes={setGroupesConvention} />
       )}
 
       {activeTab === 'funding' && (

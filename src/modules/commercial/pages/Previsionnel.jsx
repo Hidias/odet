@@ -51,16 +51,16 @@ export default function Previsionnel() {
         <div className="card space-y-1.5">
           {mois.map((m) => (
             <div key={m.mois}>
-              <button type="button" className="w-full grid grid-cols-[90px_1fr_110px] items-center gap-2 text-left hover:bg-gray-50 rounded px-1 py-1" onClick={() => setOuvert(ouvert === m.mois ? null : m.mois)} aria-expanded={ouvert === m.mois}>
-                <span className="text-ui-sm text-gray-600 capitalize">{libMois(m.mois)}</span>
+              <button type="button" className="w-full grid grid-cols-[7.5rem_1fr_5.5rem] sm:grid-cols-[10rem_1fr_7rem] items-center gap-2 text-left hover:bg-gray-50 rounded px-1 py-1" onClick={() => setOuvert(ouvert === m.mois ? null : m.mois)} aria-expanded={ouvert === m.mois}>
+                <span className="text-ui-sm text-gray-600 capitalize whitespace-nowrap tabular-nums">{libMois(m.mois)}</span>
                 <span className="relative h-5 bg-gray-100 rounded overflow-hidden" aria-hidden="true">
                   <span className="absolute inset-y-0 left-0 bg-accent-200" style={{ width: `${(m.attendu / max) * 100}%` }} />
                   <span className="absolute inset-y-0 left-0 bg-accent-500" style={{ width: `${(Math.min(m.attendu, m.devise + m.planifie) / max) * 100}%` }} />
                 </span>
-                <span className="text-ui-sm text-right tabular-nums text-gray-900">{euros(m.attendu)}{m.sansPrix ? <span className="text-[rgb(var(--c-warning))]"> +{m.sansPrix}</span> : null}</span>
+                <span className="text-ui-sm text-right tabular-nums text-gray-900 whitespace-nowrap">{euros(m.attendu)}{m.sansPrix ? <span className="text-[rgb(var(--c-warning))]"> +{m.sansPrix}</span> : null}</span>
               </button>
               {ouvert === m.mois && (
-                <div className="pl-2 sm:pl-24 pb-2 space-y-1">
+                <div className="pl-2 sm:pl-[10.75rem] pb-2 space-y-1">
                   {detail(m.mois).length === 0 ? <p className="text-ui-sm text-gray-500">Rien ce mois-ci.</p> : detail(m.mois).map((l, i) => (
                     <div key={i} className="flex items-start justify-between gap-2 text-ui-sm border-b border-gray-100 pb-1">
                       <span className="min-w-0">
