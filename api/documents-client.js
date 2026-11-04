@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { getAdminClient, requireUser, clientDeLAppelant } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
+import { finValiditeInterne, statutCertificat } from '../src/modules/formation/lib/effectifPrerequis.js'
 
 // Documents mis à disposition dans l'espace client (0404), toutes prestations.
 //  - publier (équipe connectée) : range un PDF remis au client (rapport d'intervention, facture émise, devis, contrat,
@@ -214,12 +215,25 @@ async function sessionsAvecCertificat(a) {
   const { data: st } = await a.admin.from('session_trainees')
     .select('session_id, trainee_id, absent, prerequis_valid_until, prerequis_file_path, trainees(first_name, last_name)')
     .in('session_id', exigees.map((x) => x.id))
+  // Certificats délivrés par l'organisme lui-même : aucune copie à demander au client
+  const tids = [...new Set((st || []).map((p) => p.trainee_id))]
+  const { data: certs } = tids.length
+    ? await a.admin.from('sst_certifications').select('trainee_id, date_certification').in('trainee_id', tids)
+      .eq('candidat_certifie', true).not('date_certification', 'is', null).order('date_certification', { ascending: false })
+    : { data: [] }
+  const internes = new Map()
+  ;(certs || []).forEach((c) => { if (!internes.has(c.trainee_id)) internes.set(c.trainee_id, finValiditeInterne(c.date_certification)) })
+  // Accepté seulement s'il reste dans la tolérance au premier jour de la formation
+  const interneOk = (tid, x) => {
+    const fin = internes.get(tid)
+    return !!fin && ['valide', 'tolere'].includes(statutCertificat({ validUntil: fin, interne: true, debutFormation: x.start_date, toleranceMois: x.courses.prerequis_certificat_mois }).statut)
+  }
   return exigees.map((x) => ({
     session_id: x.id, reference: x.reference, start_date: x.start_date, course_title: x.courses.title,
     tolerance_mois: x.courses.prerequis_certificat_mois,
     participants: (st || []).filter((p) => p.session_id === x.id && !p.absent && visibles.get(x.id)?.has(p.trainee_id)).map((p) => ({
       trainee_id: p.trainee_id, prenom: p.trainees?.first_name || '', nom: p.trainees?.last_name || '',
-      valid_until: p.prerequis_valid_until, depose: !!p.prerequis_file_path,
+      valid_until: p.prerequis_valid_until, depose: !!p.prerequis_file_path, interne: interneOk(p.trainee_id, x),
     })),
   })).filter((x) => x.participants.length)
 }

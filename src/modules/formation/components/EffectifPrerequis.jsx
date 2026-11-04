@@ -64,8 +64,10 @@ export default function EffectifPrerequis({ session, peutModifier, peutFacturer 
 
   const statuts = exige ? presents.map((l) => {
     const interne = internes[l.trainee_id]
-    const estInterne = !!interne && !l.prerequis_file_path && l.prerequis_valid_until === interne
-    return { l, interne, ...statutCertificat({ validUntil: l.prerequis_valid_until, filePath: l.prerequis_file_path, interne: estInterne, debutFormation: session.start_date, toleranceMois: course.prerequis_certificat_mois }) }
+    // Certificat délivré ici : repris d'office tant qu'aucune autre date ni copie n'est saisie (pas de double saisie)
+    const estInterne = !!interne && !l.prerequis_file_path && (!l.prerequis_valid_until || l.prerequis_valid_until === interne)
+    const fin = estInterne ? interne : l.prerequis_valid_until
+    return { l, interne, estInterne, ...statutCertificat({ validUntil: fin, filePath: l.prerequis_file_path, interne: estInterne, debutFormation: session.start_date, toleranceMois: course.prerequis_certificat_mois }) }
   }) : []
   const aRegler = statuts.filter((s) => s.statut === 'manquant' || s.statut === 'refuse')
 
@@ -131,23 +133,25 @@ export default function EffectifPrerequis({ session, peutModifier, peutFacturer 
           )}
           {presents.length === 0 ? <p className="text-ui-sm text-gray-500 mt-1">Aucun participant inscrit.</p> : (
             <ul className="divide-y divide-gray-100 mt-2">
-              {statuts.map(({ l, interne, statut, limite }) => (
+              {statuts.map(({ l, interne, estInterne, statut, limite }) => (
                 <li key={l.id} className="py-2 flex flex-wrap items-center gap-2 text-ui">
                   <span className="min-w-[10rem] text-gray-900">{l.trainees?.first_name} {(l.trainees?.last_name || '').toUpperCase()}</span>
                   <span className={`px-2 py-0.5 rounded text-ui-sm ${BADGES[statut].c}`}>{BADGES[statut].t}{statut === 'tolere' && limite ? ` (jusqu'au ${fmt(limite)})` : ''}</span>
                   {peutModifier ? (
                     <>
                       <label className="text-ui-sm text-gray-600 sr-only" htmlFor={`fin-${l.id}`}>Fin de validité</label>
-                      <input id={`fin-${l.id}`} type="date" className="input w-40" value={l.prerequis_valid_until || ''} disabled={busy === l.id}
+                      <input id={`fin-${l.id}`} type="date" className="input w-40" value={l.prerequis_valid_until || (estInterne ? interne : '')} disabled={busy === l.id}
                         onChange={(e) => majLigne(l.id, { prerequis_valid_until: e.target.value || null })} title="Fin de validité du certificat" />
-                      {l.prerequis_file_path
+                      {estInterne
+                        ? <span className="text-ui-sm text-gray-600">Certificat délivré ici, fin le {fmt(interne)}</span>
+                        : l.prerequis_file_path
                         ? <button type="button" className="btn btn-ghost text-ui-sm" onClick={() => ouvrir(l.prerequis_file_path)}><FileText className="w-4 h-4" />Copie</button>
                         : (
                           <label className="btn btn-ghost text-ui-sm cursor-pointer"><Upload className="w-4 h-4" />Déposer la copie
                             <input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => deposer(l, e.target.files?.[0])} />
                           </label>
                         )}
-                      {interne && l.prerequis_valid_until !== interne && (
+                      {interne && !estInterne && (
                         <button type="button" className="btn btn-ghost text-ui-sm" onClick={() => majLigne(l.id, { prerequis_valid_until: interne })}>
                           Certificat délivré ici : fin le {fmt(interne)}
                         </button>

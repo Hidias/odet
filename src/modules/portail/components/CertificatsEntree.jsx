@@ -61,7 +61,9 @@ export default function CertificatsEntree({ auth = {}, className = '' }) {
               return (
                 <li key={cle} className="py-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="text-sm text-gray-900 sm:min-w-[11rem]">{p.prenom} {(p.nom || '').toUpperCase()}</span>
-                  {p.depose ? (
+                  {p.interne && !p.depose ? (
+                    <span className="text-sm text-gray-600 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" aria-hidden="true" />Certificat délivré par votre organisme : rien à fournir</span>
+                  ) : p.depose ? (
                     <span className="text-sm text-[rgb(var(--c-success))] flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" aria-hidden="true" />Déposé{p.valid_until ? `, fin de validité le ${fmt(p.valid_until)}` : ''}</span>
                   ) : (
                     <div className="flex flex-wrap items-center gap-2">
