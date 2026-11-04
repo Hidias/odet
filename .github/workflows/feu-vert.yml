@@ -1,0 +1,111 @@
+# Verrou de fusion (décisions de H du 29/10 et du 04/11/2026).
+# 1. « feu-vert » : une PR vers main ne se fusionne qu'avec l'étiquette « feu-vert », posée après la relecture
+#    automatique. Tout nouveau commit poussé sur la PR retire l'étiquette : le feu vert porte sur une version précise.
+# 2. « migrations-en-base » : si la PR ajoute ou modifie une migration (supabase/migrations/*.sql), chaque fichier doit
+#    s'inscrire lui-même au registre (« insert into public.schema_migrations ... 'NNNN_nom' ») et y figurer en production.
+#    Fichiers ajoutés, modifiés ou renommés.
+#    Lecture seule : une seule requête « select » sur public.schema_migrations, adresse dans le secret SUPABASE_DB_URL.
+#    Après la mise en base, poser l'étiquette « feu-vert » relance les deux contrôles.
+# La règle de dépôt « Feu vert obligatoire » exige ces deux contrôles pour fusionner dans main
+# (pas à pas : docs/verrou-de-fusion.md).
+name: Feu vert
+
+# pull_request_target : le circuit lancé est toujours celui de main, jamais celui de la PR (une PR ne peut pas
+# modifier le contrôle qui la juge). Les fichiers de la PR sont seulement lus (aucun code de la PR n'est exécuté).
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  feu-vert:
+    name: feu-vert
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Retirer le feu vert après un nouveau commit
+        if: github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'feu-vert')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh api -X DELETE "repos/$REPO/issues/$PR/labels/feu-vert" || true
+          echo "Nouveau commit : le feu vert est à redonner."
+          exit 1
+      - name: Feu vert présent
+        if: github.event.action != 'synchronize'
+        env:
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          if echo "$LABELS" | grep -q '"feu-vert"'; then
+            echo "Feu vert donné : fusion possible."
+          else
+            echo "Pas encore de feu vert : attendre la relecture (et la mise en base s'il y a une migration)."
+            exit 1
+          fi
+      - name: Nouveau commit sans feu vert
+        if: github.event.action == 'synchronize' && !contains(github.event.pull_request.labels.*.name, 'feu-vert')
+        run: |
+          echo "Pas encore de feu vert."
+          exit 1
+
+  migrations-en-base:
+    name: migrations-en-base
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Migrations de la PR
+        id: liste
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only --diff-filter=AMR "$BASE...$HEAD" -- 'supabase/migrations/*.sql' > "$RUNNER_TEMP/migrations.txt"
+          if [ ! -s "$RUNNER_TEMP/migrations.txt" ]; then
+            echo "Aucune migration dans cette PR."
+            echo "aucune=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Migrations de la PR :"; cat "$RUNNER_TEMP/migrations.txt"
+          manque=0
+          while read -r f; do
+            v="$(basename "$f" .sql)"
+            [[ "$v" =~ ^[0-9]{4}_[a-z0-9_]+$ ]] || { echo "::error::Nom de migration inattendu : $v"; manque=1; continue; }
+            # Inscription au registre : une instruction « insert into public.schema_migrations » et le nom du fichier
+            # (forme simple « values ('NNNN_nom') » ou forme sur plusieurs lignes, comme 0477)
+            # Commentaires SQL retirés : une ligne d'inscription mise en commentaire ne compte pas
+            code="$(sed -e 's/--.*$//' "$f" | perl -0pe 's{/\*.*?\*/}{}gs')"
+            if ! printf '%s' "$code" | tr '\n' ' ' | grep -qiE "insert into public\.schema_migrations[^;]*'$v'"; then
+              echo "::error file=$f::La migration ne s'inscrit pas au registre (ligne insert into public.schema_migrations ... '$v')."
+              manque=1
+            fi
+          done < "$RUNNER_TEMP/migrations.txt"
+          exit $manque
+      - name: Présentes au registre de production ?
+        if: steps.liste.outputs.aucune != '1'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          [ -n "$SUPABASE_DB_URL" ] || { echo "::error::Secret SUPABASE_DB_URL absent : contrôle impossible, fusion bloquée."; exit 1; }
+          versions="$(xargs -n1 basename < "$RUNNER_TEMP/migrations.txt" | sed 's/\.sql$//' | paste -sd, -)"
+          [[ "$versions" =~ ^[0-9a-z_,]+$ ]] || { echo "::error::Nom de migration inattendu : $versions"; exit 1; }
+          presentes="$(echo "select version from public.schema_migrations where version = any(string_to_array(:'versions', ','));" \
+            | PGOPTIONS='-c default_transaction_read_only=on' psql "$SUPABASE_DB_URL" -X -A -t -v ON_ERROR_STOP=1 -v versions="$versions")"
+          manque=0
+          for v in ${versions//,/ }; do
+            if printf '%s\n' "$presentes" | grep -qx "$v"; then
+              echo "En base : $v"
+            else
+              echo "::error::Migration non appliquée en production : $v. Appliquer, contrôler les empreintes, puis redonner le feu vert."
+              manque=1
+            fi
+          done
+          exit $manque
