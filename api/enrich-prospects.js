@@ -363,18 +363,25 @@ async function handler(req, res) {
     if (!mod?.enabled) {
       return res.status(200).json({ success: true, skipped: true, reason: 'Module Prospection inactif (Paramètres > Modules)' })
     }
+    // Plusieurs sociétés : une société qui a ses propres modules et n'a pas Prospection est écartée (règle de app.module_on)
+    const { data: cms } = await supabase.from('company_modules').select('company_id, key, enabled')
+    const avecModules = new Set((cms || []).map((m) => m.company_id))
+    const autorisees = new Set((cms || []).filter((m) => m.key === 'prospection' && m.enabled).map((m) => m.company_id))
+    const bloquees = [...avecModules].filter((c) => !autorisees.has(c) && /^[0-9a-f-]{36}$/i.test(c))
 
     // 1. Récupérer les prospects à enrichir
     //    - Pas encore de phone
     //    - Moins de MAX_ENRICHMENT_ATTEMPTS tentatives
     //    - Pas encore enrichi avec succès
     //    - Triés par quality_score décroissant (les meilleurs d'abord)
-    const { data: prospects, error: fetchError } = await supabase
+    let requete = supabase
       .from('prospection_massive')
       .select('id, siret, siren, name, city, postal_code, phone, email, site_web, enrichment_attempts, enrichment_status')
       .is('phone', null)
       .or(`enrichment_attempts.is.null,enrichment_attempts.lt.${MAX_ENRICHMENT_ATTEMPTS}`)
       .or('enrichment_status.is.null,enrichment_status.neq.done')
+    if (bloquees.length) requete = requete.not('company_id', 'in', `(${bloquees.join(',')})`)
+    const { data: prospects, error: fetchError } = await requete
       .order('quality_score', { ascending: false })
       .limit(batchSize)
 
