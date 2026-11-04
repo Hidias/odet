@@ -2114,7 +2114,7 @@ export const useDataStore = create((set, get) => ({
         // Session terminée devrait avoir des attestations
       }
       
-      // Indicateur 21 (référentiel du décret n° 2026-728) - Formateur qualifié
+      // Indicateur 17 - Formateur qualifié
       if (!s.trainer_id) {
         issues.push({ indicateur: 17, session: s.reference, probleme: 'Aucun formateur assigné' })
       }

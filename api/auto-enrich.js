@@ -5,7 +5,6 @@ import { withErrorLog } from './_lib/errors.js'
  * API - AUTO-ENRICHISSEMENT PROSPECT v3 (Anthropic + Web Search)
  * ============================================================================
  * 
- * 
  * Utilise Claude Haiku + web_search pour trouver téléphone, site web, email.
  * Coût : ~0.005€ par recherche — ~1€/jour pour 200 prospects
  * 

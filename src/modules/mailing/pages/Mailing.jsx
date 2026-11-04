@@ -1,4 +1,4 @@
-// src/pages/Mailing.jsx
+// src/modules/mailing/pages/Mailing.jsx
 // ─────────────────────────────────────────────────────────────────────────────
 // Page Mailing - l'application
 //
@@ -13,7 +13,7 @@ import { supabase } from '../../../core/supabase'
 import { fetchAllOrThrow as fetchAll, fetchAll as fetchAllResult } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import {
-  Send, Plus, ArrowLeft, Loader2, CheckCircle, Square, Play, X, RefreshCw, AlertTriangle,
+  Send, Plus, ArrowLeft, Loader2, Square, Play, RefreshCw, AlertTriangle,
   ShieldAlert, Pause, Copy, Reply, BarChart3, Server, Monitor, Paperclip, Clock,
 } from 'lucide-react'
 import toast from 'react-hot-toast'

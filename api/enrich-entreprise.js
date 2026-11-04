@@ -5,7 +5,6 @@ import { withErrorLog } from './_lib/errors.js'
  * API - ENRICHISSEMENT ENTREPRISE (API Recherche Entreprises + email patterns)
  * ============================================================================
  * 
- * 
  * 2 fonctions en 1 :
  *   1. Appelle recherche-entreprises.api.gouv.fr → dirigeant, effectif à jour
  *   2. Génère les patterns d'email à partir du dirigeant + domaine du site web

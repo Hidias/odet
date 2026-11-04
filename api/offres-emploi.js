@@ -5,7 +5,6 @@ import { withErrorLog } from './_lib/errors.js'
  * API - OFFRES D'EMPLOI (France Travail) — Détection recrutement actif
  * ============================================================================
  * 
- * 
  * Cherche les offres d'emploi actives par SIRET ou par zone géo + NAF.
  * Si une entreprise de notre base a des offres actives = elle recrute NOW.
  * 

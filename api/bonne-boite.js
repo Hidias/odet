@@ -5,7 +5,6 @@ import { withErrorLog } from './_lib/errors.js'
  * API - LA BONNE BOÎTE v2 (France Travail) — Signal recrutement
  * ============================================================================
  * 
- * 
  * Interroge l'API La Bonne Boîte v2 pour trouver les entreprises qui recrutent
  * autour d'une position géographique, puis croise avec notre base.
  * 
