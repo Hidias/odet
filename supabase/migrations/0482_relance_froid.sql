@@ -227,7 +227,7 @@ $$;
 revoke all on function app.froid_contact(uuid) from public, anon, authenticated;
 
 -- ── 4. Préparation (règles et exclusions) ──
--- Sessions retenues : terminées, non annulées, pas une sous-traitance pour le compte d'un autre organisme, délai du
+-- Sessions retenues : au statut « terminée » (une session verrouillée dans un autre statut n'est pas prise), pas une sous-traitance pour le compte d'un autre organisme, délai du
 -- premier envoi échu, de moins d'un an (réglable) sauf inclusion à la main, réglage de la société actif.
 create or replace function app.froid_preparer_corps(p_companies uuid[], p_today date)
 returns jsonb
@@ -241,7 +241,7 @@ begin
     select se.id, se.company_id, se.client_id, coalesce(se.end_date, se.start_date) as fin, se.froid_inclure, co.froid_delai_jours
       from public.sessions se left join public.courses co on co.id = se.course_id
      where se.company_id = any (p_companies)
-       and coalesce(se.status, '') not in ('cancelled', 'annulee')
+       and se.status = 'completed'
        and coalesce(se.session_type, 'intra') <> 'subcontract'
        and coalesce(se.end_date, se.start_date) is not null
        and coalesce(se.end_date, se.start_date) < p_today
@@ -403,7 +403,7 @@ as $$
         'fin', coalesce(se.end_date, se.start_date), 'inclure', se.froid_inclure) order by coalesce(se.end_date, se.start_date) desc)
       from public.sessions se left join public.courses co on co.id = se.course_id
       where se.company_id in (select app.societes_avec_droit('formation.suivi.voir'))
-        and coalesce(se.status, '') not in ('cancelled', 'annulee') and coalesce(se.session_type, 'intra') <> 'subcontract'
+        and se.status = 'completed' and coalesce(se.session_type, 'intra') <> 'subcontract'
         and coalesce(se.end_date, se.start_date) < public.paris_today() - (app.froid_reglage(se.company_id)).anciennete_max_jours
         and exists (select 1 from public.session_trainees st left join public.evaluations_cold ec on ec.session_id = st.session_id and ec.trainee_id = st.trainee_id
                      where st.session_id = se.id and not coalesce(st.absent, false) and ec.completed_at is null)), '[]'::jsonb))
@@ -500,9 +500,11 @@ begin
     if not app.froid_email_valide(e.destinataire) then
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Adresse invalide'); continue;
     end if;
-    -- Stagiaire : une adresse, un envoi par jour ; contact et employeur : regroupés par session dans un seul mail
-    if e.cible = 'stagiaire' and exists (select 1 from public.froid_envois y where lower(y.destinataire) = lower(e.destinataire)
-        and y.id <> e.id and (y.statut = 'en_cours' or (y.statut = 'envoye' and y.envoye_le > now() - interval '1 day'))) then
+    -- Une adresse, un envoi par jour
+    -- (contact et employeur : les lignes d'une même session partent dans un seul mail ; une autre session attend le lendemain)
+    if exists (select 1 from public.froid_envois y where lower(y.destinataire) = lower(e.destinataire) and y.id <> e.id
+        and (e.cible = 'stagiaire' or y.session_id <> e.session_id)
+        and (y.statut = 'en_cours' or (y.statut = 'envoye' and y.envoye_le > now() - interval '1 day'))) then
       v_refus := v_refus || jsonb_build_object('id', e.id, 'raison', 'Adresse déjà écrite depuis moins d''un jour'); continue;
     end if;
     if e.cible = 'stagiaire' and exists (select 1 from public.evaluations_cold ec where ec.session_id = e.session_id and ec.trainee_id = e.trainee_id and ec.completed_at is not null) then
@@ -584,12 +586,12 @@ as $$
 declare v_session uuid; s record; r public.froid_reglages; ec public.evaluations_cold;
 begin
   v_session := app.portal_session_for(p_token, p_trainee_id, p_ticket);
-  select se.company_id, coalesce(se.end_date, se.start_date) as fin, co.title, co.froid_delai_jours into s
+  select se.company_id, coalesce(se.end_date, se.start_date) as fin, co.title, co.froid_delai_jours, se.status into s
     from public.sessions se left join public.courses co on co.id = se.course_id where se.id = v_session;
   r := app.froid_reglage(s.company_id);
   select * into ec from public.evaluations_cold where session_id = v_session and trainee_id = p_trainee_id;
   return jsonb_build_object(
-    'ouvert', r.actif and s.fin + coalesce(s.froid_delai_jours, r.premier_envoi_jours) <= public.paris_today() or ec.sent_at is not null,
+    'ouvert', s.status = 'completed' and (r.actif and s.fin + coalesce(s.froid_delai_jours, r.premier_envoi_jours) <= public.paris_today() or ec.sent_at is not null),
     'ouvre_le', s.fin + coalesce(s.froid_delai_jours, r.premier_envoi_jours),
     'recue', ec.completed_at is not null, 'recue_le', ec.completed_at,
     'formation', s.title, 'questions', app.froid_questions(v_session, 'stagiaire'));
@@ -670,7 +672,7 @@ begin
       from public.sessions se left join public.courses co on co.id = se.course_id
       left join public.froid_employeur fe on fe.session_id = se.id and fe.client_id = v.client_id
       where se.company_id = v.company_id and r.actif
-        and coalesce(se.status, '') not in ('cancelled', 'annulee') and coalesce(se.session_type, 'intra') <> 'subcontract'
+        and se.status = 'completed' and coalesce(se.session_type, 'intra') <> 'subcontract'
         and coalesce(se.end_date, se.start_date) + coalesce(co.froid_delai_jours, r.premier_envoi_jours) <= public.paris_today()
         and (coalesce(se.end_date, se.start_date) >= public.paris_today() - r.anciennete_max_jours or se.froid_inclure)
         and (se.client_id = v.client_id or exists (select 1 from public.session_trainees st join public.trainees tr on tr.id = st.trainee_id

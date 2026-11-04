@@ -94,6 +94,28 @@ begin
   if app.froid_reponses_valides(app.froid_questions_defaut('stagiaire'),
        '{"skills_applied": true, "objectives_met": false, "knowledge_retained": true, "job_impact": true, "would_recommend": true, "pirate": 1}') then
     raise exception '8. clé inconnue acceptée'; end if;
+  -- 8 bis. Session passée laissée « confirmée » (verrou) : rien n'est préparé
+  declare v_conf uuid; begin
+    insert into public.sessions (reference, client_id, start_date, end_date, attendance_token, company_id, status)
+    values ('SES-0482-CONF', v_cli, v_today - 70, v_today - 70, 'jeton-0482c', v_cie, 'confirmed') returning id into v_conf;
+    insert into public.session_trainees (session_id, trainee_id) values (v_conf, v_a);
+    perform app.froid_preparer_corps(array[v_cie], v_today);
+    if exists (select 1 from public.froid_envois where session_id = v_conf) then raise exception '8 bis. session non terminée préparée'; end if;
+  end;
+
+  -- 8 ter. Contact : deux sessions, même adresse, le même jour : la seconde attend
+  perform set_config('request.jwt.claims', v_gest, true);
+  declare v_e1 uuid; v_e2 uuid; begin
+    insert into public.froid_envois (company_id, session_id, client_id, cible, rang, du_le, destinataire) values (v_cie, v_old, v_cli, 'employeur', 0, v_today, 'suivi@exemple.fr')
+    on conflict do nothing;
+    select id into v_e1 from public.froid_envois where session_id = v_se and cible = 'employeur' and rang = 0;
+    select id into v_e2 from public.froid_envois where session_id = v_old and cible = 'employeur' and rang = 0;
+    update public.froid_envois set statut = 'prepare' where id in (v_e1, v_e2);
+    v_r := public.froid_envois_reserver(array[v_e1, v_e2]);
+    if jsonb_array_length(v_r -> 'envois') <> 1 or (v_r -> 'refus' -> 0 ->> 'raison') not like 'Adresse déjà écrite%' then raise exception '8 ter. contact écrit deux fois le même jour : %', v_r; end if;
+  end;
+  perform set_config('request.jwt.claims', '', true);
+
   -- 9. Portail : ticket exigé, questionnaire ouvert au délai, réponse figée, ligne préparée écartée
   update public.session_trainees set portal_ticket = 'ticket-0482', portal_ticket_expires_at = now() + interval '1 hour'
    where session_id = v_se and trainee_id = v_a;
