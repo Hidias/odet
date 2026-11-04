@@ -51,6 +51,7 @@ import { useDroit, useDroits } from '../../../core/rights/useDroit'
 import { BarreReponse, BoutonReponse, EtatReponse, evaluationRecue, reponsesDe } from '../components/ReponseEvaluation'
 
 import { confirmer, demander } from '../../../ui/Confirm'
+import { alerteConventionSignee } from '../lib/conventionSignee'
 import ChoixSiteSession from '../components/ChoixSiteSession'
 import SessionGroupes from '../components/SessionGroupes'
 import PiloteSession from '../../pilote/PiloteSession'
@@ -2133,6 +2134,8 @@ export default function SessionDetail() {
   }
   
   const handleAddTrainee = async (traineeId) => {
+    const alerteAjout = alerteConventionSignee(session, 'ajout')
+    if (alerteAjout && !await confirmer(alerteAjout)) return
     const { error } = await addTraineeToSession(id, traineeId)
     if (error) {
       // Effectif imposé (0479) : le message de la base dit quoi faire
@@ -2147,6 +2150,8 @@ export default function SessionDetail() {
   }
   
   const handleRemoveTrainee = async (traineeId) => {
+    const alerteRetrait = alerteConventionSignee(session, 'retrait')
+    if (alerteRetrait && !await confirmer(alerteRetrait)) return
     try {
       // Vérifier si le stagiaire a des données associées
       const [infoResult, attendResult, evalResult] = await Promise.all([
@@ -2950,6 +2955,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       toast.error('Nom et prénom obligatoires')
       return
     }
+    const alerteNouveau = alerteConventionSignee(session, 'ajout')
+    if (alerteNouveau && !await confirmer(alerteNouveau)) return
     
     // Créer le stagiaire
     const { data: newTrainee, error } = await supabase
