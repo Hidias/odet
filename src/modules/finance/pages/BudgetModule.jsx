@@ -12,6 +12,7 @@ import SirenConflictModal from '../../commercial/components/SirenConflictModal'
 import { useSirenCheck } from '../../commercial/lib/useSirenCheck'
 
 import { confirmer } from '../../../ui/Confirm'
+import { confirmationEnvoiComptable } from '../../../core/portail/alertesPublication'
 // ════════════════════════════════════════════════════════════
 //  BUDGET MODULE v4
 //  + Catégorisation IA intelligente + Prévisionnel 50k€
@@ -1496,6 +1497,7 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
 
   async function sendToComptable(st) {
     if (st.sent_to_comptable && !await confirmer('Ce relevé a déjà été envoyé. Le renvoyer ?')) return
+    if (!st.sent_to_comptable && !await confirmer(confirmationEnvoiComptable({ nombre: 1, quoi: 'releve' }))) return
     setSendingId(st.id)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -1886,6 +1888,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
 
   async function handleSend() {
     if (selected.size === 0) { toast.error('Sélectionnez des transactions'); return }
+    if (!await confirmer(confirmationEnvoiComptable({ nombre: selected.size, quoi: 'transactions', email: comptable.email }))) return
     setSending(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -1911,6 +1914,7 @@ function ComptableTab({ transactions, receipts, loadAll }) {
   // ─── Envoi factures : génération PDFs + envoi API ───
   async function handleSendInvoices() {
     if (invSelected.size === 0) { toast.error('Sélectionnez des factures'); return }
+    if (!await confirmer(confirmationEnvoiComptable({ nombre: invSelected.size, quoi: 'factures', email: comptable.email }))) return
     setInvSending(true)
 
     const selectedData = invoicesData.filter(d => invSelected.has(d.invoice.id))

@@ -46,6 +46,7 @@ import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
 import { confirmer, demander } from '../../../ui/Confirm'
+import { confirmationModificationDevisPublie, confirmationPassageEnvoye, confirmationSuppressionDevis } from '../../../core/portail/alertesPublication'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
@@ -474,6 +475,10 @@ export default function Quotes() {
     const erreurs = erreursTva({ tvaApplicable: currentQuote.tva_applicable, taux: currentQuote.tva_rate,
       lignes: items.filter((it) => it.description_title), client: clients.find((c) => c.id === currentQuote.client_id) })
     if (erreurs.length) return toast.error(erreurs[0], { duration: 8000 })
+    // Devis déjà publié dans l'espace du client (B6) : l'enregistrement remplace la version qu'il voit
+    if (mode !== 'create' && ['sent', 'accepted', 'partial'].includes(currentQuote.status) && !currentQuote.signature_base64) {
+      if (!await confirmer(confirmationModificationDevisPublie(currentQuote))) return
+    }
     setSaving(true)
     const totals = calcTotals(items, currentQuote.discount_percent, currentQuote.tva_rate, currentQuote.tva_applicable)
     const quoteData = {
@@ -544,7 +549,7 @@ export default function Quotes() {
 
   // Renvoie vrai si le devis a été supprimé : la fiche ne se referme qu'après la confirmation et la suppression réussie
   async function deleteQuote(id) {
-    if (!await confirmer('Supprimer ce devis ?')) return false
+    if (!await confirmer(confirmationSuppressionDevis(quotes.find((q) => q.id === id) || (currentQuote?.id === id ? currentQuote : null)))) return false
     const { error: eItems } = await supabase.from('quote_items').delete().eq('quote_id', id)
     const { error } = eItems ? { error: eItems } : await supabase.from('quotes').delete().eq('id', id)
     if (error) {
@@ -574,7 +579,9 @@ export default function Quotes() {
     const avant = quotes.find(q => q.id === id)?.status ?? (currentQuote?.id === id ? currentQuote.status : null)
     const ok = ACCEPTE.includes(newStatus) && !ACCEPTE.includes(avant)
       ? await confirmerAcceptation(newStatus)
-      : await confirmer(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)
+      : newStatus === 'sent' && avant !== 'sent'
+        ? await confirmer(confirmationPassageEnvoye())
+        : await confirmer(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)
     if (!ok) return
     await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id)
     toast.success(`Statut → ${STATUS_CONFIG[newStatus].label}`)
