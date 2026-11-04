@@ -76,6 +76,9 @@ describe('accueil (A7, A8, A9)', () => {
     expect(p.refused).toHaveLength(1)
     expect(tauxConversion(devis)).toEqual({ signes: 3, total: 7, taux: 43 })
   })
+  it('devis partiel : remise globale déduite des lignes acceptées', () => {
+    expect(pipelineDevis([{ status: 'partial', total_ht: 1800, discount_percent: 10, quote_items: [{ total_ht: 1000, accepted: true }, { total_ht: 1000, accepted: false }] }]).totalSigned).toBe(900)
+  })
   it('devis partiel sans lignes chargées : montant du devis', () => {
     expect(pipelineDevis([{ status: 'partial', total_ht: 50 }]).totalSigned).toBe(50)
   })

@@ -9,7 +9,7 @@ export const stagiairesPresents = (s) => (s?.session_trainees || []).filter((st)
 
 // A7 : statuts réels des devis (contrainte de la table quotes) ; `signed`, `pending`, `rejected` gardés pour les
 // anciennes lignes. Un devis remplacé par une nouvelle version n'est compté nulle part. Un devis partiel compte comme
-// signé, pour le montant de ses seules lignes acceptées (quote_items.accepted) quand elles sont chargées.
+// signé, pour le montant de ses seules lignes acceptées (quote_items.accepted), remise globale du devis déduite.
 export const DEVIS_SIGNES = ['accepted', 'partial', 'invoiced', 'signed']
 export const DEVIS_ENVOYES = ['sent', 'pending']
 export const DEVIS_REFUSES = ['refused', 'rejected']
@@ -18,7 +18,9 @@ export const estDevisSigne = (q) => DEVIS_SIGNES.includes(q?.status)
 const ht = (q) => parseFloat(q?.total_ht) || 0
 export function montantSigne(q) {
   if (q?.status === 'partial' && Array.isArray(q.quote_items)) {
-    return q.quote_items.filter((it) => it.accepted === true).reduce((t, it) => t + (parseFloat(it.total_ht) || 0), 0)
+    const lignes = q.quote_items.filter((it) => it.accepted === true).reduce((t, it) => t + (parseFloat(it.total_ht) || 0), 0)
+    const remise = Math.min(Math.max(parseFloat(q.discount_percent) || 0, 0), 100)
+    return Math.round(lignes * (1 - remise / 100) * 100) / 100
   }
   return ht(q)
 }
