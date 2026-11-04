@@ -30,6 +30,7 @@ import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { useMarquesDemo } from '../../../core/demo/marquesDemo'
 import { mettreADisposition } from '../../../core/portail/documentsClient'
 import { chargerTarifs, prixFormation, ligneAuTarif } from '../../../core/tarifs/tarifsClient'
+import { DEDOMMAGEMENTS, montantDedommagement } from '../../formation/lib/effectifPrerequis'
 import BadgeTarifClient from '../components/BadgeTarifClient'
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
@@ -306,6 +307,7 @@ export default function Invoices() {
       const ff = searchParams.get('funding_id')
       const fg = searchParams.get('group_id')
       const fo = searchParams.get('open')
+      const fd = searchParams.get('dedommagement')
       if (fo) {
         // Brouillon préparé ailleurs (ex. visite d'intervention) : ouvert directement
         supabase.from('invoices').select('*').eq('id', fo).maybeSingle().then(({ data }) => { if (data) handleEdit(data) })
@@ -313,6 +315,8 @@ export default function Invoices() {
       } else if (fq && qs.length > 0) {
         const q = qs.find(x => x.id === fq)
         if (q) { handleFromQuote(q); setSearchParams({}) }
+      } else if (fs && fd) {
+        handleDedommagement(fs, fd); setSearchParams({})
       } else if (fs) {
         handleFromSession(fs, ff, fg); setSearchParams({})
       }
@@ -669,6 +673,54 @@ export default function Invoices() {
   }
 
   // ─── From several sessions (facture globale, même client) ───
+  // ─── Dédommagement d'une session annulée (CGV formation, article 8 ; 0479, décision de H du 04/11) ───
+  // Ce n'est pas une prestation de formation : facture distincte au client, jamais au financeur ni en subrogation,
+  // hors BPF. Montant proposé selon la règle, modifiable ; un geste commercial se note en remise, il reste visible.
+  const handleDedommagement = async (sessionId, cas) => {
+    const regle = DEDOMMAGEMENTS[cas]
+    if (!regle) { toast.error('Dédommagement inconnu'); return }
+    const { data: sess } = await supabase.from('sessions')
+      .select('*, clients(id,default_payment_terms), courses(title,code,price_ht,duration_hours)')
+      .eq('id', sessionId).single()
+    if (!sess) { toast.error('Session introuvable'); return }
+    const inter = cas === 'inter_places'
+    const clientId = inter ? '' : (sess.client_id || '')
+    const terms = (!inter && sess.clients?.default_payment_terms) || 'à 30 jours'
+    let prix = 0
+    if (inter) {
+      prix = parseFloat(sess.public_price_per_person) || 0
+    } else {
+      const tarifsSess = await chargerTarifs(sess.client_id)
+      prix = parseFloat(sess.total_price) || prixFormation(tarifsSess, { ...sess.courses, id: sess.course_id }).prix || 0
+    }
+    if (clientId) {
+      const { data: ccs } = await supabase.from('client_contacts').select('*').eq('client_id', clientId)
+      setContacts(ccs || [])
+    } else setContacts([])
+    const titreFormation = sess.courses?.title || 'Formation'
+    const dates = `du ${fmtDateShort(sess.start_date)}${sess.end_date && sess.end_date !== sess.start_date ? ' au ' + fmtDateShort(sess.end_date) : ''}`
+    const ref = await generateReference('invoice')
+    setCurrent({
+      reference: ref, type: 'invoice', client_id: clientId, contact_id: inter ? '' : (sess.contact_id || ''), quote_id: '', session_id: sess.id,
+      sellsy_reference: '', client_reference: '',
+      invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: sess.start_date || '', service_end_date: sess.end_date || sess.start_date || '',
+      due_date: calcDueDate(terms), object: `${regle.titre} : ${titreFormation} ${dates}`,
+      payment_method: 'virement bancaire', payment_terms: terms, discount_percent: 0, discount_label: '', tva_applicable: true,
+      notes: 'Dédommagement prévu à l\'article 8 des conditions générales de vente. Il ne constitue pas une prestation de formation et ne peut pas être présenté à un financeur de la formation professionnelle.',
+      created_by: currentUserName(), status: 'draft', parent_reference: '', parent_invoice_id: null, amount_paid: 0,
+      is_formation_pro: false, is_subrogation: false, billing_client_id: '',
+    })
+    setItems([{
+      code: '', description_title: regle.titre,
+      description_detail: `${titreFormation}, session ${sess.session_type === 'inter' ? 'inter' : 'intra'} ${dates}${cas === 'intra_report' ? ' : report unique choisi par le client (50 % du prix de la session)' : cas === 'intra_annulation' ? ' : effectif minimum non atteint (100 % du prix de la session)' : ' : 100 % du prix des places réservées et non honorées'}`,
+      quantity: 1, unit: inter ? 'place' : 'forfait',
+      unit_price_ht: inter ? prix : montantDedommagement({ cas, prixSession: prix }),
+      ...tvaLigne(true), course_id: null, position: 0,
+    }])
+    setPayments([]); setMode('create')
+    toast.success(inter ? 'Dédommagement préparé : choisissez le client défaillant et le nombre de places' : 'Dédommagement préparé en brouillon, montant modifiable')
+  }
+
   const handleFromSessions = async (sessionIds) => {
     if (!sessionIds || sessionIds.length === 0) return
     if (sessionIds.length === 1) { handleFromSession(sessionIds[0]); return }
