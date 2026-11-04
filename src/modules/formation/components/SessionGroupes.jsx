@@ -10,6 +10,7 @@ import { EmptyState } from '../../../ui/EmptyState'
 import { confirmer } from '../../../ui/Confirm'
 import { downloadDocument, generatePDF } from '../pdf/pdfGenerator'
 import { mettreADisposition } from '../../../core/portail/documentsClient'
+import { confirmationSignatureGroupe } from '../../../core/portail/alertesPublication'
 import InscriptionsEnLigne from './InscriptionsEnLigne'
 
 // Groupes d'une session inter (lot 2, 0044) : une entreprise (convention à son nom) ou un particulier qui paie
@@ -118,6 +119,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   // Convention (entreprise) ou contrat (particulier) du groupe mis à disposition dans l'espace du client pour être
   // signé en ligne (0420) ; la signature passe le document du groupe à « signé » (la base)
   const signatureEnLigne = async (g) => {
+    if (!(await confirmer(confirmationSignatureGroupe(g)))) return
     const stagiaires = (parGroupe[g.id] || []).map((i) => i.trainees).filter(Boolean)
     setBusy(true)
     try {

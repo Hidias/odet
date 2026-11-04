@@ -81,9 +81,11 @@ export function SignatureADistance({ visit, publierRapport, reload }) {
   const demander = async () => {
     setBusy(true)
     try {
+      // Rapport publié d'abord : sans lui, rien à signer dans l'espace du client
+      const out = await publierRapport()
+      if (!out?.publication?.id && !out?.publication?.deja) throw new Error('Demande de signature non enregistrée.')
       const { error } = await supabase.from('itv_visits').update({ remote_signature_requested_at: new Date().toISOString() }).eq('id', visit.id)
       if (error) throw error
-      await publierRapport()
       toast.success('Rapport envoyé à signer dans l\'espace du client')
       await reload()
     } catch (e) { toast.error(e.message) }

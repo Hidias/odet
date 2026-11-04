@@ -67,6 +67,7 @@ import QuizFlashSession from '../components/QuizFlashSession'
 import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { etatConvention, CONVENTION } from '../lib/etatConvention'
+import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -1327,7 +1328,8 @@ export default function SessionDetail() {
         currentDate: session.convention_sent_date || new Date().toISOString()
       })
     } else {
-      // Décocher = supprimer la date
+      // Décocher = supprimer la date, après confirmation (B15)
+      if (!await confirmer(confirmationDecocherConventionEnvoyee(session.convention_sent_date))) return
       const updateData = {
         convention_sent: false,
         convention_sent_date: null

@@ -1,6 +1,8 @@
 import { apiFetch } from '../../core/api'
 import { estAVenir, stagiairesPresents, pipelineDevis, tauxConversion } from './lib/accueil'
 import { conventionEnvoyee, groupesParSession } from '../formation/lib/etatConvention'
+import { confirmer } from '../../ui/Confirm'
+import { CONFIRMATION_REINITIALISER_ACCUEIL } from '../../core/portail/alertesPublication'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore, useDataStore } from '../../core/store'
@@ -1213,6 +1215,7 @@ export default function Dashboard() {
             </div>
             <div className="flex justify-between items-center p-5 border-t bg-gray-50 rounded-b-xl">
               <button onClick={async () => {
+                if (!await confirmer(CONFIRMATION_REINITIALISER_ACCUEIL)) return
                 const { data: { user } } = await supabase.auth.getUser()
                 if (!user) return
                 await supabase.from('dashboard_widget_configs').delete().eq('user_id', user.id)

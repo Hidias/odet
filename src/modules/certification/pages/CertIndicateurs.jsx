@@ -11,6 +11,7 @@ import { STATUS_LABEL } from '../lib/proofs'
 import { addProof, removeProof, saveIndicatorStatus, saveSettings, signedUrl } from '../lib/certData'
 
 import { confirmer } from '../../../ui/Confirm'
+import { confirmationRetraitPreuve } from '../../../core/portail/alertesPublication'
 const FILTERS = [
   ['tous', 'Tous'], ['a_traiter', 'À traiter'], ['modifies', 'Modifiés en 2026'], ['na', 'Non applicables'],
 ]
@@ -59,7 +60,7 @@ function Detail({ ind, refCode, canWrite, onChanged, onBack, mots = MOTS_QUALIOP
     try { window.open(p.file_path ? await signedUrl(p.file_path) : p.url, '_blank', 'noopener') } catch (e) { toast.error(e.message) }
   }
   const delProof = async (p) => {
-    if (!await confirmer(`Retirer la preuve « ${p.label} » ?`)) return
+    if (!await confirmer(confirmationRetraitPreuve(p))) return
     try { await removeProof(p); onChanged() } catch (e) { toast.error(e.message) }
   }
 

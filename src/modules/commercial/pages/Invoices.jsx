@@ -29,6 +29,7 @@ import { confirmer } from '../../../ui/Confirm'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { useMarquesDemo } from '../../../core/demo/marquesDemo'
 import { mettreADisposition } from '../../../core/portail/documentsClient'
+import { messageFacturePubliee } from '../../../core/portail/alertesPublication'
 import { chargerTarifs, prixFormation, ligneAuTarif } from '../../../core/tarifs/tarifsClient'
 import { DEDOMMAGEMENTS, montantDedommagement } from '../../formation/lib/effectifPrerequis'
 import BadgeTarifClient from '../components/BadgeTarifClient'
@@ -1154,6 +1155,8 @@ export default function Invoices() {
       if (!isDraftDoc(inv) && inv.id) {
         generateFacturXPDF({...inv, parent_reference: pRef, parent_invoice_date: pDate, session_reference: sRef}, itemsList || items, client, contact, { returnBase64: true, billingClient, orgSettings: organization }, billingClient)
           .then((b64) => mettreADisposition({ objectType: 'invoice', objectId: inv.id, kind: 'facture', label: `${inv.type === 'credit_note' ? 'Avoir' : 'Facture'} ${inv.reference || ''}`.trim(), base64: b64 }))
+          // Dit au clic que la facture part aussi dans l'espace du client (B4), la première fois seulement
+          .then((r) => { const m = messageFacturePubliee(r, inv.type === 'credit_note'); if (m) toast(m, { duration: 6000 }) })
           .catch(() => {})
       }
     } catch (e) {
