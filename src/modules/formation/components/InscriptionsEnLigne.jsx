@@ -29,15 +29,17 @@ export default function InscriptionsEnLigne({ session, peutModifier, onConfirmee
 
   const confirmerInscription = async (r) => {
     // Une seule fenêtre : elle signale le cas où le client a déjà un groupe dont la convention ou le contrat est signé
-    const { data: groupes } = await supabase.from('session_groups')
+    const { data: groupes, error: errGroupes } = await supabase.from('session_groups')
       .select('id, client_id, doc_status, clients:client_id(siret, name, postal_code, email, contact_email, client_type)')
       .eq('session_id', session.id)
-    if (!(await confirmer(confirmationInscriptionInter(r, groupes || [])))) return
+    // Groupe sans client lisible (droit manquant) : on ne peut pas conclure, fenêtre prudente
+    const lectureImpossible = !!errGroupes || (groupes || []).some((g) => g.client_id && !g.clients)
+    if (!(await confirmer(confirmationInscriptionInter(r, groupes || [], { lectureImpossible })))) return
     setBusy(r.id)
     const { error } = await supabase.rpc('inscription_confirmer', { p_id: r.id })
     setBusy(null)
     if (error) return toast.error(error.message)
-    toast.success('Inscription confirmée : le groupe est créé. Mettez la convention ou le contrat en signature en ligne.')
+    toast.success('Inscription confirmée : les stagiaires sont dans le groupe du client. Mettez la convention ou le contrat en signature (ou un avenant si le document était déjà signé).')
     await charger()
     onConfirmee?.()
   }
