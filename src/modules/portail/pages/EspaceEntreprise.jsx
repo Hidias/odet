@@ -31,6 +31,8 @@ import CertificatsEntree from '../components/CertificatsEntree'
 import NumerosDemandes from '../components/NumerosDemandes'
 import DeposerSigne from '../components/DeposerSigne'
 import FroidEspace from '../components/FroidEspace'
+import AnalyseBesoin from '../components/AnalyseBesoin'
+import { besoinsARemplir } from '../../formation/lib/besoinClient'
 import RecapSession from '../components/RecapSession'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
@@ -179,7 +181,11 @@ function Carte({ children, className = '' }) {
 
 function Accueil({ a, aller }) {
   const e = a.echeances || {}
+  // Analyses du besoin à remplir (0486) : la fonction absente ne casse rien
+  const [besoins, setBesoins] = useState(0)
+  useEffect(() => { supabase.rpc('ent_besoins').then(({ data, error }) => { if (!error) setBesoins(besoinsARemplir(data)) }) }, [])
   const afaire = []
+  if (besoins) afaire.push({ t: `${besoins} analyse${besoins > 1 ? 's' : ''} du besoin à remplir`, o: 'formations', ton: 'warning' })
   if (e.depasse) afaire.push({ t: `${e.depasse} échéance${e.depasse > 1 ? 's' : ''} dépassée${e.depasse > 1 ? 's' : ''}`, o: 'salaries', ton: 'danger' })
   if (e.a_prevoir) afaire.push({ t: `${e.a_prevoir} recyclage${e.a_prevoir > 1 ? 's' : ''} ou vérification${e.a_prevoir > 1 ? 's' : ''} à prévoir`, o: 'salaries', ton: 'warning' })
   if (a.demandes_en_cours) afaire.push({ t: `${a.demandes_en_cours} demande${a.demandes_en_cours > 1 ? 's' : ''} en cours`, o: 'demandes', ton: 'info' })
@@ -465,6 +471,7 @@ function Formations() {
   return (
     <div className="space-y-5">
       <NumerosDemandes charger={chargerDemandesNir} transmettre={transmettreNir} />
+      <AnalyseBesoin Carte={Carte} />
       {upcoming.length > 0 && <CertificatsEntree />}
       {upcoming.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">À venir ou en cours</h2><div className="space-y-3">{upcoming.map((s) => <Session key={`${s.id}${s.group_id || ''}`} s={s} finie={false} />)}</div></section>}
       {aSigner && (
