@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   bilanSession, blocageSuppressionSession, alerteSuppressionSession, alerteAnnulationSession,
-  bilanStagiaire, alerteSuppressionStagiaire,
+  bilanStagiaire, alerteSuppressionStagiaire, erreurSuppressionSession,
 } from '../src/modules/formation/lib/alertesAction.js'
 
 // Faux client : chaque table renvoie le nombre donné (ou une erreur), quel que soit le filtre
@@ -34,6 +34,17 @@ describe('Suppression de session', () => {
     expect(a.message).toContain('sera supprimée définitivement')
     expect(alerteSuppressionSession({}, { inscrits: 1 }).message).toContain('1 inscription de stagiaire')
   })
+  it('certificats SST, attestations, évaluations à froid et fiches sont cités', () => {
+    const m = alerteSuppressionSession({}, { certificats: 2, documents: 1, froid: 3, fiches: 4 }).message
+    expect(m).toContain('2 certificats SST')
+    expect(m).toContain('1 attestation ou document remis')
+    expect(m).toContain('3 évaluations à froid')
+    expect(m).toContain('4 fiches de renseignements')
+  })
+  it('refus de clé étrangère : texte clair, pas le message technique', () => {
+    expect(erreurSuppressionSession({ code: '23503', message: 'violates foreign key' })).not.toContain('foreign')
+    expect(erreurSuppressionSession({ code: '42501', message: 'refus' })).toBe('Suppression impossible : refus')
+  })
   it('bilan incomplet : le dit', () => {
     expect(alerteSuppressionSession({}, { inscrits: null }).message).toContain('pas pu être vérifiée')
   })
@@ -49,7 +60,7 @@ describe('Suppression de session', () => {
       return { count: 1 }
     })
     const b = await bilanSession(sb, 's1')
-    expect(b).toEqual({ inscrits: 1, demiJournees: 7, evaluations: 1, factures: 1, devis: null })
+    expect(b).toEqual({ inscrits: 1, demiJournees: 7, evaluations: 1, factures: 1, devis: null, froid: 1, certificats: 1, documents: 1, fiches: 1 })
   })
 })
 
@@ -87,5 +98,18 @@ describe('Suppression de stagiaire', () => {
   it('bilan lu en base', async () => {
     const sb = fauxSupabase((table, f) => ({ count: table === 'attendance_halfdays' ? (f.includes('morning=true') ? 2 : 1) : 1 }))
     expect(await bilanStagiaire(sb, 't1')).toEqual({ sessions: 1, demiJournees: 3, evaluations: 1, certificats: 1, documents: 1 })
+  })
+})
+
+describe('Nombre de mails des évaluations à froid', () => {
+  it('un mail par stagiaire, un seul par session et adresse pour les contacts', async () => {
+    const { nombreDeMails } = await import('../src/modules/qualite/lib/froid.js')
+    expect(nombreDeMails([
+      { id: 1, cible: 'stagiaire', session_id: 's', destinataire: 'a@x.fr' },
+      { id: 2, cible: 'stagiaire', session_id: 's', destinataire: 'b@x.fr' },
+      { id: 3, cible: 'contact', session_id: 's', destinataire: 'RH@x.fr' },
+      { id: 4, cible: 'employeur', session_id: 's', destinataire: 'rh@x.fr' },
+      { id: 5, cible: 'contact', session_id: 't', destinataire: 'rh@x.fr' },
+    ])).toBe(4)
   })
 })

@@ -52,7 +52,7 @@ import { BarreReponse, BoutonReponse, EtatReponse, evaluationRecue, reponsesDe }
 
 import { confirmer, demander } from '../../../ui/Confirm'
 import { alerteConventionSignee } from '../lib/conventionSignee'
-import { bilanSession, blocageSuppressionSession, alerteSuppressionSession, alerteAnnulationSession } from '../lib/alertesAction'
+import { bilanSession, blocageSuppressionSession, alerteSuppressionSession, erreurSuppressionSession, alerteAnnulationSession } from '../lib/alertesAction'
 import ChoixSiteSession from '../components/ChoixSiteSession'
 import SessionGroupes from '../components/SessionGroupes'
 import PiloteSession from '../../pilote/PiloteSession'
@@ -2047,7 +2047,7 @@ export default function SessionDetail() {
     if (blocage) return toast.error(blocage, { duration: 8000 })
     if (!await confirmer(alerteSuppressionSession(session, bilan))) return
     const { error } = await deleteSession(id)
-    if (error) return toast.error('Suppression impossible : ' + error.message)
+    if (error) return toast.error(erreurSuppressionSession(error))
     toast.success('Session supprimée')
     navigate('/sessions')
   }

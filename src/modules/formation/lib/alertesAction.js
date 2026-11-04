@@ -10,13 +10,17 @@ export async function bilanSession(supabase, sessionId) {
     const { count, error } = await requete
     return error ? null : (count ?? 0)
   }
-  const [inscrits, matins, apresMidis, evaluations, factures, devis] = await Promise.all([
+  const [inscrits, matins, apresMidis, evaluations, factures, devis, froid, certificats, documents, fiches] = await Promise.all([
     compter(supabase.from('session_trainees').select('id', { count: 'exact', head: true }).eq('session_id', sessionId)),
     compter(supabase.from('attendance_halfdays').select('id', { count: 'exact', head: true }).eq('session_id', sessionId).eq('morning', true)),
     compter(supabase.from('attendance_halfdays').select('id', { count: 'exact', head: true }).eq('session_id', sessionId).eq('afternoon', true)),
     compter(supabase.from('trainee_evaluations').select('id', { count: 'exact', head: true }).eq('session_id', sessionId)),
     compter(supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('session_id', sessionId)),
     compter(supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('session_id', sessionId)),
+    compter(supabase.from('evaluations_cold').select('id', { count: 'exact', head: true }).eq('session_id', sessionId)),
+    compter(supabase.from('sst_certifications').select('id', { count: 'exact', head: true }).eq('session_id', sessionId)),
+    compter(supabase.from('training_documents_issued').select('id', { count: 'exact', head: true }).eq('session_id', sessionId)),
+    compter(supabase.from('trainee_info_sheets').select('id', { count: 'exact', head: true }).eq('session_id', sessionId)),
   ])
   return {
     inscrits,
@@ -24,7 +28,17 @@ export async function bilanSession(supabase, sessionId) {
     evaluations,
     factures,
     devis,
+    froid,
+    certificats,
+    documents,
+    fiches,
   }
+}
+
+// Refus de la base (clé étrangère) : même texte que le blocage annoncé, jamais le message technique en anglais
+export function erreurSuppressionSession(error) {
+  if (error?.code === '23503') return 'Cette session est liée à une facture ou à un devis : elle ne peut pas être supprimée. Passez-la plutôt en « Annulée ».'
+  return 'Suppression impossible : ' + (error?.message || 'erreur inconnue')
 }
 
 // Factures et devis gardent la session (clé étrangère sans cascade) : la base refuse la suppression.
@@ -42,6 +56,10 @@ export function alerteSuppressionSession(session, bilan = {}) {
   if (bilan.inscrits) pertes.push(pluriel(bilan.inscrits, 'inscription de stagiaire', 'inscriptions de stagiaires'))
   if (bilan.demiJournees) pertes.push(pluriel(bilan.demiJournees, 'demi-journée émargée', 'demi-journées émargées'))
   if (bilan.evaluations) pertes.push(pluriel(bilan.evaluations, 'évaluation', 'évaluations'))
+  if (bilan.froid) pertes.push(pluriel(bilan.froid, 'évaluation à froid', 'évaluations à froid'))
+  if (bilan.certificats) pertes.push(pluriel(bilan.certificats, 'certificat SST', 'certificats SST'))
+  if (bilan.documents) pertes.push(pluriel(bilan.documents, 'attestation ou document remis', 'attestations ou documents remis'))
+  if (bilan.fiches) pertes.push(pluriel(bilan.fiches, 'fiche de renseignements', 'fiches de renseignements'))
   if (session?.convention_signed) pertes.push('la convention signée')
   const inconnu = Object.values(bilan).some((v) => v === null)
   const ref = session?.reference ? ` ${session.reference}` : ''
@@ -72,7 +90,7 @@ export function alerteAnnulationSession(session) {
   if (!faits.length) return null
   return {
     title: 'Annuler la session',
-    message: `Pour cette session, ${faits.join(' et ')}. L'annulation ne prévient personne : informez le client et les stagiaires, et voyez la convention et la facturation.\n\nAnnuler quand même la session ?`,
+    message: `Pour cette session, ${faits.join(' et ')}. L'annulation ne prévient personne : informez le client et les stagiaires, et vérifiez la convention et la facture.\n\nAnnuler quand même la session ?`,
     confirmLabel: 'Oui, annuler',
     cancelLabel: 'Non',
     danger: true,

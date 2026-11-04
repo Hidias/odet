@@ -552,8 +552,8 @@ export default function Mailing() {
             )}
             {nErr > 0 && (
               <>
-                <button onClick={async () => { if (await confirmerEnvoi(c, nErr, 'au rythme de la campagne')) retryErrorsOnServer(c) }} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-warning-bg))] hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm text-ui disabled:opacity-50"><RefreshCw className="w-4 h-4" /> Re-tenter {nErr} erreur{nErr > 1 ? 's' : ''} (serveur)</button>
-                <button onClick={async () => { if (await confirmerEnvoi(c, nErr, 'depuis ce navigateur')) resumeInBrowser(c, ['error']) }} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-ui-sm text-ui disabled:opacity-50"><Monitor className="w-4 h-4" /> Re-tenter ici</button>
+                <button onClick={async () => { if (await confirmerEnvoi(c, nErr + nPending, 'au rythme de la campagne')) retryErrorsOnServer(c) }} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-warning-bg))] hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm text-ui disabled:opacity-50"><RefreshCw className="w-4 h-4" /> Re-tenter {nErr} erreur{nErr > 1 ? 's' : ''} (serveur)</button>
+                <button onClick={async () => { if (await confirmerEnvoi(c, nErr + nPending, 'depuis ce navigateur')) resumeInBrowser(c, ['error']) }} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-ui-sm text-ui disabled:opacity-50"><Monitor className="w-4 h-4" /> Re-tenter ici</button>
               </>
             )}
             <button onClick={() => duplicate(c)} className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-ui-sm text-ui"><Copy className="w-4 h-4" /> Dupliquer</button>

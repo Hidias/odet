@@ -46,13 +46,14 @@ import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
 import { confirmer, demander } from '../../../ui/Confirm'
-// Statuts d'un devis déjà accepté (sessions et contrat déjà préparés par la base)
-const ACCEPTE = ['accepted', 'partial', 'invoiced']
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
 import { FRAIS_CATALOGUE } from '../lib/fraisCatalogue'
 import BadgeTarifClient from '../components/BadgeTarifClient'
+
+// Statuts d'un devis déjà accepté (contrat et livraison déjà préparés par la base)
+const ACCEPTE = ['accepted', 'partial', 'invoiced']
 const STATUS_CONFIG = {
   draft: { label: 'Brouillon', class: 'bg-gray-100 text-gray-700', icon: '' },
   sent: { label: 'Envoyé', class: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', icon: '' },
@@ -558,12 +559,13 @@ export default function Quotes() {
     return true
   }
 
-  // Accepté ou partiel : les déclencheurs de la base préparent les sessions (0430) et le contrat de maintenance (0460),
-  // une seule fois par devis. Le dire avant le clic, comme pour un dépôt du client (DepotsClient.jsx)
+  // Accepté ou partiel : les déclencheurs de la base préparent le contrat de maintenance (0460) et la livraison du
+  // matériel (0467), une seule fois par devis, lignes non tranchées comprises ; les sessions (0430) seulement après
+  // une signature du client en ligne. Le dire avant le clic, comme pour un dépôt du client (DepotsClient.jsx)
   function confirmerAcceptation(statut) {
     return confirmer({
       title: `Passer le devis en « ${STATUS_CONFIG[statut]?.label || statut} »`,
-      message: 'Une session « à valider » sera préparée pour chaque ligne de formation acceptée et, pour un devis de maintenance, un contrat « à valider ». Cela ne se fait qu\'une fois par devis : revenir en arrière ne les supprime pas.',
+      message: 'Selon son contenu, un contrat de maintenance « à valider » et une livraison du matériel à planifier seront préparés, pour les lignes acceptées et celles pas encore tranchées. Cela ne se fait qu\'une fois par devis : refuser une ligne ou revenir en arrière ensuite ne les retire pas.\n\nLes sessions de formation ne sont préparées que si le client a signé en ligne ; sinon, créez-les depuis le devis.',
       confirmLabel: 'Confirmer',
     })
   }

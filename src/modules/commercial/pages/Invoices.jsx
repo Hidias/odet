@@ -1073,17 +1073,17 @@ export default function Invoices() {
       const ok = await confirmer({
         title: 'Marquer la facture comme payée',
         message: reste > 0.01
-          ? `Un paiement de ${money(reste)} sera enregistré à la date du jour pour la facture ${inv.reference || ''}, et les relances d'impayé s'arrêteront. Si le client a payé à une autre date ou un autre montant, utilisez plutôt « Enregistrer un paiement ».`
-          : `La facture ${inv.reference || ''} passera en « Payée » et les relances d'impayé s'arrêteront.`,
+          ? `Un paiement de ${money(reste)} sera enregistré à la date du jour pour la facture${inv.reference ? ` ${inv.reference}` : ''}, et les relances d'impayé s'arrêteront. Si le client a payé à une autre date ou un autre montant, utilisez plutôt « Enregistrer un paiement ».`
+          : `La facture${inv.reference ? ` ${inv.reference}` : ''} passera en « Payée » et les relances d'impayé s'arrêteront.`,
         confirmLabel: 'Marquer payée',
       })
       if (!ok) return
     }
-    if (['draft', 'due'].includes(s) && inv?.status === 'paid') {
+    if (['draft', 'due', 'overdue'].includes(s) && inv?.status === 'paid') {
       const ok = await confirmer({
-        title: 'Remettre la facture à régler',
-        message: `Le montant payé de la facture ${inv.reference || ''} repassera à 0 et les relances d'impayé pourront reprendre. Les paiements déjà enregistrés restent dans la liste : supprimez-les si besoin.`,
-        confirmLabel: 'Remettre à régler',
+        title: 'Sortir la facture de « Payée »',
+        message: `Le montant payé de la facture${inv.reference ? ` ${inv.reference}` : ''} repassera à 0 et les relances d'impayé pourront reprendre. Les paiements déjà enregistrés restent dans la liste : supprimez-les si besoin.`,
+        confirmLabel: 'Confirmer',
         danger: true,
       })
       if (!ok) return
@@ -1101,7 +1101,7 @@ export default function Invoices() {
         })
       }
     }
-    if (['draft', 'due'].includes(s) && inv?.status === 'paid') {
+    if (['draft', 'due', 'overdue'].includes(s) && inv?.status === 'paid') {
       updateData.amount_paid = 0; updateData.amount_due = Math.max(0, (parseFloat(inv.total_ttc) || 0) - creditedAmt)
     }
     await supabase.from('invoices').update(updateData).eq('id', id)

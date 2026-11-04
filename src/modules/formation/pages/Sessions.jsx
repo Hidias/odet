@@ -17,7 +17,7 @@ import SessionPlanning from '../components/SessionPlanning'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 
 import { confirmer } from '../../../ui/Confirm'
-import { bilanSession, blocageSuppressionSession, alerteSuppressionSession } from '../lib/alertesAction'
+import { bilanSession, blocageSuppressionSession, alerteSuppressionSession, erreurSuppressionSession } from '../lib/alertesAction'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
 // Type de journée déduit des horaires : ≤ 4h30 = demi-journée (même règle que Quotes / MultiSiretWizard)
 const dayTypeFromTimes = (startTime, endTime) => {
@@ -456,7 +456,7 @@ export default function Sessions() {
     
     const { error } = await deleteSession(id)
     if (error) {
-      toast.error('Suppression impossible : ' + error.message)
+      toast.error(erreurSuppressionSession(error))
     } else {
       toast.success('Session supprimée')
     }

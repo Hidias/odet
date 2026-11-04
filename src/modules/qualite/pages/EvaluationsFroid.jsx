@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
 import { callApi } from '../../../core/api'
 import { useDroits } from '../../../core/rights/useDroit'
-import { libelleEnvoi, filtrerEnvois, grouperParSession, cochable, decouperEnLots, nomPersonne, libelleDestinataire } from '../lib/froid'
+import { libelleEnvoi, filtrerEnvois, grouperParSession, cochable, decouperEnLots, nombreDeMails, nomPersonne, libelleDestinataire } from '../lib/froid'
 import ReglagesFroid from '../components/ReglagesFroid'
 import { confirmer } from '../../../ui/Confirm'
 
@@ -68,11 +68,12 @@ export default function EvaluationsFroid() {
   const envoyer = async () => {
     const choisis = liste.filter((e) => coches.has(e.id)) // lignes visibles seulement
     if (!choisis.length) return
+    const n = nombreDeMails(choisis)
     // Alerte avant action (angles morts B3) : envoi réel, vers les stagiaires et les entreprises
     if (!await confirmer({
       title: 'Envoyer les questionnaires',
-      message: `${choisis.length} mail${choisis.length > 1 ? 's partiront' : ' partira'} maintenant vers les destinataires réels (stagiaires ou entreprises). Un envoi parti ne se reprend pas.`,
-      confirmLabel: `Envoyer ${choisis.length} mail${choisis.length > 1 ? 's' : ''}`,
+      message: `${n} mail${n > 1 ? 's partiront' : ' partira'} maintenant vers les destinataires réels (stagiaires ou entreprises). Un envoi parti ne se reprend pas.`,
+      confirmLabel: `Envoyer ${n} mail${n > 1 ? 's' : ''}`,
     })) return
     setEnCours(true)
     try {
