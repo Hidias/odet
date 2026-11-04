@@ -51,6 +51,9 @@ import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
 import { FRAIS_CATALOGUE } from '../lib/fraisCatalogue'
 import BadgeTarifClient from '../components/BadgeTarifClient'
+
+// Statuts d'un devis déjà accepté (contrat et livraison déjà préparés par la base)
+const ACCEPTE = ['accepted', 'partial', 'invoiced']
 const STATUS_CONFIG = {
   draft: { label: 'Brouillon', class: 'bg-gray-100 text-gray-700', icon: '' },
   sent: { label: 'Envoyé', class: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]', icon: '' },
@@ -556,8 +559,23 @@ export default function Quotes() {
     return true
   }
 
+  // Accepté ou partiel : les déclencheurs de la base préparent le contrat de maintenance (0460) et la livraison du
+  // matériel (0467), une seule fois par devis, lignes non tranchées comprises ; les sessions (0430) seulement après
+  // une signature du client en ligne. Le dire avant le clic, comme pour un dépôt du client (DepotsClient.jsx)
+  function confirmerAcceptation(statut) {
+    return confirmer({
+      title: `Passer le devis en « ${STATUS_CONFIG[statut]?.label || statut} »`,
+      message: 'Selon son contenu, un contrat de maintenance « à valider » et une livraison du matériel à planifier seront préparés, pour les lignes acceptées et celles pas encore tranchées. Cela ne se fait qu\'une fois par devis : refuser une ligne ou revenir en arrière ensuite ne les retire pas.\n\nLes sessions de formation ne sont préparées que si le client a signé en ligne ; sinon, créez-les depuis le devis.',
+      confirmLabel: 'Confirmer',
+    })
+  }
+
   async function updateStatus(id, newStatus) {
-    if (!await confirmer(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)) return
+    const avant = quotes.find(q => q.id === id)?.status ?? (currentQuote?.id === id ? currentQuote.status : null)
+    const ok = ACCEPTE.includes(newStatus) && !ACCEPTE.includes(avant)
+      ? await confirmerAcceptation(newStatus)
+      : await confirmer(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)
+    if (!ok) return
     await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id)
     toast.success(`Statut → ${STATUS_CONFIG[newStatus].label}`)
     if (newStatus === 'sent') regenererEtPublier(id)
@@ -777,10 +795,16 @@ export default function Quotes() {
   // ACCEPTATION PARTIELLE - VALIDATION LIGNE PAR LIGNE
   // ============================================================
   async function toggleItemAccepted(itemId, acceptedValue) {
+    const updatedItems = items.map(it => it.id === itemId ? { ...it, accepted: acceptedValue } : it)
+    // Alerte avant action (angles morts B2) : le premier passage en accepté ou partiel prépare sessions et contrat
+    const prevues = updatedItems.map(it => it.accepted)
+    if (prevues.some(d => d === true) && !ACCEPTE.includes(currentQuote?.status)) {
+      const statutPrevu = prevues.every(d => d === true) ? 'accepted' : 'partial'
+      if (!await confirmerAcceptation(statutPrevu)) return
+    }
     const { error } = await supabase.from('quote_items').update({ accepted: acceptedValue }).eq('id', itemId)
     if (error) { toast.error('Erreur: ' + error.message); return }
 
-    const updatedItems = items.map(it => it.id === itemId ? { ...it, accepted: acceptedValue } : it)
     setItems(updatedItems)
 
     // Recalcul statut quote

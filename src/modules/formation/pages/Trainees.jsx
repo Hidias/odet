@@ -5,6 +5,8 @@ import { useDroits } from '../../../core/rights/useDroit'
 import AccesExterne from '../components/AccesExterne'
 import { PP_ROLES } from '../../passeport/lib/ppData'
 import { supabase } from '../../../core/supabase'
+import { confirmer } from '../../../ui/Confirm'
+import { bilanStagiaire, alerteSuppressionStagiaire } from '../lib/alertesAction'
 import { fetchAll } from '../../../core/fetchAll'
 import { Plus, Search, Edit, Trash2, X, Save, FileText, Upload, Eye, Building2, Download, CheckSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -42,22 +44,6 @@ const formatName = (value, type) => {
   }
 }
 
-// Modal de confirmation
-const ConfirmModal = ({ show, onConfirm, onCancel, message }) => {
-  if (!show) return null
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-ui shadow-md p-6 max-w-sm mx-4">
-        <p className="text-gray-700 mb-4">{message}</p>
-        <div className="flex justify-end gap-2">
-          <button onClick={onCancel} className="btn btn-secondary">Annuler</button>
-          <button onClick={onConfirm} className="btn bg-[rgb(var(--c-danger))] text-white hover:bg-[rgb(var(--c-danger))]">Supprimer</button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export default function Trainees() {
   // Module Passeport de prévention actif : nom de naissance et numéro gérés par le bloc Passeport (numéro chiffré, jamais affiché)
@@ -87,7 +73,6 @@ export default function Trainees() {
   const [decryptedSSN, setDecryptedSSN] = useState(null)
   const [traineeDocuments, setTraineeDocuments] = useState([])
   const [uploading, setUploading] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(null)
   const [showBulkAdd, setShowBulkAdd] = useState(false)
   const [bulkClientId, setBulkClientId] = useState('')
   const [bulkTrainees, setBulkTrainees] = useState([
@@ -320,20 +305,18 @@ export default function Trainees() {
     setSelectedTrainee(null)
   }
   
-  const handleDelete = async () => {
-    if (!confirmDelete) return
-    
-    // Récupérer le nom avant suppression pour le log
-    const traineeToDelete = trainees.find(t => t.id === confirmDelete)
-    const traineeName = traineeToDelete ? `${traineeToDelete.first_name} ${traineeToDelete.last_name}` : 'Inconnu'
-    
-    await deleteTrainee(confirmDelete)
-    
+  // Alerte avant action (angles morts B8) : dire ce qui sera effacé (preuves Qualiopi), même pour le super administrateur
+  const handleDelete = async (id) => {
+    const traineeToDelete = trainees.find(t => t.id === id)
+    if (!traineeToDelete) return
+    const bilan = await bilanStagiaire(supabase, id)
+    if (!await confirmer(alerteSuppressionStagiaire(traineeToDelete, bilan))) return
+    const traineeName = `${traineeToDelete.first_name} ${traineeToDelete.last_name}`
+    const { error } = await deleteTrainee(id)
+    if (error) return toast.error('Suppression impossible : ' + error.message)
     // Log d'audit : suppression
-    logAudit('delete', 'trainee', confirmDelete, traineeName)
-    
+    logAudit('delete', 'trainee', id, traineeName)
     toast.success('Stagiaire supprimé')
-    setConfirmDelete(null)
   }
   
   // Export RGPD des données du stagiaire
@@ -739,7 +722,7 @@ export default function Trainees() {
                     <button onClick={() => openPreview(t)} className="p-2 hover:bg-gray-100 rounded" title="Aperçu"><Eye className="w-4 h-4 text-[rgb(var(--c-info))]" /></button>
                     <button onClick={() => openDocs(t)} className="p-2 hover:bg-gray-100 rounded hidden sm:inline-flex" title="Documents"><FileText className="w-4 h-4 text-gray-500" /></button>
                     {d.modifier && <button onClick={() => openForm(t)} className="p-2 hover:bg-gray-100 rounded" title="Modifier"><Edit className="w-4 h-4 text-gray-500" /></button>}
-                    {d.supprimer && <button onClick={() => setConfirmDelete(t.id)} className="p-2 hover:bg-gray-100 rounded hidden sm:inline-flex" title="Supprimer"><Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" /></button>}
+                    {d.supprimer && <button onClick={() => handleDelete(t.id)} className="p-2 hover:bg-gray-100 rounded hidden sm:inline-flex" title="Supprimer"><Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" /></button>}
                   </div>
                 </td>
               </tr>
@@ -1057,13 +1040,6 @@ export default function Trainees() {
         </div>
       )}
       
-      {/* Modal Confirmation suppression */}
-      <ConfirmModal 
-        show={!!confirmDelete}
-        message="Êtes-vous sûr de vouloir supprimer ce stagiaire ?"
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmDelete(null)}
-      />
       
       {/* Modal Avertissement Doublons */}
       {duplicateWarning && (

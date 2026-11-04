@@ -1067,6 +1067,27 @@ export default function Invoices() {
     const inv = invoices.find(i => i.id === id)
     const updateData = { status: s, updated_at: new Date().toISOString() }
     const creditedAmt = parseFloat(inv?.amount_credited) || 0
+    // Alerte avant action (angles morts B1) : dire la conséquence, même pour le super administrateur
+    if (s === 'paid' && inv) {
+      const reste = (parseFloat(inv.total_ttc) || 0) - (parseFloat(inv.amount_paid) || 0) - creditedAmt
+      const ok = await confirmer({
+        title: 'Marquer la facture comme payée',
+        message: reste > 0.01
+          ? `Un paiement de ${money(reste)} sera enregistré à la date du jour pour la facture${inv.reference ? ` ${inv.reference}` : ''}, et les relances d'impayé s'arrêteront. Si le client a payé à une autre date ou un autre montant, utilisez plutôt « Enregistrer un paiement ».`
+          : `La facture${inv.reference ? ` ${inv.reference}` : ''} passera en « Payée » et les relances d'impayé s'arrêteront.`,
+        confirmLabel: 'Marquer payée',
+      })
+      if (!ok) return
+    }
+    if (['draft', 'due', 'overdue'].includes(s) && inv?.status === 'paid') {
+      const ok = await confirmer({
+        title: 'Sortir la facture de « Payée »',
+        message: `Le montant payé de la facture${inv.reference ? ` ${inv.reference}` : ''} repassera à 0 et les relances d'impayé pourront reprendre. Les paiements déjà enregistrés restent dans la liste : supprimez-les si besoin.`,
+        confirmLabel: 'Confirmer',
+        danger: true,
+      })
+      if (!ok) return
+    }
     if (s === 'paid' && inv) {
       const ttc = parseFloat(inv.total_ttc) || 0
       const alreadyPaid = parseFloat(inv.amount_paid) || 0
@@ -1080,7 +1101,7 @@ export default function Invoices() {
         })
       }
     }
-    if (['draft', 'due'].includes(s) && inv?.status === 'paid') {
+    if (['draft', 'due', 'overdue'].includes(s) && inv?.status === 'paid') {
       updateData.amount_paid = 0; updateData.amount_due = Math.max(0, (parseFloat(inv.total_ttc) || 0) - creditedAmt)
     }
     await supabase.from('invoices').update(updateData).eq('id', id)
@@ -2025,7 +2046,7 @@ export default function Invoices() {
           <div className="bg-white rounded-ui border p-5">
             <h3 className="font-semibold text-ui mb-3">Changer le statut</h3>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(STATUS_MAP).filter(([k]) => k !== current.status && !['credited', 'draft', 'cancelled'].includes(k)).map(([k, v]) => (
+              {Object.entries(STATUS_MAP).filter(([k]) => k !== current.status && !['credited', 'draft', 'cancelled'].includes(k) && !(current.status === 'paid' && k === 'partial')).map(([k, v]) => (
                 <button key={k} onClick={async () => {
                   await handleStatus(current.id, k)
                   if (current.id) { await refreshCurrent(current.id); await loadPayments(current.id) }

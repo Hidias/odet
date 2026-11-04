@@ -76,7 +76,7 @@ export function nouvelleQuestion(questions) {
 // Envoi par lots : au plus `max` mails par appel (temps limite du serveur), sans couper un mail groupé
 // (contact et employeur d'une même session à la même adresse partent ensemble). Même regroupement que le serveur.
 export const MAILS_PAR_LOT = 15
-export function decouperEnLots(envois, max = MAILS_PAR_LOT) {
+function mailsGroupes(envois) {
   const mails = []
   const groupes = new Map()
   for (const e of envois || []) {
@@ -85,6 +85,14 @@ export function decouperEnLots(envois, max = MAILS_PAR_LOT) {
     if (!groupes.has(cle)) { groupes.set(cle, []); mails.push(groupes.get(cle)) }
     groupes.get(cle).push(e.id)
   }
+  return mails
+}
+// Nombre de mails réellement envoyés pour ces lignes (annoncé avant l'envoi)
+export function nombreDeMails(envois) {
+  return mailsGroupes(envois).length
+}
+export function decouperEnLots(envois, max = MAILS_PAR_LOT) {
+  const mails = mailsGroupes(envois)
   const lots = []
   for (let i = 0; i < mails.length; i += max) lots.push(mails.slice(i, i + max).flat())
   return lots

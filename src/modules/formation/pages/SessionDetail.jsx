@@ -52,6 +52,7 @@ import { BarreReponse, BoutonReponse, EtatReponse, evaluationRecue, reponsesDe }
 
 import { confirmer, demander } from '../../../ui/Confirm'
 import { alerteConventionSignee } from '../lib/conventionSignee'
+import { bilanSession, blocageSuppressionSession, alerteSuppressionSession, erreurSuppressionSession, alerteAnnulationSession } from '../lib/alertesAction'
 import ChoixSiteSession from '../components/ChoixSiteSession'
 import SessionGroupes from '../components/SessionGroupes'
 import PiloteSession from '../../pilote/PiloteSession'
@@ -2039,9 +2040,14 @@ export default function SessionDetail() {
     }
   }
 
+  // Alerte avant action (angles morts B7) : dire ce qui sera effacé ; factures et devis liés bloquent la suppression
   const handleDelete = async () => {
-    if (!await confirmer('Supprimer cette session ?')) return
-    await deleteSession(id)
+    const bilan = await bilanSession(supabase, id)
+    const blocage = blocageSuppressionSession(bilan)
+    if (blocage) return toast.error(blocage, { duration: 8000 })
+    if (!await confirmer(alerteSuppressionSession(session, bilan))) return
+    const { error } = await deleteSession(id)
+    if (error) return toast.error(erreurSuppressionSession(error))
     toast.success('Session supprimée')
     navigate('/sessions')
   }
@@ -2056,6 +2062,10 @@ export default function SessionDetail() {
     course_id: 'la formation', trainer_id: 'le formateur',
   }
   const handleSaveEdit = async () => {
+    if (editForm?.status === 'cancelled') {
+      const alerte = alerteAnnulationSession(session)
+      if (alerte && !await confirmer(alerte)) return
+    }
     if (session?.convention_signed) {
       const norm = (v, k) => {
         const t = v === null || v === undefined ? '' : String(v).trim()
@@ -3117,7 +3127,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <select 
                 value={session.status} 
                 onChange={async (e) => {
-                  await updateSession(id, { status: e.target.value, status_locked: true })
+                  const statut = e.target.value
+                  // Alerte avant action (angles morts B10) : annuler une session engagée ne prévient personne
+                  const alerte = statut === 'cancelled' ? alerteAnnulationSession(session) : null
+                  if (alerte && !await confirmer(alerte)) return
+                  await updateSession(id, { status: statut, status_locked: true })
                   toast.success('Statut mis à jour')
                   fetchSessions()
                 }}
