@@ -14,6 +14,9 @@ import { withErrorLog } from './_lib/errors.js'
 //    déposé (PDF déjà compressé par le navigateur). Rangé tel quel avec son empreinte, à valider par l'organisme
 //    (0431), qui est prévenu tout de suite.
 //  - lire_depot (équipe connectée) : lien de 5 minutes vers un dépôt du client que l'appelant voit.
+//  - certificats_exiges et deposer_certificat (espace client, 0479, décision de H du 04/11) : pour une formation qui
+//    exige un certificat à l'entrée (ex. MAC SST), le client voit ses participants et dépose la copie de chaque
+//    certificat avec sa date de fin de validité. Copie rangée en privé (documents/prerequis/), l'organisme est prévenu.
 // Aucun e-mail n'est envoyé.
 
 export const config = { api: { bodyParser: { sizeLimit: '4mb' } } }
@@ -199,6 +202,71 @@ async function deposerSigne(req, res) {
   return res.status(200).json({ id: row.id })
 }
 
+// Sessions du client dont la formation exige un certificat à l'entrée, avec l'état de chaque participant (0479)
+async function sessionsAvecCertificat(a) {
+  const ids = a.sessions.filter((x) => !['cancelled', 'annulee', 'completed', 'terminee'].includes(x.status || '')).map((x) => x.id).filter((x) => UUID.test(String(x)))
+  if (!ids.length) return []
+  const { data: sess } = await a.admin.from('sessions').select('id, reference, start_date, status, courses(title, prerequis_certificat_mois)').in('id', ids)
+  const exigees = (sess || []).filter((x) => x.courses && x.courses.prerequis_certificat_mois != null)
+  if (!exigees.length) return []
+  // Seuls les participants que ce client voit déjà (données de son espace)
+  const visibles = new Map(a.sessions.map((x) => [x.id, new Set((x.session_trainees || []).map((st) => st.trainee_id).filter(Boolean))]))
+  const { data: st } = await a.admin.from('session_trainees')
+    .select('session_id, trainee_id, absent, prerequis_valid_until, prerequis_file_path, trainees(first_name, last_name)')
+    .in('session_id', exigees.map((x) => x.id))
+  return exigees.map((x) => ({
+    session_id: x.id, reference: x.reference, start_date: x.start_date, course_title: x.courses.title,
+    tolerance_mois: x.courses.prerequis_certificat_mois,
+    participants: (st || []).filter((p) => p.session_id === x.id && !p.absent && visibles.get(x.id)?.has(p.trainee_id)).map((p) => ({
+      trainee_id: p.trainee_id, prenom: p.trainees?.first_name || '', nom: p.trainees?.last_name || '',
+      valid_until: p.prerequis_valid_until, depose: !!p.prerequis_file_path,
+    })),
+  })).filter((x) => x.participants.length)
+}
+
+async function certificatsExiges(req, res) {
+  const a = await accesClient(req)
+  if (!a) return res.status(403).json({ error: 'Accès refusé' })
+  return res.status(200).json({ sessions: await sessionsAvecCertificat(a) })
+}
+
+async function deposerCertificat(req, res) {
+  const a = await accesClient(req)
+  if (!a) return res.status(403).json({ error: 'Accès refusé' })
+  const { session_id: sessionId, trainee_id: traineeId, valid_until: fin, pdf_base64: b64 } = req.body || {}
+  if (!UUID.test(String(sessionId || '')) || !UUID.test(String(traineeId || ''))) return res.status(400).json({ error: 'Participant invalide' })
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fin || '')) || Number.isNaN(new Date(`${fin}T12:00:00`).getTime())) {
+    return res.status(400).json({ error: 'Date de fin de validité invalide' })
+  }
+  const liste = await sessionsAvecCertificat(a)
+  const s = liste.find((x) => x.session_id === sessionId)
+  if (!s || !s.participants.some((p) => p.trainee_id === traineeId)) return res.status(403).json({ error: 'Accès refusé' })
+  const buf = Buffer.from(String(b64 || ''), 'base64')
+  if (!buf.length || buf.length > MAX || buf.subarray(0, 4).toString() !== '%PDF') return res.status(400).json({ error: 'Fichier invalide (PDF de 3,5 Mo au plus)' })
+  const sha = crypto.createHash('sha256').update(buf).digest('hex')
+  const path = `prerequis/${sessionId}/${traineeId}-${sha.slice(0, 16)}.pdf`
+  const { error: up } = await a.admin.storage.from('documents').upload(path, buf, { contentType: 'application/pdf', upsert: false })
+  if (up && !/exists|duplicate/i.test(up.message || '')) return res.status(500).json({ error: 'Dépôt impossible' })
+  // Contrôle par l'organisme remis à zéro : la copie vient du client
+  const { error } = await a.admin.from('session_trainees')
+    .update({ prerequis_file_path: path, prerequis_valid_until: fin, prerequis_checked_at: null, prerequis_checked_by: null })
+    .eq('session_id', sessionId).eq('trainee_id', traineeId)
+  if (error) return res.status(500).json({ error: 'Enregistrement impossible' })
+  const { data: cl } = await a.admin.from('clients').select('company_id, name').eq('id', a.clientId).maybeSingle()
+  await a.admin.from('notifications').insert({
+    company_id: cl?.company_id, type: 'depot_client', title: 'Certificat déposé par le client',
+    message: `${cl?.name || 'Le client'} a déposé un certificat pour la session ${s.reference || ''} : à vérifier.`.replace(/\s+/g, ' '),
+    link: `/sessions/${sessionId}`, metadata: { session_id: sessionId, trainee_id: traineeId, kind: 'certificat_prerequis' },
+  })
+  const ip = String(req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim().slice(0, 64) || null
+  await a.admin.from('portal_events').insert({
+    company_id: cl?.company_id, client_id: a.clientId, channel: a.canal, access_id: a.accessId, profile_id: a.profileId, event: 'depot',
+    object_type: 'session', object_id: sessionId, document_kind: 'autre', document_label: `Certificat d'un participant, session ${s.reference || ''}`.trim().slice(0, 200),
+    document_sha256: sha, ip, user_agent: String(req.headers['user-agent'] || '').slice(0, 400) || null,
+  })
+  return res.status(200).json({ ok: true })
+}
+
 async function lireDepot(req, res) {
   const ctx = await requireUser(req)
   if (!ctx || ctx.profile.role === 'entreprise') return res.status(403).json({ error: 'Accès refusé' })
@@ -219,6 +287,8 @@ async function handler(req, res) {
     if (action === 'lire_interne') return await lireInterne(req, res)
     if (action === 'deposer_signe') return await deposerSigne(req, res)
     if (action === 'lire_depot') return await lireDepot(req, res)
+    if (action === 'certificats_exiges') return await certificatsExiges(req, res)
+    if (action === 'deposer_certificat') return await deposerCertificat(req, res)
     return res.status(400).json({ error: 'Action inconnue' })
   } catch (e) {
     console.error('documents-client : erreur', e?.code || e?.name || 'inconnue')
