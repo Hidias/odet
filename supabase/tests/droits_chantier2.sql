@@ -2847,6 +2847,8 @@ begin
       insert into public.rgpd_violations (decouverte_le, description, nature) values ('2026-10-19 08:00+00', 'Essai violation', array['confidentialite'])
       returning id into g_v;
       select echeance_notification into g_r from public.rgpd_violations where id = g_v;
+      -- Un module activé depuis le départ (ex. budget) propose son modèle au premier appel : seul le second compte (04/11)
+      perform public.rgpd_proposer_modeles();
       g_n := public.rgpd_proposer_modeles();
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
@@ -5049,7 +5051,10 @@ begin
     begin
       insert into public.notifications (type, title, message) values ('error', 'Erreur essai 0411', 'essai') returning id into z_n;
       z_r := public.push_tick();
-      if (select pushed_at is not null from public.notifications where id = z_n) and (z_r->>'appel')::boolean is not true then
+      -- Un appareil réel inscrit (depuis le 21/10) déclenche l'appel pour les autres alertes du test : seul compte alors
+      -- que l'erreur technique soit écartée (04/11)
+      if (select pushed_at is not null from public.notifications where id = z_n)
+         and ((z_r->>'appel')::boolean is not true or exists (select 1 from public.push_subscriptions)) then
         v_lines := v_lines || 'OK      base  0411 : erreur technique écartée des alertes, aucun appel sans appareil'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   base  0411 : ' || z_r::text)::text; end if;
       delete from public.notifications where id = z_n;
