@@ -74,7 +74,7 @@ export default function MaJournee() {
       a('commercial') && ok('commercial.devis.voir') && {
         icon: Receipt, to: '/devis', libelle: (n) => `${n} devis à relancer`,
         // Même règle que le Suivi commercial (A5) : cadence de relance, relance par mail et mise en veille comprises
-        q: () => supabase.from('quotes').select('id, status, lost_reason, quote_date, created_at, relance_count, last_relance_date, next_followup_date, followup_state, veille_until').in('status', ['sent', 'partial']),
+        q: () => supabase.from('quotes').select('id, status, lost_reason, quote_date, created_at, triaged_at, relance_count, last_relance_date, next_followup_date, followup_state, veille_until').in('status', ['sent', 'partial']),
         filtre: (q) => devisARelancer(q, auj),
       },
       a('commercial') && ok('facturation.factures.voir') && {

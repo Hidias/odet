@@ -575,7 +575,8 @@ export default function Dashboard() {
   useEffect(() => {
     let vivant = true
     // Déclarations lisibles avec le droit de gérer les registres qualité seulement (0477) : sans lui, aucun état affiché
-    if (!d.bpf) { setBpf({ cle: 'reserve', titre: 'BPF', detail: 'Suivi réservé à la gestion des registres qualité' }); return undefined }
+    const bpfLisible = d.bpf && (modules || []).includes('qualite')
+    if (!bpfLisible) { setBpf({ cle: 'reserve', titre: 'BPF', detail: 'Suivi réservé à la gestion des registres qualité' }); return undefined }
     ;(async () => {
       try {
         const { data: ctx } = await supabase.rpc('my_company_context')
@@ -588,7 +589,7 @@ export default function Dashboard() {
       } catch { if (vivant) setBpf(null) }
     })()
     return () => { vivant = false }
-  }, [d.bpf])
+  }, [d.bpf, (modules || []).includes('qualite')]) // eslint-disable-line react-hooks/exhaustive-deps
   const [certSteps, setCertSteps] = useState(null)
   useEffect(() => {
     if (!certOn) { setCertSteps(null); return }
@@ -975,7 +976,7 @@ export default function Dashboard() {
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto"><FileText className="w-5 h-5 text-gray-900" /></div>
             <p className="text-ui font-medium text-gray-700">{bpf?.titre || 'BPF'}</p>
             {bpf?.detail && <p className="text-ui-sm text-gray-500">{bpf.detail}</p>}
-            {d.bpf && <Link to="/bpf" className="inline-flex items-center gap-1 text-ui-sm text-accent-700 hover:underline">Ouvrir le BPF <ArrowRight className="w-3 h-3" /></Link>}
+            {d.bpf && (modules || []).includes('qualite') && <Link to="/bpf" className="inline-flex items-center gap-1 text-ui-sm text-accent-700 hover:underline">Ouvrir le BPF <ArrowRight className="w-3 h-3" /></Link>}
             <p className="text-ui-sm text-gray-400">{organization?.nda ? `NDA : ${organization.nda}` : "Déclaration d'activité en cours d'enregistrement"}</p>
           </div>
         )
