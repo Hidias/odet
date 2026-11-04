@@ -2046,7 +2046,7 @@ export default function Invoices() {
           <div className="bg-white rounded-ui border p-5">
             <h3 className="font-semibold text-ui mb-3">Changer le statut</h3>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(STATUS_MAP).filter(([k]) => k !== current.status && !['credited', 'draft', 'cancelled'].includes(k)).map(([k, v]) => (
+              {Object.entries(STATUS_MAP).filter(([k]) => k !== current.status && !['credited', 'draft', 'cancelled'].includes(k) && !(current.status === 'paid' && k === 'partial')).map(([k, v]) => (
                 <button key={k} onClick={async () => {
                   await handleStatus(current.id, k)
                   if (current.id) { await refreshCurrent(current.id); await loadPayments(current.id) }
