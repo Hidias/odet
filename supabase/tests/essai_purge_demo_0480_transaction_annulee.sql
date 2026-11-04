@@ -9,12 +9,12 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- échouaient : un devis fictif accepté est « signé » pour le verrou des devis (0435), et l'effacement d'une session
 -- fictive met à jour une note de frais, refusée par son verrou (0454). Sans cette correction, la purge prévue à la
 -- sortie du mode démonstration était impossible.
--- 1. Réglage local app.demo_purge, posé par purge_demo_data() en début de purge, pour la durée de sa transaction
---    (super administrateur seulement, comme avant).
+-- 1. Réglage app.demo_purge, actif seulement pendant l'exécution de purge_demo_data() (super administrateur
+--    seulement, comme avant) : rien ne reste ouvert après la purge.
 -- 2. Devis : un devis enregistré comme fictif (demo_records) n'est pas « signé » pendant la purge ; les vrais devis
 --    signés restent verrouillés, purge comprise.
 -- 3. Notes de frais : le verrou laisse passer les mises à jour en cascade de la purge.
--- Le corps de la purge n'est pas recopié : la ligne qui pose le réglage est ajoutée à la version en base.
+-- Le corps de la purge n'est pas recopié : il est renommé et appelé tel quel.
 -- Retour arrière : supabase/rollback/0480_purge_demo_verrous_retour.sql
 
 -- ── 2. Devis fictifs pendant la purge ──
@@ -71,19 +71,35 @@ $$;
 
 revoke all on function app.frais_garde() from public, anon, authenticated;
 
--- ── 1. La purge pose le réglage (ajout à la version en base, idempotent) ──
+-- ── 1. La purge pose le réglage, pour sa seule durée ──
+-- Le corps existant devient app.purge_demo_data_corps() (inchangé, plus appelable directement) ; purge_demo_data()
+-- l'appelle entre la pose et le retrait du réglage. Une future modification de la purge se fait dans le corps.
 do $do$
-declare
-  v_src text := pg_get_functiondef('public.purge_demo_data()'::regprocedure);
 begin
-  if position('app.demo_purge' in v_src) = 0 then
-    if position(E'\nbegin\n' in v_src) = 0 then raise exception 'purge_demo_data : début du corps introuvable'; end if;
-    v_src := regexp_replace(v_src, E'\nbegin\n',
-      E'\nbegin\n  -- 0480 : les verrous laissent passer la purge des données fictives\n  perform set_config(''app.demo_purge'', ''on'', true);\n', '');
-    execute v_src;
+  if to_regprocedure('app.purge_demo_data_corps()') is null then
+    alter function public.purge_demo_data() rename to purge_demo_data_corps;
+    alter function public.purge_demo_data_corps() set schema app;
   end if;
 end
 $do$;
+revoke all on function app.purge_demo_data_corps() from public, anon, authenticated;
+
+create or replace function public.purge_demo_data()
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v jsonb;
+begin
+  perform set_config('app.demo_purge', 'on', true);
+  v := app.purge_demo_data_corps();
+  perform set_config('app.demo_purge', '', true);
+  return v;
+end
+$$;
+comment on function public.purge_demo_data() is 'Purge des données fictives : pose app.demo_purge le temps de app.purge_demo_data_corps() (0480)';
 revoke all on function public.purge_demo_data() from public, anon;
 grant execute on function public.purge_demo_data() to authenticated;
 

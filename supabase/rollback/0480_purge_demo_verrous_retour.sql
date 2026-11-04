@@ -1,4 +1,4 @@
--- Retour arrière de 0480 : verrous d'origine (0435, 0454) ; la ligne ajoutée à la purge est retirée.
+-- Retour arrière de 0480 : verrous d'origine (0435, 0454) ; réglage de la purge retiré.
 create or replace function app.devis_signe(p_quote uuid)
 returns boolean
 language sql
@@ -48,12 +48,11 @@ $$;
 revoke all on function app.frais_garde() from public, anon, authenticated;
 
 do $do$
-declare
-  v_src text := pg_get_functiondef('public.purge_demo_data()'::regprocedure);
 begin
-  if position('app.demo_purge' in v_src) > 0 then
-    v_src := replace(v_src, E'  -- 0480 : les verrous laissent passer la purge des données fictives\n  perform set_config(''app.demo_purge'', ''on'', true);\n', '');
-    execute v_src;
+  if to_regprocedure('app.purge_demo_data_corps()') is not null then
+    drop function if exists public.purge_demo_data();
+    alter function app.purge_demo_data_corps() set schema public;
+    alter function public.purge_demo_data_corps() rename to purge_demo_data;
   end if;
 end
 $do$;
