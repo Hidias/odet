@@ -530,7 +530,7 @@ function VisitDone({ visit, items, parts, equipmentById, settings, technician, i
       base64: versBase64(out.doc.output('arraybuffer')) })
     const m = messageRapportPublie(r)
     if (m.ton === 'erreur') toast.error(m.texte, { duration: 6000 }); else toast(m.texte, { duration: 6000 })
-    return out
+    return { ...out, publication: r }
   }
   const download = async () => {
     setBusy('pdf')

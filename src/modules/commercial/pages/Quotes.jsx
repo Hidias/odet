@@ -550,8 +550,8 @@ export default function Quotes() {
   // Renvoie vrai si le devis a été supprimé : la fiche ne se referme qu'après la confirmation et la suppression réussie
   async function deleteQuote(id) {
     if (!await confirmer(confirmationSuppressionDevis(quotes.find((q) => q.id === id) || (currentQuote?.id === id ? currentQuote : null)))) return false
-    const { error: eItems } = await supabase.from('quote_items').delete().eq('quote_id', id)
-    const { error } = eItems ? { error: eItems } : await supabase.from('quotes').delete().eq('id', id)
+    // Les lignes partent avec le devis (clé étrangère en cascade) : un devis qui ne peut pas être supprimé garde ses lignes
+    const { error } = await supabase.from('quotes').delete().eq('id', id)
     if (error) {
       toast.error(/foreign key|violates/i.test(error.message || '')
         ? 'Ce devis est relié à une facture ou une session : il ne peut pas être supprimé. Passez-le plutôt en « Refusé ».'
