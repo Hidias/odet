@@ -2,7 +2,7 @@ import { Tabs } from '../../../ui/Tabs'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { orgName, orgEmail } from '../../../core/org/currentOrg'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { downloadDocument, downloadAllDocuments, generatePDF, generateAllPDF, setOrganization } from '../pdf/pdfGenerator'
@@ -47,7 +47,8 @@ import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionDOPDF } from '../pdf/satisfactionDOPDF'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import PickerMenu from '../../../ui/PickerMenu'
-import { useDroits } from '../../../core/rights/useDroit'
+import { useDroit, useDroits } from '../../../core/rights/useDroit'
+import { BarreReponse, BoutonReponse, EtatReponse, evaluationRecue, reponsesDe } from '../components/ReponseEvaluation'
 
 import { confirmer, demander } from '../../../ui/Confirm'
 import ChoixSiteSession from '../components/ChoixSiteSession'
@@ -141,8 +142,8 @@ export default function SessionDetail() {
     attendances, fetchAttendances,
     fetchAttendance, upsertAttendance,
     fetchTraineeEvaluations, upsertTraineeEvaluation,
-    fetchTrainerEvaluation, upsertTrainerEvaluation,
-    fetchColdEvaluations, upsertColdEvaluation,
+    fetchTrainerEvaluation,
+    fetchColdEvaluations, enregistrerEvaluation, supprimerEvaluation, suiviEvaluationFroid,
     fetchSessionDocuments, uploadSessionDocument, deleteSessionDocument, getSessionDocumentUrl,
     fetchCourseQuestions, addTrainerToSession, removeTrainerFromSession,
     organization, fetchOrganization,
@@ -188,6 +189,10 @@ export default function SessionDetail() {
   const [evaluationsData, setEvaluationsData] = useState({})
   const [coldEvaluationsData, setColdEvaluationsData] = useState({})
   const [trainerEval, setTrainerEval] = useState(null)
+  const [saisieOuverte, setSaisieOuverte] = useState(null)
+  const [saisieAvant, setSaisieAvant] = useState(null)
+  const [saisieEnCours, setSaisieEnCours] = useState(false)
+  const superAdmin = useDroit('plateforme.administrer', ['superadmin'])
   const [sessionDocs, setSessionDocs] = useState([])
   const [uploadCategory, setUploadCategory] = useState('autre')
   const [uploading, setUploading] = useState(false)
@@ -1920,31 +1925,68 @@ export default function SessionDetail() {
     await upsertAttendance(session.id, traineeId, dateStr, present)
   }
   
-  const handleEvalChange = async (traineeId, field, value) => {
+  // Réponses figées dès leur réception (0481) : les clics remplissent un brouillon local, enregistré en une fois
+  // (« Enregistrer la réponse reçue ») ; une réponse reçue ne s'ouvre qu'en correction, par le super administrateur.
+  const editable = (cle) => saisieOuverte === cle && d.suivi
+  const ouvrirSaisie = (cle, avant) => { setSaisieOuverte(cle); setSaisieAvant(avant ? { ...avant } : null) }
+  const annulerSaisie = (type, personneId) => {
+    if (type === 'chaud') setEvaluationsData(prev => ({ ...prev, [personneId]: saisieAvant || {} }))
+    else if (type === 'froid') setColdEvaluationsData(prev => ({ ...prev, [personneId]: saisieAvant || {} }))
+    else setTrainerEval(saisieAvant)
+    setSaisieOuverte(null); setSaisieAvant(null)
+  }
+  const enregistrerSaisie = async (type, personneId, row, motif) => {
+    setSaisieEnCours(true)
+    const { data, error } = await enregistrerEvaluation(type, session.id, personneId, reponsesDe(type, row), motif)
+    setSaisieEnCours(false)
+    if (error) return toast.error(error.message || 'Enregistrement impossible')
+    const ev = data?.evaluation
+    if (type === 'chaud') setEvaluationsData(prev => ({ ...prev, [personneId]: ev }))
+    else if (type === 'froid') setColdEvaluationsData(prev => ({ ...prev, [personneId]: ev }))
+    else setTrainerEval(ev)
+    setSaisieOuverte(null); setSaisieAvant(null)
+    toast.success(data?.correction ? 'Correction enregistrée et tracée' : 'Réponse enregistrée')
+  }
+  const supprimerSaisie = async (type, personneId, motif) => {
+    setSaisieEnCours(true)
+    const { error } = await supprimerEvaluation(type, session.id, personneId, motif)
+    setSaisieEnCours(false)
+    if (error) return toast.error(error.message || 'Suppression impossible')
+    if (type === 'chaud') setEvaluationsData(prev => ({ ...prev, [personneId]: {} }))
+    else if (type === 'froid') setColdEvaluationsData(prev => ({ ...prev, [personneId]: {} }))
+    else setTrainerEval(null)
+    setSaisieOuverte(null); setSaisieAvant(null)
+    toast.success('Réponse supprimée, suppression tracée')
+  }
+
+  const handleEvalChange = (traineeId, field, value) => {
+    if (!editable(`chaud:${traineeId}`)) return
     const current = evaluationsData[traineeId] || {}
     // Si on clique sur la même valeur, remettre à null
     const newValue = current[field] === value ? null : value
-    const updated = { ...current, [field]: newValue }
-    setEvaluationsData(prev => ({ ...prev, [traineeId]: updated }))
-    await upsertTraineeEvaluation(session.id, traineeId, { [field]: newValue })
+    setEvaluationsData(prev => ({ ...prev, [traineeId]: { ...current, [field]: newValue } }))
   }
-  
-  const handleColdEvalChange = async (traineeId, field, value) => {
+
+  const handleColdEvalChange = (traineeId, field, value) => {
+    if (!editable(`froid:${traineeId}`)) return
     const current = coldEvaluationsData[traineeId] || {}
-    // Si on clique sur la même valeur, remettre à null
     const newValue = current[field] === value ? null : value
-    const updated = { ...current, [field]: newValue }
-    setColdEvaluationsData(prev => ({ ...prev, [traineeId]: updated }))
-    await upsertColdEvaluation(session.id, traineeId, { [field]: newValue })
+    setColdEvaluationsData(prev => ({ ...prev, [traineeId]: { ...current, [field]: newValue } }))
   }
-  
-  const handleTrainerEvalChange = async (field, value) => {
+
+  // Case « Envoyé » de l'évaluation à froid : enregistrée par le serveur, figée une fois la réponse reçue
+  const handleColdEnvoi = async (traineeId, envoye) => {
+    const { data, error } = await suiviEvaluationFroid(session.id, traineeId, envoye)
+    if (error) return toast.error(error.message || 'Enregistrement impossible')
+    setColdEvaluationsData(prev => ({ ...prev, [traineeId]: data }))
+  }
+
+  const handleTrainerEvalChange = (field, value) => {
     const trainer = session.trainers
     if (!trainer) return toast.error('Aucun formateur assigné')
-    // Si on clique sur la même valeur, remettre à null
+    if (!editable('formateur')) return
     const newValue = trainerEval?.[field] === value ? null : value
     setTrainerEval(prev => ({ ...(prev || {}), [field]: newValue }))
-    await upsertTrainerEvaluation(session.id, trainer.id, { [field]: newValue })
   }
   
   const handleFileUpload = async (e) => {
@@ -3931,15 +3973,18 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
               <div className="space-y-4">
                 {sessionTraineesForEvals.map(t => {
                   const eval_ = evaluationsData[t.id] || {}
-                  const isEnabled = eval_.questionnaire_submitted
+                  const cle = `chaud:${t.id}`
+                  const recue = evaluationRecue('chaud', eval_)
+                  const ouvert = saisieOuverte === cle
+                  const isEnabled = recue || ouvert
                   return (
                     <div key={t.id} className="border rounded-ui-sm p-4">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                         <span className="font-medium">{t.first_name} {t.last_name}</span>
-                        <label className="flex items-center gap-2 text-ui">
-                          <input type="checkbox" checked={eval_.questionnaire_submitted || false} onChange={(e) => handleEvalChange(t.id, 'questionnaire_submitted', e.target.checked)} disabled={!d.suivi} className="w-4 h-4 text-[rgb(var(--c-warning))] rounded" />
-                          Questionnaire reçu
-                        </label>
+                        <div className="flex items-center gap-2">
+                          {recue ? <EtatReponse type="chaud" row={eval_} /> : !ouvert && <span className="text-ui-sm text-gray-500">Pas encore reçue</span>}
+                          {!ouvert && <BoutonReponse recue={recue} superAdmin={superAdmin} peutSaisir={d.suivi} onOuvrir={() => ouvrirSaisie(cle, eval_)} />}
+                        </div>
                       </div>
                       {isEnabled && (
                         <div className="space-y-4 text-ui">
@@ -3957,7 +4002,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!d.suivi} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!ouvert} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -3979,7 +4024,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!d.suivi} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!ouvert} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -4001,7 +4046,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!d.suivi} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!ouvert} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -4021,7 +4066,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                   <span className="text-ui-sm text-gray-600 flex-1 mr-2">{item.label}</span>
                                   <div className="flex gap-1">
                                     {[1,2,3,4,5].map(n => (
-                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!d.suivi} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
+                                      <button key={n} onClick={() => handleEvalChange(t.id, item.key, n)} disabled={!ouvert} className={`w-6 h-6 rounded text-ui-sm ${eval_[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-white border hover:bg-gray-100'}`} title={['Mauvais','Passable','Moyen','Satisfaisant','Très satisfaisant'][n-1]}>{n}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -4029,8 +4074,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                               <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
                                 <span className="text-ui-sm text-gray-600 flex-1 mr-2">Recommanderiez-vous cette formation ?</span>
                                 <div className="flex gap-1">
-                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', true)} disabled={!d.suivi} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === true ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-white border'}`}>Oui</button>
-                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', false)} disabled={!d.suivi} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === false ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-white border'}`}>Non</button>
+                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', true)} disabled={!ouvert} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === true ? 'bg-[rgb(var(--c-success))] text-white' : 'bg-white border'}`}>Oui</button>
+                                  <button onClick={() => handleEvalChange(t.id, 'would_recommend', false)} disabled={!ouvert} className={`px-3 py-1 rounded text-ui-sm ${eval_.would_recommend === false ? 'bg-[rgb(var(--c-danger))] text-white' : 'bg-white border'}`}>Non</button>
                                 </div>
                               </div>
                             </div>
@@ -4045,7 +4090,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 rows={2} 
                                 value={eval_.comment_general || ''} 
                                 onChange={(e) => handleEvalChange(t.id, 'comment_general', e.target.value)}
-                                disabled={!d.suivi}
+                                disabled={!ouvert}
                                 placeholder="Remarques, suggestions..."
                               />
                             </div>
@@ -4056,11 +4101,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                                 rows={2} 
                                 value={eval_.comment_projet || ''} 
                                 onChange={(e) => handleEvalChange(t.id, 'comment_projet', e.target.value)}
-                                disabled={!d.suivi}
+                                disabled={!ouvert}
                                 placeholder="Besoins futurs en formation..."
                               />
                             </div>
                           </div>
+                          {ouvert && <BarreReponse correction={recue} enCours={saisieEnCours} onEnregistrer={(m) => enregistrerSaisie('chaud', t.id, eval_, m)} onAnnuler={() => annulerSaisie('chaud', t.id)} onSupprimer={(m) => supprimerSaisie('chaud', t.id, m)} />}
                         </div>
                       )}
                     </div>
@@ -4078,6 +4124,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </p>
             {!trainer ? <p className="text-gray-500">Aucun formateur assigné</p> : (
               <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {evaluationRecue('formateur', trainerEval) ? <EtatReponse type="formateur" row={trainerEval} /> : saisieOuverte !== 'formateur' && <span className="text-ui-sm text-gray-500">Pas encore reçu</span>}
+                  {saisieOuverte !== 'formateur' && <BoutonReponse recue={evaluationRecue('formateur', trainerEval)} superAdmin={superAdmin} peutSaisir={d.suivi} onOuvrir={() => ouvrirSaisie('formateur', trainerEval)} />}
+                </div>
                 <div className="grid sm:grid-cols-2 gap-4">
                   {[
                     { key: 'group_motivation', label: 'Motivation du groupe' },
@@ -4091,7 +4141,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                       <span className="text-ui">{item.label}</span>
                       <div className="flex gap-1">
                         {[1,2,3,4,5].map(n => (
-                          <button key={n} onClick={() => handleTrainerEvalChange(item.key, n)} disabled={!d.suivi} className={`w-8 h-8 rounded ${trainerEval?.[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>{n}</button>
+                          <button key={n} onClick={() => handleTrainerEvalChange(item.key, n)} disabled={saisieOuverte !== 'formateur'} className={`w-8 h-8 rounded ${trainerEval?.[item.key] === n ? 'bg-[rgb(var(--c-warning))] text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>{n}</button>
                         ))}
                       </div>
                     </div>
@@ -4099,8 +4149,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 </div>
                 <div>
                   <label className="text-ui font-medium">Commentaires</label>
-                  <textarea value={trainerEval?.comments || ''} onChange={(e) => handleTrainerEvalChange('comments', e.target.value)} disabled={!d.suivi} className="input mt-1" rows={3} placeholder="Observations du formateur..." />
+                  <textarea value={trainerEval?.comments || ''} onChange={(e) => handleTrainerEvalChange('comments', e.target.value)} disabled={saisieOuverte !== 'formateur'} className="input mt-1" rows={3} placeholder="Observations du formateur..." />
                 </div>
+                {saisieOuverte === 'formateur' && <BarreReponse correction={evaluationRecue('formateur', trainerEval)} enCours={saisieEnCours} onEnregistrer={(m) => enregistrerSaisie('formateur', trainer.id, trainerEval, m)} onAnnuler={() => annulerSaisie('formateur')} onSupprimer={(m) => supprimerSaisie('formateur', trainer.id, m)} />}
               </div>
             )}
           </div>
@@ -4129,15 +4180,20 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   <tbody>
                     {sessionTraineesForEvals.map(t => {
                       const coldEval = coldEvaluationsData[t.id] || {}
-                      const isEnabled = !!coldEval.completed_at
+                      const cleFroid = `froid:${t.id}`
+                      const recueFroid = evaluationRecue('froid', coldEval)
+                      const ouvertFroid = saisieOuverte === cleFroid
+                      const isEnabled = ouvertFroid
                       return (
-                        <tr key={t.id} className="border-b">
+                        <Fragment key={t.id}>
+                        <tr className={ouvertFroid ? '' : 'border-b'}>
                           <td className="py-3 font-medium">{t.first_name} {t.last_name}</td>
                           <td className="text-center py-3">
-                            <input type="checkbox" checked={!!coldEval.sent_at} onChange={(e) => handleColdEvalChange(t.id, 'sent_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-gray-800 rounded" disabled={!d.suivi} />
+                            <input type="checkbox" checked={!!coldEval.sent_at} onChange={(e) => handleColdEnvoi(t.id, e.target.checked)} className="w-5 h-5 text-gray-800 rounded" disabled={recueFroid || !d.suivi} title={recueFroid ? 'Réponse reçue : l\'envoi ne s\'annule plus' : undefined} />
                           </td>
                           <td className="text-center py-3">
-                            <input type="checkbox" checked={!!coldEval.completed_at} onChange={(e) => handleColdEvalChange(t.id, 'completed_at', e.target.checked ? new Date().toISOString() : null)} className="w-5 h-5 text-gray-800 rounded" disabled={!coldEval.sent_at || !d.suivi} />
+                            {recueFroid ? <EtatReponse type="froid" row={coldEval} /> : ouvertFroid ? <span className="text-ui-sm text-gray-500">Saisie en cours</span> : null}
+                            {!ouvertFroid && (recueFroid || coldEval.sent_at) && <div className="mt-1 flex justify-center"><BoutonReponse recue={recueFroid} superAdmin={superAdmin} peutSaisir={d.suivi} onOuvrir={() => ouvrirSaisie(cleFroid, coldEval)} /></div>}
                           </td>
                           <td className="text-center py-3">
                             <div className="flex items-center justify-center gap-1">
@@ -4170,6 +4226,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             </div>
                           </td>
                         </tr>
+                        {ouvertFroid && (
+                          <tr className="border-b"><td colSpan={8} className="pb-3">
+                            <BarreReponse correction={recueFroid} enCours={saisieEnCours} onEnregistrer={(m) => enregistrerSaisie('froid', t.id, coldEval, m)} onAnnuler={() => annulerSaisie('froid', t.id)} onSupprimer={(m) => supprimerSaisie('froid', t.id, m)} />
+                          </td></tr>
+                        )}
+                        </Fragment>
                       )
                     })}
                   </tbody>
