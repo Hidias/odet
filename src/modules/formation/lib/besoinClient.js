@@ -84,3 +84,28 @@ export function etatBesoinOrganisme(a) {
   if (a.filled_at) return 'remplie'
   return 'absente'
 }
+
+// Résumé lisible des réponses de l'entreprise (fiche de session, traitement des demandes) : [libellé, valeur]
+const libelle = (liste, v) => liste.find((x) => x.value === v)?.label || v
+const ouiNon = (v) => (v === true ? 'Oui' : v === false ? 'Non' : 'Non précisé')
+export function lignesBesoin(a) {
+  if (!a) return []
+  return [
+    ['Motifs', (a.context_reasons || []).map((r) => (r === 'autre' && a.context_other ? `Autre : ${a.context_other}` : libelle(MOTIFS, r))).join(', ')],
+    ['Attentes', a.objectives_description],
+    ['Enjeux', a.context_stakes],
+    ['Participants', [a.participants_count, (a.participants_profiles || []).map((p) => libelle(PROFILS, p)).join(', ')].filter(Boolean).join(' · ')],
+    ['Niveau', a.level ? libelle(NIVEAUX, a.level) : 'Non précisé'],
+    ['Non francophones', a.particularities_non_french ? 'Oui' : 'Non'],
+    ['Besoin d\'adaptation', a.psh_adaptation ? `Oui, contact : ${a.psh_contact || ''}` : ouiNon(a.psh_adaptation)],
+    ['Matériel de l\'entreprise', a.company_equipment ? `Oui${a.company_equipment_details ? ` : ${a.company_equipment_details}` : ''}` : ouiNon(a.company_equipment)],
+    ['Équipements de protection fournis', ouiNon(a.ppe_provided)],
+    ['Horaires souhaités', a.preferred_schedule],
+    ['Autres contraintes', a.other_constraints],
+  ].filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')
+}
+
+// Demande « Formation intra » portant un besoin, pas encore reliée à une session (0487)
+export function demandeAvecBesoin(d) {
+  return d?.kind === 'demande_intra' && !d.session_id && !!d.payload?.besoin && typeof d.payload.besoin === 'object'
+}

@@ -6,10 +6,8 @@ import { CheckCircle, RotateCcw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
 import { confirmer } from '../../../ui/Confirm'
-import { MOTIFS, PROFILS, NIVEAUX, etatBesoinOrganisme } from '../lib/besoinClient'
+import { etatBesoinOrganisme, lignesBesoin } from '../lib/besoinClient'
 
-const lib = (liste, v) => liste.find((x) => x.value === v)?.label || v
-const ouiNon = (v) => (v === true ? 'Oui' : v === false ? 'Non' : 'Non précisé')
 const dateHeure = (d) => (d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '')
 
 export default function BesoinClientRelecture({ analysis, peutEcrire, onChange }) {
@@ -43,19 +41,7 @@ export default function BesoinClientRelecture({ analysis, peutEcrire, onChange }
     if (ok) ecrire({ org_validated_at: null }, 'Analyse rouverte')
   }
 
-  const lignes = [
-    ['Motifs', (a.context_reasons || []).map((r) => (r === 'autre' && a.context_other ? `Autre : ${a.context_other}` : lib(MOTIFS, r))).join(', ')],
-    ['Attentes', a.objectives_description],
-    ['Enjeux', a.context_stakes],
-    ['Participants', [a.participants_count, (a.participants_profiles || []).map((p) => lib(PROFILS, p)).join(', ')].filter(Boolean).join(' · ')],
-    ['Niveau', a.level ? lib(NIVEAUX, a.level) : 'Non précisé'],
-    ['Non francophones', a.particularities_non_french ? 'Oui' : 'Non'],
-    ['Besoin d\'adaptation', a.psh_adaptation ? `Oui, contact : ${a.psh_contact || ''}` : ouiNon(a.psh_adaptation)],
-    ['Matériel de l\'entreprise', a.company_equipment ? `Oui${a.company_equipment_details ? ` : ${a.company_equipment_details}` : ''}` : ouiNon(a.company_equipment)],
-    ['Équipements de protection fournis', ouiNon(a.ppe_provided)],
-    ['Horaires souhaités', a.preferred_schedule],
-    ['Autres contraintes', a.other_constraints],
-  ].filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')
+  const lignes = lignesBesoin(a)
 
   return (
     <div className={`rounded-ui-sm border p-4 text-ui space-y-3 ${etat === 'validee' ? 'border-[rgb(var(--c-success)/0.4)] bg-[rgb(var(--c-success-bg))]' : 'border-[rgb(var(--c-warning)/0.4)] bg-[rgb(var(--c-warning-bg))]'}`}>

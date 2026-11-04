@@ -10,13 +10,14 @@ import { useDroits } from '../../../core/rights/useDroit'
 import { confirmer } from '../../../ui/Confirm'
 import { MOTIFS, PROFILS, etatBesoinOrganisme } from '../lib/besoinClient'
 import BesoinClientRelecture from './BesoinClientRelecture'
+import BesoinDemandesReprise from './BesoinDemandesReprise'
 // Listes partagées avec l'espace entreprise (0486)
 const CONTEXT_REASONS = MOTIFS
 const PROFILES = PROFILS
 
 export default function SessionNeedsAnalysis({ session, organization }) {
   // Droit d'écriture : préparer la session (ou modifier les siennes)
-  const d = useDroits({ preparer: ['formation.sessions.preparer', 'formation.sessions.modifier_siennes'] })
+  const d = useDroits({ preparer: ['formation.sessions.preparer', 'formation.sessions.modifier_siennes'], demandes: 'clients.fiches.modifier' })
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -446,6 +447,8 @@ export default function SessionNeedsAnalysis({ session, organization }) {
 
       {/* Réponses envoyées par l'entreprise depuis son espace (0486) */}
       <BesoinClientRelecture key={`${analysis?.id}-${analysis?.updated_at}`} analysis={analysis} peutEcrire={d.preparer} onChange={loadAnalysis} />
+      {/* Besoin déjà décrit dans une demande « Formation intra » (0487) */}
+      {!analysis && !loading && d.preparer && d.demandes && <BesoinDemandesReprise session={session} onReprise={loadAnalysis} />}
 
       {/* Scan importé - affichage compact */}
       {scanDoc && !showForm && (
