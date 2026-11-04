@@ -18,7 +18,7 @@ import {
   TYPES_MOUVEMENT, TYPES_EMPLACEMENT, qte, euros, chargerArticles, chargerCategories, chargerEmplacements,
   chargerFournisseurs, chargerNiveaux, chargerSeuils, chargerAlertes, chargerMouvements, chargerCouts, chargerValeur,
   chargerMonStock, chargerArticlesTerrain, chargerDepotsTerrain, enregistrerArticle, archiverArticle,
-  enregistrerEmplacement, enregistrerFournisseur, archiverFournisseur, enregistrerSeuil, mouvement, indexerNiveaux,
+  enregistrerEmplacement, peutDesactiverEmplacement, activerEmplacement, enregistrerFournisseur, archiverFournisseur, enregistrerSeuil, mouvement, indexerNiveaux,
   STATUTS_COMMANDE, chargerCommandes, chargerLignesCommande, chargerReceptions, creerCommande, commandeDepuisAlertes,
   enregistrerLigne, supprimerLigne, modifierCommande, supprimerCommande, soumettreCommande, commandeEnvoyee, annulerCommande,
   deciderCommande, recevoirLigne,
@@ -873,6 +873,24 @@ function Emplacements({ peutGerer }) {
   const [liste, setListe] = useState(null)
   const [edite, setEdite] = useState(null)
   const charger = useCallback(() => { chargerEmplacements().then(setListe).catch((e) => toast.error(e.message)) }, [])
+  // Désactiver (emplacement vide ; stock d'un technicien : compte désactivé d'abord) ou réactiver
+  const basculer = async (l) => {
+    try {
+      if (l.is_active) {
+        const niveaux = (await chargerNiveaux()).filter((n) => n.location_id === l.id).map((n) => n.quantity)
+        let compte
+        if (l.kind === 'technicien' && l.profile_id) {
+          const { data } = await supabase.from('profiles').select('is_active').eq('id', l.profile_id).maybeSingle()
+          compte = data ? !!data.is_active : undefined
+        }
+        const v = peutDesactiverEmplacement(l, niveaux, compte)
+        if (!v.ok) return toast.error(v.raison)
+      }
+      await activerEmplacement(l.id, !l.is_active)
+      toast.success(l.is_active ? `${l.name} désactivé` : `${l.name} réactivé`)
+      charger()
+    } catch (err) { toast.error(err.message) }
+  }
   useEffect(() => { charger() }, [charger])
   const enregistrer = async (e) => {
     e.preventDefault()
@@ -895,6 +913,7 @@ function Emplacements({ peutGerer }) {
             <MapPin className="w-4 h-4 text-gray-400 flex-none" aria-hidden="true" />
             <span className="flex-1 min-w-0"><span className="block font-semibold text-ui">{l.name}</span><span className="block text-ui-sm text-gray-600">{TYPES_EMPLACEMENT[l.kind]}{l.is_active ? '' : ' · inactif'}</span></span>
             {peutGerer && l.kind !== 'technicien' && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Modifier ${l.name}`} onClick={() => setEdite(l)}><Pencil className="w-4 h-4" /></button>}
+            {peutGerer && <button type="button" className="btn btn-ghost btn-sm" onClick={() => basculer(l)}>{l.is_active ? 'Désactiver' : 'Réactiver'}</button>}
           </li>
         ))}
       </ul>

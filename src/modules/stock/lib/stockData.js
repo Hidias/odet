@@ -64,6 +64,20 @@ export async function enregistrerArticle(a, prixAchat = undefined) {
 }
 export const archiverArticle = async (id, actif) => must(await supabase.from('stock_items').update({ is_active: actif }).eq('id', id))
 
+// Désactiver un emplacement : seulement vide (plus aucun article), et pour le stock d'un technicien seulement quand son
+// compte est désactivé (sinon il ne pourrait plus ouvrir « Mon stock »). `quantites` : quantité par article de
+// l'emplacement ; `compteActif` : état du compte du technicien (undefined si inconnu).
+export function peutDesactiverEmplacement(l, quantites = [], compteActif = undefined) {
+  const reste = (quantites || []).filter((q) => Math.abs(Number(q) || 0) > 0.0005).length
+  if (reste > 0) return { ok: false, raison: `Encore ${reste} article(s) dans cet emplacement : transférez-les d'abord` }
+  if (l.kind === 'technicien' && l.profile_id) {
+    if (compteActif === undefined) return { ok: false, raison: 'Compte du technicien introuvable : désactivation impossible ici' }
+    if (compteActif) return { ok: false, raison: 'Désactivez d\'abord le compte du technicien (Paramètres › Utilisateurs)' }
+  }
+  return { ok: true }
+}
+export const activerEmplacement = async (id, actif) => must(await supabase.from('stock_locations').update({ is_active: actif }).eq('id', id))
+
 export async function enregistrerEmplacement(l) {
   const { id, ...reste } = nettoyer(l)
   if (id) return must(await supabase.from('stock_locations').update(reste).eq('id', id))
