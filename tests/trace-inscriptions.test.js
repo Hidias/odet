@@ -20,6 +20,10 @@ describe('trace des inscriptions (0485)', () => {
     expect(detailBase(ajout)).toBe('Session X')
     expect(actionDe(ajout).label).toBe('Ajout')
   })
+  it('retrait par suppression de la session ou du stagiaire : aucun faux « aucun émargement »', () => {
+    expect(detailInscription({ action: 'delete', details: { suppression: 'session', convention_signee: null } })).toBe('Session supprimée avec ses inscriptions')
+    expect(detailInscription({ action: 'delete', details: { suppression: 'stagiaire', session_reference: 'X' } })).toBe('Session X, fiche du stagiaire supprimée')
+  })
   it('les autres lignes gardent leur libellé', () => {
     expect(actionDe({ entity_type: 'facture', action: 'delete' }).label).toBe('Suppression')
     expect(detailBase({ source: 'base', entity_type: 'facture', details: { table: 'invoices', champs: ['status'] } })).toBe('invoices : status')

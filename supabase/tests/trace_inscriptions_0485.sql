@@ -1,5 +1,6 @@
 -- Essai local de 0485 : ajout et retrait d'un stagiaire tracés au journal d'audit, par un compte connecté (auteur
--- posé par la base) comme sans compte ; retrait qui dit ce qui était déjà saisi ; aucun nom de stagiaire écrit.
+-- posé par la base) comme sans compte ; retrait qui dit ce qui était déjà saisi ; aucun nom de stagiaire écrit ;
+-- suppression du stagiaire ou de la session en cascade signalée comme telle, sans faux compte d'émargements.
 begin;
 set local client_min_messages = warning;
 do $$
@@ -46,6 +47,26 @@ begin
   select count(*) into v_n from public.audit_logs where entity_type = 'inscription'
     and (coalesce(entity_name, '') || details::text) ~ '(Prenom0485|NOM0485)';
   if v_n <> 0 then raise exception '4. nom du stagiaire écrit au journal'; end if;
+
+  -- 5. Stagiaire supprimé (cascade) : la trace le dit et ne compte pas d'émargements effacés avant elle
+  perform set_config('request.jwt.claims', v_sa, true);
+  insert into public.session_trainees (session_id, trainee_id) values (v_ses, v_tr);
+  insert into public.attendance_halfdays (session_id, trainee_id, date, morning, afternoon) values (v_ses, v_tr, current_date + 1, true, true);
+  delete from public.trainees where id = v_tr;
+  select * into v_l from public.audit_logs where entity_type = 'inscription' and entity_id = v_ses and action = 'delete'
+    and details ->> 'suppression' = 'stagiaire';
+  if v_l is null or v_l.details ? 'demi_journees_emargees' or v_l.entity_name is distinct from 'ESSAI-0485' then
+    raise exception '5. trace de la suppression du stagiaire : %', to_jsonb(v_l); end if;
+
+  -- 6. Session supprimée directement (cascade) : la trace le dit, sans compter
+  insert into public.trainees (first_name, last_name, company_id) values ('Prenom0485', 'NOM0485', v_cie) returning id into v_tr;
+  insert into public.session_trainees (session_id, trainee_id) values (v_ses, v_tr);
+  insert into public.attendance_halfdays (session_id, trainee_id, date, morning, afternoon) values (v_ses, v_tr, current_date, true, true);
+  delete from public.sessions where id = v_ses;
+  select * into v_l from public.audit_logs where entity_type = 'inscription' and entity_id = v_ses and action = 'delete'
+    and details ->> 'suppression' = 'session';
+  if v_l is null or v_l.details ? 'demi_journees_emargees' then
+    raise exception '6. trace de la suppression de la session : %', to_jsonb(v_l); end if;
 
   raise warning 'ESSAI 0485 : OK';
 end

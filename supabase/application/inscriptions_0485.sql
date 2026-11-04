@@ -8,7 +8,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- Jusqu'ici, retirer un stagiaire supprimait la ligne de session_trainees sans aucune trace : impossible de savoir
 -- qui l'avait retiré, quand, ni s'il avait déjà émargé ou répondu à l'évaluation.
 -- Un déclencheur écrit une ligne au journal d'audit (type « inscription ») à chaque ajout et à chaque retrait,
--- y compris quand la session entière est supprimée. L'auteur, son rôle et son poste sont posés par la garde du
+-- y compris quand la session ou le stagiaire est supprimé (la trace le dit, sans compter les émargements déjà effacés
+-- par leur propre cascade). L'auteur, son rôle et son poste sont posés par la garde du
 -- journal (0345) ; une écriture sans compte (portail, tâche) est tracée aussi, sans auteur.
 -- Contenu : identifiants de la session et du stagiaire, référence de la session, convention signée ou non,
 -- et pour un retrait : demi-journées émargées, fiche de renseignement et évaluation remplies. Jamais le nom, ni
@@ -35,7 +36,7 @@ begin
   else
     v_row := new;
   end if;
-  select s.reference, coalesce(s.convention_signed, false), s.company_id
+  select s.reference, s.convention_signed, s.company_id
     into v_ref, v_conv, v_company
   from public.sessions s where s.id = v_row.session_id;
   v_details := jsonb_build_object(
@@ -43,16 +44,24 @@ begin
     'session_id', v_row.session_id,
     'trainee_id', v_row.trainee_id,
     'session_reference', v_ref,
-    'convention_signee', coalesce(v_conv, false));
+    'convention_signee', v_conv);
   if tg_op = 'DELETE' then
-    select count(*) filter (where a.morning) + count(*) filter (where a.afternoon)
-      into v_emargees
-    from public.attendance_halfdays a
-    where a.session_id = v_row.session_id and a.trainee_id = v_row.trainee_id;
-    v_details := v_details || jsonb_build_object(
-      'demi_journees_emargees', coalesce(v_emargees, 0),
-      'fiche_remplie', coalesce(v_row.info_sheet_completed, false),
-      'evaluation_remplie', coalesce(v_row.evaluation_completed, false));
+    -- Retrait provoqué par la suppression de la session ou du stagiaire : les émargements ont déjà été effacés par
+    -- leur propre cascade et la session peut ne plus être lisible. On le dit, sans compter ce qu'on ne voit plus.
+    if v_ref is null and not exists (select 1 from public.sessions s where s.id = v_row.session_id) then
+      v_details := v_details || jsonb_build_object('suppression', 'session');
+    elsif not exists (select 1 from public.trainees t where t.id = v_row.trainee_id) then
+      v_details := v_details || jsonb_build_object('suppression', 'stagiaire');
+    else
+      select count(*) filter (where a.morning) + count(*) filter (where a.afternoon)
+        into v_emargees
+      from public.attendance_halfdays a
+      where a.session_id = v_row.session_id and a.trainee_id = v_row.trainee_id;
+      v_details := v_details || jsonb_build_object(
+        'demi_journees_emargees', coalesce(v_emargees, 0),
+        'fiche_remplie', coalesce(v_row.info_sheet_completed, false),
+        'evaluation_remplie', coalesce(v_row.evaluation_completed, false));
+    end if;
   end if;
   -- Société de la ligne, sinon celle de la session ; une société disparue renvoie au journal de l'instance
   v_company := coalesce(v_row.company_id, v_company);
