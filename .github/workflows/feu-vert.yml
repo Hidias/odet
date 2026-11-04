@@ -76,7 +76,9 @@ jobs:
             v="$(basename "$f" .sql)"
             # Inscription au registre : une instruction « insert into public.schema_migrations » et le nom du fichier
             # (forme simple « values ('NNNN_nom') » ou forme sur plusieurs lignes, comme 0477)
-            if ! grep -qi "insert into public.schema_migrations" "$f" || ! grep -q "'$v'" "$f"; then
+            # Commentaires SQL retirés : une ligne d'inscription mise en commentaire ne compte pas
+            code="$(sed -e 's/--.*$//' "$f" | perl -0pe 's{/\*.*?\*/}{}gs')"
+            if ! printf '%s' "$code" | tr '\n' ' ' | grep -qiE "insert into public\.schema_migrations[^;]*'$v'"; then
               echo "::error file=$f::La migration ne s'inscrit pas au registre (ligne insert into public.schema_migrations ... '$v')."
               manque=1
             fi
