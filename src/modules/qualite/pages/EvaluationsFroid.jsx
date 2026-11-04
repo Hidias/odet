@@ -61,7 +61,7 @@ export default function EvaluationsFroid() {
     setEnCours(true)
     try {
       // Par lots de 15 mails au plus : chaque appel reste sous le temps limite du serveur
-      const choisis = (donnees?.envois || []).filter((e) => coches.has(e.id))
+      const choisis = liste.filter((e) => coches.has(e.id)) // lignes visibles seulement
       const r = { envoyes: 0, erreurs: 0, refus: [] }
       for (const lot of decouperEnLots(choisis)) {
         const x = await callApi('/api/evaluations-froid', { ids: lot })
@@ -116,7 +116,7 @@ export default function EvaluationsFroid() {
         {[['prepare', 'À envoyer'], ['envoye', 'Envoyés'], ['ignore', 'Écartés'], ['erreur', 'À reprendre'], ['tous', 'Tous']].map(([k, l]) => (
           <button key={k} type="button" onClick={() => { setVue(k); setCoches(new Set()) }} className={`btn btn-sm ${vue === k ? 'btn-primary' : 'btn-secondary'}`}>{l}</button>
         ))}
-        <select className="input text-ui w-auto" value={anciennete} onChange={(e) => setAnciennete(e.target.value)} aria-label="Ancienneté de la session">
+        <select className="input text-ui w-auto" value={anciennete} onChange={(e) => { setAnciennete(e.target.value); setCoches(new Set()) }} aria-label="Ancienneté de la session">
           <option value="tout">Toutes les sessions</option>
           <option value="90">Terminées depuis moins de 3 mois</option>
           <option value="180">Terminées depuis 3 à 6 mois</option>
