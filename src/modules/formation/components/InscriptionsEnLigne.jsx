@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import { Globe, Check, X, Loader2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { demander, confirmer } from '../../../ui/Confirm'
+import { alerteConventionSignee } from '../lib/conventionSignee'
 
 // Inscriptions en ligne d'une session inter (0420) : déposées depuis le calendrier public, « en attente » jusqu'à
 // la confirmation par l'organisme. Confirmer : la base crée ou retrouve le client, les stagiaires et le groupe, sans
@@ -27,6 +28,8 @@ export default function InscriptionsEnLigne({ session, peutModifier, onConfirmee
   const traitees = liste.filter((r) => ['confirmee', 'refusee'].includes(r.status))
 
   const confirmerInscription = async (r) => {
+    const alerte = alerteConventionSignee(session, 'ajout')
+    if (alerte && !(await confirmer(alerte))) return
     const n = (r.participants || []).length
     if (!(await confirmer({ title: 'Confirmer cette inscription ?', message: `${r.kind === 'entreprise' ? r.company_name : `${r.contact_first_name} ${r.contact_last_name}`} : ${n} participant${n > 1 ? 's' : ''}. Le client, les stagiaires et le groupe sont créés ou retrouvés, sans doublon.`, confirmLabel: 'Confirmer' }))) return
     setBusy(r.id)
