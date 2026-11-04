@@ -2,7 +2,8 @@
 # 1. « feu-vert » : une PR vers main ne se fusionne qu'avec l'étiquette « feu-vert », posée après la relecture
 #    automatique. Tout nouveau commit poussé sur la PR retire l'étiquette : le feu vert porte sur une version précise.
 # 2. « migrations-en-base » : si la PR ajoute ou modifie une migration (supabase/migrations/*.sql), chaque fichier doit
-#    s'inscrire lui-même au registre (ligne « insert into public.schema_migrations ») et y figurer en production.
+#    s'inscrire lui-même au registre (« insert into public.schema_migrations ... 'NNNN_nom' ») et y figurer en production.
+#    Fichiers ajoutés, modifiés ou renommés.
 #    Lecture seule : une seule requête « select » sur public.schema_migrations, adresse dans le secret SUPABASE_DB_URL.
 #    Après la mise en base, poser l'étiquette « feu-vert » relance les deux contrôles.
 # La règle de dépôt « Feu vert obligatoire » exige ces deux contrôles pour fusionner dans main
@@ -63,7 +64,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          git diff --name-only --diff-filter=AM "$BASE...$HEAD" -- 'supabase/migrations/*.sql' > "$RUNNER_TEMP/migrations.txt"
+          git diff --name-only --diff-filter=AMR "$BASE...$HEAD" -- 'supabase/migrations/*.sql' > "$RUNNER_TEMP/migrations.txt"
           if [ ! -s "$RUNNER_TEMP/migrations.txt" ]; then
             echo "Aucune migration dans cette PR."
             echo "aucune=1" >> "$GITHUB_OUTPUT"
@@ -73,7 +74,9 @@ jobs:
           manque=0
           while read -r f; do
             v="$(basename "$f" .sql)"
-            if ! grep -q "insert into public.schema_migrations (version) values ('$v')" "$f"; then
+            # Inscription au registre : une instruction « insert into public.schema_migrations » et le nom du fichier
+            # (forme simple « values ('NNNN_nom') » ou forme sur plusieurs lignes, comme 0477)
+            if ! grep -qi "insert into public.schema_migrations" "$f" || ! grep -q "'$v'" "$f"; then
               echo "::error file=$f::La migration ne s'inscrit pas au registre (ligne insert into public.schema_migrations ... '$v')."
               manque=1
             fi
