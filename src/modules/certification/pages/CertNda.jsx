@@ -11,6 +11,7 @@ import {
 } from '../lib/certData'
 import { buildNdaProgrammePDF, buildNdaIntervenantsPDF } from '../pdf/ndaPiecesPDF'
 import SearchSelect from '../../../ui/SearchSelect'
+import { incoherencesNda } from '../../../core/org/rappelNdaEtat'
 
 import { confirmer } from '../../../ui/Confirm'
 const STATUS = [
@@ -158,7 +159,7 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
                   {STATUS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </label>
-              <DateField label="Déposée le" value={form.nda_filed_at} onChange={(v) => { setForm({ ...form, nda_filed_at: v }); save({ nda_filed_at: v, ...(v && form.nda_status === 'preparation' ? { nda_status: 'depose' } : {}) }) }} />
+              <DateField label="Déposée le" value={form.nda_filed_at} onChange={(v) => { setForm({ ...form, nda_filed_at: v, ...(v && ['preparation', 'refuse'].includes(form.nda_status) ? { nda_status: 'depose' } : {}) }); save({ nda_filed_at: v, ...(v && ['preparation', 'refuse'].includes(form.nda_status) ? { nda_status: 'depose' } : {}) }) }} />
             </div>
           )}
         </Step>
@@ -166,8 +167,9 @@ export default function CertNda({ settings, pieces, canWrite, organization, upda
           aside={answerBy && !hasNda ? <DueBadge date={answerBy} /> : null}>
           <span>Récépissé et numéro sous deux mois après un dossier complet. En attendant le récépissé ou un refus, l'organisme est réputé déclaré (R6351-6).</span>
           {canWrite && !hasNda && (
-            <div className="pt-1 sm:w-1/2"><DateField label="Dossier complet le (accusé de réception)" value={form.nda_complete_at} onChange={(v) => { setForm({ ...form, nda_complete_at: v }); save({ nda_complete_at: v, ...(v ? { nda_status: 'complet' } : {}) }) }} /></div>
+            <div className="pt-1 sm:w-1/2"><DateField label="Dossier complet le (accusé de réception)" value={form.nda_complete_at} onChange={(v) => { const st = v && ['preparation', 'depose', 'refuse'].includes(form.nda_status) ? { nda_status: 'complet' } : {}; setForm({ ...form, nda_complete_at: v, ...st }); save({ nda_complete_at: v, ...st }) }} /></div>
           )}
+          {incoherencesNda(form).map((a) => <p key={a} className="text-ui-sm text-[rgb(var(--c-warning))]">{a}</p>)}
         </Step>
         <Step done={hasNda} title="Numéro reçu">
           <span>Saisi ici, il apparaît sur les conventions, devis, contrats et factures, avec la région.</span>
