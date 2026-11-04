@@ -358,6 +358,11 @@ async function handler(req, res) {
       return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY manquante' })
     }
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    // Module Prospection coupé : rien ne tourne, ni la nuit ni à la main (état des lieux du 04/11, écart E6)
+    const { data: mod } = await supabase.from('org_modules').select('enabled').eq('key', 'prospection').maybeSingle()
+    if (!mod?.enabled) {
+      return res.status(200).json({ success: true, skipped: true, reason: 'Module Prospection inactif (Paramètres > Modules)' })
+    }
 
     // 1. Récupérer les prospects à enrichir
     //    - Pas encore de phone
