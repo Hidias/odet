@@ -46,6 +46,8 @@ import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
 import { confirmer, demander } from '../../../ui/Confirm'
+// Statuts d'un devis déjà accepté (sessions et contrat déjà préparés par la base)
+const ACCEPTE = ['accepted', 'partial', 'invoiced']
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
@@ -556,8 +558,22 @@ export default function Quotes() {
     return true
   }
 
+  // Accepté ou partiel : les déclencheurs de la base préparent les sessions (0430) et le contrat de maintenance (0460),
+  // une seule fois par devis. Le dire avant le clic, comme pour un dépôt du client (DepotsClient.jsx)
+  function confirmerAcceptation(statut) {
+    return confirmer({
+      title: `Passer le devis en « ${STATUS_CONFIG[statut]?.label || statut} »`,
+      message: 'Une session « à valider » sera préparée pour chaque ligne de formation acceptée et, pour un devis de maintenance, un contrat « à valider ». Cela ne se fait qu\'une fois par devis : revenir en arrière ne les supprime pas.',
+      confirmLabel: 'Confirmer',
+    })
+  }
+
   async function updateStatus(id, newStatus) {
-    if (!await confirmer(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)) return
+    const avant = quotes.find(q => q.id === id)?.status ?? (currentQuote?.id === id ? currentQuote.status : null)
+    const ok = ACCEPTE.includes(newStatus) && !ACCEPTE.includes(avant)
+      ? await confirmerAcceptation(newStatus)
+      : await confirmer(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)
+    if (!ok) return
     await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id)
     toast.success(`Statut → ${STATUS_CONFIG[newStatus].label}`)
     if (newStatus === 'sent') regenererEtPublier(id)
@@ -777,10 +793,16 @@ export default function Quotes() {
   // ACCEPTATION PARTIELLE - VALIDATION LIGNE PAR LIGNE
   // ============================================================
   async function toggleItemAccepted(itemId, acceptedValue) {
+    const updatedItems = items.map(it => it.id === itemId ? { ...it, accepted: acceptedValue } : it)
+    // Alerte avant action (angles morts B2) : le premier passage en accepté ou partiel prépare sessions et contrat
+    const prevues = updatedItems.map(it => it.accepted)
+    if (prevues.some(d => d === true) && !ACCEPTE.includes(currentQuote?.status)) {
+      const statutPrevu = prevues.every(d => d === true) ? 'accepted' : 'partial'
+      if (!await confirmerAcceptation(statutPrevu)) return
+    }
     const { error } = await supabase.from('quote_items').update({ accepted: acceptedValue }).eq('id', itemId)
     if (error) { toast.error('Erreur: ' + error.message); return }
 
-    const updatedItems = items.map(it => it.id === itemId ? { ...it, accepted: acceptedValue } : it)
     setItems(updatedItems)
 
     // Recalcul statut quote

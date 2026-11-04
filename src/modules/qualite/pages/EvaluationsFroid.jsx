@@ -9,6 +9,7 @@ import { callApi } from '../../../core/api'
 import { useDroits } from '../../../core/rights/useDroit'
 import { libelleEnvoi, filtrerEnvois, grouperParSession, cochable, decouperEnLots, nomPersonne, libelleDestinataire } from '../lib/froid'
 import ReglagesFroid from '../components/ReglagesFroid'
+import { confirmer } from '../../../ui/Confirm'
 
 const dateFr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
 const STATUTS = { prepare: 'À envoyer', en_cours: 'En cours', envoye: 'Envoyé', ignore: 'Écarté', erreur: 'En erreur' }
@@ -65,10 +66,17 @@ export default function EvaluationsFroid() {
     try { const r = await callApi('/api/evaluations-froid', { ids: ids.slice(0, 1), test: true }); toast.success(`Exemple envoyé à ${r.test}`) } catch (e) { toast.error(e.message) }
   }
   const envoyer = async () => {
+    const choisis = liste.filter((e) => coches.has(e.id)) // lignes visibles seulement
+    if (!choisis.length) return
+    // Alerte avant action (angles morts B3) : envoi réel, vers les stagiaires et les entreprises
+    if (!await confirmer({
+      title: 'Envoyer les questionnaires',
+      message: `${choisis.length} mail${choisis.length > 1 ? 's partiront' : ' partira'} maintenant vers les destinataires réels (stagiaires ou entreprises). Un envoi parti ne se reprend pas.`,
+      confirmLabel: `Envoyer ${choisis.length} mail${choisis.length > 1 ? 's' : ''}`,
+    })) return
     setEnCours(true)
     try {
       // Par lots de 15 mails au plus : chaque appel reste sous le temps limite du serveur
-      const choisis = liste.filter((e) => coches.has(e.id)) // lignes visibles seulement
       const r = { envoyes: 0, erreurs: 0, refus: [] }
       for (const lot of decouperEnLots(choisis)) {
         const x = await callApi('/api/evaluations-froid', { ids: lot })

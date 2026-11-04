@@ -341,6 +341,12 @@ export default function Mailing() {
     next_send_at: new Date().toISOString(), started_at: c.started_at || new Date().toISOString(),
   }, 'Envoi repris par le serveur (1er mail dans la minute)')
   const startNow = (c) => updateCampaign(c, { scheduled_at: new Date().toISOString() }, 'Démarrage dans la minute')
+  // Alerte avant action (angles morts B11) : reprendre ou démarrer une campagne envoie à de vrais destinataires
+  const confirmerEnvoi = (c, n, quand) => confirmer({
+    title: 'Envoyer la campagne',
+    message: `${n} mail${n > 1 ? 's' : ''} de « ${c.name} » ${n > 1 ? 'partiront' : 'partira'} ${quand} vers les destinataires de la campagne. Un mail parti ne se reprend pas.`,
+    confirmLabel: `Envoyer ${n} mail${n > 1 ? 's' : ''}`,
+  })
   async function cancelCampaign(c) {
     if (!await confirmer(`Annuler « ${c.name} » ? Les mails non envoyés ne partiront pas.`)) return
     stopRef.current = true
@@ -533,21 +539,21 @@ export default function Mailing() {
 
           <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
             {c.status === 'planifiée' && (
-              <button onClick={() => startNow(c)} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui disabled:opacity-50"><Play className="w-4 h-4" /> Démarrer maintenant</button>
+              <button onClick={async () => { if (await confirmerEnvoi(c, nPending, 'dans la minute')) startNow(c) }} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui disabled:opacity-50"><Play className="w-4 h-4" /> Démarrer maintenant</button>
             )}
             {c.status === 'en_cours' && c.send_mode === 'serveur' && (
               <button onClick={() => pauseCampaign(c)} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning))] text-white rounded-ui-sm text-ui disabled:opacity-50"><Pause className="w-4 h-4" /> Pause</button>
             )}
             {(c.status === 'en_pause' || (c.status === 'en_cours' && c.send_mode !== 'serveur')) && nPending > 0 && (
-              <button onClick={() => continueOnServer(c)} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui disabled:opacity-50"><Server className="w-4 h-4" /> Continuer par le serveur ({nPending})</button>
+              <button onClick={async () => { if (await confirmerEnvoi(c, nPending, 'au rythme de la campagne')) continueOnServer(c) }} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui disabled:opacity-50"><Server className="w-4 h-4" /> Continuer par le serveur ({nPending})</button>
             )}
             {['en_cours', 'en_pause'].includes(c.status) && c.send_mode !== 'serveur' && nPending > 0 && (
-              <button onClick={() => resumeInBrowser(c, ['pending'])} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-ui-sm text-ui disabled:opacity-50"><Monitor className="w-4 h-4" /> Continuer dans ce navigateur</button>
+              <button onClick={async () => { if (await confirmerEnvoi(c, nPending, 'depuis ce navigateur')) resumeInBrowser(c, ['pending']) }} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-ui-sm text-ui disabled:opacity-50"><Monitor className="w-4 h-4" /> Continuer dans ce navigateur</button>
             )}
             {nErr > 0 && (
               <>
-                <button onClick={() => retryErrorsOnServer(c)} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-warning-bg))] hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm text-ui disabled:opacity-50"><RefreshCw className="w-4 h-4" /> Re-tenter {nErr} erreur{nErr > 1 ? 's' : ''} (serveur)</button>
-                <button onClick={() => resumeInBrowser(c, ['error'])} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-ui-sm text-ui disabled:opacity-50"><Monitor className="w-4 h-4" /> Re-tenter ici</button>
+                <button onClick={async () => { if (await confirmerEnvoi(c, nErr, 'au rythme de la campagne')) retryErrorsOnServer(c) }} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--c-warning-bg))] hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] rounded-ui-sm text-ui disabled:opacity-50"><RefreshCw className="w-4 h-4" /> Re-tenter {nErr} erreur{nErr > 1 ? 's' : ''} (serveur)</button>
+                <button onClick={async () => { if (await confirmerEnvoi(c, nErr, 'depuis ce navigateur')) resumeInBrowser(c, ['error']) }} disabled={busy} className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-ui-sm text-ui disabled:opacity-50"><Monitor className="w-4 h-4" /> Re-tenter ici</button>
               </>
             )}
             <button onClick={() => duplicate(c)} className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-ui-sm text-ui"><Copy className="w-4 h-4" /> Dupliquer</button>

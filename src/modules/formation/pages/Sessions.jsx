@@ -17,6 +17,7 @@ import SessionPlanning from '../components/SessionPlanning'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 
 import { confirmer } from '../../../ui/Confirm'
+import { bilanSession, blocageSuppressionSession, alerteSuppressionSession } from '../lib/alertesAction'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
 // Type de journée déduit des horaires : ≤ 4h30 = demi-journée (même règle que Quotes / MultiSiretWizard)
 const dayTypeFromTimes = (startTime, endTime) => {
@@ -447,11 +448,15 @@ export default function Sessions() {
     e.preventDefault()
     e.stopPropagation()
     
-    if (!await confirmer('Supprimer cette session ?')) return
+    // Alerte avant action (angles morts B7) : dire ce qui sera effacé ; factures et devis liés bloquent la suppression
+    const bilan = await bilanSession(supabase, id)
+    const blocage = blocageSuppressionSession(bilan)
+    if (blocage) return toast.error(blocage, { duration: 8000 })
+    if (!await confirmer(alerteSuppressionSession(sessions.find((x) => x.id === id), bilan))) return
     
     const { error } = await deleteSession(id)
     if (error) {
-      toast.error('Erreur lors de la suppression')
+      toast.error('Suppression impossible : ' + error.message)
     } else {
       toast.success('Session supprimée')
     }

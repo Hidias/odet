@@ -1067,6 +1067,27 @@ export default function Invoices() {
     const inv = invoices.find(i => i.id === id)
     const updateData = { status: s, updated_at: new Date().toISOString() }
     const creditedAmt = parseFloat(inv?.amount_credited) || 0
+    // Alerte avant action (angles morts B1) : dire la conséquence, même pour le super administrateur
+    if (s === 'paid' && inv) {
+      const reste = (parseFloat(inv.total_ttc) || 0) - (parseFloat(inv.amount_paid) || 0) - creditedAmt
+      const ok = await confirmer({
+        title: 'Marquer la facture comme payée',
+        message: reste > 0.01
+          ? `Un paiement de ${money(reste)} sera enregistré à la date du jour pour la facture ${inv.reference || ''}, et les relances d'impayé s'arrêteront. Si le client a payé à une autre date ou un autre montant, utilisez plutôt « Enregistrer un paiement ».`
+          : `La facture ${inv.reference || ''} passera en « Payée » et les relances d'impayé s'arrêteront.`,
+        confirmLabel: 'Marquer payée',
+      })
+      if (!ok) return
+    }
+    if (['draft', 'due'].includes(s) && inv?.status === 'paid') {
+      const ok = await confirmer({
+        title: 'Remettre la facture à régler',
+        message: `Le montant payé de la facture ${inv.reference || ''} repassera à 0 et les relances d'impayé pourront reprendre. Les paiements déjà enregistrés restent dans la liste : supprimez-les si besoin.`,
+        confirmLabel: 'Remettre à régler',
+        danger: true,
+      })
+      if (!ok) return
+    }
     if (s === 'paid' && inv) {
       const ttc = parseFloat(inv.total_ttc) || 0
       const alreadyPaid = parseFloat(inv.amount_paid) || 0
