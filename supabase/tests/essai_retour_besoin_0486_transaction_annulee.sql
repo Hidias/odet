@@ -61,10 +61,12 @@ create temp table etat_essai_avant as select * from etat_essai;
 --  1. Colonnes sur session_needs_analysis : envoi par l'entreprise (date, compte), besoin d'adaptation oui ou non et
 --     personne à contacter (jamais le détail de santé : il reste entre le stagiaire et le référent handicap),
 --     analyse de l'organisme, validation (date, auteur).
---  2. Garde : une validation exige l'analyse de l'organisme ; l'auteur est posé par la base.
+--  2. Garde : une validation exige l'analyse de l'organisme ; date et auteur posés par la base ; une analyse validée
+--     ne change plus sans être rouverte ; l'origine « entreprise » d'une réponse ne s'efface pas.
 --  3. ent_besoins() : sessions intra du client avec l'état de leur analyse et les réponses de l'entreprise.
---     ent_besoin_enregistrer() : enregistre les réponses tant que l'organisme n'a pas validé, puis notifie
---     l'organisme (une seule notification non lue par session).
+--     ent_besoin_enregistrer() : enregistre les réponses (date d'analyse = jour d'envoi, heure de Paris) tant que
+--     l'organisme n'a ni validé ni repris l'analyse, ligne verrouillée, puis notifie l'organisme (une seule
+--     notification non lue par session).
 -- Aucun accès direct à la table pour le compte entreprise (principe de 0046). Additive. Idempotente.
 -- Retour arrière : supabase/rollback/0486_besoin_espace_client_retour.sql
 
@@ -91,7 +93,21 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  -- colonnes qui ne changent pas le contenu de l'analyse (traces, signatures, validation elle-même)
+  v_hors text[] := array['updated_at', 'filled_at', 'filled_by', 'signature_client', 'signature_trainer', 'signed_at',
+                         'org_validated_at', 'org_validated_by'];
 begin
+  -- Réponses de l'entreprise : leur date et leur auteur ne s'effacent pas (une réponse non validée ne devient
+  -- pas une preuve en effaçant son origine)
+  if tg_op = 'UPDATE' and old.client_submitted_at is not null and new.client_submitted_at is null then
+    raise exception 'Les réponses envoyées par l''entreprise gardent leur date d''envoi' using errcode = '22023';
+  end if;
+  if tg_op = 'UPDATE' and old.client_submitted_by is not null and new.client_submitted_by is distinct from old.client_submitted_by
+     and new.client_submitted_at is not distinct from old.client_submitted_at then
+    new.client_submitted_by := old.client_submitted_by;
+  end if;
+
   if new.org_validated_at is null then
     new.org_validated_by := null;
     return new;
@@ -100,13 +116,15 @@ begin
     if length(btrim(coalesce(new.org_conclusion, ''))) = 0 then
       raise exception 'Écrivez l''analyse de l''organisme avant de valider' using errcode = '22023';
     end if;
+    -- date et auteur posés par la base, jamais par l'écran
+    new.org_validated_at := now();
     new.org_validated_by := (select auth.uid());
   else
-    -- validation déjà posée : sa date et son auteur ne se réécrivent pas
+    -- validation déjà posée : sa date et son auteur ne se réécrivent pas, le contenu ne change plus
     new.org_validated_at := old.org_validated_at;
     new.org_validated_by := old.org_validated_by;
-    if length(btrim(coalesce(new.org_conclusion, ''))) = 0 then
-      raise exception 'Une analyse validée garde son texte : rouvrez-la avant de l''effacer' using errcode = '22023';
+    if (to_jsonb(new) - v_hors) is distinct from (to_jsonb(old) - v_hors) then
+      raise exception 'Analyse validée : rouvrez-la avant de la modifier' using errcode = '22023';
     end if;
   end if;
   return new;
@@ -133,6 +151,7 @@ begin
   return v;
 end
 $$;
+revoke all on function app.besoin_texte(jsonb, text, integer) from public, anon, authenticated;
 
 create or replace function public.ent_besoins()
 returns jsonb
@@ -157,8 +176,8 @@ begin
           when a.client_submitted_at is not null then 'a_valider'
           when a.filled_at is not null then 'organisme'
           else 'a_completer' end,
-        'modifiable', s.end_date >= current_date and a.org_validated_at is null
-                      and not (a.filled_at is not null and a.client_submitted_at is null),
+        'modifiable', s.end_date >= public.paris_today() and a.org_validated_at is null
+                      and not (a.filled_at is not null and (a.client_submitted_at is null or a.filled_at > a.client_submitted_at)),
         'envoyee_le', a.client_submitted_at,
         'validee_le', a.org_validated_at,
         'reponses', case when a.client_submitted_at is null then null else jsonb_build_object(
@@ -184,7 +203,7 @@ begin
         and coalesce(s.session_type, 'intra') = 'intra'
         and coalesce(s.status, '') not in ('cancelled', 'annulee', 'annule')
         and s.end_date is not null
-        and (s.end_date >= current_date or a.client_submitted_at is not null)
+        and (s.end_date >= public.paris_today() or a.client_submitted_at is not null)
     ) x
   ), '[]'::jsonb);
 end
@@ -218,15 +237,20 @@ begin
   if s.id is null or coalesce(s.session_type, 'intra') <> 'intra' or coalesce(s.status, '') in ('cancelled', 'annulee', 'annule') then
     raise exception 'Session inconnue pour ce client' using errcode = '42501';
   end if;
-  if s.end_date is null or s.end_date < current_date then raise exception 'Session terminée' using errcode = '22023'; end if;
+  if s.end_date is null or s.end_date < public.paris_today() then raise exception 'Session terminée' using errcode = '22023'; end if;
   if p_reponses is null or jsonb_typeof(p_reponses) <> 'object' then raise exception 'Réponses invalides' using errcode = '22023'; end if;
 
-  select * into a from public.session_needs_analysis where session_id = s.id;
+  -- Ligne verrouillée : une validation ou une saisie de l'organisme au même moment attend la fin de l'envoi
+  select * into a from public.session_needs_analysis where session_id = s.id for update;
   if a.org_validated_at is not null then
     raise exception 'Analyse déjà validée par votre organisme : pour un changement, contactez-le' using errcode = '22023';
   end if;
   if a.filled_at is not null and a.client_submitted_at is null then
     raise exception 'Analyse déjà réalisée avec votre organisme : pour un changement, contactez-le' using errcode = '22023';
+  end if;
+  -- L'organisme a repris l'analyse après l'envoi : ses corrections ne s'écrasent pas
+  if a.filled_at is not null and a.filled_at > a.client_submitted_at then
+    raise exception 'Votre organisme a complété l''analyse : pour un changement, contactez-le' using errcode = '22023';
   end if;
 
   -- Listes fermées (mêmes valeurs que src/modules/formation/lib/besoinClient.js)
@@ -277,7 +301,7 @@ begin
     session_id, context_reasons, context_other, context_stakes, objectives_description, participants_count,
     participants_profiles, level, particularities_non_french, preferred_schedule, company_equipment,
     company_equipment_details, ppe_provided, other_constraints, psh_adaptation, psh_contact,
-    client_submitted_at, client_submitted_by)
+    analysis_date, client_submitted_at, client_submitted_by)
   values (
     s.id, v_raisons, case when 'autre' = any (v_raisons) then app.besoin_texte(p_reponses, 'context_other', 500) end,
     app.besoin_texte(p_reponses, 'context_stakes', 2000), v_objectifs, v_nb,
@@ -285,7 +309,7 @@ begin
     app.besoin_texte(p_reponses, 'preferred_schedule', 500), v_equip,
     case when v_equip then app.besoin_texte(p_reponses, 'company_equipment_details', 1000) end, v_epi,
     app.besoin_texte(p_reponses, 'other_constraints', 2000), v_psh, v_contact,
-    now(), (select auth.uid()))
+    public.paris_today(), now(), (select auth.uid()))
   on conflict (session_id) do update set
     context_reasons = excluded.context_reasons, context_other = excluded.context_other,
     context_stakes = excluded.context_stakes, objectives_description = excluded.objectives_description,
@@ -294,8 +318,14 @@ begin
     preferred_schedule = excluded.preferred_schedule, company_equipment = excluded.company_equipment,
     company_equipment_details = excluded.company_equipment_details, ppe_provided = excluded.ppe_provided,
     other_constraints = excluded.other_constraints, psh_adaptation = excluded.psh_adaptation,
-    psh_contact = excluded.psh_contact, client_submitted_at = excluded.client_submitted_at,
-    client_submitted_by = excluded.client_submitted_by, updated_at = now();
+    psh_contact = excluded.psh_contact, analysis_date = excluded.analysis_date,
+    client_submitted_at = excluded.client_submitted_at, client_submitted_by = excluded.client_submitted_by, updated_at = now()
+  where session_needs_analysis.org_validated_at is null
+    and (session_needs_analysis.filled_at is null
+         or (session_needs_analysis.client_submitted_at is not null and session_needs_analysis.filled_at <= session_needs_analysis.client_submitted_at));
+  if not found then
+    raise exception 'Analyse reprise par votre organisme entre-temps : pour un changement, contactez-le' using errcode = '22023';
+  end if;
 
   -- Une seule notification par session tant qu'elle n'est pas lue : la dernière saisie la remplace
   v_message := coalesce((select c.name from public.clients c where c.id = v.client_id), 'Le client')

@@ -431,7 +431,8 @@ export default function SessionNeedsAnalysis({ session, organization }) {
           </label>
           )}
 
-          {d.preparer && (
+          {/* Analyse validée (0486) : elle se rouvre avant toute modification */}
+          {d.preparer && etatBesoinOrganisme(analysis) !== 'validee' && (
           <button
             onClick={() => setShowForm(!showForm)}
             className="btn btn-sm btn-secondary flex items-center gap-1"
@@ -922,7 +923,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
             </div>
             <div>
               <span className="font-medium">Lieu :</span> {
-                analysis.location_type === 'client' ? 'Chez le client' : 'Dans nos locaux'
+                analysis.location_type === 'client' ? 'Chez le client' : analysis.location_type ? 'Dans nos locaux' : 'Non précisé'
               }
             </div>
             <div>

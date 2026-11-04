@@ -64,6 +64,7 @@ begin
   perform public.ent_besoin_enregistrer(v_intra, v_bon || '{"participants_count":"9"}');
   perform set_config('role', 'postgres', true);
   select * into v_l from public.session_needs_analysis where session_id = v_intra;
+  if v_l.analysis_date is distinct from public.paris_today() then raise exception '3. date d''analyse : %', v_l.analysis_date; end if;
   if v_l.client_submitted_by <> v_ua or v_l.participants_count <> 9 or v_l.psh_adaptation or v_l.psh_contact is not null
      or v_l.context_other <> 'Audit interne' or v_l.company_id <> v_cie or v_l.filled_at is not null then
     raise exception '3. ligne enregistrée : %', to_jsonb(v_l); end if;
@@ -95,9 +96,16 @@ begin
   perform set_config('request.jwt.claims', v_staff, true);
   begin update public.session_needs_analysis set org_validated_at = now() where session_id = v_intra; v_ok := true; exception when invalid_parameter_value then v_ok := false; end;
   if v_ok then raise exception '6. validation sans analyse acceptée'; end if;
-  update public.session_needs_analysis set org_conclusion = 'Besoin confirmé, exercice sur site', org_validated_at = now(), org_validated_by = gen_random_uuid() where session_id = v_intra;
+  -- l'origine « entreprise » ne s'efface pas
+  begin update public.session_needs_analysis set client_submitted_at = null where session_id = v_intra; v_ok := true; exception when invalid_parameter_value then v_ok := false; end;
+  if v_ok then raise exception '6. réponse de l''entreprise transformée en analyse interne'; end if;
+  update public.session_needs_analysis set org_conclusion = 'Besoin confirmé, exercice sur site', org_validated_at = '2020-01-01', org_validated_by = gen_random_uuid() where session_id = v_intra;
   select * into v_l from public.session_needs_analysis where session_id = v_intra;
   if v_l.org_validated_by <> '00000000-0000-4000-8000-000000000486'::uuid then raise exception '6. auteur de la validation : %', v_l.org_validated_by; end if;
+  if v_l.org_validated_at < now() - interval '1 minute' then raise exception '6. date de validation antidatée : %', v_l.org_validated_at; end if;
+  begin update public.session_needs_analysis set objectives_description = 'Changé après validation' where session_id = v_intra; v_ok := true; exception when invalid_parameter_value then v_ok := false; end;
+  if v_ok then raise exception '6. analyse validée modifiée sans réouverture'; end if;
+  update public.session_needs_analysis set signature_trainer = 'data:image/png;base64,AA' where session_id = v_intra;
   begin update public.session_needs_analysis set org_conclusion = '' where session_id = v_intra; v_ok := true; exception when invalid_parameter_value then v_ok := false; end;
   if v_ok then raise exception '6. analyse validée effacée'; end if;
   update public.session_needs_analysis set org_validated_at = now() + interval '1 day' where session_id = v_intra;
@@ -122,6 +130,15 @@ begin
   perform public.ent_besoin_enregistrer(v_intra, v_bon || '{"psh_adaptation":true,"psh_contact":"Mme Martin, 02 00 00 00 00"}');
   perform set_config('role', 'postgres', true);
   if (select psh_contact from public.session_needs_analysis where session_id = v_intra) <> 'Mme Martin, 02 00 00 00 00' then raise exception '8. correction non enregistrée'; end if;
+
+  -- 9. L'organisme reprend l'analyse après l'envoi : l'entreprise ne peut plus écraser ses corrections
+  update public.session_needs_analysis set objectives_description = 'Corrigé par l''organisme', filled_at = now() + interval '1 second' where session_id = v_intra;
+  perform set_config('role', 'authenticated', true);
+  if (public.ent_besoins() -> 0 ->> 'modifiable')::boolean then raise exception '9. encore modifiable par l''entreprise'; end if;
+  begin perform public.ent_besoin_enregistrer(v_intra, v_bon); v_ok := true; exception when invalid_parameter_value then v_ok := false; end;
+  if v_ok then raise exception '9. corrections de l''organisme écrasées'; end if;
+  perform set_config('role', 'postgres', true);
+  if (select objectives_description from public.session_needs_analysis where session_id = v_intra) <> 'Corrigé par l''organisme' then raise exception '9. correction perdue'; end if;
 
   raise warning 'ESSAI 0486 : OK';
 end

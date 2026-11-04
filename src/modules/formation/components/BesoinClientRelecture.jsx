@@ -21,14 +21,16 @@ export default function BesoinClientRelecture({ analysis, peutEcrire, onChange }
 
   const ecrire = async (champs, message) => {
     setBusy(true)
-    const { error } = await supabase.from('session_needs_analysis').update(champs).eq('id', a.id)
+    const { data, error } = await supabase.from('session_needs_analysis').update(champs).eq('id', a.id).select('id')
     setBusy(false)
     if (error) { toast.error(error.message || 'Enregistrement impossible'); return }
+    if (!data?.length) { toast.error('Enregistrement impossible : vos droits ne permettent pas de modifier cette session'); return }
     toast.success(message)
     onChange?.()
   }
   const valider = () => {
     if (!conclusion.trim()) { toast.error('Écrivez votre analyse avant de valider'); return }
+    // La date réelle de validation est posée par la base (0486)
     ecrire({ org_conclusion: conclusion.trim(), org_validated_at: new Date().toISOString() }, 'Analyse du besoin validée')
   }
   const rouvrir = async () => {
