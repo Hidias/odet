@@ -8,7 +8,8 @@ import { finValiditeInterne, statutCertificat, dateFinImpossible } from '../src/
 //    document déposé à la main). L'appelant doit voir la prestation avec ses propres droits (lecture faite avec son
 //    jeton) ; le fichier est rangé tel quel avec son empreinte. Un seul document actif par prestation et par type.
 //    Devis modifié après sa mise à disposition (21/10) : la nouvelle version remplace l'ancienne (retirée, gardée), sauf
-//    si l'ancienne a été signée par le client : la version signée reste figée.
+//    si l'ancienne a été signée par le client : la version signée reste figée. Même règle pour la convention ou le
+//    contrat d'un groupe inter (0490) : remplacé à chaque nouvelle publication tant qu'il n'est pas signé.
 //  - lire (espace client, par lien et code ou par compte) : lien de 5 minutes vers un document visible par ce client.
 //  - lire_interne (équipe connectée) : lien de 5 minutes vers un document que l'appelant voit.
 //  - deposer_signe (espace client, par lien et code ou par compte) : devis ou convention imprimé, signé à la main et
@@ -33,7 +34,7 @@ const TABLES = {
   itv_visit: ['itv_visits', 'client_id'],
   itv_contract: ['itv_contracts', 'client_id'],
   // Groupe inter (0420) : convention ou contrat du groupe, signé en ligne par son client
-  session_group: ['session_groups', 'client_id'],
+  session_group: ['session_groups', 'client_id, doc_status'],
 }
 const KINDS = ['rapport', 'facture', 'devis', 'contrat', 'convention', 'attestation', 'autre', 'avis_passage']
 
@@ -62,7 +63,11 @@ async function publier(req, res) {
       // Avis de passage (0451) : chaque nouvel avis remplace le précédent
       // Contrat de maintenance (0460) : tant qu'il n'est pas signé, chaque nouveau PDF (conditions corrigées, contrat
       // signé à la main déposé) remplace le précédent
-      const modifie = kind === 'avis_passage' || type === 'itv_contract' || (type === 'quote' && obj.updated_at && new Date(obj.updated_at) > new Date(deja.published_at))
+      // Convention ou contrat d'un groupe inter (0490, décision de H du 05/11) : tant qu'il n'est pas signé, le document
+      // publié de nouveau (stagiaires ou prix corrigés) remplace le précédent ; signé, il reste figé
+      if (type === 'session_group' && obj.doc_status === 'signe') return res.status(200).json({ id: deja.id, deja: true, signe: true })
+      const modifie = kind === 'avis_passage' || type === 'itv_contract' || type === 'session_group'
+        || (type === 'quote' && obj.updated_at && new Date(obj.updated_at) > new Date(deja.published_at))
       if (!modifie) return res.status(200).json({ id: deja.id, deja: true })
       const { data: sig } = await admin.from('document_signatures').select('id').eq('status', 'valid').eq('metadata->>document_id', deja.id).limit(1)
       if (sig?.length) return res.status(200).json({ id: deja.id, deja: true, signe: true })

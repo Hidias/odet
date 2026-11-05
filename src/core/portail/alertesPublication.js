@@ -4,8 +4,8 @@
 const AUCUN_MAIL = 'Aucun e-mail ne part : le client le trouve en ouvrant son espace.'
 const maj = (t) => t.charAt(0).toUpperCase() + t.slice(1)
 
-// B12 : convention ou contrat d'un groupe inter mis à signer en ligne. Le serveur ne remplace jamais le document
-// d'un groupe : il est figé dès sa première publication (api/documents-client.js, fonction publier)
+// B12 : convention ou contrat d'un groupe inter mis à signer en ligne. Tant qu'il n'est pas signé, une nouvelle
+// publication remplace le document que voit le client ; signé, il reste figé (api/documents-client.js, publier, 0490)
 export function confirmationSignatureGroupe(groupe) {
   const particulier = groupe?.kind === 'particulier'
   const doc = particulier ? 'le contrat de formation' : 'la convention de formation'
@@ -13,16 +13,23 @@ export function confirmationSignatureGroupe(groupe) {
   const pron = particulier ? 'le' : 'la'
   const il = particulier ? 'il' : 'elle'
   const qui = groupe?.clients?.name ? ` de ${groupe.clients.name}` : ' du client'
+  if (groupe?.doc_status === 'signe') {
+    return {
+      title: particulier ? 'Contrat déjà signé' : 'Convention déjà signée',
+      message: `${maj(doc)}${qui} est signé${e} : ${il} ne sera pas remplacé${e}. Pour un changement, prévoyez un avenant avec le client.`,
+      confirmLabel: 'Continuer',
+    }
+  }
   if (groupe?.doc_status === 'envoye') {
     return {
-      title: particulier ? 'Contrat déjà noté envoyé' : 'Convention déjà notée envoyée',
-      message: `${maj(doc)} est noté${e} « envoyé${e} ». ${particulier ? "S'il" : 'Si elle'} est déjà dans l'espace${qui}, ce clic ne ${pron} remplace pas : le client garde la première version, même si le groupe a changé depuis. Sinon, ${il} y est publié${e} maintenant. ${AUCUN_MAIL}`,
-      confirmLabel: 'Continuer',
+      title: particulier ? 'Remplacer le contrat à signer ?' : 'Remplacer la convention à signer ?',
+      message: `${maj(doc)} est noté${e} « envoyé${e} » et pas encore signé${e}. ${particulier ? "S'il" : 'Si elle'} est déjà dans l'espace${qui}, la version d'aujourd'hui ${pron} remplace (l'ancienne est retirée et gardée) : vérifiez les stagiaires et le prix du groupe. ${AUCUN_MAIL}`,
+      confirmLabel: 'Publier cette version',
     }
   }
   return {
     title: particulier ? 'Mettre le contrat à signer en ligne ?' : 'Mettre la convention à signer en ligne ?',
-    message: `${maj(doc)} sera publié${e} dans l'espace${qui}, qui pourra ${pron} lire et ${pron} signer. ${AUCUN_MAIL}\n\nVérifiez avant les stagiaires et le prix du groupe : le document est figé dès sa publication, il ne sera pas remplacé.`,
+    message: `${maj(doc)} sera publié${e} dans l'espace${qui}, qui pourra ${pron} lire et ${pron} signer. ${AUCUN_MAIL}\n\nVérifiez avant les stagiaires et le prix du groupe : une fois signé${e}, ${il} ne sera plus remplacé${e}.`,
     confirmLabel: 'Publier pour signature',
   }
 }
@@ -78,7 +85,7 @@ export function confirmationSuppressionDevis(devis) {
   const remis = !!devis?.status && devis.status !== 'draft'
   return {
     title: 'Supprimer ce devis ?',
-    message: `Le devis ${devis?.reference || ''} et ses lignes seront supprimés définitivement : rien ne pourra être récupéré.${remis ? " S'il a été publié dans l'espace du client, ce PDF y restera visible." : ''} Pour garder une trace, passez-le plutôt en « Refusé ».`.replace(/\s+/g, ' ').trim(),
+    message: `Le devis ${devis?.reference || ''} et ses lignes seront supprimés définitivement : rien ne pourra être récupéré.${remis ? " S'il a été publié dans l'espace du client, il en est retiré (gardé dans l'historique)." : ''} Pour garder une trace, passez-le plutôt en « Refusé ».`.replace(/\s+/g, ' ').trim(),
     confirmLabel: 'Supprimer définitivement',
     danger: true,
   }
