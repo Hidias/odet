@@ -10,6 +10,8 @@
 -- groupe (app.objet_du_client voit aussi les groupes) et marquait alors la session entière « signée ». Seul le client
 -- principal signe la convention d'une session ; un groupe signe son propre document (0420, 0490). Aucune signature
 -- de ce genre en production (contrôle du 05/11).
+-- Les deux espaces (client_portal_data et ent_sessions) ne donnent plus à un groupe le financement ni le signataire du
+-- client principal de l'inter.
 -- Idempotente. Retour arrière : supabase/rollback/0493_espace_lien_inter_numerotation_retour.sql
 
 CREATE OR REPLACE FUNCTION public.client_portal_data(p_token text, p_code text)
@@ -40,8 +42,11 @@ begin
         'location_postal_code', s.location_postal_code, 'location_city', s.location_city,
         'is_intra', s.is_intra, 'is_remote', s.is_remote, 'session_type', s.session_type,
         'total_price', case when x.group_id is null then s.total_price else (select g.price_total from session_groups g where g.id = x.group_id) end,
-        'funding_type', s.funding_type, 'funding_details', s.funding_details,
-        'signatory_name', s.signatory_name, 'signatory_role', s.signatory_role,
+        -- Financement et signataire appartiennent au client principal : rien pour un groupe
+        'funding_type', case when x.group_id is null then s.funding_type end,
+        'funding_details', case when x.group_id is null then s.funding_details end,
+        'signatory_name', case when x.group_id is null then s.signatory_name end,
+        'signatory_role', case when x.group_id is null then s.signatory_role end,
         'inter_group_id', case when x.group_id is null then s.inter_group_id end,
         'inter_total_price', case when x.group_id is null then s.inter_total_price end,
         'group_id', x.group_id,
@@ -110,7 +115,8 @@ begin
   v_date_str := to_char(new.start_date, 'YYMMDD');
 
   -- C5 : deux créations simultanées (même société, même formation, même jour) attendent leur tour au lieu de
-  -- calculer le même numéro ; le verrou tombe à la fin de la transaction
+  -- calculer le même numéro ; le verrou tombe à la fin de la transaction. Suffisant en « read committed » (réglage
+  -- de la base) : sous « repeatable read », la seconde ne verrait pas la première et échouerait encore
   perform pg_advisory_xact_lock(hashtextextended('session_reference:' || v_prefix || '-' || v_course_code || '-' || v_date_str, 0));
 
   select coalesce(max(cast(substring(reference from '-(\d{3})$') as integer)), 0) + 1
@@ -185,6 +191,81 @@ begin
     '/sessions/' || p_session, jsonb_build_object('session_id', p_session, 'signature_id', v_id));
 
   return jsonb_build_object('id', v_id, 'deja', false);
+end
+$function$;
+
+CREATE OR REPLACE FUNCTION public.ent_sessions()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v public.client_accounts := app.ent_compte();
+  v_sites uuid[] := app.ent_sites(v);
+begin
+  return jsonb_build_object(
+    'client', (select jsonb_build_object('id', c.id, 'name', c.name, 'address', c.address, 'postal_code', c.postal_code, 'city', c.city,
+        'siret', c.siret, 'contact_name', c.contact_name, 'contact_function', c.contact_function,
+        'contact_email', c.contact_email, 'contact_phone', c.contact_phone)
+      from public.clients c where c.id = v.client_id),
+    'sessions', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', s.id, 'reference', s.reference, 'start_date', s.start_date, 'end_date', s.end_date,
+        'start_time', s.start_time, 'end_time', s.end_time, 'day_type', s.day_type, 'status', s.status,
+        'location_name', s.location_name, 'location_address', s.location_address,
+        'location_postal_code', s.location_postal_code, 'location_city', s.location_city,
+        'is_intra', s.is_intra, 'is_remote', s.is_remote, 'session_type', s.session_type,
+        'total_price', case when s.client_id = v.client_id then s.total_price else (select g.price_total from public.session_groups g where g.id = x.group_id) end,
+        -- Financement et signataire appartiennent au client principal : rien pour un groupe (0493)
+        'funding_type', case when x.group_id is null then s.funding_type end,
+        'funding_details', case when x.group_id is null then s.funding_details end,
+        'signatory_name', case when x.group_id is null then s.signatory_name end,
+        'signatory_role', case when x.group_id is null then s.signatory_role end,
+        'convention_signed', s.convention_signed, 'attendance_token', s.attendance_token,
+        'group_id', x.group_id,
+        'courses', (select jsonb_build_object('id', co.id, 'title', co.title, 'objectives', co.objectives, 'content', co.content,
+            'program', co.program, 'duration_hours', co.duration_hours, 'duration_days', co.duration_days, 'duration', co.duration,
+            'price_ht', co.price_ht, 'price_per_day', co.price_per_day, 'target_audience', co.target_audience,
+            'prerequisites', co.prerequisites, 'material', co.material, 'teaching_methods', co.teaching_methods, 'methods', co.methods, 'trainer_equipment', co.trainer_equipment,
+            'evaluation_methods', co.evaluation_methods)
+          from public.courses co where co.id = s.course_id),
+        'trainers', (select jsonb_build_object('id', t.id, 'first_name', t.first_name, 'last_name', t.last_name)
+          from public.trainers t where t.id = s.trainer_id),
+        'session_trainees', coalesce((
+          select jsonb_agg(jsonb_build_object('trainee_id', st.trainee_id, 'result', st.result, 'absent', coalesce(st.absent, false),
+            'access_code', st.access_code, 'convocation_sent_at', st.convocation_sent_at,
+            'early_departure', coalesce(st.early_departure, false), 'departure_date', st.departure_date, 'departure_time', st.departure_time,
+            'arrival_date', st.arrival_date, 'arrival_time', st.arrival_time, 'presence_hours', st.presence_hours,
+            'trainees', jsonb_build_object('id', tr.id, 'first_name', tr.first_name, 'last_name', tr.last_name, 'gender', tr.gender, 'job_title', tr.job_title))
+            order by tr.last_name, tr.first_name)
+          from public.session_trainees st join public.trainees tr on tr.id = st.trainee_id
+          where st.session_id = s.id
+            and ((s.client_id = v.client_id and coalesce(s.session_type, 'intra') <> 'inter') or st.group_id = x.group_id or tr.client_id = v.client_id or st.group_id in (select g2.id from public.session_groups g2 where g2.session_id = s.id and g2.client_id = v.client_id))
+            and (v_sites is null or tr.site_id is null or tr.site_id = any (v_sites))
+        ), '[]'::jsonb),
+        'halfdays', coalesce((
+          select jsonb_agg(jsonb_build_object('trainee_id', h.trainee_id, 'date', h.date, 'morning', h.morning, 'afternoon', h.afternoon,
+            'signature_morning', h.signature_morning, 'signature_afternoon', h.signature_afternoon))
+          from public.attendance_halfdays h
+          where h.session_id = s.id and exists (
+            select 1 from public.session_trainees st join public.trainees tr on tr.id = st.trainee_id
+            where st.session_id = s.id and st.trainee_id = h.trainee_id
+              and ((s.client_id = v.client_id and coalesce(s.session_type, 'intra') <> 'inter') or st.group_id = x.group_id or tr.client_id = v.client_id or st.group_id in (select g2.id from public.session_groups g2 where g2.session_id = s.id and g2.client_id = v.client_id)))
+        ), '[]'::jsonb),
+        'proxies', '[]'::jsonb
+      ) order by s.start_date desc)
+      from (
+        select s0.id as session_id, null::uuid as group_id from public.sessions s0 where s0.client_id = v.client_id
+        union
+        select g.session_id, g.id from public.session_groups g
+        join public.sessions s1 on s1.id = g.session_id
+        where g.client_id = v.client_id and s1.client_id is distinct from v.client_id
+      ) x
+      join public.sessions s on s.id = x.session_id
+      where v_sites is null or s.site_id is null or s.site_id = any (v_sites)
+    ), '[]'::jsonb)
+  );
 end
 $function$;
 

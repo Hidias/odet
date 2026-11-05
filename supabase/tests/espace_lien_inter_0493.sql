@@ -4,7 +4,7 @@ begin;
 set local client_min_messages = warning;
 do $$
 declare
-  v_cie uuid; v_co uuid; v_b uuid; v_c uuid; v_main uuid; v_inter uuid; v_intra uuid; v_gb uuid; v_gc uuid;
+  v_cie uuid; v_co uuid; v_b uuid; v_c uuid; v_main uuid; v_inter uuid; v_intra uuid; v_gb uuid; v_gc uuid; v_inter2 uuid;
   v_tb uuid; v_tc uuid; v_tm uuid; v_tok text; v_d jsonb; v_s jsonb; v_n int; v_ref1 text; v_ref2 text; v_err text;
 begin
   select id into v_cie from public.companies limit 1;
@@ -18,14 +18,18 @@ begin
 
   -- Inter : client principal v_main, groupes B (300 €) et C ; intra de B
   insert into public.sessions (reference, course_id, client_id, session_type, start_date, end_date, attendance_token,
-    inter_total_price, company_id)
-  values ('ESSAI-0493-INTER', v_co, v_main, 'inter', current_date + 30, current_date + 30, 'essai-0493-inter', 9999, v_cie)
+    inter_total_price, signatory_name, funding_details, company_id)
+  values ('ESSAI-0493-INTER', v_co, v_main, 'inter', current_date + 30, current_date + 30, 'essai-0493-inter', 9999, 'Signataire principal', 'OPCO dossier 42', v_cie)
   returning id into v_inter;
   insert into public.sessions (reference, course_id, client_id, session_type, start_date, end_date, attendance_token,
     total_price, company_id)
   values ('ESSAI-0493-INTRA', v_co, v_b, 'intra', current_date + 40, current_date + 40, 'essai-0493-intra', 800, v_cie)
   returning id into v_intra;
   insert into public.session_groups (session_id, client_id, kind, price_total, company_id) values (v_inter, v_b, 'entreprise', 300, v_cie) returning id into v_gb;
+  -- Inter sans client principal, où B est inscrite par un groupe
+  insert into public.sessions (reference, course_id, session_type, start_date, end_date, attendance_token, company_id)
+  values ('ESSAI-0493-INTER2', v_co, 'inter', current_date + 50, current_date + 50, 'essai-0493-inter2', v_cie) returning id into v_inter2;
+  insert into public.session_groups (session_id, client_id, kind, price_total, company_id) values (v_inter2, v_b, 'entreprise', 120, v_cie);
   insert into public.session_groups (session_id, client_id, kind, price_total, company_id) values (v_inter, v_c, 'entreprise', 450, v_cie) returning id into v_gc;
   insert into public.session_trainees (session_id, trainee_id, group_id, company_id) values
     (v_inter, v_tb, v_gb, v_cie), (v_inter, v_tc, v_gc, v_cie), (v_inter, v_tm, null, v_cie), (v_intra, v_tb, null, v_cie);
@@ -33,7 +37,7 @@ begin
   insert into public.client_portal_access (client_id, access_code, company_id) values (v_b, '493493', v_cie) returning token into v_tok;
   v_d := public.client_portal_data(v_tok, '493493');
   if v_d ? 'error' then raise exception '1. accès refusé (%)', v_d->>'error'; end if;
-  if jsonb_array_length(v_d->'sessions') <> 2 then
+  if jsonb_array_length(v_d->'sessions') <> 3 then
     raise exception '2. le groupe ne voit pas l''inter (% session(s))', jsonb_array_length(v_d->'sessions');
   end if;
   select e into v_s from jsonb_array_elements(v_d->'sessions') e where e->>'id' = v_inter::text;
@@ -42,9 +46,14 @@ begin
   if v_s->'inter_total_price' <> 'null'::jsonb or v_s->'inter_group_id' <> 'null'::jsonb then
     raise exception '5. prix ou groupe de l''inter exposés au groupe';
   end if;
+  if v_s->'signatory_name' <> 'null'::jsonb or v_s->'funding_details' <> 'null'::jsonb then
+    raise exception '5b. signataire ou financement du client principal exposés au groupe';
+  end if;
   if jsonb_array_length(v_s->'session_trainees') <> 1 or v_s->'session_trainees'->0->>'trainee_id' <> v_tb::text then
     raise exception '6. participants d''autres entreprises visibles (%)', jsonb_array_length(v_s->'session_trainees');
   end if;
+  select e into v_s from jsonb_array_elements(v_d->'sessions') e where e->>'id' = v_inter2::text;
+  if v_s is null or (v_s->>'total_price')::numeric is distinct from 120 then raise exception '6b. inter sans client principal absente'; end if;
   select e into v_s from jsonb_array_elements(v_d->'sessions') e where e->>'id' = v_intra::text;
   if v_s->'group_id' <> 'null'::jsonb or (v_s->>'total_price')::numeric is distinct from 800 then
     raise exception '7. session intra du client changée';
@@ -77,6 +86,9 @@ begin
   end if;
   if pg_get_functiondef('public.generate_session_reference_v3()'::regprocedure) not like '%pg_advisory_xact_lock%' then
     raise exception '12. numérotation sans verrou';
+  end if;
+  if pg_get_functiondef('public.ent_sessions()'::regprocedure) not like '%when x.group_id is null then s.signatory_name%' then
+    raise exception '12b. ent_sessions donne encore le signataire au groupe';
   end if;
   if not exists (select 1 from public.schema_migrations where version = '0493_espace_lien_inter_numerotation') then
     raise exception '13. 0493 non inscrite';
