@@ -33,7 +33,7 @@ import NumerosDemandes from '../components/NumerosDemandes'
 import DeposerSigne from '../components/DeposerSigne'
 import FroidEspace from '../components/FroidEspace'
 import AnalyseBesoin, { ChampsBesoin } from '../components/AnalyseBesoin'
-import { besoinsARemplir, contenuDemandeIntra, reponsesVides, verifierReponses } from '../../formation/lib/besoinClient'
+import { basculerBesoinDemande, besoinsARemplir, contenuDemandeIntra, reponsesVides, verifierReponses } from '../../formation/lib/besoinClient'
 import RecapSession from '../components/RecapSession'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
@@ -640,9 +640,7 @@ function Demandes({ compte, onChange }) {
               </div>
               <label className="flex items-start gap-2 text-sm text-gray-800">
                 <input type="checkbox" className="mt-0.5" checked={form.avecBesoin}
-                  onChange={(e) => setForm((f) => (e.target.checked
-                    ? { ...f, avecBesoin: true, besoin: { ...f.besoin, participants_count: f.besoin.participants_count || f.effectif || '' } }
-                    : { ...f, avecBesoin: false, effectif: String(f.besoin.participants_count || f.effectif || '').replace(/\D/g, '') }))} />
+                  onChange={(e) => setForm((f) => basculerBesoinDemande(f, e.target.checked))} />
                 <span>Décrire votre besoin maintenant (recommandé) : vous n'aurez pas à le refaire quand la formation sera programmée.</span>
               </label>
               {form.avecBesoin && (

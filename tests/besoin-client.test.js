@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
-  MOTIFS, PROFILS, NIVEAUX, contenuDemandeIntra, reponsesVides, depuisReponses, verifierReponses, besoinsARemplir, etatBesoinOrganisme,
+  MOTIFS, PROFILS, NIVEAUX, basculerBesoinDemande, contenuDemandeIntra, reponsesVides, depuisReponses, verifierReponses, besoinsARemplir, etatBesoinOrganisme,
   lignesBesoin, demandeAvecBesoin,
 } from '../src/modules/formation/lib/besoinClient.js'
 
@@ -99,5 +99,24 @@ describe('contenuDemandeIntra (un seul effectif saisi)', () => {
   it('effectif vide : null', () => {
     expect(contenuDemandeIntra({ avecBesoin: true, besoin: { participants_count: '' } }).effectif).toBeNull()
     expect(contenuDemandeIntra({ avecBesoin: false, effectif: '' }).effectif).toBeNull()
+  })
+})
+
+describe('basculerBesoinDemande (case « Décrire votre besoin »)', () => {
+  const vide = { avecBesoin: false, effectif: '', besoin: { participants_count: '' } }
+  it('cocher reprend le nombre de personnes', () => {
+    expect(basculerBesoinDemande({ ...vide, effectif: '5' }, true).besoin.participants_count).toBe('5')
+  })
+  it('cocher, décocher, corriger, recocher : la correction gagne', () => {
+    let f = basculerBesoinDemande({ ...vide, effectif: '5' }, true)
+    f = { ...f, besoin: { ...f.besoin, participants_count: '4' } }
+    f = basculerBesoinDemande(f, false)
+    expect(f.effectif).toBe('4')
+    f = basculerBesoinDemande({ ...f, effectif: '6' }, true)
+    expect(f.besoin.participants_count).toBe('6')
+    expect(contenuDemandeIntra(f).effectif).toBe('6')
+  })
+  it('cocher sans nombre garde celui du besoin', () => {
+    expect(basculerBesoinDemande({ ...vide, besoin: { participants_count: '3' } }, true).besoin.participants_count).toBe('3')
   })
 })

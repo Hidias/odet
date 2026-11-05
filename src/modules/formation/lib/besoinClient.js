@@ -121,3 +121,10 @@ export function contenuDemandeIntra(f, stagiaires = []) {
     ...(avecBesoin ? { besoin: f.besoin } : {}),
   }
 }
+
+// Case « Décrire votre besoin maintenant » de la demande intra : le dernier nombre saisi passe d'un champ à l'autre
+export function basculerBesoinDemande(f, coche) {
+  const chiffres = (v) => String(v ?? '').replace(/\D/g, '')
+  if (coche) return { ...f, avecBesoin: true, besoin: { ...f.besoin, participants_count: chiffres(f.effectif) || chiffres(f.besoin?.participants_count) } }
+  return { ...f, avecBesoin: false, effectif: chiffres(f.besoin?.participants_count) || chiffres(f.effectif) }
+}
