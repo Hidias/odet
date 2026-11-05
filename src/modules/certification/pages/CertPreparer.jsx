@@ -170,11 +170,11 @@ export default function CertPreparer({ referentiel = null }) {
       )}
 
       {qualiopi && (
-        <Bloc titre="Sessions terminées : échantillon possible" aside={<span className="text-ui-sm muted">{qualiopi.completes.length} complète{qualiopi.completes.length > 1 ? 's' : ''} sur {qualiopi.total}</span>}>
+        <Bloc titre="Sessions terminées : échantillon possible" aside={<span className="text-ui-sm muted">convention en règle : {qualiopi.completes.length} sur {qualiopi.total}</span>}>
           {qualiopi.total === 0 && <p className="px-4 pb-4 text-ui-sm text-gray-700">Aucune session terminée sur la période.</p>}
           {qualiopi.aCompleter.length > 0 && (
             <>
-              <p className="px-4 pb-2 text-ui-sm text-gray-700">À reprendre avant l'audit (dossiers incomplets) :</p>
+              <p className="px-4 pb-2 text-ui-sm text-gray-700">Convention à reprendre avant l'audit :</p>
               <ul className="divide-y divide-gray-100">
                 {qualiopi.aCompleter.slice(0, 20).map((s) => (
                   <li key={s.id}>
@@ -183,7 +183,7 @@ export default function CertPreparer({ referentiel = null }) {
                         <span className="text-ui font-semibold">{s.courses?.title || s.reference}</span>
                         <span className="block text-ui-sm text-gray-600">{[s.reference, s.clients?.name, s.end_date ? `fin le ${frDate(s.end_date)}` : null].filter(Boolean).join(' · ')}</span>
                       </span>
-                      <span className="badge badge-warning">{s.alertes} point{s.alertes > 1 ? 's' : ''}</span>
+                      <span className="badge badge-warning">{s.motif}</span>
                       <ChevronRight className="w-4 h-4 text-gray-400" aria-hidden="true" />
                     </Link>
                   </li>
@@ -192,7 +192,7 @@ export default function CertPreparer({ referentiel = null }) {
             </>
           )}
           {qualiopi.total > 0 && qualiopi.aCompleter.length === 0 && (
-            <p className="px-4 pb-4 text-ui-sm text-gray-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" aria-hidden="true" />Toutes les sessions terminées sont complètes.</p>
+            <p className="px-4 pb-4 text-ui-sm text-gray-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" aria-hidden="true" />Convention signée pour toutes les sessions terminées (le reste du dossier se vérifie dans Complétude).</p>
           )}
         </Bloc>
       )}
