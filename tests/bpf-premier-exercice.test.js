@@ -9,13 +9,21 @@ describe('BPF : premier exercice soumis (règle tranchée par H le 05/11/2026)',
     expect(bornesExercice(2028, 3)).toEqual({ debut: '2027-03-01', fin: '2028-02-29' })
     expect(libelleExercice(2027, 10)).toBe('2026-2027')
     expect(libelleExercice(2026, 1)).toBe('2026')
-    expect(dateLimiteBpf(2027)).toBe('2028-04-30')
+    expect(dateLimiteBpf(2027, 10)).toBe('2028-04-30')
+    expect(dateLimiteBpf(2026, 1)).toBe('2027-04-30')
+    // Clôture de janvier à mars : 30 avril de la même année
+    expect(dateLimiteBpf(2026, 2)).toBe('2026-04-30')
+    expect(dateLimiteBpf(2026, 4)).toBe('2026-04-30')
+    expect(dateLimiteBpf(2026, 5)).toBe('2027-04-30')
   })
   it('GLD Sécurité : dépôt le 27/10/2026, rien pour l\'exercice clos le 30/09/2026', () => {
     expect(premierExerciceBpf(10, '2026-10-27')).toBe(2027)
     expect(premierExerciceBpf(10, '2026-09-15')).toBe(2026)
     expect(premierExerciceBpf(1, '2026-10-27')).toBe(2026)
     expect(premierExerciceBpf(10, null)).toBeNull()
+    // Dépôt le jour même de la clôture : l'exercice n'est pas clos avant le dépôt, il est soumis
+    expect(premierExerciceBpf(10, '2026-09-30')).toBe(2026)
+    expect(premierExerciceBpf(1, '2026-12-31')).toBe(2026)
   })
   it('suivi du widget', () => {
     const j = new Date(2026, 10, 5)
@@ -25,8 +33,11 @@ describe('BPF : premier exercice soumis (règle tranchée par H le 05/11/2026)',
     expect(p).toMatchObject({ cle: 'pas_encore', annee: 2027, debut: '2026-10-01', fin: '2027-09-30', limite: '2028-04-30', libelle: '2026-2027' })
     // Une fois l'exercice 2026-2027 clos : dû
     expect(exerciceBpfSuivi({ nda: 'x', deposeeLe: '2026-10-27', moisDebut: 10, aujourdhui: new Date(2027, 9, 1) })).toMatchObject({ cle: 'du', annee: 2027, limite: '2028-04-30' })
-    // Date de dépôt inconnue : dernier exercice clos, comme avant
-    expect(exerciceBpfSuivi({ nda: 'x', moisDebut: 1, aujourdhui: j })).toMatchObject({ cle: 'du', annee: 2025, libelle: '2025' })
+    // Date de dépôt inconnue ou illisible : aucun exercice annoncé
+    expect(exerciceBpfSuivi({ nda: 'x', moisDebut: 1, aujourdhui: j }).cle).toBe('depot_inconnu')
+    expect(exerciceBpfSuivi({ formation: false, nda: 'x', deposeeLe: '2020-01-01', moisDebut: 1, aujourdhui: j }).cle).toBe('sans_objet')
+    expect(exerciceBpfSuivi({ nda: 'x', deposeeLe: '2020-01-01', moisDebut: 1, aujourdhui: j })).toMatchObject({ cle: 'du', annee: 2025, libelle: '2025', depasse: true })
+    expect(exerciceBpfSuivi({ nda: 'x', deposeeLe: '2020-01-01', moisDebut: 1, aujourdhui: new Date(2026, 3, 30) }).depasse).toBe(false)
   })
   it('textes du widget', () => {
     expect(etatBpf(null, null, { cle: 'sans_numero' }).titre).toBe('BPF pas encore dû')
@@ -37,5 +48,9 @@ describe('BPF : premier exercice soumis (règle tranchée par H le 05/11/2026)',
     const du = exerciceBpfSuivi({ nda: 'x', deposeeLe: '2026-10-27', moisDebut: 10, aujourdhui: new Date(2027, 10, 5) })
     expect(etatBpf(null, du.annee, du).titre).toBe('BPF 2026-2027 à préparer')
     expect(etatBpf(null, du.annee, du).detail).toContain('avant le 30/04/2028')
+    const tard = exerciceBpfSuivi({ nda: 'x', deposeeLe: '2026-10-27', moisDebut: 10, aujourdhui: new Date(2028, 5, 1) })
+    expect(etatBpf(null, tard.annee, tard).detail).toContain('en retard : date limite du 30/04/2028 dépassée')
+    expect(etatBpf(null, null, { cle: 'depot_inconnu' }).titre).toBe('BPF')
+    expect(etatBpf(null, null, { cle: 'sans_objet' }).titre).toBe('BPF sans objet')
   })
 })

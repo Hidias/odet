@@ -583,11 +583,13 @@ export default function Dashboard() {
         const id = ctx?.vue_groupe ? null : ctx?.current
         if (!id) { if (vivant) setBpf(etatBpf(null, null)); return }
         // Numéro de déclaration (companies.nda) et date de dépôt (suivi Certification › NDA) : premier exercice soumis
-        const [{ data: co }, { data: suiviNda }] = await Promise.all([
-          supabase.from('companies').select('fiscal_year_start_month, nda').eq('id', id).maybeSingle(),
-          supabase.from('cert_settings').select('nda_filed_at').eq('company_id', id).maybeSingle(),
+        // cert_settings illisible sans le droit Certification (0 ligne, sans erreur) : « date de dépôt inconnue », jamais un BPF annoncé
+        const [{ data: co, error: errCo }, { data: suiviNda }] = await Promise.all([
+          supabase.from('companies').select('fiscal_year_start_month, nda, is_training_org').eq('id', id).maybeSingle(),
+          supabase.from('cert_settings').select('nda_filed_at').eq('company_id', id).not('nda_filed_at', 'is', null).limit(1),
         ])
-        const suivi = exerciceBpfSuivi({ nda: co?.nda, deposeeLe: suiviNda?.nda_filed_at, moisDebut: co?.fiscal_year_start_month })
+        if (errCo || !co) { if (vivant) setBpf(null); return }
+        const suivi = exerciceBpfSuivi({ formation: co.is_training_org !== false, nda: co.nda, deposeeLe: suiviNda?.[0]?.nda_filed_at, moisDebut: co.fiscal_year_start_month })
         if (suivi.cle !== 'du') { if (vivant) setBpf(etatBpf(null, null, suivi)); return }
         const { data: decl, error } = await supabase.from('bpf_declarations').select('status, submitted_at').eq('company_id', id).eq('year', suivi.annee).maybeSingle()
         if (vivant) setBpf(error ? null : etatBpf(decl, suivi.annee, suivi))

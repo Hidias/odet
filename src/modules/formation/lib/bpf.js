@@ -148,34 +148,45 @@ export function bornesExercice(annee, moisDebut) {
 /** Nom affiché de l'exercice : « 2026 » s'il est civil, « 2025-2026 » sinon */
 export const libelleExercice = (annee, moisDebut) => ((Number(moisDebut) || 1) === 1 ? `${annee}` : `${annee - 1}-${annee}`)
 
-/** Date limite de transmission : avant le 30 avril qui suit la clôture (Code du travail, art. R6352-23) */
-export const dateLimiteBpf = (annee) => `${annee + 1}-04-30`
+/**
+ * Date limite de transmission : le 30 avril qui suit la clôture (Code du travail, art. R6352-23).
+ * Clôture de janvier à mars : 30 avril de la même année ; clôture en avril ou après : 30 avril de l'année suivante
+ * (clôture au 30 avril : année suivante, cas non tranché par le texte, à confirmer si une société le rencontre).
+ */
+export function dateLimiteBpf(annee, moisDebut) {
+  const moisFin = Number(bornesExercice(annee, moisDebut).fin.slice(5, 7))
+  return moisFin <= 3 ? `${annee}-04-30` : `${annee + 1}-04-30`
+}
 
 /**
- * Premier exercice soumis au BPF : le premier exercice clos après le dépôt de la déclaration d'activité.
- * Règle tranchée par H le 05/11/2026 : rien pour un exercice clos avant le dépôt (GLD Sécurité : dépôt le 27/10/2026,
+ * Premier exercice soumis au BPF : le premier exercice qui n'est pas clos avant le dépôt de la déclaration d'activité
+ * (un exercice clos le jour même du dépôt est soumis). Règle tranchée par H le 05/11/2026 : rien pour un exercice clos avant le dépôt (GLD Sécurité : dépôt le 27/10/2026,
  * exercice clos le 30/09/2026 sans BPF, premier BPF sur l'exercice du 01/10/2026 au 30/09/2027, avant le 30/04/2028).
  */
 export function premierExerciceBpf(moisDebut, deposeeLe) {
   const d = jourIso(deposeeLe)
   if (!d) return null
   const a = Number(d.slice(0, 4))
-  return bornesExercice(a, moisDebut).fin > d ? a : a + 1
+  return bornesExercice(a, moisDebut).fin >= d ? a : a + 1
 }
 
 /**
- * Exercice que le widget doit suivre. Sans numéro de déclaration : aucun BPF annoncé.
- * Avec numéro : le dernier exercice clos, sauf s'il est antérieur au premier exercice soumis (alors « pas encore dû »).
- * Date de dépôt inconnue (suivi illisible ou ancien organisme) : le dernier exercice clos, comme avant.
+ * Exercice que le widget doit suivre.
+ * - Société sans activité de formation : sans objet. Sans numéro de déclaration : aucun BPF annoncé.
+ * - Date de dépôt inconnue (non renseignée, ou suivi Certification illisible pour ce compte) : aucun exercice annoncé,
+ *   car on ne sait pas si le dernier exercice clos est soumis.
+ * - Sinon : le dernier exercice clos, sauf s'il précède le premier exercice soumis (alors « pas encore dû »).
  */
-export function exerciceBpfSuivi({ nda, deposeeLe, moisDebut, aujourdhui = new Date() }) {
+export function exerciceBpfSuivi({ formation = true, nda, deposeeLe, moisDebut, aujourdhui = new Date() }) {
+  if (formation === false) return { cle: 'sans_objet' }
   if (!String(nda || '').replace(/\s/g, '')) return { cle: 'sans_numero' }
-  const clos = dernierExerciceClos(moisDebut, aujourdhui)
   const premier = premierExerciceBpf(moisDebut, deposeeLe)
-  if (premier != null && clos < premier) {
-    return { cle: 'pas_encore', annee: premier, ...bornesExercice(premier, moisDebut), limite: dateLimiteBpf(premier), libelle: libelleExercice(premier, moisDebut) }
-  }
-  return { cle: 'du', annee: clos, ...bornesExercice(clos, moisDebut), limite: dateLimiteBpf(clos), libelle: libelleExercice(clos, moisDebut) }
+  if (premier == null) return { cle: 'depot_inconnu' }
+  const clos = dernierExerciceClos(moisDebut, aujourdhui)
+  const a = clos < premier ? premier : clos
+  const limite = dateLimiteBpf(a, moisDebut)
+  const jour = `${aujourdhui.getFullYear()}-${deux(aujourdhui.getMonth() + 1)}-${deux(aujourdhui.getDate())}`
+  return { cle: clos < premier ? 'pas_encore' : 'du', annee: a, ...bornesExercice(a, moisDebut), limite, depasse: clos >= premier && jour > limite, libelle: libelleExercice(a, moisDebut) }
 }
 
 /** Contrôles de la notice : totaux F-1 = F-3 = F-4, montants positifs, part du CA au moins 1 % s'il y a de l'activité */

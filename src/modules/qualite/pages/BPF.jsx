@@ -38,10 +38,10 @@ export default function BPF() {
       if (!id) { setSociete(null); return }
       const [{ data, error }, { data: suiviNda }] = await Promise.all([
         supabase.from('companies').select('id, fiscal_year_start_month, nda').eq('id', id).maybeSingle(),
-        supabase.from('cert_settings').select('nda_filed_at').eq('company_id', id).maybeSingle(),
+        supabase.from('cert_settings').select('nda_filed_at').eq('company_id', id).not('nda_filed_at', 'is', null).limit(1),
       ])
       if (error) toast.error(`Société non chargée : ${error.message}`)
-      setSociete(data ? { ...data, nda_filed_at: suiviNda?.nda_filed_at || null } : null)
+      setSociete(data ? { ...data, nda_filed_at: suiviNda?.[0]?.nda_filed_at || null } : null)
       if (data) setAnnee(dernierExerciceClos(data.fiscal_year_start_month))
     })()
   }, [])
@@ -244,7 +244,7 @@ export default function BPF() {
         actions={(
           <div className="flex flex-wrap gap-2">
             <select className="select" value={annee} onChange={(e) => setAnnee(Number(e.target.value))} aria-label="Exercice">
-              {Array.from({ length: 6 }, (_, i) => anneeDefaut + 1 - i).map((a) => <option key={a} value={a}>Exercice {a}</option>)}
+              {Array.from({ length: 6 }, (_, i) => anneeDefaut + 1 - i).map((a) => <option key={a} value={a}>Exercice {libelleExercice(a, mois)}</option>)}
             </select>
             <button type="button" className="btn btn-secondary" onClick={calculer} disabled={busy || depose}><Calculator className="w-4 h-4" />{calcul ? 'Recalculer' : 'Calculer'}</button>
             <button type="button" className="btn btn-primary" onClick={enregistrer} disabled={busy || !calcul || depose}><Save className="w-4 h-4" />Enregistrer</button>
@@ -255,9 +255,9 @@ export default function BPF() {
       {depose && <Banner tone="success" title="BPF déposé">Noté comme déposé le {fmtDate(declaration.submitted_at)}. Il n&apos;est plus modifiable ici.
         <button type="button" className="btn btn-ghost btn-sm mt-2" onClick={rouvrir} disabled={busy}><Unlock className="w-4 h-4" />Rouvrir</button></Banner>}
       {societe === null && <Banner tone="warning" title="Choisissez une société">Le BPF se déclare société par société : sélectionnez-en une (pas la vue groupe).</Banner>}
-      {sansNumero && <Banner tone="info" title="BPF pas encore dû">Il sera dû après l&apos;attribution du numéro de déclaration d&apos;activité (Certification › NDA, puis Réglages › Sociétés). Vous pouvez déjà lancer un calcul pour vous préparer.</Banner>}
-      {avantPremier && <Banner tone="info" title={`Pas de BPF pour l'exercice ${libelleExercice(annee, mois)}`}>Exercice clos le {fmtDate(bornesExercice(annee, mois).fin)}, avant le dépôt de la déclaration d&apos;activité le {fmtDate(societe.nda_filed_at)}. Premier BPF : exercice {libelleExercice(premier, mois)}, du {fmtDate(bornesExercice(premier, mois).debut)} au {fmtDate(bornesExercice(premier, mois).fin)}, à transmettre avant le {fmtDate(dateLimiteBpf(premier))}.</Banner>}
-      {societe && !calcul && <Banner tone="info" title="Aucun calcul pour cet exercice">Lancez le calcul : il lit vos factures et vos sessions de l&apos;exercice, réglé dans Réglages › Sociétés (mois de début).</Banner>}
+      {sansNumero && !avantPremier && <Banner tone="info" title="BPF pas encore dû">Il sera dû après l&apos;attribution du numéro de déclaration d&apos;activité (Certification › NDA, puis Réglages › Sociétés). Vous pouvez déjà lancer un calcul pour vous préparer.</Banner>}
+      {avantPremier && <Banner tone="info" title={`Pas de BPF pour l'exercice ${libelleExercice(annee, mois)}`}>Exercice clos le {fmtDate(bornesExercice(annee, mois).fin)}, avant le dépôt de la déclaration d&apos;activité le {fmtDate(societe.nda_filed_at)}. Premier BPF : exercice {libelleExercice(premier, mois)}, du {fmtDate(bornesExercice(premier, mois).debut)} au {fmtDate(bornesExercice(premier, mois).fin)}, à transmettre avant le {fmtDate(dateLimiteBpf(premier, mois))}.</Banner>}
+      {societe && !calcul && !avantPremier && <Banner tone="info" title="Aucun calcul pour cet exercice">Lancez le calcul : il lit vos factures et vos sessions de l&apos;exercice, réglé dans Réglages › Sociétés (mois de début).</Banner>}
 
       {calcul && (
         <>

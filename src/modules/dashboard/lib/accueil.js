@@ -48,13 +48,15 @@ export function tauxConversion(devis = []) {
 // n'est pas clos.
 const dateFr = (iso) => { const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${y}` }
 export function etatBpf(declaration, annee, suivi = null) {
+  if (suivi?.cle === 'sans_objet') return { cle: 'sans_objet', titre: 'BPF sans objet', detail: 'Société sans activité de formation' }
+  if (suivi?.cle === 'depot_inconnu') return { cle: 'depot_inconnu', titre: 'BPF', detail: 'Date de dépôt de la déclaration d\'activité inconnue (Certification › NDA) : exercice à déclarer non calculé' }
   if (suivi?.cle === 'sans_numero') return { cle: 'sans_numero', titre: 'BPF pas encore dû', detail: 'Il sera dû après l\'attribution du numéro de déclaration d\'activité' }
   if (suivi?.cle === 'pas_encore') {
     return { cle: 'pas_encore', titre: `Premier BPF : exercice ${suivi.libelle}`, detail: `Exercice du ${dateFr(suivi.debut)} au ${dateFr(suivi.fin)}, à transmettre avant le ${dateFr(suivi.limite)}` }
   }
   if (!annee) return { cle: 'inconnu', titre: 'BPF', detail: 'Choisissez une société pour voir son BPF' }
   const nom = suivi?.libelle || annee
-  const avant = suivi?.limite ? `, à transmettre avant le ${dateFr(suivi.limite)}` : ''
+  const avant = !suivi?.limite ? '' : suivi.depasse ? `, en retard : date limite du ${dateFr(suivi.limite)} dépassée` : `, à transmettre avant le ${dateFr(suivi.limite)}`
   if (declaration?.submitted_at) {
     const d = new Date(declaration.submitted_at)
     return { cle: 'depose', titre: `BPF ${nom} déposé`, detail: `Déposé le ${d.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}` }
