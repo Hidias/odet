@@ -18,6 +18,16 @@ Un fichier `supabase/lots/<lot>.conf`, une clé par ligne :
 
 Le lot `temoin` n'applique rien : il rejoue les tests de droits sur la production telle qu'elle est.
 
+Fabriquer un lot : `python3 scripts/migrations/fabriquer_lot.py <lot> <retour> <migration> --essai <essai propre>`.
+L'essai propre de la migration (`supabase/tests/<sujet>_<NNNN>.sql`, entre `begin;` et `rollback;`, rouge sans elle)
+est obligatoire depuis le 05/11/2026 : il est rejoué sur la production dans l'essai du lot, après les migrations et
+avant les tests de droits, dans un point de sauvegarde annulé ensuite. S'il échoue, l'essai est rouge et rien n'est
+appliqué ; le rapport indique « Essai propre : vert (n sur n) ». Il crée ses propres lignes et ne suppose rien des
+données de la production, sauf l'existence d'au moins une société. Une seule paire `begin;` (première instruction) et
+`rollback;` (dernière) : tout autre contrôle de transaction de premier niveau et toute commande psql (`\echo`,
+`\i`, `\c`...) sont refusés par le script, dans l'essai propre, les migrations et le retour arrière. Un essai fait de plusieurs parties se joue en un seul bloc : chaque
+partie voit les données des précédentes.
+
 ## Lancer
 
 - Onglet Actions › Migrations en production › Run workflow : nom du lot, mode `essai` ou `appliquer`.
@@ -27,7 +37,8 @@ Le lot `temoin` n'applique rien : il rejoue les tests de droits sur la productio
 ## Ce que fait l'action
 
 1. Refuse de continuer si la dernière sauvegarde de nuit n'est pas verte ou a plus de 30 heures.
-2. Joue l'essai puis l'essai du retour arrière ; il faut au moins un test, 0 échec et 0 écart.
+2. Joue l'essai (migrations, essai propre, tests de droits) puis l'essai du retour arrière ; il faut au moins un
+   test, 0 échec, chaque essai propre vert et 0 écart.
 3. En mode `appliquer`, applique le fichier d'application en une seule transaction.
 4. Rejoue les tests ; s'ils ne sont pas tous verts, joue immédiatement le retour arrière et finit en rouge.
 
