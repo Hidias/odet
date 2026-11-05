@@ -9,7 +9,7 @@ import { Calculator, Save, CheckCircle, RotateCcw, Unlock, FileDown } from 'luci
 import { supabase } from '../../../core/supabase'
 import { PageHeader, Banner } from '../../../ui'
 import { confirmer } from '../../../ui/Confirm'
-import { LIGNES_BPF, CADRES_BPF, valeursRetenues, controlesBpf, dernierExerciceClos } from '../../formation/lib/bpf'
+import { LIGNES_BPF, CADRES_BPF, valeursRetenues, controlesBpf, dernierExerciceClos, premierExerciceBpf, bornesExercice, libelleExercice, dateLimiteBpf } from '../../formation/lib/bpf'
 
 const fmtDate = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
 const fmtNombre = (n) => Number(n || 0).toLocaleString('fr-FR')
@@ -24,6 +24,11 @@ export default function BPF() {
   const [specialites, setSpecialites] = useState([])
   const [busy, setBusy] = useState(false)
   const anneeDefaut = dernierExerciceClos(societe?.fiscal_year_start_month)
+  // Chantier BPF (05/11) : pas de BPF sans numéro de déclaration, ni pour un exercice clos avant le dépôt de la déclaration
+  const sansNumero = societe && !String(societe.nda || '').replace(/\s/g, '')
+  const premier = societe ? premierExerciceBpf(societe.fiscal_year_start_month, societe.nda_filed_at) : null
+  const avantPremier = premier != null && annee < premier
+  const mois = societe?.fiscal_year_start_month
 
   useEffect(() => {
     supabase.from('bpf_specialites').select('code, libelle').then(({ data }) => setSpecialites(data || []))
@@ -31,9 +36,12 @@ export default function BPF() {
       const { data: ctx } = await supabase.rpc('my_company_context')
       const id = ctx?.vue_groupe ? null : ctx?.current
       if (!id) { setSociete(null); return }
-      const { data, error } = await supabase.from('companies').select('id, fiscal_year_start_month').eq('id', id).maybeSingle()
+      const [{ data, error }, { data: suiviNda }] = await Promise.all([
+        supabase.from('companies').select('id, fiscal_year_start_month, nda').eq('id', id).maybeSingle(),
+        supabase.from('cert_settings').select('nda_filed_at').eq('company_id', id).maybeSingle(),
+      ])
       if (error) toast.error(`Société non chargée : ${error.message}`)
-      setSociete(data || null)
+      setSociete(data ? { ...data, nda_filed_at: suiviNda?.nda_filed_at || null } : null)
       if (data) setAnnee(dernierExerciceClos(data.fiscal_year_start_month))
     })()
   }, [])
@@ -247,6 +255,8 @@ export default function BPF() {
       {depose && <Banner tone="success" title="BPF déposé">Noté comme déposé le {fmtDate(declaration.submitted_at)}. Il n&apos;est plus modifiable ici.
         <button type="button" className="btn btn-ghost btn-sm mt-2" onClick={rouvrir} disabled={busy}><Unlock className="w-4 h-4" />Rouvrir</button></Banner>}
       {societe === null && <Banner tone="warning" title="Choisissez une société">Le BPF se déclare société par société : sélectionnez-en une (pas la vue groupe).</Banner>}
+      {sansNumero && <Banner tone="info" title="BPF pas encore dû">Il sera dû après l&apos;attribution du numéro de déclaration d&apos;activité (Certification › NDA, puis Réglages › Sociétés). Vous pouvez déjà lancer un calcul pour vous préparer.</Banner>}
+      {avantPremier && <Banner tone="info" title={`Pas de BPF pour l'exercice ${libelleExercice(annee, mois)}`}>Exercice clos le {fmtDate(bornesExercice(annee, mois).fin)}, avant le dépôt de la déclaration d&apos;activité le {fmtDate(societe.nda_filed_at)}. Premier BPF : exercice {libelleExercice(premier, mois)}, du {fmtDate(bornesExercice(premier, mois).debut)} au {fmtDate(bornesExercice(premier, mois).fin)}, à transmettre avant le {fmtDate(dateLimiteBpf(premier))}.</Banner>}
       {societe && !calcul && <Banner tone="info" title="Aucun calcul pour cet exercice">Lancez le calcul : il lit vos factures et vos sessions de l&apos;exercice, réglé dans Réglages › Sociétés (mois de début).</Banner>}
 
       {calcul && (

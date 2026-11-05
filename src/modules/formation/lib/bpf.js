@@ -134,6 +134,50 @@ export function dernierExerciceClos(moisDebut, aujourdhui = new Date()) {
   return aujourdhui.getMonth() + 1 >= m ? annee : annee - 1
 }
 
+const deux = (n) => String(n).padStart(2, '0')
+const jourIso = (v) => (v ? String(v).slice(0, 10) : null)
+
+/** Bornes (AAAA-MM-JJ) de l'exercice « A », qui se termine dans l'année A */
+export function bornesExercice(annee, moisDebut) {
+  const m = Number(moisDebut) || 1
+  if (m === 1) return { debut: `${annee}-01-01`, fin: `${annee}-12-31` }
+  const dernierJour = new Date(Date.UTC(annee, m - 1, 0)).getUTCDate()
+  return { debut: `${annee - 1}-${deux(m)}-01`, fin: `${annee}-${deux(m - 1)}-${deux(dernierJour)}` }
+}
+
+/** Nom affiché de l'exercice : « 2026 » s'il est civil, « 2025-2026 » sinon */
+export const libelleExercice = (annee, moisDebut) => ((Number(moisDebut) || 1) === 1 ? `${annee}` : `${annee - 1}-${annee}`)
+
+/** Date limite de transmission : avant le 30 avril qui suit la clôture (Code du travail, art. R6352-23) */
+export const dateLimiteBpf = (annee) => `${annee + 1}-04-30`
+
+/**
+ * Premier exercice soumis au BPF : le premier exercice clos après le dépôt de la déclaration d'activité.
+ * Règle tranchée par H le 05/11/2026 : rien pour un exercice clos avant le dépôt (GLD Sécurité : dépôt le 27/10/2026,
+ * exercice clos le 30/09/2026 sans BPF, premier BPF sur l'exercice du 01/10/2026 au 30/09/2027, avant le 30/04/2028).
+ */
+export function premierExerciceBpf(moisDebut, deposeeLe) {
+  const d = jourIso(deposeeLe)
+  if (!d) return null
+  const a = Number(d.slice(0, 4))
+  return bornesExercice(a, moisDebut).fin > d ? a : a + 1
+}
+
+/**
+ * Exercice que le widget doit suivre. Sans numéro de déclaration : aucun BPF annoncé.
+ * Avec numéro : le dernier exercice clos, sauf s'il est antérieur au premier exercice soumis (alors « pas encore dû »).
+ * Date de dépôt inconnue (suivi illisible ou ancien organisme) : le dernier exercice clos, comme avant.
+ */
+export function exerciceBpfSuivi({ nda, deposeeLe, moisDebut, aujourdhui = new Date() }) {
+  if (!String(nda || '').replace(/\s/g, '')) return { cle: 'sans_numero' }
+  const clos = dernierExerciceClos(moisDebut, aujourdhui)
+  const premier = premierExerciceBpf(moisDebut, deposeeLe)
+  if (premier != null && clos < premier) {
+    return { cle: 'pas_encore', annee: premier, ...bornesExercice(premier, moisDebut), limite: dateLimiteBpf(premier), libelle: libelleExercice(premier, moisDebut) }
+  }
+  return { cle: 'du', annee: clos, ...bornesExercice(clos, moisDebut), limite: dateLimiteBpf(clos), libelle: libelleExercice(clos, moisDebut) }
+}
+
 /** Contrôles de la notice : totaux F-1 = F-3 = F-4, montants positifs, part du CA au moins 1 % s'il y a de l'activité */
 export function controlesBpf(retenues, f4Total, partCa) {
   const ecarts = []

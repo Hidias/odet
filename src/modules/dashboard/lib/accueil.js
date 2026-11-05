@@ -43,14 +43,24 @@ export function tauxConversion(devis = []) {
 
 // A3 : le widget BPF lit la déclaration de l'exercice clos de la société (bpf_declarations), au lieu d'un texte fixe.
 // Statuts de la page BPF : déposée quand `submitted_at` est posée, sinon brouillon enregistré, sinon rien.
-export function etatBpf(declaration, annee) {
+// Chantier BPF (05/11) : `suivi` vient de exerciceBpfSuivi (formation/lib/bpf.js) ; il donne le nom de l'exercice et la
+// date limite, et écarte l'annonce tant que le numéro de déclaration n'est pas saisi ou que le premier exercice soumis
+// n'est pas clos.
+const dateFr = (iso) => { const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${y}` }
+export function etatBpf(declaration, annee, suivi = null) {
+  if (suivi?.cle === 'sans_numero') return { cle: 'sans_numero', titre: 'BPF pas encore dû', detail: 'Il sera dû après l\'attribution du numéro de déclaration d\'activité' }
+  if (suivi?.cle === 'pas_encore') {
+    return { cle: 'pas_encore', titre: `Premier BPF : exercice ${suivi.libelle}`, detail: `Exercice du ${dateFr(suivi.debut)} au ${dateFr(suivi.fin)}, à transmettre avant le ${dateFr(suivi.limite)}` }
+  }
   if (!annee) return { cle: 'inconnu', titre: 'BPF', detail: 'Choisissez une société pour voir son BPF' }
+  const nom = suivi?.libelle || annee
+  const avant = suivi?.limite ? `, à transmettre avant le ${dateFr(suivi.limite)}` : ''
   if (declaration?.submitted_at) {
     const d = new Date(declaration.submitted_at)
-    return { cle: 'depose', titre: `BPF ${annee} déposé`, detail: `Déposé le ${d.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}` }
+    return { cle: 'depose', titre: `BPF ${nom} déposé`, detail: `Déposé le ${d.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}` }
   }
-  if (declaration) return { cle: 'brouillon', titre: `BPF ${annee} en cours`, detail: 'Brouillon enregistré, pas encore déposé' }
-  return { cle: 'a_faire', titre: `BPF ${annee} à préparer`, detail: 'Aucune déclaration enregistrée pour cet exercice' }
+  if (declaration) return { cle: 'brouillon', titre: `BPF ${nom} en cours`, detail: `Brouillon enregistré, pas encore déposé${avant}` }
+  return { cle: 'a_faire', titre: `BPF ${nom} à préparer`, detail: `Aucune déclaration enregistrée pour cet exercice${avant}` }
 }
 
 // A4 : rappel « évaluation à froid » aligné sur la relance à froid (0482) : délai réglé par la société ou la formation
