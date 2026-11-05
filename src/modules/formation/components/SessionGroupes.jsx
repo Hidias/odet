@@ -72,7 +72,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   const chargerContacts = async (clientId) => {
     if (!clientId) { setContacts([]); return [] }
     dernierClient.current = clientId
-    const { data } = await supabase.from('client_contacts').select('id, name, first_name, last_name, fonction, role, is_primary, is_document_contact')
+    const { data } = await supabase.from('client_contacts').select('id, client_id, name, first_name, last_name, fonction, role, is_primary, is_document_contact')
       .eq('client_id', clientId).order('is_primary', { ascending: false })
     if (dernierClient.current === clientId) setContacts(data || [])
     return data || []
@@ -108,7 +108,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
       payer_kind: e.payer_kind || (e.kind === 'particulier' ? 'particulier' : 'entreprise'),
       payer_client_id: ['opco', 'autre', 'france_travail'].includes(e.payer_kind) ? e.payer_client_id || null : null,
       dossier_number: e.dossier_number || null, notes: e.notes || null,
-      contact_id: e.kind === 'entreprise' && contacts.some((c) => c.id === e.contact_id) ? e.contact_id : null,
+      contact_id: e.kind === 'entreprise' && contacts.some((c) => c.id === e.contact_id && c.client_id === e.client_id) ? e.contact_id : null,
       price_total: e.price_total === '' || e.price_total == null ? null : Number(String(e.price_total).replace(',', '.')),
       price_per_person: e.price_per_person === '' || e.price_per_person == null ? null : Number(String(e.price_per_person).replace(',', '.')),
       group_name: clients.find((c) => c.id === e.client_id)?.name || e.group_name || null,
@@ -271,10 +271,11 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
             <select id="grp-client" className="input" value={edition.client_id || ''} onChange={async (ev) => {
               const id = ev.target.value
               setEdition((x) => ({ ...x, client_id: id, contact_id: '' }))
+              setContacts([])
               if (edition.kind !== 'entreprise') return
               const cs = await chargerContacts(id)
-              // Réponse d'un choix précédent : ignorée si l'entreprise a changé entre-temps
-              setEdition((x) => (x && x.client_id === id ? { ...x, contact_id: contactPropose(cs) } : x))
+              // Réponse d'un choix précédent ignorée ; un choix fait à la main pendant le chargement est gardé
+              setEdition((x) => (x && x.client_id === id && !x.contact_id ? { ...x, contact_id: contactPropose(cs) } : x))
             }}>
               <option value="">Choisir…</option>
               {choixClients(edition.kind).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
