@@ -3351,7 +3351,28 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
       </div>
       
-      {/* Suivi Convention */}
+      {/* Suivi Convention : session inter, une convention ou un contrat par groupe (C2, 05/11) ; le suivi de la session
+          (envoi, scan signé) ne s'applique qu'à une intra */}
+      {session.session_type === 'inter' ? (
+        <div className="card bg-gray-50 border-[rgb(var(--c-info)/0.3)]">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                <FileSignature className="w-5 h-5 text-[rgb(var(--c-info))]" />
+                Conventions des groupes
+              </h3>
+              <p className="text-ui text-gray-600 mt-1">{(() => {
+                const actifs = groupesConvention.filter((g) => g.status !== 'cancelled')
+                const signes = actifs.filter((g) => g.doc_status === 'signe').length
+                return actifs.length === 0
+                  ? 'Session inter : chaque entreprise ou particulier a sa propre convention ou son contrat, suivi dans l\'onglet Groupes.'
+                  : `${signes} signé${signes > 1 ? 's' : ''} sur ${actifs.length} groupe${actifs.length > 1 ? 's' : ''}. Envoi, signature en ligne et document signé : onglet Groupes.`
+              })()}</p>
+            </div>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setActiveTab('groupes')}>Voir les groupes</button>
+          </div>
+        </div>
+      ) : (
       <div className="card bg-gray-50 border-[rgb(var(--c-info)/0.3)]">
         <div className="flex items-start justify-between mb-3">
           <h3 className="font-medium text-gray-900 flex items-center gap-2">
@@ -3462,6 +3483,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           </div>
         </div>
       </div>
+      )}
       
       {/* Analyse du besoin */}
       <div className="card">

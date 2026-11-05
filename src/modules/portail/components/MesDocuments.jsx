@@ -27,6 +27,8 @@ function sauver(buf, nom) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+import { rubriqueDocument } from '../../../core/portail/typeDocument'
+
 const SIGNABLES = ['devis', 'contrat']
 
 /**
@@ -68,7 +70,7 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
       .finally(() => setBusy(null))
   }
 
-  const groupes = ORDRE.map((k) => [k, docs.filter((d) => d.kind === k)]).filter(([, l]) => l.length)
+  const groupes = ORDRE.map((k) => [k, docs.filter((d) => rubriqueDocument(d) === k)]).filter(([, l]) => l.length)
   return (
     <section className="vitrine-monte mb-8">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 flex items-center gap-1.5"><FolderOpen className="w-4 h-4" aria-hidden="true" />{titre}</h2>

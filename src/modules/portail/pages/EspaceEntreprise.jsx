@@ -22,7 +22,7 @@ import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { appliquerEmis, seulementEmis } from '../../formation/lib/documentsEmis'
 import { noterCompte, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
 import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON } from '../components/SignerConvention'
-import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
+import { nomSignable, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import AvisEntreprise from '../components/AvisEntreprise'
@@ -796,7 +796,7 @@ function Plus_({ compte, org, salaries }) {
               onFermer={() => setDocADeposer(null)} />
           )}
           {docASigner && (
-            <SignerConvention titre={NOMS_SIGNABLES[docASigner.kind]?.titre} nomDocument={NOMS_SIGNABLES[docASigner.kind]?.nom}
+            <SignerConvention titre={nomSignable(docASigner).titre} nomDocument={nomSignable(docASigner).nom}
               accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={{ name: compte?.contact?.name || '' }}
               genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({}, docASigner.id)), filename: `${docASigner.label}.pdf` })}
               onSigner={async (p) => {
