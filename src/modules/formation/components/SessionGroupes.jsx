@@ -99,7 +99,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
 
   const supprimer = async (g) => {
     if (g.invoice_id) return toast.error('Ce groupe a une facture : il ne se supprime pas')
-    if (!(await confirmer(`Supprimer le groupe « ${g.clients?.name || g.group_name || ''} » ? Ses stagiaires restent inscrits, sans groupe.`))) return
+    if (!(await confirmer(`Supprimer le groupe « ${g.clients?.name || g.group_name || ''} » ? Ses stagiaires restent inscrits, sans groupe. Sa convention ou son contrat, s'il est dans l'espace du client, en est retiré (gardé dans l'historique).`))) return
     await supabase.from('session_trainees').update({ group_id: null }).eq('session_id', session.id).eq('group_id', g.id)
     const { error } = await supabase.from('session_groups').delete().eq('id', g.id)
     if (error) return toast.error(error.message)
@@ -133,7 +133,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
       const r = await mettreADisposition({ objectType: 'session_group', objectId: g.id, kind: 'contrat', label, base64: doc.base64 })
       if (!r) throw new Error('Mise à disposition impossible')
       if (g.doc_status === 'a_envoyer') await supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', g.id)
-      toast.success(r.deja ? 'Déjà dans l\'espace du client, en attente de signature' : 'Document à signer dans l\'espace du client : donnez-lui son accès (fiche client, Espace client)')
+      toast.success(r.signe ? 'Déjà signé : le document du client n\'est pas remplacé' : r.deja ? 'Déjà dans l\'espace du client, en attente de signature' : 'Document à signer dans l\'espace du client : donnez-lui son accès (fiche client, Espace client)')
       load()
     } catch (e) {
       toast.error(e.message || 'Signature en ligne impossible')
