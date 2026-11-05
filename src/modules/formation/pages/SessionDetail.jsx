@@ -70,6 +70,7 @@ import { etatConvention, CONVENTION } from '../lib/etatConvention'
 import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
 import { pluriel } from '../../../core/genre'
 import ChoixFormateurs from '../components/ChoixFormateurs'
+import { formateursAEnvoyer } from '../../../core/session/formateursSession'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -2106,18 +2107,11 @@ export default function SessionDetail() {
       const { trainer_id, autres_formateurs_ids, ...sessionData } = editForm
       // Formateurs (C6) : envoyés seulement s'ils ont changé (sinon un formateur qui modifie l'horaire de sa session
       // n'a pas à écrire dans session_trainers) ; une session de sous-traitance n'a que son formateur principal
-      const autresInitiaux = session.autres_formateurs ? session.autres_formateurs.map(t => t.id) : null
-      const autresVoulus = session.session_type === 'subcontract' ? [] : (autres_formateurs_ids || [])
-      const principalChange = (trainer_id || null) !== (session.trainer_id || null)
-      const autresChange = autresInitiaux !== null
-        && (autresVoulus.length !== autresInitiaux.length || autresVoulus.some(x => !autresInitiaux.includes(x)))
-      if (principalChange || autresChange || (autresInitiaux === null && autresVoulus.length)) {
-        if (autresInitiaux === null) {
-          toast.error("Les formateurs de la session n'ont pas pu être lus : rechargez la page avant de les changer.")
-          return
-        }
-        sessionData.trainer_ids = trainer_id ? [trainer_id, ...autresVoulus] : []
-      }
+      const envoi = formateursAEnvoyer(
+        { principalId: trainer_id, autresIds: autres_formateurs_ids, sousTraitance: session.session_type === 'subcontract' },
+        { principalInitial: session.trainer_id, autresInitiaux: session.autres_formateurs ? session.autres_formateurs.map(t => t.id) : null })
+      if (envoi.erreur) { toast.error(envoi.erreur); return }
+      if (envoi.trainerIds !== undefined) sessionData.trainer_ids = envoi.trainerIds
       
       console.log('Saving session with data:', sessionData)
       
@@ -5782,6 +5776,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 {d.formateurs ? (
                   <ChoixFormateurs trainers={trainers} idBase="session-formateurs"
                     principalId={editForm.trainer_id} autresIds={editForm.autres_formateurs_ids || []}
+                    autresInconnus={editForm.autres_formateurs_ids == null}
                     onChange={({ principalId, autresIds }) => setEditForm({ ...editForm, trainer_id: principalId, autres_formateurs_ids: autresIds })} />
                 ) : (
                   <div>

@@ -460,6 +460,9 @@ export const useDataStore = create((set, get) => ({
   deleteTrainer: async (id) => {
     const { error } = await supabase.from('trainers').delete().eq('id', id)
     if (!error) {
+      // Pas de clé étrangère en cascade sur session_trainers : retirer ses lignes (C6)
+      const { error: errSessions } = await supabase.from('session_trainers').delete().eq('trainer_id', id)
+      if (errSessions) console.error('deleteTrainer (sessions) :', errSessions)
       set({ trainers: get().trainers.filter(t => t.id !== id) })
     }
     return { error }
@@ -761,8 +764,8 @@ export const useDataStore = create((set, get) => ({
       const autresIds = autresFormateursIds(lignesFormateurs, data.trainer_id)
       data.autres_formateurs = errLignes ? null : []
       if (!errLignes && autresIds.length) {
-        const { data: autres } = await supabase.from('trainers').select('*').in('id', autresIds)
-        data.autres_formateurs = autres || []
+        const { data: autres, error: errAutres } = await supabase.from('trainers').select('*').in('id', autresIds)
+        data.autres_formateurs = errAutres ? null : (autres || [])
       }
       // Charger les stagiaires avec presence_complete et early_departure
       const { data: sessionTrainees, error: stError } = await supabase
@@ -969,6 +972,9 @@ export const useDataStore = create((set, get) => ({
     // suppression de session (0485) au lieu d'autant de retraits que de stagiaires.
     const { error } = await supabase.from('sessions').delete().eq('id', id)
     if (!error) {
+      // session_trainers n'a pas de clé étrangère en cascade : ses lignes partent après la session (C6)
+      const { error: errFormateurs } = await supabase.from('session_trainers').delete().eq('session_id', id)
+      if (errFormateurs) console.error('deleteSession (formateurs) :', errFormateurs)
       set({ sessions: get().sessions.filter(s => s.id !== id) })
     }
     return { error }
