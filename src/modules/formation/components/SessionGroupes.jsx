@@ -33,7 +33,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
 
   const load = async () => {
     const [{ data: g, error }, { data: st }] = await Promise.all([
-      supabase.from('session_groups').select('*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, phone, contact_phone)')
+      supabase.from('session_groups').select('*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, contact_phone)')
         .eq('session_id', session.id).order('created_at'),
       supabase.from('session_trainees').select('id, trainee_id, group_id, trainees(id, first_name, last_name, client_id)').eq('session_id', session.id),
     ])

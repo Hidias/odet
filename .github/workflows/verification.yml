@@ -48,6 +48,31 @@ jobs:
           npm i --no-save --no-audit --no-fund eslint@9 eslint-plugin-react@7 eslint-plugin-react-hooks@5 globals@15
           npx eslint --no-config-lookup -c scripts/qualite/noms.config.mjs src api
 
+  # Colonnes demandées au client Supabase : la base est reconstruite depuis les migrations du dépôt
+  # (PostgreSQL 16 du runner, aucun accès à la production), puis chaque .select() à texte fixe et chaque
+  # filtre simple est comparé au schéma. Une colonne inconnue fait échouer la requête à l'écran.
+  colonnes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Base locale depuis les migrations
+        run: |
+          D="$RUNNER_TEMP/pg"
+          mkdir -p "$D"
+          /usr/lib/postgresql/16/bin/initdb -D "$D/data" -A trust -U postgres > /dev/null
+          /usr/lib/postgresql/16/bin/pg_ctl -D "$D/data" -o "-p 54329 -k $D -c listen_addresses=''" -l "$D/log" start
+          python3 scripts/securite/base_locale.py --hote "$D" --port 54329 --base pleine > /dev/null
+          psql -h "$D" -p 54329 -U postgres -d pleine -XAt -f scripts/qualite/schema.sql > "$RUNNER_TEMP/schema.json"
+
+      - name: Colonnes inconnues
+        run: node scripts/qualite/colonnes.mjs "$RUNNER_TEMP/schema.json" src api
+
   # Factur-X : cas fictifs (facture, remise et deux taux, avoir, client public Chorus Pro, particulier, ligne exonérée,
   # autoliquidation, franchise) validés par Mustang (schéma CII et règles EN 16931). Outil libre, aucun service payant.
   facturx:

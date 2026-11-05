@@ -1039,20 +1039,6 @@ export const useDataStore = create((set, get) => ({
     return { data, error }
   },
   
-  getSessionByToken: async (token) => {
-    const { data, error } = await supabase
-      .from('sessions')
-      .select(`
-        *,
-        courses(title, duration_hours),
-        clients(name),
-        session_trainees(trainee_id, status, trainees(id, first_name, last_name, email))
-      `)
-      .eq('attendance_token', token)
-      .single()
-    return { data, error }
-  },
-  
   getAttendancesBySessionAndDate: async (sessionId, date) => {
     const { data, error } = await supabase
       .from('attendances')
@@ -1082,37 +1068,6 @@ export const useDataStore = create((set, get) => ({
     if (error) console.error('fetchDocuments error:', error)
     if (!error) set({ documents: data || [] })
     set({ documentsLoading: false })
-    return { data, error }
-  },
-  
-  createDocument: async (document) => {
-    const now = new Date()
-    const prefix = {
-      convention: 'CONV',
-      convocation: 'CVOC',
-      attestation: 'ATT',
-      certificat: 'CERT',
-      emargement: 'EMAR',
-      programme: 'PROG',
-      evaluation: 'EVAL'
-    }[document.doc_type] || 'DOC'
-    
-    const { count } = await supabase
-      .from('documents')
-      .select('*', { count: 'exact', head: true })
-      .eq('doc_type', document.doc_type)
-    
-    const number = `${prefix}-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String((count || 0) + 1).padStart(5, '0')}`
-    
-    const { data, error } = await supabase
-      .from('documents')
-      .insert([{ ...document, number, status: 'ready' }])
-      .select()
-      .single()
-    
-    if (!error && data) {
-      set({ documents: [data, ...get().documents] })
-    }
     return { data, error }
   },
   
