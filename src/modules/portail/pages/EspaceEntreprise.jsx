@@ -33,7 +33,7 @@ import NumerosDemandes from '../components/NumerosDemandes'
 import DeposerSigne from '../components/DeposerSigne'
 import FroidEspace from '../components/FroidEspace'
 import AnalyseBesoin, { ChampsBesoin } from '../components/AnalyseBesoin'
-import { besoinsARemplir, reponsesVides, verifierReponses } from '../../formation/lib/besoinClient'
+import { besoinsARemplir, contenuDemandeIntra, reponsesVides, verifierReponses } from '../../formation/lib/besoinClient'
 import RecapSession from '../components/RecapSession'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
@@ -582,7 +582,7 @@ function Demandes({ compte, onChange }) {
     setBusy(true)
     const { error } = await supabase.rpc('ent_demander', {
       p_kind: f.kind, p_message: f.message || null, p_session: f.session || null, p_course: f.course || null,
-      p_payload: { stagiaires, periode: f.periode || null, effectif: f.effectif || null, ...(avecBesoin ? { besoin: f.besoin } : {}) },
+      p_payload: f.kind === 'demande_intra' ? contenuDemandeIntra(f, stagiaires) : { stagiaires, periode: f.periode || null, effectif: f.effectif || null },
     })
     setBusy(false)
     if (error) return toast.error(error.message)
@@ -633,13 +633,16 @@ function Demandes({ compte, onChange }) {
                 <option value="">Formation souhaitée (facultatif)</option>
                 {catalogue.formations.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
               </select>
-              <div className="grid grid-cols-2 gap-2">
+              {/* Besoin décrit : le nombre de personnes se saisit une seule fois, dans « Nombre de participants » */}
+              <div className={`grid gap-2 ${form.avecBesoin ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 <input className="input" placeholder="Période souhaitée" value={form.periode} onChange={(e) => setForm((f) => ({ ...f, periode: e.target.value }))} aria-label="Période souhaitée" />
-                <input className="input" inputMode="numeric" placeholder="Nombre de personnes" value={form.effectif} onChange={(e) => setForm((f) => ({ ...f, effectif: e.target.value.replace(/\D/g, '') }))} aria-label="Nombre de personnes" />
+                {!form.avecBesoin && <input className="input" inputMode="numeric" placeholder="Nombre de personnes" value={form.effectif} onChange={(e) => setForm((f) => ({ ...f, effectif: e.target.value.replace(/\D/g, '') }))} aria-label="Nombre de personnes" />}
               </div>
               <label className="flex items-start gap-2 text-sm text-gray-800">
                 <input type="checkbox" className="mt-0.5" checked={form.avecBesoin}
-                  onChange={(e) => setForm((f) => ({ ...f, avecBesoin: e.target.checked, besoin: { ...f.besoin, participants_count: f.besoin.participants_count || f.effectif || '' } }))} />
+                  onChange={(e) => setForm((f) => (e.target.checked
+                    ? { ...f, avecBesoin: true, besoin: { ...f.besoin, participants_count: f.besoin.participants_count || f.effectif || '' } }
+                    : { ...f, avecBesoin: false, effectif: String(f.besoin.participants_count || f.effectif || '').replace(/\D/g, '') }))} />
                 <span>Décrire votre besoin maintenant (recommandé) : vous n'aurez pas à le refaire quand la formation sera programmée.</span>
               </label>
               {form.avecBesoin && (

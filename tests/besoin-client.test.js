@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
-  MOTIFS, PROFILS, NIVEAUX, reponsesVides, depuisReponses, verifierReponses, besoinsARemplir, etatBesoinOrganisme,
+  MOTIFS, PROFILS, NIVEAUX, contenuDemandeIntra, reponsesVides, depuisReponses, verifierReponses, besoinsARemplir, etatBesoinOrganisme,
   lignesBesoin, demandeAvecBesoin,
 } from '../src/modules/formation/lib/besoinClient.js'
 
@@ -84,5 +84,20 @@ describe('analyse du besoin remplie par l\'entreprise (0486)', () => {
     expect(demandeAvecBesoin({ kind: 'demande_intra', session_id: 'x', payload: { besoin: {} } })).toBe(false)
     expect(demandeAvecBesoin({ kind: 'message', payload: { besoin: {} } })).toBe(false)
     expect(demandeAvecBesoin({ kind: 'demande_intra', payload: {} })).toBe(false)
+  })
+})
+
+describe('contenuDemandeIntra (un seul effectif saisi)', () => {
+  it('besoin décrit : effectif pris dans le besoin, même si un ancien « Nombre de personnes » traîne', () => {
+    const f = { avecBesoin: true, effectif: '5', periode: 'Mars', besoin: { participants_count: '4' } }
+    expect(contenuDemandeIntra(f)).toEqual({ stagiaires: [], periode: 'Mars', effectif: '4', besoin: f.besoin })
+  })
+  it('sans besoin : effectif de la demande, aucun besoin envoyé', () => {
+    expect(contenuDemandeIntra({ avecBesoin: false, effectif: '7', periode: '', besoin: { participants_count: '4' } }))
+      .toEqual({ stagiaires: [], periode: null, effectif: '7' })
+  })
+  it('effectif vide : null', () => {
+    expect(contenuDemandeIntra({ avecBesoin: true, besoin: { participants_count: '' } }).effectif).toBeNull()
+    expect(contenuDemandeIntra({ avecBesoin: false, effectif: '' }).effectif).toBeNull()
   })
 })

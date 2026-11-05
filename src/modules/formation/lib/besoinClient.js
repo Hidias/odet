@@ -109,3 +109,15 @@ export function lignesBesoin(a) {
 export function demandeAvecBesoin(d) {
   return d?.kind === 'demande_intra' && !d.session_id && !!d.payload?.besoin && typeof d.payload.besoin === 'object'
 }
+
+// Contenu d'une demande « Formation intra » (0487). Besoin décrit : l'effectif est celui du besoin (« Nombre de participants »),
+// un seul chiffre saisi ; sinon le « Nombre de personnes » de la demande.
+export function contenuDemandeIntra(f, stagiaires = []) {
+  const avecBesoin = !!f?.avecBesoin
+  const effectif = avecBesoin ? f.besoin?.participants_count : f?.effectif
+  return {
+    stagiaires, periode: f?.periode || null,
+    effectif: effectif === null || effectif === undefined || String(effectif).trim() === '' ? null : String(effectif).trim(),
+    ...(avecBesoin ? { besoin: f.besoin } : {}),
+  }
+}
