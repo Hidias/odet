@@ -390,6 +390,9 @@ html[data-lists='cards'] .dt-cards { display: block; }
 }
 
 /* Post-it de remarques : en bas à droite, au-dessus de la barre du bas et de la barre d'actions sur téléphone */
+/* Cartes : la carte reste sous la barre du bas et les fenêtres (ses calques ont un z-index propre) */
+.leaflet-container { isolation: isolate; }
+
 .postit-float { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
 @media (max-width: 1023px) {
   .postit-float { right: 12px; bottom: calc(16px + env(safe-area-inset-bottom)); }

@@ -515,11 +515,11 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
             <div>
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-gray-800" />
-                Session multi-SIRET
+                Session pour plusieurs établissements
               </h2>
               <p className="text-ui text-gray-500">Créer plusieurs sessions pour des entreprises d'un même groupe</p>
             </div>
-            <button onClick={onClose}><X className="w-5 h-5" /></button>
+            <button onClick={onClose} aria-label="Fermer"><X className="w-5 h-5" /></button>
           </div>
           
           {/* Step indicators */}

@@ -181,7 +181,7 @@ export default function Layout() {
     return [
       { to: '/', icon: LayoutDashboard, label: 'Accueil' },
       { to: '/sessions', icon: Calendar, label: 'Sessions' },
-      { to: '/interventions', icon: MapPin, label: 'Journée' },
+      { to: '/interventions', icon: MapPin, label: 'Interventions' },
       { to: '/clients', icon: Building2, label: 'Clients' },
     ].filter((i) => available.has(i.to)).slice(0, 4)
   }, [sections, fieldOnly, espacesTerrain])

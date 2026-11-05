@@ -168,7 +168,8 @@ export default function Planning({ technicians }) {
           ))}
         </div>
         <button type="button" className="btn btn-secondary btn-icon" onClick={() => setDay(plusDays(ws, 7))} aria-label="Semaine suivante"><ChevronRight className="w-5 h-5" /></button>
-        <span className="muted text-ui-sm ml-auto">Glisser un site sur un technicien, ou « Placer »</span>
+        <span className="muted text-ui-sm ml-auto hidden lg:inline">Glisser un site sur un technicien, ou « Placer »</span>
+        <span className="muted text-ui-sm w-full lg:hidden">Pour attribuer un site, touchez « Placer » puis choisissez le technicien.</span>
       </div>
 
       {technicians.length === 0 && <div className="card text-ui-sm">Aucun technicien : cochez les comptes concernés dans <Link to="/interventions/reglages">Réglages, Techniciens</Link>.</div>}

@@ -1343,7 +1343,7 @@ export default function Quotes() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
             <h1 className="page-title">Devis</h1>
-            <p className="text-ui text-gray-500 mt-1">{filteredQuotes.length} devis</p>
+            <p className="text-ui text-gray-500 mt-1">{loading ? 'Chargement…' : `${filteredQuotes.length} devis`}</p>
           </div>
           <button onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 transition-colors font-medium">
@@ -1379,7 +1379,7 @@ export default function Quotes() {
               <div key={i} className={`bg-white p-4 rounded-ui border`} style={toneStyle(s.color, { bg: false, text: false, border: true })}>
                 <p className="text-ui-sm text-gray-500 mb-1">{s.label}</p>
                 <p className={`text-xl font-bold`} style={toneStyle(s.color, { bg: false })}>
-                  {s.status !== null ? count : money(ca)}
+                  {loading ? '…' : s.status !== null ? count : money(ca)}
                 </p>
               </div>
             )
