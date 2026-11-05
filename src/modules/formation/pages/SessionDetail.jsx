@@ -69,6 +69,7 @@ import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { etatConvention, CONVENTION } from '../lib/etatConvention'
 import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
 import { pluriel } from '../../../core/genre'
+import ChoixFormateurs from '../components/ChoixFormateurs'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -150,7 +151,7 @@ export default function SessionDetail() {
     fetchTrainerEvaluation,
     fetchColdEvaluations, enregistrerEvaluation, supprimerEvaluation, suiviEvaluationFroid,
     fetchSessionDocuments, uploadSessionDocument, deleteSessionDocument, getSessionDocumentUrl,
-    fetchCourseQuestions, addTrainerToSession, removeTrainerFromSession,
+    fetchCourseQuestions,
     organization, fetchOrganization,
     fetchTraineeObjectives, initializeTraineeObjectives, toggleTraineeObjective, updateTraineeResult, forceTraineeResult,
     updateRemediationProposal, updatePresenceComplete,
@@ -622,6 +623,7 @@ export default function SessionDetail() {
         max_participants: found.max_participants ?? '',
         is_intra: found.is_intra || false,
         trainer_id: currentTrainer,
+        autres_formateurs_ids: (found.autres_formateurs || []).map(t => t.id),
         requires_forprev: found.requires_forprev || false,
         forprev_done: found.forprev_done || false,
         contact_id: found.contact_id || '',
@@ -2099,7 +2101,9 @@ export default function SessionDetail() {
     }
     try {
       // Mise à jour des infos session
-      const { trainer_id, ...sessionData } = editForm
+      const { trainer_id, autres_formateurs_ids, ...sessionData } = editForm
+      // Formateurs (C6) : le principal et les autres, enregistrés ensemble par updateSession
+      sessionData.trainer_ids = trainer_id ? [trainer_id, ...(autres_formateurs_ids || [])] : []
       
       console.log('Saving session with data:', sessionData)
       
@@ -2130,19 +2134,6 @@ export default function SessionDetail() {
       }
       
       console.log('Session updated:', data)
-      
-      // Mise à jour du formateur si changé
-      const currentTrainerId = session.trainer_id
-      if (trainer_id !== currentTrainerId) {
-        // Retirer l'ancien formateur si présent
-        if (currentTrainerId) {
-          await removeTrainerFromSession(id, currentTrainerId)
-        }
-        // Ajouter le nouveau formateur si sélectionné
-        if (trainer_id) {
-          await addTrainerToSession(id, trainer_id)
-        }
-      }
       
       toast.success('Session modifiée')
       setShowEdit(false)
@@ -3347,8 +3338,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <p className="text-ui text-gray-600">{pluriel(sessionTrainees.length, 'stagiaire')}</p>
         </div>
         <div className="card">
-          <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><UserCheck className="w-4 h-4" />Formateur</h3>
+          <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><UserCheck className="w-4 h-4" />{session.autres_formateurs?.length ? 'Formateurs' : 'Formateur'}</h3>
           <p className="text-ui text-gray-600">{trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Non assigné'}</p>
+          {(session.autres_formateurs || []).map(t => <p key={t.id} className="text-ui text-gray-600">{t.first_name} {t.last_name}</p>)}
         </div>
       </div>
       
@@ -5772,16 +5764,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     })} />
                 )}
                 
-                {/* Formateur */}
-                <div>
-                  <label className="label">Formateur</label>
-                  <select className="input" value={editForm.trainer_id} onChange={(e) => setEditForm({...editForm, trainer_id: e.target.value})}>
-                    <option value="">-- Non assigné --</option>
-                    {trainers.map(t => (
-                      <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* Formateurs : principal et autres (C6) */}
+                <ChoixFormateurs trainers={trainers} idBase="session-formateurs"
+                  principalId={editForm.trainer_id} autresIds={editForm.autres_formateurs_ids}
+                  onChange={({ principalId, autresIds }) => setEditForm({ ...editForm, trainer_id: principalId, autres_formateurs_ids: autresIds })} />
                 
                 <div>
                   <label className="label">Prix total HT (€) - surcharge le prix formation</label>
