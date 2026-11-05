@@ -6,8 +6,9 @@
 #    Fichiers ajoutés, modifiés ou renommés.
 #    Lecture seule : une seule requête « select » sur public.schema_migrations, adresse dans le secret SUPABASE_DB_URL.
 #    Après la mise en base, poser l'étiquette « feu-vert » relance les deux contrôles.
-# La règle de dépôt « Feu vert obligatoire » exige ces deux contrôles pour fusionner dans main
-# (pas à pas : docs/verrou-de-fusion.md).
+# Sobriété (décision de H du 05/11/2026) : pas de règle de dépôt qui exige ces contrôles (décision du 04/11), donc
+# rien ne tourne pour échouer d'avance. Les deux contrôles se lancent seulement quand l'étiquette « feu-vert » est
+# posée ; un nouveau commit retire l'étiquette sans finir en échec. (Pas à pas : docs/verrou-de-fusion.md.)
 name: Feu vert
 
 # pull_request_target : le circuit lancé est toujours celui de main, jamais celui de la PR (une PR ne peut pas
@@ -15,7 +16,7 @@ name: Feu vert
 on:
   pull_request_target:
     branches: [main]
-    types: [opened, reopened, synchronize, labeled, unlabeled]
+    types: [synchronize, labeled]
 
 permissions:
   contents: read
@@ -24,6 +25,7 @@ permissions:
 jobs:
   feu-vert:
     name: feu-vert
+    if: (github.event.action == 'labeled' && github.event.label.name == 'feu-vert') || (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'feu-vert'))
     runs-on: ubuntu-24.04
     steps:
       - name: Retirer le feu vert après un nouveau commit
@@ -34,8 +36,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           gh api -X DELETE "repos/$REPO/issues/$PR/labels/feu-vert" || true
-          echo "Nouveau commit : le feu vert est à redonner."
-          exit 1
+          echo "Nouveau commit : le feu vert est retiré, à redonner après relecture."
       - name: Feu vert présent
         if: github.event.action != 'synchronize'
         env:
@@ -47,14 +48,10 @@ jobs:
             echo "Pas encore de feu vert : attendre la relecture (et la mise en base s'il y a une migration)."
             exit 1
           fi
-      - name: Nouveau commit sans feu vert
-        if: github.event.action == 'synchronize' && !contains(github.event.pull_request.labels.*.name, 'feu-vert')
-        run: |
-          echo "Pas encore de feu vert."
-          exit 1
 
   migrations-en-base:
     name: migrations-en-base
+    if: github.event.action == 'labeled' && github.event.label.name == 'feu-vert'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

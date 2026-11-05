@@ -3,11 +3,14 @@
 Décisions de H : 29/10/2026 (feu vert obligatoire après trois fusions anticipées) et 04/11/2026 (verrou remis, avec le contrôle des migrations).
 
 ## Ce que fait le verrou
-Le circuit `.github/workflows/feu-vert.yml` lance deux contrôles sur chaque PR vers main :
+Le circuit `.github/workflows/feu-vert.yml` lance deux contrôles quand l'étiquette « feu-vert » est posée sur une PR
+vers main. Depuis le 05/11/2026 (décision de H, sobriété), rien ne tourne à l'ouverture de la PR ni à la pose d'une autre
+étiquette : sans règle de dépôt, ces passages ne faisaient qu'échouer d'avance. Un nouveau commit retire l'étiquette
+(passage vert, sans échec) ; il faut la reposer après relecture.
 
 | Contrôle | Vert quand | Rouge quand |
 |---|---|---|
-| `feu-vert` | l'étiquette « feu-vert » est posée | pas d'étiquette, ou nouveau commit poussé depuis (l'étiquette est alors retirée d'office) |
+| `feu-vert` | l'étiquette « feu-vert » est posée | ne tourne pas sans l'étiquette ; un nouveau commit la retire d'office |
 | `migrations-en-base` | la PR n'a pas de migration, ou chaque migration de la PR figure au registre de production | une migration ne s'inscrit pas au registre, ou n'est pas encore appliquée en production, ou le secret `SUPABASE_DB_URL` manque |
 
 Les deux contrôles tournent avec le circuit de main (`pull_request_target`) : une PR ne peut pas modifier le contrôle qui la juge ; les fichiers de la PR sont seulement lus. Conséquence : la PR qui installe le verrou n'est pas contrôlée elle-même, les contrôles apparaissent à partir de la PR suivante.
@@ -19,7 +22,7 @@ Chaque migration s'inscrit elle-même au registre par sa dernière ligne :
 ## Ordre pour une PR avec migration
 1. Relecture automatique terminée et corrigée.
 2. « Fenêtre Supabase à valider maintenant » : la migration est appliquée, les empreintes sont comparées.
-3. L'étiquette « feu-vert » est posée : les deux contrôles repartent et passent au vert.
+3. L'étiquette « feu-vert » est posée : les deux contrôles tournent et passent au vert (rouge si la migration n'est pas en base).
 4. H fusionne.
 
 ## Réglage à faire une fois par H (règle de dépôt)
