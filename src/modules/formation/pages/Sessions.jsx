@@ -1411,7 +1411,7 @@ export default function Sessions() {
               {!importResult && (
                 <>
                   <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-info))]">
-                    <strong>1.</strong> Allez sur le planning du donneur d'ordre (Pilocap, AFPI…)<br />
+                    <strong>1.</strong> Allez sur le planning en ligne du donneur d'ordre<br />
                     <strong>2.</strong> Sélectionnez tout le texte (<kbd className="px-1 py-0.5 bg-[rgb(var(--c-info-bg))] rounded text-ui-sm">Cmd+A</kbd>) puis copiez (<kbd className="px-1 py-0.5 bg-[rgb(var(--c-info-bg))] rounded text-ui-sm">Cmd+C</kbd>)<br />
                     <strong>3.</strong> Collez ci-dessous (<kbd className="px-1 py-0.5 bg-[rgb(var(--c-info-bg))] rounded text-ui-sm">Cmd+V</kbd>)
                   </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
-import { Plus, Search, Edit, Trash2, X, Save, Clock, Users, Euro, Copy, Upload, FileSpreadsheet, Package, ChevronDown, ChevronRight, ClipboardList, GraduationCap, FileText, Loader2, AlertTriangle } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, X, Save, Clock, Users, Euro, Copy, Upload, Package, ChevronDown, ChevronRight, ClipboardList, GraduationCap, FileText, Loader2, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import TestsPositionnement from './TestsPositionnement'
 import CourseDocumentsList from '../components/CourseDocumentsList'
@@ -68,66 +68,6 @@ const getThemeColor = (themeName) => {
   return '#6b7280' // Gris par défaut
 }
 
-// Parser CSV Sellsy pour les formations
-const parseSellsyFormationsCSV = (csvText) => {
-  const lines = csvText.split('\n').filter(l => l.trim())
-  if (lines.length < 2) return []
-  
-  // Ignorer la première ligne si c'est le nom du fichier
-  const startLine = lines[0].includes('ID Produit') ? 0 : 1
-  const headers = lines[startLine].split(';').map(h => h.replace(/"/g, '').trim())
-  
-  // Trouver les index des colonnes
-  const getIdx = (patterns) => headers.findIndex(h => patterns.some(p => h.toLowerCase().includes(p.toLowerCase())))
-  const idx = {
-    reference: getIdx(['référence', 'reference']),
-    name: getIdx(['nom commercial', 'nom']),
-    description: getIdx(['description']),
-    priceHT: getIdx(['prix référence ht', 'prix ht', 'tarif ht']),
-    tags: getIdx(['smart-tags', 'tags', 'catégorie']),
-  }
-  
-  const formations = []
-  for (let i = startLine + 1; i < lines.length; i++) {
-    const values = lines[i].split(';').map(v => v.replace(/"/g, '').trim())
-    if (values.length < 5) continue
-    
-    const name = values[idx.name] || ''
-    const description = values[idx.description] || ''
-    const reference = values[idx.reference] || ''
-    
-    // Extraire la durée depuis la description (ex: "7 heures", "14 heures", "3,5 heures")
-    let duration = 7 // défaut
-    const durationMatch = description.match(/(\d+(?:,\d+)?)\s*heures?/i)
-    if (durationMatch) {
-      duration = parseFloat(durationMatch[1].replace(',', '.'))
-    }
-    
-    // Parser le prix (ex: "785,00" -> 785)
-    let price = 0
-    const priceStr = values[idx.priceHT] || ''
-    if (priceStr) {
-      price = parseFloat(priceStr.replace(/\s/g, '').replace(',', '.')) || 0
-    }
-    
-    // Tags/catégorie
-    const tags = values[idx.tags] || ''
-    
-    if (name) {
-      formations.push({
-        reference,
-        title: name,
-        description,
-        duration_hours: duration,
-        price_ht: price,
-        category: tags,
-      })
-    }
-  }
-  
-  return formations
-}
-
 export default function Courses() {
   const { 
     courses, fetchCourses, createCourse, updateCourse, deleteCourse, duplicateCourse,
@@ -147,8 +87,6 @@ export default function Courses() {
   const [themeFilter, setThemeFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState(null)
-  const [importing, setImporting] = useState(false)
-  const [importPreview, setImportPreview] = useState(null)
   const [activeTab, setActiveTab] = useState('formations')
   // Pièces manquantes par formation (programme, support formateur, livret stagiaire, test de positionnement)
   const [completude, setCompletude] = useState(null)
@@ -158,7 +96,6 @@ export default function Courses() {
     chargerCompletude().then(setCompletude).catch(() => setCompletude(null))
   }, [activeTab, courses])
   const manquesDe = (c) => (completude ? piecesManquantes(c, completude.parFormation[c.id], completude.themesAvecTest) : [])
-  const fileInputRef = useRef(null)
   const programInputRef = useRef(null)
   const [form, setForm] = useState({
     code: '', title: '', description: '', duration: '', objectives: '', content: '',
@@ -205,71 +142,6 @@ export default function Courses() {
   })
   
   const getTheme = (themeId) => themes.find(t => t.id === themeId)
-  
-  // Import Sellsy
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result
-        const parsed = parseSellsyFormationsCSV(text)
-        if (parsed.length === 0) {
-          toast.error('Aucune formation trouvée dans le fichier')
-          return
-        }
-        setImportPreview(parsed)
-      } catch (error) {
-        console.error('Parse error:', error)
-        toast.error('Erreur lors de la lecture du fichier')
-      }
-    }
-    reader.readAsText(file, 'UTF-8')
-    e.target.value = ''
-  }
-  
-  const executeImport = async () => {
-    if (!importPreview || importPreview.length === 0) return
-    setImporting(true)
-    
-    let created = 0
-    let skipped = 0
-    
-    for (const formation of importPreview) {
-      // Vérifier si la formation existe déjà (par titre)
-      const existing = courses.find(c => 
-        c.title?.toLowerCase() === formation.title?.toLowerCase()
-      )
-      
-      if (existing) {
-        skipped++
-        continue
-      }
-      
-      // Créer la formation
-      const { error } = await createCourse({
-        title: formation.title,
-        description: formation.description,
-        duration_hours: formation.duration_hours,
-        price_ht: formation.price_ht,
-        objectives: '',
-        program: '',
-        prerequisites: '',
-        target_audience: '',
-        methods: 'Apports théoriques et pratiques, mises en situation, études de cas',
-        material: '',
-      })
-      
-      if (!error) created++
-    }
-    
-    await fetchCourses()
-    setImporting(false)
-    setImportPreview(null)
-    toast.success(`Import terminé : ${created} formation(s) créée(s), ${skipped} ignorée(s) (déjà existantes)`)
-  }
   
   const handleProgramUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -631,22 +503,6 @@ export default function Courses() {
         </div>
         {activeTab === 'formations' && (
           <div className="flex flex-wrap gap-2">
-            <input 
-              ref={fileInputRef}
-              type="file" 
-              accept=".csv" 
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            {d.gerer && (
-            <button 
-              onClick={() => fileInputRef.current?.click()} 
-              className="btn btn-secondary flex items-center gap-2"
-              title="Importer depuis Sellsy"
-            >
-              <Upload className="w-4 h-4" />Import Sellsy
-            </button>
-            )}
             <button onClick={telechargerCatalogue} className="btn btn-secondary flex items-center gap-2" title="Tous les programmes en un PDF, avec une page de garde">
               <FileText className="w-4 h-4" />Catalogue PDF
             </button>
@@ -1309,84 +1165,6 @@ export default function Courses() {
         </div>
       )}
       
-      {/* Modal Import Sellsy Preview */}
-      {importPreview && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="fixed inset-0 bg-black/50" onClick={() => !importing && setImportPreview(null)} />
-          <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-ui shadow-md w-full max-w-3xl max-h-[90vh] overflow-hidden">
-              <div className="flex items-center justify-between p-4 border-b bg-[rgb(var(--c-success-bg))]">
-                <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="w-6 h-6 text-[rgb(var(--c-success))]" />
-                  <div>
-                    <h2 className="text-lg font-semibold">Import formations Sellsy</h2>
-                    <p className="text-ui text-gray-600">{importPreview.length} formation(s) détectée(s)</p>
-                  </div>
-                </div>
-                {!importing && <button onClick={() => setImportPreview(null)}><X className="w-5 h-5" /></button>}
-              </div>
-              
-              <div className="p-4 overflow-y-auto max-h-[60vh]">
-                <table className="w-full text-ui">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left py-2 px-3 font-medium">Formation</th>
-                      <th className="text-center py-2 px-3 font-medium">Durée</th>
-                      <th className="text-right py-2 px-3 font-medium">Prix HT</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {importPreview.map((formation, idx) => {
-                      const exists = courses.find(c => c.title?.toLowerCase() === formation.title?.toLowerCase())
-                      return (
-                        <tr key={idx} className={exists ? 'bg-[rgb(var(--c-warning-bg))]' : ''}>
-                          <td className="py-2 px-3">
-                            <div className="font-medium">{formation.title}</div>
-                            <div className="text-ui-sm text-gray-500 truncate max-w-md">{formation.description}</div>
-                            {exists && <span className="text-ui-sm text-[rgb(var(--c-warning))]"> Existe déjà</span>}
-                          </td>
-                          <td className="py-2 px-3 text-center text-gray-600">{formation.duration_hours}h</td>
-                          <td className="py-2 px-3 text-right text-gray-900 font-medium">{formation.price_ht?.toLocaleString('fr-FR')} €</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-                <p className="text-ui text-gray-600">
-                  Les formations existantes seront ignorées. Toutes les formations importées sont modifiables.
-                </p>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setImportPreview(null)} 
-                    className="btn btn-secondary"
-                    disabled={importing}
-                  >
-                    Annuler
-                  </button>
-                  <button 
-                    onClick={executeImport} 
-                    className="btn btn-primary flex items-center gap-2"
-                    disabled={importing}
-                  >
-                    {importing ? (
-                      <>
-                        <span className="animate-spin"></span> Import en cours...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4" /> Importer
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

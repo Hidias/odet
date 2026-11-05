@@ -468,7 +468,7 @@ export default function Invoices() {
     const ref = await generateReference(type), dd = format(addDays(new Date(), 30), 'yyyy-MM-dd')
     setCurrent({
       reference: ref, type, client_id: '', contact_id: '', quote_id: '', session_id: '',
-      sellsy_reference: '', client_reference: '',
+      external_ref: '', client_reference: '',
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: '', service_end_date: '', due_date: dd,
       object: '', payment_method: 'virement bancaire', payment_terms: 'à 30 jours', discount_percent: 0, discount_label: '',
       tva_applicable: true, notes: '', created_by: currentUserName(), status: 'draft',
@@ -507,7 +507,7 @@ export default function Invoices() {
     setContacts(ccs || [])
     setCurrent({
       reference: ref, type: 'invoice', client_id: quote.client_id, contact_id: bc?.id || quote.contact_id || '',
-      quote_id: quote.id, session_id: quote.session_id || '', sellsy_reference: '', client_reference: quote.client_reference || '',
+      quote_id: quote.id, session_id: quote.session_id || '', external_ref: '', client_reference: quote.client_reference || '',
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: sStart, service_end_date: sEnd, due_date: dd,
       object: quote.object || '', payment_method: quote.payment_method || 'virement bancaire', payment_terms: quote.payment_terms || 'à 30 jours',
       discount_percent: quote.discount_percent || 0, discount_label: quote.discount_label || '', tva_applicable: quote.tva_applicable !== false,
@@ -659,7 +659,7 @@ export default function Invoices() {
 
     setCurrent({
       reference: ref, type: 'invoice', client_id: financement?.client_id || sess.client_id, contact_id: groupe ? '' : (bc?.id || sess.contact_id || ''),
-      quote_id: isSubcontract ? '' : (sess.quote_id || ''), session_id: sess.id, sellsy_reference: '', client_reference: clientRef,
+      quote_id: isSubcontract ? '' : (sess.quote_id || ''), session_id: sess.id, external_ref: '', client_reference: clientRef,
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: sess.start_date || '', service_end_date: sess.end_date || '', due_date: dd,
       object: objectTitle, payment_method: 'virement bancaire', payment_terms: clientPaymentTerms,
       discount_percent: 0, discount_label: '', tva_applicable: true,
@@ -703,7 +703,7 @@ export default function Invoices() {
     const ref = await generateReference('invoice')
     setCurrent({
       reference: ref, type: 'invoice', client_id: clientId, contact_id: inter ? '' : (sess.contact_id || ''), quote_id: '', session_id: sess.id,
-      sellsy_reference: '', client_reference: '',
+      external_ref: '', client_reference: '',
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: sess.start_date || '', service_end_date: sess.end_date || sess.start_date || '',
       due_date: calcDueDate(terms), object: `${regle.titre} : ${titreFormation} ${dates}`,
       payment_method: 'virement bancaire', payment_terms: terms, discount_percent: 0, discount_label: '', tva_applicable: true,
@@ -771,7 +771,7 @@ export default function Invoices() {
     setCurrent({
       reference: ref, type: 'invoice', client_id: first.client_id, contact_id: bc?.id || first.contact_id || '',
       quote_id: '', session_id: first.id, _session_ids: sessionsSorted.map(s => s.id),
-      sellsy_reference: '', client_reference: '',
+      external_ref: '', client_reference: '',
       invoice_date: format(new Date(), 'yyyy-MM-dd'),
       service_start_date: allDates[0] || '', service_end_date: allDates[allDates.length - 1] || '', due_date: dd,
       object: objectTitle, payment_method: 'virement bancaire', payment_terms: clientPaymentTerms,
@@ -827,7 +827,7 @@ export default function Invoices() {
       reference: ref, type: 'invoice', client_id: groupedClientId,
       contact_id: bc?.id || '', quote_id: '', session_id: '',
       _grouped_session_ids: toInvoice.map(s => s.id),
-      sellsy_reference: '', client_reference: '',
+      external_ref: '', client_reference: '',
       invoice_date: format(new Date(), 'yyyy-MM-dd'),
       service_start_date: allDates[0] || '', service_end_date: allDates[allDates.length - 1] || '',
       due_date: dd,
@@ -858,7 +858,7 @@ export default function Invoices() {
     await loadContacts(inv.client_id)
     setCurrent({
       reference: ref, type: 'credit_note', client_id: inv.client_id, contact_id: inv.contact_id || '', quote_id: inv.quote_id || '',
-      session_id: inv.session_id || '', sellsy_reference: '', client_reference: inv.client_reference || '',
+      session_id: inv.session_id || '', external_ref: '', client_reference: inv.client_reference || '',
       invoice_date: format(new Date(), 'yyyy-MM-dd'), service_start_date: inv.service_start_date || '', service_end_date: inv.service_end_date || '', due_date: '',
       object: 'Avoir sur facture ' + inv.reference, payment_method: inv.payment_method, payment_terms: inv.payment_terms,
       discount_percent: inv.discount_percent || 0, discount_label: inv.discount_label || '', tva_applicable: inv.tva_applicable !== false,
@@ -987,7 +987,7 @@ export default function Invoices() {
     const invData = {
       reference: current.reference, type: current.type || 'invoice', client_id: current.client_id,
       contact_id: current.contact_id || null, quote_id: current.quote_id || null, session_id: current.session_id || null,
-      parent_invoice_id: current.parent_invoice_id || null, sellsy_reference: current.sellsy_reference || null,
+      parent_invoice_id: current.parent_invoice_id || null, external_ref: current.external_ref || null,
       client_reference: current.client_reference || '', invoice_date: current.invoice_date,
       service_start_date: current.service_start_date || null, service_end_date: current.service_end_date || null,
       due_date: current.due_date || null, object: current.object || '', payment_method: current.payment_method,
@@ -1860,7 +1860,7 @@ export default function Invoices() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <div><label className="text-ui-sm text-gray-500 block mb-1">Réf. Sellsy</label><input type="text" value={current?.sellsy_reference || ''} onChange={e => setCurrent({...current, sellsy_reference: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} placeholder="FACT-..." /></div>
+            <div><label className="text-ui-sm text-gray-500 block mb-1">Référence dans l'ancien outil</label><input type="text" value={current?.external_ref || ''} onChange={e => setCurrent({...current, external_ref: e.target.value})} className="w-full border rounded-ui-sm px-3 py-2 text-ui" readOnly={ro} placeholder="Numéro d'origine" /></div>
             {isCr && !ro ? (
               <div>
                 <label className="text-ui-sm text-gray-500 block mb-1">Facture d'origine *</label>

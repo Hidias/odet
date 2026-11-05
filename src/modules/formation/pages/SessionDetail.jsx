@@ -3316,8 +3316,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
       )}
 
-      {/* Bannière persistante - session terminée sans facture (hors Sellsy) */}
-      {!showInvoicePrompt && session.status === 'completed' && sessionHasInvoice === false && !(session.notes || '').includes('Sellsy') && (
+      {/* Bannière persistante - session terminée sans facture */}
+      {!showInvoicePrompt && session.status === 'completed' && sessionHasInvoice === false && (
         <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-3 flex items-center justify-between">
           <p className="text-ui text-[rgb(var(--c-warning))] flex items-center gap-2">
             <AlertCircle className="w-4 h-4" /> Formation terminée - aucune facture créée pour cette session

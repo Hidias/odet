@@ -1,7 +1,7 @@
 import { requireRight, MANAGERS } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 // api/parse-planning-import.js
-// Parse un planning copié-collé (ex: Pilocap) via Claude et retourne des sessions structurées
+// Lit un planning copié-collé depuis la plateforme d'un donneur d'ordre et retourne des sessions structurées
 
 async function handler(req, res) {
   const ctx = await requireRight(req, res, 'formation.sessions.creer', MANAGERS, MANAGERS)
@@ -19,7 +19,7 @@ async function handler(req, res) {
       return res.status(400).json({ error: 'Texte trop court pour être analysé' })
     }
 
-    const systemPrompt = `Tu es un assistant qui analyse des plannings de formation copiés-collés depuis des plateformes de donneurs d'ordre (type Pilocap, AFPI, etc.).
+    const systemPrompt = `Tu es un assistant qui analyse des plannings de formation copiés-collés depuis des plateformes de donneurs d'ordre (organismes qui sous-traitent des formations).
 
 Tu dois extraire les données structurées et retourner UNIQUEMENT du JSON valide, sans aucun texte avant ou après.
 
