@@ -69,6 +69,8 @@ import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { etatConvention, CONVENTION } from '../lib/etatConvention'
 import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
 import { pluriel } from '../../../core/genre'
+import ChoixFormateurs from '../components/ChoixFormateurs'
+import { formateursAEnvoyer } from '../../../core/session/formateursSession'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -150,7 +152,7 @@ export default function SessionDetail() {
     fetchTrainerEvaluation,
     fetchColdEvaluations, enregistrerEvaluation, supprimerEvaluation, suiviEvaluationFroid,
     fetchSessionDocuments, uploadSessionDocument, deleteSessionDocument, getSessionDocumentUrl,
-    fetchCourseQuestions, addTrainerToSession, removeTrainerFromSession,
+    fetchCourseQuestions,
     organization, fetchOrganization,
     fetchTraineeObjectives, initializeTraineeObjectives, toggleTraineeObjective, updateTraineeResult, forceTraineeResult,
     updateRemediationProposal, updatePresenceComplete,
@@ -162,6 +164,8 @@ export default function SessionDetail() {
   // Gardes des boutons d'écriture (branche ecrans/gardes)
   const d = useDroits({
     modifier: ['formation.sessions.modifier', 'formation.sessions.modifier_siennes'],
+    // Changer les formateurs d'une session : écriture dans session_trainers, réservée à ce droit (C6)
+    formateurs: 'formation.sessions.modifier',
     supprimer: 'formation.sessions.supprimer',
     preparer: ['formation.sessions.preparer', 'formation.sessions.modifier_siennes'],
     suivi: ['formation.suivi.gerer', 'formation.sessions.modifier_siennes'],
@@ -622,6 +626,7 @@ export default function SessionDetail() {
         max_participants: found.max_participants ?? '',
         is_intra: found.is_intra || false,
         trainer_id: currentTrainer,
+        autres_formateurs_ids: found.autres_formateurs ? found.autres_formateurs.map(t => t.id) : null,
         requires_forprev: found.requires_forprev || false,
         forprev_done: found.forprev_done || false,
         contact_id: found.contact_id || '',
@@ -2099,7 +2104,14 @@ export default function SessionDetail() {
     }
     try {
       // Mise à jour des infos session
-      const { trainer_id, ...sessionData } = editForm
+      const { trainer_id, autres_formateurs_ids, ...sessionData } = editForm
+      // Formateurs (C6) : envoyés seulement s'ils ont changé (sinon un formateur qui modifie l'horaire de sa session
+      // n'a pas à écrire dans session_trainers) ; une session de sous-traitance n'a que son formateur principal
+      const envoi = formateursAEnvoyer(
+        { principalId: trainer_id, autresIds: autres_formateurs_ids, sousTraitance: session.session_type === 'subcontract' },
+        { principalInitial: session.trainer_id, autresInitiaux: session.autres_formateurs ? session.autres_formateurs.map(t => t.id) : null })
+      if (envoi.erreur) { toast.error(envoi.erreur); return }
+      if (envoi.trainerIds !== undefined) sessionData.trainer_ids = envoi.trainerIds
       
       console.log('Saving session with data:', sessionData)
       
@@ -2130,19 +2142,6 @@ export default function SessionDetail() {
       }
       
       console.log('Session updated:', data)
-      
-      // Mise à jour du formateur si changé
-      const currentTrainerId = session.trainer_id
-      if (trainer_id !== currentTrainerId) {
-        // Retirer l'ancien formateur si présent
-        if (currentTrainerId) {
-          await removeTrainerFromSession(id, currentTrainerId)
-        }
-        // Ajouter le nouveau formateur si sélectionné
-        if (trainer_id) {
-          await addTrainerToSession(id, trainer_id)
-        }
-      }
       
       toast.success('Session modifiée')
       setShowEdit(false)
@@ -3211,7 +3210,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     </div>
                     <div>
                       <label className="label">Formateur</label>
-                      <select className="input" value={editForm.trainer_id} onChange={(e) => setEditForm({...editForm, trainer_id: e.target.value})}>
+                      <select className="input" value={editForm.trainer_id} disabled={!d.formateurs} onChange={(e) => setEditForm({...editForm, trainer_id: e.target.value})}>
                         <option value="">-- Non assigné --</option>
                         {trainers.map(t => (
                           <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
@@ -3347,8 +3346,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           <p className="text-ui text-gray-600">{pluriel(sessionTrainees.length, 'stagiaire')}</p>
         </div>
         <div className="card">
-          <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><UserCheck className="w-4 h-4" />Formateur</h3>
+          <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><UserCheck className="w-4 h-4" />{session.autres_formateurs?.length ? 'Formateurs' : 'Formateur'}</h3>
           <p className="text-ui text-gray-600">{trainer ? `${trainer.first_name} ${trainer.last_name}` : 'Non assigné'}</p>
+          {(session.autres_formateurs || []).map(t => <p key={t.id} className="text-ui text-gray-600">{t.first_name} {t.last_name}</p>)}
         </div>
       </div>
       
@@ -5772,16 +5772,18 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     })} />
                 )}
                 
-                {/* Formateur */}
-                <div>
-                  <label className="label">Formateur</label>
-                  <select className="input" value={editForm.trainer_id} onChange={(e) => setEditForm({...editForm, trainer_id: e.target.value})}>
-                    <option value="">-- Non assigné --</option>
-                    {trainers.map(t => (
-                      <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* Formateurs : principal et autres (C6), modifiables avec le droit de modifier toutes les sessions */}
+                {d.formateurs ? (
+                  <ChoixFormateurs trainers={trainers} idBase="session-formateurs"
+                    principalId={editForm.trainer_id} autresIds={editForm.autres_formateurs_ids || []}
+                    autresInconnus={editForm.autres_formateurs_ids == null}
+                    onChange={({ principalId, autresIds }) => setEditForm({ ...editForm, trainer_id: principalId, autres_formateurs_ids: autresIds })} />
+                ) : (
+                  <div>
+                    <p className="label">Formateurs</p>
+                    <p className="text-ui text-gray-600">{[session.trainers, ...(session.autres_formateurs || [])].filter(Boolean).map(t => `${t.first_name} ${t.last_name}`).join(', ') || 'Non assigné'}</p>
+                  </div>
+                )}
                 
                 <div>
                   <label className="label">Prix total HT (€) - surcharge le prix formation</label>

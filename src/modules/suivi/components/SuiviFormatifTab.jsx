@@ -7,6 +7,7 @@ import QRCode from 'qrcode'
 import toast from 'react-hot-toast'
 import { Smartphone, FileDown, Archive, ExternalLink, Loader2, ClipboardList, AlertTriangle, X, History } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
+import { supabase } from '../../../core/supabase'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { SF_MODULE, STATUSES, statusOf, loadSessionFormative, initSession, effectiveStatus, indexEvaluations, computeCoverage, hasRoles, principalRole, notedSequenceCount, canWriteSession } from '../lib/sfData'
 import { modalityShort, modalityLabel } from '../lib/sequenceTemplates'
@@ -25,6 +26,12 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
   const [busy, setBusy] = useState(false)
   const [qr, setQr] = useState(null)
   const [reasonAsk, setReasonAsk] = useState(null)
+  // Autre formateur de la session (C6) : la base répond avec sa propre règle (formateur principal ou session_trainers)
+  const [formateurDeLaSession, setFormateurDeLaSession] = useState(false)
+  useEffect(() => {
+    if (!enabled || !profile?.trainer_id || !sessionId) return
+    supabase.rpc('sf_is_trainer_of', { p_session: sessionId }).then(({ data: oui }) => setFormateurDeLaSession(!!oui))
+  }, [enabled, profile?.trainer_id, sessionId])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -37,7 +44,7 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
 
   useEffect(() => { if (enabled) load() }, [enabled, load])
 
-  const isTrainer = !!(data?.session?.trainer_id && profile?.trainer_id && data.session.trainer_id === profile.trainer_id)
+  const isTrainer = !!(data?.session?.trainer_id && profile?.trainer_id && data.session.trainer_id === profile.trainer_id) || formateurDeLaSession
   const canWrite = canWriteSession(userRole, isTrainer)
 
   const idx = useMemo(() => indexEvaluations(data?.evaluations || []), [data])

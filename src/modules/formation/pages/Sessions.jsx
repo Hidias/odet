@@ -13,6 +13,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import MultiSiretWizard from '../components/MultiSiretWizard'
+import ChoixFormateurs from '../components/ChoixFormateurs'
 import SessionPlanning from '../components/SessionPlanning'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 
@@ -314,7 +315,7 @@ export default function Sessions() {
         room: '',
         status: formData.status,
         is_intra: true,
-        trainer_ids: formData.trainer_ids,
+        trainer_ids: formData.session_type === 'subcontract' ? formData.trainer_ids.slice(0, 1) : formData.trainer_ids,
         trainee_ids: [],
         funding_type: 'none',
         funding_details: null,
@@ -371,7 +372,7 @@ export default function Sessions() {
           room: '',
           status: formData.status,
           is_intra: true,
-          trainer_ids: formData.trainer_ids,
+          trainer_ids: formData.session_type === 'subcontract' ? formData.trainer_ids.slice(0, 1) : formData.trainer_ids,
           trainee_ids: [],
           funding_type: 'none',
           funding_details: null,
@@ -430,7 +431,7 @@ export default function Sessions() {
       room: formData.room,
       status: formData.status,
       is_intra: isSub ? true : formData.is_intra,
-      trainer_ids: formData.trainer_ids,
+      trainer_ids: formData.session_type === 'subcontract' ? formData.trainer_ids.slice(0, 1) : formData.trainer_ids,
       trainee_ids: isSub ? [] : formData.trainee_ids,
       funding_type: isSub ? 'none' : (formData.funding_type || 'none'),
       funding_details: isSub ? null : (formData.funding_details || null),
@@ -492,7 +493,7 @@ export default function Sessions() {
       location: s.location_name || '',
       room: s.room || '',
       is_intra: !!s.is_intra,
-      trainer_ids: s.trainer_id ? [s.trainer_id] : [],
+      trainer_ids: s.trainer_id ? [s.trainer_id, ...(s.autres_formateurs || []).map(t => t.id)] : [],
       funding_type: s.funding_type || 'none',
       funding_details: s.funding_details || '',
       session_type: s.session_type || 'intra',
@@ -1304,26 +1305,10 @@ export default function Sessions() {
                 </div>
               </div>
               
-              {/* Formateur */}
-              <div>
-                <label className="label">Formateur(s)</label>
-                <select
-                  multiple
-                  value={formData.trainer_ids}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    trainer_ids: Array.from(e.target.selectedOptions, opt => opt.value) 
-                  })}
-                  className="input h-24"
-                >
-                  {trainers.map(trainer => (
-                    <option key={trainer.id} value={trainer.id}>
-                      {trainer.first_name} {trainer.last_name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-ui-sm text-gray-500 mt-1">Ctrl+clic pour sélectionner plusieurs</p>
-              </div>
+              {/* Formateurs : principal et autres (C6) */}
+              <ChoixFormateurs trainers={trainers} idBase="nouvelle-session-formateurs"
+                principalId={formData.trainer_ids[0] || ''} autresIds={formData.trainer_ids.slice(1)}
+                onChange={({ principalId, autresIds }) => setFormData({ ...formData, trainer_ids: principalId ? [principalId, ...autresIds] : [] })} />
               
               {/* Stagiaires avec filtres */}
               <div className="border rounded-ui-sm p-4">

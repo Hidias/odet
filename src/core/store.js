@@ -1,4 +1,5 @@
 import { setCurrentProfile, setTeamCache, profileName, setSocieteCache, ROLES_HORS_EQUIPE } from './org/currentOrg'
+import { formateursVoulus, autresFormateursIds, separerFormateurs } from './session/formateursSession'
 import { create } from 'zustand'
 import toast from 'react-hot-toast'
 import { supabase, ADMIN_EMAILS } from './supabase'
@@ -459,6 +460,9 @@ export const useDataStore = create((set, get) => ({
   deleteTrainer: async (id) => {
     const { error } = await supabase.from('trainers').delete().eq('id', id)
     if (!error) {
+      // Pas de clé étrangère en cascade sur session_trainers : retirer ses lignes (C6)
+      const { error: errSessions } = await supabase.from('session_trainers').delete().eq('trainer_id', id)
+      if (errSessions) console.error('deleteTrainer (sessions) :', errSessions)
       set({ trainers: get().trainers.filter(t => t.id !== id) })
     }
     return { error }
@@ -596,10 +600,11 @@ export const useDataStore = create((set, get) => ({
         { data: sessionsData, error: sessionsError },
         { data: coursesData },
         { data: clientsData },
-        { data: trainersData },
+        { data: trainersData, error: trainersError },
         { data: traineesData },
         { data: sessionTraineesData },
-        { data: contactsData }
+        { data: contactsData },
+        { data: sessionTrainersData, error: sessionTrainersError }
       ] = await Promise.all([
         // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
         fetchAll(() => supabase.from('sessions').select('*').order('start_date', { ascending: false })),
@@ -608,7 +613,10 @@ export const useDataStore = create((set, get) => ({
         fetchAll(() => supabase.from('trainers').select('*')),
         fetchAll(() => supabase.from('trainees').select('*')),
         fetchAll(() => supabase.from('session_trainees').select('id, session_id, trainee_id, registration_date, result, admin_observation, expectations_notification_sent, presence_complete, early_departure, access_code, positioning_test_completed, positioning_test_completed_at, forprev_card_url, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, convocation_sent_at, absent, absent_reason')),
-        fetchAll(() => supabase.from('client_contacts').select('*'))
+        fetchAll(() => supabase.from('client_contacts').select('*')),
+        // Autres formateurs (C6)
+        // Pas de colonne id dans session_trainers : tri sur sa clé
+        fetchAll(() => supabase.from('session_trainers').select('session_id, trainer_id'), { orderBy: ['session_id', 'trainer_id'] })
       ])
       
       if (sessionsError) {
@@ -685,6 +693,13 @@ export const useDataStore = create((set, get) => ({
         })
       }
       
+      // Grouper session_trainers par session_id (autres formateurs, C6)
+      const sessionTrainersMap = new Map()
+      for (const st of (sessionTrainersData || [])) {
+        if (!sessionTrainersMap.has(st.session_id)) sessionTrainersMap.set(st.session_id, [])
+        sessionTrainersMap.get(st.session_id).push(st)
+      }
+      
       // Construire les sessions avec leurs relations
       const sessions = (sessionsData || []).map(s => ({
         ...s,
@@ -692,7 +707,9 @@ export const useDataStore = create((set, get) => ({
         clients: clientsMap.get(s.client_id) || null,
         trainers: trainersMap.get(s.trainer_id) || null,
         contact: contactsMap.get(s.contact_id) || null,
-        session_trainees: sessionTraineesMap.get(s.id) || []
+        session_trainees: sessionTraineesMap.get(s.id) || [],
+        // null = liste inconnue (lecture en échec) : rien ne doit être réécrit à partir d'elle
+        autres_formateurs: (sessionTrainersError || trainersError) ? null : autresFormateursIds(sessionTrainersMap.get(s.id), s.trainer_id).map(id => trainersMap.get(id)).filter(Boolean)
       }))
       
       set({ sessions, sessionsLoading: false })
@@ -742,6 +759,14 @@ export const useDataStore = create((set, get) => ({
         const { data: trainer } = await supabase.from('trainers').select('*').eq('id', data.trainer_id).single()
         data.trainers = trainer
       }
+      // Autres formateurs (C6)
+      const { data: lignesFormateurs, error: errLignes } = await supabase.from('session_trainers').select('trainer_id').eq('session_id', id)
+      const autresIds = autresFormateursIds(lignesFormateurs, data.trainer_id)
+      data.autres_formateurs = errLignes ? null : []
+      if (!errLignes && autresIds.length) {
+        const { data: autres, error: errAutres } = await supabase.from('trainers').select('*').in('id', autresIds)
+        data.autres_formateurs = errAutres ? null : (autres || [])
+      }
       // Charger les stagiaires avec presence_complete et early_departure
       const { data: sessionTrainees, error: stError } = await supabase
         .from('session_trainees')
@@ -784,7 +809,7 @@ export const useDataStore = create((set, get) => ({
       course_id: rest.course_id || null,
       client_id: rest.client_id,
       contact_id: rest.contact_id || null,
-      trainer_id: trainer_ids?.length > 0 ? trainer_ids[0] : (rest.trainer_id || null),
+      trainer_id: separerFormateurs(trainer_ids).principalId || rest.trainer_id || null,
       start_date: rest.start_date,
       end_date: rest.end_date,
       start_time: rest.start_time || '09:00',
@@ -828,6 +853,10 @@ export const useDataStore = create((set, get) => ({
     }
     
     if (data) {
+      // Tous les formateurs choisis dans session_trainers (C6) : sans eux, un formateur ajouté ne voit pas la session
+      const { autresIds } = separerFormateurs(trainer_ids)
+      const { error: errFormateurs } = data.trainer_id ? await get().enregistrerFormateursSession(data.id, data.trainer_id, autresIds) : { error: null }
+      if (errFormateurs) toast.error(`Session créée, mais les formateurs n'ont pas tous été enregistrés : ${errFormateurs.message}`, { id: 'formateurs-session-erreur' })
       // Ajouter les stagiaires (sans status car n'existe pas)
       if (trainee_ids?.length) {
         await supabase.from('session_trainees').insert(
@@ -853,7 +882,7 @@ export const useDataStore = create((set, get) => ({
     if (rest.course_id !== undefined) sessionUpdates.course_id = rest.course_id
     if (rest.client_id !== undefined) sessionUpdates.client_id = rest.client_id
     if (rest.contact_id !== undefined) sessionUpdates.contact_id = rest.contact_id || null
-    if (trainer_ids !== undefined) sessionUpdates.trainer_id = trainer_ids[0] || null
+    if (trainer_ids !== undefined) sessionUpdates.trainer_id = separerFormateurs(trainer_ids).principalId
     if (rest.trainer_id !== undefined) sessionUpdates.trainer_id = rest.trainer_id
     if (rest.start_date !== undefined) sessionUpdates.start_date = rest.start_date
     if (rest.end_date !== undefined) sessionUpdates.end_date = rest.end_date
@@ -911,6 +940,15 @@ export const useDataStore = create((set, get) => ({
     }
     
     if (data) {
+      // Formateurs fournis (C6) : session_trainers suit la liste, principal compris
+      if (trainer_ids !== undefined) {
+        const { autresIds } = separerFormateurs(trainer_ids)
+        const { error: errFormateurs } = await get().enregistrerFormateursSession(id, data.trainer_id, autresIds)
+        if (errFormateurs) {
+          await get().fetchSessions()
+          return { data, error: { ...errFormateurs, message: `Session enregistrée, mais les formateurs n'ont pas été mis à jour : ${errFormateurs.message}` } }
+        }
+      }
       // Mettre à jour les stagiaires si fournis
       if (trainee_ids !== undefined) {
         await supabase.from('session_trainees').delete().eq('session_id', id)
@@ -934,6 +972,9 @@ export const useDataStore = create((set, get) => ({
     // suppression de session (0485) au lieu d'autant de retraits que de stagiaires.
     const { error } = await supabase.from('sessions').delete().eq('id', id)
     if (!error) {
+      // session_trainers n'a pas de clé étrangère en cascade : ses lignes partent après la session (C6)
+      const { error: errFormateurs } = await supabase.from('session_trainers').delete().eq('session_id', id)
+      if (errFormateurs) console.error('deleteSession (formateurs) :', errFormateurs)
       set({ sessions: get().sessions.filter(s => s.id !== id) })
     }
     return { error }
@@ -965,43 +1006,22 @@ export const useDataStore = create((set, get) => ({
   },
   
   // Ajouter un formateur à une session
-  addTrainerToSession: async (sessionId, trainerId) => {
-    console.log('Adding trainer to session:', sessionId, trainerId)
-    const { data, error } = await supabase
-      .from('sessions')
-      .update({ trainer_id: trainerId })
-      .eq('id', sessionId)
-      .select()
-      .single()
-    
-    if (error) {
-      console.error('addTrainerToSession error:', error)
-      return { data: null, error }
+  // Formateurs d'une session (C6) : session_trainers contient exactement le principal et les autres formateurs.
+  // Insertion d'abord (rien de perdu si elle échoue), puis retrait de ceux qui ne sont plus choisis.
+  enregistrerFormateursSession: async (sessionId, principalId, autresIds = []) => {
+    const voulus = formateursVoulus(principalId, autresIds)
+    if (voulus.length) {
+      const { error } = await supabase.from('session_trainers')
+        .upsert(voulus.map(trainer_id => ({ session_id: sessionId, trainer_id })), { onConflict: 'session_id,trainer_id', ignoreDuplicates: true })
+      if (error) { console.error('enregistrerFormateursSession (ajout) :', error); return { error } }
     }
-    
-    if (!error) await get().fetchSessions()
-    return { data, error }
+    let retrait = supabase.from('session_trainers').delete().eq('session_id', sessionId)
+    if (voulus.length) retrait = retrait.not('trainer_id', 'in', `(${voulus.join(',')})`)
+    const { error } = await retrait
+    if (error) { console.error('enregistrerFormateursSession (retrait) :', error); return { error } }
+    return { error: null }
   },
 
-  // Retirer un formateur d'une session
-  removeTrainerFromSession: async (sessionId, trainerId) => {
-    console.log('Removing trainer from session:', sessionId, trainerId)
-    const { data, error } = await supabase
-      .from('sessions')
-      .update({ trainer_id: null })
-      .eq('id', sessionId)
-      .eq('trainer_id', trainerId)
-      .select()
-      .single()
-    
-    if (error) {
-      console.error('removeTrainerFromSession error:', error)
-      return { data: null, error }
-    }
-    
-    if (!error) await get().fetchSessions()
-    return { data, error }
-  },
   
   updateTraineeStatus: async (sessionId, traineeId, status) => {
     const { error } = await supabase
