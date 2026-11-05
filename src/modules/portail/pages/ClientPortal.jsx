@@ -475,7 +475,7 @@ export default function ClientPortal() {
             <div className="mt-2 grid gap-1 text-sm text-gray-600">
               <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />{dates}{s.start_time ? `, ${String(s.start_time).slice(0, 5).replace(':', 'h')} à ${String(s.end_time || '').slice(0, 5).replace(':', 'h')}` : ''}</span>
               {lieu && <span className="flex items-start gap-1.5"><MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" aria-hidden="true" />{lieu}</span>}
-              <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />{nb} participant{nb > 1 ? 's' : ''}{s.trainers ? `, formateur ${s.trainers.first_name} ${s.trainers.last_name}` : ''}</span>
+              <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />{nb} participant{nb > 1 ? 's' : ''}{s.group_id ? ' (session inter)' : ''}{s.trainers ? `, formateur ${s.trainers.first_name} ${s.trainers.last_name}` : ''}</span>
             </div>
             {!finished && <RecapSession s={s} lieu={lieu} sansHoraires />}
             {nb > 0 && (
@@ -487,8 +487,9 @@ export default function ClientPortal() {
                 ))}
               </ul>
             )}
-            <ParticipantsSession etat={participants[s.id]} onEnregistrer={(liste) => enregistrerParticipants(s.id, liste)} chargerSalaries={chargerSalaries} />
-            {!s.convention_signed && !finished && (() => {
+            {!s.group_id && <ParticipantsSession etat={participants[s.id]} onEnregistrer={(liste) => enregistrerParticipants(s.id, liste)} chargerSalaries={chargerSalaries} />}
+            {/* Inter par un groupe (C1) : la convention du groupe est dans les documents de l'espace, pas au niveau de la session */}
+            {!s.group_id && !s.convention_signed && !finished && (() => {
               // Session issue d'un devis : la convention se signe une fois la session confirmée et les participants saisis
               const et = participants[s.id]
               const attente = et?.devis ? (et.validation_requise ? 'Votre organisme confirme les dates de la session.' : (et.participants || []).length === 0 ? 'Saisissez d\'abord vos participants.' : (et.participants || []).some((x) => x.statut === 'attente') ? 'votre organisme confirme d\'abord les places en plus du maximum.' : null) : null
@@ -509,9 +510,9 @@ export default function ClientPortal() {
               )
             })()}
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {s.convention_signed
+              {!s.group_id && (s.convention_signed
                 ? <DocButton s={s} kind="convention_signee" icon={FileSignature} label={signatureDe(s.id) ? 'Convention signée, avec sa preuve' : 'Convention signée'} />
-                : <DocButton s={s} kind="convention" icon={FileSignature} label="Convention de formation" />}
+                : <DocButton s={s} kind="convention" icon={FileSignature} label="Convention de formation" />)}
               {/* Session issue d'un devis : convocations après la convention signée (l'organisme les valide et les envoie) */}
               <DocButton s={s} kind="convocations" icon={FileText} label={convocationsEnAttente(s) ? 'Convocations (après validation par votre organisme)' : 'Convocations'} disabled={nb === 0 || convocationsEnAttente(s)} />
               <DocButton s={s} kind="emargement" icon={ClipboardList} label="Feuille d'émargement" disabled={nb === 0} />
@@ -596,13 +597,13 @@ export default function ClientPortal() {
         {upcoming.length > 0 && (
           <section className="mb-8">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">À venir ou en cours</h2>
-            <div className="space-y-4">{upcoming.map((s, k) => <SessionCard key={s.id} s={s} finished={false} index={k} />)}</div>
+            <div className="space-y-4">{upcoming.map((s, k) => <SessionCard key={`${s.id}${s.group_id || ''}`} s={s} finished={false} index={k} />)}</div>
           </section>
         )}
         {past.length > 0 && (
           <section className="mb-8">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Formations réalisées</h2>
-            <div className="space-y-4">{past.map((s, k) => <SessionCard key={s.id} s={s} finished index={k + upcoming.length} />)}</div>
+            <div className="space-y-4">{past.map((s, k) => <SessionCard key={`${s.id}${s.group_id || ''}`} s={s} finished index={k + upcoming.length} />)}</div>
           </section>
         )}
         {upcoming.length === 0 && past.length === 0 && (
