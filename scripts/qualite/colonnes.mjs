@@ -1,6 +1,7 @@
 // Contrôle des colonnes demandées au client Supabase.
-// Lit chaque appel .from('table') suivi de .select('...') (texte fixe, sans ${}) et des filtres simples
-// (.eq, .neq, .in, .is, .gt, .gte, .lt, .lte, .order, .ilike, .like, .not), puis vérifie que chaque colonne
+// Lit chaque appel .from('table') et la chaîne d'appels qui lui est collée : .select('...') (texte fixe, sans ${},
+// y compris après .insert/.update/.upsert) et filtres simples (.eq, .neq, .in, .is, .gt, .gte, .lt, .lte, .order,
+// .ilike, .like, .contains, .not), puis vérifie que chaque colonne
 // existe dans la base locale construite par scripts/securite/base_locale.py.
 // Usage : node scripts/qualite/colonnes.mjs <schema.json> [dossiers...]
 // schema.json : sortie de scripts/qualite/schema.sql sur la base locale (psql -XAt -f scripts/qualite/schema.sql)
@@ -78,7 +79,32 @@ function verifierSelect(table, texte, chemin = table) {
   return erreurs
 }
 
-const FILTRES = 'eq|neq|in|is|gt|gte|lt|lte|order|ilike|like|contains|not'
+const FILTRES = new Set(['eq', 'neq', 'in', 'is', 'gt', 'gte', 'lt', 'lte', 'order', 'ilike', 'like', 'contains', 'not'])
+
+/** Appels enchaînés à partir de la position i : [{ nom, args }] tant que le code continue par « .nom(...) » */
+function chaineAppels(code, i) {
+  const appels = []
+  for (;;) {
+    const m = /^\s*\.\s*(\w+)\s*\(/.exec(code.slice(i, i + 200))
+    if (!m) return appels
+    let j = i + m[0].length
+    let prof = 1
+    let quote = null
+    const debut = j
+    while (j < code.length && prof > 0) {
+      const ch = code[j]
+      if (quote) {
+        if (ch === '\\') j++
+        else if (ch === quote) quote = null
+      } else if (ch === "'" || ch === '"' || ch === '`') quote = ch
+      else if (ch === '(') prof++
+      else if (ch === ')') prof--
+      j++
+    }
+    appels.push({ nom: m[1], args: code.slice(debut, j - 1) })
+    i = j
+  }
+}
 const constats = []
 for (const dossier of dossiers.length ? dossiers : ['src', 'api']) {
   for (const f of fichiers(dossier)) {
@@ -88,19 +114,16 @@ for (const dossier of dossiers.length ? dossiers : ['src', 'api']) {
     while ((m = re.exec(code))) {
       const table = m[1]
       if (!colonnes.has(table)) continue
-      // Chaîne d'appels qui suit, jusqu'à la requête suivante, une ligne vide, un « ; » en fin de ligne ou 1 500 caractères
-      const suite = code.slice(re.lastIndex, re.lastIndex + 1500)
-      const fin = suite.search(/\.from\(|supabase\.|\bcount\(|\bfetchAll\(|\n\s*\n|;\s*\n/)
-      const chaine = fin >= 0 ? suite.slice(0, fin) : suite
+      // Chaîne d'appels collée à .from(...) : .select(...).eq(...).order(...)... ; tout le reste est ignoré
       const ligne = code.slice(0, m.index).split('\n').length
-      const sel = chaine.match(/^\s*\.select\(\s*(['"`])((?:(?!\1)[\s\S])*)\1/)
-      if (sel && !sel[2].includes('${')) {
-        for (const e of verifierSelect(table, sel[2])) constats.push(`${f}:${ligne} ${e}`)
-      }
-      const fre = new RegExp(`\\.(?:${FILTRES})\\(\\s*['"](\\w+)['"]`, 'g')
-      let g
-      while ((g = fre.exec(chaine))) {
-        if (!colonnes.get(table).has(g[1])) constats.push(`${f}:${ligne} ${table} : filtre sur une colonne inconnue « ${g[1]} »`)
+      for (const appel of chaineAppels(code, re.lastIndex)) {
+        const lit = appel.args.match(/^\s*(['"`])((?:(?!\1)[\s\S])*)\1\s*(,|$)/)
+        if (!lit || lit[2].includes('${')) continue
+        if (appel.nom === 'select') {
+          for (const e of verifierSelect(table, lit[2])) constats.push(`${f}:${ligne} ${e}`)
+        } else if (FILTRES.has(appel.nom) && /^\w+$/.test(lit[2]) && !/referencedTable|foreignTable/.test(appel.args)) {
+          if (!colonnes.get(table).has(lit[2])) constats.push(`${f}:${ligne} ${table} : filtre sur une colonne inconnue « ${lit[2]} »`)
+        }
       }
     }
   }

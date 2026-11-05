@@ -57,4 +57,19 @@ describe('colonnes inconnues', () => {
     const r = lancer("supabase.from('clients').select(`id, ${champ}`); supabase.from('vue_absente').select('quoi')")
     expect(r.code).toBe(0)
   })
+  it('contrôle le select qui suit une écriture', () => {
+    const r = lancer("supabase.from('clients').insert({ name: 'x' }).select('id, phone').single()")
+    expect(r.code).toBe(1)
+    expect(r.sortie).toContain('clients : colonne inconnue « phone »')
+  })
+
+  it('ne lit pas les appels qui ne sont pas collés à la requête', () => {
+    const r = lancer("const { data } = await supabase.from('clients').select('id')\nif (el.classList.contains('actif')) ok()")
+    expect(r.code).toBe(0)
+  })
+
+  it('ignore un tri sur une table liée', () => {
+    const r = lancer("supabase.from('sessions').select('id, clients(name)').order('name', { referencedTable: 'clients' })")
+    expect(r.code).toBe(0)
+  })
 })
