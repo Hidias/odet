@@ -767,9 +767,7 @@ export const useDataStore = create((set, get) => ({
   },
   
   createSession: async (sessionData) => {
-    // Générer référence unique avec timestamp
-    const reference = `SES-${Date.now().toString(36).toUpperCase()}`
-    
+    // Référence donnée par la base (generate_session_reference_v3) : préfixe de la société, code formation, date, compteur
     // Générer token pour QR code (64 chars hex)
     const generateHexToken = (bytes = 32) => {
       const arr = new Uint8Array(bytes)
@@ -802,7 +800,6 @@ export const useDataStore = create((set, get) => ({
       notes: rest.notes || null,
       signatory_name: rest.signatory_name || null,
       signatory_role: rest.signatory_role || null,
-      reference,
       attendance_token: generateHexToken(32),
       // Sous-traitance
       session_type: rest.session_type || 'intra',
@@ -2393,53 +2390,6 @@ export const useDataStore = create((set, get) => ({
     return { data, error }
   },
   
-  duplicateSession: async (sessionId) => {
-    const session = get().sessions.find(s => s.id === sessionId)
-    if (!session) return { error: 'Session non trouvée' }
-    
-    const ref = `SES-DUP-${Date.now().toString(36).toUpperCase()}`
-    const newSession = {
-      course_id: session.course_id,
-      client_id: session.client_id,
-      contact_id: session.contact_id || null,
-      trainer_id: session.trainer_id || null,
-      reference: ref,
-      start_date: null, // Dates à renseigner
-      end_date: null,
-      start_time: session.start_time || '09:00',
-      end_time: session.end_time || '17:00',
-      // Recopier le type de journée : sans ça, la base remet 'full' par défaut
-      // et une session de 4h dupliquée affiche un après-midi fantôme à l'émargement
-      day_type: session.day_type || 'full',
-      location_name: session.location_name || session.location || null,
-      location_address: session.location_address || null,
-      location_postal_code: session.location_postal_code || null,
-      location_city: session.location_city || null,
-      is_intra: session.is_intra || false,
-      is_remote: session.is_remote || false,
-      status: 'planned',
-      notes: session.notes || null,
-      total_price: session.total_price || null,
-      room: session.room || null,
-    }
-    
-    const { data, error } = await supabase
-      .from('sessions')
-      .insert([newSession])
-      .select()
-      .single()
-    
-    if (error) {
-      console.error('Duplicate session error:', error)
-      return { data: null, error }
-    }
-    
-    if (data) {
-      await get().fetchSessions()
-    }
-    return { data, error: null }
-  },
-
   // ========== AUDIT LOGS (RGPD) ==========
   auditLogs: [],
   auditLogsLoading: false,

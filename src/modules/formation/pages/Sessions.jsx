@@ -45,7 +45,7 @@ export default function Sessions() {
     supprimer: 'formation.sessions.supprimer',
   })
   const { 
-    sessions, sessionsLoading, fetchSessions, createSession, deleteSession, duplicateSession,
+    sessions, sessionsLoading, fetchSessions, createSession, deleteSession,
     clients, fetchClients,
     courses, fetchCourses,
     trainers, fetchTrainers,
@@ -158,11 +158,12 @@ export default function Sessions() {
           .eq('client_id', formData.client_id)
           .order('is_primary', { ascending: false })
         setClientContacts(data || [])
+        // Contact et signataire gardés s'ils appartiennent au client (session recopiée), effacés sinon
+        setFormData(prev => ((data || []).some(c => c.id === prev.contact_id) ? prev : { ...prev, contact_id: '', signatory_name: '', signatory_role: '' }))
       } else {
         setClientContacts([])
+        setFormData(prev => ({ ...prev, contact_id: '', signatory_name: '', signatory_role: '' }))
       }
-      // Reset contact_id quand le client change
-      setFormData(prev => ({ ...prev, contact_id: '', signatory_name: '', signatory_role: '' }))
     }
     loadContacts()
   }, [formData.client_id])
@@ -462,16 +463,39 @@ export default function Sessions() {
     }
   }
   
-  const handleDuplicate = async (id, e) => {
+  // Dupliquer : formulaire « Nouvelle session » prérempli avec la session d'origine, dates à choisir.
+  // Rien n'est créé avant « Créer la session » (la base exige les dates et numérote à partir de la date de début).
+  const handleDuplicate = (id, e) => {
     e.preventDefault()
     e.stopPropagation()
-    
-    const { error } = await duplicateSession(id)
-    if (error) {
-      toast.error('Erreur lors de la duplication')
-    } else {
-      toast.success('Session dupliquée - Éditez les dates')
-    }
+    const s = sessions.find((x) => x.id === id)
+    if (!s) { toast.error('Session introuvable'); return }
+    const heure = (h, def) => (h ? String(h).slice(0, 5) : def)
+    resetForm()
+    setFormData((f) => ({
+      ...f,
+      course_id: s.course_id || '',
+      client_id: s.client_id || '',
+      contact_id: s.contact_id || '',
+      signatory_name: s.signatory_name || '',
+      signatory_role: s.signatory_role || '',
+      start_time: heure(s.start_time, '09:00'),
+      end_time: heure(s.end_time, '17:00'),
+      day_type: s.day_type || 'full',
+      location: s.location_name || '',
+      room: s.room || '',
+      is_intra: !!s.is_intra,
+      trainer_ids: s.trainer_id ? [s.trainer_id] : [],
+      funding_type: s.funding_type || 'none',
+      funding_details: s.funding_details || '',
+      session_type: s.session_type || 'intra',
+      subcontract_course_title: s.subcontract_course_title || '',
+      subcontract_client_ref: s.subcontract_client_ref || '',
+      subcontract_nb_trainees: s.subcontract_nb_trainees || '',
+      subcontract_daily_rate: s.subcontract_daily_rate || '',
+    }))
+    setShowForm(true)
+    toast.success('Session recopiée : choisissez les dates, puis « Créer la session »')
   }
   
   const toggleTrainee = (traineeId) => {

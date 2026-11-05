@@ -30,7 +30,8 @@ export default function Reclamation() {
       return
     }
     
-    const fullRef = sessionRef.startsWith('SES-') ? sessionRef : `SES-${sessionRef}`
+    // Référence telle qu'imprimée sur les documents (tous formats) ; la base essaie aussi avec « SES- » devant
+    const fullRef = sessionRef.trim()
     
     setVerifying(true)
     setSessionError('')
@@ -159,22 +160,18 @@ export default function Reclamation() {
                 Numéro de session *
               </label>
               <div className="flex gap-2">
-                <div className="flex-1 flex">
-                  <span className="inline-flex items-center px-3 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-500 text-ui">
-                    SES-
-                  </span>
-                  <input
-                    type="text"
-                    value={sessionRef.replace('SES-', '')}
-                    onChange={(e) => {
-                      setSessionRef(e.target.value.toUpperCase())
-                      setSessionInfo(null)
-                      setSessionError('')
-                    }}
-                    placeholder="XXXXXXXX"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
-                  />
-                </div>
+                <input
+                  type="text"
+                  aria-label="Numéro de session"
+                  value={sessionRef}
+                  onChange={(e) => {
+                    setSessionRef(e.target.value.toUpperCase())
+                    setSessionInfo(null)
+                    setSessionError('')
+                  }}
+                  placeholder="Ex. GLD-SST-261210-001"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-ui-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
+                />
                 <button
                   type="button"
                   onClick={handleVerifySession}
