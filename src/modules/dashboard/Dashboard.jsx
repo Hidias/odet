@@ -1,7 +1,7 @@
 import { apiFetch } from '../../core/api'
 import { estAVenir, stagiairesPresents, pipelineDevis, tauxConversion, etatBpf, froidARappeler, cleStagiaire } from './lib/accueil'
 import { isQuoteSleeping, todayStr } from '../prospection/components/suivi/suiviUtils'
-import { dernierExerciceClos } from '../formation/lib/bpf'
+import { exerciceBpfSuivi } from '../formation/lib/bpf'
 import { conventionEnvoyee, groupesParSession } from '../formation/lib/etatConvention'
 import { confirmer } from '../../ui/Confirm'
 import { CONFIRMATION_REINITIALISER_ACCUEIL } from '../../core/portail/alertesPublication'
@@ -582,10 +582,17 @@ export default function Dashboard() {
         const { data: ctx } = await supabase.rpc('my_company_context')
         const id = ctx?.vue_groupe ? null : ctx?.current
         if (!id) { if (vivant) setBpf(etatBpf(null, null)); return }
-        const { data: co } = await supabase.from('companies').select('fiscal_year_start_month').eq('id', id).maybeSingle()
-        const annee = dernierExerciceClos(co?.fiscal_year_start_month)
-        const { data: decl, error } = await supabase.from('bpf_declarations').select('status, submitted_at').eq('company_id', id).eq('year', annee).maybeSingle()
-        if (vivant) setBpf(error ? null : etatBpf(decl, annee))
+        // Numéro de déclaration (companies.nda) et date de dépôt (suivi Certification › NDA) : premier exercice soumis
+        // cert_settings illisible sans le droit Certification (0 ligne, sans erreur) : « date de dépôt inconnue », jamais un BPF annoncé
+        const [{ data: co, error: errCo }, { data: suiviNda }] = await Promise.all([
+          supabase.from('companies').select('fiscal_year_start_month, nda, is_training_org').eq('id', id).maybeSingle(),
+          supabase.from('cert_settings').select('nda_filed_at').eq('company_id', id).not('nda_filed_at', 'is', null).order('nda_filed_at', { ascending: true }).limit(1),
+        ])
+        if (errCo || !co) { if (vivant) setBpf(null); return }
+        const suivi = exerciceBpfSuivi({ formation: co.is_training_org !== false, nda: co.nda, deposeeLe: suiviNda?.[0]?.nda_filed_at, moisDebut: co.fiscal_year_start_month })
+        if (suivi.cle !== 'du') { if (vivant) setBpf(etatBpf(null, null, suivi)); return }
+        const { data: decl, error } = await supabase.from('bpf_declarations').select('status, submitted_at').eq('company_id', id).eq('year', suivi.annee).maybeSingle()
+        if (vivant) setBpf(error ? null : etatBpf(decl, suivi.annee, suivi))
       } catch { if (vivant) setBpf(null) }
     })()
     return () => { vivant = false }
