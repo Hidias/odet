@@ -1,5 +1,5 @@
 // Import générique de clients (B3, 05/11) : fichier CSV de n'importe quel outil, colonnes choisies par l'utilisateur.
-// Remplace l'import au format Sellsy imposé. Aucun nom d'outil ni d'entreprise en dur : la correspondance est proposée
+// Remplace l'ancien import au format imposé d'un outil. Aucun nom d'outil ni d'entreprise en dur : la correspondance est proposée
 // d'après des intitulés courants, puis modifiable. Doublons repérés par SIRET (14 chiffres) ; un nom identique à un
 // client existant est signalé, non coché par défaut. Henrri viendra plus tard (source choisie par société à ce moment).
 
