@@ -90,6 +90,9 @@ async function publier(req, res) {
   if (up && !/exists|duplicate/i.test(up.message || '')) return res.status(500).json({ error: 'Dépôt impossible' })
   // L'ancienne version n'est retirée qu'une fois la nouvelle déposée (déjà retirée par un second clic : rien à faire)
   if (aRetirer) {
+    // Signée pendant le dépôt : la version signée reste, rien n'est remplacé
+    const { data: sig } = await admin.from('document_signatures').select('id').eq('status', 'valid').eq('metadata->>document_id', aRetirer).limit(1)
+    if (sig?.length) return res.status(200).json({ id: aRetirer, deja: true, signe: true })
     const { error: eRetrait } = await admin.from('client_shared_documents').update({ withdrawn_at: new Date().toISOString(), withdrawn_reason: 'Nouvelle version du document' }).eq('id', aRetirer).is('withdrawn_at', null)
     if (eRetrait) return res.status(500).json({ error: 'Remplacement impossible' })
   }
