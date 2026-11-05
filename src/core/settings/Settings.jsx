@@ -118,6 +118,8 @@ export default function Settings() {
       payload.nda = (form.nda || '').replace(/\s/g, '')
       payload.iban = (form.iban || '').replace(/\s/g, '').toUpperCase()
       payload.exercice_start_month = Number(form.exercice_start_month) || 1
+      // Civilité du signataire non choisie : vide n'est pas une valeur permise en base (0459, homme ou femme ou rien)
+      payload.dirigeant_gender = form.dirigeant_gender || null
       payload.caces_activity = !!form.caces_activity
       payload.bank_overdraft = Math.max(0, Number(String(form.bank_overdraft ?? '').replace(',', '.')) || 0)
       payload.ai_profile = form.ai_profile && typeof form.ai_profile === 'object' ? form.ai_profile : {}
