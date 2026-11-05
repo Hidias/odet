@@ -1,6 +1,6 @@
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { apiFetch } from '../../../core/api'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useDataStore } from '../../../core/store'
 import { useDroits } from '../../../core/rights/useDroit'
@@ -95,6 +95,9 @@ export default function Sessions() {
     subcontract_nb_trainees: '',
     subcontract_daily_rate: '',
   })
+  // Session recopiée par « Dupliquer » : les effets « contacts du client » et « lieu intra » ne remettent pas à zéro
+  // le contact, le signataire et le lieu recopiés (consommé une fois par chacun)
+  const recopie = useRef({ contacts: false, lieu: false })
   const [batchMode, setBatchMode] = useState(false)
   const [batchLines, setBatchLines] = useState([
     { client_ref: '', start_date: '', duration_days: '1', nb_trainees: '1' }
@@ -139,6 +142,7 @@ export default function Sessions() {
   
   // Quand is_intra change, mettre à jour le lieu
   useEffect(() => {
+    if (recopie.current.lieu) { recopie.current.lieu = false; return }
     if (formData.is_intra && formData.client_id) {
       const client = clients.find(c => c.id === formData.client_id)
       if (client) {
@@ -158,12 +162,12 @@ export default function Sessions() {
           .eq('client_id', formData.client_id)
           .order('is_primary', { ascending: false })
         setClientContacts(data || [])
-        // Contact et signataire gardés s'ils appartiennent au client (session recopiée), effacés sinon
-        setFormData(prev => ((data || []).some(c => c.id === prev.contact_id) ? prev : { ...prev, contact_id: '', signatory_name: '', signatory_role: '' }))
       } else {
         setClientContacts([])
-        setFormData(prev => ({ ...prev, contact_id: '', signatory_name: '', signatory_role: '' }))
       }
+      // Reset contact et signataire quand le client change, sauf juste après « Dupliquer »
+      if (recopie.current.contacts) { recopie.current.contacts = false; return }
+      setFormData(prev => ({ ...prev, contact_id: '', signatory_name: '', signatory_role: '' }))
     }
     loadContacts()
   }, [formData.client_id])
@@ -422,7 +426,13 @@ export default function Sessions() {
       end_time: formData.end_time,
       day_type: formData.day_type || 'full',
       location: formData.location,
+      location_address: formData.location_address || null,
+      location_postal_code: formData.location_postal_code || null,
+      location_city: formData.location_city || null,
       room: formData.room,
+      is_remote: !!formData.is_remote,
+      total_price: formData.total_price === '' || formData.total_price == null ? null : Number(formData.total_price),
+      notes: formData.notes || null,
       status: formData.status,
       is_intra: isSub ? true : formData.is_intra,
       trainer_ids: formData.trainer_ids,
@@ -472,6 +482,7 @@ export default function Sessions() {
     if (!s) { toast.error('Session introuvable'); return }
     const heure = (h, def) => (h ? String(h).slice(0, 5) : def)
     resetForm()
+    recopie.current = { contacts: !!s.client_id, lieu: !!(s.is_intra && s.client_id) }
     setFormData((f) => ({
       ...f,
       course_id: s.course_id || '',
@@ -483,7 +494,13 @@ export default function Sessions() {
       end_time: heure(s.end_time, '17:00'),
       day_type: s.day_type || 'full',
       location: s.location_name || '',
+      location_address: s.location_address || '',
+      location_postal_code: s.location_postal_code || '',
+      location_city: s.location_city || '',
       room: s.room || '',
+      is_remote: !!s.is_remote,
+      total_price: s.total_price ?? '',
+      notes: s.notes || '',
       is_intra: !!s.is_intra,
       trainer_ids: s.trainer_id ? [s.trainer_id] : [],
       funding_type: s.funding_type || 'none',

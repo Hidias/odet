@@ -30,6 +30,16 @@ describe('numéro de session', () => {
     expect(ligne.attendance_token).toMatch(/^[0-9a-f]{64}$/)
   })
 
+  it('createSession enregistre la salle, le financement et le prix demandés par le formulaire', async () => {
+    inserts.length = 0
+    await useDataStore.getState().createSession({
+      course_id: 'c1', client_id: 'k1', start_date: '2026-12-11', end_date: '2026-12-11', trainer_ids: [], trainee_ids: [],
+      room: 'Salle 2', funding_type: 'opco', funding_details: 'AKTO', total_price: 300,
+    })
+    const ligne = inserts.find((i) => i.table === 'sessions').rows[0]
+    expect(ligne).toMatchObject({ room: 'Salle 2', funding_type: 'opco', funding_details: 'AKTO', total_price: 300 })
+  })
+
   it('la duplication par la base, qui envoyait des dates vides, n\'existe plus', () => {
     expect(useDataStore.getState().duplicateSession).toBeUndefined()
   })
