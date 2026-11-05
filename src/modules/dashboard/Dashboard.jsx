@@ -586,7 +586,7 @@ export default function Dashboard() {
         // cert_settings illisible sans le droit Certification (0 ligne, sans erreur) : « date de dépôt inconnue », jamais un BPF annoncé
         const [{ data: co, error: errCo }, { data: suiviNda }] = await Promise.all([
           supabase.from('companies').select('fiscal_year_start_month, nda, is_training_org').eq('id', id).maybeSingle(),
-          supabase.from('cert_settings').select('nda_filed_at').eq('company_id', id).not('nda_filed_at', 'is', null).limit(1),
+          supabase.from('cert_settings').select('nda_filed_at').eq('company_id', id).not('nda_filed_at', 'is', null).order('nda_filed_at', { ascending: true }).limit(1),
         ])
         if (errCo || !co) { if (vivant) setBpf(null); return }
         const suivi = exerciceBpfSuivi({ formation: co.is_training_org !== false, nda: co.nda, deposeeLe: suiviNda?.[0]?.nda_filed_at, moisDebut: co.fiscal_year_start_month })

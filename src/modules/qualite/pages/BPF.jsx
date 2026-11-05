@@ -254,9 +254,9 @@ export default function BPF() {
         actions={(
           <div className="flex flex-wrap gap-2">
             <select className="select" value={annee} onChange={(e) => setAnnee(Number(e.target.value))} aria-label="Exercice">
-              {Array.from({ length: 6 }, (_, i) => anneeDefaut + 1 - i).map((a) => <option key={a} value={a}>Exercice {libelleExercice(a, mois)}</option>)}
+              {Array.from({ length: 6 }, (_, i) => Math.max(anneeDefaut + 1, premier || 0) - i).map((a) => <option key={a} value={a}>Exercice {libelleExercice(a, mois)}</option>)}
             </select>
-            <button type="button" className="btn btn-secondary" onClick={calculer} disabled={busy || depose}><Calculator className="w-4 h-4" />{calcul ? 'Recalculer' : 'Calculer'}</button>
+            <button type="button" className="btn btn-secondary" onClick={calculer} disabled={busy || depose || sansObjet || avantPremier}><Calculator className="w-4 h-4" />{calcul ? 'Recalculer' : 'Calculer'}</button>
             <button type="button" className="btn btn-primary" onClick={enregistrer} disabled={busy || !calcul || depose || depotInterdit}><Save className="w-4 h-4" />Enregistrer</button>
             <button type="button" className="btn btn-secondary" onClick={exporterPdf} disabled={busy || !calcul}><FileDown className="w-4 h-4" />PDF</button>
           </div>
@@ -269,9 +269,9 @@ export default function BPF() {
       {sansNumero && <Banner tone="info" title="BPF pas encore dû">Il sera dû après l&apos;attribution du numéro de déclaration d&apos;activité (Certification › NDA, puis Réglages › Sociétés). Vous pouvez déjà lancer un calcul pour vous préparer ; l&apos;enregistrement et le dépôt attendent le numéro.</Banner>}
       {depotInconnu && <Banner tone="warning" title="Date de dépôt de la déclaration inconnue">Renseignez-la dans Certification › NDA : elle décide du premier exercice à déclarer. L&apos;enregistrement et le dépôt l&apos;attendent.</Banner>}
       {!sansNumero && avantPremier && <Banner tone="info" title={`Pas de BPF pour l'exercice ${libelleExercice(annee, mois)}`}>Exercice clos le {fmtDate(bornesExercice(annee, mois).fin)}, avant le dépôt de la déclaration d&apos;activité le {fmtDate(societe.nda_filed_at)}. Premier BPF : exercice {libelleExercice(premier, mois)}, du {fmtDate(bornesExercice(premier, mois).debut)} au {fmtDate(bornesExercice(premier, mois).fin)}, à transmettre avant le {fmtDate(dateLimiteBpf(premier, mois))}.</Banner>}
-      {societe && !calcul && !avantPremier && <Banner tone="info" title="Aucun calcul pour cet exercice">Lancez le calcul : il lit vos factures et vos sessions de l&apos;exercice, réglé dans Réglages › Sociétés (mois de début).</Banner>}
+      {societe && !calcul && !avantPremier && !sansObjet && <Banner tone="info" title="Aucun calcul pour cet exercice">Lancez le calcul : il lit vos factures et vos sessions de l&apos;exercice, réglé dans Réglages › Sociétés (mois de début).</Banner>}
 
-      {calcul && (
+      {calcul && !avantPremier && !sansObjet && (
         <>
           {(calcul.a_classer?.objectif?.length > 0 || calcul.a_classer?.specialite?.length > 0) && (
             <Banner tone="warning" title="Formations à classer avant le dépôt">
