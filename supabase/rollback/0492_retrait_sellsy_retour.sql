@@ -2,6 +2,8 @@
 -- avec la contrainte unique clients_sellsy_id_key, les index idx_clients_sellsy et idx_courses_sellsy_id, et la vue
 -- v_clients_a_appeler dans sa définition d'avant 0492. Possible même après usage : aucune contrainte ajoutée ne peut
 -- être violée par des lignes nouvelles (colonnes vides). Les identifiants importés restent dans external_ref.
+-- À jouer avant le retour de 0491 (0491_import_generique_retour.sql écrit dans ces colonnes, il échoue sans elles).
+-- Les colonnes reviennent en fin de table (position sans effet : aucune lecture par position).
 
 alter table public.clients add column if not exists sellsy_id character varying(50);
 alter table public.client_contacts add column if not exists sellsy_contact_id character varying(50);

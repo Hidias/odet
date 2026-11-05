@@ -9,9 +9,10 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- ni n'écrit clients.sellsy_id, client_contacts.sellsy_contact_id, invoices.sellsy_reference, courses.sellsy_id
 -- (contrôle du 05/11 : 0 valeur dans les quatre colonnes en production, seule dépendance la vue v_clients_a_appeler).
 -- La vue est recréée avec les seules colonnes du contact qu'elle utilise (mêmes colonnes en sortie). Le retrait est
--- refusé si une des colonnes contient une valeur : rien n'est perdu. La contrainte clients_sellsy_id_key et les index
+-- refusé si une des colonnes n'est pas nulle (même une chaîne vide ou d'espaces) : rien n'est perdu. La contrainte clients_sellsy_id_key et les index
 -- idx_clients_sellsy et idx_courses_sellsy_id partent avec leurs colonnes.
--- Idempotente. Retour arrière : supabase/rollback/0492_retrait_sellsy_retour.sql
+-- Idempotente. Retour arrière : supabase/rollback/0492_retrait_sellsy_retour.sql, à jouer AVANT celui de 0491
+-- (0491_import_generique_retour.sql écrit dans ces colonnes).
 
 do $$
 declare
@@ -21,9 +22,9 @@ begin
   for v in select * from (values ('clients', 'sellsy_id'), ('client_contacts', 'sellsy_contact_id'),
                                  ('invoices', 'sellsy_reference'), ('courses', 'sellsy_id')) t(tbl, col) loop
     if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = v.tbl and column_name = v.col) then
-      execute format('select exists (select 1 from public.%I where nullif(btrim(%I::text), %L) is not null)', v.tbl, v.col, '') into v_plein;
+      execute format('select exists (select 1 from public.%I where %I is not null)', v.tbl, v.col) into v_plein;
       if v_plein then
-        raise exception '0492 : %.% contient une valeur, retrait refusé (la recopier d''abord dans external_ref)', v.tbl, v.col;
+        raise exception '0492 : %.% n''est pas vide, retrait refusé (recopier d''abord la valeur ailleurs, ou la vider)', v.tbl, v.col;
       end if;
     end if;
   end loop;
