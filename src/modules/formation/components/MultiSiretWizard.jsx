@@ -421,7 +421,6 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
         }
         
         // 4. Session: créer (colonnes alignées sur store.js createSession)
-        const reference = `SES-${Date.now().toString(36).toUpperCase()}-${gi + 1}`
         const generateHexToken = (bytes = 32) => {
           const arr = new Uint8Array(bytes)
           crypto.getRandomValues(arr)
@@ -450,7 +449,6 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
           notes: null,
           signatory_name: signatory.name || null,
           signatory_role: signatory.role || null,
-          reference,
           attendance_token: generateHexToken(32),
           // Prix inter-entreprises
           total_price: groupPrices[gi] || null,

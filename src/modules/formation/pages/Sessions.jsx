@@ -1,6 +1,6 @@
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { apiFetch } from '../../../core/api'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useDataStore } from '../../../core/store'
 import { useDroits } from '../../../core/rights/useDroit'
@@ -45,7 +45,7 @@ export default function Sessions() {
     supprimer: 'formation.sessions.supprimer',
   })
   const { 
-    sessions, sessionsLoading, fetchSessions, createSession, deleteSession, duplicateSession,
+    sessions, sessionsLoading, fetchSessions, createSession, deleteSession,
     clients, fetchClients,
     courses, fetchCourses,
     trainers, fetchTrainers,
@@ -95,6 +95,9 @@ export default function Sessions() {
     subcontract_nb_trainees: '',
     subcontract_daily_rate: '',
   })
+  // Session recopiée par « Dupliquer » : les effets « contacts du client » et « lieu intra » ne remettent pas à zéro
+  // le contact, le signataire et le lieu recopiés (consommé une fois par chacun)
+  const recopie = useRef({ contacts: false, lieu: false })
   const [batchMode, setBatchMode] = useState(false)
   const [batchLines, setBatchLines] = useState([
     { client_ref: '', start_date: '', duration_days: '1', nb_trainees: '1' }
@@ -139,6 +142,7 @@ export default function Sessions() {
   
   // Quand is_intra change, mettre à jour le lieu
   useEffect(() => {
+    if (recopie.current.lieu) { recopie.current.lieu = false; return }
     if (formData.is_intra && formData.client_id) {
       const client = clients.find(c => c.id === formData.client_id)
       if (client) {
@@ -161,7 +165,8 @@ export default function Sessions() {
       } else {
         setClientContacts([])
       }
-      // Reset contact_id quand le client change
+      // Reset contact et signataire quand le client change, sauf juste après « Dupliquer »
+      if (recopie.current.contacts) { recopie.current.contacts = false; return }
       setFormData(prev => ({ ...prev, contact_id: '', signatory_name: '', signatory_role: '' }))
     }
     loadContacts()
@@ -462,16 +467,41 @@ export default function Sessions() {
     }
   }
   
-  const handleDuplicate = async (id, e) => {
+  // Dupliquer : formulaire « Nouvelle session » prérempli avec la session d'origine, dates à choisir. Seuls les champs
+  // affichés par le formulaire sont recopiés (prix : tarif du client appliqué par la base, comme à la création).
+  // Rien n'est créé avant « Créer la session » (la base exige les dates et numérote à partir de la date de début).
+  const handleDuplicate = (id, e) => {
     e.preventDefault()
     e.stopPropagation()
-    
-    const { error } = await duplicateSession(id)
-    if (error) {
-      toast.error('Erreur lors de la duplication')
-    } else {
-      toast.success('Session dupliquée - Éditez les dates')
-    }
+    const s = sessions.find((x) => x.id === id)
+    if (!s) { toast.error('Session introuvable'); return }
+    const heure = (h, def) => (h ? String(h).slice(0, 5) : def)
+    resetForm()
+    recopie.current = { contacts: !!s.client_id, lieu: !!(s.is_intra && s.client_id) }
+    setFormData((f) => ({
+      ...f,
+      course_id: s.course_id || '',
+      client_id: s.client_id || '',
+      contact_id: s.contact_id || '',
+      signatory_name: s.signatory_name || '',
+      signatory_role: s.signatory_role || '',
+      start_time: heure(s.start_time, '09:00'),
+      end_time: heure(s.end_time, '17:00'),
+      day_type: s.day_type || 'full',
+      location: s.location_name || '',
+      room: s.room || '',
+      is_intra: !!s.is_intra,
+      trainer_ids: s.trainer_id ? [s.trainer_id] : [],
+      funding_type: s.funding_type || 'none',
+      funding_details: s.funding_details || '',
+      session_type: s.session_type || 'intra',
+      subcontract_course_title: s.subcontract_course_title || '',
+      subcontract_client_ref: s.subcontract_client_ref || '',
+      subcontract_nb_trainees: s.subcontract_nb_trainees || '',
+      subcontract_daily_rate: s.subcontract_daily_rate || '',
+    }))
+    setShowForm(true)
+    toast.success('Session recopiée : choisissez les dates, puis « Créer la session »')
   }
   
   const toggleTrainee = (traineeId) => {
