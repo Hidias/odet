@@ -65,7 +65,7 @@ export function lireCsv(texte) {
     if (dedans) {
       if (ch === '"' && t[i + 1] === '"') { cell += '"'; i++ }
       else if (ch === '"') dedans = false
-      else { if (ch === '\n') ligne++; cell += ch }
+      else { if (ch === '\n' || (ch === '\r' && t[i + 1] !== '\n')) ligne++; cell += ch }
     } else if (ch === '"' && cell.trim() === '' && !entreGuillemets) { dedans = true; entreGuillemets = true; cell = '' }
     else if (ch === sep) finCellule()
     else if (ch === '\n' || ch === '\r') {
@@ -74,7 +74,9 @@ export function lireCsv(texte) {
       ligne++; debut = ligne
     } else cell += ch
   }
-  if (cell !== '' || rang.length) { finCellule(); rangs.push({ cellules: rang, numero: debut }) }
+  // Guillemet ouvert jamais refermé : la fin du fichier est dans une seule cellule, la ligne est marquée pour être écartée
+  const ouvert = dedans
+  if (cell !== '' || rang.length) { finCellule(); rangs.push({ cellules: rang, numero: debut, ouvert }) }
   const pleins = rangs.filter((r) => r.cellules.some((c) => c.trim() !== ''))
   if (pleins.length === 0) return { entetes: [], lignes: [], infos: [] }
   const entetes = pleins[0].cellules.map((h) => h.trim())
@@ -82,7 +84,7 @@ export function lireCsv(texte) {
   return {
     entetes,
     lignes: corps.map((r) => entetes.map((_, j) => (r.cellules[j] ?? '').trim())),
-    infos: corps.map((r) => ({ numero: r.numero, cellules: r.cellules.filter((c, j) => j < entetes.length || c.trim() !== '').length })),
+    infos: corps.map((r) => ({ numero: r.numero, cellules: r.cellules.filter((c, j) => j < entetes.length || c.trim() !== '').length, ouvert: !!r.ouvert })),
   }
 }
 
@@ -118,6 +120,10 @@ export function construireSocietes(lignes, corr, infos = [], nbColonnes = null) 
   lignes.forEach((l, i) => {
     const numero = infos[i]?.numero ?? i + 2
     const nbCol = nbColonnes ?? l.length
+    if (infos[i]?.ouvert) {
+      ecartees.push({ ligne: numero, motif: 'Guillemet ouvert jamais refermé : la suite du fichier à partir de cette ligne n\'a pas pu être lue' })
+      return
+    }
     if (infos[i] && infos[i].cellules > nbCol) {
       ecartees.push({ ligne: numero, nom: val(l, 'name') || undefined, motif: `${infos[i].cellules} cellules pour ${nbCol} colonnes : un séparateur se trouve sans doute dans une valeur (mettez-la entre guillemets)` })
       return

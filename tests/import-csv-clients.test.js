@@ -13,6 +13,14 @@ describe('import CSV générique (B3)', () => {
     const r = lireCsv('Nom;Note;Ville\nA;Ecran 27" fourni;Rennes\nB;x;Brest\nC;y;Vannes')
     expect(r.lignes).toEqual([['A', 'Ecran 27" fourni', 'Rennes'], ['B', 'x', 'Brest'], ['C', 'y', 'Vannes']])
   })
+  it('guillemet jamais refermé : ligne écartée avec motif, fins de ligne CR seules comptées', () => {
+    const r = lireCsv('Nom;V\n"ACME;R\nB;Brest\nC;Vannes')
+    const { societes, ecartees } = construireSocietes(r.lignes, { name: 0 }, r.infos, r.entetes.length)
+    expect(societes).toHaveLength(0)
+    expect(ecartees[0]).toMatchObject({ ligne: 2 })
+    expect(ecartees[0].motif).toContain('Guillemet ouvert jamais refermé')
+    expect(lireCsv('Nom;V\r"a\rb";R\rC;D').infos.map((x) => x.numero)).toEqual([2, 4])
+  })
   it('cellules en trop et numéros de ligne réels : ligne écartée avec son vrai numéro', () => {
     const r = lireCsv('Nom,Adresse,Ville\nACME,12 rue X, bat B,Rennes\n\nB,"1 rue\nbis",Brest\nC,2 rue,Vannes,')
     expect(r.infos.map((x) => x.numero)).toEqual([2, 4, 6])
