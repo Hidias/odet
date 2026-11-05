@@ -64,7 +64,8 @@ async function handler(req, res) {
 
     if (action === 'lire') {
       const sessionId = String(req.body?.session_id || '')
-      if (!UUID.test(sessionId) || !a.sessions.some((s) => s.id === sessionId)) return res.status(403).json({ error: 'Accès refusé' })
+      // Inter par un groupe : la convention de la session est celle du client principal, jamais donnée au groupe
+      if (!UUID.test(sessionId) || !a.sessions.some((s) => s.id === sessionId && !s.group_id)) return res.status(403).json({ error: 'Accès refusé' })
       const { data: ses } = await a.admin.from('sessions').select('convention_signed_file_url').eq('id', sessionId).maybeSingle()
       const path = ses?.convention_signed_file_url
       if (!path || String(path).includes('..')) return res.status(404).json({ error: 'Aucune convention signée déposée' })

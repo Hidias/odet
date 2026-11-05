@@ -191,7 +191,8 @@ async function deposerSigne(req, res) {
   } else if (sessionId) {
     if (!UUID.test(String(sessionId))) return res.status(400).json({ error: 'Session invalide' })
     const s = a.sessions.find((x) => x.id === sessionId)
-    if (!s || s.convention_signed) return res.status(403).json({ error: 'Convention non signable' })
+    // Inter par un groupe : seule la convention du groupe se dépose (document de l'espace), jamais celle de la session
+    if (!s || s.convention_signed || s.group_id) return res.status(403).json({ error: 'Convention non signable' })
     cible = { type: 'session', id: s.id, kind: 'convention', label: `Convention ${s.reference || ''} (signée, déposée par le client)`.replace(/\s+/g, ' '), bucket: 'signed-conventions', lien: `/sessions/${s.id}`, ref: s.reference }
   } else return res.status(400).json({ error: 'Document manquant' })
 
