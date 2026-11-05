@@ -125,7 +125,8 @@ def instructions(texte):
         if c in "'\"":
             j = i + 1
             while j < n:
-                if texte[j] == '\\' and c == "'" and i > 0 and texte[i - 1] in 'eE': j += 2; continue
+                if texte[j] == '\\' and c == "'" and i > 0 and texte[i - 1] in 'eE' \
+                        and not (i > 1 and (texte[i - 2].isalnum() or texte[i - 2] == '_')): j += 2; continue
                 if texte[j] == c:
                     if j + 1 < n and texte[j + 1] == c: j += 2; continue
                     break
@@ -136,6 +137,10 @@ def instructions(texte):
             tag = m.group(0); j = texte.find(tag, i + len(tag))
             assert j >= 0, f'bloc {tag} non refermé'
             propre.append(texte[i:j + len(tag)]); i = j + len(tag); continue
+        if c == '\\':
+            # Commande psql (\echo, \i, \c, \set...) : jamais acceptée, elle échappe au contrôle
+            j = texte.find('\n', i); fin_ligne = n if j < 0 else j
+            res.append((i, fin_ligne, texte[i:fin_ligne].strip())); i = fin_ligne; continue
         if c == ';':
             res.append((debut, i + 1, ''.join(propre).strip())); propre, debut = [], i + 1; i += 1; continue
         propre.append(c); i += 1
@@ -148,6 +153,7 @@ def instructions(texte):
 def sans_transaction(texte, nom):
     """Refuse tout contrôle de transaction de premier niveau (il casserait l'annulation de l'essai)."""
     for _, _, inst in instructions(texte):
+        assert not inst.startswith('\\'), f'{nom} : commande psql interdite : {inst[:60]!r}'
         assert not CONTROLE.match(inst), f'{nom} : contrôle de transaction interdit au premier niveau : {inst[:60]!r}'
 
 
