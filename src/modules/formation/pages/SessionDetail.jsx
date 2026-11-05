@@ -3351,7 +3351,35 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
       </div>
       
-      {/* Suivi Convention */}
+      {/* Suivi Convention : session inter suivie par groupes, une convention ou un contrat par groupe (C2, 05/11). Une
+          inter sans groupe, ou qui a déjà une trace au niveau de la session (envoi, signature, scan), garde le suivi de la
+          session (etatConvention) ; une signature en ligne ou un dépôt du client au niveau de la session restent visibles */}
+      {session.session_type === 'inter' && groupesConvention.some((g) => g.status !== 'cancelled')
+        && !session.convention_sent && !session.convention_signed && !session.convention_signed_file_url ? (
+        <div className="card bg-gray-50 border-[rgb(var(--c-info)/0.3)]">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                <FileSignature className="w-5 h-5 text-[rgb(var(--c-info))]" />
+                Conventions des groupes
+              </h3>
+              <p className="text-ui text-gray-600 mt-1">{(() => {
+                const actifs = groupesConvention.filter((g) => g.status !== 'cancelled')
+                const signes = actifs.filter((g) => g.doc_status === 'signe').length
+                return actifs.length === 0
+                  ? 'Session inter : chaque entreprise ou particulier a sa propre convention ou son contrat, suivi dans l\'onglet Groupes.'
+                  : `${signes} signé${signes > 1 ? 's' : ''} sur ${actifs.length} groupe${actifs.length > 1 ? 's' : ''}. Envoi, signature en ligne et document signé : onglet Groupes.`
+              })()}</p>
+            </div>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+              setActiveTab('groupes')
+              setTimeout(() => document.getElementById('onglets-session')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+            }}>Voir les groupes</button>
+          </div>
+          <SignatureEnLigne session={session} />
+          <DepotsClient objectType="session" objectId={session.id} onChange={() => fetchSessions()} />
+        </div>
+      ) : (
       <div className="card bg-gray-50 border-[rgb(var(--c-info)/0.3)]">
         <div className="flex items-start justify-between mb-3">
           <h3 className="font-medium text-gray-900 flex items-center gap-2">
@@ -3462,6 +3490,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           </div>
         </div>
       </div>
+      )}
       
       {/* Analyse du besoin */}
       <div className="card">
@@ -3480,6 +3509,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       <EffectifPrerequis session={session} peutModifier={d.modifier} peutFacturer={!!d.factures} />
 
       {/* Tabs */}
+      <div id="onglets-session" aria-hidden="true" />
       <Tabs value={activeTab} onChange={setActiveTab} visible={5} tabs={[
         { id: 'overview', label: 'Stagiaires', count: sessionTrainees.length },
         ...(session.session_type === 'inter' ? [{ id: 'groupes', label: 'Groupes' }] : []),

@@ -2,12 +2,19 @@
 
 import { documentAvecPreuve } from '../../../core/signature/preuve'
 import { buildORG } from '../../../core/org/orgUtils'
+import { rubriqueDocument } from '../../../core/portail/typeDocument'
 
 export const NOMS_SIGNABLES = {
   devis: { titre: 'Signer le devis', nom: 'le devis' },
   contrat: { titre: 'Signer le contrat', nom: 'le contrat' },
   // Bon d'intervention signé à distance (0451)
   rapport: { titre: 'Signer le bon d\'intervention', nom: 'le bon d\'intervention' },
+}
+
+/** Titre et nom du document à signer ; la convention d'un groupe inter est publiée sous le type « contrat » (C4) */
+export function nomSignable(doc) {
+  if (rubriqueDocument(doc) === 'convention') return { titre: 'Signer la convention', nom: 'la convention' }
+  return NOMS_SIGNABLES[doc?.kind] || { titre: 'Signer le document', nom: 'le document' }
 }
 
 /** ArrayBuffer du document suivi de sa page de preuve */

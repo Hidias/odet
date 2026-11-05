@@ -10,8 +10,9 @@ import { prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { setOrganization, generatePDF, generateAllPDF } from '../../formation/pdf/pdfGenerator'
 import { appliquerEmis, seulementEmis } from '../../formation/lib/documentsEmis'
 import { noterLien, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
-import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON } from '../components/SignerConvention'
-import { NOMS_SIGNABLES, signeAvecPreuve } from '../lib/signatureDocument'
+import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON, ACCORD_SIGNATURE } from '../components/SignerConvention'
+import { rubriqueDocument } from '../../../core/portail/typeDocument'
+import { nomSignable, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
 import ParticipantsSession from '../components/ParticipantsSession'
@@ -607,7 +608,7 @@ export default function ClientPortal() {
           </section>
         )}
         {upcoming.length === 0 && past.length === 0 && (
-          <p className="text-sm text-gray-500 text-center py-10">Rien pour le moment : vos devis, conventions, rapports et documents arriveront ici.</p>
+          <p className="text-sm text-gray-500 text-center py-10">Aucune formation à votre nom pour le moment.</p>
         )}
 
         {/* Documents mis à disposition, toutes prestations (0404) */}
@@ -659,8 +660,8 @@ export default function ClientPortal() {
       )}
 
       {docASigner && (
-        <SignerConvention titre={NOMS_SIGNABLES[docASigner.kind]?.titre} nomDocument={NOMS_SIGNABLES[docASigner.kind]?.nom}
-          accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={{}}
+        <SignerConvention titre={nomSignable(docASigner).titre} nomDocument={nomSignable(docASigner).nom}
+          accord={rubriqueDocument(docASigner) === 'convention' ? ACCORD_SIGNATURE : docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={{}}
           genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({ token, code }, docASigner.id)), filename: `${docASigner.label}.pdf` })}
           onSigner={async (p) => {
             const { data: r, error: e } = await supabase.rpc('client_portal_signer_document', { p_token: token, p_code: code, p_document: docASigner.id,

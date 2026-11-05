@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { FileText, Receipt, Wrench, FileSignature, ScrollText, Download, Loader2, FolderOpen, PenLine, BadgeCheck, Printer, Clock, AlertCircle, Upload } from 'lucide-react'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
+import { rubriqueDocument } from '../../../core/portail/typeDocument'
 
 const TYPES = {
   rapport: { label: "Rapports d'intervention", icone: Wrench },
@@ -68,7 +69,7 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
       .finally(() => setBusy(null))
   }
 
-  const groupes = ORDRE.map((k) => [k, docs.filter((d) => d.kind === k)]).filter(([, l]) => l.length)
+  const groupes = ORDRE.map((k) => [k, docs.filter((d) => rubriqueDocument(d) === k)]).filter(([, l]) => l.length)
   return (
     <section className="vitrine-monte mb-8">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 flex items-center gap-1.5"><FolderOpen className="w-4 h-4" aria-hidden="true" />{titre}</h2>

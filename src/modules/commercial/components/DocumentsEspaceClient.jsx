@@ -4,10 +4,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
-import { FolderOpen, Upload, Loader2, ExternalLink, EyeOff } from 'lucide-react'
+import { FolderOpen, Upload, Loader2, ExternalLink, EyeOff, FileSignature } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { demander } from '../../../ui/Confirm'
 import { mettreADisposition, ouvrirDocumentInterne, versBase64 } from '../../../core/portail/documentsClient'
+import { signaturesDesDocuments, telechargerAvecPreuve } from '../../../core/portail/documentSigne'
+import { rubriqueDocument } from '../../../core/portail/typeDocument'
 
 const TYPES = { rapport: "Rapport d'intervention", facture: 'Facture', devis: 'Devis', contrat: 'Contrat', convention: 'Convention', attestation: 'Attestation', autre: 'Autre document' }
 const quand = (d) => new Date(d).toLocaleDateString('fr-FR')
@@ -16,10 +18,16 @@ export default function DocumentsEspaceClient({ client, peutModifier }) {
   const [docs, setDocs] = useState(null)
   const [form, setForm] = useState(null) // { kind, label, file }
   const [busy, setBusy] = useState(false)
+  const [sigs, setSigs] = useState({}) // signatures en ligne par document (C9)
   const fichier = useRef(null)
 
   const charger = () => supabase.from('client_shared_documents').select('*').eq('client_id', client.id).order('published_at', { ascending: false })
-    .then(({ data, error }) => setDocs(error ? [] : (data || [])))
+    .then(async ({ data, error }) => {
+      const l = error ? [] : (data || [])
+      setDocs(l)
+      // Signatures des seuls documents signables affichés (20 au plus)
+      setSigs(await signaturesDesDocuments(l.slice(0, 20).filter((d) => ['contrat', 'devis', 'rapport'].includes(d.kind)).map((d) => d.id)))
+    })
   useEffect(() => { charger() }, [client.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!docs) return null
@@ -74,14 +82,17 @@ export default function DocumentsEspaceClient({ client, peutModifier }) {
           {docs.slice(0, 20).map((d) => (
             <li key={d.id} className={`py-2 flex items-center gap-3 text-ui ${d.withdrawn_at ? 'opacity-50' : ''}`}>
               <div className="min-w-0 flex-1">
-                <div className="truncate"><span className="text-gray-500">{TYPES[d.kind]} · </span>{d.label}</div>
+                <div className="truncate"><span className="text-gray-500">{TYPES[rubriqueDocument(d)]} · </span>{d.label}</div>
+                {sigs[d.id] && <div className="text-ui-sm text-[rgb(var(--c-success))]">Signé en ligne par {sigs[d.id].signer_name}{sigs[d.id].signer_role ? `, ${sigs[d.id].signer_role}` : ''}, le {quand(sigs[d.id].signed_at)}</div>}
                 <div className="text-ui-sm text-gray-500">
                   {d.withdrawn_at ? `Retiré le ${quand(d.withdrawn_at)}${d.withdrawn_reason ? ` (${d.withdrawn_reason})` : ''}` : `Mis à disposition le ${quand(d.published_at)}${d.published_by_name ? ` par ${d.published_by_name}` : ''}`}
                   <span className="font-mono" title={d.sha256}> · empreinte {d.sha256.slice(0, 10)}…</span>
                 </div>
               </div>
+              {sigs[d.id] && <button type="button" className="btn btn-ghost btn-icon" aria-label="Document signé, avec sa preuve" title="Document signé, avec sa preuve" disabled={busy}
+                onClick={async () => { setBusy(true); try { await telechargerAvecPreuve(d, sigs[d.id]) } catch (e) { toast.error(e.message || 'Document signé indisponible') } finally { setBusy(false) } }}><FileSignature className="w-4 h-4" /></button>}
               <button type="button" className="btn btn-ghost btn-icon" aria-label="Ouvrir" onClick={() => ouvrirDocumentInterne(d.id).catch((e) => toast.error(e.message))}><ExternalLink className="w-4 h-4" /></button>
-              {peutModifier && !d.withdrawn_at && <button type="button" className="btn btn-ghost btn-icon" aria-label="Retirer de l'espace du client" onClick={() => retirer(d)}><EyeOff className="w-4 h-4" /></button>}
+              {peutModifier && !d.withdrawn_at && !sigs[d.id] && <button type="button" className="btn btn-ghost btn-icon" aria-label="Retirer de l'espace du client" onClick={() => retirer(d)}><EyeOff className="w-4 h-4" /></button>}
             </li>
           ))}
         </ul>

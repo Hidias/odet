@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, Users, Loader2, FileSignature, Receipt, PenLine } from 'lucide-react'
+import { Plus, Users, Loader2, FileSignature, Receipt, PenLine, Download } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
@@ -11,6 +11,8 @@ import { confirmer } from '../../../ui/Confirm'
 import { downloadDocument, generatePDF } from '../pdf/pdfGenerator'
 import { mettreADisposition } from '../../../core/portail/documentsClient'
 import { confirmationSignatureGroupe } from '../../../core/portail/alertesPublication'
+import { signaturesDesDocuments, telechargerAvecPreuve } from '../../../core/portail/documentSigne'
+import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact } from '../lib/conventionGroupe'
 import InscriptionsEnLigne from './InscriptionsEnLigne'
 
 // Groupes d'une session inter (lot 2, 0044) : une entreprise (convention à son nom) ou un particulier qui paie
@@ -30,10 +32,13 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   const [indispo, setIndispo] = useState(false)
   const [edition, setEdition] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [signes, setSignes] = useState({}) // { [group_id]: { doc, sig } } : document du groupe signé en ligne (C9)
+  const dernierClient = useRef(null)
+  const [contacts, setContacts] = useState([]) // contacts de l'entreprise du groupe ouvert (signataire, C3)
 
   const load = async () => {
     const [{ data: g, error }, { data: st }] = await Promise.all([
-      supabase.from('session_groups').select('*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, contact_phone)')
+      supabase.from('session_groups').select('*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, contact_phone, siret), contact:contact_id(id, client_id, name, first_name, last_name, fonction, role)')
         .eq('session_id', session.id).order('created_at'),
       supabase.from('session_trainees').select('id, trainee_id, group_id, trainees(id, first_name, last_name, client_id)').eq('session_id', session.id),
     ])
@@ -41,6 +46,36 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     setGroupes(g || [])
     setInscrits(st || [])
     onGroupes?.(g || [])
+    chargerSignes(g || [])
+  }
+
+  // Convention ou contrat signé en ligne dans l'espace client (C9) : document publié pour le groupe et sa signature
+  const chargerSignes = async (liste) => {
+    const ids = liste.filter((x) => x.doc_status === 'signe').map((x) => x.id)
+    if (!ids.length) { setSignes({}); return }
+    const { data: docs } = await supabase.from('client_shared_documents').select('id, object_id, label, kind, sha256, published_at')
+      // Même retiré de l'espace du client, un document signé reste la preuve du groupe
+      .eq('object_type', 'session_group').in('object_id', ids)
+    const sigs = await signaturesDesDocuments((docs || []).map((d) => d.id))
+    const m = {}
+    ;(docs || []).forEach((d) => { if (sigs[d.id]) m[d.object_id] = { doc: d, sig: sigs[d.id] } })
+    setSignes(m)
+  }
+
+  const telechargerSigne = async (g) => {
+    const e = signes[g.id]
+    if (!e) return
+    setBusy(true)
+    try { await telechargerAvecPreuve(e.doc, e.sig) } catch (err) { toast.error(err.message || 'Document signé indisponible') } finally { setBusy(false) }
+  }
+
+  const chargerContacts = async (clientId) => {
+    if (!clientId) { setContacts([]); return [] }
+    dernierClient.current = clientId
+    const { data } = await supabase.from('client_contacts').select('id, client_id, name, first_name, last_name, fonction, role, is_primary, is_document_contact')
+      .eq('client_id', clientId).order('is_primary', { ascending: false })
+    if (dernierClient.current === clientId) setContacts(data || [])
+    return data || []
   }
   useEffect(() => { if (session?.id) load() }, [session?.id])
 
@@ -58,7 +93,10 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
 
   const ouvrir = async (g) => {
     await chargerClients()
-    setEdition(g ? { ...g } : { kind: 'entreprise', client_id: '', payer_kind: 'entreprise', payer_client_id: '', dossier_number: '', price_total: '', price_per_person: '', notes: '', doc_status: 'a_envoyer' })
+    // Signataire (C3) : pour un groupe d'entreprise sans signataire, le contact « documents » ou principal est proposé
+    const cs = g?.kind === 'entreprise' ? await chargerContacts(g.client_id) : (setContacts([]), [])
+    if (g) { setEdition({ ...g, contact_id: g.contact_id || (g.kind === 'entreprise' ? contactPropose(cs) : '') }); return }
+    setEdition({ kind: 'entreprise', client_id: '', payer_kind: 'entreprise', payer_client_id: '', dossier_number: '', price_total: '', price_per_person: '', notes: '', doc_status: 'a_envoyer', contact_id: '' })
   }
 
   const enregistrer = async () => {
@@ -70,6 +108,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
       payer_kind: e.payer_kind || (e.kind === 'particulier' ? 'particulier' : 'entreprise'),
       payer_client_id: ['opco', 'autre', 'france_travail'].includes(e.payer_kind) ? e.payer_client_id || null : null,
       dossier_number: e.dossier_number || null, notes: e.notes || null,
+      contact_id: e.kind === 'entreprise' && contacts.some((c) => c.id === e.contact_id && c.client_id === e.client_id) ? e.contact_id : null,
       price_total: e.price_total === '' || e.price_total == null ? null : Number(String(e.price_total).replace(',', '.')),
       price_per_person: e.price_per_person === '' || e.price_per_person == null ? null : Number(String(e.price_per_person).replace(',', '.')),
       group_name: clients.find((c) => c.id === e.client_id)?.name || e.group_name || null,
@@ -119,15 +158,19 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   // Convention (entreprise) ou contrat (particulier) du groupe mis à disposition dans l'espace du client pour être
   // signé en ligne (0420) ; la signature passe le document du groupe à « signé » (la base)
   const signatureEnLigne = async (g) => {
-    if (!(await confirmer(confirmationSignatureGroupe(g)))) return
     const stagiaires = (parGroupe[g.id] || []).map((i) => i.trainees).filter(Boolean)
+    const signataire = signataireDuGroupe(g, [g.contact].filter(Boolean))
+    const refus = g.doc_status === 'signe' ? null : refusPublicationGroupe(g, stagiaires.length, signataire)
+    if (refus) return toast.error(refus, { duration: 6000 })
+    if (!(await confirmer(confirmationSignatureGroupe(g)))) return
     setBusy(true)
     try {
       const nb = Math.max(1, stagiaires.length)
       const prixGroupe = parseFloat(g.price_total) || (parseFloat(g.price_per_person) ? parseFloat(g.price_per_person) * nb : null)
       const doc = g.kind === 'particulier'
         ? await generatePDF('contratParticulier', session, { trainees: stagiaires, trainer: session.trainers || null, particulier: { group: g, client: g.clients || {} } })
-        : await generatePDF('convention', { ...session, clients: g.clients || session.clients, total_price: prixGroupe ?? session.total_price }, { trainees: stagiaires, trainer: session.trainers || null })
+        // Le signataire est celui du groupe, jamais celui du client principal de la session (C3)
+        : await generatePDF('convention', { ...session, clients: g.clients || session.clients, contact: null, signatory_name: signataire.name, signatory_role: signataire.role, total_price: prixGroupe ?? session.total_price }, { trainees: stagiaires, trainer: session.trainers || null })
       if (!doc?.base64) throw new Error('Document impossible à générer')
       const label = `${g.kind === 'particulier' ? 'Contrat de formation' : 'Convention de formation'} ${session.reference || ''}`.trim()
       const r = await mettreADisposition({ objectType: 'session_group', objectId: g.id, kind: 'contrat', label, base64: doc.base64 })
@@ -170,12 +213,25 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
                     {KINDS[g.kind]} · {membres.length} stagiaire{membres.length > 1 ? 's' : ''} · payé par {PAYEURS[g.payer_kind] ? PAYEURS[g.payer_kind].toLowerCase() : '—'}
                     {g.dossier_number ? ` · dossier ${g.dossier_number}` : ''}
                   </div>
+                  {signes[g.id] && (
+                    <div className="text-ui-sm text-[rgb(var(--c-success))]">
+                      Signé{g.kind === 'particulier' ? '' : 'e'} en ligne par {signes[g.id].sig.signer_name}{signes[g.id].sig.signer_role ? `, ${signes[g.id].sig.signer_role}` : ''}, le {fmt(signes[g.id].sig.signed_at)}
+                    </div>
+                  )}
+                  {g.kind === 'entreprise' && !signes[g.id] && g.doc_status !== 'signe' && (
+                    <div className="text-ui-sm text-gray-500">Signataire : {nomContact(g.contact) ? `${nomContact(g.contact)}${g.contact.fonction || g.contact.role ? `, ${g.contact.fonction || g.contact.role}` : ''}` : 'à choisir dans le groupe'}</div>
+                  )}
                   {g.retractation_end && (
                     <div className={`text-ui-sm ${new Date(`${g.retractation_end}T23:59:59`) >= new Date() ? 'text-[rgb(var(--c-warning))]' : 'text-gray-500'}`}>
                       Rétractation possible jusqu'au {fmt(g.retractation_end)} : aucun paiement avant cette date
                     </div>
                   )}
                 </button>
+                {signes[g.id] && (
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => telechargerSigne(g)}>
+                    <Download className="w-4 h-4" /> {g.kind === 'particulier' ? 'Contrat signé' : 'Convention signée'}, avec sa preuve
+                  </button>
+                )}
                 {peutModifier && (
                   <div className="flex flex-wrap gap-1.5">
                     {g.kind === 'particulier' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => contrat(g)}><FileSignature className="w-4 h-4" /> Contrat</button>}
@@ -206,16 +262,34 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
           <div className="flex gap-2" role="radiogroup" aria-label="Nature du groupe">
             {Object.entries(KINDS).map(([k, l]) => (
               <button key={k} type="button" role="radio" aria-checked={edition.kind === k} disabled={!!edition.id}
-                onClick={() => setEdition({ ...edition, kind: k, client_id: '', payer_kind: k === 'particulier' ? 'particulier' : 'entreprise' })}
+                onClick={() => setEdition({ ...edition, kind: k, client_id: '', contact_id: '', payer_kind: k === 'particulier' ? 'particulier' : 'entreprise' })}
                 className={`btn btn-sm ${edition.kind === k ? 'btn-primary' : 'btn-secondary'}`}>{l}</button>
             ))}
           </div>
           <div>
             <label className="label" htmlFor="grp-client">{edition.kind === 'particulier' ? 'Fiche client du particulier' : 'Entreprise'}</label>
-            <select id="grp-client" className="input" value={edition.client_id || ''} onChange={(ev) => setEdition({ ...edition, client_id: ev.target.value })}>
+            <select id="grp-client" className="input" value={edition.client_id || ''} onChange={async (ev) => {
+              const id = ev.target.value
+              setEdition((x) => ({ ...x, client_id: id, contact_id: '' }))
+              setContacts([])
+              if (edition.kind !== 'entreprise') return
+              const cs = await chargerContacts(id)
+              // Réponse d'un choix précédent ignorée ; un choix fait à la main pendant le chargement est gardé
+              setEdition((x) => (x && x.client_id === id && !x.contact_id ? { ...x, contact_id: contactPropose(cs) } : x))
+            }}>
               <option value="">Choisir…</option>
               {choixClients(edition.kind).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+            {edition.kind === 'entreprise' && edition.client_id && (
+              <div className="mt-2">
+                <label className="label" htmlFor="grp-signataire">Signataire de la convention</label>
+                <select id="grp-signataire" className="input" value={edition.contact_id || ''} onChange={(ev) => setEdition({ ...edition, contact_id: ev.target.value })}>
+                  <option value="">Choisir…</option>
+                  {contacts.map((c) => <option key={c.id} value={c.id}>{nomContact(c) || 'Contact sans nom'}{c.fonction || c.role ? `, ${c.fonction || c.role}` : ''}</option>)}
+                </select>
+                {contacts.length === 0 && <p className="text-ui-sm text-gray-400 mt-1">Aucun contact pour cette entreprise : ajoutez-le sur sa fiche client.</p>}
+              </div>
+            )}
             {edition.kind === 'particulier' && <p className="text-ui-sm text-gray-400 mt-1">Un particulier qui paie lui-même a une fiche client « Particulier » (Clients › Particuliers).</p>}
           </div>
           <div className="grid sm:grid-cols-2 gap-2">
