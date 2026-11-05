@@ -600,7 +600,7 @@ export const useDataStore = create((set, get) => ({
         { data: sessionsData, error: sessionsError },
         { data: coursesData },
         { data: clientsData },
-        { data: trainersData },
+        { data: trainersData, error: trainersError },
         { data: traineesData },
         { data: sessionTraineesData },
         { data: contactsData },
@@ -709,7 +709,7 @@ export const useDataStore = create((set, get) => ({
         contact: contactsMap.get(s.contact_id) || null,
         session_trainees: sessionTraineesMap.get(s.id) || [],
         // null = liste inconnue (lecture en échec) : rien ne doit être réécrit à partir d'elle
-        autres_formateurs: sessionTrainersError ? null : autresFormateursIds(sessionTrainersMap.get(s.id), s.trainer_id).map(id => trainersMap.get(id)).filter(Boolean)
+        autres_formateurs: (sessionTrainersError || trainersError) ? null : autresFormateursIds(sessionTrainersMap.get(s.id), s.trainer_id).map(id => trainersMap.get(id)).filter(Boolean)
       }))
       
       set({ sessions, sessionsLoading: false })
