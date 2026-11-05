@@ -7,6 +7,8 @@ import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, Us
 import toast from 'react-hot-toast'
 import SirenConflictModal from '../components/SirenConflictModal'
 import RechercheRepertoire from '../components/RechercheRepertoire'
+import ImportCsvClients from '../components/ImportCsvClients'
+import { decoderFichier } from '../lib/importCsv'
 import { useSirenCheck } from '../lib/useSirenCheck'
 import { canExportVCard, buildVCards, clientAsContact, vcfFilename, downloadVCard } from '../lib/vcard'
 import { tvaFromSiren, pappersUrl } from '../../../core/org/tva'
@@ -72,91 +74,6 @@ const enrichProspectWithAPI = async (name, city) => {
     console.error('Erreur enrichissement API:', error)
     return null
   }
-}
-
-// Parser CSV Sellsy (séparateur ;, encodage ISO-8859-1)
-const parseSellsyCSV = (csvText) => {
-  const lines = csvText.split('\n').filter(l => l.trim())
-  if (lines.length < 2) return []
-  
-  // Parser l'en-tête
-  const headers = lines[0].split(';').map(h => h.replace(/"/g, '').trim())
-  
-  // Trouver les index des colonnes importantes
-  const getIdx = (name) => headers.findIndex(h => h.includes(name))
-  const idx = {
-    id: getIdx('ID SOCIETE SELLSY'),
-    name: getIdx('NOM SOCIETE'),
-    siret: getIdx('SIRET SOCIETE'),
-    emailSociete: getIdx('EMAIL SOCIETE'),
-    telSociete: getIdx('TELEPHONE SOCIETE'),
-    adresse1: getIdx('ADRESSE PARTIE 1'),
-    ville: getIdx('VILLE'),
-    cp: getIdx('CODE POSTAL'),
-    nomContact: getIdx('NOM CONTACT'),
-    prenomContact: getIdx('PRENOM CONTACT'),
-    emailContact: getIdx('EMAIL CONTACT'),
-    telContact: getIdx('TELEPHONE CONTACT'),
-    mobileContact: getIdx('MOBILE CONTACT'),
-    fonctionContact: getIdx('FONCTION CONTACT'),
-    contactPrincipal: getIdx('CONTACT PRINCIPAL'),
-  }
-  
-  // Parser les lignes de données
-  const rows = []
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(';').map(v => v.replace(/"/g, '').trim())
-    if (values.length < 5) continue
-    
-    rows.push({
-      sellsy_id: values[idx.id] || '',
-      name: values[idx.name] || '',
-      siret: values[idx.siret]?.replace(/\s/g, '') || '',
-      email_societe: values[idx.emailSociete] || '',
-      tel_societe: values[idx.telSociete] || '',
-      adresse: values[idx.adresse1] || '',
-      ville: values[idx.ville] || '',
-      cp: values[idx.cp] || '',
-      contact_nom: values[idx.nomContact] || '',
-      contact_prenom: values[idx.prenomContact] || '',
-      contact_email: values[idx.emailContact] || '',
-      contact_tel: values[idx.telContact] || values[idx.mobileContact] || '',
-      contact_fonction: values[idx.fonctionContact] || '',
-      contact_principal: values[idx.contactPrincipal] === 'Y',
-    })
-  }
-  
-  // Grouper par société (ID Sellsy)
-  const societes = new Map()
-  for (const row of rows) {
-    if (!row.sellsy_id || !row.name) continue
-    
-    if (!societes.has(row.sellsy_id)) {
-      societes.set(row.sellsy_id, {
-        name: row.name.toUpperCase(),
-        siret: row.siret,
-        contact_email: row.email_societe,
-        contact_phone: row.tel_societe,
-        address: row.adresse,
-        city: row.ville,
-        postal_code: row.cp,
-        contacts: []
-      })
-    }
-    
-    // Ajouter le contact si nom présent
-    if (row.contact_nom) {
-      societes.get(row.sellsy_id).contacts.push({
-        name: `${row.contact_nom} ${row.contact_prenom}`.trim(),
-        email: row.contact_email,
-        phone: row.contact_tel,
-        role: row.contact_fonction,
-        is_primary: row.contact_principal
-      })
-    }
-  }
-  
-  return Array.from(societes.values())
 }
 
 // Parser texte libre (Pappers, Infogreffe, etc.)
@@ -343,6 +260,8 @@ export default function Clients() {
   const [contacts, setContacts] = useState([])
   const [importing, setImporting] = useState(false)
   const [importPreview, setImportPreview] = useState(null)
+  // Import CSV générique (B3) : texte du fichier et nom, la fenêtre d'import fait le reste
+  const [importCsv, setImportCsv] = useState(null)
   const [showTextImport, setShowTextImport] = useState(false)
   const [textImportValue, setTextImportValue] = useState('')
   const [enriching, setEnriching] = useState(false)
@@ -568,24 +487,12 @@ export default function Clients() {
   const handleFileSelect = async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    
-    setImporting(true)
-    
     try {
-      const text = await file.text()
-      const societes = parseSellsyCSV(text)
-      
-      if (societes.length === 0) {
-        toast.error('Aucune société détectée dans le CSV')
-        return
-      }
-      
-      setImportPreview(societes)
+      setImportCsv({ texte: decoderFichier(await file.arrayBuffer()), nom: file.name })
     } catch (err) {
-      console.error('Erreur parsing CSV:', err)
+      console.error('Erreur lecture CSV:', err)
       toast.error('Erreur lors de la lecture du fichier')
     } finally {
-      setImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -845,7 +752,7 @@ export default function Clients() {
                 disabled={importing}
               >
                 <FileSpreadsheet className="w-4 h-4" />
-                <span className="hidden sm:inline">Importer un fichier</span><span className="sm:hidden">Importer</span>
+                <span className="hidden sm:inline">Importer un fichier CSV</span><span className="sm:hidden">Importer</span>
               </button>
               <input 
                 ref={fileInputRef} 
@@ -1324,6 +1231,11 @@ export default function Clients() {
         </div>
       )}
       
+      {importCsv && (
+        <ImportCsvClients texte={importCsv.texte} nomFichier={importCsv.nom} clients={clients}
+          onClose={() => setImportCsv(null)} onImporte={fetchClients} />
+      )}
+
       {/* Modal Import Preview AVEC ENRICHISSEMENT */}
       {importPreview && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
