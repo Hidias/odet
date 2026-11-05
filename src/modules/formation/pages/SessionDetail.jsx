@@ -68,6 +68,7 @@ import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { etatConvention, CONVENTION } from '../lib/etatConvention'
 import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
+import { pluriel } from '../../../core/genre'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -3265,10 +3266,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             {(() => {
               const etat = etatConvention(session, groupesConvention)
               if (etat === CONVENTION.SANS_OBJET) return null
-              const pluriel = session.session_type === 'inter' && groupesConvention.length > 1 ? 's' : ''
-              if (etat === CONVENTION.SIGNEE) return <StatusBadge tone="success">{pluriel ? 'Conventions signées' : 'Convention signée'}</StatusBadge>
-              if (etat === CONVENTION.ENVOYEE) return <StatusBadge tone="info">{pluriel ? 'Conventions envoyées' : 'Convention envoyée'}</StatusBadge>
-              return <StatusBadge tone="warning">{pluriel ? 'Conventions en attente' : 'Convention en attente'}</StatusBadge>
+              const plusieurs = session.session_type === 'inter' && groupesConvention.length > 1 ? 's' : ''
+              if (etat === CONVENTION.SIGNEE) return <StatusBadge tone="success">{plusieurs ? 'Conventions signées' : 'Convention signée'}</StatusBadge>
+              if (etat === CONVENTION.ENVOYEE) return <StatusBadge tone="info">{plusieurs ? 'Conventions envoyées' : 'Convention envoyée'}</StatusBadge>
+              return <StatusBadge tone="warning">{plusieurs ? 'Conventions en attente' : 'Convention en attente'}</StatusBadge>
             })()}
           </div>
         </div>
@@ -3280,13 +3281,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           </button>}
           {/* Boutons Email */}
           {d.envoyer && <button onClick={() => handleSendEmailBefore()} className="btn btn-secondary">
-            <Send className="w-4 h-4" />Avant formation
+            <Send className="w-4 h-4" />E-mail avant la formation
           </button>}
           {d.envoyer && <button onClick={() => handleSendEmailAfter()} className="btn btn-secondary">
-            <Send className="w-4 h-4" />Après formation
+            <Send className="w-4 h-4" />E-mail après la formation
           </button>}
           {d.envoyer && <button onClick={() => setShowStageEmailModal(true)} className="btn btn-secondary">
-            <Mail className="w-4 h-4" />Aux stagiaires
+            <Mail className="w-4 h-4" />Écrire aux stagiaires
           </button>}
           {d.modifier && <button onClick={() => setShowEdit(true)} className="btn btn-secondary"><Edit className="w-4 h-4" />Modifier</button>}
           {d.supprimer && <>
@@ -3343,7 +3344,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
         <div className="card">
           <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><Users className="w-4 h-4" />Effectif</h3>
-          <p className="text-ui text-gray-600">{sessionTrainees.length} stagiaire(s)</p>
+          <p className="text-ui text-gray-600">{pluriel(sessionTrainees.length, 'stagiaire')}</p>
         </div>
         <div className="card">
           <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2"><UserCheck className="w-4 h-4" />Formateur</h3>

@@ -389,6 +389,9 @@ html[data-lists='cards'] .dt-cards { display: block; }
   html[data-bottom-nav='1'] .action-bar { bottom: calc(60px + env(safe-area-inset-bottom)); }
 }
 
+/* Cartes : la carte reste sous la barre du bas et les fenêtres (ses calques ont un z-index propre) */
+.leaflet-container { isolation: isolate; }
+
 /* Post-it de remarques : en bas à droite, au-dessus de la barre du bas et de la barre d'actions sur téléphone */
 .postit-float { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
 @media (max-width: 1023px) {

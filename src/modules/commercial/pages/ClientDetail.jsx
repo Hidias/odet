@@ -520,7 +520,7 @@ export default function ClientDetail() {
       .eq('id', id)
     if (error) { toast.error('Erreur mise à jour'); return }
     setClient(c => ({ ...c, do_not_mail: newVal }))
-    toast.success(newVal ? ' Mailing désactivé pour ce client' : ' Mailing réactivé')
+    toast.success(newVal ? 'Ce client ne recevra plus les envois groupés' : 'Ce client recevra de nouveau les envois groupés')
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1177,7 +1177,7 @@ export default function ClientDetail() {
           })()}
 
           {/* ══════ BANDEAU DÉJÀ LIÉ (si aucun lien restant) ══════ */}
-          {clientLinks && !prospectionLoading && (() => {
+          {clientLinks && !prospectionLoading && d.prospection && (() => {
             const total = (clientLinks.siren_matches?.length || 0) + (clientLinks.domain_matches?.length || 0) +
               (clientLinks.dirigeant_matches?.length || 0) + (clientLinks.group_prospect_matches?.length || 0)
             if (total > 0) return null // le bandeau ci-dessus gère
@@ -1185,8 +1185,7 @@ export default function ClientDetail() {
             if (!siren) return null
             return (
               <div className="mb-4 bg-[rgb(var(--c-success-bg))] border border-[rgb(var(--c-success)/0.3)] rounded-ui-sm px-4 py-2 flex items-center gap-2">
-                <span className="text-ui"></span>
-                <span className="text-ui-sm text-[rgb(var(--c-success))] font-medium">Tous les prospects liés sont marqués - file de prospection à jour</span>
+                <span className="text-ui-sm text-[rgb(var(--c-success))] font-medium">Prospection à jour : les fiches liées à ce client sont marquées</span>
               </div>
             )
           })()}
@@ -1360,14 +1359,14 @@ export default function ClientDetail() {
                 <button
                   onClick={toggleDoNotMail}
                   disabled={!d.modifier}
-                  title={client.do_not_mail ? 'Cliquer pour réactiver le mailing' : 'Cliquer pour désactiver le mailing'}
+                  title={client.do_not_mail ? 'Cliquer pour inclure de nouveau ce client dans les envois groupés' : 'Cliquer pour ne plus inclure ce client dans les envois groupés'}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-ui-sm font-medium border transition-colors disabled:cursor-default ${
                     client.do_not_mail
                       ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] border-[rgb(var(--c-danger)/0.3)] hover:bg-[rgb(var(--c-danger-bg))]'
                       : 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] border-[rgb(var(--c-success)/0.3)] hover:bg-[rgb(var(--c-success-bg))]'
                   }`}
                 >
-                  {client.do_not_mail ? ' Mailing désactivé' : ' Mailing actif'}
+                  {client.do_not_mail ? 'Envois groupés : non' : 'Envois groupés : oui'}
                 </button>
               </div>
               {client.website && (

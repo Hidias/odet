@@ -19,6 +19,7 @@ import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSe
 import { confirmer } from '../../../ui/Confirm'
 import { bilanSession, blocageSuppressionSession, alerteSuppressionSession, erreurSuppressionSession } from '../lib/alertesAction'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
+import { pluriel } from '../../../core/genre'
 // Type de journée déduit des horaires : ≤ 4h30 = demi-journée (même règle que Quotes / MultiSiretWizard)
 const dayTypeFromTimes = (startTime, endTime) => {
   const [sh, sm] = (startTime || '09:00').split(':').map(Number)
@@ -519,7 +520,7 @@ export default function Sessions() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="page-title">Sessions</h1>
-          <p className="text-gray-500 mt-1">{sessions.length} session(s)</p>
+          <p className="text-gray-500 mt-1">{sessionsLoading && !sessions.length ? 'Chargement…' : pluriel(sessions.length, 'session')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Toggle Liste / Planning */}
@@ -548,7 +549,7 @@ export default function Sessions() {
           {d.creer && (
           <button onClick={() => setShowMultiSiret(true)} className="btn btn-secondary flex items-center gap-2">
             <Building2 className="w-4 h-4" />
-            Multi-SIRET
+            Plusieurs établissements
           </button>
           )}
           {d.creer && (
@@ -663,7 +664,7 @@ export default function Sessions() {
                           )}
                           <span className="flex items-center gap-1">
                             <Users className="w-4 h-4" />
-                            {totalTrainees} stagiaire(s)
+                            {pluriel(totalTrainees, 'stagiaire')}
                           </span>
 
                         </div>
@@ -693,7 +694,7 @@ export default function Sessions() {
                               </div>
                               <p className="font-medium text-gray-900 mt-0.5">{session.clients?.name}</p>
                               <div className="flex items-center gap-3 mt-1 text-ui text-gray-500">
-                                <span>{session.session_trainees?.length || 0} stagiaire(s)</span>
+                                <span>{pluriel(session.session_trainees?.length || 0, 'stagiaire')}</span>
 
                               </div>
                             </div>
@@ -829,7 +830,7 @@ export default function Sessions() {
                       
                       <span className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        {session.session_trainees?.length || 0} stagiaire(s)
+                        {pluriel(session.session_trainees?.length || 0, 'stagiaire')}
                       </span>
                     </div>
                   </div>
