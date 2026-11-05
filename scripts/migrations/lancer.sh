@@ -90,6 +90,13 @@ jouer essai "$ESSAI"
 publier "1. Essai en transaction annulée ($ESSAI)" essai
 if tests_verts essai; then ESSAI_OK=1; ecrire "1. Essai : **vert** ($(bilan_tests essai | awk '{print $1" tests, "$2" échec"}'))"
 else ESSAI_OK=0; ecrire "1. Essai : **ROUGE** ($(bilan_tests essai || true))"; fi
+# Essai propre de la migration (inclus par fabriquer_lot.py) : un échec arrête l'essai avant les tests de droits,
+# donc l'essai est déjà rouge ; on écrit ici ce qui a été rejoué.
+PROPRES_ATTENDUS="$(grep -c '^-- ===== essai propre ' "$RACINE/$ESSAI" || true)"
+PROPRES_VERTS="$(grep -c 'ESSAI PROPRE VERT : ' "$TMP/essai.txt" || true)"
+if [ "$PROPRES_ATTENDUS" -eq 0 ]; then ecrire "   Essai propre : aucun dans ce lot (lot fabriqué avant le 05/11)"
+elif [ "$PROPRES_VERTS" -eq "$PROPRES_ATTENDUS" ]; then ecrire "   Essai propre : **vert** ($PROPRES_VERTS sur $PROPRES_ATTENDUS)"
+else ESSAI_OK=0; ecrire "   Essai propre : **ROUGE** ($PROPRES_VERTS vert(s) sur $PROPRES_ATTENDUS)"; fi
 
 # 2. Essai du retour arrière en transaction annulée
 jouer retour_essai "$RETOUR_ESSAI"

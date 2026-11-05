@@ -2,9 +2,14 @@
 """Fabrique les fichiers d'un lot de migrations pour l'action « Migrations en production ».
 
 Utilisation :
-  python3 scripts/migrations/fabriquer_lot.py LOT RETOUR MIGRATION [MIGRATION ...]
+  python3 scripts/migrations/fabriquer_lot.py LOT RETOUR MIGRATION [MIGRATION ...] --essai ESSAI_PROPRE [--essai ...]
   ex. python3 scripts/migrations/fabriquer_lot.py c1_0376 supabase/rollback/0376_maintenance_nuit_retour.sql \\
-          supabase/migrations/0376_maintenance_nuit.sql
+          supabase/migrations/0376_maintenance_nuit.sql --essai supabase/tests/maintenance_nuit_0376.sql
+
+L'essai propre d'une migration (supabase/tests/<sujet>_<NNNN>.sql, rouge sans elle) est obligatoire : il est rejoué
+sur la production par l'action, après les migrations et avant les tests de droits, dans un point de sauvegarde
+annulé ensuite (ses données d'essai ne faussent pas les tests de droits). S'il échoue, l'essai du lot est rouge
+et rien n'est appliqué. Ses lignes « begin; » et « rollback; » de premier niveau sont retirées.
 
 Écrit :
   supabase/tests/essai_<lot>_transaction_annulee.sql : migrations puis tests de droits (droits_chantier2.sql),
@@ -97,6 +102,19 @@ def bloc(f):
     return f"\n-- ===== {f.relative_to(root)} =====\n" + f.read_text(encoding='utf-8')
 
 
+def essai_propre(f):
+    """Essai propre rejoué dans l'essai du lot, isolé dans un point de sauvegarde."""
+    texte = f.read_text(encoding='utf-8')
+    assert re.search(r'^\s*begin\s*;\s*$', texte, re.I | re.M) and re.search(r'^\s*rollback\s*;\s*$', texte, re.I | re.M), \
+        f'{f} : essai propre attendu entre « begin; » et « rollback; »'
+    assert not re.search(r'^\s*commit\s*;', texte, re.I | re.M), f'COMMIT interdit : {f}'
+    corps = re.sub(r'^\s*(begin|rollback)\s*;\s*$', '', texte, flags=re.I | re.M)
+    nom = f.relative_to(root)
+    return (f"\n-- ===== essai propre {nom} (point de sauvegarde, annulé s'il passe ; s'il échoue, tout s'arrête) =====\n"
+            "savepoint essai_propre;\n" + corps
+            + f"\nselect 'ESSAI PROPRE VERT : {nom}' as resultat;\nrollback to savepoint essai_propre;\n")
+
+
 def ecrire(path, text):
     assert not re.search(r'^\s*commit\s*;', text, re.I | re.M), f'COMMIT interdit : {path}'
     assert not re.search(r'^\s*begin\s*;', text, re.I | re.M), f'BEGIN interdit : {path}'
@@ -106,22 +124,30 @@ def ecrire(path, text):
 
 
 def main():
-    if len(sys.argv) < 4:
+    args, essais = [], []
+    it = iter(sys.argv[1:])
+    for a in it:
+        if a == '--essai':
+            essais.append(next(it, None))
+        else:
+            args.append(a)
+    if len(args) < 3 or not essais or None in essais:
         sys.exit(__doc__)
-    lot = sys.argv[1]
+    lot = args[0]
     assert re.fullmatch(r'[a-z0-9_-]+', lot), 'nom de lot : minuscules, chiffres, _ et -'
-    retour = (root / sys.argv[2]).resolve()
-    mig = [(root / m).resolve() for m in sys.argv[3:]]
-    for f in [retour, *mig]:
+    retour = (root / args[1]).resolve()
+    mig = [(root / m).resolve() for m in args[2:]]
+    propres = [(root / e).resolve() for e in essais]
+    for f in [retour, *mig, *propres]:
         assert f.is_file(), f
     tests = root / 'supabase' / 'tests' / 'droits_chantier2.sql'
     noms = ', '.join(f.name for f in mig)
     gen = f"-- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py ({lot}) : ne pas modifier à la main.\n"
 
     essai = root / 'supabase' / 'tests' / f'essai_{lot}_transaction_annulee.sql'
-    ecrire(essai, gen + f"-- Essai en transaction annulée : {noms}, puis tous les tests de droits. Se termine TOUJOURS par\n"
-           "-- l'erreur volontaire « RÉSULTAT DES TESTS DE DROITS » : tout est annulé.\n" + ENTETE
-           + "".join(bloc(f) for f in mig) + bloc(tests))
+    ecrire(essai, gen + f"-- Essai en transaction annulée : {noms}, essai propre, puis tous les tests de droits. Se termine\n"
+           "-- TOUJOURS par l'erreur volontaire « RÉSULTAT DES TESTS DE DROITS » : tout est annulé.\n" + ENTETE
+           + "".join(bloc(f) for f in mig) + "".join(essai_propre(f) for f in propres) + bloc(tests))
 
     retour_essai = root / 'supabase' / 'tests' / f'essai_retour_{lot}_transaction_annulee.sql'
     ecrire(retour_essai, gen + f"-- Essai du retour arrière en transaction annulée : photographie, {noms}, retour arrière,\n"
