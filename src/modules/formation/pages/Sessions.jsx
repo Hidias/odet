@@ -426,13 +426,7 @@ export default function Sessions() {
       end_time: formData.end_time,
       day_type: formData.day_type || 'full',
       location: formData.location,
-      location_address: formData.location_address || null,
-      location_postal_code: formData.location_postal_code || null,
-      location_city: formData.location_city || null,
       room: formData.room,
-      is_remote: !!formData.is_remote,
-      total_price: formData.total_price === '' || formData.total_price == null ? null : Number(formData.total_price),
-      notes: formData.notes || null,
       status: formData.status,
       is_intra: isSub ? true : formData.is_intra,
       trainer_ids: formData.trainer_ids,
@@ -473,7 +467,8 @@ export default function Sessions() {
     }
   }
   
-  // Dupliquer : formulaire « Nouvelle session » prérempli avec la session d'origine, dates à choisir.
+  // Dupliquer : formulaire « Nouvelle session » prérempli avec la session d'origine, dates à choisir. Seuls les champs
+  // affichés par le formulaire sont recopiés (prix : tarif du client appliqué par la base, comme à la création).
   // Rien n'est créé avant « Créer la session » (la base exige les dates et numérote à partir de la date de début).
   const handleDuplicate = (id, e) => {
     e.preventDefault()
@@ -494,13 +489,7 @@ export default function Sessions() {
       end_time: heure(s.end_time, '17:00'),
       day_type: s.day_type || 'full',
       location: s.location_name || '',
-      location_address: s.location_address || '',
-      location_postal_code: s.location_postal_code || '',
-      location_city: s.location_city || '',
       room: s.room || '',
-      is_remote: !!s.is_remote,
-      total_price: s.total_price ?? '',
-      notes: s.notes || '',
       is_intra: !!s.is_intra,
       trainer_ids: s.trainer_id ? [s.trainer_id] : [],
       funding_type: s.funding_type || 'none',
