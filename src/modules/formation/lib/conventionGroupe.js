@@ -7,7 +7,8 @@ export const nomContact = (c) => (c ? String(c.name || [c.first_name, c.last_nam
 /** Signataire du document du groupe : le particulier lui-même, ou le contact de l'entreprise choisi dans le groupe */
 export function signataireDuGroupe(groupe, contacts = []) {
   if (groupe?.kind === 'particulier') return groupe.clients?.name ? { name: groupe.clients.name, role: '' } : null
-  const c = (contacts || []).find((x) => x.id === groupe?.contact_id)
+  // Le contact doit appartenir à l'entreprise du groupe (défense : un contact d'un autre client ne signe jamais)
+  const c = (contacts || []).find((x) => x.id === groupe?.contact_id && (x.client_id === undefined || x.client_id === groupe?.client_id))
   const name = nomContact(c)
   return name ? { name, role: String(c.fonction || c.role || '').trim() } : null
 }

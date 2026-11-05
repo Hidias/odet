@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { FileText, Receipt, Wrench, FileSignature, ScrollText, Download, Loader2, FolderOpen, PenLine, BadgeCheck, Printer, Clock, AlertCircle, Upload } from 'lucide-react'
 import { imprimer } from '../../../core/fichiers/imprimer'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
+import { rubriqueDocument } from '../../../core/portail/typeDocument'
 
 const TYPES = {
   rapport: { label: "Rapports d'intervention", icone: Wrench },
@@ -26,8 +27,6 @@ function sauver(buf, nom) {
   document.body.appendChild(a); a.click(); document.body.removeChild(a)
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
-
-import { rubriqueDocument } from '../../../core/portail/typeDocument'
 
 const SIGNABLES = ['devis', 'contrat']
 

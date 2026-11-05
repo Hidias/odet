@@ -21,7 +21,8 @@ import RegistreVue from '../../registre/components/RegistreVue'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { appliquerEmis, seulementEmis } from '../../formation/lib/documentsEmis'
 import { noterCompte, premiereConnexionDuJour, LIBELLES_DOCUMENT } from '../../../core/portail/journal'
-import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON } from '../components/SignerConvention'
+import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON, ACCORD_SIGNATURE } from '../components/SignerConvention'
+import { rubriqueDocument } from '../../../core/portail/typeDocument'
 import { nomSignable, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
@@ -797,7 +798,7 @@ function Plus_({ compte, org, salaries }) {
           )}
           {docASigner && (
             <SignerConvention titre={nomSignable(docASigner).titre} nomDocument={nomSignable(docASigner).nom}
-              accord={docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={{ name: compte?.contact?.name || '' }}
+              accord={rubriqueDocument(docASigner) === 'convention' ? ACCORD_SIGNATURE : docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={{ name: compte?.contact?.name || '' }}
               genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({}, docASigner.id)), filename: `${docASigner.label}.pdf` })}
               onSigner={async (p) => {
                 const { data: r, error } = await supabase.rpc('ent_signer_document', { p_document: docASigner.id, p_name: p.name, p_role: p.role, p_signature: p.signature, p_consent: p.consent })

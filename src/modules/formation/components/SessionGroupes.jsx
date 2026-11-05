@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Users, Loader2, FileSignature, Receipt, PenLine, Download } from 'lucide-react'
@@ -33,11 +33,12 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   const [edition, setEdition] = useState(null)
   const [busy, setBusy] = useState(false)
   const [signes, setSignes] = useState({}) // { [group_id]: { doc, sig } } : document du groupe signé en ligne (C9)
+  const dernierClient = useRef(null)
   const [contacts, setContacts] = useState([]) // contacts de l'entreprise du groupe ouvert (signataire, C3)
 
   const load = async () => {
     const [{ data: g, error }, { data: st }] = await Promise.all([
-      supabase.from('session_groups').select('*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, contact_phone, siret), contact:contact_id(id, name, first_name, last_name, fonction, role)')
+      supabase.from('session_groups').select('*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, contact_phone, siret), contact:contact_id(id, client_id, name, first_name, last_name, fonction, role)')
         .eq('session_id', session.id).order('created_at'),
       supabase.from('session_trainees').select('id, trainee_id, group_id, trainees(id, first_name, last_name, client_id)').eq('session_id', session.id),
     ])
@@ -53,7 +54,8 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     const ids = liste.filter((x) => x.doc_status === 'signe').map((x) => x.id)
     if (!ids.length) { setSignes({}); return }
     const { data: docs } = await supabase.from('client_shared_documents').select('id, object_id, label, kind, sha256, published_at')
-      .eq('object_type', 'session_group').in('object_id', ids).is('withdrawn_at', null)
+      // Même retiré de l'espace du client, un document signé reste la preuve du groupe
+      .eq('object_type', 'session_group').in('object_id', ids)
     const sigs = await signaturesDesDocuments((docs || []).map((d) => d.id))
     const m = {}
     ;(docs || []).forEach((d) => { if (sigs[d.id]) m[d.object_id] = { doc: d, sig: sigs[d.id] } })
@@ -69,9 +71,10 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
 
   const chargerContacts = async (clientId) => {
     if (!clientId) { setContacts([]); return [] }
+    dernierClient.current = clientId
     const { data } = await supabase.from('client_contacts').select('id, name, first_name, last_name, fonction, role, is_primary, is_document_contact')
       .eq('client_id', clientId).order('is_primary', { ascending: false })
-    setContacts(data || [])
+    if (dernierClient.current === clientId) setContacts(data || [])
     return data || []
   }
   useEffect(() => { if (session?.id) load() }, [session?.id])
@@ -267,8 +270,11 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
             <label className="label" htmlFor="grp-client">{edition.kind === 'particulier' ? 'Fiche client du particulier' : 'Entreprise'}</label>
             <select id="grp-client" className="input" value={edition.client_id || ''} onChange={async (ev) => {
               const id = ev.target.value
-              const cs = edition.kind === 'entreprise' ? await chargerContacts(id) : []
-              setEdition((x) => ({ ...x, client_id: id, contact_id: edition.kind === 'entreprise' ? contactPropose(cs) : '' }))
+              setEdition((x) => ({ ...x, client_id: id, contact_id: '' }))
+              if (edition.kind !== 'entreprise') return
+              const cs = await chargerContacts(id)
+              // Réponse d'un choix précédent : ignorée si l'entreprise a changé entre-temps
+              setEdition((x) => (x && x.client_id === id ? { ...x, contact_id: contactPropose(cs) } : x))
             }}>
               <option value="">Choisir…</option>
               {choixClients(edition.kind).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

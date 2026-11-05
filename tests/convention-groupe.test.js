@@ -14,6 +14,9 @@ describe('Convention d\'un groupe inter (C3, C8)', () => {
     expect(signataireDuGroupe({ kind: 'entreprise', contact_id: 'c2' }, contacts)).toEqual({ name: 'Anne Durand', role: 'Gérante' })
     expect(signataireDuGroupe({ kind: 'entreprise', contact_id: null }, contacts)).toBeNull()
     expect(signataireDuGroupe({ kind: 'entreprise', contact_id: 'c9' }, contacts)).toBeNull()
+    // Contact d'un autre client : jamais signataire
+    expect(signataireDuGroupe({ kind: 'entreprise', client_id: 'A', contact_id: 'x' }, [{ id: 'x', client_id: 'B', name: 'Autre' }])).toBeNull()
+    expect(signataireDuGroupe({ kind: 'entreprise', client_id: 'A', contact_id: 'x' }, [{ id: 'x', client_id: 'A', name: 'Bon' }])).toEqual({ name: 'Bon', role: '' })
   })
   it('particulier : il signe lui-même', () => {
     expect(signataireDuGroupe({ kind: 'particulier', clients: { name: 'Léa Roux' } })).toEqual({ name: 'Léa Roux', role: '' })
@@ -45,6 +48,7 @@ describe('Type affiché d\'un document de l\'espace client (C4)', () => {
     expect(rubriqueDocument({ kind: 'devis', label: 'Convention ?' })).toBe('devis')
   })
   it('fenêtre de signature', () => {
+    expect(nomSignable({ kind: 'contrat', label: 'Convention de formation X' }).nom).toBe('la convention')
     expect(nomSignable({ kind: 'contrat', label: 'Convention de formation X' }).titre).toBe('Signer la convention')
     expect(nomSignable({ kind: 'contrat', label: 'Contrat de formation X' }).titre).toBe('Signer le contrat')
     expect(nomSignable({ kind: 'devis', label: 'Devis' }).titre).toBe('Signer le devis')

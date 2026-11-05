@@ -25,7 +25,8 @@ export default function DocumentsEspaceClient({ client, peutModifier }) {
     .then(async ({ data, error }) => {
       const l = error ? [] : (data || [])
       setDocs(l)
-      setSigs(await signaturesDesDocuments(l.map((d) => d.id)))
+      // Signatures des seuls documents signables affichés (20 au plus)
+      setSigs(await signaturesDesDocuments(l.slice(0, 20).filter((d) => ['contrat', 'devis', 'rapport'].includes(d.kind)).map((d) => d.id)))
     })
   useEffect(() => { charger() }, [client.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -91,7 +92,7 @@ export default function DocumentsEspaceClient({ client, peutModifier }) {
               {sigs[d.id] && <button type="button" className="btn btn-ghost btn-icon" aria-label="Document signé, avec sa preuve" title="Document signé, avec sa preuve" disabled={busy}
                 onClick={async () => { setBusy(true); try { await telechargerAvecPreuve(d, sigs[d.id]) } catch (e) { toast.error(e.message || 'Document signé indisponible') } finally { setBusy(false) } }}><FileSignature className="w-4 h-4" /></button>}
               <button type="button" className="btn btn-ghost btn-icon" aria-label="Ouvrir" onClick={() => ouvrirDocumentInterne(d.id).catch((e) => toast.error(e.message))}><ExternalLink className="w-4 h-4" /></button>
-              {peutModifier && !d.withdrawn_at && <button type="button" className="btn btn-ghost btn-icon" aria-label="Retirer de l'espace du client" onClick={() => retirer(d)}><EyeOff className="w-4 h-4" /></button>}
+              {peutModifier && !d.withdrawn_at && !sigs[d.id] && <button type="button" className="btn btn-ghost btn-icon" aria-label="Retirer de l'espace du client" onClick={() => retirer(d)}><EyeOff className="w-4 h-4" /></button>}
             </li>
           ))}
         </ul>
