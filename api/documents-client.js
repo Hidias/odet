@@ -56,6 +56,13 @@ async function publier(req, res) {
   if (!clientId) return res.status(400).json({ error: 'Prestation sans client' })
 
   const { admin } = ctx
+  // Groupe inter dont la convention ou le contrat est déjà signé (en ligne ou sur papier) : rien de nouveau à signer
+  if (type === 'session_group' && obj.doc_status === 'signe') {
+    const { data: actif } = await admin.from('client_shared_documents').select('id').eq('object_type', type).eq('object_id', id).eq('kind', kind).is('withdrawn_at', null).maybeSingle()
+    return res.status(200).json({ id: actif?.id || null, deja: true, signe: true })
+  }
+
+  let aRetirer = null
   if (type !== 'client') {
     const { data: deja } = await admin.from('client_shared_documents').select('id, published_at').eq('object_type', type).eq('object_id', id).eq('kind', kind).is('withdrawn_at', null).maybeSingle()
     if (deja) {
@@ -65,23 +72,28 @@ async function publier(req, res) {
       // signé à la main déposé) remplace le précédent
       // Convention ou contrat d'un groupe inter (0490, décision de H du 05/11) : tant qu'il n'est pas signé, le document
       // publié de nouveau (stagiaires ou prix corrigés) remplace le précédent ; signé, il reste figé
-      if (type === 'session_group' && obj.doc_status === 'signe') return res.status(200).json({ id: deja.id, deja: true, signe: true })
       const modifie = kind === 'avis_passage' || type === 'itv_contract' || type === 'session_group'
         || (type === 'quote' && obj.updated_at && new Date(obj.updated_at) > new Date(deja.published_at))
       if (!modifie) return res.status(200).json({ id: deja.id, deja: true })
       const { data: sig } = await admin.from('document_signatures').select('id').eq('status', 'valid').eq('metadata->>document_id', deja.id).limit(1)
       if (sig?.length) return res.status(200).json({ id: deja.id, deja: true, signe: true })
-      const { error: eRetrait } = await admin.from('client_shared_documents').update({ withdrawn_at: new Date().toISOString(), withdrawn_reason: 'Nouvelle version du document' }).eq('id', deja.id)
-      if (eRetrait) return res.status(500).json({ error: 'Remplacement impossible' })
+      aRetirer = deja.id
     }
   }
 
+  // Fichier contrôlé et déposé avant tout retrait : un échec ici laisse au client la version qu'il voit déjà
   const buf = Buffer.from(String(b64), 'base64')
   if (!buf.length || buf.length > MAX || buf.subarray(0, 4).toString() !== '%PDF') return res.status(400).json({ error: 'Fichier invalide' })
   const sha = crypto.createHash('sha256').update(buf).digest('hex')
   const path = `${clientId}/${type}/${id}/${kind}-${sha.slice(0, 16)}.pdf`
   const { error: up } = await admin.storage.from(BUCKET).upload(path, buf, { contentType: 'application/pdf', upsert: false })
   if (up && !/exists|duplicate/i.test(up.message || '')) return res.status(500).json({ error: 'Dépôt impossible' })
+  // L'ancienne version n'est retirée qu'une fois la nouvelle déposée (déjà retirée par un second clic : rien à faire)
+  if (aRetirer) {
+    const { error: eRetrait } = await admin.from('client_shared_documents').update({ withdrawn_at: new Date().toISOString(), withdrawn_reason: 'Nouvelle version du document' }).eq('id', aRetirer).is('withdrawn_at', null)
+    if (eRetrait) return res.status(500).json({ error: 'Remplacement impossible' })
+  }
+
   const { data: cl } = await admin.from('clients').select('company_id').eq('id', clientId).maybeSingle()
   const nom = [ctx.profile.first_name, ctx.profile.last_name].filter(Boolean).join(' ') || ctx.profile.display_name || null
   const { data: row, error } = await admin.from('client_shared_documents').insert({

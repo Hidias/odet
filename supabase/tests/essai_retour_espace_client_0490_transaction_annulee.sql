@@ -55,7 +55,8 @@ create temp table etat_essai_avant as select * from etat_essai;
 -- Jusqu'ici, supprimer un devis publié (ou un groupe dont la convention était mise à signer) laissait son PDF
 -- visible, et même signable, dans l'espace du client. Désormais la suppression retire le document : il est gardé,
 -- avec la date, l'auteur et le motif du retrait (une ligne de client_shared_documents ne s'efface jamais, 0404).
--- La signature en ligne refuse déjà un document retiré (0420). Rien ne part par e-mail. Aucune donnée supprimée.
+-- Un document signé en ligne n'est jamais retiré : il reste la preuve que le client consulte. La signature en ligne
+-- refuse déjà un document retiré (0420). Rien ne part par e-mail. Aucune donnée supprimée.
 -- Convention ou contrat d'un groupe inter (0420) : les contraintes de 0404 n'acceptaient pas l'objet « session_group »,
 -- si bien que sa mise à disposition échouait toujours (0 document de groupe en production, relevé le 05/11). Elles
 -- l'acceptent désormais ; tant qu'il n'est pas signé, un nouveau document du groupe remplace le précédent
@@ -79,7 +80,9 @@ begin
   update public.client_shared_documents
      set withdrawn_at = now(),
          withdrawn_reason = case tg_argv[0] when 'quote' then 'Devis supprimé' else 'Groupe supprimé' end
-   where object_type = tg_argv[0] and object_id = old.id and withdrawn_at is null;
+   where object_type = tg_argv[0] and object_id = old.id and withdrawn_at is null
+     and not exists (select 1 from public.document_signatures s
+                      where s.status = 'valid' and s.metadata->>'document_id' = client_shared_documents.id::text);
   return old;
 end
 $$;
@@ -97,17 +100,28 @@ create trigger session_groups_retrait_espace_client after delete on public.sessi
 insert into public.schema_migrations (version) values ('0490_espace_client_retrait_supprimes') on conflict (version) do nothing;
 
 -- ===== supabase/rollback/0490_espace_client_retrait_supprimes_retour.sql =====
--- Retour arrière de 0490 : déclencheurs et fonction retirés, contraintes remises comme en 0404. Les documents déjà
--- retirés restent retirés. Échoue si un document ou un événement de groupe existe déjà (à retirer d'abord).
+-- Retour arrière de 0490 : déclencheurs et fonction retirés, contraintes remises comme en 0404. Elles sont posées sans
+-- contrôle des lignes existantes (not valid), puis validées s'il n'existe aucune ligne de groupe : un document ou un
+-- événement de groupe déjà enregistré (il ne s'efface pas) reste alors en place, et aucun nouveau ne peut être créé.
+-- Les documents déjà retirés restent retirés.
 drop trigger if exists quotes_retrait_espace_client on public.quotes;
 drop trigger if exists session_groups_retrait_espace_client on public.session_groups;
 drop function if exists app.espace_client_retirer_supprime();
 alter table public.client_shared_documents drop constraint if exists client_shared_documents_object_type_check;
 alter table public.client_shared_documents add constraint client_shared_documents_object_type_check
-  check (object_type = any (array['client', 'session', 'invoice', 'quote', 'itv_visit', 'itv_contract']));
+  check (object_type = any (array['client', 'session', 'invoice', 'quote', 'itv_visit', 'itv_contract'])) not valid;
 alter table public.portal_events drop constraint if exists portal_events_object_type_check;
 alter table public.portal_events add constraint portal_events_object_type_check
-  check (object_type is null or object_type in ('client', 'session', 'invoice', 'quote', 'itv_visit', 'itv_contract'));
+  check (object_type is null or object_type in ('client', 'session', 'invoice', 'quote', 'itv_visit', 'itv_contract')) not valid;
+do $$
+begin
+  if not exists (select 1 from public.client_shared_documents where object_type = 'session_group') then
+    alter table public.client_shared_documents validate constraint client_shared_documents_object_type_check;
+  end if;
+  if not exists (select 1 from public.portal_events where object_type = 'session_group') then
+    alter table public.portal_events validate constraint portal_events_object_type_check;
+  end if;
+end $$;
 
 delete from public.schema_migrations where version = '0490_espace_client_retrait_supprimes';
 

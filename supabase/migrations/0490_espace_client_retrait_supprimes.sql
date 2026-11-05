@@ -2,7 +2,8 @@
 -- Jusqu'ici, supprimer un devis publié (ou un groupe dont la convention était mise à signer) laissait son PDF
 -- visible, et même signable, dans l'espace du client. Désormais la suppression retire le document : il est gardé,
 -- avec la date, l'auteur et le motif du retrait (une ligne de client_shared_documents ne s'efface jamais, 0404).
--- La signature en ligne refuse déjà un document retiré (0420). Rien ne part par e-mail. Aucune donnée supprimée.
+-- Un document signé en ligne n'est jamais retiré : il reste la preuve que le client consulte. La signature en ligne
+-- refuse déjà un document retiré (0420). Rien ne part par e-mail. Aucune donnée supprimée.
 -- Convention ou contrat d'un groupe inter (0420) : les contraintes de 0404 n'acceptaient pas l'objet « session_group »,
 -- si bien que sa mise à disposition échouait toujours (0 document de groupe en production, relevé le 05/11). Elles
 -- l'acceptent désormais ; tant qu'il n'est pas signé, un nouveau document du groupe remplace le précédent
@@ -26,7 +27,9 @@ begin
   update public.client_shared_documents
      set withdrawn_at = now(),
          withdrawn_reason = case tg_argv[0] when 'quote' then 'Devis supprimé' else 'Groupe supprimé' end
-   where object_type = tg_argv[0] and object_id = old.id and withdrawn_at is null;
+   where object_type = tg_argv[0] and object_id = old.id and withdrawn_at is null
+     and not exists (select 1 from public.document_signatures s
+                      where s.status = 'valid' and s.metadata->>'document_id' = client_shared_documents.id::text);
   return old;
 end
 $$;

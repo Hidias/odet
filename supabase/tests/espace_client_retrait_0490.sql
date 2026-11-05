@@ -1,10 +1,11 @@
 -- Essai local de 0490 : la suppression d'un devis ou d'un groupe inter retire son document de l'espace client
--- (gardé, avec motif) ; les documents des autres objets restent visibles.
+-- (gardé, avec motif) ; les documents des autres objets et un document signé en ligne restent visibles ;
+-- la suppression d'une session retire, par cascade, le document non signé de ses groupes.
 begin;
 set local client_min_messages = warning;
 do $$
 declare
-  v_cie uuid; v_cli uuid; v_q1 uuid; v_q2 uuid; v_s uuid; v_g uuid; d1 uuid; d2 uuid; d3 uuid;
+  v_cie uuid; v_cli uuid; v_q1 uuid; v_q2 uuid; v_s uuid; v_g uuid; v_g2 uuid; v_g3 uuid; v_s2 uuid; d1 uuid; d2 uuid; d3 uuid; d4 uuid; d5 uuid;
   v_sha text := repeat('a', 64);
   r record;
 begin
@@ -32,8 +33,25 @@ begin
   select * into r from public.client_shared_documents where id = d3;
   if r.withdrawn_at is null or r.withdrawn_reason <> 'Groupe supprimé' then raise exception '3. groupe supprimé : document toujours visible'; end if;
 
-  -- Une seconde suppression d'un objet sans document ne fait rien
-  delete from public.quotes where id = v_q2 and false;
+  -- Document de groupe signé en ligne : jamais retiré, même groupe supprimé
+  insert into public.session_groups (session_id, client_id, company_id) values (v_s, v_cli, v_cie) returning id into v_g2;
+  insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+    values (v_cie, v_cli, 'session_group', v_g2, 'contrat', 'Convention signée', 'x/g2.pdf', v_sha) returning id into d4;
+  insert into public.document_signatures (document_type, client_id, signer_type, signer_name, signature_data, signed_at, metadata, status, company_id)
+    values ('contrat', v_cli, 'client', 'Signataire essai', 'data:image/png;base64,AA', now(), jsonb_build_object('document_id', d4), 'valid', v_cie);
+  delete from public.session_groups where id = v_g2;
+  if (select withdrawn_at from public.client_shared_documents where id = d4) is not null then raise exception '4. document signé retiré'; end if;
+
+  -- Suppression d'une session : ses groupes partent en cascade, leur document non signé est retiré
+  insert into public.sessions (reference, start_date, end_date, status, session_type, company_id)
+    values ('ESSAI-0490-S2', current_date + 40, current_date + 40, 'planned', 'inter', v_cie) returning id into v_s2;
+  insert into public.session_groups (session_id, client_id, company_id) values (v_s2, v_cli, v_cie) returning id into v_g3;
+  insert into public.client_shared_documents (company_id, client_id, object_type, object_id, kind, label, file_path, sha256)
+    values (v_cie, v_cli, 'session_group', v_g3, 'contrat', 'Convention S2', 'x/g3.pdf', v_sha) returning id into d5;
+  delete from public.sessions where id = v_s2;
+  if (select withdrawn_reason from public.client_shared_documents where id = d5) is distinct from 'Groupe supprimé' then
+    raise exception '5. session supprimée : document du groupe toujours visible';
+  end if;
   if not exists (select 1 from public.schema_migrations where version = '0490_espace_client_retrait_supprimes') then
     raise exception '0490 non inscrite';
   end if;
