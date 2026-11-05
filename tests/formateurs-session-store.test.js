@@ -1,5 +1,6 @@
 // C6 : plusieurs formateurs sur une session, enregistrés dans session_trainers (lue par la base pour les droits)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { readFileSync } from 'node:fs'
 
 const appels = []
 function requete(table) {
@@ -18,7 +19,11 @@ function requete(table) {
       }
       return chaine
     },
-    update: () => fin({}),
+    update: (valeurs) => {
+      appels.push({ table, op: 'update', valeurs })
+      const chaine = { eq: () => chaine, select: () => ({ single: async () => ({ data: { id: 'S1', trainer_id: valeurs.trainer_id ?? 'A' }, error: null }) }) }
+      return chaine
+    },
   }
 }
 vi.mock('../src/core/supabase', () => ({ supabase: { from: (t) => requete(t) } }))
@@ -54,5 +59,23 @@ describe('formateurs d\'une session (C6)', () => {
     await useDataStore.getState().enregistrerFormateursSession('S1', null, [])
     expect(appels.filter((a) => a.table === 'session_trainers').map((a) => a.op)).toEqual(['delete'])
     expect(appels.find((a) => a.op === 'delete').filtres).toEqual([['eq', 'session_id', 'S1']])
+  })
+
+  it('updateSession sans trainer_ids ne touche pas session_trainers (formateur qui change son horaire)', async () => {
+    const { error } = await useDataStore.getState().updateSession('S1', { start_time: '10:00' })
+    expect(error).toBeNull()
+    expect(appels.some((a) => a.table === 'session_trainers')).toBe(false)
+  })
+
+  it('updateSession : A et B deviennent B seul, A est retiré', async () => {
+    await useDataStore.getState().updateSession('S1', { trainer_ids: ['B'] })
+    expect(appels.find((a) => a.table === 'sessions' && a.op === 'update').valeurs.trainer_id).toBe('B')
+    expect(appels.find((a) => a.op === 'upsert').rows).toEqual([{ session_id: 'S1', trainer_id: 'B' }])
+    expect(appels.find((a) => a.op === 'delete').filtres).toEqual([['eq', 'session_id', 'S1'], ['not', 'trainer_id', 'in', '(B)']])
+  })
+
+  it('la lecture de session_trainers trie sur sa clé (la table n\'a pas de colonne id)', () => {
+    const src = readFileSync(new URL('../src/core/store.js', import.meta.url), 'utf8')
+    expect(src).toMatch(/from\('session_trainers'\)\.select\('session_id, trainer_id'\), \{ orderBy: \['session_id', 'trainer_id'\] \}/)
   })
 })

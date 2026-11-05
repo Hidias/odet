@@ -601,7 +601,7 @@ export const useDataStore = create((set, get) => ({
         { data: traineesData },
         { data: sessionTraineesData },
         { data: contactsData },
-        { data: sessionTrainersData }
+        { data: sessionTrainersData, error: sessionTrainersError }
       ] = await Promise.all([
         // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
         fetchAll(() => supabase.from('sessions').select('*').order('start_date', { ascending: false })),
@@ -612,7 +612,8 @@ export const useDataStore = create((set, get) => ({
         fetchAll(() => supabase.from('session_trainees').select('id, session_id, trainee_id, registration_date, result, admin_observation, expectations_notification_sent, presence_complete, early_departure, access_code, positioning_test_completed, positioning_test_completed_at, forprev_card_url, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, convocation_sent_at, absent, absent_reason')),
         fetchAll(() => supabase.from('client_contacts').select('*')),
         // Autres formateurs (C6)
-        fetchAll(() => supabase.from('session_trainers').select('session_id, trainer_id'))
+        // Pas de colonne id dans session_trainers : tri sur sa clé
+        fetchAll(() => supabase.from('session_trainers').select('session_id, trainer_id'), { orderBy: ['session_id', 'trainer_id'] })
       ])
       
       if (sessionsError) {
@@ -704,7 +705,8 @@ export const useDataStore = create((set, get) => ({
         trainers: trainersMap.get(s.trainer_id) || null,
         contact: contactsMap.get(s.contact_id) || null,
         session_trainees: sessionTraineesMap.get(s.id) || [],
-        autres_formateurs: autresFormateursIds(sessionTrainersMap.get(s.id), s.trainer_id).map(id => trainersMap.get(id)).filter(Boolean)
+        // null = liste inconnue (lecture en échec) : rien ne doit être réécrit à partir d'elle
+        autres_formateurs: sessionTrainersError ? null : autresFormateursIds(sessionTrainersMap.get(s.id), s.trainer_id).map(id => trainersMap.get(id)).filter(Boolean)
       }))
       
       set({ sessions, sessionsLoading: false })
@@ -755,10 +757,10 @@ export const useDataStore = create((set, get) => ({
         data.trainers = trainer
       }
       // Autres formateurs (C6)
-      const { data: lignesFormateurs } = await supabase.from('session_trainers').select('trainer_id').eq('session_id', id)
+      const { data: lignesFormateurs, error: errLignes } = await supabase.from('session_trainers').select('trainer_id').eq('session_id', id)
       const autresIds = autresFormateursIds(lignesFormateurs, data.trainer_id)
-      data.autres_formateurs = []
-      if (autresIds.length) {
+      data.autres_formateurs = errLignes ? null : []
+      if (!errLignes && autresIds.length) {
         const { data: autres } = await supabase.from('trainers').select('*').in('id', autresIds)
         data.autres_formateurs = autres || []
       }
@@ -941,7 +943,7 @@ export const useDataStore = create((set, get) => ({
         const { error: errFormateurs } = await get().enregistrerFormateursSession(id, data.trainer_id, autresIds)
         if (errFormateurs) {
           await get().fetchSessions()
-          return { data, error: errFormateurs }
+          return { data, error: { ...errFormateurs, message: `Session enregistrée, mais les formateurs n'ont pas été mis à jour : ${errFormateurs.message}` } }
         }
       }
       // Mettre à jour les stagiaires si fournis

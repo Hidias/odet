@@ -163,6 +163,8 @@ export default function SessionDetail() {
   // Gardes des boutons d'écriture (branche ecrans/gardes)
   const d = useDroits({
     modifier: ['formation.sessions.modifier', 'formation.sessions.modifier_siennes'],
+    // Changer les formateurs d'une session : écriture dans session_trainers, réservée à ce droit (C6)
+    formateurs: 'formation.sessions.modifier',
     supprimer: 'formation.sessions.supprimer',
     preparer: ['formation.sessions.preparer', 'formation.sessions.modifier_siennes'],
     suivi: ['formation.suivi.gerer', 'formation.sessions.modifier_siennes'],
@@ -623,7 +625,7 @@ export default function SessionDetail() {
         max_participants: found.max_participants ?? '',
         is_intra: found.is_intra || false,
         trainer_id: currentTrainer,
-        autres_formateurs_ids: (found.autres_formateurs || []).map(t => t.id),
+        autres_formateurs_ids: found.autres_formateurs ? found.autres_formateurs.map(t => t.id) : null,
         requires_forprev: found.requires_forprev || false,
         forprev_done: found.forprev_done || false,
         contact_id: found.contact_id || '',
@@ -2102,8 +2104,20 @@ export default function SessionDetail() {
     try {
       // Mise à jour des infos session
       const { trainer_id, autres_formateurs_ids, ...sessionData } = editForm
-      // Formateurs (C6) : le principal et les autres, enregistrés ensemble par updateSession
-      sessionData.trainer_ids = trainer_id ? [trainer_id, ...(autres_formateurs_ids || [])] : []
+      // Formateurs (C6) : envoyés seulement s'ils ont changé (sinon un formateur qui modifie l'horaire de sa session
+      // n'a pas à écrire dans session_trainers) ; une session de sous-traitance n'a que son formateur principal
+      const autresInitiaux = session.autres_formateurs ? session.autres_formateurs.map(t => t.id) : null
+      const autresVoulus = session.session_type === 'subcontract' ? [] : (autres_formateurs_ids || [])
+      const principalChange = (trainer_id || null) !== (session.trainer_id || null)
+      const autresChange = autresInitiaux !== null
+        && (autresVoulus.length !== autresInitiaux.length || autresVoulus.some(x => !autresInitiaux.includes(x)))
+      if (principalChange || autresChange || (autresInitiaux === null && autresVoulus.length)) {
+        if (autresInitiaux === null) {
+          toast.error("Les formateurs de la session n'ont pas pu être lus : rechargez la page avant de les changer.")
+          return
+        }
+        sessionData.trainer_ids = trainer_id ? [trainer_id, ...autresVoulus] : []
+      }
       
       console.log('Saving session with data:', sessionData)
       
@@ -3202,7 +3216,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     </div>
                     <div>
                       <label className="label">Formateur</label>
-                      <select className="input" value={editForm.trainer_id} onChange={(e) => setEditForm({...editForm, trainer_id: e.target.value})}>
+                      <select className="input" value={editForm.trainer_id} disabled={!d.formateurs} onChange={(e) => setEditForm({...editForm, trainer_id: e.target.value})}>
                         <option value="">-- Non assigné --</option>
                         {trainers.map(t => (
                           <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
@@ -5764,10 +5778,17 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     })} />
                 )}
                 
-                {/* Formateurs : principal et autres (C6) */}
-                <ChoixFormateurs trainers={trainers} idBase="session-formateurs"
-                  principalId={editForm.trainer_id} autresIds={editForm.autres_formateurs_ids}
-                  onChange={({ principalId, autresIds }) => setEditForm({ ...editForm, trainer_id: principalId, autres_formateurs_ids: autresIds })} />
+                {/* Formateurs : principal et autres (C6), modifiables avec le droit de modifier toutes les sessions */}
+                {d.formateurs ? (
+                  <ChoixFormateurs trainers={trainers} idBase="session-formateurs"
+                    principalId={editForm.trainer_id} autresIds={editForm.autres_formateurs_ids || []}
+                    onChange={({ principalId, autresIds }) => setEditForm({ ...editForm, trainer_id: principalId, autres_formateurs_ids: autresIds })} />
+                ) : (
+                  <div>
+                    <p className="label">Formateurs</p>
+                    <p className="text-ui text-gray-600">{[session.trainers, ...(session.autres_formateurs || [])].filter(Boolean).map(t => `${t.first_name} ${t.last_name}`).join(', ') || 'Non assigné'}</p>
+                  </div>
+                )}
                 
                 <div>
                   <label className="label">Prix total HT (€) - surcharge le prix formation</label>
