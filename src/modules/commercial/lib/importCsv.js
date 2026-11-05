@@ -16,7 +16,8 @@ export const CHAMPS_IMPORT = [
   { cle: 'contact_last_name', label: 'Contact : nom', alias: ['nom contact', 'contact nom'] },
   { cle: 'contact_first_name', label: 'Contact : prénom', alias: ['prenom contact', 'contact prenom', 'prenom'] },
   { cle: 'contact_email', label: 'Contact : e-mail', alias: ['email contact', 'e-mail contact', 'mail contact'] },
-  { cle: 'contact_phone', label: 'Contact : téléphone', alias: ['telephone contact', 'mobile contact', 'tel contact', 'portable contact', 'mobile', 'portable'] },
+  { cle: 'contact_phone', label: 'Contact : téléphone fixe', alias: ['telephone contact', 'tel contact'] },
+  { cle: 'contact_mobile', label: 'Contact : mobile', alias: ['mobile contact', 'portable contact', 'mobile', 'portable'] },
   { cle: 'contact_role', label: 'Contact : fonction', alias: ['fonction contact', 'fonction', 'poste'] },
   { cle: 'contact_primary', label: 'Contact principal (oui ou non)', alias: ['contact principal', 'principal'] },
 ]
@@ -24,8 +25,11 @@ export const CHAMPS_IMPORT = [
 const normaliser = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
   .replace(/[_.:'’]/g, ' ').replace(/\s+/g, ' ').trim()
 
-/** Texte du fichier : UTF-8, sinon Windows-1252 (exports Excel français) quand l'UTF-8 donne des caractères illisibles */
+/** Texte du fichier : UTF-16 si le fichier l'annonce (« Texte Unicode » d'Excel), UTF-8, sinon Windows-1252 (exports Excel français) quand l'UTF-8 donne des caractères illisibles */
 export function decoderFichier(buffer) {
+  const o = new Uint8Array(buffer.slice(0, 2))
+  if (o[0] === 0xff && o[1] === 0xfe) return new TextDecoder('utf-16le').decode(buffer).replace(/^\uFEFF/, '')
+  if (o[0] === 0xfe && o[1] === 0xff) return new TextDecoder('utf-16be').decode(buffer).replace(/^\uFEFF/, '')
   const utf8 = new TextDecoder('utf-8').decode(buffer)
   if (!utf8.includes('�')) return utf8.replace(/^﻿/, '')
   return new TextDecoder('windows-1252').decode(buffer)
@@ -43,31 +47,43 @@ function separateur(texte) {
   return Object.entries(compte).sort((a, b) => b[1] - a[1])[0][1] > 0 ? Object.entries(compte).sort((a, b) => b[1] - a[1])[0][0] : ';'
 }
 
-/** Lecture CSV : guillemets, guillemets doublés, retours à la ligne dans une cellule. Renvoie { entetes, lignes } */
+/**
+ * Lecture CSV : guillemets en début de cellule, guillemets doublés, retours à la ligne dans une cellule. Un guillemet au
+ * milieu d'une cellule non entourée de guillemets (27" par exemple) reste un caractère ordinaire.
+ * Renvoie { entetes, lignes, infos } ; infos[i] : numéro de la ligne du fichier où commence la ligne i (en-tête = 1)
+ * et nombre de cellules lues (plus que l'en-tête : séparateur probable dans une valeur).
+ */
 export function lireCsv(texte) {
-  const t = String(texte || '').replace(/^﻿/, '')
+  const t = String(texte || '').replace(/^\uFEFF/, '')
   const sep = separateur(t)
   const rangs = []
-  let rang = []; let cell = ''; let dedans = false
+  let rang = []; let cell = ''; let dedans = false; let entreGuillemets = false
+  let ligne = 1; let debut = 1
+  const finCellule = () => { rang.push(entreGuillemets ? cell : cell.trim()); cell = ''; entreGuillemets = false }
   for (let i = 0; i < t.length; i++) {
     const ch = t[i]
     if (dedans) {
       if (ch === '"' && t[i + 1] === '"') { cell += '"'; i++ }
       else if (ch === '"') dedans = false
-      else cell += ch
-    } else if (ch === '"') dedans = true
-    else if (ch === sep) { rang.push(cell); cell = '' }
+      else { if (ch === '\n') ligne++; cell += ch }
+    } else if (ch === '"' && cell.trim() === '' && !entreGuillemets) { dedans = true; entreGuillemets = true; cell = '' }
+    else if (ch === sep) finCellule()
     else if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && t[i + 1] === '\n') i++
-      rang.push(cell); rangs.push(rang); rang = []; cell = ''
+      finCellule(); rangs.push({ cellules: rang, numero: debut }); rang = []
+      ligne++; debut = ligne
     } else cell += ch
   }
-  if (cell !== '' || rang.length) { rang.push(cell); rangs.push(rang) }
-  const pleins = rangs.filter((r) => r.some((c) => c.trim() !== ''))
-  if (pleins.length === 0) return { entetes: [], lignes: [] }
-  const entetes = pleins[0].map((h) => h.trim())
-  const lignes = pleins.slice(1).map((r) => entetes.map((_, j) => (r[j] ?? '').trim()))
-  return { entetes, lignes }
+  if (cell !== '' || rang.length) { finCellule(); rangs.push({ cellules: rang, numero: debut }) }
+  const pleins = rangs.filter((r) => r.cellules.some((c) => c.trim() !== ''))
+  if (pleins.length === 0) return { entetes: [], lignes: [], infos: [] }
+  const entetes = pleins[0].cellules.map((h) => h.trim())
+  const corps = pleins.slice(1)
+  return {
+    entetes,
+    lignes: corps.map((r) => entetes.map((_, j) => (r.cellules[j] ?? '').trim())),
+    infos: corps.map((r) => ({ numero: r.numero, cellules: r.cellules.filter((c, j) => j < entetes.length || c.trim() !== '').length })),
+  }
 }
 
 /** Correspondance proposée : intitulé identique à un alias d'abord, puis intitulé qui contient l'alias ; une colonne sert une fois */
@@ -95,12 +111,17 @@ const OUI = new Set(['oui', 'o', 'y', 'yes', 'x', '1', 'vrai', 'true'])
  * Lignes regroupées par identifiant de l'ancien outil, sinon par SIRET, sinon par nom : une ligne par contact.
  * Renvoie { societes, ecartees } ; `ecartees` : numéro de ligne du fichier (en-tête = 1) et motif.
  */
-export function construireSocietes(lignes, corr) {
+export function construireSocietes(lignes, corr, infos = [], nbColonnes = null) {
   const val = (l, cle) => (corr[cle] == null ? '' : String(l[corr[cle]] ?? '').trim())
   const societes = new Map()
   const ecartees = []
   lignes.forEach((l, i) => {
-    const numero = i + 2
+    const numero = infos[i]?.numero ?? i + 2
+    const nbCol = nbColonnes ?? l.length
+    if (infos[i] && infos[i].cellules > nbCol) {
+      ecartees.push({ ligne: numero, nom: val(l, 'name') || undefined, motif: `${infos[i].cellules} cellules pour ${nbCol} colonnes : un séparateur se trouve sans doute dans une valeur (mettez-la entre guillemets)` })
+      return
+    }
     const name = val(l, 'name')
     if (!name) { ecartees.push({ ligne: numero, motif: 'Nom de la société vide' }); return }
     const siret = siretPropre(val(l, 'siret'))
@@ -123,8 +144,9 @@ export function construireSocietes(lignes, corr) {
       if (!deja) {
         s.contacts.push({
           last_name: nom, first_name: prenom, name: `${prenom} ${nom}`.trim(), email,
-          phone: val(l, 'contact_phone'), role: val(l, 'contact_role'),
-          is_primary: OUI.has(normaliser(val(l, 'contact_primary'))),
+          phone: val(l, 'contact_phone'), mobile: val(l, 'contact_mobile'), role: val(l, 'contact_role'),
+          // Un seul contact principal par société : le premier marqué dans le fichier
+          is_primary: OUI.has(normaliser(val(l, 'contact_primary'))) && !s.contacts.some((c) => c.is_primary),
         })
       }
     }
@@ -143,12 +165,17 @@ export function marquerDoublons(societes, clientsExistants = []) {
     if (s) parSiret.set(s, c)
     if (c.name) parNom.set(normaliser(c.name), c)
   }
-  const vus = new Set()
+  const vus = new Set(); const nomsVus = new Set()
   return societes.map((s) => {
-    if (s.siret && parSiret.has(s.siret)) return { ...s, etat: 'doublon', motif: `SIRET déjà connu : ${parSiret.get(s.siret).name}`, selected: false }
-    if (s.siret && vus.has(s.siret)) return { ...s, etat: 'doublon', motif: 'SIRET déjà présent plus haut dans le fichier', selected: false }
+    const n = normaliser(s.name)
+    const perdus = s.contacts?.length ? ` ; ${s.contacts.length} contact(s) non importé(s) : ${s.contacts.map((c) => c.name).join(', ')}` : ''
+    if (s.siret && parSiret.has(s.siret)) return { ...s, etat: 'doublon', motif: `SIRET déjà connu : ${parSiret.get(s.siret).name}${perdus}`, selected: false }
+    if (s.siret && vus.has(s.siret)) return { ...s, etat: 'doublon', motif: `SIRET déjà présent plus haut dans le fichier${perdus}`, selected: false }
     if (s.siret) vus.add(s.siret)
-    if (parNom.has(normaliser(s.name))) return { ...s, etat: 'nom_connu', motif: `Un client porte déjà ce nom : ${parNom.get(normaliser(s.name)).name}`, selected: false }
+    const dejaFichier = nomsVus.has(n)
+    nomsVus.add(n)
+    if (parNom.has(n)) return { ...s, etat: 'nom_connu', motif: `Un client porte déjà ce nom : ${parNom.get(n).name}`, selected: false }
+    if (dejaFichier) return { ...s, etat: 'nom_connu', motif: 'Même nom plus haut dans le fichier', selected: false }
     return { ...s, etat: 'nouveau', motif: '', selected: true }
   })
 }
@@ -165,6 +192,8 @@ export function ligneClient(s) {
     contact_email: avecContacts ? null : (s.email || null),
     contact_phone: avecContacts ? null : (s.phone || null),
     email: s.email || null,
+    // La fiche client n'a qu'un téléphone, celui du contact principal : avec des contacts, le standard va dans les notes
+    notes: avecContacts && s.phone ? `Téléphone de la société : ${s.phone}` : null,
     status: 'a_completer',
     external_source: 'csv',
     external_ref: s.external_ref || null,

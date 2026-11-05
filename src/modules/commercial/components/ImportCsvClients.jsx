@@ -14,7 +14,7 @@ const ETATS = {
 }
 
 export default function ImportCsvClients({ texte, nomFichier, clients, onClose, onImporte }) {
-  const { entetes, lignes } = useMemo(() => lireCsv(texte), [texte])
+  const { entetes, lignes, infos } = useMemo(() => lireCsv(texte), [texte])
   const [corr, setCorr] = useState(() => correspondanceAuto(entetes))
   const [etape, setEtape] = useState('colonnes')
   const [apercu, setApercu] = useState(null)
@@ -23,7 +23,7 @@ export default function ImportCsvClients({ texte, nomFichier, clients, onClose, 
 
   const preparer = () => {
     if (corr.name == null) return toast.error('Choisissez la colonne du nom de la société')
-    const { societes, ecartees } = construireSocietes(lignes, corr)
+    const { societes, ecartees } = construireSocietes(lignes, corr, infos, entetes.length)
     setApercu({ societes: marquerDoublons(societes, clients), ecartees })
     setEtape('apercu')
   }
@@ -40,10 +40,11 @@ export default function ImportCsvClients({ texte, nomFichier, clients, onClose, 
       if (s.contacts.length) {
         const { error: errC } = await supabase.from('client_contacts').insert(s.contacts.map((c) => ({
           client_id: client.id, name: c.name, first_name: c.first_name || null, last_name: c.last_name || null,
-          email: c.email || null, phone: c.phone || null, role: c.role || null, is_primary: c.is_primary,
+          email: c.email || null, phone: c.phone || null, mobile: c.mobile || null, role: c.role || null, is_primary: c.is_primary,
         })))
         if (errC) erreurs.push({ nom: s.name, motif: `client créé, contacts non créés : ${errC.message}` })
-        await supabase.rpc('client_contact_sync_primary', { p_client_id: client.id }).then(() => {}, () => {})
+        const { error: errP } = await supabase.rpc('client_contact_sync_primary', { p_client_id: client.id })
+        if (errP) erreurs.push({ nom: s.name, motif: `contact principal non recopié sur la fiche : ${errP.message}` })
       }
       crees.push(s.name)
     }
